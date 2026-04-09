@@ -53,11 +53,14 @@ jobs:
       - name: Install Python dependencies
         run: pip install -e ./apps/control-plane
 
+      - name: Build Helm dependencies
+        run: helm dependency build deploy/helm/redis
+
       - name: Helm lint
-        run: helm lint deploy/helm/postgresql --dependency-update
+        run: helm lint deploy/helm/postgresql
 
       - name: Helm lint Redis
-        run: helm lint deploy/helm/redis --strict --dependency-update
+        run: helm lint deploy/helm/redis --strict
 
       - name: Manifest validation
         run: helm template musematic-postgres deploy/helm/postgresql --set credentials.password=postgres | kubeconform -strict -kubernetes-version 1.29.0
