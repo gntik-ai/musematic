@@ -16,9 +16,8 @@ redis-cluster:
       memory: 1Gi
   metrics:
     enabled: false
-  podDisruptionBudget:
-    enabled: false
+  pdb:
+    create: false
 
 networkPolicy:
   enabled: false
-

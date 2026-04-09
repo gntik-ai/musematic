@@ -17,10 +17,9 @@ redis-cluster:
     enabled: true
     serviceMonitor:
       enabled: true
-  podDisruptionBudget:
-    enabled: true
+  pdb:
+    create: true
     maxUnavailable: 1
 
 networkPolicy:
   enabled: true
-
