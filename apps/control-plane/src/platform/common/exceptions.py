@@ -16,3 +16,7 @@ class ObjectNotFoundError(ObjectStorageError):
 
 class BucketNotFoundError(ObjectStorageError):
     """Raised when a target bucket does not exist."""
+
+
+class QdrantError(Exception):
+    """Raised when Qdrant operations fail."""

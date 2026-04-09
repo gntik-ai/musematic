@@ -1,0 +1,16 @@
+qdrant:
+  replicaCount: 1
+  config:
+    cluster:
+      enabled: false
+  persistence:
+    size: 10Gi
+  resources:
+    requests:
+      memory: 512Mi
+collections:
+  replicationFactor: 1
+networkPolicy:
+  enabled: false
+backup:
+  enabled: false

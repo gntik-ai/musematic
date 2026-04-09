@@ -1,0 +1,44 @@
+{{- if .Values.backup.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: musematic-qdrant-backup
+  namespace: {{ .Release.Namespace }}
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: "{{ .Values.backup.image.repository }}:{{ .Values.backup.image.tag }}"
+              command:
+                - python3
+                - /app/scripts/backup_qdrant_snapshots.py
+              env:
+                - name: QDRANT_URL
+                  value: http://musematic-qdrant:6333
+                - name: QDRANT_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: qdrant-api-key
+                      key: QDRANT_API_KEY
+                - name: MINIO_ENDPOINT
+                  value: http://musematic-minio.platform-data:9000
+                - name: MINIO_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: minio-platform-credentials
+                      key: MINIO_ACCESS_KEY
+                - name: MINIO_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: minio-platform-credentials
+                      key: MINIO_SECRET_KEY
+                - name: BACKUP_BUCKET
+                  value: {{ .Values.backup.bucket | quote }}
+                - name: QDRANT_SNAPSHOT_PREFIX
+                  value: {{ .Values.backup.prefix | quote }}
+{{- end }}

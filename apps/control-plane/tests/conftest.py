@@ -3,6 +3,8 @@ from __future__ import annotations
 from collections.abc import AsyncIterator, Iterator
 import os
 import time
+from urllib import request
+from uuid import uuid4
 
 import boto3
 import pytest
@@ -15,6 +17,7 @@ from testcontainers.redis import RedisContainer
 
 from helpers import make_async_database_url, run_alembic
 from platform.common.clients.object_storage import AsyncObjectStorageClient
+from platform.common.clients.qdrant import AsyncQdrantClient
 from platform.common.config import Settings
 from platform.common.clients.redis import AsyncRedisClient
 
@@ -184,3 +187,77 @@ def object_storage_settings(
 async def object_storage_client(object_storage_settings: Settings) -> AsyncIterator[AsyncObjectStorageClient]:
     client = AsyncObjectStorageClient(object_storage_settings)
     yield client
+
+
+@pytest.fixture(scope="session")
+def qdrant_server() -> Iterator[dict[str, object]]:
+    if os.environ.get("QDRANT_TEST_MODE") == "external":
+        yield {
+            "url": os.environ["QDRANT_TEST_URL"],
+            "api_key": os.environ.get("QDRANT_TEST_API_KEY", ""),
+            "grpc_port": int(os.environ.get("QDRANT_TEST_GRPC_PORT", "6334")),
+        }
+        return
+
+    container = (
+        DockerContainer("qdrant/qdrant:v1.16.3")
+        .with_exposed_ports(6333, 6334)
+        .with_env("QDRANT__SERVICE__API_KEY", "qdrant-test-key")
+    )
+    with container:
+        host = container.get_container_host_ip()
+        port = container.get_exposed_port(6333)
+        url = f"http://{host}:{port}"
+        headers = {"Authorization": "api-key qdrant-test-key"}
+        for _ in range(30):
+            try:
+                req = request.Request(f"{url}/healthz", headers=headers)
+                with request.urlopen(req, timeout=5):
+                    break
+            except Exception:
+                time.sleep(1)
+        else:  # pragma: no cover - startup failure
+            raise RuntimeError("Qdrant test container did not become ready in time.")
+
+        yield {
+            "url": url,
+            "api_key": "qdrant-test-key",
+            "grpc_port": int(container.get_exposed_port(6334)),
+        }
+
+
+@pytest.fixture
+def qdrant_settings(qdrant_server: dict[str, object]) -> Settings:
+    return Settings(
+        QDRANT_URL=str(qdrant_server["url"]),
+        QDRANT_API_KEY=str(qdrant_server["api_key"]),
+        QDRANT_GRPC_PORT=int(qdrant_server["grpc_port"]),
+        QDRANT_COLLECTION_DIMENSIONS=768,
+    )
+
+
+@pytest_asyncio.fixture
+async def qdrant_client(qdrant_settings: Settings) -> AsyncIterator[AsyncQdrantClient]:
+    client = AsyncQdrantClient(qdrant_settings)
+    yield client
+    await client.close()
+
+
+@pytest_asyncio.fixture
+async def qdrant_test_collection(qdrant_client: AsyncQdrantClient, qdrant_settings: Settings) -> AsyncIterator[str]:
+    qdrant_models = __import__("qdrant_client.models", fromlist=["models"])
+    collection_name = f"test-{uuid4().hex}"
+    await qdrant_client.create_collection_if_not_exists(
+        collection=collection_name,
+        vectors_config=qdrant_models.VectorParams(
+            size=qdrant_settings.QDRANT_COLLECTION_DIMENSIONS,
+            distance=qdrant_models.Distance.COSINE,
+        ),
+        hnsw_config=qdrant_models.HnswConfigDiff(m=16, ef_construct=128, full_scan_threshold=10000),
+        replication_factor=1,
+    )
+    yield collection_name
+    try:
+        await qdrant_client._client.delete_collection(collection_name=collection_name)
+    except Exception:
+        return

@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     MINIO_ACCESS_KEY: str = ""
     MINIO_SECRET_KEY: str = ""
     MINIO_USE_SSL: bool = False
+    QDRANT_URL: str = "http://musematic-qdrant.platform-data:6333"
+    QDRANT_API_KEY: str = ""
+    QDRANT_GRPC_PORT: int = 6334
+    QDRANT_COLLECTION_DIMENSIONS: int = 768
 
 
 settings = Settings()
