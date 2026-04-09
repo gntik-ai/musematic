@@ -8,4 +8,10 @@ class Settings(BaseSettings):
 
     KAFKA_BOOTSTRAP_SERVERS: str = "localhost:9092"
     KAFKA_CONSUMER_GROUP_ID: str = "platform-control"
+    MINIO_ENDPOINT: str = "http://musematic-minio.platform-data:9000"
+    MINIO_ACCESS_KEY: str = ""
+    MINIO_SECRET_KEY: str = ""
+    MINIO_USE_SSL: bool = False
 
+
+settings = Settings()

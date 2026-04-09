@@ -1,0 +1,15 @@
+standalone: true
+servers: 1
+volumesPerServer: 1
+storageSize: 10Gi
+
+resources:
+  requests:
+    memory: 512Mi
+    cpu: "250m"
+  limits:
+    memory: 1Gi
+    cpu: "500m"
+
+networkPolicy:
+  enabled: false

@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Musematic control-plane database foundation."
 requires-python = ">=3.11"
 dependencies = [
+  "aioboto3>=13.1",
   "redis[hiredis]>=5.0",
   "pydantic>=2.8",
   "aiokafka>=0.11",
@@ -21,6 +22,12 @@ dependencies = [
   "testcontainers[redis]>=4",
   "ruff>=0.8",
   "mypy>=1.13",
+]
+
+[project.optional-dependencies]
+test = [
+  "aioboto3>=13.1",
+  "testcontainers>=4",
 ]
 
 [tool.setuptools.package-dir]

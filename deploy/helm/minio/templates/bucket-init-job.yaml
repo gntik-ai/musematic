@@ -1,0 +1,62 @@
+{{- $name := include "musematic.minio.fullname" . -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $name }}-bucket-init
+  namespace: {{ include "musematic.minio.namespace" . }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "1"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  template:
+    metadata:
+      labels:
+        job: {{ $name }}-bucket-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mc
+          image: "{{ .Values.images.mc.repository }}:{{ .Values.images.mc.tag }}"
+          command:
+            - /bin/sh
+            - /config/init-buckets.sh
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: minio-root-credentials
+                  key: MINIO_ROOT_USER
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: minio-root-credentials
+                  key: MINIO_ROOT_PASSWORD
+            - name: PLATFORM_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-platform-credentials
+                  key: MINIO_ACCESS_KEY
+            - name: PLATFORM_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-platform-credentials
+                  key: MINIO_SECRET_KEY
+            - name: SIMULATION_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-simulation-credentials
+                  key: MINIO_ACCESS_KEY
+            - name: SIMULATION_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-simulation-credentials
+                  key: MINIO_SECRET_KEY
+          volumeMounts:
+            - name: config
+              mountPath: /config
+      volumes:
+        - name: config
+          configMap:
+            name: {{ $name }}-bucket-init
+            defaultMode: 0755
