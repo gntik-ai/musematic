@@ -1,0 +1,103 @@
+{{- $name := include "musematic.minio.fullname" . -}}
+{{- $endpoint := ternary (printf "http://%s:9000" $name) (printf "http://%s-svc:9000" $name) .Values.standalone -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $name }}-bucket-init
+  namespace: {{ include "musematic.minio.namespace" . }}
+data:
+  init-buckets.sh: |
+    #!/bin/sh
+    set -eu
+
+    endpoint="{{ $endpoint }}"
+
+    until mc alias set local "${endpoint}" "${MINIO_ROOT_USER}" "${MINIO_ROOT_PASSWORD}" >/dev/null 2>&1; do
+      sleep 2
+    done
+
+    create_bucket() {
+      mc mb --ignore-existing "local/$1"
+    }
+
+    apply_expiry() {
+      mc ilm rule add "local/$1" --expire-days "$2" >/dev/null 2>&1 || true
+    }
+
+    apply_cleanup_rule() {
+      mc ilm rule add "local/$1" --expire-days 7 --noncurrent-expire-days 7 >/dev/null 2>&1 || true
+    }
+
+    create_bucket agent-packages
+    create_bucket execution-artifacts
+    create_bucket reasoning-traces
+    create_bucket sandbox-outputs
+    create_bucket evidence-bundles
+    create_bucket simulation-artifacts
+    create_bucket backups
+    create_bucket forensic-exports
+
+    apply_expiry execution-artifacts {{ .Values.buckets.executionArtifactsRetentionDays }}
+    apply_expiry reasoning-traces 90
+    apply_expiry sandbox-outputs 30
+    apply_expiry simulation-artifacts 30
+    apply_expiry backups 30
+    apply_expiry forensic-exports 90
+
+    for bucket in agent-packages execution-artifacts reasoning-traces sandbox-outputs evidence-bundles simulation-artifacts backups forensic-exports; do
+      apply_cleanup_rule "${bucket}"
+    done
+
+    mc version enable "local/agent-packages" >/dev/null 2>&1 || true
+
+    cat <<'EOF' >/tmp/simulation-policy.json
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": ["s3:*"],
+          "Resource": [
+            "arn:aws:s3:::simulation-artifacts",
+            "arn:aws:s3:::simulation-artifacts/*"
+          ]
+        }
+      ]
+    }
+    EOF
+
+    cat <<'EOF' >/tmp/platform-policy.json
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": ["s3:*"],
+          "Resource": [
+            "arn:aws:s3:::agent-packages",
+            "arn:aws:s3:::agent-packages/*",
+            "arn:aws:s3:::execution-artifacts",
+            "arn:aws:s3:::execution-artifacts/*",
+            "arn:aws:s3:::reasoning-traces",
+            "arn:aws:s3:::reasoning-traces/*",
+            "arn:aws:s3:::sandbox-outputs",
+            "arn:aws:s3:::sandbox-outputs/*",
+            "arn:aws:s3:::evidence-bundles",
+            "arn:aws:s3:::evidence-bundles/*",
+            "arn:aws:s3:::backups",
+            "arn:aws:s3:::backups/*",
+            "arn:aws:s3:::forensic-exports",
+            "arn:aws:s3:::forensic-exports/*"
+          ]
+        }
+      ]
+    }
+    EOF
+
+    mc admin user info local "${SIMULATION_ACCESS_KEY}" >/dev/null 2>&1 || mc admin user add local "${SIMULATION_ACCESS_KEY}" "${SIMULATION_SECRET_KEY}"
+    mc admin user info local "${PLATFORM_ACCESS_KEY}" >/dev/null 2>&1 || mc admin user add local "${PLATFORM_ACCESS_KEY}" "${PLATFORM_SECRET_KEY}"
+
+    mc admin policy create local simulation-policy /tmp/simulation-policy.json >/dev/null 2>&1 || true
+    mc admin policy create local platform-policy /tmp/platform-policy.json >/dev/null 2>&1 || true
+    mc admin policy attach local simulation-policy --user "${SIMULATION_ACCESS_KEY}" >/dev/null 2>&1 || true
+    mc admin policy attach local platform-policy --user "${PLATFORM_ACCESS_KEY}" >/dev/null 2>&1 || true

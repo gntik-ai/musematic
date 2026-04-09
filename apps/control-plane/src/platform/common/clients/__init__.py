@@ -1,2 +1,1 @@
-"""Redis and other shared client helpers."""
-
+"""Shared client helpers for platform infrastructure integrations."""

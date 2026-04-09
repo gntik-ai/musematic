@@ -1,0 +1,41 @@
+{{- if not .Values.standalone }}
+{{- $name := include "musematic.minio.fullname" . -}}
+apiVersion: minio.min.io/v2
+kind: Tenant
+metadata:
+  name: {{ $name }}
+  namespace: {{ include "musematic.minio.namespace" . }}
+spec:
+  configuration:
+    name: minio-root-credentials
+  pools:
+    - name: pool-0
+      servers: {{ .Values.servers }}
+      volumesPerServer: {{ .Values.volumesPerServer }}
+      labels:
+        app: minio
+      resources:
+        requests:
+          cpu: {{ .Values.resources.requests.cpu | quote }}
+          memory: {{ .Values.resources.requests.memory | quote }}
+        limits:
+          cpu: {{ .Values.resources.limits.cpu | quote }}
+          memory: {{ .Values.resources.limits.memory | quote }}
+      volumeClaimTemplate:
+        metadata:
+          name: data
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          storageClassName: {{ .Values.storageClass | quote }}
+          resources:
+            requests:
+              storage: {{ .Values.storageSize | quote }}
+  mountPath: /export
+  requestAutoCert: false
+  features:
+    bucketDNS: false
+  prometheusOperator: false
+  # The MinIO Operator exposes the tenant S3 API and console services for this tenant.
+  # Expect the S3 API on port 9000 and the console on port 9001 for {{ $name }}.
+{{- end }}
