@@ -1,0 +1,12 @@
+brokerReplicas: 3
+controllerReplicas: 3
+storage:
+  size: 100Gi
+  class: standard
+resources:
+  requests:
+    memory: 4Gi
+    cpu: "1"
+networkPolicy:
+  enabled: true
+

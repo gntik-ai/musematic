@@ -1,0 +1,9 @@
+combined: true
+combinedReplicas: 1
+replicationFactor: 1
+minInsyncReplicas: 1
+storage:
+  size: 5Gi
+networkPolicy:
+  enabled: false
+

@@ -1,0 +1,19 @@
+{{- if .Values.combined }}
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaNodePool
+metadata:
+  name: {{ .Values.clusterName }}-combined
+  namespace: {{ .Values.namespace }}
+  labels:
+    strimzi.io/cluster: {{ .Values.clusterName }}
+spec:
+  replicas: {{ .Values.combinedReplicas }}
+  roles:
+    - broker
+    - controller
+  storage:
+    type: persistent-claim
+    size: {{ .Values.storage.size | quote }}
+    deleteClaim: false
+{{- end }}
+
