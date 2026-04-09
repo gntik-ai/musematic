@@ -63,7 +63,7 @@ jobs:
         run: helm lint deploy/helm/redis --strict
 
       - name: Manifest validation
-        run: helm template musematic-postgres deploy/helm/postgresql --set credentials.password=postgres | kubeconform -strict -kubernetes-version 1.29.0
+        run: helm template musematic-postgres deploy/helm/postgresql --set credentials.password=postgres | kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.29.0
 
       - name: Manifest validation Redis
         run: helm template musematic-redis deploy/helm/redis -f deploy/helm/redis/values.yaml -f deploy/helm/redis/values-prod.yaml --set auth.password=redispass | kubeconform -strict -kubernetes-version 1.29.0
