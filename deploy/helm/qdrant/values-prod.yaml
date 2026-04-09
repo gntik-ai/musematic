@@ -1,0 +1,12 @@
+qdrant:
+  replicaCount: 3
+  persistence:
+    size: 100Gi
+  resources:
+    requests:
+      memory: 4Gi
+      cpu: "2"
+collections:
+  replicationFactor: 2
+networkPolicy:
+  enabled: true

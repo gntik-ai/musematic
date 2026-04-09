@@ -9,6 +9,7 @@ description = "Musematic control-plane database foundation."
 requires-python = ">=3.11"
 dependencies = [
   "aioboto3>=13.1",
+  "qdrant-client[grpc]>=1.12",
   "redis[hiredis]>=5.0",
   "pydantic>=2.8",
   "pydantic-settings>=2.4",
@@ -28,6 +29,7 @@ dependencies = [
 [project.optional-dependencies]
 test = [
   "aioboto3>=13.1",
+  "qdrant-client[grpc]>=1.12",
   "testcontainers>=4",
 ]
 

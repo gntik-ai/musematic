@@ -1,0 +1,39 @@
+qdrant:
+  replicaCount: 3
+  config:
+    cluster:
+      enabled: true
+      p2p:
+        port: 6335
+    storage:
+      hnsw_index:
+        m: 16
+        ef_construct: 128
+        full_scan_threshold: 10000
+  persistence:
+    storageClassName: standard
+    size: 50Gi
+  resources:
+    requests:
+      memory: 2Gi
+      cpu: "1"
+  # QDRANT__* environment variables map to nested Qdrant config keys.
+  env:
+    - name: QDRANT__SERVICE__API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: qdrant-api-key
+          key: QDRANT_API_KEY
+collections:
+  dimensions: 768
+  replicationFactor: 2
+networkPolicy:
+  enabled: true
+backup:
+  enabled: true
+  schedule: "0 2 * * *"
+  bucket: backups
+  prefix: qdrant
+  image:
+    repository: ghcr.io/gntik-ai/musematic-control-plane
+    tag: latest
