@@ -1,0 +1,33 @@
+environment: production
+
+cnpgOperator:
+  enabled: false
+
+postgresql:
+  maxConnections: "200"
+
+storage:
+  size: 100Gi
+  storageClass: standard
+
+resources:
+  requests:
+    cpu: 1000m
+    memory: 2Gi
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+
+pgbouncer:
+  maxClientConn: 1000
+  defaultPoolSize: 10
+  maxDbConnections: 200
+
+monitoring:
+  enabled: true
+
+credentials:
+  username: postgres
+  password: change-me
+  database: musematic
+  existingSecret: ""

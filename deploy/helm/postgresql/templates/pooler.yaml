@@ -1,0 +1,19 @@
+{{- if eq .Values.environment "production" }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: musematic-pooler
+  namespace: platform-data
+spec:
+  cluster:
+    name: musematic-postgres
+  instances: 2
+  pgbouncer:
+    poolMode: transaction
+    maxClientConn: {{ .Values.pgbouncer.maxClientConn }}
+    defaultPoolSize: {{ .Values.pgbouncer.defaultPoolSize }}
+    maxDbConnections: {{ .Values.pgbouncer.maxDbConnections }}
+  monitoring:
+    enabled: true
+{{- end }}
+

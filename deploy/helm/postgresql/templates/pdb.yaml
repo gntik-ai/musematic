@@ -1,0 +1,14 @@
+{{- if eq .Values.environment "production" }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: musematic-postgres-pdb
+  namespace: platform-data
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      cnpg.io/cluster: musematic-postgres
+      role: instance
+{{- end }}
+

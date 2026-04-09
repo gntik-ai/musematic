@@ -1,0 +1,41 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: musematic-postgres
+  namespace: platform-data
+spec:
+  instances: {{ ternary 3 1 (eq .Values.environment "production") }}
+  imageName: ghcr.io/cloudnative-pg/postgresql:16
+  storage:
+    size: {{ .Values.storage.size | quote }}
+    storageClass: {{ .Values.storage.storageClass | quote }}
+  resources:
+    requests:
+      cpu: {{ .Values.resources.requests.cpu | quote }}
+      memory: {{ .Values.resources.requests.memory | quote }}
+    {{- with .Values.resources.limits }}
+    limits:
+      cpu: {{ .cpu | quote }}
+      memory: {{ .memory | quote }}
+    {{- end }}
+  monitoring:
+    enabled: {{ and .Values.monitoring.enabled (eq .Values.environment "production") }}
+  bootstrap:
+    initdb:
+      database: {{ .Values.credentials.database | quote }}
+      owner: {{ .Values.credentials.username | quote }}
+      secret:
+        name: {{ default "postgres-credentials" .Values.credentials.existingSecret | quote }}
+  replicationSlots:
+    highAvailability:
+      enabled: {{ eq .Values.environment "production" }}
+  postgresql:
+    version: "16"
+    parameters:
+      max_connections: {{ .Values.postgresql.maxConnections | quote }}
+      shared_buffers: "256MB"
+      {{- if eq .Values.environment "production" }}
+      synchronous_commit: "on"
+      synchronous_standby_names: "*"
+      {{- end }}
+

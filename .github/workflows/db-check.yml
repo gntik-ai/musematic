@@ -1,0 +1,62 @@
+name: Database Checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "001-*"
+
+jobs:
+  db-check:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: musematic
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d musematic"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: azure/setup-helm@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -sSL -o kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
+          tar -xzf kubeconform.tar.gz kubeconform
+          sudo mv kubeconform /usr/local/bin/kubeconform
+
+      - name: Install Python dependencies
+        run: pip install -e ./apps/control-plane
+
+      - name: Helm lint
+        run: helm lint deploy/helm/postgresql --dependency-update
+
+      - name: Manifest validation
+        run: helm template musematic-postgres deploy/helm/postgresql --set credentials.password=postgres | kubeconform -strict -kubernetes-version 1.29.0
+
+      - name: Migration chain integrity
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/musematic
+        run: |
+          make migrate
+          output="$(make migrate-check)"
+          echo "$output"
+          if echo "$output" | grep -q "Rev:"; then
+            echo "Migration graph is not linear"
+            exit 1
+          fi
