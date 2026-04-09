@@ -1,8 +1,5 @@
 environment: production
 
-cnpgOperator:
-  enabled: false
-
 postgresql:
   maxConnections: "200"
 

@@ -141,6 +141,12 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.text("now()"),
         ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
         sa.ForeignKeyConstraint(
             ["workspace_id"], ["workspaces.id"], name="fk_memberships_workspace_id_workspaces"
         ),
@@ -265,6 +271,12 @@ def upgrade() -> None:
         sa.Column("description", sa.Text(), nullable=True),
         sa.Column(
             "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
             sa.DateTime(timezone=True),
             nullable=False,
             server_default=sa.text("now()"),

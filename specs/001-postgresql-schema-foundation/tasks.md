@@ -115,8 +115,8 @@
 
 ## Final Phase: Polish & Cross-Cutting Concerns
 
-- [ ] T030 [P] Run `helm lint deploy/helm/postgresql --strict` and fix any warnings or errors
-- [ ] T031 [P] Run `pytest apps/control-plane/tests/ --cov=platform.common --cov-report=term-missing` and confirm coverage ≥95% on `models/` and `database.py`
+- [X] T030 [P] Run `helm lint deploy/helm/postgresql --strict` and fix any warnings or errors
+- [X] T031 [P] Run `pytest apps/control-plane/tests/ --cov=platform.common --cov-report=term-missing` and confirm coverage ≥95% on `models/` and `database.py`
 - [X] T032 Update `CLAUDE.md` with usage patterns: database session import path, mixin composition conventions, migration workflow commands, connection routing rules (pooler for app, direct for migrations)
 - [X] T033 Walk through `specs/001-postgresql-schema-foundation/quickstart.md` steps against actual implementation and fix any discrepancies
 

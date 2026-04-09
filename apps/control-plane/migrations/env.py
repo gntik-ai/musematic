@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+import threading
 from logging.config import fileConfig
 from pathlib import Path
 
@@ -47,7 +48,24 @@ async def run_migrations_online() -> None:
     await connectable.dispose()
 
 
+def _run_migrations_in_thread() -> None:
+    """Run async migrations in a fresh thread with its own event loop.
+
+    Required when called from within a running event loop (e.g. pytest-asyncio),
+    because asyncio.run() cannot be nested inside an active loop.
+    """
+    asyncio.run(run_migrations_online())
+
+
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    asyncio.run(run_migrations_online())
+    try:
+        asyncio.get_running_loop()
+        # Already inside a running loop — delegate to a background thread.
+        _thread = threading.Thread(target=_run_migrations_in_thread)
+        _thread.start()
+        _thread.join()
+    except RuntimeError:
+        # No running loop — safe to call asyncio.run() directly.
+        asyncio.run(run_migrations_online())

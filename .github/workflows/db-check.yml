@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - "001-*"
+      - "002-*"
 
 jobs:
   db-check:
@@ -21,6 +22,15 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U postgres -d musematic"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -46,8 +56,14 @@ jobs:
       - name: Helm lint
         run: helm lint deploy/helm/postgresql --dependency-update
 
+      - name: Helm lint Redis
+        run: helm lint deploy/helm/redis --strict --dependency-update
+
       - name: Manifest validation
         run: helm template musematic-postgres deploy/helm/postgresql --set credentials.password=postgres | kubeconform -strict -kubernetes-version 1.29.0
+
+      - name: Manifest validation Redis
+        run: helm template musematic-redis deploy/helm/redis -f deploy/helm/redis/values.yaml -f deploy/helm/redis/values-prod.yaml --set auth.password=redispass | kubeconform -strict -kubernetes-version 1.29.0
 
       - name: Migration chain integrity
         env:
@@ -60,3 +76,9 @@ jobs:
             echo "Migration graph is not linear"
             exit 1
           fi
+
+      - name: Redis integration tests
+        env:
+          REDIS_TEST_MODE: standalone
+          REDIS_URL: redis://localhost:6379
+        run: python -m pytest apps/control-plane/tests/integration/test_redis_*.py -v

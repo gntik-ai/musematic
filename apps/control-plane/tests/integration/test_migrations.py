@@ -49,16 +49,12 @@ async def test_downgrade_minus_one(postgres_container) -> None:
     try:
         tables = await _table_names(runtime_engine)
         assert "users" not in tables
+        # Alembic keeps the alembic_version table but empties it after a full downgrade.
         async with runtime_engine.connect() as connection:
-            version_table_exists = await connection.scalar(
-                text(
-                    "SELECT EXISTS ("
-                    "SELECT 1 FROM information_schema.tables "
-                    "WHERE table_schema = 'public' AND table_name = 'alembic_version'"
-                    ")"
-                )
+            version_count = await connection.scalar(
+                text("SELECT COUNT(*) FROM alembic_version")
             )
-        assert not version_table_exists
+        assert version_count == 0
     finally:
         await runtime_engine.dispose()
 
