@@ -1,0 +1,6 @@
+apiVersion: v2
+name: musematic-kafka
+version: 0.1.0
+description: Strimzi Kafka cluster for Musematic platform
+type: application
+

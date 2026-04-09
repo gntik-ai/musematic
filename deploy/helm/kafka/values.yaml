@@ -1,0 +1,71 @@
+clusterName: musematic-kafka
+namespace: platform-data
+kafkaVersion: "3.7.0"
+metadataVersion: "3.7-IV4"
+replicationFactor: 3
+minInsyncReplicas: 2
+logRetentionMs: 604800000
+dlqRetentionMs: 2592000000
+dlqPartitions: 6
+metricsPort: 9404
+combined: false
+topics:
+  - name: interaction.events
+    partitions: 12
+    retentionMs: 604800000
+  - name: workflow.runtime
+    partitions: 12
+    retentionMs: 604800000
+  - name: runtime.lifecycle
+    partitions: 6
+    retentionMs: 259200000
+  - name: runtime.reasoning
+    partitions: 12
+    retentionMs: 604800000
+  - name: runtime.selfcorrection
+    partitions: 12
+    retentionMs: 604800000
+  - name: sandbox.events
+    partitions: 6
+    retentionMs: 259200000
+  - name: workspace.goal
+    partitions: 6
+    retentionMs: 604800000
+  - name: connector.ingress
+    partitions: 12
+    retentionMs: 259200000
+  - name: connector.delivery
+    partitions: 12
+    retentionMs: 259200000
+  - name: monitor.alerts
+    partitions: 6
+    retentionMs: 1209600000
+  - name: trust.events
+    partitions: 6
+    retentionMs: 2592000000
+  - name: evaluation.events
+    partitions: 6
+    retentionMs: 2592000000
+  - name: context.quality
+    partitions: 6
+    retentionMs: 604800000
+  - name: fleet.health
+    partitions: 6
+    retentionMs: 604800000
+  - name: agentops.behavioral
+    partitions: 6
+    retentionMs: 2592000000
+  - name: simulation.events
+    partitions: 6
+    retentionMs: 259200000
+  - name: testing.results
+    partitions: 6
+    retentionMs: 2592000000
+  - name: communication.broadcast
+    partitions: 6
+    retentionMs: 259200000
+  # Attention pattern — agent-initiated urgency signals (see constitution AD-3.13); distinct from monitor.alerts
+  - name: interaction.attention
+    partitions: 6
+    retentionMs: 604800000
+

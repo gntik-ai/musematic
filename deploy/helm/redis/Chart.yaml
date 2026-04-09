@@ -6,6 +6,5 @@ version: 0.1.0
 appVersion: "7.2"
 dependencies:
   - name: redis-cluster
-    version: "14.3.3"
-    repository: https://charts.bitnami.com/bitnami
-
+    version: "13.0.4"
+    repository: oci://registry-1.docker.io/bitnamicharts

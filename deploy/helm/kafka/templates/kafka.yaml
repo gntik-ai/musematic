@@ -1,0 +1,36 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: {{ .Values.clusterName }}
+  namespace: {{ .Values.namespace }}
+  annotations:
+    strimzi.io/node-pools: enabled
+    strimzi.io/kraft: enabled
+spec:
+  kafka:
+    version: {{ .Values.kafkaVersion | quote }}
+    metadataVersion: {{ .Values.metadataVersion | quote }}
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+      - name: internal
+        port: 9091
+        type: internal
+        tls: false
+    config:
+      auto.create.topics.enable: "false"
+      offsets.topic.replication.factor: {{ .Values.replicationFactor }}
+      transaction.state.log.replication.factor: {{ .Values.replicationFactor }}
+      min.insync.replicas: {{ .Values.minInsyncReplicas }}
+      log.retention.ms: {{ .Values.logRetentionMs | quote }}
+    metricsConfig:
+      type: jmxPrometheusExporter
+      valueFrom:
+        configMapKeyRef:
+          name: {{ .Values.clusterName }}-metrics
+          key: kafka-metrics-config.yml
+  entityOperator:
+    topicOperator: {}
+

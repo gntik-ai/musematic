@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator, Iterator
 import os
 
 import pytest
+import pytest_asyncio
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from testcontainers.postgres import PostgresContainer
@@ -47,17 +48,31 @@ def redis_container() -> Iterator[RedisContainer]:
         yield container
 
 
-@pytest.fixture
-async def redis_client(redis_container: RedisContainer) -> AsyncIterator[AsyncRedisClient]:
-    host = redis_container.get_container_host_ip()
-    port = redis_container.get_exposed_port(6379)
-    client = AsyncRedisClient(nodes=[f"{host}:{port}"])
+@pytest_asyncio.fixture
+async def redis_client(request: pytest.FixtureRequest) -> AsyncIterator[AsyncRedisClient]:
+    redis_url = os.environ.get("REDIS_URL")
+
+    if redis_url is None:
+        redis_container = request.getfixturevalue("redis_container")
+        host = redis_container.get_container_host_ip()
+        port = redis_container.get_exposed_port(6379)
+        redis_url = f"redis://{host}:{port}"
+
+    client = AsyncRedisClient(nodes=[redis_url.removeprefix("redis://")])
+    previous_mode = os.environ.get("REDIS_TEST_MODE")
+    previous_url = os.environ.get("REDIS_URL")
     os.environ["REDIS_TEST_MODE"] = "standalone"
-    os.environ["REDIS_URL"] = f"redis://{host}:{port}"
+    os.environ["REDIS_URL"] = redis_url
     await client.initialize()
     assert client.client is not None
     await client.client.flushdb()
     yield client
     await client.close()
-    os.environ.pop("REDIS_TEST_MODE", None)
-    os.environ.pop("REDIS_URL", None)
+    if previous_mode is None:
+        os.environ.pop("REDIS_TEST_MODE", None)
+    else:
+        os.environ["REDIS_TEST_MODE"] = previous_mode
+    if previous_url is None:
+        os.environ.pop("REDIS_URL", None)
+    else:
+        os.environ["REDIS_URL"] = previous_url
