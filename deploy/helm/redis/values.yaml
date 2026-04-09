@@ -1,0 +1,28 @@
+auth:
+  password: change-me
+
+redis-cluster:
+  image:
+    tag: "7.2"
+  auth:
+    enabled: true
+    existingSecret: redis-credentials
+    existingSecretPasswordKey: password
+  persistence:
+    enabled: true
+    appendonly: "yes"
+    appendfsync: "everysec"
+  redis:
+    maxmemoryPolicy: "allkeys-lru"
+    extraFlags:
+      - "--cluster-node-timeout"
+      - "15000"
+      - "--cluster-require-full-coverage"
+      - "no"
+  service:
+    type: ClusterIP
+    port: 6379
+
+networkPolicy:
+  enabled: false
+

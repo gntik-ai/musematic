@@ -13,7 +13,10 @@ ALEMBIC_INI = ROOT / "migrations" / "alembic.ini"
 
 
 def make_async_database_url(sync_url: str) -> str:
-    return sync_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    # testcontainers may return postgresql+psycopg2:// or plain postgresql://
+    url = sync_url.replace("postgresql+psycopg2://", "postgresql+asyncpg://", 1)
+    url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    return url
 
 
 def make_alembic_config(database_url: str) -> Config:

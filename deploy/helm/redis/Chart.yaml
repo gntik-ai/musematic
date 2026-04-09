@@ -1,0 +1,11 @@
+apiVersion: v2
+name: musematic-redis
+description: Redis 7+ cluster for session caching, budget tracking, and hot state.
+type: application
+version: 0.1.0
+appVersion: "7.2"
+dependencies:
+  - name: redis-cluster
+    version: "14.3.3"
+    repository: https://charts.bitnami.com/bitnami
+

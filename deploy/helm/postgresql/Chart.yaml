@@ -4,9 +4,4 @@ description: PostgreSQL foundation chart for the Musematic platform using CloudN
 type: application
 version: 0.1.0
 appVersion: "16"
-dependencies:
-  - name: cloudnative-pg
-    version: "0.23.*"
-    repository: https://cloudnative-pg.github.io/charts
-    condition: cnpgOperator.enabled
 
