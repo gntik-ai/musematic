@@ -1,0 +1,24 @@
+opensearch:
+  replicas: 3
+  extraEnvs:
+    - name: OPENSEARCH_JAVA_OPTS
+      value: "-Xms8g -Xmx8g"
+    - name: DISABLE_SECURITY_PLUGIN
+      value: "false"
+  persistence:
+    size: 100Gi
+    storageClass: "fast"
+  resources:
+    requests:
+      cpu: "2"
+      memory: "16Gi"
+    limits:
+      cpu: "4"
+      memory: "16Gi"
+
+opensearch-dashboards:
+  extraEnvs:
+    - name: OPENSEARCH_HOSTS
+      value: '["https://musematic-opensearch:9200"]'
+    - name: DISABLE_SECURITY_DASHBOARDS_PLUGIN
+      value: "false"

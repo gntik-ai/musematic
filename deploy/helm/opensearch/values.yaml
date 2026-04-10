@@ -1,0 +1,83 @@
+nameOverride: "musematic-opensearch"
+
+opensearch:
+  replicas: 1
+  image:
+    repository: opensearchproject/opensearch
+    tag: "2.18.0"
+  extraEnvs:
+    # Mirrors OPENSEARCH_* runtime config consumed by AsyncOpenSearchClient.
+    - name: OPENSEARCH_JAVA_OPTS
+      value: "-Xms1g -Xmx1g"
+    - name: DISABLE_SECURITY_PLUGIN
+      value: "false"
+  initContainers:
+    - name: install-icu-plugin
+      image: opensearchproject/opensearch:2.18.0
+      command: ["/bin/sh", "-c"]
+      args: ["opensearch-plugin install --batch analysis-icu"]
+      volumeMounts:
+        - name: plugins-volume
+          mountPath: /usr/share/opensearch/plugins
+  extraVolumes:
+    - name: synonyms
+      configMap:
+        name: opensearch-synonyms
+  extraVolumeMounts:
+    - name: synonyms
+      mountPath: /usr/share/opensearch/config/synonyms
+      readOnly: true
+  persistence:
+    enabled: true
+    storageClass: ""
+    size: 10Gi
+  service:
+    type: ClusterIP
+    port: 9200
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "2Gi"
+    limits:
+      cpu: "1"
+      memory: "2Gi"
+
+opensearch-dashboards:
+  enabled: true
+  image:
+    repository: opensearchproject/opensearch-dashboards
+    tag: "2.18.0"
+  extraEnvs:
+    # Dashboards uses the same OPENSEARCH_HOSTS endpoint the control plane will call.
+    - name: OPENSEARCH_HOSTS
+      value: '["http://musematic-opensearch:9200"]'
+    - name: DISABLE_SECURITY_DASHBOARDS_PLUGIN
+      value: "false"
+  resources:
+    requests:
+      cpu: "200m"
+      memory: "512Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+credentials:
+  username: admin
+  password: ""
+
+networkPolicy:
+  enabled: true
+
+initJob:
+  enabled: true
+  image:
+    repository: python
+    tag: "3.12-slim"
+  backoffLimit: 4
+  opensearchUrl: "http://musematic-opensearch:9200"
+  snapshotRepository:
+    name: "opensearch-backups"
+    type: "s3"
+    bucket: "musematic-backups"
+    basePath: "backups/opensearch"
+    endpoint: "http://musematic-minio.platform-data:9000"

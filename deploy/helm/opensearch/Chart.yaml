@@ -1,0 +1,13 @@
+apiVersion: v2
+name: musematic-opensearch
+description: OpenSearch full-text search for the Musematic platform.
+type: application
+version: 0.1.0
+appVersion: "2.18.0"
+dependencies:
+  - name: opensearch
+    repository: https://opensearch-project.github.io/helm-charts
+    version: "~2.18.0"
+  - name: opensearch-dashboards
+    repository: https://opensearch-project.github.io/helm-charts
+    version: "~2.18.0"

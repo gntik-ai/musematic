@@ -11,6 +11,7 @@ dependencies = [
   "aioboto3>=13.1",
   "clickhouse-connect>=0.8",
   "neo4j>=5.0",
+  "opensearch-py>=2.0",
   "qdrant-client[grpc]>=1.12",
   "redis[hiredis]>=5.0",
   "pydantic>=2.8",
@@ -32,6 +33,7 @@ dependencies = [
 test = [
   "aioboto3>=13.1",
   "clickhouse-connect>=0.8",
+  "opensearch-py>=2.0",
   "qdrant-client[grpc]>=1.12",
   "testcontainers>=4",
 ]

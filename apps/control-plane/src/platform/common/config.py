@@ -21,6 +21,13 @@ class Settings(BaseSettings):
     MINIO_ACCESS_KEY: str = ""
     MINIO_SECRET_KEY: str = ""
     MINIO_USE_SSL: bool = False
+    OPENSEARCH_HOSTS: str = "http://localhost:9200"
+    OPENSEARCH_USERNAME: str = "admin"
+    OPENSEARCH_PASSWORD: str = ""
+    OPENSEARCH_USE_SSL: bool = False
+    OPENSEARCH_VERIFY_CERTS: bool = False
+    OPENSEARCH_CA_CERTS: str | None = None
+    OPENSEARCH_TIMEOUT: int = 30
     QDRANT_URL: str = "http://musematic-qdrant.platform-data:6333"
     QDRANT_API_KEY: str = ""
     QDRANT_GRPC_PORT: int = 6334
