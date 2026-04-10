@@ -1,0 +1,66 @@
+{{- if .Values.backup.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: neo4j-backup-script
+  namespace: {{ .Release.Namespace }}
+data:
+  backup_neo4j_dump.py: |
+    from __future__ import annotations
+    import asyncio
+    import os
+    import sys
+    import time
+    from datetime import UTC, datetime
+    from pathlib import Path
+
+    async def main() -> int:
+        import aioboto3
+        import subprocess
+
+        bucket = os.environ.get("BACKUP_BUCKET", "backups")
+        prefix = os.environ.get("BACKUP_PREFIX", "neo4j")
+        dumps_dir = Path("/dumps")
+        dump_file = dumps_dir / "neo4j.dump"
+
+        start = time.perf_counter()
+        completed = subprocess.run(
+            [
+                "neo4j-admin",
+                "database",
+                "dump",
+                "--database=neo4j",
+                "--to-path=/dumps",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if completed.returncode != 0:
+            sys.stderr.write(completed.stdout)
+            sys.stderr.write(completed.stderr)
+            return 1
+
+        session = aioboto3.Session()
+        key = f"{prefix}/{datetime.now(tz=UTC).strftime('%Y-%m-%d')}/neo4j.dump"
+        async with session.client(
+            "s3",
+            endpoint_url=os.environ["MINIO_ENDPOINT"],
+            aws_access_key_id=os.environ["MINIO_ACCESS_KEY"],
+            aws_secret_access_key=os.environ["MINIO_SECRET_KEY"],
+            region_name="us-east-1",
+        ) as s3:
+            with dump_file.open("rb") as handle:
+                await s3.put_object(
+                    Bucket=bucket,
+                    Key=key,
+                    Body=handle.read(),
+                    ContentType="application/octet-stream",
+                )
+        print(f"uploaded=s3://{bucket}/{key}")
+        print(f"duration_seconds={time.perf_counter() - start:.2f}")
+        return 0
+
+    if __name__ == "__main__":
+        raise SystemExit(asyncio.run(main()))
+{{- end }}

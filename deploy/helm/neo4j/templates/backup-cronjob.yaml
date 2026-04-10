@@ -1,0 +1,60 @@
+{{- if .Values.backup.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: neo4j-backup
+  namespace: {{ .Release.Namespace }}
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: backup
+              image: {{ .Values.backup.image | quote }}
+              command:
+                - /bin/bash
+                - -ec
+                - python3 /scripts/backup_neo4j_dump.py
+              env:
+                - name: BACKUP_BUCKET
+                  value: {{ .Values.backup.bucket | quote }}
+                - name: BACKUP_PREFIX
+                  value: {{ .Values.backup.prefix | quote }}
+                - name: MINIO_ENDPOINT
+                  value: http://musematic-minio.platform-data:9000
+                - name: MINIO_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: minio-platform-credentials
+                      key: MINIO_ACCESS_KEY
+                - name: MINIO_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: minio-platform-credentials
+                      key: MINIO_SECRET_KEY
+                - name: NEO4J_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: neo4j-credentials
+                      key: NEO4J_PASSWORD
+              volumeMounts:
+                - name: dumps
+                  mountPath: /dumps
+                - name: backup-script
+                  mountPath: /scripts
+                - name: neo4j-data
+                  mountPath: /data
+                  readOnly: true
+          volumes:
+            - name: dumps
+              emptyDir: {}
+            - name: backup-script
+              configMap:
+                name: neo4j-backup-script
+            - name: neo4j-data
+              persistentVolumeClaim:
+                claimName: {{ .Values.backup.dataClaimName | default (printf "data-%s-0" .Release.Name) | quote }}
+{{- end }}

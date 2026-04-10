@@ -1,0 +1,10 @@
+apiVersion: v2
+name: musematic-neo4j
+description: Neo4j graph database for Musematic platform.
+type: application
+version: 0.1.0
+appVersion: "5.21.2"
+dependencies:
+  - name: neo4j
+    repository: https://helm.neo4j.com/neo4j
+    version: "5.21.0"
