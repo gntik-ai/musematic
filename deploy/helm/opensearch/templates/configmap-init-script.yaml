@@ -1,0 +1,190 @@
+{{- if .Values.initJob.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opensearch-init-script
+  namespace: {{ .Release.Namespace }}
+data:
+  init_opensearch.py: |
+    import asyncio
+    import os
+
+    from opensearchpy import AsyncOpenSearch
+
+    async def put(client, path, body):
+        await client.transport.perform_request(method="PUT", url=path, body=body)
+
+    async def main():
+        hosts = [host.strip() for host in os.environ["OPENSEARCH_HOSTS"].split(",") if host.strip()]
+        username = os.environ.get("OPENSEARCH_USERNAME", "")
+        password = os.environ.get("OPENSEARCH_PASSWORD", "")
+        client = AsyncOpenSearch(
+            hosts=hosts,
+            http_auth=(username, password) if username and password else None,
+            verify_certs=False,
+            ssl_show_warn=False,
+        )
+
+        await put(client, "/_plugins/_ism/policies/audit-events-policy", {
+            "policy": {
+                "description": "Audit events: rollover at 50GB or 30 days, delete after 90 days",
+                "default_state": "hot",
+                "states": [
+                    {
+                        "name": "hot",
+                        "actions": [{"rollover": {"min_size": "50gb", "min_index_age": "30d"}}],
+                        "transitions": [{"state_name": "delete", "conditions": {"min_index_age": "90d"}}]
+                    },
+                    {"name": "delete", "actions": [{"delete": {}}], "transitions": []},
+                ],
+                "ism_template": [{"index_patterns": ["audit-events-*"], "priority": 100}],
+            }
+        })
+        await put(client, "/_plugins/_ism/policies/connector-payloads-policy", {
+            "policy": {
+                "description": "Connector payloads: delete after 30 days",
+                "default_state": "hot",
+                "states": [
+                    {
+                        "name": "hot",
+                        "actions": [],
+                        "transitions": [{"state_name": "delete", "conditions": {"min_index_age": "30d"}}]
+                    },
+                    {"name": "delete", "actions": [{"delete": {}}], "transitions": []},
+                ],
+                "ism_template": [{"index_patterns": ["connector-payloads-*"], "priority": 100}],
+            }
+        })
+
+        await client.indices.put_index_template(name="marketplace-agents", body={
+            "index_patterns": ["marketplace-agents-*"],
+            "template": {
+                "settings": {
+                    "number_of_shards": 2,
+                    "number_of_replicas": 1,
+                    "analysis": {
+                        "filter": {
+                            "synonym_filter": {
+                                "type": "synonym",
+                                "synonyms_path": "synonyms/agent-synonyms.txt",
+                                "updateable": True
+                            },
+                            "icu_folding": {"type": "icu_folding"},
+                        },
+                        "analyzer": {
+                            "agent_analyzer": {
+                                "type": "custom",
+                                "tokenizer": "standard",
+                                "filter": ["lowercase", "icu_folding", "synonym_filter"],
+                            }
+                        },
+                    },
+                },
+                "mappings": {
+                    "properties": {
+                        "agent_id": {"type": "keyword"},
+                        "name": {"type": "text", "analyzer": "agent_analyzer", "fields": {"keyword": {"type": "keyword"}}},
+                        "purpose": {"type": "text", "analyzer": "agent_analyzer"},
+                        "description": {"type": "text", "analyzer": "agent_analyzer"},
+                        "tags": {"type": "keyword"},
+                        "capabilities": {"type": "keyword"},
+                        "maturity_level": {"type": "integer"},
+                        "trust_score": {"type": "float"},
+                        "workspace_id": {"type": "keyword"},
+                        "lifecycle_state": {"type": "keyword"},
+                        "certification_status": {"type": "keyword"},
+                        "publisher_id": {"type": "keyword"},
+                        "fqn": {"type": "keyword"},
+                        "indexed_at": {"type": "date"},
+                        "updated_at": {"type": "date"},
+                    }
+                }
+            }
+        })
+        await client.indices.put_index_template(name="audit-events", body={
+            "index_patterns": ["audit-events-*"],
+            "template": {
+                "settings": {
+                    "number_of_shards": 2,
+                    "number_of_replicas": 1,
+                    "plugins.index_state_management.policy_id": "audit-events-policy",
+                },
+                "mappings": {
+                    "properties": {
+                        "event_id": {"type": "keyword"},
+                        "event_type": {"type": "keyword"},
+                        "actor_id": {"type": "keyword"},
+                        "actor_type": {"type": "keyword"},
+                        "timestamp": {"type": "date"},
+                        "workspace_id": {"type": "keyword"},
+                        "resource_type": {"type": "keyword"},
+                        "action": {"type": "keyword"},
+                        "details": {"type": "text"},
+                        "indexed_at": {"type": "date"},
+                    }
+                }
+            }
+        })
+        await client.indices.put_index_template(name="connector-payloads", body={
+            "index_patterns": ["connector-payloads-*"],
+            "template": {
+                "settings": {
+                    "number_of_shards": 1,
+                    "number_of_replicas": 1,
+                    "plugins.index_state_management.policy_id": "connector-payloads-policy",
+                },
+                "mappings": {
+                    "properties": {
+                        "payload_id": {"type": "keyword"},
+                        "connector_type": {"type": "keyword"},
+                        "workspace_id": {"type": "keyword"},
+                        "timestamp": {"type": "date"},
+                        "payload_text": {"type": "text"},
+                        "direction": {"type": "keyword"},
+                        "indexed_at": {"type": "date"},
+                    }
+                }
+            }
+        })
+
+        for index_name, alias_name in (
+            ("marketplace-agents-000001", "marketplace-agents"),
+            ("audit-events-000001", "audit-events"),
+            ("connector-payloads-000001", "connector-payloads"),
+        ):
+            if not await client.indices.exists(index=index_name):
+                await client.indices.create(index=index_name, body={"aliases": {alias_name: {"is_write_index": True}}})
+
+        await client.snapshot.create_repository(repository=os.environ.get("OPENSEARCH_SNAPSHOT_REPOSITORY", "opensearch-backups"), body={
+            "type": os.environ.get("OPENSEARCH_SNAPSHOT_TYPE", "s3"),
+            "settings": {
+                "bucket": os.environ.get("OPENSEARCH_SNAPSHOT_BUCKET", "musematic-backups"),
+                "base_path": os.environ.get("OPENSEARCH_SNAPSHOT_BASE_PATH", "backups/opensearch"),
+                "endpoint": os.environ.get("OPENSEARCH_SNAPSHOT_ENDPOINT", "http://musematic-minio:9000"),
+                "protocol": "http",
+                "path_style_access": True,
+            }
+        })
+        await put(client, "/_plugins/_sm/policies/daily-snapshot", {
+            "policy": {
+                "description": "Daily snapshot at 05:00 UTC",
+                "creation": {"schedule": {"cron": {"expression": "0 5 * * *", "timezone": "UTC"}}, "time_limit": "1h"},
+                "deletion": {
+                    "schedule": {"cron": {"expression": "0 6 * * *", "timezone": "UTC"}},
+                    "time_limit": "30m",
+                    "delete_condition": {"max_count": 30, "max_age": "30d"},
+                },
+                "snapshot_config": {
+                    "repository": os.environ.get("OPENSEARCH_SNAPSHOT_REPOSITORY", "opensearch-backups"),
+                    "indices": "*",
+                    "ignore_unavailable": True,
+                    "include_global_state": False,
+                },
+            }
+        })
+        await client.close()
+
+    asyncio.run(main())
+  requirements.txt: |
+    opensearch-py>=2.0,<3
+{{- end }}

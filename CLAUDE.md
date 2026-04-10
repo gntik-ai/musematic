@@ -15,6 +15,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-10
 - Neo4j 5.x (graph database, StatefulSet — no operator) (006-neo4j-knowledge-graph)
 - Python 3.12+ + `clickhouse-connect 0.8+` (HTTP interface), Helm 3.x (custom chart), `altinity/clickhouse-backup` (backup tool) (007-clickhouse-analytics)
 - ClickHouse 24.3+ (OLAP database, StatefulSet — no operator) + ClickHouse Keeper (Raft consensus, separate StatefulSet) (007-clickhouse-analytics)
+- Python 3.12+ + `opensearch-py 2.x` (`AsyncOpenSearch`), Helm 3.x (wrapper chart: opensearch-project/opensearch + opensearch-dashboards deps), ICU plugin via init container (008-opensearch-full-text-search)
+- OpenSearch 2.18.x (full-text search, StatefulSet — no operator) + OpenSearch Dashboards (separate Deployment); ISM for lifecycle policies; Snapshot Management (SM) for backups to MinIO (008-opensearch-full-text-search)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -34,9 +36,8 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 008-opensearch-full-text-search: Added Python 3.12+ + `opensearch-py 2.x` (`AsyncOpenSearch`), Helm 3.x wrapper chart (opensearch-project/opensearch + dashboards), ICU plugin init container, ISM policies, Snapshot Management (SM)
 - 007-clickhouse-analytics: Added Python 3.12+ + `clickhouse-connect 0.8+` (HTTP interface), Helm 3.x (custom chart), `altinity/clickhouse-backup` (backup tool)
-- 006-neo4j-knowledge-graph: Added Python 3.12+ + `neo4j-python-driver 5.x` (`AsyncGraphDatabase`), Helm 3.x (`neo4j/neo4j` official chart), APOC plugin (via `NEO4J_PLUGINS` env var)
-- 005-qdrant-vector-search: Added Python 3.12+ + qdrant-client[grpc] 1.12+ (Python async gRPC client), Helm 3.x (Qdrant official chart: qdrant/qdrant)
 
 
 <!-- MANUAL ADDITIONS START -->

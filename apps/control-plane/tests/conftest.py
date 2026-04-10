@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Iterator
+import importlib.util
 import os
 from pathlib import Path
 import socket
+from tempfile import TemporaryDirectory
 import time
 from urllib import request
 from uuid import uuid4
@@ -19,6 +21,7 @@ from testcontainers.redis import RedisContainer
 
 from helpers import make_async_database_url, run_alembic
 from platform.common.clients.clickhouse import AsyncClickHouseClient
+from platform.common.clients.opensearch import AsyncOpenSearchClient
 from platform.common.clients.object_storage import AsyncObjectStorageClient
 from platform.common.clients.neo4j import AsyncNeo4jClient
 from platform.common.clients.qdrant import AsyncQdrantClient
@@ -28,6 +31,7 @@ from platform.common.clients.redis import AsyncRedisClient
 REPO_ROOT = Path(__file__).resolve().parents[3]
 NEO4J_INIT_CYPHER = REPO_ROOT / "deploy" / "neo4j" / "init.cypher"
 CLICKHOUSE_INIT_DIR = REPO_ROOT / "deploy" / "clickhouse" / "init"
+OPENSEARCH_INIT_SCRIPT = REPO_ROOT / "deploy" / "opensearch" / "init" / "init_opensearch.py"
 
 
 @pytest.fixture(scope="session")
@@ -434,3 +438,150 @@ async def clickhouse_client(clickhouse_settings: Settings) -> AsyncIterator[Asyn
     ):
         await client.execute_command(f"TRUNCATE TABLE IF EXISTS {table}")
     await client.close()
+
+
+def _load_opensearch_init_module():
+    spec = importlib.util.spec_from_file_location("musematic_opensearch_init", OPENSEARCH_INIT_SCRIPT)
+    if spec is None or spec.loader is None:  # pragma: no cover - broken workspace
+        raise RuntimeError(f"Unable to load OpenSearch init script from {OPENSEARCH_INIT_SCRIPT}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.fixture(scope="session")
+def opensearch_init_module():
+    return _load_opensearch_init_module()
+
+
+async def _reset_opensearch(async_client) -> None:
+    for index_pattern in (
+        "marketplace-agents-*",
+        "audit-events-*",
+        "connector-payloads-*",
+        "audit-events-ism-test*",
+        "snapshot-test-*",
+    ):
+        try:
+            await async_client.indices.delete(index=index_pattern, ignore_unavailable=True)
+        except Exception:
+            pass
+    for template_name in ("marketplace-agents", "audit-events", "connector-payloads"):
+        try:
+            await async_client.indices.delete_index_template(name=template_name)
+        except Exception:
+            pass
+    for path in (
+        "/_plugins/_ism/policies/audit-events-policy",
+        "/_plugins/_ism/policies/connector-payloads-policy",
+        "/_plugins/_sm/policies/daily-snapshot",
+    ):
+        try:
+            await async_client.transport.perform_request(method="DELETE", url=path)
+        except Exception:
+            pass
+    try:
+        await async_client.snapshot.delete_repository(repository="opensearch-backups")
+    except Exception:
+        pass
+
+
+async def _apply_opensearch_init(
+    client: AsyncOpenSearchClient,
+    init_module,
+    opensearch_server: dict[str, object],
+) -> None:
+    repository = init_module.SnapshotRepositorySettings(
+        name="opensearch-backups",
+        type=str(opensearch_server.get("snapshot_type", "fs")),
+        bucket="musematic-backups",
+        base_path="backups/opensearch",
+        endpoint=str(opensearch_server.get("snapshot_endpoint", "http://musematic-minio:9000")),
+        location=(
+            str(opensearch_server["snapshot_location"])
+            if opensearch_server.get("snapshot_location") is not None
+            else None
+        ),
+    )
+    await init_module.create_ism_policies(client._client)
+    await init_module.create_index_templates(client._client)
+    await init_module.setup_snapshot_management(client._client, repository_settings=repository)
+
+
+@pytest.fixture(scope="session")
+def opensearch_server() -> Iterator[dict[str, object]]:
+    if os.environ.get("OPENSEARCH_TEST_MODE") == "external":
+        yield {
+            "url": os.environ["OPENSEARCH_TEST_URL"],
+            "username": os.environ.get("OPENSEARCH_TEST_USERNAME", ""),
+            "password": os.environ.get("OPENSEARCH_TEST_PASSWORD", ""),
+            "snapshot_type": os.environ.get("OPENSEARCH_TEST_SNAPSHOT_TYPE", "fs"),
+            "snapshot_location": os.environ.get("OPENSEARCH_TEST_SNAPSHOT_LOCATION"),
+            "snapshot_endpoint": os.environ.get("OPENSEARCH_TEST_SNAPSHOT_ENDPOINT", "http://musematic-minio:9000"),
+        }
+        return
+
+    with TemporaryDirectory() as snapshot_dir:
+        container = (
+            DockerContainer("opensearchproject/opensearch:2.18.0")
+            .with_exposed_ports(9200)
+            .with_env("discovery.type", "single-node")
+            .with_env("plugins.security.disabled", "true")
+            .with_env("DISABLE_SECURITY_PLUGIN", "true")
+            .with_env("DISABLE_INSTALL_DEMO_CONFIG", "true")
+            .with_env("OPENSEARCH_JAVA_OPTS", "-Xms512m -Xmx512m")
+            .with_env("path.repo", "/var/backups/opensearch")
+            .with_volume_mapping(snapshot_dir, "/var/backups/opensearch")
+        )
+        with container:
+            host = container.get_container_host_ip()
+            port = int(container.get_exposed_port(9200))
+            url = f"http://{host}:{port}"
+            for _ in range(60):
+                try:
+                    with request.urlopen(f"{url}/_cluster/health", timeout=5):
+                        break
+                except Exception:
+                    time.sleep(2)
+            else:  # pragma: no cover - startup failure
+                raise RuntimeError("OpenSearch test container did not become ready in time.")
+
+            yield {
+                "url": url,
+                "username": "",
+                "password": "",
+                "snapshot_type": "fs",
+                "snapshot_location": "/var/backups/opensearch",
+            }
+
+
+@pytest.fixture
+def opensearch_settings(opensearch_server: dict[str, object]) -> Settings:
+    return Settings(
+        OPENSEARCH_HOSTS=str(opensearch_server["url"]),
+        OPENSEARCH_USERNAME=str(opensearch_server["username"]),
+        OPENSEARCH_PASSWORD=str(opensearch_server["password"]),
+        OPENSEARCH_USE_SSL=False,
+        OPENSEARCH_VERIFY_CERTS=False,
+        OPENSEARCH_TIMEOUT=30,
+    )
+
+
+@pytest_asyncio.fixture
+async def opensearch_client(opensearch_settings: Settings) -> AsyncIterator[AsyncOpenSearchClient]:
+    pytest.importorskip("opensearchpy")
+    client = AsyncOpenSearchClient.from_settings(opensearch_settings)
+    await _reset_opensearch(client._client)
+    yield client
+    await _reset_opensearch(client._client)
+    await client.close()
+
+
+@pytest_asyncio.fixture
+async def initialized_opensearch_client(
+    opensearch_client: AsyncOpenSearchClient,
+    opensearch_init_module,
+    opensearch_server: dict[str, object],
+) -> AsyncIterator[AsyncOpenSearchClient]:
+    await _apply_opensearch_init(opensearch_client, opensearch_init_module, opensearch_server)
+    yield opensearch_client

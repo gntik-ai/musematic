@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opensearch-synonyms
+  namespace: {{ .Release.Namespace }}
+data:
+  agent-synonyms.txt: |
+    summarizer, text summary agent, summarization
+    translator, language translation, translation agent
+    classifier, categorizer, classification agent

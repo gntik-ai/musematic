@@ -1,0 +1,31 @@
+opensearch:
+  replicas: 1
+  extraEnvs:
+    - name: OPENSEARCH_JAVA_OPTS
+      value: "-Xms512m -Xmx512m"
+    - name: DISABLE_SECURITY_PLUGIN
+      value: "true"
+    - name: discovery.type
+      value: "single-node"
+  persistence:
+    size: 5Gi
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "1Gi"
+    limits:
+      cpu: "500m"
+      memory: "1Gi"
+
+opensearch-dashboards:
+  extraEnvs:
+    - name: OPENSEARCH_HOSTS
+      value: '["http://musematic-opensearch:9200"]'
+    - name: DISABLE_SECURITY_DASHBOARDS_PLUGIN
+      value: "true"
+
+networkPolicy:
+  enabled: false
+
+initJob:
+  opensearchUrl: "http://musematic-opensearch:9200"

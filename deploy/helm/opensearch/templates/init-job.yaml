@@ -1,0 +1,57 @@
+{{- if .Values.initJob.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: opensearch-init
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: {{ .Values.initJob.backoffLimit }}
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: init
+          image: "{{ .Values.initJob.image.repository }}:{{ .Values.initJob.image.tag }}"
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              pip install --no-cache-dir -r /opt/init/requirements.txt
+              python /opt/init/init_opensearch.py
+          env:
+            - name: OPENSEARCH_HOSTS
+              value: {{ .Values.initJob.opensearchUrl | quote }}
+            - name: OPENSEARCH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: opensearch-credentials
+                  key: OPENSEARCH_USERNAME
+            - name: OPENSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: opensearch-credentials
+                  key: OPENSEARCH_PASSWORD
+            - name: OPENSEARCH_TIMEOUT
+              value: "30"
+            - name: OPENSEARCH_SNAPSHOT_REPOSITORY
+              value: {{ .Values.initJob.snapshotRepository.name | quote }}
+            - name: OPENSEARCH_SNAPSHOT_TYPE
+              value: {{ .Values.initJob.snapshotRepository.type | quote }}
+            - name: OPENSEARCH_SNAPSHOT_BUCKET
+              value: {{ .Values.initJob.snapshotRepository.bucket | quote }}
+            - name: OPENSEARCH_SNAPSHOT_BASE_PATH
+              value: {{ .Values.initJob.snapshotRepository.basePath | quote }}
+            - name: OPENSEARCH_SNAPSHOT_ENDPOINT
+              value: {{ .Values.initJob.snapshotRepository.endpoint | quote }}
+          volumeMounts:
+            - name: init-script
+              mountPath: /opt/init
+              readOnly: true
+      volumes:
+        - name: init-script
+          configMap:
+            name: opensearch-init-script
+{{- end }}
