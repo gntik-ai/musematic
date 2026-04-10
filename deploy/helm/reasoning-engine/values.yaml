@@ -1,0 +1,29 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/andrea-mucci/musematic/reasoning-engine
+  tag: latest
+  pullPolicy: IfNotPresent
+
+grpcPort: 50052
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+config:
+  maxTotConcurrency: "10"
+  traceBufferSize: "10000"
+  tracePayloadThreshold: "65536"
+  budgetDefaultTTLSeconds: "3600"
+
+configSecretRef: reasoning-engine-config
+
+hpa:
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70

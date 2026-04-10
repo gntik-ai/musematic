@@ -27,8 +27,32 @@ type BudgetResult struct {
 }
 
 type BudgetClient struct {
-	client       *goredis.ClusterClient
-	budgetScript *goredis.Script
+	client       redisCloser
+	budgetScript budgetScriptRunner
+}
+
+type redisCloser interface {
+	Close() error
+}
+
+type budgetScriptRunner interface {
+	Run(ctx context.Context, key string, now int64, dimension string, amount int64) (any, error)
+}
+
+type redisBudgetScript struct {
+	client *goredis.ClusterClient
+	script *goredis.Script
+}
+
+func (r redisBudgetScript) Run(ctx context.Context, key string, now int64, dimension string, amount int64) (any, error) {
+	return r.script.Run(
+		ctx,
+		r.client,
+		[]string{key},
+		now,
+		dimension,
+		amount,
+	).Result()
 }
 
 func NewClusterClient(addrs []string, password string) (*BudgetClient, error) {
@@ -47,7 +71,7 @@ func NewClusterClient(addrs []string, password string) (*BudgetClient, error) {
 
 	return &BudgetClient{
 		client:       client,
-		budgetScript: goredis.NewScript(string(source)),
+		budgetScript: redisBudgetScript{client: client, script: goredis.NewScript(string(source))},
 	}, nil
 }
 
@@ -61,16 +85,13 @@ func (c *BudgetClient) DecrementBudget(
 	timeoutCtx, cancel := context.WithTimeout(ctx, 10*time.Millisecond)
 	defer cancel()
 
+	if c == nil || c.budgetScript == nil {
+		return BudgetResult{}, errors.New("budget client is not initialized")
+	}
+
 	key := "budget:" + executionID + ":" + stepID
 	now := time.Now().UnixMilli()
-	raw, err := c.budgetScript.Run(
-		timeoutCtx,
-		c.client,
-		[]string{key},
-		now,
-		dimension,
-		amount,
-	).Result()
+	raw, err := c.budgetScript.Run(timeoutCtx, key, now, dimension, amount)
 	if err != nil {
 		return BudgetResult{}, err
 	}
@@ -90,6 +111,9 @@ func (c *BudgetClient) DecrementBudget(
 }
 
 func (c *BudgetClient) Close() error {
+	if c == nil || c.client == nil {
+		return nil
+	}
 	return c.client.Close()
 }
 
@@ -116,4 +140,3 @@ func toFloat64(value interface{}) float64 {
 		return 0
 	}
 }
-
