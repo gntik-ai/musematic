@@ -1,0 +1,19 @@
+{{- if .Values.clickhouse.keeper.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: musematic-clickhouse-keeper-config
+  namespace: {{ .Release.Namespace }}
+data:
+  keeper_config.xml: |
+    <clickhouse>
+      <keeper_server>
+        <tcp_port>9181</tcp_port>
+        <raft_configuration>
+          <server><id>1</id><hostname>musematic-clickhouse-keeper-0.musematic-clickhouse-keeper.{{ .Release.Namespace }}</hostname><port>9234</port></server>
+          <server><id>2</id><hostname>musematic-clickhouse-keeper-1.musematic-clickhouse-keeper.{{ .Release.Namespace }}</hostname><port>9234</port></server>
+          <server><id>3</id><hostname>musematic-clickhouse-keeper-2.musematic-clickhouse-keeper.{{ .Release.Namespace }}</hostname><port>9234</port></server>
+        </raft_configuration>
+      </keeper_server>
+    </clickhouse>
+{{- end }}

@@ -6,6 +6,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore")
 
+    CLICKHOUSE_URL: str | None = None
+    CLICKHOUSE_USER: str = "default"
+    CLICKHOUSE_PASSWORD: str = ""
+    CLICKHOUSE_DATABASE: str = "default"
+    CLICKHOUSE_INSERT_BATCH_SIZE: int = 1000
+    CLICKHOUSE_INSERT_FLUSH_INTERVAL: float = 5.0
     NEO4J_URL: str | None = None
     NEO4J_MAX_CONNECTION_POOL_SIZE: int = 50
     GRAPH_MODE: str = "auto"

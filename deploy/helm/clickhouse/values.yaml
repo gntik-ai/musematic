@@ -1,0 +1,48 @@
+clickhouse:
+  image: clickhouse/clickhouse-server:24.3
+  replicaCount: 2
+  keeper:
+    enabled: true
+    replicaCount: 3
+    image: clickhouse/clickhouse-keeper:24.3
+  auth:
+    user: default
+    password: ""
+  resources:
+    requests:
+      memory: 4Gi
+      cpu: "2"
+    limits:
+      memory: 8Gi
+      cpu: "4"
+  config:
+    max_memory_usage: "4000000000"
+    max_insert_block_size: 1048576
+  clusterName: musematic-clickhouse
+
+persistence:
+  storageClassName: standard
+  size: 50Gi
+  keeperSize: 5Gi
+
+service:
+  type: ClusterIP
+  httpPort: 8123
+  nativePort: 9000
+  interserverHttpPort: 9009
+
+schemaInit:
+  enabled: true
+  image: clickhouse/clickhouse-server:24.3
+  retries: 60
+  retryIntervalSeconds: 5
+
+backup:
+  enabled: true
+  schedule: "0 4 * * *"
+  image: altinity/clickhouse-backup:2.5
+  bucket: backups
+  prefix: clickhouse
+
+networkPolicy:
+  enabled: true

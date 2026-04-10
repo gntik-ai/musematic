@@ -1,0 +1,21 @@
+{{- if .Values.clickhouse.keeper.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: musematic-clickhouse-keeper
+  namespace: {{ .Release.Namespace }}
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: clickhouse-keeper
+  ports:
+    - name: keeper
+      port: 9181
+      targetPort: keeper
+    - name: raft
+      port: 9234
+      targetPort: raft
+    - name: raft-internal
+      port: 9444
+      targetPort: raft-internal
+{{- end }}
