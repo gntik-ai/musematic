@@ -1,0 +1,15 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-sandbox-allow
+spec:
+  podSelector:
+    matchLabels:
+      musematic/sandbox: "true"
+      musematic/network-allowed: "true"
+  policyTypes:
+    - Egress
+  egress:
+    - ports:
+        - protocol: TCP
+          port: 443

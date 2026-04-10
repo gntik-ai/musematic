@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-config
+data:
+  GRPC_PORT: {{ .Values.config.grpcPort | quote }}
+  HTTP_PORT: {{ .Values.config.httpPort | quote }}
+  POSTGRES_DSN: {{ .Values.config.postgresDsn | quote }}
+  KAFKA_BROKERS: {{ .Values.config.kafkaBrokers | quote }}
+  MINIO_ENDPOINT: {{ .Values.config.minioEndpoint | quote }}
+  MINIO_BUCKET: {{ .Values.config.minioBucket | quote }}
+  K8S_NAMESPACE: {{ .Values.config.k8sNamespace | quote }}
+  DEFAULT_TIMEOUT: {{ .Values.config.defaultTimeout | quote }}
+  MAX_TIMEOUT: {{ .Values.config.maxTimeout | quote }}
+  MAX_OUTPUT_SIZE: {{ .Values.config.maxOutputSize | quote }}
+  ORPHAN_SCAN_INTERVAL: {{ .Values.config.orphanScanInterval | quote }}
+  IDLE_TIMEOUT: {{ .Values.config.idleTimeout | quote }}
+  MAX_CONCURRENT_SANDBOXES: {{ .Values.config.maxConcurrentSandboxes | quote }}
+  K8S_DRY_RUN: {{ .Values.config.k8sDryRun | quote }}
