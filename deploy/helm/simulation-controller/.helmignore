@@ -1,0 +1,10 @@
+.DS_Store
+.git/
+.gitignore
+*.tmp
+*.bak
+*.swp
+*.out
+*.test
+coverage.out
+charts/

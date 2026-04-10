@@ -1,0 +1,129 @@
+syntax = "proto3";
+
+package musematic.simulation.v1;
+
+option go_package = "github.com/musematic/simulation-controller/api/grpc/v1;simulationv1";
+
+import "google/protobuf/timestamp.proto";
+
+service SimulationControlService {
+  rpc CreateSimulation(CreateSimulationRequest) returns (SimulationHandle);
+  rpc GetSimulationStatus(GetSimulationStatusRequest) returns (SimulationStatus);
+  rpc StreamSimulationEvents(StreamSimulationEventsRequest) returns (stream SimulationEvent);
+  rpc TerminateSimulation(TerminateSimulationRequest) returns (TerminateResult);
+  rpc CollectSimulationArtifacts(CollectSimulationArtifactsRequest) returns (ArtifactCollectionResult);
+  rpc CreateAccreditedTestEnv(CreateATERequest) returns (ATEHandle);
+}
+
+message SimulationConfig {
+  string agent_image = 1;
+  map<string, string> agent_env = 2;
+  string cpu_request = 3;
+  string memory_request = 4;
+  int32 max_duration_seconds = 5;
+}
+
+message CreateSimulationRequest {
+  string simulation_id = 1;
+  SimulationConfig config = 2;
+}
+
+message SimulationHandle {
+  string simulation_id = 1;
+  string pod_name = 2;
+  string status = 3;
+  google.protobuf.Timestamp created_at = 4;
+}
+
+message GetSimulationStatusRequest {
+  string simulation_id = 1;
+}
+
+message SimulationStatus {
+  string simulation_id = 1;
+  string status = 2;
+  string pod_name = 3;
+  string pod_phase = 4;
+  int64 elapsed_seconds = 5;
+  ResourceUsage resource_usage = 6;
+  string error_message = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp started_at = 9;
+  google.protobuf.Timestamp completed_at = 10;
+}
+
+message ResourceUsage {
+  string cpu_request = 1;
+  string memory_request = 2;
+  string cpu_limit = 3;
+  string memory_limit = 4;
+}
+
+message StreamSimulationEventsRequest {
+  string simulation_id = 1;
+}
+
+message SimulationEvent {
+  string simulation_id = 1;
+  string event_type = 2;
+  string detail = 3;
+  bool simulation = 4;
+  google.protobuf.Timestamp occurred_at = 5;
+  map<string, string> metadata = 6;
+}
+
+message TerminateSimulationRequest {
+  string simulation_id = 1;
+  string reason = 2;
+}
+
+message TerminateResult {
+  string simulation_id = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message CollectSimulationArtifactsRequest {
+  string simulation_id = 1;
+  repeated string paths = 2;
+}
+
+message ArtifactCollectionResult {
+  string simulation_id = 1;
+  int32 artifacts_collected = 2;
+  int64 total_bytes = 3;
+  repeated ArtifactRef artifacts = 4;
+  bool partial = 5;
+}
+
+message ArtifactRef {
+  string object_key = 1;
+  string filename = 2;
+  int64 size_bytes = 3;
+  string content_type = 4;
+}
+
+message ATEScenario {
+  string scenario_id = 1;
+  string name = 2;
+  bytes input_data = 3;
+  string scorer_config = 4;
+  double quality_threshold = 5;
+  bool safety_required = 6;
+}
+
+message CreateATERequest {
+  string session_id = 1;
+  string agent_id = 2;
+  SimulationConfig config = 3;
+  repeated ATEScenario scenarios = 4;
+  repeated string dataset_refs = 5;
+}
+
+message ATEHandle {
+  string session_id = 1;
+  string simulation_id = 2;
+  string status = 3;
+  int32 scenario_count = 4;
+  google.protobuf.Timestamp created_at = 5;
+}

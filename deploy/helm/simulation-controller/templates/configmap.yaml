@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "simulation-controller.fullname" . }}
+data:
+  GRPC_PORT: {{ .Values.env.GRPC_PORT | quote }}
+  SIMULATION_BUCKET: {{ .Values.env.SIMULATION_BUCKET | quote }}
+  SIMULATION_NAMESPACE: {{ .Values.env.SIMULATION_NAMESPACE | quote }}
+  ORPHAN_SCAN_INTERVAL_SECONDS: {{ .Values.env.ORPHAN_SCAN_INTERVAL_SECONDS | quote }}
+  DEFAULT_MAX_DURATION_SECONDS: {{ .Values.env.DEFAULT_MAX_DURATION_SECONDS | quote }}
