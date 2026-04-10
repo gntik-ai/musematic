@@ -1,0 +1,157 @@
+syntax = "proto3";
+
+package sandbox_manager.v1;
+
+option go_package = "github.com/andrea-mucci/musematic/services/sandbox-manager/api/grpc/v1;sandboxv1";
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+enum SandboxState {
+  SANDBOX_STATE_UNSPECIFIED = 0;
+  SANDBOX_STATE_CREATING = 1;
+  SANDBOX_STATE_READY = 2;
+  SANDBOX_STATE_EXECUTING = 3;
+  SANDBOX_STATE_COMPLETED = 4;
+  SANDBOX_STATE_FAILED = 5;
+  SANDBOX_STATE_TERMINATED = 6;
+}
+
+enum SandboxEventType {
+  SANDBOX_EVENT_UNSPECIFIED = 0;
+  SANDBOX_EVENT_CREATED = 1;
+  SANDBOX_EVENT_READY = 2;
+  SANDBOX_EVENT_STEP_STARTED = 3;
+  SANDBOX_EVENT_STEP_COMPLETED = 4;
+  SANDBOX_EVENT_COMPLETED = 5;
+  SANDBOX_EVENT_FAILED = 6;
+  SANDBOX_EVENT_TERMINATED = 7;
+  SANDBOX_EVENT_ARTIFACT_COLLECTED = 8;
+}
+
+message ResourceLimits {
+  string cpu_request = 1;
+  string cpu_limit = 2;
+  string memory_request = 3;
+  string memory_limit = 4;
+}
+
+message SandboxTemplate {
+  string name = 1;
+  string image = 2;
+  ResourceLimits limits = 3;
+  int32 timeout_seconds = 4;
+}
+
+message CorrelationContext {
+  string workspace_id = 1;
+  string execution_id = 2;
+  string interaction_id = 3;
+  string trace_id = 4;
+}
+
+message SandboxInfo {
+  string sandbox_id = 1;
+  string execution_id = 2;
+  SandboxState state = 3;
+  string failure_reason = 4;
+  string template = 5;
+  string pod_name = 6;
+  google.protobuf.Timestamp created_at = 7;
+  int32 total_steps = 8;
+  CorrelationContext correlation = 9;
+}
+
+message ExecutionResult {
+  string stdout = 1;
+  string stderr = 2;
+  int32 exit_code = 3;
+  google.protobuf.Duration duration = 4;
+  bool timed_out = 5;
+  bool oom_killed = 6;
+  string structured_output = 7;
+  bool output_truncated = 8;
+}
+
+message SandboxEvent {
+  string event_id = 1;
+  string sandbox_id = 2;
+  string execution_id = 3;
+  SandboxEventType event_type = 4;
+  google.protobuf.Timestamp occurred_at = 5;
+  string details_json = 6;
+  SandboxState new_state = 7;
+}
+
+message ArtifactEntry {
+  string object_key = 1;
+  string filename = 2;
+  int64 size_bytes = 3;
+  string content_type = 4;
+  google.protobuf.Timestamp collected_at = 5;
+}
+
+message CreateSandboxRequest {
+  string template_name = 1;
+  CorrelationContext correlation = 2;
+  ResourceLimits resource_overrides = 3;
+  int32 timeout_override = 4;
+  bool network_enabled = 5;
+  repeated string egress_allowlist = 6;
+  map<string, string> env_vars = 7;
+  repeated string pip_packages = 8;
+  repeated string npm_packages = 9;
+}
+
+message CreateSandboxResponse {
+  string sandbox_id = 1;
+  SandboxState state = 2;
+}
+
+message ExecuteSandboxStepRequest {
+  string sandbox_id = 1;
+  string code = 2;
+  int32 timeout_override = 3;
+}
+
+message ExecuteSandboxStepResponse {
+  ExecutionResult result = 1;
+  int32 step_num = 2;
+}
+
+message StreamSandboxLogsRequest {
+  string sandbox_id = 1;
+  bool follow = 2;
+}
+
+message SandboxLogLine {
+  string line = 1;
+  string stream = 2;
+  google.protobuf.Timestamp timestamp = 3;
+}
+
+message TerminateSandboxRequest {
+  string sandbox_id = 1;
+  int32 grace_period_seconds = 2;
+}
+
+message TerminateSandboxResponse {
+  SandboxState state = 1;
+}
+
+message CollectSandboxArtifactsRequest {
+  string sandbox_id = 1;
+}
+
+message CollectSandboxArtifactsResponse {
+  repeated ArtifactEntry artifacts = 1;
+  bool complete = 2;
+}
+
+service SandboxService {
+  rpc CreateSandbox(CreateSandboxRequest) returns (CreateSandboxResponse);
+  rpc ExecuteSandboxStep(ExecuteSandboxStepRequest) returns (ExecuteSandboxStepResponse);
+  rpc StreamSandboxLogs(StreamSandboxLogsRequest) returns (stream SandboxLogLine);
+  rpc TerminateSandbox(TerminateSandboxRequest) returns (TerminateSandboxResponse);
+  rpc CollectSandboxArtifacts(CollectSandboxArtifactsRequest) returns (CollectSandboxArtifactsResponse);
+}
