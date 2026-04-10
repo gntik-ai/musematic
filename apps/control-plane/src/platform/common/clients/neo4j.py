@@ -5,13 +5,8 @@ import os
 from dataclasses import dataclass
 from importlib import import_module
 from json import dumps, loads
-from typing import Any, cast
-
-from sqlalchemy import text
-from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
-
-from platform.common.config import Settings, settings as default_settings
+from platform.common.config import Settings
+from platform.common.config import settings as default_settings
 from platform.common.exceptions import (
     HopLimitExceededError,
     Neo4jClientError,
@@ -19,6 +14,11 @@ from platform.common.exceptions import (
     Neo4jConstraintViolationError,
     Neo4jNodeNotFoundError,
 )
+from typing import Any, cast
+
+from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 
 @dataclass(frozen=True, slots=True)
@@ -199,14 +199,14 @@ class AsyncLocalGraphClient:
                     "DATABASE_URL environment variable is required for local graph mode."
                 ) from None
             return create_async_engine(database_url, pool_pre_ping=True)
-        return cast(AsyncEngine, getattr(database_module, "engine"))
+        return cast(AsyncEngine, database_module.engine)
 
     async def _ensure_schema(self) -> None:
         if self._schema_ready:
             return
 
         async with self._schema_lock:
-            if self._schema_ready:
+            if self._is_schema_ready():
                 return
 
             engine = self._ensure_engine()
@@ -228,9 +228,18 @@ class AsyncLocalGraphClient:
                     properties JSONB NOT NULL DEFAULT '{}'::jsonb
                 )
                 """,
-                "CREATE INDEX IF NOT EXISTS ix_graph_nodes_workspace_id ON graph_nodes (workspace_id)",
-                "CREATE INDEX IF NOT EXISTS ix_graph_edges_from_rel_type ON graph_edges (from_id, rel_type)",
-                "CREATE INDEX IF NOT EXISTS ix_graph_edges_to_rel_type ON graph_edges (to_id, rel_type)",
+                (
+                    "CREATE INDEX IF NOT EXISTS ix_graph_nodes_workspace_id "
+                    "ON graph_nodes (workspace_id)"
+                ),
+                (
+                    "CREATE INDEX IF NOT EXISTS ix_graph_edges_from_rel_type "
+                    "ON graph_edges (from_id, rel_type)"
+                ),
+                (
+                    "CREATE INDEX IF NOT EXISTS ix_graph_edges_to_rel_type "
+                    "ON graph_edges (to_id, rel_type)"
+                ),
             )
             async with engine.begin() as connection:
                 for statement in ddl:
@@ -250,6 +259,9 @@ class AsyncLocalGraphClient:
             self._engine = self._resolve_engine()
         return self._engine
 
+    def _is_schema_ready(self) -> bool:
+        return self._schema_ready
+
 
 class AsyncNeo4jClient:
     def __init__(self, settings: Settings | None = None, engine: AsyncEngine | None = None) -> None:
@@ -257,7 +269,22 @@ class AsyncNeo4jClient:
         self.mode = self._resolve_mode(self.settings)
         self._driver: Any | None = None
         self._driver_lock = asyncio.Lock()
-        self._local = AsyncLocalGraphClient(self.settings, engine=engine) if self.mode == "local" else None
+        self._local = (
+            AsyncLocalGraphClient(self.settings, engine=engine)
+            if self.mode == "local"
+            else None
+        )
+
+    @classmethod
+    def from_settings(cls, settings: Settings) -> AsyncNeo4jClient:
+        return cls(settings)
+
+    async def connect(self) -> None:
+        if self.mode == "local":
+            assert self._local is not None
+            await self._local.health_check()
+            return
+        await self._get_driver()
 
     async def run_query(
         self,
@@ -278,6 +305,27 @@ class AsyncNeo4jClient:
                 result = await session.run(cypher, query_params)
                 rows = [self._serialize_record(record.data()) async for record in result]
                 return cast(list[dict[str, Any]], rows)
+        except Exception as exc:
+            raise self._translate_exception(exc) from exc
+
+    async def run_cypher(
+        self,
+        query: str,
+        parameters: dict[str, Any] | None = None,
+    ) -> list[dict[str, Any]]:
+        return await self.run_query(query, params=parameters)
+
+    async def run_in_transaction(self, queries: list[tuple[str, dict[str, Any]]]) -> None:
+        if self.mode == "local":
+            raise Neo4jClientError("run_in_transaction is only available in neo4j mode.")
+
+        driver = await self._get_driver()
+        try:
+            async with driver.session() as session:
+                async with await session.begin_transaction() as tx:
+                    for query, params in queries:
+                        await tx.run(query, params or {})
+                    await tx.commit()
         except Exception as exc:
             raise self._translate_exception(exc) from exc
 
@@ -383,29 +431,19 @@ class AsyncNeo4jClient:
         path = rows[0].get("path")
         return path if isinstance(path, PathResult) else None
 
-    async def health_check(self) -> dict[str, Any]:
+    async def health_check(self) -> bool:
         if self.mode == "local":
             assert self._local is not None
-            return await self._local.health_check()
+            details = await self._local.health_check()
+            return details.get("status") == "ok"
 
         driver = await self._get_driver()
         try:
             async with driver.session() as session:
-                result = await session.run(
-                    "CALL dbms.components() YIELD name, versions, edition "
-                    "RETURN name, versions, edition LIMIT 1"
-                )
-                record = await result.single()
-                if record is None:
-                    return {"status": "error", "mode": "neo4j", "error": "No dbms.components() result."}
-                return {
-                    "status": "ok",
-                    "mode": "neo4j",
-                    "version": cast(list[str], record["versions"])[0],
-                    "edition": str(record["edition"]).lower(),
-                }
-        except Exception as exc:
-            return {"status": "error", "mode": "neo4j", "error": str(exc)}
+                await session.run("RETURN 1 AS ok")
+            return True
+        except Exception:
+            return False
 
     async def close(self) -> None:
         if self.mode == "local":
@@ -417,7 +455,7 @@ class AsyncNeo4jClient:
             await self._driver.close()
             self._driver = None
 
-    async def __aenter__(self) -> "AsyncNeo4jClient":
+    async def __aenter__(self) -> AsyncNeo4jClient:
         return self
 
     async def __aexit__(self, *args: Any) -> None:
@@ -427,7 +465,8 @@ class AsyncNeo4jClient:
     def _resolve_mode(settings: Settings) -> str:
         if settings.GRAPH_MODE not in {"auto", "neo4j", "local"}:
             raise Neo4jClientError(
-                f"Unsupported GRAPH_MODE {settings.GRAPH_MODE!r}; expected 'auto', 'neo4j', or 'local'."
+                "Unsupported GRAPH_MODE "
+                f"{settings.GRAPH_MODE!r}; expected 'auto', 'neo4j', or 'local'."
             )
         if settings.GRAPH_MODE == "auto":
             return "neo4j" if settings.NEO4J_URL else "local"
@@ -440,12 +479,14 @@ class AsyncNeo4jClient:
             return self._driver
 
         async with self._driver_lock:
-            if self._driver is not None:
+            if self._current_driver() is not None:
                 return self._driver
             if not self.settings.NEO4J_URL:
-                raise Neo4jConnectionError("NEO4J_URL is required when GRAPH_MODE resolves to neo4j.")
+                raise Neo4jConnectionError(
+                    "NEO4J_URL is required when GRAPH_MODE resolves to neo4j."
+                )
             neo4j_module = import_module("neo4j")
-            async_graph_database = getattr(neo4j_module, "AsyncGraphDatabase")
+            async_graph_database = neo4j_module.AsyncGraphDatabase
             self._driver = async_graph_database.driver(
                 self.settings.NEO4J_URL,
                 max_connection_pool_size=self.settings.NEO4J_MAX_CONNECTION_POOL_SIZE,
@@ -498,6 +539,9 @@ class AsyncNeo4jClient:
         if not all(self._is_safe_identifier(rel_type) for rel_type in rel_types):
             raise Neo4jClientError(f"Unsupported relationship types: {rel_types!r}")
         return f"rel:{'|'.join(rel_types)}"
+
+    def _current_driver(self) -> Any | None:
+        return self._driver
 
     @staticmethod
     def _is_safe_identifier(value: str) -> bool:

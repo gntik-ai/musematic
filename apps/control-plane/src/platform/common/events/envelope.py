@@ -1,49 +1,41 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
 
 class CorrelationContext(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    workspace_id: str | None = None
-    execution_id: str | None = None
-    interaction_id: str | None = None
-    fleet_id: str | None = None
-    goal_id: str | None = None
-    trace_id: str | None = None
+    workspace_id: UUID | None = None
+    conversation_id: UUID | None = None
+    interaction_id: UUID | None = None
+    execution_id: UUID | None = None
+    fleet_id: UUID | None = None
+    goal_id: UUID | None = None
+    correlation_id: UUID
 
 
 class EventEnvelope(BaseModel):
-    model_config = ConfigDict(frozen=True)
-
-    event_id: UUID
     event_type: str
-    schema_version: str
-    occurred_at: datetime
-    actor: str
-    correlation: CorrelationContext = Field(default_factory=CorrelationContext)
+    version: str = "1.0"
+    source: str
+    correlation_context: CorrelationContext
+    trace_context: dict[str, str] = Field(default_factory=dict)
+    occurred_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     payload: dict[str, Any]
 
 
 def make_envelope(
     event_type: str,
-    actor: str,
+    source: str,
     payload: dict[str, Any],
-    correlation: CorrelationContext | None = None,
-    schema_version: str = "1.0.0",
+    correlation_context: CorrelationContext | None = None,
 ) -> EventEnvelope:
     return EventEnvelope(
-        event_id=uuid4(),
         event_type=event_type,
-        schema_version=schema_version,
-        occurred_at=datetime.now(timezone.utc),
-        actor=actor,
-        correlation=correlation or CorrelationContext(),
+        source=source,
+        correlation_context=correlation_context or CorrelationContext(correlation_id=uuid4()),
         payload=payload,
     )
-

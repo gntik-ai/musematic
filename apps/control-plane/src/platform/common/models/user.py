@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from sqlalchemy import String
-from sqlalchemy.orm import Mapped, mapped_column
-
 from platform.common.models.base import Base
 from platform.common.models.mixins import AuditMixin, SoftDeleteMixin, TimestampMixin, UUIDMixin
+
+from sqlalchemy import String
+from sqlalchemy.orm import Mapped, mapped_column
 
 
 class User(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, AuditMixin):

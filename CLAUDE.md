@@ -25,6 +25,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-10
 - Reasoning Engine Go satellite service (`services/reasoning-engine/`): gRPC ReasoningEngineService (9 RPCs) on port 50052, Redis Lua scripts (EVALSHA) for atomic budget tracking, goroutine pool + bounded semaphore for tree-of-thought branches, client-streaming gRPC for CoT traces, rule-based mode selector (6 modes), two-sample convergence window, fan-out registry for budget event streaming (011-reasoning-engine)
 - Go 1.22+ + `client-go 0.31+` (Kubernetes pod lifecycle in `platform-simulation`), `google.golang.org/grpc 1.67+` (gRPC server), `pgx/v5` (PostgreSQL), `confluent-kafka-go/v2` (events), `aws-sdk-go-v2` (MinIO simulation-artifacts bucket), multi-stage distroless Docker image (<50MB) (012-simulation-controller)
 - Simulation Controller Go satellite service (`services/simulation-controller/`): gRPC SimulationControlService (6 RPCs) on port 50055, `platform-simulation` namespace isolation, NetworkPolicy deny-all production egress, remotecommand tar artifact collection, Kafka `simulation.events` topic, ATE with ConfigMap-injected scenarios, in-memory state + PostgreSQL, orphan scanner (012-simulation-controller)
+- Python 3.12+ + FastAPI 0.115+ (app factory with lifespan), Pydantic v2 (settings + schemas), SQLAlchemy 2.x async (`AsyncSession` + 6 mixins), aiokafka 0.11+ (producer/consumer/DLQ), redis-py 5.x async, grpcio 1.65+ (4 satellite clients), PyJWT 2.x RS256, opentelemetry-sdk 1.27+ (013-fastapi-app-scaffold)
+- FastAPI Application Scaffold (`apps/control-plane/src/platform/common/`): app factory, PlatformSettings, canonical EventEnvelope + event type registry + DLQ, correlation ID + JWT auth middleware, 10 client wrappers (8 stores + 4 gRPC satellites), PlatformError exception hierarchy, cursor/offset pagination, 8 runtime profile entrypoints (013-fastapi-app-scaffold)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -44,9 +46,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 013-fastapi-app-scaffold: Added FastAPI app factory with lifespan hooks, PlatformSettings (Pydantic v2), async SQLAlchemy with 6 mixins, Kafka event infrastructure (EventEnvelope + DLQ + registry), correlation ID + JWT middleware, 10 client wrappers, exception hierarchy, pagination, 8 profile entrypoints
 - 012-simulation-controller: Added Go 1.22+ satellite service — gRPC SimulationControlService (6 RPCs, port 50055), platform-simulation namespace isolation, NetworkPolicy deny-all production egress, remotecommand tar artifact collection to simulation-artifacts bucket, ATE with ConfigMap-injected scenarios, in-memory+PostgreSQL state
 - 011-reasoning-engine: Added Go 1.22+ satellite service — gRPC ReasoningEngineService (9 RPCs, port 50052), Redis Lua EVALSHA for atomic budget tracking, goroutine pool for ToT branch management, client-streaming gRPC for CoT traces, rule-based mode selector, two-sample convergence detection
-- 010-sandbox-manager: Added Go 1.22+ satellite service — gRPC SandboxService (5 RPCs), remotecommand pod exec, 4 sandbox templates, max security hardening (non-root, read-only rootfs, no caps, deny-all network), in-memory state + PostgreSQL metadata
 
 
 <!-- MANUAL ADDITIONS START -->

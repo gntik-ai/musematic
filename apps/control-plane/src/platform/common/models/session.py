@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 from datetime import datetime
+from platform.common.models.base import Base
+from platform.common.models.mixins import TimestampMixin, UUIDMixin
 from uuid import UUID
 
 from sqlalchemy import DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
-
-from platform.common.models.base import Base
-from platform.common.models.mixins import TimestampMixin, UUIDMixin
 
 
 class Session(Base, UUIDMixin, TimestampMixin):

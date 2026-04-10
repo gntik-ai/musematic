@@ -7,6 +7,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
+from platform.common.config import PlatformSettings
 from typing import Any, cast
 
 from redis.asyncio import Redis
@@ -56,12 +57,20 @@ class AsyncRedisClient:
         self._standalone = os.environ.get("REDIS_TEST_MODE") == "standalone"
         self._url = os.environ.get("REDIS_URL")
 
+    @classmethod
+    def from_settings(cls, settings: PlatformSettings) -> AsyncRedisClient:
+        nodes = settings.REDIS_NODES or [settings.REDIS_URL.removeprefix("redis://")]
+        client = cls(nodes=nodes, password=settings.REDIS_PASSWORD or None)
+        client._standalone = settings.REDIS_TEST_MODE == "standalone"
+        client._url = settings.REDIS_URL
+        return client
+
     async def initialize(self) -> None:
-        if self.client is not None:
+        if self._current_client() is not None:
             return
 
         async with self._init_lock:
-            if self.client is not None:
+            if self._current_client() is not None:
                 return
 
             if self._standalone:
@@ -101,6 +110,9 @@ class AsyncRedisClient:
         await self.client.close()
         self.client = None
 
+    async def connect(self) -> None:
+        await self.initialize()
+
     async def health_check(self) -> bool:
         try:
             client = await self._get_client()
@@ -108,6 +120,31 @@ class AsyncRedisClient:
             return bool(response)
         except RedisError:
             return False
+
+    async def get(self, key: str) -> bytes | None:
+        client = await self._get_client()
+        value = await client.get(key)
+        if value is None:
+            return None
+        if isinstance(value, bytes):
+            return value
+        return str(value).encode()
+
+    async def set(self, key: str, value: bytes, ttl: int | None = None) -> None:
+        client = await self._get_client()
+        await client.set(key, value, ex=ttl)
+
+    async def delete(self, key: str) -> None:
+        client = await self._get_client()
+        await client.delete(key)
+
+    async def hgetall(self, key: str) -> dict[Any, Any]:
+        client = await self._get_client()
+        return cast(dict[Any, Any], await cast(Any, client.hgetall(key)))
+
+    async def evalsha(self, sha: str, keys: list[Any], args: list[Any]) -> Any:
+        client = await self._get_client()
+        return await cast(Any, client.evalsha(sha, len(keys), *keys, *args))
 
     async def set_session(
         self,
@@ -298,6 +335,9 @@ class AsyncRedisClient:
     async def _get_client(self) -> Redis | RedisCluster:
         await self.initialize()
         assert self.client is not None
+        return self.client
+
+    def _current_client(self) -> Redis | RedisCluster | None:
         return self.client
 
     async def _eval_script(

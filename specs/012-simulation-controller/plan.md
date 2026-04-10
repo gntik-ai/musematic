@@ -128,7 +128,7 @@ services/simulation-controller/
 - `internal/sim_manager/orphan_scanner.go`: 60s goroutine, list pods by `simulation=true` label, delete orphans not in state map
 - `api/grpc/v1/handler.go`: `GetSimulationStatus` (read from in-memory map, compute elapsed) and `TerminateSimulation` (delete pod, update DB, publish TERMINATED event)
 - PostgreSQL writes: `UPDATE simulations SET status=..., terminated_at=... WHERE simulation_id=...`
-- Unit tests: status read < 1ms from map, termination cleanup sequence (pod deleted → DB updated → event published), multiple simulations unaffected by single termination
+- Unit tests: status read < 1ms from map, termination cleanup sequence (pod deleted → DB updated → event published → fanout closed), multiple simulations unaffected by single termination
 
 ### Phase 4 — US3: Artifact Collection
 - `internal/artifact_collector/exec.go`: SPDY remotecommand exec, `tar -czf - {path}` pipe to MinIO `simulation-artifacts/{simulation_id}/{filename}.tar.gz`; MinIO `PutObject` with `Metadata: {"x-amz-meta-simulation": "true", "x-amz-meta-simulation-id": simulation_id}`; insert `simulation_artifacts` row
