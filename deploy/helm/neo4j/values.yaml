@@ -1,0 +1,48 @@
+neo4j:
+  edition: community
+  minimumClusterSize: 1
+  name: musematic-neo4j
+  password: ""
+  passwordFromSecret: neo4j-credentials
+  acceptLicenseAgreement: "yes"
+  resources:
+    requests:
+      memory: 3Gi
+      cpu: "1"
+    limits:
+      memory: 4Gi
+      cpu: "2"
+  config:
+    server.memory.heap.initial_size: "1G"
+    server.memory.heap.max_size: "2G"
+    server.memory.pagecache.size: "1G"
+    dbms.security.procedures.unrestricted: "apoc.*"
+    dbms.security.procedures.allowlist: "apoc.*"
+  env:
+    NEO4J_PLUGINS: '["apoc"]'
+
+persistence:
+  storageClassName: standard
+  size: 20Gi
+
+service:
+  type: ClusterIP
+  boltPort: 7687
+  httpPort: 7474
+
+schemaInit:
+  enabled: true
+  image: neo4j:5.21.2-enterprise
+  retries: 60
+  retryIntervalSeconds: 5
+
+backup:
+  enabled: true
+  schedule: "0 3 * * *"
+  bucket: backups
+  prefix: neo4j
+  image: neo4j:5.21.2-enterprise
+  dataClaimName: ""
+
+networkPolicy:
+  enabled: true

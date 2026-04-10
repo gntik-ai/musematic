@@ -1,0 +1,19 @@
+neo4j:
+  edition: community
+  minimumClusterSize: 1
+  resources:
+    requests:
+      memory: 1Gi
+      cpu: "500m"
+    limits:
+      memory: 2Gi
+      cpu: "1"
+
+persistence:
+  size: 10Gi
+
+networkPolicy:
+  enabled: false
+
+backup:
+  enabled: false

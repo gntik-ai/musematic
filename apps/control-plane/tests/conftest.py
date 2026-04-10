@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator, Iterator
 import os
+from pathlib import Path
+import socket
 import time
 from urllib import request
 from uuid import uuid4
@@ -17,9 +19,13 @@ from testcontainers.redis import RedisContainer
 
 from helpers import make_async_database_url, run_alembic
 from platform.common.clients.object_storage import AsyncObjectStorageClient
+from platform.common.clients.neo4j import AsyncNeo4jClient
 from platform.common.clients.qdrant import AsyncQdrantClient
 from platform.common.config import Settings
 from platform.common.clients.redis import AsyncRedisClient
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+NEO4J_INIT_CYPHER = REPO_ROOT / "deploy" / "neo4j" / "init.cypher"
 
 
 @pytest.fixture(scope="session")
@@ -261,3 +267,74 @@ async def qdrant_test_collection(qdrant_client: AsyncQdrantClient, qdrant_settin
         await qdrant_client._client.delete_collection(collection_name=collection_name)
     except Exception:
         return
+
+
+def _neo4j_init_statements() -> list[str]:
+    contents = NEO4J_INIT_CYPHER.read_text(encoding="utf-8")
+    filtered = "\n".join(
+        line for line in contents.splitlines() if not line.lstrip().startswith("//")
+    )
+    return [statement.strip() for statement in filtered.split(";") if statement.strip()]
+
+
+async def _apply_neo4j_init(client: AsyncNeo4jClient) -> None:
+    for statement in _neo4j_init_statements():
+        await client.run_query(statement)
+
+
+@pytest.fixture(scope="session")
+def neo4j_server() -> Iterator[dict[str, object]]:
+    if os.environ.get("NEO4J_TEST_MODE") == "external":
+        yield {
+            "url": os.environ["NEO4J_TEST_URL"],
+            "password": os.environ["NEO4J_TEST_PASSWORD"],
+            "http_url": os.environ.get("NEO4J_TEST_HTTP_URL", ""),
+        }
+        return
+
+    container = (
+        DockerContainer("neo4j:5.21.2-community")
+        .with_exposed_ports(7474, 7687)
+        .with_env("NEO4J_AUTH", "neo4j/test-password")
+        .with_env("NEO4J_PLUGINS", '["apoc"]')
+        .with_env("NEO4J_dbms_security_procedures_unrestricted", "apoc.*")
+        .with_env("NEO4J_dbms_security_procedures_allowlist", "apoc.*")
+    )
+    with container:
+        host = container.get_container_host_ip()
+        bolt_port = int(container.get_exposed_port(7687))
+        http_port = int(container.get_exposed_port(7474))
+        for _ in range(60):
+            try:
+                with socket.create_connection((host, bolt_port), timeout=5):
+                    break
+            except OSError:
+                time.sleep(2)
+        else:  # pragma: no cover - startup failure
+            raise RuntimeError("Neo4j test container did not become ready in time.")
+
+        yield {
+            "url": f"bolt://neo4j:test-password@{host}:{bolt_port}",
+            "password": "test-password",
+            "http_url": f"http://{host}:{http_port}",
+        }
+
+
+@pytest.fixture
+def neo4j_settings(neo4j_server: dict[str, object]) -> Settings:
+    return Settings(
+        NEO4J_URL=str(neo4j_server["url"]),
+        NEO4J_MAX_CONNECTION_POOL_SIZE=10,
+        GRAPH_MODE="neo4j",
+    )
+
+
+@pytest_asyncio.fixture
+async def neo4j_client(neo4j_settings: Settings) -> AsyncIterator[AsyncNeo4jClient]:
+    pytest.importorskip("neo4j")
+    client = AsyncNeo4jClient(neo4j_settings)
+    await client.run_query("MATCH (n) DETACH DELETE n")
+    await _apply_neo4j_init(client)
+    yield client
+    await client.run_query("MATCH (n) DETACH DELETE n")
+    await client.close()

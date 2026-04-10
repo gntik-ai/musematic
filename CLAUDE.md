@@ -1,6 +1,6 @@
 # musematic Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-09
+Auto-generated from all feature plans. Last updated: 2026-04-10
 
 ## Active Technologies
 - Python 3.12+ (control plane client), Go 1.22+ (reasoning engine client) + `redis-py 5.x` (Python async), `go-redis/redis/v9` (Go), Bitnami `redis-cluster` Helm chart (002-redis-cache-hot-state)
@@ -11,6 +11,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-09
 - MinIO (S3-compatible object storage) (004-minio-object-storage)
 - Python 3.12+ + qdrant-client[grpc] 1.12+ (Python async gRPC client), Helm 3.x (Qdrant official chart: qdrant/qdrant) (005-qdrant-vector-search)
 - Qdrant (vector search engine, deployed as StatefulSet — no operator) (005-qdrant-vector-search)
+- Python 3.12+ + `neo4j-python-driver 5.x` (`AsyncGraphDatabase`), Helm 3.x (`neo4j/neo4j` official chart), APOC plugin (via `NEO4J_PLUGINS` env var) (006-neo4j-knowledge-graph)
+- Neo4j 5.x (graph database, StatefulSet — no operator) (006-neo4j-knowledge-graph)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -30,9 +32,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 006-neo4j-knowledge-graph: Added Python 3.12+ + `neo4j-python-driver 5.x` (`AsyncGraphDatabase`), Helm 3.x (`neo4j/neo4j` official chart), APOC plugin (via `NEO4J_PLUGINS` env var)
 - 005-qdrant-vector-search: Added Python 3.12+ + qdrant-client[grpc] 1.12+ (Python async gRPC client), Helm 3.x (Qdrant official chart: qdrant/qdrant)
 - 004-minio-object-storage: Added Python 3.12+ (control plane client) + aioboto3 latest (Python async S3 client), MinIO Operator (Kubernetes), Helm 3.x
-- 003-kafka-event-backbone: Added Python 3.12+ (control plane), Go 1.22+ (reasoning engine) + aiokafka 0.11+ (Python producer/consumer), confluent-kafka-go v2 (Go producer), Strimzi operator (Kubernetes Kafka), Helm 3.x
 
 
 <!-- MANUAL ADDITIONS START -->

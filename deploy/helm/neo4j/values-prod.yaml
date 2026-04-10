@@ -1,0 +1,16 @@
+neo4j:
+  edition: enterprise
+  minimumClusterSize: 3
+  resources:
+    requests:
+      memory: 6Gi
+      cpu: "2"
+    limits:
+      memory: 8Gi
+      cpu: "4"
+
+persistence:
+  size: 100Gi
+
+networkPolicy:
+  enabled: true
