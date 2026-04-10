@@ -17,6 +17,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-10
 - ClickHouse 24.3+ (OLAP database, StatefulSet — no operator) + ClickHouse Keeper (Raft consensus, separate StatefulSet) (007-clickhouse-analytics)
 - Python 3.12+ + `opensearch-py 2.x` (`AsyncOpenSearch`), Helm 3.x (wrapper chart: opensearch-project/opensearch + opensearch-dashboards deps), ICU plugin via init container (008-opensearch-full-text-search)
 - OpenSearch 2.18.x (full-text search, StatefulSet — no operator) + OpenSearch Dashboards (separate Deployment); ISM for lifecycle policies; Snapshot Management (SM) for backups to MinIO (008-opensearch-full-text-search)
+- Go 1.22+ + `client-go 0.31+` (Kubernetes pod management), `google.golang.org/grpc 1.67+` (gRPC server), `pgx/v5` (PostgreSQL), `go-redis/v9` (heartbeat TTL), `confluent-kafka-go/v2` (events), `aws-sdk-go-v2` (MinIO artifacts), multi-stage distroless Docker image (<100MB) (009-runtime-controller)
+- Runtime Controller Go satellite service (`services/runtime-controller/`): gRPC RuntimeControlService (7 RPCs), reconciliation loop (30s), heartbeat scanner (Redis TTL 60s), warm pool (in-memory + PostgreSQL), secrets isolation (Kubernetes projected volumes), TaskPlanRecord persistence (PostgreSQL + MinIO) (009-runtime-controller)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -36,8 +38,8 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 009-runtime-controller: Added Go 1.22+ satellite service — gRPC RuntimeControlService, client-go pod lifecycle, Redis heartbeat TTL, warm pool, secrets isolation (projected volumes), TaskPlanRecord persistence
 - 008-opensearch-full-text-search: Added Python 3.12+ + `opensearch-py 2.x` (`AsyncOpenSearch`), Helm 3.x wrapper chart (opensearch-project/opensearch + dashboards), ICU plugin init container, ISM policies, Snapshot Management (SM)
-- 007-clickhouse-analytics: Added Python 3.12+ + `clickhouse-connect 0.8+` (HTTP interface), Helm 3.x (custom chart), `altinity/clickhouse-backup` (backup tool)
 
 
 <!-- MANUAL ADDITIONS START -->

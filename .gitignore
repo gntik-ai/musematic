@@ -224,6 +224,10 @@ venv.bak/
 .vscode/
 coverage/
 /site
+bin/
+vendor/
+*.out
+*.test
 
 # mypy
 .mypy_cache/

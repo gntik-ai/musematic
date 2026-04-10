@@ -1,0 +1,10 @@
+.git/
+.github/
+.idea/
+.vscode/
+*.swp
+*.tmp
+*.bak
+*.log
+coverage/
+tests/
