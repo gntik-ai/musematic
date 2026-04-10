@@ -8,7 +8,13 @@ import (
 )
 
 type KafkaProducer struct {
-	producer *kafka.Producer
+	producer kafkaProducerClient
+}
+
+type kafkaProducerClient interface {
+	Produce(msg *kafka.Message, deliveryChan chan kafka.Event) error
+	Flush(timeoutMs int) int
+	Close()
 }
 
 func NewKafkaProducer(bootstrapServers string) (*KafkaProducer, error) {
@@ -17,8 +23,8 @@ func NewKafkaProducer(bootstrapServers string) (*KafkaProducer, error) {
 	}
 
 	producer, err := kafka.NewProducer(&kafka.ConfigMap{
-		"bootstrap.servers": bootstrapServers,
-		"acks":              "all",
+		"bootstrap.servers":  bootstrapServers,
+		"acks":               "all",
 		"enable.idempotence": true,
 	})
 	if err != nil {
@@ -29,6 +35,10 @@ func NewKafkaProducer(bootstrapServers string) (*KafkaProducer, error) {
 }
 
 func (p *KafkaProducer) Produce(ctx context.Context, topic string, key string, valueJSON []byte) error {
+	if p == nil || p.producer == nil {
+		return errors.New("producer is not initialized")
+	}
+
 	deliveryChan := make(chan kafka.Event, 1)
 	defer close(deliveryChan)
 
@@ -54,7 +64,9 @@ func (p *KafkaProducer) Produce(ctx context.Context, topic string, key string, v
 }
 
 func (p *KafkaProducer) Close() {
+	if p == nil || p.producer == nil {
+		return
+	}
 	p.producer.Flush(5000)
 	p.producer.Close()
 }
-

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: reasoning-engine-config
+  namespace: {{ .Release.Namespace }}
+data:
+  GRPC_PORT: "{{ .Values.grpcPort }}"
+  MAX_TOT_CONCURRENCY: "{{ .Values.config.maxTotConcurrency }}"
+  TRACE_BUFFER_SIZE: "{{ .Values.config.traceBufferSize }}"
+  TRACE_PAYLOAD_THRESHOLD: "{{ .Values.config.tracePayloadThreshold }}"
+  BUDGET_DEFAULT_TTL_SECONDS: "{{ .Values.config.budgetDefaultTTLSeconds }}"
