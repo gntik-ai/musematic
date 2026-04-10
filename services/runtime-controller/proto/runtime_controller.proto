@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+package runtime_controller.v1;
+
+option go_package = "github.com/andrea-mucci/musematic/services/runtime-controller/api/grpc/v1;runtimecontrollerv1";
+
+import "google/protobuf/timestamp.proto";
+
+enum RuntimeState {
+  RUNTIME_STATE_UNSPECIFIED = 0;
+  RUNTIME_STATE_PENDING = 1;
+  RUNTIME_STATE_RUNNING = 2;
+  RUNTIME_STATE_PAUSED = 3;
+  RUNTIME_STATE_STOPPED = 4;
+  RUNTIME_STATE_FORCE_STOPPED = 5;
+  RUNTIME_STATE_FAILED = 6;
+}
+
+enum RuntimeEventType {
+  RUNTIME_EVENT_UNSPECIFIED = 0;
+  RUNTIME_EVENT_LAUNCHED = 1;
+  RUNTIME_EVENT_PAUSED = 2;
+  RUNTIME_EVENT_RESUMED = 3;
+  RUNTIME_EVENT_STOPPED = 4;
+  RUNTIME_EVENT_FORCE_STOPPED = 5;
+  RUNTIME_EVENT_FAILED = 6;
+  RUNTIME_EVENT_HEARTBEAT = 7;
+  RUNTIME_EVENT_ARTIFACT_COLLECTED = 8;
+  RUNTIME_EVENT_DRIFT_DETECTED = 9;
+}
+
+message CorrelationContext {
+  string workspace_id = 1;
+  string conversation_id = 2;
+  string interaction_id = 3;
+  string execution_id = 4;
+  string fleet_id = 5;
+  string goal_id = 6;
+  string trace_id = 7;
+}
+
+message ResourceLimits {
+  string cpu_request = 1;
+  string cpu_limit = 2;
+  string memory_request = 3;
+  string memory_limit = 4;
+}
+
+message RuntimeContract {
+  string agent_revision = 1;
+  string model_binding = 2;
+  repeated string policy_ids = 3;
+  CorrelationContext correlation_context = 4;
+  string reasoning_config_json = 5;
+  string context_engineering_profile_id = 6;
+  string reasoning_budget_envelope_json = 7;
+  ResourceLimits resource_limits = 8;
+  repeated string secret_refs = 9;
+  map<string, string> env_vars = 10;
+  string task_plan_json = 11;
+  string step_id = 12;
+}
+
+message RuntimeInfo {
+  string runtime_id = 1;
+  string execution_id = 2;
+  RuntimeState state = 3;
+  string failure_reason = 4;
+  string pod_name = 5;
+  google.protobuf.Timestamp launched_at = 6;
+  google.protobuf.Timestamp last_heartbeat_at = 7;
+  CorrelationContext correlation_context = 8;
+}
+
+message RuntimeEvent {
+  string event_id = 1;
+  string runtime_id = 2;
+  string execution_id = 3;
+  RuntimeEventType event_type = 4;
+  google.protobuf.Timestamp occurred_at = 5;
+  string details_json = 6;
+  RuntimeState new_state = 7;
+}
+
+message LaunchRuntimeRequest { RuntimeContract contract = 1; }
+message LaunchRuntimeResponse { string runtime_id = 1; RuntimeState state = 2; bool warm_start = 3; }
+message GetRuntimeRequest { string execution_id = 1; }
+message GetRuntimeResponse { RuntimeInfo runtime = 1; }
+message PauseRuntimeRequest { string execution_id = 1; }
+message PauseRuntimeResponse { RuntimeState state = 1; }
+message ResumeRuntimeRequest { string execution_id = 1; }
+message ResumeRuntimeResponse { RuntimeState state = 1; }
+message StopRuntimeRequest { string execution_id = 1; int32 grace_period_seconds = 2; }
+message StopRuntimeResponse { RuntimeState state = 1; bool force_killed = 2; }
+message StreamRuntimeEventsRequest { string execution_id = 1; google.protobuf.Timestamp since = 2; }
+message CollectRuntimeArtifactsRequest { string execution_id = 1; }
+
+message ArtifactEntry {
+  string object_key = 1;
+  string filename = 2;
+  int64 size_bytes = 3;
+  string content_type = 4;
+  google.protobuf.Timestamp collected_at = 5;
+}
+
+message CollectRuntimeArtifactsResponse {
+  repeated ArtifactEntry artifacts = 1;
+  bool complete = 2;
+}
+
+service RuntimeControlService {
+  rpc LaunchRuntime(LaunchRuntimeRequest) returns (LaunchRuntimeResponse);
+  rpc GetRuntime(GetRuntimeRequest) returns (GetRuntimeResponse);
+  rpc PauseRuntime(PauseRuntimeRequest) returns (PauseRuntimeResponse);
+  rpc ResumeRuntime(ResumeRuntimeRequest) returns (ResumeRuntimeResponse);
+  rpc StopRuntime(StopRuntimeRequest) returns (StopRuntimeResponse);
+  rpc StreamRuntimeEvents(StreamRuntimeEventsRequest) returns (stream RuntimeEvent);
+  rpc CollectRuntimeArtifacts(CollectRuntimeArtifactsRequest) returns (CollectRuntimeArtifactsResponse);
+}

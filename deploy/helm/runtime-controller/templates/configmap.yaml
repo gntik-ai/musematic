@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: musematic-runtime-controller-config
+  namespace: {{ .Release.Namespace }}
+data:
+  K8S_NAMESPACE: {{ .Values.config.k8sNamespace | quote }}
+  RECONCILE_INTERVAL: {{ .Values.config.reconcileInterval | quote }}
+  HEARTBEAT_TIMEOUT: {{ .Values.config.heartbeatTimeout | quote }}
+  HEARTBEAT_CHECK_INTERVAL: {{ .Values.config.heartbeatCheckInterval | quote }}
+  WARM_POOL_IDLE_TIMEOUT: {{ .Values.config.warmPoolIdleTimeout | quote }}
+  WARM_POOL_REPLENISH_INTERVAL: {{ .Values.config.warmPoolReplenishInterval | quote }}
+  STOP_GRACE_PERIOD: {{ .Values.config.stopGracePeriod | quote }}
+  AGENT_PACKAGE_PRESIGN_TTL: {{ .Values.config.agentPackagePresignTTL | quote }}

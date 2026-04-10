@@ -14,4 +14,6 @@ coverage
 dist
 build
 node_modules
-
+vendor
+*.out
+*.test

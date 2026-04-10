@@ -1,0 +1,6 @@
+apiVersion: v2
+name: musematic-runtime-controller
+description: Runtime controller satellite service for Musematic.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

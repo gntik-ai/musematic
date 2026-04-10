@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: musematic-runtime-controller
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: runtime-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: runtime-controller
+    spec:
+      serviceAccountName: musematic-runtime-controller
+      containers:
+        - name: runtime-controller
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: grpc
+              containerPort: {{ .Values.grpcPort }}
+            - name: http
+              containerPort: {{ .Values.httpPort }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.configSecretRef }}
+            - configMapRef:
+                name: musematic-runtime-controller-config
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
