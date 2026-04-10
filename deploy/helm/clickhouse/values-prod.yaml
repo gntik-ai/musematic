@@ -1,0 +1,18 @@
+clickhouse:
+  replicaCount: 2
+  keeper:
+    enabled: true
+    replicaCount: 3
+  resources:
+    requests:
+      memory: 8Gi
+      cpu: "4"
+    limits:
+      memory: 16Gi
+      cpu: "4"
+
+persistence:
+  size: 100Gi
+
+networkPolicy:
+  enabled: true

@@ -1,0 +1,44 @@
+{{- if .Values.backup.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: clickhouse-backup
+  namespace: {{ .Release.Namespace }}
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: clickhouse-backup
+              image: {{ .Values.backup.image | quote }}
+              command:
+                - /bin/sh
+                - -ec
+                - clickhouse-backup create_remote --all
+              env:
+                - name: CLICKHOUSE_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: clickhouse-credentials
+                      key: CLICKHOUSE_PASSWORD
+                - name: MINIO_ACCESS_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: minio-platform-credentials
+                      key: MINIO_ACCESS_KEY
+                - name: MINIO_SECRET_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: minio-platform-credentials
+                      key: MINIO_SECRET_KEY
+              volumeMounts:
+                - name: backup-config
+                  mountPath: /etc/clickhouse-backup
+          volumes:
+            - name: backup-config
+              configMap:
+                name: musematic-clickhouse-backup
+{{- end }}

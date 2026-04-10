@@ -40,3 +40,15 @@ class Neo4jConnectionError(Neo4jClientError):
 
 class HopLimitExceededError(Neo4jClientError):
     """Raised when local graph mode is asked to traverse beyond the supported hop limit."""
+
+
+class ClickHouseClientError(Exception):
+    """Raised when ClickHouse client operations fail."""
+
+
+class ClickHouseConnectionError(ClickHouseClientError):
+    """Raised when ClickHouse is not configured or cannot be reached."""
+
+
+class ClickHouseQueryError(ClickHouseClientError):
+    """Raised when a ClickHouse query or insert fails."""

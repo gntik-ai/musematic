@@ -1,0 +1,97 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: musematic-clickhouse-init
+  namespace: {{ .Release.Namespace }}
+data:
+  001-usage-events.sql: |
+    CREATE TABLE IF NOT EXISTS usage_events (
+        event_id UUID,
+        workspace_id UUID,
+        user_id UUID,
+        agent_id UUID,
+        workflow_id Nullable(UUID),
+        execution_id Nullable(UUID),
+        provider String,
+        model String,
+        input_tokens UInt32,
+        output_tokens UInt32,
+        reasoning_tokens UInt32 DEFAULT 0,
+        cached_tokens UInt32 DEFAULT 0,
+        estimated_cost Decimal64(6),
+        context_quality_score Nullable(Float32),
+        reasoning_depth Nullable(UInt8),
+        event_time DateTime64(3)
+    ) ENGINE = MergeTree()
+    PARTITION BY toYYYYMM(event_time)
+    ORDER BY (workspace_id, event_time, agent_id)
+    TTL event_time + INTERVAL 365 DAY;
+  002-behavioral-drift.sql: |
+    CREATE TABLE IF NOT EXISTS behavioral_drift (
+        agent_id UUID,
+        revision_id UUID,
+        metric_name String,
+        metric_value Float64,
+        baseline_value Float64,
+        deviation Float64,
+        measured_at DateTime64(3)
+    ) ENGINE = MergeTree()
+    PARTITION BY toYYYYMM(measured_at)
+    ORDER BY (agent_id, metric_name, measured_at)
+    TTL measured_at + INTERVAL 180 DAY;
+  003-fleet-performance.sql: |
+    CREATE TABLE IF NOT EXISTS fleet_performance (
+        fleet_id UUID,
+        metric_name String,
+        metric_value Float64,
+        member_count UInt16,
+        measured_at DateTime64(3)
+    ) ENGINE = MergeTree()
+    PARTITION BY toYYYYMM(measured_at)
+    ORDER BY (fleet_id, metric_name, measured_at);
+  004-self-correction-analytics.sql: |
+    CREATE TABLE IF NOT EXISTS self_correction_analytics (
+        execution_id UUID,
+        agent_id UUID,
+        loop_id UUID,
+        iterations UInt8,
+        converged UInt8,
+        initial_quality Float32,
+        final_quality Float32,
+        total_cost Decimal64(6),
+        completed_at DateTime64(3)
+    ) ENGINE = MergeTree()
+    PARTITION BY toYYYYMM(completed_at)
+    ORDER BY (agent_id, completed_at);
+  005-usage-hourly.sql: |
+    CREATE TABLE IF NOT EXISTS usage_hourly (
+        workspace_id UUID,
+        agent_id UUID,
+        provider String,
+        model String,
+        hour DateTime,
+        total_input_tokens UInt64,
+        total_output_tokens UInt64,
+        total_reasoning_tokens UInt64,
+        total_cost Decimal128(6),
+        event_count UInt64,
+        avg_context_quality Float64
+    ) ENGINE = SummingMergeTree()
+    PARTITION BY toYYYYMM(hour)
+    ORDER BY (workspace_id, agent_id, provider, model, hour);
+  006-usage-hourly-mv.sql: |
+    CREATE MATERIALIZED VIEW IF NOT EXISTS usage_hourly_mv TO usage_hourly AS
+    SELECT
+        workspace_id,
+        agent_id,
+        provider,
+        model,
+        toStartOfHour(event_time) AS hour,
+        sum(input_tokens) AS total_input_tokens,
+        sum(output_tokens) AS total_output_tokens,
+        sum(reasoning_tokens) AS total_reasoning_tokens,
+        sum(estimated_cost) AS total_cost,
+        count() AS event_count,
+        avg(context_quality_score) AS avg_context_quality
+    FROM usage_events
+    GROUP BY workspace_id, agent_id, provider, model, hour;

@@ -1,0 +1,47 @@
+{{- if .Values.clickhouse.keeper.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: musematic-clickhouse-keeper
+  namespace: {{ .Release.Namespace }}
+spec:
+  serviceName: musematic-clickhouse-keeper
+  replicas: {{ .Values.clickhouse.keeper.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: clickhouse-keeper
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: clickhouse-keeper
+    spec:
+      containers:
+        - name: keeper
+          image: {{ .Values.clickhouse.keeper.image | quote }}
+          ports:
+            - name: keeper
+              containerPort: 9181
+            - name: raft
+              containerPort: 9234
+            - name: raft-internal
+              containerPort: 9444
+          volumeMounts:
+            - name: keeper-data
+              mountPath: /var/lib/clickhouse-keeper
+            - name: keeper-config
+              mountPath: /etc/clickhouse-keeper/keeper_config.xml
+              subPath: keeper_config.xml
+      volumes:
+        - name: keeper-config
+          configMap:
+            name: musematic-clickhouse-keeper-config
+  volumeClaimTemplates:
+    - metadata:
+        name: keeper-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: {{ .Values.persistence.storageClassName | quote }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.keeperSize }}
+{{- end }}

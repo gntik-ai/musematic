@@ -18,6 +18,7 @@ from testcontainers.postgres import PostgresContainer
 from testcontainers.redis import RedisContainer
 
 from helpers import make_async_database_url, run_alembic
+from platform.common.clients.clickhouse import AsyncClickHouseClient
 from platform.common.clients.object_storage import AsyncObjectStorageClient
 from platform.common.clients.neo4j import AsyncNeo4jClient
 from platform.common.clients.qdrant import AsyncQdrantClient
@@ -26,6 +27,7 @@ from platform.common.clients.redis import AsyncRedisClient
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 NEO4J_INIT_CYPHER = REPO_ROOT / "deploy" / "neo4j" / "init.cypher"
+CLICKHOUSE_INIT_DIR = REPO_ROOT / "deploy" / "clickhouse" / "init"
 
 
 @pytest.fixture(scope="session")
@@ -337,4 +339,98 @@ async def neo4j_client(neo4j_settings: Settings) -> AsyncIterator[AsyncNeo4jClie
     await _apply_neo4j_init(client)
     yield client
     await client.run_query("MATCH (n) DETACH DELETE n")
+    await client.close()
+
+
+def _clickhouse_init_statements() -> list[str]:
+    statements: list[str] = []
+    for sql_file in sorted(CLICKHOUSE_INIT_DIR.glob("*.sql")):
+        contents = sql_file.read_text(encoding="utf-8")
+        for statement in contents.split(";"):
+            stripped = statement.strip()
+            if stripped:
+                statements.append(stripped)
+    return statements
+
+
+async def _apply_clickhouse_init(client: AsyncClickHouseClient) -> None:
+    for statement in _clickhouse_init_statements():
+        await client.execute_command(statement)
+
+
+@pytest.fixture(scope="session")
+def clickhouse_server() -> Iterator[dict[str, object]]:
+    if os.environ.get("CLICKHOUSE_TEST_MODE") == "external":
+        yield {
+            "url": os.environ["CLICKHOUSE_TEST_URL"],
+            "user": os.environ.get("CLICKHOUSE_TEST_USER", "default"),
+            "password": os.environ.get("CLICKHOUSE_TEST_PASSWORD", ""),
+        }
+        return
+
+    container = (
+        DockerContainer("clickhouse/clickhouse-server:24.3")
+        .with_exposed_ports(8123, 9000)
+        .with_env("CLICKHOUSE_DB", "default")
+        .with_env("CLICKHOUSE_USER", "default")
+        .with_env("CLICKHOUSE_PASSWORD", "test-password")
+        .with_env("CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT", "1")
+    )
+    with container:
+        host = container.get_container_host_ip()
+        http_port = int(container.get_exposed_port(8123))
+        url = f"http://{host}:{http_port}"
+        for _ in range(60):
+            try:
+                with request.urlopen(f"{url}/ping", timeout=5) as response:
+                    if response.read().decode().strip() == "Ok.":
+                        break
+            except Exception:
+                time.sleep(2)
+        else:  # pragma: no cover - startup failure
+            raise RuntimeError("ClickHouse test container did not become ready in time.")
+
+        yield {
+            "url": url,
+            "user": "default",
+            "password": "test-password",
+        }
+
+
+@pytest.fixture
+def clickhouse_settings(clickhouse_server: dict[str, object]) -> Settings:
+    return Settings(
+        CLICKHOUSE_URL=str(clickhouse_server["url"]),
+        CLICKHOUSE_USER=str(clickhouse_server["user"]),
+        CLICKHOUSE_PASSWORD=str(clickhouse_server["password"]),
+        CLICKHOUSE_DATABASE="default",
+        CLICKHOUSE_INSERT_BATCH_SIZE=1000,
+        CLICKHOUSE_INSERT_FLUSH_INTERVAL=5.0,
+    )
+
+
+@pytest_asyncio.fixture
+async def clickhouse_client(clickhouse_settings: Settings) -> AsyncIterator[AsyncClickHouseClient]:
+    pytest.importorskip("clickhouse_connect")
+    client = AsyncClickHouseClient(clickhouse_settings)
+    await _apply_clickhouse_init(client)
+    for table in (
+        "usage_hourly_mv",
+        "usage_hourly",
+        "usage_events",
+        "behavioral_drift",
+        "fleet_performance",
+        "self_correction_analytics",
+    ):
+        await client.execute_command(f"TRUNCATE TABLE IF EXISTS {table}")
+    yield client
+    for table in (
+        "usage_hourly_mv",
+        "usage_hourly",
+        "usage_events",
+        "behavioral_drift",
+        "fleet_performance",
+        "self_correction_analytics",
+    ):
+        await client.execute_command(f"TRUNCATE TABLE IF EXISTS {table}")
     await client.close()

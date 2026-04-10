@@ -1,0 +1,21 @@
+{{- if .Values.backup.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: musematic-clickhouse-backup
+  namespace: {{ .Release.Namespace }}
+data:
+  config.yml: |
+    general:
+      remote_storage: s3
+    clickhouse:
+      username: {{ .Values.clickhouse.auth.user | quote }}
+      password: ${CLICKHOUSE_PASSWORD}
+      host: musematic-clickhouse.{{ .Release.Namespace }}.svc.cluster.local
+    s3:
+      bucket: {{ .Values.backup.bucket | quote }}
+      path: {{ .Values.backup.prefix | quote }}
+      endpoint: http://musematic-minio.platform-data:9000
+      access_key: ${MINIO_ACCESS_KEY}
+      secret_key: ${MINIO_SECRET_KEY}
+{{- end }}
