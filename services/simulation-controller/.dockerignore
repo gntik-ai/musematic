@@ -1,0 +1,13 @@
+.git
+.gitignore
+.idea
+.vscode
+bin
+coverage.out
+coverage.scoped.out
+dist
+build
+*.log
+*.tmp
+*.out
+*.test

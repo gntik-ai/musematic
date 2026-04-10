@@ -1,0 +1,36 @@
+replicaCount: 1
+
+image:
+  repository: musematic/simulation-controller
+  tag: latest
+  pullPolicy: IfNotPresent
+
+serviceAccount:
+  create: true
+  name: ""
+
+service:
+  type: ClusterIP
+  port: 50055
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+env:
+  GRPC_PORT: "50055"
+  SIMULATION_BUCKET: simulation-artifacts
+  SIMULATION_NAMESPACE: platform-simulation
+  ORPHAN_SCAN_INTERVAL_SECONDS: "60"
+  DEFAULT_MAX_DURATION_SECONDS: "3600"
+
+secrets:
+  POSTGRES_DSN: ""
+  KAFKA_BROKERS: ""
+  MINIO_ENDPOINT: ""
+  MINIO_ACCESS_KEY: minioadmin
+  MINIO_SECRET_KEY: minioadmin
