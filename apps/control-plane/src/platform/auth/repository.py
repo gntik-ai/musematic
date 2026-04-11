@@ -4,11 +4,14 @@ from datetime import UTC, datetime
 from platform.auth.models import (
     AuthAttempt,
     MfaEnrollment,
+    PasswordResetToken,
     RolePermission,
     ServiceAccountCredential,
     UserCredential,
     UserRole,
 )
+from platform.common.models.user import User as PlatformUser
+import hashlib
 from uuid import UUID
 
 from sqlalchemy import delete, select, update
@@ -23,6 +26,10 @@ class AuthRepository:
         result = await self.db.execute(
             select(UserCredential).where(UserCredential.email == email.lower())
         )
+        return result.scalar_one_or_none()
+
+    async def get_platform_user(self, user_id: UUID) -> PlatformUser | None:
+        result = await self.db.execute(select(PlatformUser).where(PlatformUser.id == user_id))
         return result.scalar_one_or_none()
 
     async def create_credential(
@@ -40,6 +47,21 @@ class AuthRepository:
         self.db.add(credential)
         await self.db.flush()
         return credential
+
+    async def create_password_reset_token(
+        self,
+        user_id: UUID,
+        raw_token: str,
+        expires_at: datetime,
+    ) -> PasswordResetToken:
+        token = PasswordResetToken(
+            user_id=user_id,
+            token_hash=hashlib.sha256(raw_token.encode("utf-8")).hexdigest(),
+            expires_at=expires_at,
+        )
+        self.db.add(token)
+        await self.db.flush()
+        return token
 
     async def update_password_hash(self, user_id: UUID, new_hash: str) -> None:
         await self.db.execute(
@@ -139,6 +161,14 @@ class AuthRepository:
             )
         )
 
+    async def disable_mfa_enrollment(self, user_id: UUID) -> bool:
+        result = await self.db.execute(
+            update(MfaEnrollment)
+            .where(MfaEnrollment.user_id == user_id)
+            .values(status="disabled", expires_at=None)
+        )
+        return bool(result.rowcount)
+
     async def consume_recovery_code(
         self,
         enrollment_id: UUID,
@@ -206,4 +236,3 @@ class AuthRepository:
             .where(ServiceAccountCredential.service_account_id == sa_id)
             .values(status="revoked")
         )
-
