@@ -421,6 +421,10 @@ class ObjectStorageStub:
         self.uploaded.append((bucket, key, data, content_type))
         self.objects[(bucket, key)] = data
 
+    async def download_object(self, bucket: str, key: str, version_id: str | None = None) -> bytes:
+        del version_id
+        return self.objects[(bucket, key)]
+
     async def delete_object(self, bucket: str, key: str, version_id: str | None = None) -> None:
         del version_id
         self.deleted.append((bucket, key))

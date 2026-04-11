@@ -37,6 +37,13 @@ from platform.common.events.consumer import EventConsumerManager
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import PlatformError, platform_exception_handler
 from platform.common.telemetry import setup_telemetry
+from platform.context_engineering.context_engineering_clickhouse_setup import (
+    run_setup as run_context_engineering_clickhouse_setup,
+)
+from platform.context_engineering.dependencies import build_context_engineering_service
+from platform.context_engineering.drift_monitor import DriftMonitorTask
+from platform.context_engineering.events import register_context_engineering_event_types
+from platform.context_engineering.router import router as context_engineering_router
 from platform.registry.events import register_registry_event_types
 from platform.registry.index_worker import RegistryIndexWorker
 from platform.registry.registry_opensearch_setup import create_marketplace_agents_index
@@ -81,6 +88,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_workspaces_event_types()
     register_analytics_event_types()
     register_registry_event_types()
+    register_context_engineering_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -101,6 +109,12 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["analytics_clickhouse_setup"] = str(exc)
             LOGGER.warning("Failed to run analytics ClickHouse setup: %s", exc)
+        try:
+            await run_context_engineering_clickhouse_setup(clickhouse_client, app.state.settings)
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["context_engineering_clickhouse_setup"] = str(exc)
+            LOGGER.warning("Failed to run context engineering ClickHouse setup: %s", exc)
     opensearch_client = app.state.clients.get("opensearch")
     if isinstance(opensearch_client, AsyncOpenSearchClient):
         try:
@@ -149,6 +163,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             startup_errors["analytics_budget_scheduler"] = str(exc)
             LOGGER.warning("Failed to start analytics budget scheduler: %s", exc)
     registry_index_worker = getattr(app.state, "registry_index_worker", None)
+    context_engineering_scheduler = getattr(app.state, "context_engineering_drift_scheduler", None)
     if registry_index_worker is not None:
         try:
             await registry_index_worker.start()
@@ -156,9 +171,21 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["registry_index_worker"] = str(exc)
             LOGGER.warning("Failed to start registry index worker: %s", exc)
+    if context_engineering_scheduler is not None:
+        try:
+            context_engineering_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["context_engineering_drift_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start context engineering scheduler: %s", exc)
     try:
         yield
     finally:
+        if context_engineering_scheduler is not None:
+            try:
+                context_engineering_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop context engineering scheduler cleanly: %s", exc)
         if registry_index_worker is not None:
             try:
                 await registry_index_worker.stop()
@@ -210,6 +237,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.analytics_consumer = None
     app.state.analytics_budget_scheduler = None
     app.state.registry_index_worker = None
+    app.state.context_engineering_drift_scheduler = None
     if resolved.profile == "worker":
         app.state.analytics_consumer = AnalyticsPipelineConsumer(
             settings=resolved,
@@ -223,6 +251,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
                 settings=resolved,
                 opensearch=opensearch_client,
             )
+    if resolved.profile in {"scheduler", "context-engineering"}:
+        app.state.context_engineering_drift_scheduler = _build_context_engineering_scheduler(app)
     exception_handler = cast(
         Callable[[Request, Exception], Response | Awaitable[Response]],
         platform_exception_handler,
@@ -254,6 +284,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(workspaces_router)
         app.include_router(analytics_router)
         app.include_router(registry_router)
+        app.include_router(context_engineering_router)
 
     setup_telemetry(
         service_name=f"{resolved.otel.service_name}-{resolved.profile}",
@@ -289,4 +320,48 @@ def _build_analytics_budget_scheduler(app: FastAPI) -> Any | None:
             await service.check_budget_thresholds()
 
     scheduler.add_job(_run_threshold_check, "interval", days=1, id="analytics-budget-threshold")
+    return scheduler
+
+
+def _build_context_engineering_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+        trigger_module = __import__(
+            "apscheduler.triggers.cron",
+            fromlist=["CronTrigger"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+    trigger = trigger_module.CronTrigger(
+        minute=f"*/{app.state.settings.context_engineering.drift_schedule_minutes}",
+    )
+
+    async def _run_drift_analysis() -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = build_context_engineering_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                clickhouse_client=cast(AsyncClickHouseClient, app.state.clients["clickhouse"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                workspaces_service=None,
+                registry_service=None,
+                execution_service=None,
+                interactions_service=None,
+                memory_service=None,
+                connectors_service=None,
+                policies_service=None,
+            )
+            await DriftMonitorTask(service).run()
+
+    scheduler.add_job(
+        _run_drift_analysis,
+        trigger,
+        id="context-engineering-drift-analysis",
+    )
     return scheduler

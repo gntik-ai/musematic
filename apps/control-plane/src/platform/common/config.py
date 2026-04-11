@@ -197,6 +197,18 @@ class RegistrySettings(BaseSettings):
         return self.package_size_limit_mb * 1024 * 1024
 
 
+class ContextEngineeringSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="CONTEXT_ENGINEERING_", extra="ignore")
+
+    bundle_bucket: str = "context-assembly-records"
+    quality_scores_table: str = "context_quality_scores"
+    policy_cache_ttl_seconds: int = 60
+    drift_window_days: int = 7
+    drift_recent_hours: int = 24
+    drift_stddev_multiplier: float = 2.0
+    drift_schedule_minutes: int = 5
+
+
 class PlatformSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="PLATFORM_", extra="ignore")
 
@@ -216,6 +228,9 @@ class PlatformSettings(BaseSettings):
     ws_hub: WsHubSettings = Field(default_factory=WsHubSettings)
     analytics: AnalyticsSettings = Field(default_factory=AnalyticsSettings)
     registry: RegistrySettings = Field(default_factory=RegistrySettings)
+    context_engineering: ContextEngineeringSettings = Field(
+        default_factory=ContextEngineeringSettings
+    )
     profile: str = "api"
 
     @model_validator(mode="before")
@@ -306,6 +321,34 @@ class PlatformSettings(BaseSettings):
             "REGISTRY_REINDEX_POLL_INTERVAL_SECONDS": (
                 "registry",
                 "reindex_poll_interval_seconds",
+            ),
+            "CONTEXT_ENGINEERING_BUNDLE_BUCKET": (
+                "context_engineering",
+                "bundle_bucket",
+            ),
+            "CONTEXT_ENGINEERING_QUALITY_SCORES_TABLE": (
+                "context_engineering",
+                "quality_scores_table",
+            ),
+            "CONTEXT_ENGINEERING_POLICY_CACHE_TTL_SECONDS": (
+                "context_engineering",
+                "policy_cache_ttl_seconds",
+            ),
+            "CONTEXT_ENGINEERING_DRIFT_WINDOW_DAYS": (
+                "context_engineering",
+                "drift_window_days",
+            ),
+            "CONTEXT_ENGINEERING_DRIFT_RECENT_HOURS": (
+                "context_engineering",
+                "drift_recent_hours",
+            ),
+            "CONTEXT_ENGINEERING_DRIFT_STDDEV_MULTIPLIER": (
+                "context_engineering",
+                "drift_stddev_multiplier",
+            ),
+            "CONTEXT_ENGINEERING_DRIFT_SCHEDULE_MINUTES": (
+                "context_engineering",
+                "drift_schedule_minutes",
             ),
             "WS_CLIENT_BUFFER_SIZE": ("ws_hub", "client_buffer_size"),
             "WS_HEARTBEAT_INTERVAL_SECONDS": ("ws_hub", "heartbeat_interval_seconds"),
@@ -618,6 +661,34 @@ class PlatformSettings(BaseSettings):
     @property
     def REGISTRY_REINDEX_POLL_INTERVAL_SECONDS(self) -> int:
         return self.registry.reindex_poll_interval_seconds
+
+    @property
+    def CONTEXT_ENGINEERING_BUNDLE_BUCKET(self) -> str:
+        return self.context_engineering.bundle_bucket
+
+    @property
+    def CONTEXT_ENGINEERING_QUALITY_SCORES_TABLE(self) -> str:
+        return self.context_engineering.quality_scores_table
+
+    @property
+    def CONTEXT_ENGINEERING_POLICY_CACHE_TTL_SECONDS(self) -> int:
+        return self.context_engineering.policy_cache_ttl_seconds
+
+    @property
+    def CONTEXT_ENGINEERING_DRIFT_WINDOW_DAYS(self) -> int:
+        return self.context_engineering.drift_window_days
+
+    @property
+    def CONTEXT_ENGINEERING_DRIFT_RECENT_HOURS(self) -> int:
+        return self.context_engineering.drift_recent_hours
+
+    @property
+    def CONTEXT_ENGINEERING_DRIFT_STDDEV_MULTIPLIER(self) -> float:
+        return self.context_engineering.drift_stddev_multiplier
+
+    @property
+    def CONTEXT_ENGINEERING_DRIFT_SCHEDULE_MINUTES(self) -> int:
+        return self.context_engineering.drift_schedule_minutes
 
     @property
     def WS_CLIENT_BUFFER_SIZE(self) -> int:

@@ -41,7 +41,7 @@ def build_analytics_service(
     *,
     repository: AnalyticsRepository,
     cost_model_repository: CostModelRepository,
-    workspaces_service: WorkspacesService,
+    workspaces_service: WorkspacesService | None,
     settings: PlatformSettings,
     producer: EventProducer | None,
 ) -> AnalyticsService:

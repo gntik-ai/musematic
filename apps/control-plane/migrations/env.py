@@ -21,7 +21,9 @@ sys.path.insert(0, str(SRC_DIR))
 local_platform_dir = SRC_DIR / "platform"
 loaded_platform = sys.modules.get("platform")
 loaded_from = getattr(loaded_platform, "__file__", None) if loaded_platform is not None else None
-is_local_platform = loaded_from is not None and Path(loaded_from).resolve().is_relative_to(local_platform_dir)
+is_local_platform = loaded_from is not None and Path(loaded_from).resolve().is_relative_to(
+    local_platform_dir
+)
 if not is_local_platform:
     sys.modules.pop("platform", None)
     spec = importlib.util.spec_from_file_location(
@@ -39,6 +41,9 @@ Base = importlib.import_module("platform.common.models").Base
 importlib.import_module("platform.auth.models")
 importlib.import_module("platform.accounts.models")
 importlib.import_module("platform.workspaces.models")
+importlib.import_module("platform.analytics.models")
+importlib.import_module("platform.registry.models")
+importlib.import_module("platform.context_engineering.models")
 
 config = context.config
 
