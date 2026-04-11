@@ -44,6 +44,9 @@ from platform.context_engineering.dependencies import build_context_engineering_
 from platform.context_engineering.drift_monitor import DriftMonitorTask
 from platform.context_engineering.events import register_context_engineering_event_types
 from platform.context_engineering.router import router as context_engineering_router
+from platform.interactions.dependencies import build_interactions_service
+from platform.interactions.events import register_interactions_event_types
+from platform.interactions.router import router as interactions_router
 from platform.memory.consolidation_worker import ConsolidationWorker, SessionMemoryCleaner
 from platform.memory.dependencies import build_memory_service
 from platform.memory.embedding_worker import EmbeddingWorker
@@ -98,6 +101,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_registry_event_types()
     register_context_engineering_event_types()
     register_memory_event_types()
+    register_interactions_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -318,6 +322,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(registry_router)
         app.include_router(context_engineering_router)
         app.include_router(memory_router)
+        app.include_router(interactions_router)
 
     setup_telemetry(
         service_name=f"{resolved.otel.service_name}-{resolved.profile}",
@@ -401,6 +406,13 @@ def _build_context_engineering_scheduler(app: FastAPI) -> Any | None:
                 workspaces_service=workspaces_service,
                 registry_service=registry_service,
             )
+            interactions_service = build_interactions_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                workspaces_service=workspaces_service,
+                registry_service=registry_service,
+            )
             service = build_context_engineering_service(
                 session=session,
                 settings=cast(PlatformSettings, app.state.settings),
@@ -410,7 +422,7 @@ def _build_context_engineering_scheduler(app: FastAPI) -> Any | None:
                 workspaces_service=workspaces_service,
                 registry_service=registry_service,
                 execution_service=None,
-                interactions_service=None,
+                interactions_service=interactions_service,
                 memory_service=memory_service,
                 connectors_service=None,
                 policies_service=None,

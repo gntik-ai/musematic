@@ -231,6 +231,13 @@ class MemorySettings(BaseSettings):
     recency_decay: float = 0.08
 
 
+class InteractionsSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="INTERACTIONS_", extra="ignore")
+
+    max_messages_per_conversation: int = 10000
+    default_page_size: int = 20
+
+
 class PlatformSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="PLATFORM_", extra="ignore")
 
@@ -254,6 +261,7 @@ class PlatformSettings(BaseSettings):
         default_factory=ContextEngineeringSettings
     )
     memory: MemorySettings = Field(default_factory=MemorySettings)
+    interactions: InteractionsSettings = Field(default_factory=InteractionsSettings)
     profile: str = "api"
 
     @model_validator(mode="before")
@@ -414,6 +422,11 @@ class PlatformSettings(BaseSettings):
                 "session_cleaner_interval_minutes",
             ),
             "MEMORY_RECENCY_DECAY": ("memory", "recency_decay"),
+            "INTERACTIONS_MAX_MESSAGES_PER_CONVERSATION": (
+                "interactions",
+                "max_messages_per_conversation",
+            ),
+            "INTERACTIONS_DEFAULT_PAGE_SIZE": ("interactions", "default_page_size"),
             "WS_CLIENT_BUFFER_SIZE": ("ws_hub", "client_buffer_size"),
             "WS_HEARTBEAT_INTERVAL_SECONDS": ("ws_hub", "heartbeat_interval_seconds"),
             "WS_HEARTBEAT_TIMEOUT_SECONDS": ("ws_hub", "heartbeat_timeout_seconds"),
@@ -821,6 +834,14 @@ class PlatformSettings(BaseSettings):
     @property
     def MEMORY_RECENCY_DECAY(self) -> float:
         return self.memory.recency_decay
+
+    @property
+    def INTERACTIONS_MAX_MESSAGES_PER_CONVERSATION(self) -> int:
+        return self.interactions.max_messages_per_conversation
+
+    @property
+    def INTERACTIONS_DEFAULT_PAGE_SIZE(self) -> int:
+        return self.interactions.default_page_size
 
     @property
     def WS_CLIENT_BUFFER_SIZE(self) -> int:

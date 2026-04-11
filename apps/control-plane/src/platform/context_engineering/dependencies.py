@@ -11,6 +11,7 @@ from platform.context_engineering.privacy_filter import PrivacyFilter
 from platform.context_engineering.quality_scorer import QualityScorer
 from platform.context_engineering.repository import ContextEngineeringRepository
 from platform.context_engineering.service import ContextEngineeringService
+from platform.interactions.dependencies import build_interactions_service
 from platform.memory.dependencies import build_memory_service
 from platform.registry.dependencies import build_registry_service
 from platform.workspaces.dependencies import get_workspaces_service
@@ -124,6 +125,15 @@ async def get_context_engineering_service(
             workspaces_service=workspaces_service,
             registry_service=registry_service,
         )
+    interactions_service = _get_optional_state_service(request, "interactions_service")
+    if interactions_service is None:
+        interactions_service = build_interactions_service(
+            session=session,
+            settings=settings,
+            producer=_get_producer(request),
+            workspaces_service=workspaces_service,
+            registry_service=registry_service,
+        )
     return build_context_engineering_service(
         session=session,
         settings=settings,
@@ -133,7 +143,7 @@ async def get_context_engineering_service(
         workspaces_service=workspaces_service,
         registry_service=registry_service,
         execution_service=_get_optional_state_service(request, "execution_service"),
-        interactions_service=_get_optional_state_service(request, "interactions_service"),
+        interactions_service=interactions_service,
         memory_service=memory_service,
         connectors_service=_get_optional_state_service(request, "connectors_service"),
         policies_service=_get_optional_state_service(request, "policies_service"),
