@@ -150,6 +150,33 @@ class AsyncQdrantClient:
             )
             return True
 
+    async def create_payload_index(
+        self,
+        *,
+        collection: str,
+        field_name: str,
+        field_schema: Any,
+    ) -> None:
+        client = await self._ensure_client()
+        try:
+            await client.create_payload_index(
+                collection_name=collection,
+                field_name=field_name,
+                field_schema=field_schema,
+                wait=True,
+            )
+        except Exception:
+            return
+
+    async def delete_points(self, collection: str, point_ids: list[str | int]) -> None:
+        client = await self._ensure_client()
+        models = import_module("qdrant_client.models")
+        await client.delete(
+            collection_name=collection,
+            points_selector=models.PointIdsList(points=point_ids),
+            wait=True,
+        )
+
     async def _ensure_client(self) -> Any:
         await self.connect()
         assert self._client is not None

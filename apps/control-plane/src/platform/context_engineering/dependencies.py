@@ -11,6 +11,7 @@ from platform.context_engineering.privacy_filter import PrivacyFilter
 from platform.context_engineering.quality_scorer import QualityScorer
 from platform.context_engineering.repository import ContextEngineeringRepository
 from platform.context_engineering.service import ContextEngineeringService
+from platform.memory.dependencies import build_memory_service
 from platform.registry.dependencies import build_registry_service
 from platform.workspaces.dependencies import get_workspaces_service
 from platform.workspaces.service import WorkspacesService
@@ -26,6 +27,18 @@ def _get_settings(request: Request) -> PlatformSettings:
 
 def _get_clickhouse(request: Request) -> AsyncClickHouseClient:
     return cast(AsyncClickHouseClient, request.app.state.clients["clickhouse"])
+
+
+def _get_qdrant(request: Request) -> Any:
+    return cast(Any, request.app.state.clients["qdrant"])
+
+
+def _get_neo4j(request: Request) -> Any:
+    return cast(Any, request.app.state.clients["neo4j"])
+
+
+def _get_redis(request: Request) -> Any:
+    return cast(Any, request.app.state.clients["redis"])
 
 
 def _get_object_storage(request: Request) -> AsyncObjectStorageClient:
@@ -95,10 +108,22 @@ async def get_context_engineering_service(
         settings=settings,
         object_storage=_get_object_storage(request),
         opensearch=cast(Any, request.app.state.clients["opensearch"]),
-        qdrant=cast(Any, request.app.state.clients["qdrant"]),
+        qdrant=_get_qdrant(request),
         workspaces_service=workspaces_service,
         producer=_get_producer(request),
     )
+    memory_service = _get_optional_state_service(request, "memory_service")
+    if memory_service is None:
+        memory_service = build_memory_service(
+            session=session,
+            settings=settings,
+            qdrant=_get_qdrant(request),
+            neo4j=_get_neo4j(request),
+            redis_client=_get_redis(request),
+            producer=_get_producer(request),
+            workspaces_service=workspaces_service,
+            registry_service=registry_service,
+        )
     return build_context_engineering_service(
         session=session,
         settings=settings,
@@ -109,7 +134,7 @@ async def get_context_engineering_service(
         registry_service=registry_service,
         execution_service=_get_optional_state_service(request, "execution_service"),
         interactions_service=_get_optional_state_service(request, "interactions_service"),
-        memory_service=_get_optional_state_service(request, "memory_service"),
+        memory_service=memory_service,
         connectors_service=_get_optional_state_service(request, "connectors_service"),
         policies_service=_get_optional_state_service(request, "policies_service"),
     )
