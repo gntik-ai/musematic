@@ -3,6 +3,7 @@ import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
 import { queryClient } from "@/lib/query-client";
 import { resetHomeFixtures } from "@/mocks/handlers/home";
+import { resetAdminFixtures } from "@/tests/mocks/handlers";
 import { setupServer } from "msw/node";
 import { handlers } from "@/mocks/handlers";
 
@@ -40,6 +41,7 @@ afterEach(() => {
   server.resetHandlers();
   queryClient.clear();
   resetHomeFixtures();
+  resetAdminFixtures();
   localStorage.clear();
 });
 

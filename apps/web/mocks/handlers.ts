@@ -1,5 +1,6 @@
 import { http, HttpResponse } from "msw";
 import { homeHandlers } from "@/mocks/handlers/home";
+import { adminHandlers } from "@/tests/mocks/handlers";
 import type { TokenPair, UserProfile } from "@/types/auth";
 import type { Workspace } from "@/types/workspace";
 
@@ -181,6 +182,6 @@ const authHandlers = [
   http.get("*/api/v1/workspaces", async () => HttpResponse.json({ items: workspaces })),
 ];
 
-export const handlers = [...authHandlers, ...homeHandlers];
+export const handlers = [...authHandlers, ...homeHandlers, ...adminHandlers];
 
 export { mockMfaSessionToken, mockTokenPair, mockUser, toLoginSuccess, workspaces };

@@ -3,6 +3,11 @@ import type { Page, Route } from "@playwright/test";
 interface MockAuthOptions {
   loginMode?: "success" | "mfa" | "invalid" | "locked";
   mfaEnrolled?: boolean;
+  roles?: string[];
+  userEmail?: string;
+  userId?: string;
+  userName?: string;
+  workspaceId?: string | null;
 }
 
 function buildWorkspaceSummary(workspaceId: string) {
@@ -78,24 +83,36 @@ function buildPendingActions(workspaceId: string) {
   };
 }
 
-function buildUser(mfaEnrolled: boolean) {
+function buildUser(
+  mfaEnrolled: boolean,
+  options: Pick<
+    MockAuthOptions,
+    "roles" | "userEmail" | "userId" | "userName" | "workspaceId"
+  > = {},
+) {
   return {
-    id: "4d1b0f76-a961-4f8d-8bcb-3f7d5f530001",
-    email: "alex@musematic.dev",
-    display_name: "Alex Mercer",
+    id: options.userId ?? "4d1b0f76-a961-4f8d-8bcb-3f7d5f530001",
+    email: options.userEmail ?? "alex@musematic.dev",
+    display_name: options.userName ?? "Alex Mercer",
     avatar_url: null,
-    roles: ["workspace_admin", "agent_operator", "analytics_viewer"],
-    workspace_id: "workspace-1",
+    roles: options.roles ?? ["workspace_admin", "agent_operator", "analytics_viewer"],
+    workspace_id: options.workspaceId ?? "workspace-1",
     mfa_enrolled: mfaEnrolled,
   };
 }
 
-function buildAuthSuccess(mfaEnrolled: boolean) {
+function buildAuthSuccess(
+  mfaEnrolled: boolean,
+  options: Pick<
+    MockAuthOptions,
+    "roles" | "userEmail" | "userId" | "userName" | "workspaceId"
+  > = {},
+) {
   return {
     access_token: "mock-access-token",
     refresh_token: "mock-refresh-token",
     expires_in: 900,
-    user: buildUser(mfaEnrolled),
+    user: buildUser(mfaEnrolled, options),
   };
 }
 
@@ -148,12 +165,12 @@ export async function mockAuthApi(page: Page, options: MockAuthOptions = {}) {
       return;
     }
 
-    await fulfillJson(route, buildAuthSuccess(mfaEnrolled));
+    await fulfillJson(route, buildAuthSuccess(mfaEnrolled, options));
   });
 
   await page.route("**/api/v1/auth/mfa/verify", async (route) => {
     await fulfillJson(route, {
-      ...buildAuthSuccess(true),
+      ...buildAuthSuccess(true, options),
       recovery_code_consumed: false,
     });
   });

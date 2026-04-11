@@ -1,6 +1,6 @@
 # musematic Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-11
+Auto-generated from all feature plans. Last updated: 2026-04-12
 
 ## Active Technologies
 - Python 3.12+ (control plane client), Go 1.22+ (reasoning engine client) + `redis-py 5.x` (Python async), `go-redis/redis/v9` (Go), Bitnami `redis-cluster` Helm chart (002-redis-cache-hot-state)
@@ -53,6 +53,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-11
 - PostgreSQL (6 tables: connector_types, connector_instances, connector_credential_refs, connector_routes, outbound_deliveries, dead_letter_entries) + Redis (route cache, DLQ depth counter) + MinIO (discarded DLQ archival) (025-connector-plugin-framework)
 - TypeScript 5.x (strict) + Next.js 14+ App Router, React 18+ (function components only), shadcn/ui (ALL UI primitives), Tailwind CSS 3.4+ (utility-only), TanStack Query v5 (server state), Zustand 5.x (existing workspace store), date-fns 4.x, Lucide React, Vitest + RTL + Playwright + MSW (026-home-dashboard)
 - Home Dashboard page (`app/(main)/home/`) — 4× MetricCard workspace summary, Timeline activity feed (top 10), PendingActionCard list (approvals/failures/attention, urgency-sorted, inline approve/reject with optimistic update), 4 Quick Actions (RBAC-disabled for viewers), WebSocket real-time invalidation (execution/interaction/workspace channels), ConnectionStatusBanner + 30s polling fallback, per-section error boundaries (026-home-dashboard)
+- TypeScript 5.x + Next.js 14+ App Router, React 18+, shadcn/ui (ALL UI primitives), Tailwind CSS 3.4+ (utility-only), TanStack Query v5, React Hook Form 7.x + Zod 3.x, Zustand 5.x (existing auth store), date-fns 4.x, Lucide React, Vitest + RTL + Playwright + MSW (027-admin-settings-panel)
+- Admin Settings Panel (`app/(main)/admin/settings/`) — 6-tab shadcn Tabs with URL query param routing (`?tab=users`), layout-level route guard (platform_admin only), server-side DataTable for user management (approve/reject/suspend/reactivate with confirmation dialogs, optimistic updates, self-suspend prevention), React Hook Form + Zod for 5 settings forms (Signup/Quotas/Email/Security), `If-Unmodified-Since` / 412 stale-data detection with StaleDataAlert, per-toggle auto-save on Connectors tab, credential masking on Email tab ("click to update" pattern) (027-admin-settings-panel)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -72,10 +74,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 027-admin-settings-panel: Added admin settings panel — 6-tab layout (Users/Signup/Quotas/Connectors/Email/Security), route guard, server-side user DataTable with actions, RHF+Zod settings forms, If-Unmodified-Since stale-data detection, per-toggle connector auto-save, credential masking pattern
 - 026-home-dashboard: Added home dashboard page — WorkspaceSummary (4× MetricCard grid), RecentActivity (Timeline top 10), PendingActions (urgency-sorted cards with inline approve/reject optimistic update), QuickActions (4 buttons, RBAC-disabled for viewers), real-time via WebSocket query invalidation (execution/interaction/workspace channels), ConnectionStatusBanner + 30s polling fallback, per-section error boundaries for partial failure isolation (FR-013)
 - TypeScript 5.x (strict) + Next.js 14+ App Router + shadcn/ui + Tailwind + TanStack Query v5 + Zustand 5.x + MSW (026-home-dashboard)
-- 025-connector-plugin-framework: Added connectors bounded context — BaseConnector Protocol (validate_config/normalize_inbound/deliver_outbound/health_check), 4 built-in types (Slack Events API, Telegram Bot API, generic webhook HMAC-SHA256, email IMAP/SMTP), workspace-scoped ConnectorInstance management, priority-based routing rules with Redis caching (TTL 60s), credential isolation via vault references (§XI — never plaintext), exponential backoff retry (base 4: 1s/4s/16s), dead-letter queue with redeliver/discard/MinIO archive, webhook signature verification on raw bytes before Pydantic parse, email polling APScheduler (60s), connector worker runtime profile consuming `connector.delivery` Kafka topic
-- Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async + aiokafka 0.11+ (2 topics: `connector.ingress`, `connector.delivery`) + redis-py 5.x async (route cache) + aioimaplib 1.0+ + aiosmtplib 3.0+ + httpx 0.27+ + APScheduler 3.x + aioboto3 latest (025-connector-plugin-framework)
 
 
 <!-- MANUAL ADDITIONS START -->
