@@ -172,6 +172,12 @@ class WsHubSettings(BaseSettings):
     max_malformed_messages: int = 10
 
 
+class AnalyticsSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="ANALYTICS_", extra="ignore")
+
+    budget_threshold_usd: float = 0.0
+
+
 class PlatformSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="PLATFORM_", extra="ignore")
 
@@ -189,6 +195,7 @@ class PlatformSettings(BaseSettings):
     accounts: AccountsSettings = Field(default_factory=AccountsSettings)
     workspaces: WorkspacesSettings = Field(default_factory=WorkspacesSettings)
     ws_hub: WsHubSettings = Field(default_factory=WsHubSettings)
+    analytics: AnalyticsSettings = Field(default_factory=AnalyticsSettings)
     profile: str = "api"
 
     @model_validator(mode="before")
@@ -266,6 +273,7 @@ class PlatformSettings(BaseSettings):
             "ACCOUNTS_RESEND_RATE_LIMIT": ("accounts", "resend_rate_limit"),
             "WORKSPACES_DEFAULT_NAME_TEMPLATE": ("workspaces", "default_name_template"),
             "WORKSPACES_DEFAULT_LIMIT": ("workspaces", "default_limit"),
+            "ANALYTICS_BUDGET_THRESHOLD_USD": ("analytics", "budget_threshold_usd"),
             "WS_CLIENT_BUFFER_SIZE": ("ws_hub", "client_buffer_size"),
             "WS_HEARTBEAT_INTERVAL_SECONDS": ("ws_hub", "heartbeat_interval_seconds"),
             "WS_HEARTBEAT_TIMEOUT_SECONDS": ("ws_hub", "heartbeat_timeout_seconds"),
@@ -533,6 +541,10 @@ class PlatformSettings(BaseSettings):
     @property
     def WORKSPACES_DEFAULT_LIMIT(self) -> int:
         return self.workspaces.default_limit
+
+    @property
+    def ANALYTICS_BUDGET_THRESHOLD_USD(self) -> float:
+        return self.analytics.budget_threshold_usd
 
     @property
     def WS_CLIENT_BUFFER_SIZE(self) -> int:
