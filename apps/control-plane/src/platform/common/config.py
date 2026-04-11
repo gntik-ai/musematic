@@ -209,6 +209,28 @@ class ContextEngineeringSettings(BaseSettings):
     drift_schedule_minutes: int = 5
 
 
+class MemorySettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="MEMORY_", extra="ignore")
+
+    embedding_dimensions: int = 1536
+    embedding_api_url: str = "http://localhost:8081/v1/embeddings"
+    embedding_model: str = "text-embedding-3-small"
+    rate_limit_per_min: int = 60
+    rate_limit_per_hour: int = 500
+    contradiction_similarity_threshold: float = 0.90
+    contradiction_edit_distance_threshold: float = 0.15
+    consolidation_enabled: bool = True
+    consolidation_interval_minutes: int = 15
+    consolidation_cluster_threshold: float = 0.85
+    consolidation_llm_enabled: bool = False
+    consolidation_min_cluster_size: int = 3
+    differential_privacy_enabled: bool = False
+    differential_privacy_epsilon: float = 1.0
+    rrf_k: int = 60
+    session_cleaner_interval_minutes: int = 60
+    recency_decay: float = 0.08
+
+
 class PlatformSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="PLATFORM_", extra="ignore")
 
@@ -231,6 +253,7 @@ class PlatformSettings(BaseSettings):
     context_engineering: ContextEngineeringSettings = Field(
         default_factory=ContextEngineeringSettings
     )
+    memory: MemorySettings = Field(default_factory=MemorySettings)
     profile: str = "api"
 
     @model_validator(mode="before")
@@ -350,6 +373,47 @@ class PlatformSettings(BaseSettings):
                 "context_engineering",
                 "drift_schedule_minutes",
             ),
+            "MEMORY_EMBEDDING_DIMENSIONS": ("memory", "embedding_dimensions"),
+            "MEMORY_EMBEDDING_API_URL": ("memory", "embedding_api_url"),
+            "MEMORY_EMBEDDING_MODEL": ("memory", "embedding_model"),
+            "MEMORY_RATE_LIMIT_PER_MIN": ("memory", "rate_limit_per_min"),
+            "MEMORY_RATE_LIMIT_PER_HOUR": ("memory", "rate_limit_per_hour"),
+            "MEMORY_CONTRADICTION_SIMILARITY_THRESHOLD": (
+                "memory",
+                "contradiction_similarity_threshold",
+            ),
+            "MEMORY_CONTRADICTION_EDIT_DISTANCE_THRESHOLD": (
+                "memory",
+                "contradiction_edit_distance_threshold",
+            ),
+            "MEMORY_CONSOLIDATION_ENABLED": ("memory", "consolidation_enabled"),
+            "MEMORY_CONSOLIDATION_INTERVAL_MINUTES": (
+                "memory",
+                "consolidation_interval_minutes",
+            ),
+            "MEMORY_CONSOLIDATION_CLUSTER_THRESHOLD": (
+                "memory",
+                "consolidation_cluster_threshold",
+            ),
+            "MEMORY_CONSOLIDATION_LLM_ENABLED": ("memory", "consolidation_llm_enabled"),
+            "MEMORY_CONSOLIDATION_MIN_CLUSTER_SIZE": (
+                "memory",
+                "consolidation_min_cluster_size",
+            ),
+            "MEMORY_DIFFERENTIAL_PRIVACY_ENABLED": (
+                "memory",
+                "differential_privacy_enabled",
+            ),
+            "MEMORY_DIFFERENTIAL_PRIVACY_EPSILON": (
+                "memory",
+                "differential_privacy_epsilon",
+            ),
+            "MEMORY_RRF_K": ("memory", "rrf_k"),
+            "MEMORY_SESSION_CLEANER_INTERVAL_MINUTES": (
+                "memory",
+                "session_cleaner_interval_minutes",
+            ),
+            "MEMORY_RECENCY_DECAY": ("memory", "recency_decay"),
             "WS_CLIENT_BUFFER_SIZE": ("ws_hub", "client_buffer_size"),
             "WS_HEARTBEAT_INTERVAL_SECONDS": ("ws_hub", "heartbeat_interval_seconds"),
             "WS_HEARTBEAT_TIMEOUT_SECONDS": ("ws_hub", "heartbeat_timeout_seconds"),
@@ -689,6 +753,74 @@ class PlatformSettings(BaseSettings):
     @property
     def CONTEXT_ENGINEERING_DRIFT_SCHEDULE_MINUTES(self) -> int:
         return self.context_engineering.drift_schedule_minutes
+
+    @property
+    def MEMORY_EMBEDDING_DIMENSIONS(self) -> int:
+        return self.memory.embedding_dimensions
+
+    @property
+    def MEMORY_EMBEDDING_API_URL(self) -> str:
+        return self.memory.embedding_api_url
+
+    @property
+    def MEMORY_EMBEDDING_MODEL(self) -> str:
+        return self.memory.embedding_model
+
+    @property
+    def MEMORY_RATE_LIMIT_PER_MIN(self) -> int:
+        return self.memory.rate_limit_per_min
+
+    @property
+    def MEMORY_RATE_LIMIT_PER_HOUR(self) -> int:
+        return self.memory.rate_limit_per_hour
+
+    @property
+    def MEMORY_CONTRADICTION_SIMILARITY_THRESHOLD(self) -> float:
+        return self.memory.contradiction_similarity_threshold
+
+    @property
+    def MEMORY_CONTRADICTION_EDIT_DISTANCE_THRESHOLD(self) -> float:
+        return self.memory.contradiction_edit_distance_threshold
+
+    @property
+    def MEMORY_CONSOLIDATION_ENABLED(self) -> bool:
+        return self.memory.consolidation_enabled
+
+    @property
+    def MEMORY_CONSOLIDATION_INTERVAL_MINUTES(self) -> int:
+        return self.memory.consolidation_interval_minutes
+
+    @property
+    def MEMORY_CONSOLIDATION_CLUSTER_THRESHOLD(self) -> float:
+        return self.memory.consolidation_cluster_threshold
+
+    @property
+    def MEMORY_CONSOLIDATION_LLM_ENABLED(self) -> bool:
+        return self.memory.consolidation_llm_enabled
+
+    @property
+    def MEMORY_CONSOLIDATION_MIN_CLUSTER_SIZE(self) -> int:
+        return self.memory.consolidation_min_cluster_size
+
+    @property
+    def MEMORY_DIFFERENTIAL_PRIVACY_ENABLED(self) -> bool:
+        return self.memory.differential_privacy_enabled
+
+    @property
+    def MEMORY_DIFFERENTIAL_PRIVACY_EPSILON(self) -> float:
+        return self.memory.differential_privacy_epsilon
+
+    @property
+    def MEMORY_RRF_K(self) -> int:
+        return self.memory.rrf_k
+
+    @property
+    def MEMORY_SESSION_CLEANER_INTERVAL_MINUTES(self) -> int:
+        return self.memory.session_cleaner_interval_minutes
+
+    @property
+    def MEMORY_RECENCY_DECAY(self) -> float:
+        return self.memory.recency_decay
 
     @property
     def WS_CLIENT_BUFFER_SIZE(self) -> int:

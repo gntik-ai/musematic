@@ -44,12 +44,20 @@ from platform.context_engineering.dependencies import build_context_engineering_
 from platform.context_engineering.drift_monitor import DriftMonitorTask
 from platform.context_engineering.events import register_context_engineering_event_types
 from platform.context_engineering.router import router as context_engineering_router
+from platform.memory.consolidation_worker import ConsolidationWorker, SessionMemoryCleaner
+from platform.memory.dependencies import build_memory_service
+from platform.memory.embedding_worker import EmbeddingWorker
+from platform.memory.events import register_memory_event_types
+from platform.memory.memory_setup import setup_memory_collections
+from platform.memory.router import router as memory_router
+from platform.registry.dependencies import build_registry_service
 from platform.registry.events import register_registry_event_types
 from platform.registry.index_worker import RegistryIndexWorker
 from platform.registry.registry_opensearch_setup import create_marketplace_agents_index
 from platform.registry.registry_qdrant_setup import create_agent_embeddings_collection
 from platform.registry.router import router as registry_router
 from platform.workspaces.consumer import WorkspacesConsumer
+from platform.workspaces.dependencies import build_workspaces_service
 from platform.workspaces.events import register_workspaces_event_types
 from platform.workspaces.router import router as workspaces_router
 from typing import Any, cast
@@ -89,6 +97,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_analytics_event_types()
     register_registry_event_types()
     register_context_engineering_event_types()
+    register_memory_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -124,6 +133,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             startup_errors["registry_opensearch_setup"] = str(exc)
             LOGGER.warning("Failed to run registry OpenSearch setup: %s", exc)
     qdrant_client = app.state.clients.get("qdrant")
+    neo4j_client = app.state.clients.get("neo4j")
     if isinstance(qdrant_client, AsyncQdrantClient):
         try:
             await create_agent_embeddings_collection(qdrant_client, app.state.settings)
@@ -131,6 +141,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["registry_qdrant_setup"] = str(exc)
             LOGGER.warning("Failed to run registry Qdrant setup: %s", exc)
+    if isinstance(qdrant_client, AsyncQdrantClient) and isinstance(neo4j_client, AsyncNeo4jClient):
+        try:
+            await setup_memory_collections(qdrant_client, neo4j_client, app.state.settings)
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["memory_setup"] = str(exc)
+            LOGGER.warning("Failed to run memory setup: %s", exc)
 
     consumer_manager = app.state.clients.get("kafka_consumer")
     if consumer_manager is not None:
@@ -178,9 +195,22 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["context_engineering_drift_scheduler"] = str(exc)
             LOGGER.warning("Failed to start context engineering scheduler: %s", exc)
+    memory_scheduler = getattr(app.state, "memory_scheduler", None)
+    if memory_scheduler is not None:
+        try:
+            memory_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["memory_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start memory scheduler: %s", exc)
     try:
         yield
     finally:
+        if memory_scheduler is not None:
+            try:
+                memory_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop memory scheduler cleanly: %s", exc)
         if context_engineering_scheduler is not None:
             try:
                 context_engineering_scheduler.shutdown(wait=False)
@@ -238,6 +268,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.analytics_budget_scheduler = None
     app.state.registry_index_worker = None
     app.state.context_engineering_drift_scheduler = None
+    app.state.memory_scheduler = None
     if resolved.profile == "worker":
         app.state.analytics_consumer = AnalyticsPipelineConsumer(
             settings=resolved,
@@ -245,6 +276,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
             producer=cast(EventProducer | None, app.state.clients.get("kafka")),
         )
         app.state.analytics_budget_scheduler = _build_analytics_budget_scheduler(app)
+        app.state.memory_scheduler = _build_memory_scheduler(app)
         opensearch_client = app.state.clients.get("opensearch")
         if isinstance(opensearch_client, AsyncOpenSearchClient):
             app.state.registry_index_worker = RegistryIndexWorker(
@@ -285,6 +317,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(analytics_router)
         app.include_router(registry_router)
         app.include_router(context_engineering_router)
+        app.include_router(memory_router)
 
     setup_telemetry(
         service_name=f"{resolved.otel.service_name}-{resolved.profile}",
@@ -343,17 +376,42 @@ def _build_context_engineering_scheduler(app: FastAPI) -> Any | None:
 
     async def _run_drift_analysis() -> None:
         async with database.AsyncSessionLocal() as session:
+            workspaces_service = build_workspaces_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                accounts_service=None,
+            )
+            registry_service = build_registry_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                opensearch=cast(AsyncOpenSearchClient, app.state.clients["opensearch"]),
+                qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
+                workspaces_service=workspaces_service,
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            memory_service = build_memory_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
+                neo4j=cast(AsyncNeo4jClient, app.state.clients["neo4j"]),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                workspaces_service=workspaces_service,
+                registry_service=registry_service,
+            )
             service = build_context_engineering_service(
                 session=session,
                 settings=cast(PlatformSettings, app.state.settings),
                 clickhouse_client=cast(AsyncClickHouseClient, app.state.clients["clickhouse"]),
                 object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
-                workspaces_service=None,
-                registry_service=None,
+                workspaces_service=workspaces_service,
+                registry_service=registry_service,
                 execution_service=None,
                 interactions_service=None,
-                memory_service=None,
+                memory_service=memory_service,
                 connectors_service=None,
                 policies_service=None,
             )
@@ -363,5 +421,137 @@ def _build_context_engineering_scheduler(app: FastAPI) -> Any | None:
         _run_drift_analysis,
         trigger,
         id="context-engineering-drift-analysis",
+    )
+    return scheduler
+
+
+def _build_memory_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run_embedding_jobs() -> None:
+        async with database.AsyncSessionLocal() as session:
+            workspaces_service = build_workspaces_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                accounts_service=None,
+            )
+            registry_service = build_registry_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                opensearch=cast(AsyncOpenSearchClient, app.state.clients["opensearch"]),
+                qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
+                workspaces_service=workspaces_service,
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            service = build_memory_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
+                neo4j=cast(AsyncNeo4jClient, app.state.clients["neo4j"]),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                workspaces_service=workspaces_service,
+                registry_service=registry_service,
+            )
+            await EmbeddingWorker(
+                repository=service.repository,
+                qdrant=service.qdrant,
+                settings=cast(PlatformSettings, app.state.settings),
+            ).run()
+
+    async def _run_consolidation() -> None:
+        async with database.AsyncSessionLocal() as session:
+            workspaces_service = build_workspaces_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                accounts_service=None,
+            )
+            registry_service = build_registry_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                opensearch=cast(AsyncOpenSearchClient, app.state.clients["opensearch"]),
+                qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
+                workspaces_service=workspaces_service,
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            service = build_memory_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
+                neo4j=cast(AsyncNeo4jClient, app.state.clients["neo4j"]),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                workspaces_service=workspaces_service,
+                registry_service=registry_service,
+            )
+            await ConsolidationWorker(
+                repository=service.repository,
+                write_gate=service.write_gate,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            ).run()
+
+    async def _run_session_cleanup() -> None:
+        async with database.AsyncSessionLocal() as session:
+            workspaces_service = build_workspaces_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                accounts_service=None,
+            )
+            registry_service = build_registry_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                opensearch=cast(AsyncOpenSearchClient, app.state.clients["opensearch"]),
+                qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
+                workspaces_service=workspaces_service,
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            service = build_memory_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
+                neo4j=cast(AsyncNeo4jClient, app.state.clients["neo4j"]),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                workspaces_service=workspaces_service,
+                registry_service=registry_service,
+            )
+            await SessionMemoryCleaner(
+                repository=service.repository,
+                qdrant=service.qdrant,
+            ).run()
+
+    scheduler.add_job(
+        _run_embedding_jobs,
+        "interval",
+        seconds=30,
+        id="memory-embedding-worker",
+    )
+    if app.state.settings.memory.consolidation_enabled:
+        scheduler.add_job(
+            _run_consolidation,
+            "interval",
+            minutes=app.state.settings.memory.consolidation_interval_minutes,
+            id="memory-consolidation-worker",
+        )
+    scheduler.add_job(
+        _run_session_cleanup,
+        "interval",
+        minutes=app.state.settings.memory.session_cleaner_interval_minutes,
+        id="memory-session-cleaner",
     )
     return scheduler

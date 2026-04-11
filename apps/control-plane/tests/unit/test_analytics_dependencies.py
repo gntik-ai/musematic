@@ -41,7 +41,7 @@ def test_build_analytics_service_wires_dependencies() -> None:
     assert service.kafka_producer is producer
     assert isinstance(service.recommendation_engine, RecommendationEngine)
     assert isinstance(service.forecast_engine, ForecastEngine)
-    assert analytics_exports == ["get_analytics_service", "router"]
+    assert analytics_exports == ["get_analytics_service"]
 
 
 def test_dependency_helpers_read_request_state_and_cache_repository() -> None:

@@ -44,6 +44,7 @@ importlib.import_module("platform.workspaces.models")
 importlib.import_module("platform.analytics.models")
 importlib.import_module("platform.registry.models")
 importlib.import_module("platform.context_engineering.models")
+importlib.import_module("platform.memory.models")
 
 config = context.config
 
