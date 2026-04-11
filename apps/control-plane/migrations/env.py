@@ -37,6 +37,8 @@ if not is_local_platform:
 
 Base = importlib.import_module("platform.common.models").Base
 importlib.import_module("platform.auth.models")
+importlib.import_module("platform.accounts.models")
+importlib.import_module("platform.workspaces.models")
 
 config = context.config
 

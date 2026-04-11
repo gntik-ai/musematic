@@ -79,6 +79,7 @@ class AccountsService:
         self.redis = redis
         self.kafka_producer = kafka_producer
         self.auth_service = auth_service
+        self.platform_settings = settings if isinstance(settings, PlatformSettings) else None
         self.settings = settings.accounts if hasattr(settings, "accounts") else settings
         self.notification_client = notification_client
 
@@ -433,6 +434,14 @@ class AccountsService:
             has_next=page * page_size < total,
             has_prev=page > 1,
         )
+
+    async def get_user_workspace_limit(self, user_id: UUID) -> int:
+        limit = await self.repo.get_user_workspace_limit(user_id)
+        if limit is not None:
+            return limit
+        if self.platform_settings is not None:
+            return int(self.platform_settings.workspaces.default_limit)
+        return 0
 
     async def suspend_user(
         self,

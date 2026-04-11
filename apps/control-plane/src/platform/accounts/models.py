@@ -70,6 +70,7 @@ class User(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     block_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     archived_by: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+    max_workspaces: Mapped[int] = mapped_column(nullable=False, default=0)
 
 
 class EmailVerification(Base, UUIDMixin, TimestampMixin):
