@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -147,6 +147,15 @@ class OTelSettings(BaseSettings):
     service_name: str = "musematic-control-plane"
 
 
+class AccountsSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="ACCOUNTS_", extra="ignore")
+
+    signup_mode: Literal["open", "invite_only", "admin_approval"] = "open"
+    email_verify_ttl_hours: int = 24
+    invite_ttl_days: int = 7
+    resend_rate_limit: int = 3
+
+
 class PlatformSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="PLATFORM_", extra="ignore")
 
@@ -161,6 +170,7 @@ class PlatformSettings(BaseSettings):
     grpc: GRPCSettings = Field(default_factory=GRPCSettings)
     auth: AuthSettings = Field(default_factory=AuthSettings)
     otel: OTelSettings = Field(default_factory=OTelSettings)
+    accounts: AccountsSettings = Field(default_factory=AccountsSettings)
     profile: str = "api"
 
     @model_validator(mode="before")
@@ -232,6 +242,10 @@ class PlatformSettings(BaseSettings):
             "AUTH_PASSWORD_RESET_TTL": ("auth", "password_reset_ttl"),
             "OTEL_EXPORTER_ENDPOINT": ("otel", "exporter_endpoint"),
             "OTEL_SERVICE_NAME": ("otel", "service_name"),
+            "ACCOUNTS_SIGNUP_MODE": ("accounts", "signup_mode"),
+            "ACCOUNTS_EMAIL_VERIFY_TTL_HOURS": ("accounts", "email_verify_ttl_hours"),
+            "ACCOUNTS_INVITE_TTL_DAYS": ("accounts", "invite_ttl_days"),
+            "ACCOUNTS_RESEND_RATE_LIMIT": ("accounts", "resend_rate_limit"),
             "PLATFORM_PROFILE": ("profile", ""),
         }
         for key, target in mappings.items():
@@ -471,6 +485,22 @@ class PlatformSettings(BaseSettings):
     @property
     def OTEL_EXPORTER_ENDPOINT(self) -> str:
         return self.otel.exporter_endpoint
+
+    @property
+    def ACCOUNTS_SIGNUP_MODE(self) -> Literal["open", "invite_only", "admin_approval"]:
+        return self.accounts.signup_mode
+
+    @property
+    def ACCOUNTS_EMAIL_VERIFY_TTL_HOURS(self) -> int:
+        return self.accounts.email_verify_ttl_hours
+
+    @property
+    def ACCOUNTS_INVITE_TTL_DAYS(self) -> int:
+        return self.accounts.invite_ttl_days
+
+    @property
+    def ACCOUNTS_RESEND_RATE_LIMIT(self) -> int:
+        return self.accounts.resend_rate_limit
 
 
 Settings = PlatformSettings

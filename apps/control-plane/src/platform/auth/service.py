@@ -132,6 +132,16 @@ class AuthService:
             raise InvalidCredentialsError()
 
         assert user_id is not None
+        platform_user = await self.repository.get_platform_user(user_id)
+        if platform_user is None or platform_user.status != "active":
+            await self.repository.record_auth_attempt(
+                user_id,
+                normalized_email,
+                ip,
+                device,
+                AuthOutcome.FAILURE_PASSWORD.value,
+            )
+            raise InvalidCredentialsError()
         if needs_rehash(credential.password_hash):
             await self.repository.update_password_hash(user_id, hash_password(password))
 
@@ -394,6 +404,46 @@ class AuthService:
         if credential is None:
             raise NotFoundError("SERVICE_ACCOUNT_NOT_FOUND", "Service account not found")
         await self.repository.revoke_service_account(sa_id)
+
+    async def create_user_credential(self, user_id: UUID, email: str, password: str) -> None:
+        await self.repository.create_credential(user_id, email, hash_password(password))
+
+    async def assign_user_roles(
+        self,
+        user_id: UUID,
+        roles: list[str],
+        workspace_ids: list[UUID] | None = None,
+    ) -> None:
+        if workspace_ids:
+            for workspace_id in workspace_ids:
+                for role in roles:
+                    await self.repository.assign_user_role(user_id, role, workspace_id)
+            return
+        for role in roles:
+            await self.repository.assign_user_role(user_id, role, None)
+
+    async def invalidate_user_sessions(self, user_id: UUID) -> int:
+        return await self.session_store.delete_all_sessions(user_id)
+
+    async def reset_mfa(self, user_id: UUID) -> bool:
+        return await self.repository.disable_mfa_enrollment(user_id)
+
+    async def initiate_password_reset(
+        self,
+        user_id: UUID,
+        force_change_on_login: bool = True,
+    ) -> str:
+        del force_change_on_login
+        raw_token = secrets.token_urlsafe(32)
+        await self.repository.create_password_reset_token(
+            user_id,
+            raw_token,
+            datetime.now(UTC) + timedelta(seconds=self.settings.password_reset_ttl),
+        )
+        return raw_token
+
+    async def clear_lockout(self, user_id: UUID) -> None:
+        await self.lockout.reset_failure_counter(user_id)
 
     async def _issue_token_pair(
         self,
