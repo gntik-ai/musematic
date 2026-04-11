@@ -1,4 +1,5 @@
 import { http, HttpResponse } from "msw";
+import { homeHandlers } from "@/mocks/handlers/home";
 import type { TokenPair, UserProfile } from "@/types/auth";
 import type { Workspace } from "@/types/workspace";
 
@@ -56,7 +57,7 @@ const workspaces: Workspace[] = [
   },
 ];
 
-export const handlers = [
+const authHandlers = [
   http.post("*/api/v1/auth/login", async ({ request }) => {
     const body = (await request.json()) as { email?: string };
     if (body.email?.includes("mfa")) {
@@ -179,5 +180,7 @@ export const handlers = [
   http.post("*/api/v1/auth/logout", async () => new HttpResponse(null, { status: 204 })),
   http.get("*/api/v1/workspaces", async () => HttpResponse.json({ items: workspaces })),
 ];
+
+export const handlers = [...authHandlers, ...homeHandlers];
 
 export { mockMfaSessionToken, mockTokenPair, mockUser, toLoginSuccess, workspaces };

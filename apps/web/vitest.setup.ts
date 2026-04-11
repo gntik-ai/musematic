@@ -1,6 +1,8 @@
 import "@testing-library/jest-dom/vitest";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import { cleanup } from "@testing-library/react";
+import { queryClient } from "@/lib/query-client";
+import { resetHomeFixtures } from "@/mocks/handlers/home";
 import { setupServer } from "msw/node";
 import { handlers } from "@/mocks/handlers";
 
@@ -36,6 +38,8 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
   server.resetHandlers();
+  queryClient.clear();
+  resetHomeFixtures();
   localStorage.clear();
 });
 

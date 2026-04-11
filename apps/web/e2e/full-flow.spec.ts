@@ -5,7 +5,7 @@ test("login, shell navigation, breadcrumbs, and dark mode work together", async 
   await mockAuthApi(page);
   await page.goto("/login");
   await signIn(page);
-  await expect(page).toHaveURL(/dashboard/);
+  await expect(page).toHaveURL(/home/);
   await page.keyboard.press("Control+K");
   await page.getByTestId("command-input").fill("create agent");
   await page.getByText("Agents").click();
