@@ -84,4 +84,4 @@ jobs:
         env:
           REDIS_TEST_MODE: standalone
           REDIS_URL: redis://localhost:6379
-        run: python -m pytest apps/control-plane/tests/integration/test_redis_*.py -v
+        run: python -m pytest -o addopts='-ra' --run-integration apps/control-plane/tests/integration/test_redis_*.py -v
