@@ -251,3 +251,8 @@ cython_debug/
 .idea/
 .agents/
 .claude/
+node_modules/
+.next/
+playwright-report/
+test-results/
+pnpm-lock.yaml
