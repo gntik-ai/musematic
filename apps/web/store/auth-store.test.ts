@@ -14,6 +14,28 @@ describe("auth-store", () => {
     expect(persisted).not.toContain("access");
   });
 
+  it("sets the full auth session in a single action", () => {
+    useAuthStore.getState().setAuth({
+      user: {
+        id: "user-1",
+        email: "alex@musematic.dev",
+        displayName: "Alex",
+        avatarUrl: null,
+        roles: ["workspace_admin"],
+        workspaceId: null,
+        mfaEnrolled: false,
+      },
+      accessToken: "access",
+      refreshToken: "refresh",
+      expiresIn: 900,
+    });
+
+    const state = useAuthStore.getState();
+    expect(state.isAuthenticated).toBe(true);
+    expect(state.accessToken).toBe("access");
+    expect(state.user?.mfaEnrolled).toBe(false);
+  });
+
   it("clears auth state", () => {
     useAuthStore.getState().setUser({
       id: "user-1",
@@ -22,6 +44,7 @@ describe("auth-store", () => {
       avatarUrl: null,
       roles: ["workspace_admin"],
       workspaceId: null,
+      mfaEnrolled: true,
     });
 
     useAuthStore.getState().clearAuth();
