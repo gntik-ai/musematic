@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
@@ -73,16 +73,31 @@ def upgrade() -> None:
         ),
         sa.Column("owner_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("is_default", sa.Boolean(), nullable=False, server_default=sa.text("false")),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("deleted_by", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("created_by", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("updated_by", postgresql.UUID(as_uuid=True), nullable=True),
     )
-    op.create_index("ix_workspaces_owner_id", "workspaces_workspaces", ["owner_id"], unique=False)
     op.create_index(
-        "ix_workspaces_owner_name_status",
+        "ix_workspaces_workspaces_owner_id",
+        "workspaces_workspaces",
+        ["owner_id"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_workspaces_workspaces_owner_name_status",
         "workspaces_workspaces",
         ["owner_id", "name", "status"],
         unique=True,
@@ -106,8 +121,18 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.text("'member'"),
         ),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
         sa.ForeignKeyConstraint(
             ["workspace_id"],
             ["workspaces_workspaces.id"],
@@ -115,9 +140,14 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
     )
-    op.create_index("ix_memberships_user_id", "workspaces_memberships", ["user_id"], unique=False)
     op.create_index(
-        "uq_workspace_user",
+        "ix_workspaces_memberships_user_id",
+        "workspaces_memberships",
+        ["user_id"],
+        unique=False,
+    )
+    op.create_index(
+        "uq_workspaces_memberships_workspace_user",
         "workspaces_memberships",
         ["workspace_id", "user_id"],
         unique=True,
@@ -143,8 +173,18 @@ def upgrade() -> None:
         ),
         sa.Column("gid", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("created_by", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
         sa.ForeignKeyConstraint(
             ["workspace_id"],
             ["workspaces_workspaces.id"],
@@ -152,10 +192,15 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
     )
-    op.create_index("uq_goal_gid", "workspaces_goals", ["gid"], unique=True)
-    op.create_index("ix_goals_workspace_id", "workspaces_goals", ["workspace_id"], unique=False)
+    op.create_index("uq_workspaces_goals_gid", "workspaces_goals", ["gid"], unique=True)
     op.create_index(
-        "ix_goals_workspace_status",
+        "ix_workspaces_goals_workspace_id",
+        "workspaces_goals",
+        ["workspace_id"],
+        unique=False,
+    )
+    op.create_index(
+        "ix_workspaces_goals_workspace_status",
         "workspaces_goals",
         ["workspace_id", "status"],
         unique=False,
@@ -195,8 +240,18 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.text("'{}'::uuid[]"),
         ),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
         sa.ForeignKeyConstraint(
             ["workspace_id"],
             ["workspaces_workspaces.id"],
@@ -204,7 +259,12 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
     )
-    op.create_index("uq_settings_workspace", "workspaces_settings", ["workspace_id"], unique=True)
+    op.create_index(
+        "uq_workspaces_settings_workspace",
+        "workspaces_settings",
+        ["workspace_id"],
+        unique=True,
+    )
 
     op.create_table(
         "workspaces_visibility_grants",
@@ -228,8 +288,18 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.text("'{}'::text[]"),
         ),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
         sa.ForeignKeyConstraint(
             ["workspace_id"],
             ["workspaces_workspaces.id"],
@@ -238,7 +308,7 @@ def upgrade() -> None:
         ),
     )
     op.create_index(
-        "uq_visibility_workspace",
+        "uq_workspaces_visibility_grants_workspace",
         "workspaces_visibility_grants",
         ["workspace_id"],
         unique=True,
@@ -246,23 +316,32 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("uq_visibility_workspace", table_name="workspaces_visibility_grants")
+    op.drop_index(
+        "uq_workspaces_visibility_grants_workspace",
+        table_name="workspaces_visibility_grants",
+    )
     op.drop_table("workspaces_visibility_grants")
 
-    op.drop_index("uq_settings_workspace", table_name="workspaces_settings")
+    op.drop_index("uq_workspaces_settings_workspace", table_name="workspaces_settings")
     op.drop_table("workspaces_settings")
 
-    op.drop_index("ix_goals_workspace_status", table_name="workspaces_goals")
-    op.drop_index("ix_goals_workspace_id", table_name="workspaces_goals")
-    op.drop_index("uq_goal_gid", table_name="workspaces_goals")
+    op.drop_index("ix_workspaces_goals_workspace_status", table_name="workspaces_goals")
+    op.drop_index("ix_workspaces_goals_workspace_id", table_name="workspaces_goals")
+    op.drop_index("uq_workspaces_goals_gid", table_name="workspaces_goals")
     op.drop_table("workspaces_goals")
 
-    op.drop_index("uq_workspace_user", table_name="workspaces_memberships")
-    op.drop_index("ix_memberships_user_id", table_name="workspaces_memberships")
+    op.drop_index(
+        "uq_workspaces_memberships_workspace_user",
+        table_name="workspaces_memberships",
+    )
+    op.drop_index("ix_workspaces_memberships_user_id", table_name="workspaces_memberships")
     op.drop_table("workspaces_memberships")
 
-    op.drop_index("ix_workspaces_owner_name_status", table_name="workspaces_workspaces")
-    op.drop_index("ix_workspaces_owner_id", table_name="workspaces_workspaces")
+    op.drop_index(
+        "ix_workspaces_workspaces_owner_name_status",
+        table_name="workspaces_workspaces",
+    )
+    op.drop_index("ix_workspaces_workspaces_owner_id", table_name="workspaces_workspaces")
     op.drop_table("workspaces_workspaces")
 
     op.drop_column("accounts_users", "max_workspaces")

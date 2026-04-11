@@ -35,9 +35,9 @@ class GoalStatus(StrEnum):
 class Workspace(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, AuditMixin):
     __tablename__ = "workspaces_workspaces"
     __table_args__ = (
-        Index("ix_workspaces_owner_id", "owner_id"),
+        Index("ix_workspaces_workspaces_owner_id", "owner_id"),
         Index(
-            "ix_workspaces_owner_name_status",
+            "ix_workspaces_workspaces_owner_name_status",
             "owner_id",
             "name",
             "status",
@@ -53,7 +53,7 @@ class Workspace(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, AuditMixin):
         nullable=False,
         default=WorkspaceStatus.active,
     )
-    owner_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False, index=True)
+    owner_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     memberships: Mapped[list[Membership]] = relationship(
@@ -83,8 +83,8 @@ class Workspace(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, AuditMixin):
 class Membership(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "workspaces_memberships"
     __table_args__ = (
-        Index("ix_memberships_user_id", "user_id"),
-        Index("uq_workspace_user", "workspace_id", "user_id", unique=True),
+        Index("ix_workspaces_memberships_user_id", "user_id"),
+        Index("uq_workspaces_memberships_workspace_user", "workspace_id", "user_id", unique=True),
     )
 
     workspace_id: Mapped[UUID] = mapped_column(
@@ -108,9 +108,9 @@ class Membership(Base, UUIDMixin, TimestampMixin):
 class WorkspaceGoal(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "workspaces_goals"
     __table_args__ = (
-        Index("uq_goal_gid", "gid", unique=True),
-        Index("ix_goals_workspace_id", "workspace_id"),
-        Index("ix_goals_workspace_status", "workspace_id", "status"),
+        Index("uq_workspaces_goals_gid", "gid", unique=True),
+        Index("ix_workspaces_goals_workspace_id", "workspace_id"),
+        Index("ix_workspaces_goals_workspace_status", "workspace_id", "status"),
     )
 
     workspace_id: Mapped[UUID] = mapped_column(
@@ -136,7 +136,7 @@ class WorkspaceGoal(Base, UUIDMixin, TimestampMixin):
 
 class WorkspaceSettings(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "workspaces_settings"
-    __table_args__ = (Index("uq_settings_workspace", "workspace_id", unique=True),)
+    __table_args__ = (Index("uq_workspaces_settings_workspace", "workspace_id", unique=True),)
 
     workspace_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
@@ -172,7 +172,9 @@ class WorkspaceSettings(Base, UUIDMixin, TimestampMixin):
 
 class WorkspaceVisibilityGrant(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "workspaces_visibility_grants"
-    __table_args__ = (Index("uq_visibility_workspace", "workspace_id", unique=True),)
+    __table_args__ = (
+        Index("uq_workspaces_visibility_grants_workspace", "workspace_id", unique=True),
+    )
 
     workspace_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
