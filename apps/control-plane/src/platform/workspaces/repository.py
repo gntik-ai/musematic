@@ -12,7 +12,7 @@ from platform.workspaces.models import (
     WorkspaceStatus,
     WorkspaceVisibilityGrant,
 )
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import case, func, select
@@ -368,3 +368,17 @@ class WorkspacesRepository:
             .order_by(Membership.created_at.asc())
         )
         return list(result.scalars().all())
+
+    async def get_goal_by_gid(self, goal_gid: UUID) -> WorkspaceGoal | None:
+        result = await self.session.execute(
+            select(WorkspaceGoal).where(WorkspaceGoal.gid == goal_gid)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_workspace_id_for_fleet(self, fleet_id: UUID) -> UUID | None:
+        result = await self.session.execute(
+            select(WorkspaceSettings.workspace_id).where(
+                WorkspaceSettings.subscribed_fleets.any(cast(Any, fleet_id))
+            )
+        )
+        return result.scalar_one_or_none()

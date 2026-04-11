@@ -58,3 +58,23 @@ class ApiKeyInvalidError(PlatformError):
     def __init__(self, message: str = "Invalid API key") -> None:
         super().__init__("INVALID_API_KEY", message)
 
+
+class InvalidAccessTokenError(PlatformError):
+    status_code = 401
+
+    def __init__(self, message: str = "Invalid authentication token") -> None:
+        super().__init__("UNAUTHORIZED", message)
+
+
+class AccessTokenExpiredError(PlatformError):
+    status_code = 401
+
+    def __init__(self, message: str = "Authentication token expired") -> None:
+        super().__init__("TOKEN_EXPIRED", message)
+
+
+class InactiveUserError(PlatformError):
+    status_code = 403
+
+    def __init__(self, message: str = "User is not allowed to connect") -> None:
+        super().__init__("FORBIDDEN", message)

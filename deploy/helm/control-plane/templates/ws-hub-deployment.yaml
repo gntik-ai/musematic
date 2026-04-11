@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: musematic-control-plane-ws-hub
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: {{ .Values.wsHub.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: control-plane-ws-hub
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: control-plane-ws-hub
+    spec:
+      terminationGracePeriodSeconds: {{ .Values.wsHub.terminationGracePeriodSeconds }}
+      containers:
+        - name: ws-hub
+          image: "{{ .Values.wsHub.image.repository }}:{{ .Values.wsHub.image.tag }}"
+          imagePullPolicy: {{ .Values.wsHub.image.pullPolicy }}
+          command:
+            - python
+            - -m
+            - entrypoints.ws_main
+          ports:
+            - name: http
+              containerPort: {{ .Values.wsHub.port }}
+          env:
+            - name: PLATFORM_PROFILE
+              value: {{ .Values.wsHub.env.PLATFORM_PROFILE | quote }}
+            - name: WS_CLIENT_BUFFER_SIZE
+              value: {{ .Values.wsHub.env.WS_CLIENT_BUFFER_SIZE | quote }}
+            - name: WS_HEARTBEAT_INTERVAL_SECONDS
+              value: {{ .Values.wsHub.env.WS_HEARTBEAT_INTERVAL_SECONDS | quote }}
+            - name: WS_HEARTBEAT_TIMEOUT_SECONDS
+              value: {{ .Values.wsHub.env.WS_HEARTBEAT_TIMEOUT_SECONDS | quote }}
+          resources:
+{{ toYaml .Values.wsHub.resources | indent 12 }}

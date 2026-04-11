@@ -62,6 +62,7 @@ from platform.workspaces.schemas import (
     WorkspaceResponse,
 )
 from platform.workspaces.state_machine import validate_goal_transition
+from platform.ws_hub.subscription import ChannelType
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -551,6 +552,34 @@ class WorkspacesService:
 
     async def get_user_workspace_ids(self, user_id: UUID) -> list[UUID]:
         return await self.repo.get_user_workspace_ids(user_id)
+
+    async def get_workspace_id_for_resource(
+        self,
+        channel: ChannelType | str,
+        resource_id: UUID,
+    ) -> UUID | None:
+        resolved_channel = ChannelType(str(channel))
+
+        if resolved_channel is ChannelType.WORKSPACE:
+            workspace = await self.repo.get_workspace_by_id_any(resource_id)
+            return workspace.id if workspace is not None else None
+
+        if resolved_channel in {
+            ChannelType.EXECUTION,
+            ChannelType.INTERACTION,
+            ChannelType.CONVERSATION,
+            ChannelType.REASONING,
+            ChannelType.CORRECTION,
+            ChannelType.SIMULATION,
+            ChannelType.TESTING,
+        }:
+            goal = await self.repo.get_goal_by_gid(resource_id)
+            return goal.workspace_id if goal is not None else None
+
+        if resolved_channel is ChannelType.FLEET:
+            return await self.repo.get_workspace_id_for_fleet(resource_id)
+
+        return None
 
     async def _get_workspace_limit(self, user_id: UUID) -> int:
         if self.accounts_service is None:

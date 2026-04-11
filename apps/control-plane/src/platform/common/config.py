@@ -163,6 +163,15 @@ class WorkspacesSettings(BaseSettings):
     default_limit: int = 0
 
 
+class WsHubSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="WS_", extra="ignore")
+
+    client_buffer_size: int = 1000
+    heartbeat_interval_seconds: int = 30
+    heartbeat_timeout_seconds: int = 10
+    max_malformed_messages: int = 10
+
+
 class PlatformSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="PLATFORM_", extra="ignore")
 
@@ -179,6 +188,7 @@ class PlatformSettings(BaseSettings):
     otel: OTelSettings = Field(default_factory=OTelSettings)
     accounts: AccountsSettings = Field(default_factory=AccountsSettings)
     workspaces: WorkspacesSettings = Field(default_factory=WorkspacesSettings)
+    ws_hub: WsHubSettings = Field(default_factory=WsHubSettings)
     profile: str = "api"
 
     @model_validator(mode="before")
@@ -256,6 +266,10 @@ class PlatformSettings(BaseSettings):
             "ACCOUNTS_RESEND_RATE_LIMIT": ("accounts", "resend_rate_limit"),
             "WORKSPACES_DEFAULT_NAME_TEMPLATE": ("workspaces", "default_name_template"),
             "WORKSPACES_DEFAULT_LIMIT": ("workspaces", "default_limit"),
+            "WS_CLIENT_BUFFER_SIZE": ("ws_hub", "client_buffer_size"),
+            "WS_HEARTBEAT_INTERVAL_SECONDS": ("ws_hub", "heartbeat_interval_seconds"),
+            "WS_HEARTBEAT_TIMEOUT_SECONDS": ("ws_hub", "heartbeat_timeout_seconds"),
+            "WS_MAX_MALFORMED_MESSAGES": ("ws_hub", "max_malformed_messages"),
             "PLATFORM_PROFILE": ("profile", ""),
         }
         for key, target in mappings.items():
@@ -519,6 +533,22 @@ class PlatformSettings(BaseSettings):
     @property
     def WORKSPACES_DEFAULT_LIMIT(self) -> int:
         return self.workspaces.default_limit
+
+    @property
+    def WS_CLIENT_BUFFER_SIZE(self) -> int:
+        return self.ws_hub.client_buffer_size
+
+    @property
+    def WS_HEARTBEAT_INTERVAL_SECONDS(self) -> int:
+        return self.ws_hub.heartbeat_interval_seconds
+
+    @property
+    def WS_HEARTBEAT_TIMEOUT_SECONDS(self) -> int:
+        return self.ws_hub.heartbeat_timeout_seconds
+
+    @property
+    def WS_MAX_MALFORMED_MESSAGES(self) -> int:
+        return self.ws_hub.max_malformed_messages
 
 
 Settings = PlatformSettings

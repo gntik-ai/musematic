@@ -11,7 +11,10 @@ from platform.auth.events import (
     publish_auth_event,
 )
 from platform.auth.exceptions import (
+    AccessTokenExpiredError,
     AccountLockedError,
+    InactiveUserError,
+    InvalidAccessTokenError,
     InvalidCredentialsError,
     InvalidMfaCodeError,
     InvalidMfaTokenError,
@@ -52,6 +55,8 @@ from platform.common.events.producer import EventProducer
 from platform.common.exceptions import NotFoundError
 from typing import Any, cast
 from uuid import UUID, uuid4
+
+import jwt
 
 
 class AuthService:
@@ -214,6 +219,42 @@ class AuthService:
             refresh_token=refresh_token_str,
             expires_in=self.settings.access_token_ttl,
         )
+
+    async def validate_token(self, token: str) -> dict[str, Any]:
+        try:
+            payload = jwt.decode(
+                token,
+                self.settings.verification_key,
+                algorithms=[self.settings.jwt_algorithm],
+            )
+        except jwt.ExpiredSignatureError as exc:
+            raise AccessTokenExpiredError() from exc
+        except jwt.PyJWTError as exc:
+            raise InvalidAccessTokenError() from exc
+
+        if not isinstance(payload, dict):
+            raise InvalidAccessTokenError()
+        if payload.get("type") not in {None, "access"}:
+            raise InvalidAccessTokenError()
+
+        subject = payload.get("sub")
+        if not isinstance(subject, str):
+            raise InvalidAccessTokenError()
+
+        try:
+            user_id = UUID(subject)
+        except ValueError as exc:
+            raise InvalidAccessTokenError() from exc
+
+        platform_user = await self.repository.get_platform_user(user_id)
+        if platform_user is None:
+            raise InvalidAccessTokenError()
+        if platform_user.status in {"blocked", "suspended", "archived"}:
+            raise InactiveUserError()
+        if platform_user.status != "active":
+            raise InvalidAccessTokenError()
+
+        return payload
 
     async def logout(
         self,
