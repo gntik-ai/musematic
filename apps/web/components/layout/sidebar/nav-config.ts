@@ -12,7 +12,7 @@ export interface QuickAction {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { id: "dashboard", label: "Dashboard", icon: "LayoutDashboard", href: "/", requiredRoles: [] },
+  { id: "dashboard", label: "Dashboard", icon: "LayoutDashboard", href: "/dashboard", requiredRoles: [] },
   {
     id: "agents",
     label: "Agents",

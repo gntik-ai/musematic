@@ -1,5 +1,7 @@
 export type RoleType =
   | "superadmin"
+  | "platform_admin"
+  | "workspace_owner"
   | "workspace_admin"
   | "workspace_editor"
   | "workspace_viewer"
@@ -8,6 +10,11 @@ export type RoleType =
   | "trust_officer"
   | "policy_manager"
   | "analytics_viewer"
+  | "creator"
+  | "operator"
+  | "viewer"
+  | "auditor"
+  | "agent"
   | "service_account";
 
 export interface UserProfile {
@@ -17,6 +24,7 @@ export interface UserProfile {
   avatarUrl: string | null;
   roles: RoleType[];
   workspaceId: string | null;
+  mfaEnrolled: boolean;
 }
 
 export interface AuthState {
@@ -31,4 +39,8 @@ export interface TokenPair {
   accessToken: string;
   refreshToken: string;
   expiresIn: number;
+}
+
+export interface AuthSession extends TokenPair {
+  user: UserProfile;
 }

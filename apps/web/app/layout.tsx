@@ -3,6 +3,7 @@ import { IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { WebSocketProvider } from "@/components/providers/WebSocketProvider";
+import { Toaster } from "@/components/ui/toaster";
 import "@/app/globals.css";
 
 const sans = Space_Grotesk({
@@ -27,7 +28,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className={`${sans.variable} ${mono.variable} min-h-screen bg-background font-sans text-foreground antialiased`}>
         <ThemeProvider>
           <QueryProvider>
-            <WebSocketProvider>{children}</WebSocketProvider>
+            <WebSocketProvider>
+              {children}
+              <Toaster />
+            </WebSocketProvider>
           </QueryProvider>
         </ThemeProvider>
       </body>

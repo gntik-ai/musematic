@@ -13,7 +13,7 @@ branch_labels = None
 depends_on = None
 
 
-accounts_user_status = sa.Enum(
+accounts_user_status = postgresql.ENUM(
     "pending_verification",
     "pending_approval",
     "active",
@@ -21,23 +21,27 @@ accounts_user_status = sa.Enum(
     "blocked",
     "archived",
     name="accounts_user_status",
+    create_type=False,
 )
-accounts_signup_source = sa.Enum(
+accounts_signup_source = postgresql.ENUM(
     "self_registration",
     "invitation",
     name="accounts_signup_source",
+    create_type=False,
 )
-accounts_invitation_status = sa.Enum(
+accounts_invitation_status = postgresql.ENUM(
     "pending",
     "consumed",
     "expired",
     "revoked",
     name="accounts_invitation_status",
+    create_type=False,
 )
-accounts_approval_decision = sa.Enum(
+accounts_approval_decision = postgresql.ENUM(
     "approved",
     "rejected",
     name="accounts_approval_decision",
+    create_type=False,
 )
 
 

@@ -2,11 +2,12 @@
 
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import type { AuthState, TokenPair, UserProfile } from "@/types/auth";
+import type { AuthSession, AuthState, TokenPair, UserProfile } from "@/types/auth";
 
 interface AuthActions {
   setTokens: (tokens: TokenPair) => void;
   setUser: (user: UserProfile) => void;
+  setAuth: (session: AuthSession) => void;
   clearAuth: () => void;
   setLoading: (loading: boolean) => void;
 }
@@ -36,6 +37,14 @@ export const useAuthStore = create<AuthStore>()(
         set((state) => ({
           ...state,
           user,
+          isAuthenticated: state.accessToken !== null || user !== null,
+        })),
+      setAuth: ({ user, accessToken, refreshToken }) =>
+        set((state) => ({
+          ...state,
+          user,
+          accessToken,
+          refreshToken,
           isAuthenticated: true,
         })),
       clearAuth: () => set({ ...initialState }),

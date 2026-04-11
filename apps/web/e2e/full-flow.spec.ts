@@ -1,8 +1,11 @@
 import { expect, test } from "@playwright/test";
+import { mockAuthApi, signIn } from "./auth/helpers";
 
 test("login, shell navigation, breadcrumbs, and dark mode work together", async ({ page }) => {
+  await mockAuthApi(page);
   await page.goto("/login");
-  await page.getByRole("button", { name: /continue with mock workspace/i }).click();
+  await signIn(page);
+  await expect(page).toHaveURL(/dashboard/);
   await page.keyboard.press("Control+K");
   await page.getByTestId("command-input").fill("create agent");
   await page.getByText("Agents").click();
