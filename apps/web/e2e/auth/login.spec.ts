@@ -1,14 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { mockAuthApi, signIn } from "./helpers";
 
-test("credential login redirects to the dashboard", async ({ page }) => {
+test("credential login redirects to the home dashboard", async ({ page }) => {
   await mockAuthApi(page);
   await page.goto("/login");
 
   await signIn(page);
 
-  await expect(page).toHaveURL(/dashboard/);
-  await expect(page.getByText(/mission control dashboard/i)).toBeVisible();
+  await expect(page).toHaveURL(/home/);
+  await expect(page.getByRole("heading", { name: /current workspace overview/i })).toBeVisible();
 });
 
 test("redirectTo is preserved after a successful login", async ({ page }) => {
@@ -38,7 +38,7 @@ test("MFA-enrolled users see the MFA challenge step", async ({ page }) => {
 
   await expect(page.getByText(/verify your sign-in/i)).toBeVisible();
   await page.getByLabel(/authenticator code/i).fill("123456");
-  await expect(page).toHaveURL(/dashboard/);
+  await expect(page).toHaveURL(/home/);
 });
 
 test("lockout responses show the countdown state", async ({ page }) => {

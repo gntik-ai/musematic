@@ -1,15 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { WebSocketClient } from "@/lib/ws";
+import { type WebSocketClient, wsClient } from "@/lib/ws";
 
 const WebSocketContext = React.createContext<WebSocketClient | null>(null);
 
 export function WebSocketProvider({ children }: React.PropsWithChildren) {
-  const client = React.useMemo(
-    () => new WebSocketClient(process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8000/ws"),
-    [],
-  );
+  const client = React.useMemo(() => wsClient, []);
   const [, forceRender] = React.useState(0);
 
   React.useEffect(() => {

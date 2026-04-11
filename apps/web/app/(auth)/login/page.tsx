@@ -19,11 +19,11 @@ type LoginFlowState =
 
 function getRedirectTarget(redirectTo: string | null): string {
   if (!redirectTo) {
-    return "/dashboard";
+    return "/home";
   }
 
   if (!redirectTo.startsWith("/") || redirectTo.startsWith("//")) {
-    return "/dashboard";
+    return "/home";
   }
 
   return redirectTo;
