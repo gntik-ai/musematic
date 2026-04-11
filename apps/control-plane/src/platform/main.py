@@ -37,6 +37,11 @@ from platform.common.events.consumer import EventConsumerManager
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import PlatformError, platform_exception_handler
 from platform.common.telemetry import setup_telemetry
+from platform.registry.events import register_registry_event_types
+from platform.registry.index_worker import RegistryIndexWorker
+from platform.registry.registry_opensearch_setup import create_marketplace_agents_index
+from platform.registry.registry_qdrant_setup import create_agent_embeddings_collection
+from platform.registry.router import router as registry_router
 from platform.workspaces.consumer import WorkspacesConsumer
 from platform.workspaces.events import register_workspaces_event_types
 from platform.workspaces.router import router as workspaces_router
@@ -75,6 +80,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_accounts_event_types()
     register_workspaces_event_types()
     register_analytics_event_types()
+    register_registry_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -95,6 +101,22 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["analytics_clickhouse_setup"] = str(exc)
             LOGGER.warning("Failed to run analytics ClickHouse setup: %s", exc)
+    opensearch_client = app.state.clients.get("opensearch")
+    if isinstance(opensearch_client, AsyncOpenSearchClient):
+        try:
+            await create_marketplace_agents_index(opensearch_client, app.state.settings)
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["registry_opensearch_setup"] = str(exc)
+            LOGGER.warning("Failed to run registry OpenSearch setup: %s", exc)
+    qdrant_client = app.state.clients.get("qdrant")
+    if isinstance(qdrant_client, AsyncQdrantClient):
+        try:
+            await create_agent_embeddings_collection(qdrant_client, app.state.settings)
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["registry_qdrant_setup"] = str(exc)
+            LOGGER.warning("Failed to run registry Qdrant setup: %s", exc)
 
     consumer_manager = app.state.clients.get("kafka_consumer")
     if consumer_manager is not None:
@@ -126,9 +148,22 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["analytics_budget_scheduler"] = str(exc)
             LOGGER.warning("Failed to start analytics budget scheduler: %s", exc)
+    registry_index_worker = getattr(app.state, "registry_index_worker", None)
+    if registry_index_worker is not None:
+        try:
+            await registry_index_worker.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["registry_index_worker"] = str(exc)
+            LOGGER.warning("Failed to start registry index worker: %s", exc)
     try:
         yield
     finally:
+        if registry_index_worker is not None:
+            try:
+                await registry_index_worker.stop()
+            except Exception as exc:
+                LOGGER.warning("Failed to stop registry index worker cleanly: %s", exc)
         if analytics_scheduler is not None:
             try:
                 analytics_scheduler.shutdown(wait=False)
@@ -174,6 +209,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     )
     app.state.analytics_consumer = None
     app.state.analytics_budget_scheduler = None
+    app.state.registry_index_worker = None
     if resolved.profile == "worker":
         app.state.analytics_consumer = AnalyticsPipelineConsumer(
             settings=resolved,
@@ -181,6 +217,12 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
             producer=cast(EventProducer | None, app.state.clients.get("kafka")),
         )
         app.state.analytics_budget_scheduler = _build_analytics_budget_scheduler(app)
+        opensearch_client = app.state.clients.get("opensearch")
+        if isinstance(opensearch_client, AsyncOpenSearchClient):
+            app.state.registry_index_worker = RegistryIndexWorker(
+                settings=resolved,
+                opensearch=opensearch_client,
+            )
     exception_handler = cast(
         Callable[[Request, Exception], Response | Awaitable[Response]],
         platform_exception_handler,
@@ -211,6 +253,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(accounts_router)
         app.include_router(workspaces_router)
         app.include_router(analytics_router)
+        app.include_router(registry_router)
 
     setup_telemetry(
         service_name=f"{resolved.otel.service_name}-{resolved.profile}",
