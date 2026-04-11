@@ -36,6 +36,7 @@ if not is_local_platform:
     spec.loader.exec_module(module)
 
 Base = importlib.import_module("platform.common.models").Base
+importlib.import_module("platform.auth.models")
 
 config = context.config
 

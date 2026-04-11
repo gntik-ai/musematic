@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from platform.auth.dependencies import resolve_api_key_identity
 from platform.common.config import settings as default_settings
 
 import jwt
@@ -7,7 +8,15 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-EXEMPT_PATHS: set[str] = {"/health", "/docs", "/openapi.json", "/redoc"}
+EXEMPT_PATHS: set[str] = {
+    "/health",
+    "/docs",
+    "/openapi.json",
+    "/redoc",
+    "/api/v1/auth/login",
+    "/api/v1/auth/refresh",
+    "/api/v1/auth/mfa/verify",
+}
 
 
 def _unauthorized_response(code: str, message: str) -> JSONResponse:
@@ -32,6 +41,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if request.url.path in EXEMPT_PATHS:
             return await call_next(request)
 
+        api_key = request.headers.get("X-API-Key", "").strip()
+        if api_key:
+            identity = await resolve_api_key_identity(request, api_key)
+            if identity is None:
+                return _unauthorized_response("INVALID_API_KEY", "Invalid API key")
+            request.state.user = identity
+            return await call_next(request)
+
         header = request.headers.get("Authorization", "")
         if not header.startswith("Bearer "):
             return _unauthorized_response("UNAUTHORIZED", "Missing authentication")
@@ -41,12 +58,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
         try:
             payload = jwt.decode(
                 token,
-                settings.auth.jwt_secret_key,
+                settings.auth.verification_key,
                 algorithms=[settings.auth.jwt_algorithm],
             )
         except jwt.ExpiredSignatureError:
             return _unauthorized_response("TOKEN_EXPIRED", "Authentication token expired")
         except jwt.PyJWTError:
+            return _unauthorized_response("UNAUTHORIZED", "Invalid authentication token")
+        if not isinstance(payload, dict) or payload.get("type") not in {None, "access"}:
             return _unauthorized_response("UNAUTHORIZED", "Invalid authentication token")
 
         request.state.user = payload

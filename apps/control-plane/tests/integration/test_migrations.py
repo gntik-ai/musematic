@@ -24,16 +24,23 @@ async def test_upgrade_head_from_fresh_db(postgres_container) -> None:
             "agent_namespaces",
             "alembic_version",
             "audit_events",
+            "auth_attempts",
             "execution_events",
             "memberships",
+            "mfa_enrollments",
+            "password_reset_tokens",
+            "role_permissions",
             "sessions",
+            "service_account_credentials",
+            "user_credentials",
+            "user_roles",
             "users",
             "workspaces",
         }.issubset(tables)
 
         async with runtime_engine.connect() as connection:
             version = await connection.scalar(text("SELECT version_num FROM alembic_version"))
-        assert version == "001_initial_schema"
+        assert version == "002_auth_tables"
     finally:
         await runtime_engine.dispose()
 
@@ -48,13 +55,11 @@ async def test_downgrade_minus_one(postgres_container) -> None:
     runtime_engine = create_async_engine(database_url, future=True)
     try:
         tables = await _table_names(runtime_engine)
-        assert "users" not in tables
-        # Alembic keeps the alembic_version table but empties it after a full downgrade.
+        assert "users" in tables
+        assert "user_credentials" not in tables
         async with runtime_engine.connect() as connection:
-            version_count = await connection.scalar(
-                text("SELECT COUNT(*) FROM alembic_version")
-            )
-        assert version_count == 0
+            version = await connection.scalar(text("SELECT version_num FROM alembic_version"))
+        assert version == "001_initial_schema"
     finally:
         await runtime_engine.dispose()
 

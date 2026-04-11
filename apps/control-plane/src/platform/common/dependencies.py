@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator
 from platform.common.config import PlatformSettings
 from platform.common.config import settings as default_settings
-from platform.common.database import AsyncSessionLocal
+from platform.common import database
 from platform.common.exceptions import AuthorizationError, NotFoundError
 from typing import Any, cast
 
@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    session = AsyncSessionLocal()
+    session = database.AsyncSessionLocal()
     try:
         yield session
         await session.commit()
@@ -45,7 +45,7 @@ async def get_current_user(request: Request) -> dict[str, Any]:
     try:
         payload = jwt.decode(
             token,
-            settings.auth.jwt_secret_key,
+            settings.auth.verification_key,
             algorithms=[settings.auth.jwt_algorithm],
         )
     except jwt.ExpiredSignatureError as exc:
@@ -53,6 +53,8 @@ async def get_current_user(request: Request) -> dict[str, Any]:
     except jwt.PyJWTError as exc:
         raise AuthorizationError("UNAUTHORIZED", "Invalid authentication token") from exc
     if not isinstance(payload, dict):
+        raise AuthorizationError("UNAUTHORIZED", "Invalid authentication token")
+    if payload.get("type") not in {None, "access"}:
         raise AuthorizationError("UNAUTHORIZED", "Invalid authentication token")
     return payload
 

@@ -105,8 +105,39 @@ class AuthSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="AUTH_", extra="ignore")
 
     jwt_secret_key: str = ""
+    jwt_private_key: str = ""
+    jwt_public_key: str = ""
     jwt_algorithm: str = "RS256"
-    session_ttl_seconds: int = 86400
+    access_token_ttl: int = 900
+    refresh_token_ttl: int = 604800
+    lockout_threshold: int = 5
+    lockout_duration: int = 900
+    mfa_encryption_key: str = ""
+    mfa_enrollment_ttl: int = 600
+    session_ttl: int = 604800
+    password_reset_ttl: int = 3600
+
+    @property
+    def signing_key(self) -> str:
+        if self.jwt_private_key:
+            return self.jwt_private_key
+        if self.jwt_secret_key:
+            return self.jwt_secret_key
+        return ""
+
+    @property
+    def verification_key(self) -> str:
+        if self.jwt_public_key:
+            return self.jwt_public_key
+        if self.jwt_secret_key:
+            return self.jwt_secret_key
+        if self.jwt_private_key:
+            return self.jwt_private_key
+        return ""
+
+    @property
+    def session_ttl_seconds(self) -> int:
+        return self.session_ttl
 
 
 class OTelSettings(BaseSettings):
@@ -187,8 +218,18 @@ class PlatformSettings(BaseSettings):
             "GRPC_SANDBOX_MANAGER": ("grpc", "sandbox_manager"),
             "GRPC_SIMULATION_CONTROLLER": ("grpc", "simulation_controller"),
             "AUTH_JWT_SECRET_KEY": ("auth", "jwt_secret_key"),
+            "AUTH_JWT_PRIVATE_KEY": ("auth", "jwt_private_key"),
+            "AUTH_JWT_PUBLIC_KEY": ("auth", "jwt_public_key"),
             "AUTH_JWT_ALGORITHM": ("auth", "jwt_algorithm"),
-            "AUTH_SESSION_TTL_SECONDS": ("auth", "session_ttl_seconds"),
+            "AUTH_ACCESS_TOKEN_TTL": ("auth", "access_token_ttl"),
+            "AUTH_REFRESH_TOKEN_TTL": ("auth", "refresh_token_ttl"),
+            "AUTH_LOCKOUT_THRESHOLD": ("auth", "lockout_threshold"),
+            "AUTH_LOCKOUT_DURATION": ("auth", "lockout_duration"),
+            "AUTH_MFA_ENCRYPTION_KEY": ("auth", "mfa_encryption_key"),
+            "AUTH_MFA_ENROLLMENT_TTL": ("auth", "mfa_enrollment_ttl"),
+            "AUTH_SESSION_TTL": ("auth", "session_ttl"),
+            "AUTH_SESSION_TTL_SECONDS": ("auth", "session_ttl"),
+            "AUTH_PASSWORD_RESET_TTL": ("auth", "password_reset_ttl"),
             "OTEL_EXPORTER_ENDPOINT": ("otel", "exporter_endpoint"),
             "OTEL_SERVICE_NAME": ("otel", "service_name"),
             "PLATFORM_PROFILE": ("profile", ""),
@@ -380,12 +421,52 @@ class PlatformSettings(BaseSettings):
         return self.auth.jwt_secret_key
 
     @property
+    def AUTH_JWT_PRIVATE_KEY(self) -> str:
+        return self.auth.jwt_private_key
+
+    @property
+    def AUTH_JWT_PUBLIC_KEY(self) -> str:
+        return self.auth.jwt_public_key
+
+    @property
     def AUTH_JWT_ALGORITHM(self) -> str:
         return self.auth.jwt_algorithm
 
     @property
+    def AUTH_ACCESS_TOKEN_TTL(self) -> int:
+        return self.auth.access_token_ttl
+
+    @property
+    def AUTH_REFRESH_TOKEN_TTL(self) -> int:
+        return self.auth.refresh_token_ttl
+
+    @property
+    def AUTH_LOCKOUT_THRESHOLD(self) -> int:
+        return self.auth.lockout_threshold
+
+    @property
+    def AUTH_LOCKOUT_DURATION(self) -> int:
+        return self.auth.lockout_duration
+
+    @property
+    def AUTH_MFA_ENCRYPTION_KEY(self) -> str:
+        return self.auth.mfa_encryption_key
+
+    @property
+    def AUTH_MFA_ENROLLMENT_TTL(self) -> int:
+        return self.auth.mfa_enrollment_ttl
+
+    @property
+    def AUTH_SESSION_TTL(self) -> int:
+        return self.auth.session_ttl
+
+    @property
     def AUTH_SESSION_TTL_SECONDS(self) -> int:
-        return self.auth.session_ttl_seconds
+        return self.auth.session_ttl
+
+    @property
+    def AUTH_PASSWORD_RESET_TTL(self) -> int:
+        return self.auth.password_reset_ttl
 
     @property
     def OTEL_EXPORTER_ENDPOINT(self) -> str:
