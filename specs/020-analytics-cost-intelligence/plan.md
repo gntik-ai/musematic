@@ -1,0 +1,170 @@
+# Implementation Plan: Analytics and Cost Intelligence
+
+**Branch**: `020-analytics-cost-intelligence` | **Date**: 2026-04-11 | **Spec**: [spec.md](spec.md)
+**Input**: Feature specification from `specs/020-analytics-cost-intelligence/spec.md`
+
+## Summary
+
+Build the `analytics/` bounded context within `apps/control-plane/src/platform/`. This covers a Kafka→ClickHouse usage event pipeline (batch ingestion from `workflow.runtime`, `runtime.lifecycle`, and `evaluation.events` topics), ClickHouse materialized views for hourly/daily/monthly rollups, cost-per-quality ratio computation (JOIN usage cost + quality scores from evaluation system), rule-based optimization recommendations (model switch, self-correction tuning, context optimization, underutilization), linear trend budget forecasting with confidence intervals, a KPI time-series endpoint, and 4 REST query endpoints — all with workspace-scoped access control. Cost model pricing is stored in PostgreSQL (`analytics_cost_models`); all usage and quality data lives in ClickHouse.
+
+## Technical Context
+
+**Language/Version**: Python 3.12+  
+**Primary Dependencies**: FastAPI 0.115+, Pydantic v2, aiokafka 0.11+ (pipeline consumer), clickhouse-connect 0.8+ (ClickHouse HTTP interface), SQLAlchemy 2.x async (CostModel PostgreSQL table only)  
+**Storage**: ClickHouse (usage_events, quality_events, 3 materialized views) + PostgreSQL (analytics_cost_models configuration table only)  
+**Testing**: pytest 8.x + pytest-asyncio  
+**Target Platform**: Linux server, Kubernetes `platform-control` namespace (`worker` runtime profile for consumer, `api` profile for endpoints)  
+**Project Type**: Bounded context within modular monolith control plane  
+**Performance Goals**: Pipeline ingests ≥ 10,000 events/min; analytics queries < 3s; rollups available within 5 minutes of events  
+**Constraints**: Test coverage ≥ 95%; all async; ruff + mypy --strict; no cross-boundary DB access; no PostgreSQL rollup queries; no ML libraries  
+**Scale/Scope**: 5 user stories, 20 FRs, 10 SCs, 4 REST endpoints + 1 internal interface, 2 ClickHouse base tables + 3 materialized views, 1 PostgreSQL table, 3 Kafka event types emitted, 3 Kafka topics consumed
+
+## Constitution Check
+
+| Gate | Status | Notes |
+|------|--------|-------|
+| Python 3.12+ | PASS | §2.1 mandated |
+| FastAPI 0.115+ | PASS | §2.1 mandated |
+| Pydantic v2 for all schemas | PASS | §2.1 mandated |
+| SQLAlchemy 2.x async only | PASS | §2.1 mandated — used for `analytics_cost_models` PostgreSQL table only |
+| All code async | PASS | Coding conventions: "All code is async" |
+| Bounded context structure | PASS | models, schemas, service, repository, router, events, exceptions, dependencies, consumer, clickhouse_setup, recommendation, forecast |
+| No cross-boundary DB access | PASS | §IV — workspace membership via `workspaces_service.get_user_workspace_ids()` in-process; quality scores via Kafka consumer |
+| Canonical EventEnvelope | PASS | All events on `analytics.events` use EventEnvelope from feature 013 |
+| CorrelationContext everywhere | PASS | Events carry workspace_id + execution_id in CorrelationContext |
+| Repository pattern | PASS | `AnalyticsRepository` (ClickHouse) + `CostModelRepository` (SQLAlchemy) in repository.py |
+| Kafka for async events (not DB polling) | PASS | §III — pipeline is Kafka consumer; events emitted via `analytics.events` |
+| Alembic for PostgreSQL schema changes | PASS | migration 005_analytics_cost_models for the CostModel table |
+| ClickHouse for OLAP/time-series | PASS | §III — all usage events, quality events, and rollups in ClickHouse |
+| No PostgreSQL for rollups | PASS | §III explicit — materialized views in ClickHouse AggregatingMergeTree |
+| No vectors in PostgreSQL | N/A | No vector operations |
+| No full-text search in PostgreSQL | N/A | No user-facing search in analytics |
+| ruff 0.7+ | PASS | §2.1 mandated |
+| mypy 1.11+ strict | PASS | §2.1 mandated |
+| pytest + pytest-asyncio 8.x | PASS | §2.1 mandated |
+| Secrets not in LLM context | N/A | No secrets in analytics context |
+| Zero-trust visibility | PASS | §IX — workspace membership check on all endpoints (SC-008) |
+| Goal ID as first-class correlation | PASS | §X — execution events carry goal_id; passed through in analytics events |
+
+**All 22 applicable constitution gates PASS.**
+
+## Project Structure
+
+### Documentation (this feature)
+
+```text
+specs/020-analytics-cost-intelligence/
+├── plan.md              # This file
+├── spec.md              # Feature specification
+├── research.md          # Phase 0 decisions (12 decisions)
+├── data-model.md        # Phase 1 — ClickHouse schema, SQLAlchemy model, Pydantic schemas, service classes
+├── quickstart.md        # Phase 1 — run/test guide
+├── contracts/
+│   └── analytics-api.md # REST API contracts (4 endpoints + 1 internal interface)
+└── tasks.md             # Phase 2 — generated by /speckit.tasks
+```
+
+### Source Code
+
+```text
+apps/control-plane/
+├── src/platform/
+│   └── analytics/
+│       ├── __init__.py
+│       ├── models.py              # CostModel SQLAlchemy model (PostgreSQL only)
+│       ├── schemas.py             # All Pydantic request/response schemas
+│       ├── service.py             # AnalyticsService — usage, cost-intelligence, recommendations, forecast
+│       ├── repository.py          # AnalyticsRepository (ClickHouse) + CostModelRepository (SQLAlchemy)
+│       ├── router.py              # FastAPI router: /api/v1/analytics/* (4 GET endpoints)
+│       ├── events.py              # Event payload types + publish_* helpers for analytics.events
+│       ├── exceptions.py          # AnalyticsError, WorkspaceAuthorizationError, AnalyticsStoreUnavailableError
+│       ├── dependencies.py        # get_analytics_service, get_analytics_repository DI factories
+│       ├── consumer.py            # AnalyticsPipelineConsumer (Kafka → ClickHouse batch insert)
+│       ├── clickhouse_setup.py    # Idempotent ClickHouse DDL (base tables + 3 materialized views)
+│       ├── recommendation.py      # RecommendationEngine — 4 rule-based heuristics
+│       └── forecast.py            # ForecastEngine — linear regression + confidence intervals
+├── migrations/
+│   └── versions/
+│       └── 005_analytics_cost_models.py  # Alembic: analytics_cost_models + seed pricing
+└── tests/
+    ├── unit/
+    │   ├── test_analytics_recommendation.py   # RecommendationEngine rule correctness
+    │   ├── test_analytics_forecast.py         # ForecastEngine accuracy tests
+    │   ├── test_analytics_schemas.py          # Pydantic validation tests
+    │   └── test_analytics_cost_computation.py # Cost estimate calculation
+    └── integration/
+        ├── test_analytics_pipeline.py         # Kafka → ClickHouse ingestion flow
+        ├── test_analytics_usage_query.py      # Usage rollup query correctness
+        ├── test_analytics_cost_intelligence.py # Cost-per-quality JOIN + null handling
+        ├── test_analytics_recommendations.py  # End-to-end recommendation generation
+        └── test_analytics_forecast.py         # Forecast with seeded trend data
+```
+
+## Implementation Phases
+
+### Phase 1 — Setup & Package Structure
+- Create `src/platform/analytics/` package with all module stubs
+- `clickhouse_setup.py`: idempotent DDL for `analytics_usage_events`, `analytics_quality_events`, and 3 AggregatingMergeTree materialized views (hourly/daily/monthly)
+- Alembic migration `005_analytics_cost_models.py`: `analytics_cost_models` table + partial unique index + seed pricing for common models
+
+### Phase 2 — US1: Usage Data Pipeline and Visibility
+- `models.py`: `CostModel` SQLAlchemy model
+- `schemas.py`: `UsageQueryParams`, `UsageRollupItem`, `UsageResponse`, `Granularity` enum
+- `exceptions.py`: `AnalyticsError`, `WorkspaceAuthorizationError`, `AnalyticsStoreUnavailableError`
+- `repository.py`: `CostModelRepository` (CRUD), `AnalyticsRepository.insert_usage_events_batch()`, `AnalyticsRepository.query_usage_rollups()`
+- `consumer.py`: `AnalyticsPipelineConsumer` — aiokafka consumer on `workflow.runtime` + `runtime.lifecycle`, 100-event/5s batch buffer, cost computation, batch insert
+- `service.py`: `AnalyticsService.get_usage()` with workspace auth check
+- `router.py`: `GET /api/v1/analytics/usage`
+- `dependencies.py`: DI factories
+
+### Phase 3 — US2: Cost-Per-Quality Analysis
+- `consumer.py`: Add `evaluation.events` consumption; insert to `analytics_quality_events`
+- `repository.py`: `AnalyticsRepository.query_cost_quality_join()` — ClickHouse LEFT JOIN + GROUP BY agent_fqn, model_id
+- `schemas.py`: `AgentCostQuality`, `CostIntelligenceParams`, `CostIntelligenceResponse`
+- `service.py`: `AnalyticsService.get_cost_intelligence()` — workspace auth + join query + rank
+- `router.py`: `GET /api/v1/analytics/cost-intelligence`
+
+### Phase 4 — US3: Optimization Recommendations
+- `recommendation.py`: `RecommendationEngine` with 4 rules + `_confidence()`
+- `repository.py`: `AnalyticsRepository.query_agent_metrics()`, `AnalyticsRepository.query_fleet_baselines()`
+- `schemas.py`: `OptimizationRecommendation`, `RecommendationType` enum, `ConfidenceLevel` enum, `RecommendationsParams`, `RecommendationsResponse`
+- `service.py`: `AnalyticsService.get_recommendations()` — workspace auth + metrics + engine + Kafka event
+- `events.py`: `analytics.recommendation.generated` payload
+- `router.py`: `GET /api/v1/analytics/recommendations`
+
+### Phase 5 — US4: Budget Forecasting
+- `forecast.py`: `ForecastEngine` — `_linear_regression()`, `_confidence_interval()`, `_volatility_flag()`, `forecast()`
+- `repository.py`: `AnalyticsRepository.query_daily_cost_series()`
+- `schemas.py`: `ForecastPoint`, `ResourcePrediction`, `ForecastParams`
+- `service.py`: `AnalyticsService.get_forecast()` + Kafka event
+- `events.py`: `analytics.forecast.updated` payload
+- `router.py`: `GET /api/v1/analytics/cost-forecast`
+
+### Phase 6 — US5: KPI Dashboarding
+- `schemas.py`: `KpiSeries`, `KpiDataPoint`
+- `repository.py`: `AnalyticsRepository.query_kpi_series()`
+- `service.py`: `AnalyticsService.get_kpi_series()` + internal `get_workspace_cost_summary()` interface
+- `router.py`: `GET /api/v1/analytics/kpi`
+
+### Phase 7 — Polish & Cross-Cutting Concerns
+- `events.py`: `analytics.budget.threshold_crossed` + background threshold check task
+- Mount analytics router in `src/platform/api/__init__.py`
+- Register `AnalyticsPipelineConsumer` in `worker_main.py` lifespan
+- Run `clickhouse_setup.py` in `api_main.py` + `worker_main.py` lifespan (idempotent)
+- Full test coverage audit (≥ 95%)
+- ruff + mypy --strict clean run
+
+## Key Decisions (from research.md)
+
+1. **Dual storage**: ClickHouse for OLAP data (§III); PostgreSQL only for `analytics_cost_models` pricing config
+2. **ClickHouse materialized views**: AggregatingMergeTree for hourly/daily/monthly — near-real-time (<5 min) without batch jobs
+3. **Batch insert pattern**: 100 events or 5-second timeout; exponential backoff retries; DLQ after 3 failures
+4. **Quality scores via Kafka**: Consume `evaluation.events`; store in `analytics_quality_events`; JOIN at query time
+5. **CostModel in PostgreSQL**: `valid_from`/`valid_until` pricing history; memory-cached in consumer (5-min refresh)
+6. **Rule-based recommendations**: Pure Python `RecommendationEngine`; 4 rules; on-demand; confidence from data_points
+7. **Linear regression forecast**: Pure stdlib (no scipy); confidence intervals via residual std dev; volatility flag
+8. **No Alembic for ClickHouse**: Idempotent `clickhouse_setup.py`; one Alembic migration for PostgreSQL only
+9. **Workspace authorization**: `workspaces_service.get_user_workspace_ids()` on all endpoints
+10. **New Kafka topic**: `analytics.events` needs constitution registry update
+11. **ClickHouse self-correction fields**: `self_correction_loops` + `reasoning_tokens` captured at ingestion
+12. **Internal interface**: `get_workspace_cost_summary()` for notifications context budget threshold alerts

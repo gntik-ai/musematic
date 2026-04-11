@@ -4,9 +4,17 @@ import logging
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
-from platform.api.health import router as health_router
 from platform.accounts.events import register_accounts_event_types
 from platform.accounts.router import router as accounts_router
+from platform.analytics.clickhouse_setup import run_setup as run_analytics_clickhouse_setup
+from platform.analytics.consumer import AnalyticsPipelineConsumer
+from platform.analytics.dependencies import build_analytics_service
+from platform.analytics.events import register_analytics_event_types
+from platform.analytics.forecast import ForecastEngine
+from platform.analytics.recommendation import RecommendationEngine
+from platform.analytics.repository import AnalyticsRepository, CostModelRepository
+from platform.analytics.router import router as analytics_router
+from platform.api.health import router as health_router
 from platform.auth.events import register_auth_event_types
 from platform.auth.router import router as auth_router
 from platform.common import database
@@ -66,6 +74,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_auth_event_types()
     register_accounts_event_types()
     register_workspaces_event_types()
+    register_analytics_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -78,6 +87,15 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             LOGGER.warning("Failed to connect %s during startup: %s", name, exc)
 
     app.state.startup_errors = startup_errors
+    clickhouse_client = app.state.clients.get("clickhouse")
+    if isinstance(clickhouse_client, AsyncClickHouseClient):
+        try:
+            await run_analytics_clickhouse_setup(clickhouse_client, app.state.settings)
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["analytics_clickhouse_setup"] = str(exc)
+            LOGGER.warning("Failed to run analytics ClickHouse setup: %s", exc)
+
     consumer_manager = app.state.clients.get("kafka_consumer")
     if consumer_manager is not None:
         start = getattr(consumer_manager, "start", None)
@@ -90,9 +108,37 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                 app.state.degraded = True
                 startup_errors["kafka_consumer"] = str(exc)
                 LOGGER.warning("Failed to start kafka consumer during startup: %s", exc)
+
+    analytics_consumer = getattr(app.state, "analytics_consumer", None)
+    if analytics_consumer is not None:
+        try:
+            await analytics_consumer.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["analytics_consumer"] = str(exc)
+            LOGGER.warning("Failed to start analytics consumer during startup: %s", exc)
+
+    analytics_scheduler = getattr(app.state, "analytics_budget_scheduler", None)
+    if analytics_scheduler is not None:
+        try:
+            analytics_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["analytics_budget_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start analytics budget scheduler: %s", exc)
     try:
         yield
     finally:
+        if analytics_scheduler is not None:
+            try:
+                analytics_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop analytics budget scheduler cleanly: %s", exc)
+        if analytics_consumer is not None:
+            try:
+                await analytics_consumer.stop()
+            except Exception as exc:
+                LOGGER.warning("Failed to stop analytics consumer cleanly: %s", exc)
         stop = getattr(consumer_manager, "stop", None)
         if callable(stop):
             try:
@@ -123,6 +169,18 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app = FastAPI(lifespan=_lifespan)
     app.state.settings = resolved
     app.state.clients = _build_clients(resolved)
+    app.state.analytics_repository = AnalyticsRepository(
+        cast(AsyncClickHouseClient, app.state.clients["clickhouse"])
+    )
+    app.state.analytics_consumer = None
+    app.state.analytics_budget_scheduler = None
+    if resolved.profile == "worker":
+        app.state.analytics_consumer = AnalyticsPipelineConsumer(
+            settings=resolved,
+            clickhouse_client=cast(AsyncClickHouseClient, app.state.clients["clickhouse"]),
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+        )
+        app.state.analytics_budget_scheduler = _build_analytics_budget_scheduler(app)
     exception_handler = cast(
         Callable[[Request, Exception], Response | Awaitable[Response]],
         platform_exception_handler,
@@ -152,6 +210,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(auth_router)
         app.include_router(accounts_router)
         app.include_router(workspaces_router)
+        app.include_router(analytics_router)
 
     setup_telemetry(
         service_name=f"{resolved.otel.service_name}-{resolved.profile}",
@@ -160,3 +219,31 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         engine=database.engine,
     )
     return app
+
+
+def _build_analytics_budget_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run_threshold_check() -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = build_analytics_service(
+                repository=cast(AnalyticsRepository, app.state.analytics_repository),
+                cost_model_repository=CostModelRepository(session),
+                workspaces_service=None,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            service.recommendation_engine = RecommendationEngine()
+            service.forecast_engine = ForecastEngine()
+            await service.check_budget_thresholds()
+
+    scheduler.add_job(_run_threshold_check, "interval", days=1, id="analytics-budget-threshold")
+    return scheduler
