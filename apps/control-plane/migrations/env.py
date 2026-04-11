@@ -46,6 +46,7 @@ importlib.import_module("platform.registry.models")
 importlib.import_module("platform.context_engineering.models")
 importlib.import_module("platform.memory.models")
 importlib.import_module("platform.interactions.models")
+importlib.import_module("platform.connectors.models")
 
 config = context.config
 

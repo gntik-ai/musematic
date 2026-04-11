@@ -218,6 +218,16 @@ venv.bak/
 # Rope project settings
 .ropeproject
 
+# Node / frontend
+node_modules/
+.next/
+
+# Universal
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+
 # mkdocs documentation
 *.tmp
 *.swp
