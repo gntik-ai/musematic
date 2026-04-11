@@ -178,6 +178,25 @@ class AnalyticsSettings(BaseSettings):
     budget_threshold_usd: float = 0.0
 
 
+class RegistrySettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="REGISTRY_", extra="ignore")
+
+    package_bucket: str = "agent-packages"
+    package_size_limit_mb: int = 50
+    max_file_count: int = 256
+    max_directory_depth: int = 10
+    embedding_api_url: str = "http://localhost:8081/v1/embeddings"
+    embedding_vector_size: int = 1536
+    search_index: str = "marketplace-agents"
+    search_backing_index: str = "marketplace-agents-000001"
+    embeddings_collection: str = "agent_embeddings"
+    reindex_poll_interval_seconds: int = 30
+
+    @property
+    def package_size_limit_bytes(self) -> int:
+        return self.package_size_limit_mb * 1024 * 1024
+
+
 class PlatformSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="PLATFORM_", extra="ignore")
 
@@ -196,6 +215,7 @@ class PlatformSettings(BaseSettings):
     workspaces: WorkspacesSettings = Field(default_factory=WorkspacesSettings)
     ws_hub: WsHubSettings = Field(default_factory=WsHubSettings)
     analytics: AnalyticsSettings = Field(default_factory=AnalyticsSettings)
+    registry: RegistrySettings = Field(default_factory=RegistrySettings)
     profile: str = "api"
 
     @model_validator(mode="before")
@@ -274,6 +294,19 @@ class PlatformSettings(BaseSettings):
             "WORKSPACES_DEFAULT_NAME_TEMPLATE": ("workspaces", "default_name_template"),
             "WORKSPACES_DEFAULT_LIMIT": ("workspaces", "default_limit"),
             "ANALYTICS_BUDGET_THRESHOLD_USD": ("analytics", "budget_threshold_usd"),
+            "REGISTRY_PACKAGE_BUCKET": ("registry", "package_bucket"),
+            "REGISTRY_PACKAGE_SIZE_LIMIT_MB": ("registry", "package_size_limit_mb"),
+            "REGISTRY_MAX_FILE_COUNT": ("registry", "max_file_count"),
+            "REGISTRY_MAX_DIRECTORY_DEPTH": ("registry", "max_directory_depth"),
+            "REGISTRY_EMBEDDING_API_URL": ("registry", "embedding_api_url"),
+            "REGISTRY_EMBEDDING_VECTOR_SIZE": ("registry", "embedding_vector_size"),
+            "REGISTRY_SEARCH_INDEX": ("registry", "search_index"),
+            "REGISTRY_SEARCH_BACKING_INDEX": ("registry", "search_backing_index"),
+            "REGISTRY_EMBEDDINGS_COLLECTION": ("registry", "embeddings_collection"),
+            "REGISTRY_REINDEX_POLL_INTERVAL_SECONDS": (
+                "registry",
+                "reindex_poll_interval_seconds",
+            ),
             "WS_CLIENT_BUFFER_SIZE": ("ws_hub", "client_buffer_size"),
             "WS_HEARTBEAT_INTERVAL_SECONDS": ("ws_hub", "heartbeat_interval_seconds"),
             "WS_HEARTBEAT_TIMEOUT_SECONDS": ("ws_hub", "heartbeat_timeout_seconds"),
@@ -545,6 +578,46 @@ class PlatformSettings(BaseSettings):
     @property
     def ANALYTICS_BUDGET_THRESHOLD_USD(self) -> float:
         return self.analytics.budget_threshold_usd
+
+    @property
+    def REGISTRY_PACKAGE_BUCKET(self) -> str:
+        return self.registry.package_bucket
+
+    @property
+    def REGISTRY_PACKAGE_SIZE_LIMIT_MB(self) -> int:
+        return self.registry.package_size_limit_mb
+
+    @property
+    def REGISTRY_MAX_FILE_COUNT(self) -> int:
+        return self.registry.max_file_count
+
+    @property
+    def REGISTRY_MAX_DIRECTORY_DEPTH(self) -> int:
+        return self.registry.max_directory_depth
+
+    @property
+    def REGISTRY_EMBEDDING_API_URL(self) -> str:
+        return self.registry.embedding_api_url
+
+    @property
+    def REGISTRY_EMBEDDING_VECTOR_SIZE(self) -> int:
+        return self.registry.embedding_vector_size
+
+    @property
+    def REGISTRY_SEARCH_INDEX(self) -> str:
+        return self.registry.search_index
+
+    @property
+    def REGISTRY_SEARCH_BACKING_INDEX(self) -> str:
+        return self.registry.search_backing_index
+
+    @property
+    def REGISTRY_EMBEDDINGS_COLLECTION(self) -> str:
+        return self.registry.embeddings_collection
+
+    @property
+    def REGISTRY_REINDEX_POLL_INTERVAL_SECONDS(self) -> int:
+        return self.registry.reindex_poll_interval_seconds
 
     @property
     def WS_CLIENT_BUFFER_SIZE(self) -> int:
