@@ -156,6 +156,13 @@ class AccountsSettings(BaseSettings):
     resend_rate_limit: int = 3
 
 
+class WorkspacesSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="WORKSPACES_", extra="ignore")
+
+    default_name_template: str = "{display_name}'s Workspace"
+    default_limit: int = 0
+
+
 class PlatformSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="PLATFORM_", extra="ignore")
 
@@ -171,6 +178,7 @@ class PlatformSettings(BaseSettings):
     auth: AuthSettings = Field(default_factory=AuthSettings)
     otel: OTelSettings = Field(default_factory=OTelSettings)
     accounts: AccountsSettings = Field(default_factory=AccountsSettings)
+    workspaces: WorkspacesSettings = Field(default_factory=WorkspacesSettings)
     profile: str = "api"
 
     @model_validator(mode="before")
@@ -246,6 +254,8 @@ class PlatformSettings(BaseSettings):
             "ACCOUNTS_EMAIL_VERIFY_TTL_HOURS": ("accounts", "email_verify_ttl_hours"),
             "ACCOUNTS_INVITE_TTL_DAYS": ("accounts", "invite_ttl_days"),
             "ACCOUNTS_RESEND_RATE_LIMIT": ("accounts", "resend_rate_limit"),
+            "WORKSPACES_DEFAULT_NAME_TEMPLATE": ("workspaces", "default_name_template"),
+            "WORKSPACES_DEFAULT_LIMIT": ("workspaces", "default_limit"),
             "PLATFORM_PROFILE": ("profile", ""),
         }
         for key, target in mappings.items():
@@ -501,6 +511,14 @@ class PlatformSettings(BaseSettings):
     @property
     def ACCOUNTS_RESEND_RATE_LIMIT(self) -> int:
         return self.accounts.resend_rate_limit
+
+    @property
+    def WORKSPACES_DEFAULT_NAME_TEMPLATE(self) -> str:
+        return self.workspaces.default_name_template
+
+    @property
+    def WORKSPACES_DEFAULT_LIMIT(self) -> int:
+        return self.workspaces.default_limit
 
 
 Settings = PlatformSettings

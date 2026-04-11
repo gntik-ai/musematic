@@ -13,6 +13,12 @@ class NoopClient:
     async def connect(self) -> None:
         return None
 
+    async def start(self) -> None:
+        return None
+
+    async def stop(self) -> None:
+        return None
+
     async def close(self) -> None:
         return None
 

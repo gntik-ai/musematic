@@ -29,6 +29,9 @@ from platform.common.events.consumer import EventConsumerManager
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import PlatformError, platform_exception_handler
 from platform.common.telemetry import setup_telemetry
+from platform.workspaces.consumer import WorkspacesConsumer
+from platform.workspaces.events import register_workspaces_event_types
+from platform.workspaces.router import router as workspaces_router
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, FastAPI
@@ -62,6 +65,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     startup_errors: dict[str, str] = {}
     register_auth_event_types()
     register_accounts_event_types()
+    register_workspaces_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -74,9 +78,29 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             LOGGER.warning("Failed to connect %s during startup: %s", name, exc)
 
     app.state.startup_errors = startup_errors
+    consumer_manager = app.state.clients.get("kafka_consumer")
+    if consumer_manager is not None:
+        start = getattr(consumer_manager, "start", None)
+        if callable(start):
+            try:
+                result = start()
+                if hasattr(result, "__await__"):
+                    await result
+            except Exception as exc:
+                app.state.degraded = True
+                startup_errors["kafka_consumer"] = str(exc)
+                LOGGER.warning("Failed to start kafka consumer during startup: %s", exc)
     try:
         yield
     finally:
+        stop = getattr(consumer_manager, "stop", None)
+        if callable(stop):
+            try:
+                result = stop()
+                if hasattr(result, "__await__"):
+                    await result
+            except Exception as exc:
+                LOGGER.warning("Failed to stop kafka consumer cleanly: %s", exc)
         for client in reversed(list(app.state.clients.values())):
             close = getattr(client, "close", None)
             if close is None:
@@ -107,6 +131,13 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.add_middleware(AuthMiddleware)
     app.add_middleware(CorrelationMiddleware)
     app.include_router(health_router)
+    consumer_manager = app.state.clients.get("kafka_consumer")
+    if isinstance(consumer_manager, EventConsumerManager):
+        WorkspacesConsumer(
+            settings=resolved,
+            redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+        ).register(consumer_manager)
 
     api_router = APIRouter(prefix="/api/v1")
 
@@ -120,6 +151,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(api_router)
         app.include_router(auth_router)
         app.include_router(accounts_router)
+        app.include_router(workspaces_router)
 
     setup_telemetry(
         service_name=f"{resolved.otel.service_name}-{resolved.profile}",
