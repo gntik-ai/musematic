@@ -37,6 +37,11 @@ from platform.common.events.consumer import EventConsumerManager
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import PlatformError, platform_exception_handler
 from platform.common.telemetry import setup_telemetry
+from platform.connectors.dependencies import build_connectors_service
+from platform.connectors.events import register_connectors_event_types
+from platform.connectors.implementations.email import EmailPollingJob
+from platform.connectors.retry import RetryScanner
+from platform.connectors.router import router as connectors_router
 from platform.context_engineering.context_engineering_clickhouse_setup import (
     run_setup as run_context_engineering_clickhouse_setup,
 )
@@ -64,6 +69,7 @@ from platform.workspaces.dependencies import build_workspaces_service
 from platform.workspaces.events import register_workspaces_event_types
 from platform.workspaces.router import router as workspaces_router
 from typing import Any, cast
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.responses import Response
@@ -102,6 +108,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_context_engineering_event_types()
     register_memory_event_types()
     register_interactions_event_types()
+    register_connectors_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -200,6 +207,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             startup_errors["context_engineering_drift_scheduler"] = str(exc)
             LOGGER.warning("Failed to start context engineering scheduler: %s", exc)
     memory_scheduler = getattr(app.state, "memory_scheduler", None)
+    connectors_worker_scheduler = getattr(app.state, "connectors_worker_scheduler", None)
     if memory_scheduler is not None:
         try:
             memory_scheduler.start()
@@ -207,9 +215,21 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["memory_scheduler"] = str(exc)
             LOGGER.warning("Failed to start memory scheduler: %s", exc)
+    if connectors_worker_scheduler is not None:
+        try:
+            connectors_worker_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["connectors_worker_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start connectors worker scheduler: %s", exc)
     try:
         yield
     finally:
+        if connectors_worker_scheduler is not None:
+            try:
+                connectors_worker_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop connectors worker scheduler cleanly: %s", exc)
         if memory_scheduler is not None:
             try:
                 memory_scheduler.shutdown(wait=False)
@@ -273,6 +293,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.registry_index_worker = None
     app.state.context_engineering_drift_scheduler = None
     app.state.memory_scheduler = None
+    app.state.connectors_worker_scheduler = None
     if resolved.profile == "worker":
         app.state.analytics_consumer = AnalyticsPipelineConsumer(
             settings=resolved,
@@ -287,6 +308,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
                 settings=resolved,
                 opensearch=opensearch_client,
             )
+        if resolved.connectors.worker_enabled:
+            app.state.connectors_worker_scheduler = _build_connectors_worker_scheduler(app)
     if resolved.profile in {"scheduler", "context-engineering"}:
         app.state.context_engineering_drift_scheduler = _build_context_engineering_scheduler(app)
     exception_handler = cast(
@@ -304,6 +327,12 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
             redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
             producer=cast(EventProducer | None, app.state.clients.get("kafka")),
         ).register(consumer_manager)
+        if resolved.profile == "worker" and resolved.connectors.worker_enabled:
+            consumer_manager.subscribe(
+                resolved.connectors.delivery_topic,
+                resolved.connectors.delivery_consumer_group,
+                _build_connector_delivery_handler(app),
+            )
 
     api_router = APIRouter(prefix="/api/v1")
 
@@ -323,6 +352,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(context_engineering_router)
         app.include_router(memory_router)
         app.include_router(interactions_router)
+        app.include_router(connectors_router)
 
     setup_telemetry(
         service_name=f"{resolved.otel.service_name}-{resolved.profile}",
@@ -565,5 +595,91 @@ def _build_memory_scheduler(app: FastAPI) -> Any | None:
         "interval",
         minutes=app.state.settings.memory.session_cleaner_interval_minutes,
         id="memory-session-cleaner",
+    )
+    return scheduler
+
+
+def _build_connector_delivery_handler(
+    app: FastAPI,
+) -> Callable[[Any], Awaitable[None]]:
+    async def _handle(envelope: Any) -> None:
+        delivery_id = envelope.payload.get("delivery_id")
+        if delivery_id is None:
+            return
+        async with database.AsyncSessionLocal() as session:
+            service = build_connectors_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+            )
+            try:
+                await service.execute_delivery(UUID(str(delivery_id)))
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception(
+                    "Connector delivery handler failed",
+                    extra={"delivery_id": str(delivery_id)},
+                )
+
+    return _handle
+
+
+def _build_connectors_worker_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run_retry_scan() -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = build_connectors_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+            )
+            try:
+                await RetryScanner(service).run()
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Connector retry scan failed")
+
+    async def _run_email_polling() -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = build_connectors_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+            )
+            try:
+                await EmailPollingJob(service.poll_email_connectors).run()
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Connector email polling failed")
+
+    scheduler.add_job(
+        _run_retry_scan,
+        "interval",
+        seconds=max(1, app.state.settings.connectors.retry_scan_interval_seconds),
+        id="connectors-retry-scan",
+    )
+    scheduler.add_job(
+        _run_email_polling,
+        "interval",
+        seconds=max(1, app.state.settings.connectors.email_poll_interval_seconds),
+        id="connectors-email-polling",
     )
     return scheduler

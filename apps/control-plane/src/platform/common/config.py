@@ -238,6 +238,23 @@ class InteractionsSettings(BaseSettings):
     default_page_size: int = 20
 
 
+class ConnectorsSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="CONNECTOR_", extra="ignore")
+
+    ingress_topic: str = "connector.ingress"
+    delivery_topic: str = "connector.delivery"
+    dead_letter_bucket: str = "connector-dead-letters"
+    delivery_consumer_group: str = "connector-delivery-worker"
+    retry_scan_interval_seconds: int = 30
+    route_cache_ttl_seconds: int = 60
+    max_payload_size_bytes: int = 1_048_576
+    worker_enabled: bool = True
+    delivery_max_concurrent: int = 10
+    email_poll_interval_seconds: int = 60
+    vault_mode: Literal["mock", "vault"] = "mock"
+    vault_mock_secrets_file: str = ".vault-secrets.json"
+
+
 class PlatformSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="PLATFORM_", extra="ignore")
 
@@ -262,6 +279,7 @@ class PlatformSettings(BaseSettings):
     )
     memory: MemorySettings = Field(default_factory=MemorySettings)
     interactions: InteractionsSettings = Field(default_factory=InteractionsSettings)
+    connectors: ConnectorsSettings = Field(default_factory=ConnectorsSettings)
     profile: str = "api"
 
     @model_validator(mode="before")
@@ -427,6 +445,37 @@ class PlatformSettings(BaseSettings):
                 "max_messages_per_conversation",
             ),
             "INTERACTIONS_DEFAULT_PAGE_SIZE": ("interactions", "default_page_size"),
+            "CONNECTOR_INGRESS_TOPIC": ("connectors", "ingress_topic"),
+            "CONNECTOR_DELIVERY_TOPIC": ("connectors", "delivery_topic"),
+            "MINIO_BUCKET_DEAD_LETTERS": ("connectors", "dead_letter_bucket"),
+            "CONNECTOR_DELIVERY_CONSUMER_GROUP": (
+                "connectors",
+                "delivery_consumer_group",
+            ),
+            "CONNECTOR_RETRY_SCAN_INTERVAL_SECONDS": (
+                "connectors",
+                "retry_scan_interval_seconds",
+            ),
+            "CONNECTOR_ROUTE_CACHE_TTL_SECONDS": (
+                "connectors",
+                "route_cache_ttl_seconds",
+            ),
+            "CONNECTOR_MAX_PAYLOAD_SIZE_BYTES": (
+                "connectors",
+                "max_payload_size_bytes",
+            ),
+            "CONNECTOR_WORKER_ENABLED": ("connectors", "worker_enabled"),
+            "CONNECTOR_DELIVERY_MAX_CONCURRENT": (
+                "connectors",
+                "delivery_max_concurrent",
+            ),
+            "CONNECTOR_EMAIL_POLL_INTERVAL_SECONDS": (
+                "connectors",
+                "email_poll_interval_seconds",
+            ),
+            "EMAIL_POLL_INTERVAL_SECONDS": ("connectors", "email_poll_interval_seconds"),
+            "VAULT_MODE": ("connectors", "vault_mode"),
+            "VAULT_MOCK_SECRETS_FILE": ("connectors", "vault_mock_secrets_file"),
             "WS_CLIENT_BUFFER_SIZE": ("ws_hub", "client_buffer_size"),
             "WS_HEARTBEAT_INTERVAL_SECONDS": ("ws_hub", "heartbeat_interval_seconds"),
             "WS_HEARTBEAT_TIMEOUT_SECONDS": ("ws_hub", "heartbeat_timeout_seconds"),
@@ -842,6 +891,54 @@ class PlatformSettings(BaseSettings):
     @property
     def INTERACTIONS_DEFAULT_PAGE_SIZE(self) -> int:
         return self.interactions.default_page_size
+
+    @property
+    def CONNECTOR_INGRESS_TOPIC(self) -> str:
+        return self.connectors.ingress_topic
+
+    @property
+    def CONNECTOR_DELIVERY_TOPIC(self) -> str:
+        return self.connectors.delivery_topic
+
+    @property
+    def MINIO_BUCKET_DEAD_LETTERS(self) -> str:
+        return self.connectors.dead_letter_bucket
+
+    @property
+    def CONNECTOR_DELIVERY_CONSUMER_GROUP(self) -> str:
+        return self.connectors.delivery_consumer_group
+
+    @property
+    def CONNECTOR_RETRY_SCAN_INTERVAL_SECONDS(self) -> int:
+        return self.connectors.retry_scan_interval_seconds
+
+    @property
+    def CONNECTOR_ROUTE_CACHE_TTL_SECONDS(self) -> int:
+        return self.connectors.route_cache_ttl_seconds
+
+    @property
+    def CONNECTOR_MAX_PAYLOAD_SIZE_BYTES(self) -> int:
+        return self.connectors.max_payload_size_bytes
+
+    @property
+    def CONNECTOR_WORKER_ENABLED(self) -> bool:
+        return self.connectors.worker_enabled
+
+    @property
+    def CONNECTOR_DELIVERY_MAX_CONCURRENT(self) -> int:
+        return self.connectors.delivery_max_concurrent
+
+    @property
+    def CONNECTOR_EMAIL_POLL_INTERVAL_SECONDS(self) -> int:
+        return self.connectors.email_poll_interval_seconds
+
+    @property
+    def VAULT_MODE(self) -> str:
+        return self.connectors.vault_mode
+
+    @property
+    def VAULT_MOCK_SECRETS_FILE(self) -> str:
+        return self.connectors.vault_mock_secrets_file
 
     @property
     def WS_CLIENT_BUFFER_SIZE(self) -> int:
