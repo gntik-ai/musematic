@@ -5,6 +5,8 @@ import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from platform.api.health import router as health_router
+from platform.auth.events import register_auth_event_types
+from platform.auth.router import router as auth_router
 from platform.common import database
 from platform.common.auth_middleware import AuthMiddleware
 from platform.common.clients.clickhouse import AsyncClickHouseClient
@@ -56,6 +58,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.started_at = time.monotonic()
     app.state.degraded = False
     startup_errors: dict[str, str] = {}
+    register_auth_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -112,6 +115,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
 
     if resolved.profile == "api":
         app.include_router(api_router)
+        app.include_router(auth_router)
 
     setup_telemetry(
         service_name=f"{resolved.otel.service_name}-{resolved.profile}",

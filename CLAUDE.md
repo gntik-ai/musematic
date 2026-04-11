@@ -1,6 +1,6 @@
 # musematic Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-10
+Auto-generated from all feature plans. Last updated: 2026-04-11
 
 ## Active Technologies
 - Python 3.12+ (control plane client), Go 1.22+ (reasoning engine client) + `redis-py 5.x` (Python async), `go-redis/redis/v9` (Go), Bitnami `redis-cluster` Helm chart (002-redis-cache-hot-state)
@@ -27,6 +27,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-10
 - Simulation Controller Go satellite service (`services/simulation-controller/`): gRPC SimulationControlService (6 RPCs) on port 50055, `platform-simulation` namespace isolation, NetworkPolicy deny-all production egress, remotecommand tar artifact collection, Kafka `simulation.events` topic, ATE with ConfigMap-injected scenarios, in-memory state + PostgreSQL, orphan scanner (012-simulation-controller)
 - Python 3.12+ + FastAPI 0.115+ (app factory with lifespan), Pydantic v2 (settings + schemas), SQLAlchemy 2.x async (`AsyncSession` + 6 mixins), aiokafka 0.11+ (producer/consumer/DLQ), redis-py 5.x async, grpcio 1.65+ (4 satellite clients), PyJWT 2.x RS256, opentelemetry-sdk 1.27+ (013-fastapi-app-scaffold)
 - FastAPI Application Scaffold (`apps/control-plane/src/platform/common/`): app factory, PlatformSettings, canonical EventEnvelope + event type registry + DLQ, correlation ID + JWT auth middleware, 10 client wrappers (8 stores + 4 gRPC satellites), PlatformError exception hierarchy, cursor/offset pagination, 8 runtime profile entrypoints (013-fastapi-app-scaffold)
+- Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, argon2-cffi 23+ (Argon2id, OWASP params), PyJWT 2.x RS256 (15min access + 7d refresh), pyotp 2.x (TOTP MFA), redis-py 5.x async (sessions + lockout), aiokafka 0.11+ (auth events), cryptography (Fernet for TOTP secret encryption) (014-auth-bounded-context)
+- Auth Bounded Context (`apps/control-plane/src/platform/auth/`): email/password login with Argon2id, RS256 JWT pair (access+refresh), Redis-backed sessions (`session:{user_id}:{session_id}`), TOTP MFA with encrypted secrets + recovery codes, account lockout via Redis counters (`auth:lockout:{user_id}`, `auth:locked:{user_id}`), RBAC engine with 10 roles + workspace-scoped permissions, purpose-bound agent authorization, service account API keys (`msk_` prefix, Argon2id hashed), 7 REST endpoints, 6 Kafka event types on `auth.events` topic (014-auth-bounded-context)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -46,9 +48,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 014-auth-bounded-context: Added auth bounded context — email/password (Argon2id), RS256 JWT pair, Redis sessions + lockout, TOTP MFA, RBAC engine (10 roles, workspace-scoped), purpose-bound agent auth, service account API keys, 7 REST endpoints, 6 Kafka event types
 - 013-fastapi-app-scaffold: Added FastAPI app factory with lifespan hooks, PlatformSettings (Pydantic v2), async SQLAlchemy with 6 mixins, Kafka event infrastructure (EventEnvelope + DLQ + registry), correlation ID + JWT middleware, 10 client wrappers, exception hierarchy, pagination, 8 profile entrypoints
 - 012-simulation-controller: Added Go 1.22+ satellite service — gRPC SimulationControlService (6 RPCs, port 50055), platform-simulation namespace isolation, NetworkPolicy deny-all production egress, remotecommand tar artifact collection to simulation-artifacts bucket, ATE with ConfigMap-injected scenarios, in-memory+PostgreSQL state
-- 011-reasoning-engine: Added Go 1.22+ satellite service — gRPC ReasoningEngineService (9 RPCs, port 50052), Redis Lua EVALSHA for atomic budget tracking, goroutine pool for ToT branch management, client-streaming gRPC for CoT traces, rule-based mode selector, two-sample convergence detection
 
 
 <!-- MANUAL ADDITIONS START -->

@@ -11,6 +11,9 @@ from urllib import request
 from uuid import uuid4
 
 import boto3
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 import pytest
 import pytest_asyncio
 from sqlalchemy import text
@@ -25,7 +28,7 @@ from platform.common.clients.opensearch import AsyncOpenSearchClient
 from platform.common.clients.object_storage import AsyncObjectStorageClient
 from platform.common.clients.neo4j import AsyncNeo4jClient
 from platform.common.clients.qdrant import AsyncQdrantClient
-from platform.common.config import Settings
+from platform.common.config import PlatformSettings, Settings
 from platform.common.clients.redis import AsyncRedisClient
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -219,6 +222,33 @@ def object_storage_settings(
 async def object_storage_client(object_storage_settings: Settings) -> AsyncIterator[AsyncObjectStorageClient]:
     client = AsyncObjectStorageClient(object_storage_settings)
     yield client
+
+
+@pytest.fixture(scope="session")
+def auth_settings() -> PlatformSettings:
+    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+    private_pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    ).decode("utf-8")
+    public_pem = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    ).decode("utf-8")
+    return PlatformSettings(
+        AUTH_JWT_PRIVATE_KEY=private_pem,
+        AUTH_JWT_PUBLIC_KEY=public_pem,
+        AUTH_JWT_ALGORITHM="RS256",
+        AUTH_MFA_ENCRYPTION_KEY=Fernet.generate_key().decode("utf-8"),
+        AUTH_ACCESS_TOKEN_TTL=900,
+        AUTH_REFRESH_TOKEN_TTL=604800,
+        AUTH_LOCKOUT_THRESHOLD=5,
+        AUTH_LOCKOUT_DURATION=900,
+        AUTH_MFA_ENROLLMENT_TTL=600,
+        AUTH_SESSION_TTL=604800,
+        AUTH_PASSWORD_RESET_TTL=3600,
+    )
 
 
 @pytest.fixture(scope="session")
