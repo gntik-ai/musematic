@@ -1,3 +1,59 @@
+from __future__ import annotations
+
+from typing import Any
+
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
+
+class PlatformError(Exception):
+    status_code: int = 500
+
+    def __init__(self, code: str, message: str, details: dict[str, Any] | None = None) -> None:
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.details = details or {}
+
+
+class NotFoundError(PlatformError):
+    status_code = 404
+
+
+class AuthorizationError(PlatformError):
+    status_code = 403
+
+
+class ValidationError(PlatformError):
+    status_code = 422
+
+
+class PolicyViolationError(PlatformError):
+    status_code = 403
+
+
+class BudgetExceededError(PlatformError):
+    status_code = 429
+
+
+class ConvergenceFailedError(PlatformError):
+    status_code = 500
+
+
+async def platform_exception_handler(request: Request, exc: PlatformError) -> JSONResponse:
+    del request
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": {
+                "code": exc.code,
+                "message": exc.message,
+                "details": exc.details,
+            }
+        },
+    )
+
+
 class KafkaProducerError(Exception):
     """Raised when Kafka producer delivery fails."""
 

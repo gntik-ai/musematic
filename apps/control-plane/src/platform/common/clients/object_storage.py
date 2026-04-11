@@ -7,13 +7,13 @@ from dataclasses import dataclass
 from datetime import datetime
 from importlib import import_module
 from pathlib import Path
+from platform.common.config import Settings
+from platform.common.config import settings as default_settings
+from platform.common.exceptions import BucketNotFoundError, ObjectNotFoundError, ObjectStorageError
 from typing import Any, Literal, cast
 
 from botocore.config import Config  # type: ignore[import-untyped]
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
-
-from platform.common.config import Settings, settings as default_settings
-from platform.common.exceptions import BucketNotFoundError, ObjectNotFoundError, ObjectStorageError
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +46,13 @@ class AsyncObjectStorageClient:
             "config": Config(signature_version="s3v4", s3={"addressing_style": "path"}),
         }
 
+    @classmethod
+    def from_settings(cls, settings: Settings) -> AsyncObjectStorageClient:
+        return cls(settings)
+
+    async def connect(self) -> None:
+        self._get_session()
+
     async def upload_object(
         self,
         bucket: str,
@@ -67,7 +74,9 @@ class AsyncObjectStorageClient:
         except ClientError as exc:
             raise self._translate_client_error(exc, bucket=bucket, key=key) from exc
         except Exception as exc:  # pragma: no cover - network dependent
-            raise ObjectStorageError(f"Failed to upload object '{key}' to bucket '{bucket}': {exc}") from exc
+            raise ObjectStorageError(
+                f"Failed to upload object '{key}' to bucket '{bucket}': {exc}"
+            ) from exc
 
     async def download_object(self, bucket: str, key: str, version_id: str | None = None) -> bytes:
         params: dict[str, str] = {"Bucket": bucket, "Key": key}
@@ -81,7 +90,9 @@ class AsyncObjectStorageClient:
         except ClientError as exc:
             raise self._translate_client_error(exc, bucket=bucket, key=key) from exc
         except Exception as exc:  # pragma: no cover - network dependent
-            raise ObjectStorageError(f"Failed to download object '{key}' from bucket '{bucket}': {exc}") from exc
+            raise ObjectStorageError(
+                f"Failed to download object '{key}' from bucket '{bucket}': {exc}"
+            ) from exc
 
     async def delete_object(self, bucket: str, key: str, version_id: str | None = None) -> None:
         params: dict[str, str] = {"Bucket": bucket, "Key": key}
@@ -96,7 +107,9 @@ class AsyncObjectStorageClient:
                 return
             raise translated from exc
         except Exception as exc:  # pragma: no cover - network dependent
-            raise ObjectStorageError(f"Failed to delete object '{key}' from bucket '{bucket}': {exc}") from exc
+            raise ObjectStorageError(
+                f"Failed to delete object '{key}' from bucket '{bucket}': {exc}"
+            ) from exc
 
     async def object_exists(self, bucket: str, key: str, version_id: str | None = None) -> bool:
         params: dict[str, str] = {"Bucket": bucket, "Key": key}
@@ -112,9 +125,16 @@ class AsyncObjectStorageClient:
                 return False
             raise translated from exc
         except Exception as exc:  # pragma: no cover - network dependent
-            raise ObjectStorageError(f"Failed to check object '{key}' in bucket '{bucket}': {exc}") from exc
+            raise ObjectStorageError(
+                f"Failed to check object '{key}' in bucket '{bucket}': {exc}"
+            ) from exc
 
-    async def list_objects(self, bucket: str, prefix: str = "", max_keys: int = 1000) -> list[ObjectInfo]:
+    async def list_object_details(
+        self,
+        bucket: str,
+        prefix: str = "",
+        max_keys: int = 1000,
+    ) -> list[ObjectInfo]:
         try:
             async with self._client() as s3:
                 response = await s3.list_objects_v2(Bucket=bucket, Prefix=prefix, MaxKeys=max_keys)
@@ -132,6 +152,33 @@ class AsyncObjectStorageClient:
             )
             for item in response.get("Contents", [])
         ]
+
+    async def list_objects(self, bucket: str, prefix: str = "") -> list[str]:
+        return [item.key for item in await self.list_object_details(bucket, prefix=prefix)]
+
+    async def put_object(
+        self,
+        bucket: str,
+        key: str,
+        body: bytes,
+        content_type: str = "application/octet-stream",
+    ) -> None:
+        await self.upload_object(bucket, key, body, content_type=content_type)
+
+    async def get_object(self, bucket: str, key: str) -> bytes:
+        return await self.download_object(bucket, key)
+
+    async def create_bucket_if_not_exists(self, bucket: str) -> None:
+        try:
+            async with self._client() as s3:
+                await s3.head_bucket(Bucket=bucket)
+        except ClientError as exc:
+            translated = self._translate_client_error(exc, bucket=bucket)
+            if isinstance(translated, BucketNotFoundError):
+                async with self._client() as s3:
+                    await s3.create_bucket(Bucket=bucket)
+                return
+            raise translated from exc
 
     async def upload_multipart(
         self,
@@ -182,7 +229,9 @@ class AsyncObjectStorageClient:
         except Exception as exc:  # pragma: no cover - network dependent
             if upload_id is not None:
                 await self._abort_multipart(bucket=bucket, key=key, upload_id=upload_id)
-            raise ObjectStorageError(f"Failed multipart upload for object '{key}' in bucket '{bucket}': {exc}") from exc
+            raise ObjectStorageError(
+                f"Failed multipart upload for object '{key}' in bucket '{bucket}': {exc}"
+            ) from exc
 
     async def get_presigned_url(
         self,
@@ -203,7 +252,9 @@ class AsyncObjectStorageClient:
         except ClientError as exc:
             raise self._translate_client_error(exc, bucket=bucket, key=key) from exc
         except Exception as exc:  # pragma: no cover - network dependent
-            raise ObjectStorageError(f"Failed to generate presigned URL for '{key}': {exc}") from exc
+            raise ObjectStorageError(
+                f"Failed to generate presigned URL for '{key}': {exc}"
+            ) from exc
 
     async def get_object_versions(self, bucket: str, key: str) -> list[ObjectVersion]:
         try:
@@ -212,11 +263,15 @@ class AsyncObjectStorageClient:
         except ClientError as exc:
             raise self._translate_client_error(exc, bucket=bucket, key=key) from exc
         except Exception as exc:  # pragma: no cover - network dependent
-            raise ObjectStorageError(f"Failed to list object versions for '{key}': {exc}") from exc
+            raise ObjectStorageError(
+                f"Failed to list object versions for '{key}': {exc}"
+            ) from exc
 
         versions = response.get("Versions")
         if versions is None:
-            raise ObjectStorageError(f"Bucket '{bucket}' does not expose object versions for key '{key}'.")
+            raise ObjectStorageError(
+                f"Bucket '{bucket}' does not expose object versions for key '{key}'."
+            )
 
         return [
             ObjectVersion(
@@ -230,17 +285,15 @@ class AsyncObjectStorageClient:
             if item.get("Key") == key
         ]
 
-    async def health_check(self) -> dict[str, Any]:
-        # The MinIO bootstrap job should provision exactly 8 buckets.
+    async def health_check(self) -> bool:
         try:
             async with self._client() as s3:
-                response = await s3.list_buckets()
-            buckets = response.get("Buckets", [])
-            return {"status": "ok", "bucket_count": len(buckets)}
-        except Exception as exc:  # pragma: no cover - network dependent
-            return {"status": "error", "error": str(exc)}
+                await s3.list_buckets()
+            return True
+        except Exception:
+            return False
 
-    async def __aenter__(self) -> "AsyncObjectStorageClient":
+    async def __aenter__(self) -> AsyncObjectStorageClient:
         return self
 
     async def __aexit__(self, *args: Any) -> None:

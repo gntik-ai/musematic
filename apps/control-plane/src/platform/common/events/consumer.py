@@ -1,80 +1,75 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Awaitable, Callable
+import asyncio
+from collections.abc import Awaitable, Callable
 from importlib import import_module
-from typing import Any
-
-from platform.common.config import Settings
+from platform.common.config import PlatformSettings, Settings
+from platform.common.config import settings as default_settings
 from platform.common.events.envelope import EventEnvelope
 from platform.common.exceptions import KafkaConsumerError
+from typing import Any
 
-CommitCallback = Callable[[], Awaitable[None]]
+EventHandler = Callable[[EventEnvelope], Awaitable[None]]
 
 
-class AsyncKafkaConsumer:
-    def __init__(self, settings: Settings) -> None:
-        self.settings = settings
-        self._consumer: Any | None = None
-        self._topics: list[str] = []
+class EventConsumerManager:
+    def __init__(self, settings: Settings | None = None) -> None:
+        self.settings = settings or default_settings
+        self._subscriptions: list[tuple[str, str, EventHandler]] = []
+        self._consumers: list[Any] = []
+        self._tasks: list[asyncio.Task[None]] = []
 
-    def subscribe(self, topics: list[str]) -> None:
-        self._topics = topics
+    @classmethod
+    def from_settings(cls, settings: PlatformSettings) -> EventConsumerManager:
+        return cls(settings)
+
+    def subscribe(self, topic: str, group_id: str, handler: EventHandler) -> None:
+        self._subscriptions.append((topic, group_id, handler))
 
     async def start(self) -> None:
-        if self._consumer is not None:
+        if self._tasks:
             return
-        kafka_module = import_module("aiokafka")
-        kafka_consumer_cls = getattr(kafka_module, "AIOKafkaConsumer")
-        self._consumer = kafka_consumer_cls(
-            *self._topics,
-            bootstrap_servers=self.settings.KAFKA_BOOTSTRAP_SERVERS,
-            group_id=self.settings.KAFKA_CONSUMER_GROUP_ID,
-            enable_auto_commit=False,
-            auto_offset_reset="earliest",
-        )
-        await self._consumer.start()
+        aiokafka = import_module("aiokafka")
+        consumer_cls = aiokafka.AIOKafkaConsumer
+        for topic, group_id, handler in self._subscriptions:
+            consumer = consumer_cls(
+                topic,
+                bootstrap_servers=self.settings.KAFKA_BROKERS,
+                group_id=group_id,
+                enable_auto_commit=False,
+                auto_offset_reset="earliest",
+            )
+            await consumer.start()
+            self._consumers.append(consumer)
+            self._tasks.append(asyncio.create_task(self._consume(consumer, handler)))
 
     async def stop(self) -> None:
-        if self._consumer is None:
-            return
-        await self._consumer.stop()
-        self._consumer = None
+        for task in self._tasks:
+            task.cancel()
+        for task in self._tasks:
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        self._tasks.clear()
+        for consumer in self._consumers:
+            await consumer.stop()
+        self._consumers.clear()
 
-    async def consume(self) -> AsyncIterator[tuple[EventEnvelope, CommitCallback]]:
-        await self.start()
-        assert self._consumer is not None
+    async def _consume(self, consumer: Any, handler: EventHandler) -> None:
         try:
-            async for message in self._consumer:
+            async for message in consumer:
                 envelope = EventEnvelope.model_validate_json(message.value)
-
-                async def commit() -> None:
-                    assert self._consumer is not None
-                    await self._consumer.commit()
-
-                yield envelope, commit
-        except Exception as exc:  # pragma: no cover
+                await handler(envelope)
+                commit = getattr(consumer, "commit", None)
+                if commit is not None:
+                    result = commit()
+                    if hasattr(result, "__await__"):
+                        await result
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
             raise KafkaConsumerError(str(exc)) from exc
 
-    async def reset_offset_to_timestamp(self, topic: str, timestamp_ms: int) -> None:
-        await self.start()
-        assert self._consumer is not None
-        kafka_module = import_module("aiokafka")
-        topic_partition_cls = getattr(kafka_module, "TopicPartition")
-        partitions = self._consumer.partitions_for_topic(topic) or set()
-        topic_partitions = [topic_partition_cls(topic, partition) for partition in partitions]
-        timestamps = {partition: timestamp_ms for partition in topic_partitions}
-        offsets = await self._consumer.offsets_for_times(timestamps)
-        for partition in topic_partitions:
-            # offsets_for_times returns the first offset at or after the timestamp.
-            offset_and_timestamp = offsets.get(partition)
-            if offset_and_timestamp is None:
-                await self._consumer.seek_to_beginning(partition)
-            else:
-                self._consumer.seek(partition, offset_and_timestamp.offset)
 
-    async def __aenter__(self) -> "AsyncKafkaConsumer":
-        await self.start()
-        return self
-
-    async def __aexit__(self, *args: Any) -> None:
-        await self.stop()
+AsyncKafkaConsumer = EventConsumerManager

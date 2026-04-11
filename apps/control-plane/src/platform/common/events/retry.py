@@ -1,66 +1,55 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
-from datetime import datetime, timezone
+import logging
+from datetime import UTC, datetime
+from platform.common.events.envelope import EventEnvelope
+from platform.common.events.producer import EventProducer
+from typing import Any
 
-from platform.common.events.envelope import EventEnvelope, make_envelope
-from platform.common.events.producer import AsyncKafkaProducer
+LOGGER = logging.getLogger(__name__)
 
 
 class RetryHandler:
-    def __init__(
-        self,
-        producer: AsyncKafkaProducer,
-        max_attempts: int = 3,
-        backoff_base_ms: int = 500,
-    ) -> None:
+    def __init__(self, producer: EventProducer, max_attempts: int = 3) -> None:
         self.producer = producer
         self.max_attempts = max_attempts
-        self.backoff_base_ms = backoff_base_ms
 
     async def handle(
         self,
+        topic: str,
         envelope: EventEnvelope,
-        source_topic: str,
-        source_partition: int,
-        source_offset: int,
-        processor: Callable[[EventEnvelope], Awaitable[None]],
-        commit_fn: Callable[[], Awaitable[None]],
+        handler: Any,
     ) -> None:
-        retry_attempts: list[dict[str, object]] = []
-        for attempt in range(1, self.max_attempts + 1):
+        attempt = 0
+        while attempt < self.max_attempts:
+            attempt += 1
             try:
-                await processor(envelope)
-                await commit_fn()
+                await handler(envelope)
                 return
             except Exception as exc:
-                retry_attempts.append(
-                    {
-                        "attempt": attempt,
-                        "timestamp": datetime.now(timezone.utc).isoformat(),
-                        "error": str(exc),
-                    }
-                )
                 if attempt < self.max_attempts:
-                    await asyncio.sleep((self.backoff_base_ms * (2 ** attempt)) / 1000)
+                    LOGGER.warning(
+                        "Retrying event %s on %s (attempt %s)",
+                        envelope.event_type,
+                        topic,
+                        attempt,
+                    )
+                    await asyncio.sleep(2 ** (attempt - 1))
                     continue
-
-                dlq = make_envelope(
-                    event_type="dlq.FailedMessage",
-                    actor=f"consumer-group:{source_topic}",
-                    payload={
-                        "original_envelope": envelope.model_dump(mode="json"),
-                        "source_topic": source_topic,
-                        "source_partition": source_partition,
-                        "source_offset": source_offset,
-                        "error_class": exc.__class__.__name__,
-                        "error_message": str(exc),
-                        "retry_attempts": retry_attempts,
-                    },
-                    correlation=envelope.correlation,
+                LOGGER.error("Routing event %s to DLQ for %s", envelope.event_type, topic)
+                dlq_payload = {
+                    "original_payload": envelope.payload,
+                    "failure_reason": str(exc),
+                    "attempt_count": attempt,
+                    "failed_at": datetime.now(UTC).isoformat(),
+                }
+                await self.producer.publish(
+                    topic=f"{topic}.dlq",
+                    key=str(envelope.correlation_context.correlation_id),
+                    event_type=envelope.event_type,
+                    payload=dlq_payload,
+                    correlation_ctx=envelope.correlation_context,
+                    source=f"{topic}.consumer",
                 )
-                await self.producer.produce(f"{source_topic}.dlq", dlq)
-                await commit_fn()
                 return
-

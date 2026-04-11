@@ -3,14 +3,14 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from importlib import import_module
-from typing import Any, cast
-from urllib.parse import urlparse
-
-from platform.common.config import Settings, settings as default_settings
+from platform.common.config import Settings
+from platform.common.config import settings as default_settings
 from platform.common.exceptions import (
     ClickHouseConnectionError,
     ClickHouseQueryError,
 )
+from typing import Any, cast
+from urllib.parse import urlparse
 
 
 class AsyncClickHouseClient:
@@ -20,6 +20,13 @@ class AsyncClickHouseClient:
             raise ClickHouseConnectionError("CLICKHOUSE_URL not configured")
         self._client: Any | None = None
         self._client_lock = asyncio.Lock()
+
+    @classmethod
+    def from_settings(cls, settings: Settings) -> AsyncClickHouseClient:
+        return cls(settings)
+
+    async def connect(self) -> None:
+        await self._get_client()
 
     async def execute_query(
         self,
@@ -62,18 +69,15 @@ class AsyncClickHouseClient:
         except Exception as exc:
             raise self._translate_query_error(exc) from exc
 
-    async def health_check(self) -> dict[str, Any]:
+    async def insert(self, table: str, rows: list[dict[str, Any]], column_names: list[str]) -> None:
+        await self.insert_batch(table, rows, column_names)
+
+    async def health_check(self) -> bool:
         try:
-            rows = await self.execute_query("SELECT version() AS version, uptime() AS uptime_seconds")
-            if not rows:
-                return {"status": "error", "error": "No rows returned from health check"}
-            return {
-                "status": "ok",
-                "version": rows[0]["version"],
-                "uptime_seconds": rows[0]["uptime_seconds"],
-            }
-        except Exception as exc:
-            return {"status": "error", "error": str(exc)}
+            rows = await self.execute_query("SELECT 1 AS ok")
+            return bool(rows and rows[0]["ok"] == 1)
+        except Exception:
+            return False
 
     async def close(self) -> None:
         if self._client is None:
@@ -88,11 +92,11 @@ class AsyncClickHouseClient:
         self._client = None
 
     async def _get_client(self) -> Any:
-        if self._client is not None:
+        if self._current_client() is not None:
             return self._client
 
         async with self._client_lock:
-            if self._client is not None:
+            if self._current_client() is not None:
                 return self._client
 
             parsed = urlparse(self._settings.CLICKHOUSE_URL or "")
@@ -102,7 +106,7 @@ class AsyncClickHouseClient:
                 )
 
             clickhouse_connect = import_module("clickhouse_connect")
-            get_async_client = getattr(clickhouse_connect, "get_async_client")
+            get_async_client = clickhouse_connect.get_async_client
             try:
                 self._client = await get_async_client(
                     host=parsed.hostname,
@@ -118,6 +122,9 @@ class AsyncClickHouseClient:
 
     def _translate_query_error(self, exc: Exception) -> ClickHouseQueryError:
         return ClickHouseQueryError(str(exc))
+
+    def _current_client(self) -> Any | None:
+        return self._client
 
 
 @dataclass

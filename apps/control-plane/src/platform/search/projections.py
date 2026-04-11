@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
-
 from platform.common.clients.opensearch import AsyncOpenSearchClient, BulkIndexResult
+from typing import Any
 
 MARKETPLACE_AGENTS_INDEX = "marketplace-agents-000001"
 AUDIT_EVENTS_INDEX = "audit-events-000001"
@@ -41,7 +40,11 @@ class AgentSearchProjection:
             payload.setdefault("indexed_at", timestamp)
             payload.setdefault("updated_at", timestamp)
             prepared.append(payload)
-        return await self.client.bulk_index(index=self.index, documents=prepared, id_field="agent_id")
+        return await self.client.bulk_index(
+            index=self.index,
+            documents=prepared,
+            id_field="agent_id",
+        )
 
 
 @dataclass(frozen=True, slots=True)

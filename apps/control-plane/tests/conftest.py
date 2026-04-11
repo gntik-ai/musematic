@@ -34,6 +34,26 @@ CLICKHOUSE_INIT_DIR = REPO_ROOT / "deploy" / "clickhouse" / "init"
 OPENSEARCH_INIT_SCRIPT = REPO_ROOT / "deploy" / "opensearch" / "init" / "init_opensearch.py"
 
 
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption(
+        "--run-integration",
+        action="store_true",
+        default=False,
+        help="Run integration tests that depend on containers or external services.",
+    )
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    if config.getoption("--run-integration"):
+        return
+
+    skip_marker = pytest.mark.skip(reason="integration tests require --run-integration")
+    for item in items:
+        if "tests/integration/" in str(item.path):
+            item.add_marker(pytest.mark.integration)
+            item.add_marker(skip_marker)
+
+
 @pytest.fixture(scope="session")
 def postgres_container() -> Iterator[PostgresContainer]:
     with PostgresContainer("postgres:16") as container:

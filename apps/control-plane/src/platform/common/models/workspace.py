@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+from platform.common.models.base import Base
+from platform.common.models.mixins import (
+    EventSourcedMixin,
+    SoftDeleteMixin,
+    TimestampMixin,
+    UUIDMixin,
+)
 from uuid import UUID
 
 from sqlalchemy import ForeignKey, String, text
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
-
-from platform.common.models.base import Base
-from platform.common.models.mixins import EventSourcedMixin, SoftDeleteMixin, TimestampMixin, UUIDMixin
 
 
 class Workspace(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, EventSourcedMixin):
@@ -19,9 +24,8 @@ class Workspace(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, EventSourcedMi
         ForeignKey("users.id"),
         nullable=False,
     )
-    settings: Mapped[dict] = mapped_column(
+    settings: Mapped[dict[str, object]] = mapped_column(
         JSONB,
         nullable=False,
         server_default=text("'{}'::jsonb"),
     )
-

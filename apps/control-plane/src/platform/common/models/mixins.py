@@ -1,24 +1,26 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import uuid
+from datetime import UTC, datetime
+from platform.common.models.base import Base
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import DateTime, ForeignKey, Integer, func, text
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy import UUID as SQLUUID
+from sqlalchemy import DateTime, Integer, event, func
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class UUIDMixin:
     id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
+        SQLUUID(as_uuid=True),
         primary_key=True,
-        server_default=func.gen_random_uuid(),
+        default=uuid.uuid4,
     )
 
 
@@ -38,18 +40,14 @@ class TimestampMixin:
 
 class SoftDeleteMixin:
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    deleted_by: Mapped[UUID | None] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("users.id"),
-        nullable=True,
-    )
 
     @hybrid_property
     def is_deleted(self) -> bool:
         return self.deleted_at is not None
 
-    @is_deleted.expression
-    def is_deleted(cls) -> Any:  # noqa: N805
+    @is_deleted.inplace.expression
+    @classmethod
+    def _is_deleted_expression(cls) -> Any:
         return cls.deleted_at.is_not(None)
 
     @classmethod
@@ -58,35 +56,25 @@ class SoftDeleteMixin:
 
 
 class AuditMixin:
-    created_by: Mapped[UUID | None] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("users.id"),
-        nullable=True,
-    )
-    updated_by: Mapped[UUID | None] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("users.id"),
-        nullable=True,
-    )
+    created_by: Mapped[UUID | None] = mapped_column(SQLUUID(as_uuid=True), nullable=True)
+    updated_by: Mapped[UUID | None] = mapped_column(SQLUUID(as_uuid=True), nullable=True)
 
 
 class WorkspaceScopedMixin:
-    workspace_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("workspaces.id"),
-        nullable=False,
-        index=True,
-    )
+    workspace_id: Mapped[UUID] = mapped_column(SQLUUID(as_uuid=True), nullable=False, index=True)
 
 
 class EventSourcedMixin:
-    version: Mapped[int] = mapped_column(
-        Integer,
-        nullable=False,
-        default=1,
-        server_default=text("1"),
-    )
+    pending_events: list[Any]
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
     @declared_attr.directive
-    def __mapper_args__(cls) -> dict[str, Any]:
+    def __mapper_args__(cls) -> dict[str, Any]:  # noqa: N805
         return {"version_id_col": cls.version}
+
+
+@event.listens_for(Base, "init", propagate=True)
+def _init_pending_events(target: Any, args: tuple[Any, ...], kwargs: dict[str, Any]) -> None:
+    del args, kwargs
+    if isinstance(target, EventSourcedMixin):
+        target.pending_events = []
