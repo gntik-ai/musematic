@@ -61,6 +61,19 @@ from platform.execution.schemas import ExecutionCreate
 from platform.interactions.dependencies import build_interactions_service
 from platform.interactions.events import register_interactions_event_types
 from platform.interactions.router import router as interactions_router
+from platform.marketplace.dependencies import (
+    build_quality_service as build_marketplace_quality_service,
+)
+from platform.marketplace.dependencies import (
+    build_recommendation_service as build_marketplace_recommendation_service,
+)
+from platform.marketplace.dependencies import (
+    build_search_service as build_marketplace_search_service,
+)
+from platform.marketplace.events import register_marketplace_event_types
+from platform.marketplace.jobs import run_cf_recommendations, run_trending_computation
+from platform.marketplace.repository import MarketplaceRepository
+from platform.marketplace.router import router as marketplace_router
 from platform.memory.consolidation_worker import ConsolidationWorker, SessionMemoryCleaner
 from platform.memory.dependencies import build_memory_service
 from platform.memory.embedding_worker import EmbeddingWorker
@@ -128,6 +141,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_policies_event_types()
     register_workflows_event_types()
     register_execution_event_types()
+    register_marketplace_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -228,6 +242,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     memory_scheduler = getattr(app.state, "memory_scheduler", None)
     connectors_worker_scheduler = getattr(app.state, "connectors_worker_scheduler", None)
     workflow_execution_scheduler = getattr(app.state, "workflow_execution_scheduler", None)
+    marketplace_scheduler = getattr(app.state, "marketplace_scheduler", None)
     if memory_scheduler is not None:
         try:
             memory_scheduler.start()
@@ -249,9 +264,21 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["workflow_execution_scheduler"] = str(exc)
             LOGGER.warning("Failed to start workflow execution scheduler: %s", exc)
+    if marketplace_scheduler is not None:
+        try:
+            marketplace_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["marketplace_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start marketplace scheduler: %s", exc)
     try:
         yield
     finally:
+        if marketplace_scheduler is not None:
+            try:
+                marketplace_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop marketplace scheduler cleanly: %s", exc)
         if workflow_execution_scheduler is not None:
             try:
                 workflow_execution_scheduler.shutdown(wait=False)
@@ -331,6 +358,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.connectors_worker_scheduler = None
     app.state.workflow_execution_scheduler = None
     app.state.workflow_scheduler = None
+    app.state.marketplace_scheduler = None
     if resolved.profile == "worker":
         app.state.analytics_consumer = AnalyticsPipelineConsumer(
             settings=resolved,
@@ -349,6 +377,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
             app.state.connectors_worker_scheduler = _build_connectors_worker_scheduler(app)
         app.state.workflow_execution_scheduler = _build_workflow_execution_scheduler(app)
         app.state.workflow_scheduler = app.state.workflow_execution_scheduler
+        app.state.marketplace_scheduler = _build_marketplace_scheduler(app)
     if resolved.profile in {"scheduler", "context-engineering"}:
         app.state.context_engineering_drift_scheduler = _build_context_engineering_scheduler(app)
     exception_handler = cast(
@@ -394,6 +423,21 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
                     "external_event",
                 ),
             )
+            consumer_manager.subscribe(
+                "workflow.runtime",
+                "marketplace-quality-signals",
+                _build_marketplace_quality_handler(app, "handle_execution_event"),
+            )
+            consumer_manager.subscribe(
+                "evaluation.events",
+                "marketplace-quality-signals",
+                _build_marketplace_quality_handler(app, "handle_evaluation_event"),
+            )
+            consumer_manager.subscribe(
+                "trust.events",
+                "marketplace-quality-signals",
+                _build_marketplace_quality_handler(app, "handle_trust_event"),
+            )
 
     api_router = APIRouter(prefix="/api/v1")
 
@@ -412,6 +456,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(registry_router)
         app.include_router(context_engineering_router)
         app.include_router(memory_router)
+        app.include_router(marketplace_router)
         app.include_router(interactions_router)
         app.include_router(connectors_router)
         app.include_router(policies_router)
@@ -1042,6 +1087,110 @@ def _build_policy_bundle_invalidator(
             await service.invalidate_bundle_by_revision(revision_id)
 
     return _invalidate
+
+
+def _build_marketplace_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+        trigger_module = __import__(
+            "apscheduler.triggers.cron",
+            fromlist=["CronTrigger"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+    cron_trigger = trigger_module.CronTrigger
+
+    async def _run_cf_job() -> None:
+        async with database.AsyncSessionLocal() as session:
+            workspaces_service = build_workspaces_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                accounts_service=None,
+            )
+            search_service = build_marketplace_search_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                opensearch=cast(AsyncOpenSearchClient, app.state.clients["opensearch"]),
+                qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
+                workspaces_service=workspaces_service,
+            )
+            recommendation_service = build_marketplace_recommendation_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                clickhouse=cast(AsyncClickHouseClient, app.state.clients["clickhouse"]),
+                qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                search_service=search_service,
+                workspaces_service=workspaces_service,
+            )
+            try:
+                await run_cf_recommendations(
+                    service=recommendation_service,
+                    repository=MarketplaceRepository(session),
+                )
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Marketplace collaborative recommendation job failed")
+
+    async def _run_trending_job() -> None:
+        async with database.AsyncSessionLocal() as session:
+            try:
+                await run_trending_computation(
+                    repository=MarketplaceRepository(session),
+                    clickhouse=cast(AsyncClickHouseClient, app.state.clients["clickhouse"]),
+                    redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                    producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                )
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Marketplace trending computation job failed")
+
+    scheduler.add_job(
+        _run_cf_job,
+        cron_trigger(hour=2, minute=0, timezone="UTC"),
+        id="marketplace_cf_recs",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _run_trending_job,
+        cron_trigger(hour=3, minute=0, timezone="UTC"),
+        id="marketplace_trending",
+        replace_existing=True,
+    )
+    return scheduler
+
+
+def _build_marketplace_quality_handler(
+    app: FastAPI,
+    method_name: str,
+) -> Callable[[Any], Awaitable[None]]:
+    async def _handle(envelope: Any) -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = build_marketplace_quality_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            try:
+                handler = getattr(service, method_name)
+                await handler(envelope)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception(
+                    "Marketplace quality consumer failed",
+                    extra={"handler": method_name},
+                )
+
+    return _handle
 
 
 def _build_connectors_worker_scheduler(app: FastAPI) -> Any | None:

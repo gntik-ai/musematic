@@ -78,9 +78,10 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 030-marketplace-discovery-intelligence: Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, aiokafka 0.11+, opensearch-py 2.x async (BM25 search), qdrant-client 1.12+ async gRPC (semantic search + content-based recs), clickhouse-connect 0.8+ (CF usage data + creator analytics), redis-py 5.x async (rec cache + trending cache), httpx 0.27+ (query embedding API), APScheduler 3.x (daily CF + trending jobs)
+- 030-marketplace-discovery-intelligence: marketplace/ bounded context — 4 PostgreSQL tables (agent_ratings, quality_aggregates, recommendations, trending_snapshots), OpenSearch+Qdrant RRF fusion search, workspace visibility zero-trust on all queries, quality signals via Kafka consumers (workflow.runtime + evaluation.events + trust.events), collaborative filtering daily batch, content-based + contextual on-demand via Qdrant kNN, invocation gate for ratings (ClickHouse check), creator analytics from ClickHouse, 15 REST endpoints, marketplace.events Kafka topic
 - 029-workflow-execution-engine: Added workflows + execution bounded contexts — WorkflowCompiler (YAML→IR), append-only ExecutionJournal (21 event types), SchedulerService (priority queue + dispatch lease + TaskPlanRecord + gRPC dispatch), ExecutionProjector (state from journal + Redis cache), replay/resume/rerun, 7 trigger types (cron/webhook/event-bus/workspace-goal/orchestrator/manual/API), hot change + compensation, dynamic re-prioritization, approval gates, 10 PostgreSQL tables, 2 Kafka topics
 - 028-policy-governance-engine: Added policies bounded context — GovernanceCompiler (EnforcementBundle + shards), ToolGatewayService (4-check enforcement + fail-safe deny-all + BlockedActionRecord), MemoryWriteGateService, OutputSanitizer (5 regex patterns), visibility-aware registry filtering (SQL-level zero-trust), 5 PostgreSQL tables, Redis bundle cache, 2 Kafka topics
-- 027-admin-settings-panel: Added admin settings panel — 6-tab layout (Users/Signup/Quotas/Connectors/Email/Security), route guard, server-side user DataTable with actions, RHF+Zod settings forms, If-Unmodified-Since stale-data detection, per-toggle connector auto-save, credential masking pattern
 
 
 <!-- MANUAL ADDITIONS START -->
