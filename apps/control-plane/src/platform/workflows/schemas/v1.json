@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://musematic.dev/schemas/workflows/v1.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "steps"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "workflow_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "step_type"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "step_type": {
+            "type": "string",
+            "enum": [
+              "agent_task",
+              "tool_call",
+              "approval_gate",
+              "parallel_fork",
+              "parallel_join",
+              "conditional"
+            ]
+          },
+          "agent_fqn": {
+            "type": "string"
+          },
+          "tool_fqn": {
+            "type": "string"
+          },
+          "depends_on": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "uniqueItems": true,
+            "default": []
+          },
+          "input_bindings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "default": {}
+          },
+          "output_schema": {
+            "type": ["object", "null"]
+          },
+          "retry_config": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "properties": {
+              "max_retries": { "type": "integer", "minimum": 0 },
+              "backoff_strategy": {
+                "type": "string",
+                "enum": ["fixed", "exponential", "linear"]
+              },
+              "base_delay_seconds": { "type": "number", "minimum": 0 },
+              "max_delay_seconds": { "type": "number", "minimum": 0 },
+              "retry_on_event_types": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          },
+          "timeout_seconds": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "compensation_handler": {
+            "type": ["string", "null"]
+          },
+          "approval_config": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "required": ["required_approvers"],
+            "properties": {
+              "required_approvers": {
+                "type": "array",
+                "items": { "type": "string", "minLength": 1 }
+              },
+              "timeout_seconds": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "timeout_action": {
+                "type": "string",
+                "enum": ["fail", "skip", "escalate"]
+              }
+            }
+          },
+          "reasoning_mode": {
+            "type": ["string", "null"]
+          },
+          "context_budget_tokens": {
+            "type": ["integer", "null"],
+            "minimum": 1
+          },
+          "parallel_group": {
+            "type": ["string", "null"]
+          },
+          "condition_expression": {
+            "type": ["string", "null"]
+          }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "step_type": { "const": "agent_task" } } },
+            "then": { "required": ["agent_fqn"] }
+          },
+          {
+            "if": { "properties": { "step_type": { "const": "tool_call" } } },
+            "then": { "required": ["tool_fqn"] }
+          },
+          {
+            "if": { "properties": { "step_type": { "const": "approval_gate" } } },
+            "then": { "required": ["approval_config"] }
+          }
+        ]
+      }
+    },
+    "data_bindings": {
+      "type": "array",
+      "items": { "type": "object" },
+      "default": []
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "default": {}
+    }
+  }
+}
