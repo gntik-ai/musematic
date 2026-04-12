@@ -1,5 +1,7 @@
 from platform.analytics.router import router as analytics_router
+from platform.api.evaluations import router as evaluations_router
 from platform.api.health import router as health_router
+from platform.api.testing import router as testing_router
 from platform.connectors.router import router as connectors_router
 from platform.context_engineering.router import router as context_engineering_router
 from platform.execution.router import router as execution_router
@@ -17,10 +19,12 @@ router.include_router(health_router)
 router.include_router(analytics_router)
 router.include_router(registry_router)
 router.include_router(context_engineering_router)
+router.include_router(evaluations_router)
 router.include_router(memory_router)
 router.include_router(marketplace_router)
 router.include_router(interactions_router)
 router.include_router(connectors_router)
 router.include_router(policies_router)
+router.include_router(testing_router)
 router.include_router(workflows_router)
 router.include_router(execution_router)

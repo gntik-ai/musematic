@@ -1,15 +1,19 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
+from platform.common import database
 from platform.common.config import PlatformSettings
 from platform.common.config import settings as default_settings
-from platform.common import database
 from platform.common.exceptions import AuthorizationError, NotFoundError
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import jwt
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+
+if TYPE_CHECKING:
+    from platform.evaluation.service_interfaces import EvalSuiteServiceInterface
+    from platform.testing.service_interfaces import CoordinationTestServiceInterface
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -72,3 +76,51 @@ async def get_workspace(
 
 def get_opensearch_client(request: Any) -> Any:
     return request.app.state.clients["opensearch"]
+
+
+async def get_eval_suite_service_interface(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+) -> EvalSuiteServiceInterface:
+    from platform.common.events.producer import EventProducer
+    from platform.evaluation.dependencies import build_eval_suite_service
+
+    return cast(
+        EvalSuiteServiceInterface,
+        build_eval_suite_service(
+            session=session,
+            settings=_resolve_settings(request),
+            producer=cast(EventProducer | None, request.app.state.clients.get("kafka")),
+        ),
+    )
+
+
+async def get_coordination_test_service_interface(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+) -> CoordinationTestServiceInterface:
+    from platform.common.clients.object_storage import AsyncObjectStorageClient
+    from platform.common.clients.reasoning_engine import ReasoningEngineClient
+    from platform.common.clients.redis import AsyncRedisClient
+    from platform.common.clients.runtime_controller import RuntimeControllerClient
+    from platform.common.events.producer import EventProducer
+    from platform.testing.dependencies import build_coordination_service
+
+    return cast(
+        CoordinationTestServiceInterface,
+        build_coordination_service(
+            session=session,
+            settings=_resolve_settings(request),
+            producer=cast(EventProducer | None, request.app.state.clients.get("kafka")),
+            redis_client=cast(AsyncRedisClient, request.app.state.clients["redis"]),
+            object_storage=cast(AsyncObjectStorageClient, request.app.state.clients["minio"]),
+            runtime_controller=cast(
+                RuntimeControllerClient | None,
+                request.app.state.clients.get("runtime_controller"),
+            ),
+            reasoning_engine=cast(
+                ReasoningEngineClient | None,
+                request.app.state.clients.get("reasoning_engine"),
+            ),
+        ),
+    )
