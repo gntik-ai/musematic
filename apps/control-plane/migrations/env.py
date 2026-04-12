@@ -53,6 +53,8 @@ importlib.import_module("platform.execution.models")
 importlib.import_module("platform.trust.models")
 importlib.import_module("platform.fleets.models")
 importlib.import_module("platform.fleet_learning.models")
+importlib.import_module("platform.evaluation.models")
+importlib.import_module("platform.testing.models")
 
 config = context.config
 

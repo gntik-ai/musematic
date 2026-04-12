@@ -16,7 +16,9 @@ from platform.analytics.forecast import ForecastEngine
 from platform.analytics.recommendation import RecommendationEngine
 from platform.analytics.repository import AnalyticsRepository, CostModelRepository
 from platform.analytics.router import router as analytics_router
+from platform.api.evaluations import router as evaluations_router
 from platform.api.health import router as health_router
+from platform.api.testing import router as testing_router
 from platform.auth.events import register_auth_event_types
 from platform.auth.router import router as auth_router
 from platform.common import database
@@ -51,6 +53,10 @@ from platform.context_engineering.dependencies import build_context_engineering_
 from platform.context_engineering.drift_monitor import DriftMonitorTask
 from platform.context_engineering.events import register_context_engineering_event_types
 from platform.context_engineering.router import router as context_engineering_router
+from platform.evaluation.dependencies import build_eval_runner_service, build_robustness_service
+from platform.evaluation.events import register_evaluation_event_types
+from platform.evaluation.repository import EvaluationRepository
+from platform.evaluation.scorers.semantic import SemanticSimilarityScorer
 from platform.execution.dependencies import build_execution_service, build_scheduler_service
 from platform.execution.events import (
     register_execution_consumers,
@@ -97,6 +103,8 @@ from platform.registry.index_worker import RegistryIndexWorker
 from platform.registry.registry_opensearch_setup import create_marketplace_agents_index
 from platform.registry.registry_qdrant_setup import create_agent_embeddings_collection
 from platform.registry.router import router as registry_router
+from platform.testing.dependencies import build_drift_service
+from platform.testing.events import register_testing_event_types
 from platform.trust.dependencies import (
     build_ate_service,
     build_certification_service,
@@ -156,7 +164,9 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_memory_event_types()
     register_interactions_event_types()
     register_connectors_event_types()
+    register_evaluation_event_types()
     register_policies_event_types()
+    register_testing_event_types()
     register_workflows_event_types()
     register_execution_event_types()
     register_marketplace_event_types()
@@ -188,6 +198,28 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["context_engineering_clickhouse_setup"] = str(exc)
             LOGGER.warning("Failed to run context engineering ClickHouse setup: %s", exc)
+        try:
+            async with database.AsyncSessionLocal() as session:
+                drift_service = build_drift_service(
+                    session=session,
+                    settings=cast(PlatformSettings, app.state.settings),
+                    producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                    clickhouse_client=clickhouse_client,
+                )
+                await drift_service.ensure_schema()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["testing_clickhouse_setup"] = str(exc)
+            LOGGER.warning("Failed to run testing ClickHouse setup: %s", exc)
+    object_storage_client = app.state.clients.get("minio")
+    if isinstance(object_storage_client, AsyncObjectStorageClient):
+        for bucket_name in ("evaluation-ate-evidence", "evaluation-generated-suites"):
+            try:
+                await object_storage_client.create_bucket_if_not_exists(bucket_name)
+            except Exception as exc:
+                app.state.degraded = True
+                startup_errors[f"bucket:{bucket_name}"] = str(exc)
+                LOGGER.warning("Failed to provision bucket %s: %s", bucket_name, exc)
     opensearch_client = app.state.clients.get("opensearch")
     if isinstance(opensearch_client, AsyncOpenSearchClient):
         try:
@@ -205,6 +237,15 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["registry_qdrant_setup"] = str(exc)
             LOGGER.warning("Failed to run registry Qdrant setup: %s", exc)
+        try:
+            await SemanticSimilarityScorer(
+                settings=cast(PlatformSettings, app.state.settings),
+                qdrant=qdrant_client,
+            ).ensure_collection()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["evaluation_qdrant_setup"] = str(exc)
+            LOGGER.warning("Failed to run evaluation Qdrant setup: %s", exc)
     if isinstance(qdrant_client, AsyncQdrantClient) and isinstance(neo4j_client, AsyncNeo4jClient):
         try:
             await setup_memory_collections(qdrant_client, neo4j_client, app.state.settings)
@@ -264,6 +305,12 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     workflow_execution_scheduler = getattr(app.state, "workflow_execution_scheduler", None)
     marketplace_scheduler = getattr(app.state, "marketplace_scheduler", None)
     fleet_learning_scheduler = getattr(app.state, "fleet_learning_scheduler", None)
+    agentops_drift_scheduler = getattr(app.state, "agentops_drift_scheduler", None)
+    robustness_orchestrator_scheduler = getattr(
+        app.state,
+        "robustness_orchestrator_scheduler",
+        None,
+    )
     if memory_scheduler is not None:
         try:
             memory_scheduler.start()
@@ -299,6 +346,20 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["fleet_learning_scheduler"] = str(exc)
             LOGGER.warning("Failed to start fleet learning scheduler: %s", exc)
+    if agentops_drift_scheduler is not None:
+        try:
+            agentops_drift_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["agentops_drift_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start agentops drift scheduler: %s", exc)
+    if robustness_orchestrator_scheduler is not None:
+        try:
+            robustness_orchestrator_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["robustness_orchestrator_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start robustness orchestrator scheduler: %s", exc)
     try:
         await _load_trust_runtime_assets(app)
     except Exception as exc:
@@ -316,6 +377,19 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        if robustness_orchestrator_scheduler is not None:
+            try:
+                robustness_orchestrator_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning(
+                    "Failed to stop robustness orchestrator scheduler cleanly: %s",
+                    exc,
+                )
+        if agentops_drift_scheduler is not None:
+            try:
+                agentops_drift_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop agentops drift scheduler cleanly: %s", exc)
         if trust_certifier_scheduler is not None:
             try:
                 trust_certifier_scheduler.shutdown(wait=False)
@@ -412,6 +486,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.workflow_scheduler = None
     app.state.marketplace_scheduler = None
     app.state.fleet_learning_scheduler = None
+    app.state.agentops_drift_scheduler = None
+    app.state.robustness_orchestrator_scheduler = None
     app.state.trust_certifier_scheduler = None
     if resolved.profile == "worker":
         app.state.analytics_consumer = AnalyticsPipelineConsumer(
@@ -433,6 +509,11 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.workflow_scheduler = app.state.workflow_execution_scheduler
         app.state.marketplace_scheduler = _build_marketplace_scheduler(app)
         app.state.fleet_learning_scheduler = _build_fleet_learning_scheduler(app)
+    if resolved.profile == "agentops-testing":
+        app.state.agentops_drift_scheduler = _build_agentops_drift_scheduler(app)
+        app.state.robustness_orchestrator_scheduler = _build_robustness_orchestrator_scheduler(
+            app
+        )
     if resolved.profile == "trust-certifier":
         app.state.trust_certifier_scheduler = _build_trust_certifier_scheduler(app)
     if resolved.profile in {"scheduler", "context-engineering"}:
@@ -552,11 +633,13 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(analytics_router)
         app.include_router(registry_router)
         app.include_router(context_engineering_router)
+        app.include_router(evaluations_router)
         app.include_router(memory_router)
         app.include_router(marketplace_router)
         app.include_router(interactions_router)
         app.include_router(connectors_router)
         app.include_router(policies_router)
+        app.include_router(testing_router)
         app.include_router(workflows_router)
         app.include_router(execution_router)
         app.include_router(trust_router, prefix="/api/v1/trust")
@@ -1346,6 +1429,124 @@ def _build_fleet_learning_scheduler(app: FastAPI) -> Any | None:
         _run_adaptation_scan,
         cron_trigger(hour=1, minute=5),
         id="fleet-learning-evaluate-adaptations",
+    )
+    return scheduler
+
+
+def _build_agentops_drift_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+        trigger_module = __import__(
+            "apscheduler.triggers.cron",
+            fromlist=["CronTrigger"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+    cron_trigger = trigger_module.CronTrigger
+
+    async def _run_drift_scan() -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = build_drift_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                clickhouse_client=cast(AsyncClickHouseClient, app.state.clients["clickhouse"]),
+            )
+            try:
+                await service.run_drift_scan_all()
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("AgentOps drift scan failed")
+
+    scheduler.add_job(
+        _run_drift_scan,
+        cron_trigger(hour=4, minute=0, timezone="UTC"),
+        id="agentops-drift-scan",
+        replace_existing=True,
+    )
+    return scheduler
+
+
+def _build_robustness_orchestrator_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run_pending_robustness() -> None:
+        async with database.AsyncSessionLocal() as session:
+            drift_service = build_drift_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                clickhouse_client=cast(AsyncClickHouseClient, app.state.clients["clickhouse"]),
+            )
+            execution_service = build_execution_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                runtime_controller=cast(
+                    RuntimeControllerClient | None,
+                    app.state.clients.get("runtime_controller"),
+                ),
+                reasoning_engine=cast(
+                    ReasoningEngineClient | None,
+                    app.state.clients.get("reasoning_engine"),
+                ),
+                context_engineering_service=None,
+            )
+            eval_runner_service = build_eval_runner_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
+                runtime_controller=cast(
+                    RuntimeControllerClient | None,
+                    app.state.clients.get("runtime_controller"),
+                ),
+                reasoning_engine=cast(
+                    ReasoningEngineClient | None,
+                    app.state.clients.get("reasoning_engine"),
+                ),
+                execution_service=execution_service,
+                drift_service=drift_service,
+            )
+            service = build_robustness_service(
+                session=session,
+                eval_runner_service=eval_runner_service,
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            repository = EvaluationRepository(session)
+            pending_runs = await repository.list_pending_robustness_runs(limit=10)
+            for pending_run in pending_runs:
+                try:
+                    await service.execute_run(pending_run.id)
+                except Exception:
+                    await session.rollback()
+                    LOGGER.exception(
+                        "Robustness orchestrator failed",
+                        extra={"robustness_run_id": str(pending_run.id)},
+                    )
+
+    scheduler.add_job(
+        _run_pending_robustness,
+        "interval",
+        seconds=30,
+        id="agentops-robustness-orchestrator",
+        replace_existing=True,
     )
     return scheduler
 

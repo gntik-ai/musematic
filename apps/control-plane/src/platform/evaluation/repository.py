@@ -1,0 +1,471 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from platform.evaluation.models import (
+    AbExperiment,
+    ATEConfig,
+    ATERun,
+    BenchmarkCase,
+    EvalSet,
+    EvaluationRun,
+    HumanAiGrade,
+    JudgeVerdict,
+    RobustnessTestRun,
+    RunStatus,
+)
+from typing import Any
+from uuid import UUID
+
+from sqlalchemy import Select, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+
+class EvaluationRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def create_eval_set(self, eval_set: EvalSet) -> EvalSet:
+        self.session.add(eval_set)
+        await self.session.flush()
+        return eval_set
+
+    async def get_eval_set(
+        self, eval_set_id: UUID, workspace_id: UUID | None = None
+    ) -> EvalSet | None:
+        query = select(EvalSet).where(EvalSet.id == eval_set_id, EvalSet.deleted_at.is_(None))
+        if workspace_id is not None:
+            query = query.where(EvalSet.workspace_id == workspace_id)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def list_eval_sets(
+        self,
+        workspace_id: UUID,
+        *,
+        status: Any | None = None,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[EvalSet], int]:
+        filters = [EvalSet.workspace_id == workspace_id, EvalSet.deleted_at.is_(None)]
+        if status is not None:
+            filters.append(EvalSet.status == status)
+        total = await self.session.scalar(select(func.count()).select_from(EvalSet).where(*filters))
+        result = await self.session.execute(
+            select(EvalSet)
+            .where(*filters)
+            .order_by(EvalSet.created_at.desc(), EvalSet.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        return list(result.scalars().all()), int(total or 0)
+
+    async def update_eval_set(self, eval_set: EvalSet, **fields: Any) -> EvalSet:
+        for key, value in fields.items():
+            setattr(eval_set, key, value)
+        await self.session.flush()
+        return eval_set
+
+    async def soft_delete_eval_set(self, eval_set: EvalSet) -> EvalSet:
+        eval_set.deleted_at = datetime.now(UTC)
+        await self.session.flush()
+        return eval_set
+
+    async def count_benchmark_cases(self, eval_set_id: UUID) -> int:
+        total = await self.session.scalar(
+            select(func.count())
+            .select_from(BenchmarkCase)
+            .where(BenchmarkCase.eval_set_id == eval_set_id)
+        )
+        return int(total or 0)
+
+    async def get_next_case_position(self, eval_set_id: UUID) -> int:
+        current = await self.session.scalar(
+            select(func.max(BenchmarkCase.position)).where(BenchmarkCase.eval_set_id == eval_set_id)
+        )
+        return int(current or -1) + 1
+
+    async def create_benchmark_case(self, case: BenchmarkCase) -> BenchmarkCase:
+        self.session.add(case)
+        await self.session.flush()
+        return case
+
+    async def get_benchmark_case(
+        self,
+        case_id: UUID,
+        *,
+        eval_set_id: UUID | None = None,
+    ) -> BenchmarkCase | None:
+        query = select(BenchmarkCase).where(BenchmarkCase.id == case_id)
+        if eval_set_id is not None:
+            query = query.where(BenchmarkCase.eval_set_id == eval_set_id)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def list_benchmark_cases(
+        self,
+        eval_set_id: UUID,
+        *,
+        category: str | None,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[BenchmarkCase], int]:
+        filters = [BenchmarkCase.eval_set_id == eval_set_id]
+        if category is not None:
+            filters.append(BenchmarkCase.category == category)
+        total = await self.session.scalar(
+            select(func.count()).select_from(BenchmarkCase).where(*filters)
+        )
+        result = await self.session.execute(
+            select(BenchmarkCase)
+            .where(*filters)
+            .order_by(BenchmarkCase.position.asc(), BenchmarkCase.created_at.asc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        return list(result.scalars().all()), int(total or 0)
+
+    async def list_all_benchmark_cases(self, eval_set_id: UUID) -> list[BenchmarkCase]:
+        result = await self.session.execute(
+            select(BenchmarkCase)
+            .where(BenchmarkCase.eval_set_id == eval_set_id)
+            .order_by(BenchmarkCase.position.asc(), BenchmarkCase.created_at.asc())
+        )
+        return list(result.scalars().all())
+
+    async def delete_benchmark_case(self, case: BenchmarkCase) -> None:
+        await self.session.delete(case)
+        await self.session.flush()
+
+    async def create_run(self, run: EvaluationRun) -> EvaluationRun:
+        self.session.add(run)
+        await self.session.flush()
+        return run
+
+    async def get_run(self, run_id: UUID, workspace_id: UUID | None = None) -> EvaluationRun | None:
+        query: Select[tuple[EvaluationRun]] = (
+            select(EvaluationRun)
+            .where(EvaluationRun.id == run_id)
+            .options(selectinload(EvaluationRun.verdicts))
+        )
+        if workspace_id is not None:
+            query = query.where(EvaluationRun.workspace_id == workspace_id)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def list_runs(
+        self,
+        workspace_id: UUID,
+        *,
+        eval_set_id: UUID | None,
+        agent_fqn: str | None,
+        status: Any | None,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[EvaluationRun], int]:
+        filters = [EvaluationRun.workspace_id == workspace_id]
+        if eval_set_id is not None:
+            filters.append(EvaluationRun.eval_set_id == eval_set_id)
+        if agent_fqn is not None:
+            filters.append(EvaluationRun.agent_fqn == agent_fqn)
+        if status is not None:
+            filters.append(EvaluationRun.status == status)
+        total = await self.session.scalar(
+            select(func.count()).select_from(EvaluationRun).where(*filters)
+        )
+        result = await self.session.execute(
+            select(EvaluationRun)
+            .where(*filters)
+            .order_by(EvaluationRun.created_at.desc(), EvaluationRun.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        return list(result.scalars().all()), int(total or 0)
+
+    async def update_run(self, run: EvaluationRun, **fields: Any) -> EvaluationRun:
+        for key, value in fields.items():
+            setattr(run, key, value)
+        await self.session.flush()
+        return run
+
+    async def create_verdict(self, verdict: JudgeVerdict) -> JudgeVerdict:
+        self.session.add(verdict)
+        await self.session.flush()
+        return verdict
+
+    async def get_verdict(self, verdict_id: UUID) -> JudgeVerdict | None:
+        result = await self.session.execute(
+            select(JudgeVerdict)
+            .where(JudgeVerdict.id == verdict_id)
+            .options(
+                selectinload(JudgeVerdict.human_grade),
+                selectinload(JudgeVerdict.run),
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def list_run_verdicts(
+        self,
+        run_id: UUID,
+        *,
+        passed: bool | None,
+        status: Any | None,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[JudgeVerdict], int]:
+        filters = [JudgeVerdict.run_id == run_id]
+        if passed is not None:
+            filters.append(JudgeVerdict.passed.is_(passed))
+        if status is not None:
+            filters.append(JudgeVerdict.status == status)
+        total = await self.session.scalar(
+            select(func.count()).select_from(JudgeVerdict).where(*filters)
+        )
+        result = await self.session.execute(
+            select(JudgeVerdict)
+            .where(*filters)
+            .options(selectinload(JudgeVerdict.human_grade))
+            .order_by(JudgeVerdict.created_at.asc(), JudgeVerdict.id.asc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        return list(result.scalars().all()), int(total or 0)
+
+    async def list_verdicts_by_run(self, run_id: UUID) -> list[JudgeVerdict]:
+        result = await self.session.execute(
+            select(JudgeVerdict)
+            .where(JudgeVerdict.run_id == run_id)
+            .order_by(JudgeVerdict.created_at.asc(), JudgeVerdict.id.asc())
+        )
+        return list(result.scalars().all())
+
+    async def get_run_score_array(self, run_id: UUID) -> list[float]:
+        result = await self.session.execute(
+            select(JudgeVerdict.overall_score).where(
+                JudgeVerdict.run_id == run_id,
+                JudgeVerdict.overall_score.is_not(None),
+            )
+        )
+        return [float(value) for value in result.scalars().all() if value is not None]
+
+    async def create_ab_experiment(self, experiment: AbExperiment) -> AbExperiment:
+        self.session.add(experiment)
+        await self.session.flush()
+        return experiment
+
+    async def get_ab_experiment(
+        self,
+        experiment_id: UUID,
+        workspace_id: UUID | None = None,
+    ) -> AbExperiment | None:
+        query = select(AbExperiment).where(AbExperiment.id == experiment_id)
+        if workspace_id is not None:
+            query = query.where(AbExperiment.workspace_id == workspace_id)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def update_ab_experiment(self, experiment: AbExperiment, **fields: Any) -> AbExperiment:
+        for key, value in fields.items():
+            setattr(experiment, key, value)
+        await self.session.flush()
+        return experiment
+
+    async def create_ate_config(self, config: ATEConfig) -> ATEConfig:
+        self.session.add(config)
+        await self.session.flush()
+        return config
+
+    async def get_ate_config(
+        self, config_id: UUID, workspace_id: UUID | None = None
+    ) -> ATEConfig | None:
+        query = select(ATEConfig).where(ATEConfig.id == config_id, ATEConfig.deleted_at.is_(None))
+        if workspace_id is not None:
+            query = query.where(ATEConfig.workspace_id == workspace_id)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def list_ate_configs(
+        self,
+        workspace_id: UUID,
+        *,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[ATEConfig], int]:
+        filters = [ATEConfig.workspace_id == workspace_id, ATEConfig.deleted_at.is_(None)]
+        total = await self.session.scalar(
+            select(func.count()).select_from(ATEConfig).where(*filters)
+        )
+        result = await self.session.execute(
+            select(ATEConfig)
+            .where(*filters)
+            .order_by(ATEConfig.created_at.desc(), ATEConfig.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        return list(result.scalars().all()), int(total or 0)
+
+    async def update_ate_config(self, config: ATEConfig, **fields: Any) -> ATEConfig:
+        for key, value in fields.items():
+            setattr(config, key, value)
+        await self.session.flush()
+        return config
+
+    async def soft_delete_ate_config(self, config: ATEConfig) -> ATEConfig:
+        config.deleted_at = datetime.now(UTC)
+        await self.session.flush()
+        return config
+
+    async def create_ate_run(self, run: ATERun) -> ATERun:
+        self.session.add(run)
+        await self.session.flush()
+        return run
+
+    async def get_ate_run(self, run_id: UUID, workspace_id: UUID | None = None) -> ATERun | None:
+        query = select(ATERun).where(ATERun.id == run_id)
+        if workspace_id is not None:
+            query = query.where(ATERun.workspace_id == workspace_id)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def list_ate_runs(
+        self,
+        ate_config_id: UUID,
+        *,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[ATERun], int]:
+        filters = [ATERun.ate_config_id == ate_config_id]
+        total = await self.session.scalar(select(func.count()).select_from(ATERun).where(*filters))
+        result = await self.session.execute(
+            select(ATERun)
+            .where(*filters)
+            .order_by(ATERun.created_at.desc(), ATERun.id.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        return list(result.scalars().all()), int(total or 0)
+
+    async def update_ate_run(self, run: ATERun, **fields: Any) -> ATERun:
+        for key, value in fields.items():
+            setattr(run, key, value)
+        await self.session.flush()
+        return run
+
+    async def create_robustness_run(self, run: RobustnessTestRun) -> RobustnessTestRun:
+        self.session.add(run)
+        await self.session.flush()
+        return run
+
+    async def get_robustness_run(
+        self,
+        run_id: UUID,
+        workspace_id: UUID | None = None,
+    ) -> RobustnessTestRun | None:
+        query = select(RobustnessTestRun).where(RobustnessTestRun.id == run_id)
+        if workspace_id is not None:
+            query = query.where(RobustnessTestRun.workspace_id == workspace_id)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def list_active_robustness_runs_by_agent(self, agent_fqn: str) -> list[RobustnessTestRun]:
+        result = await self.session.execute(
+            select(RobustnessTestRun).where(
+                RobustnessTestRun.agent_fqn == agent_fqn,
+                RobustnessTestRun.status.in_([RunStatus.pending, RunStatus.running]),
+            )
+        )
+        return list(result.scalars().all())
+
+    async def list_pending_robustness_runs(
+        self,
+        *,
+        limit: int = 20,
+    ) -> list[RobustnessTestRun]:
+        result = await self.session.execute(
+            select(RobustnessTestRun)
+            .where(RobustnessTestRun.status == RunStatus.pending)
+            .order_by(RobustnessTestRun.created_at.asc(), RobustnessTestRun.id.asc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def update_robustness_run(
+        self,
+        run: RobustnessTestRun,
+        **fields: Any,
+    ) -> RobustnessTestRun:
+        for key, value in fields.items():
+            setattr(run, key, value)
+        await self.session.flush()
+        return run
+
+    async def create_human_grade(self, grade: HumanAiGrade) -> HumanAiGrade:
+        self.session.add(grade)
+        await self.session.flush()
+        return grade
+
+    async def get_human_grade(self, grade_id: UUID) -> HumanAiGrade | None:
+        result = await self.session.execute(select(HumanAiGrade).where(HumanAiGrade.id == grade_id))
+        return result.scalar_one_or_none()
+
+    async def get_human_grade_by_verdict(self, verdict_id: UUID) -> HumanAiGrade | None:
+        result = await self.session.execute(
+            select(HumanAiGrade).where(HumanAiGrade.verdict_id == verdict_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def update_human_grade(self, grade: HumanAiGrade, **fields: Any) -> HumanAiGrade:
+        for key, value in fields.items():
+            setattr(grade, key, value)
+        await self.session.flush()
+        return grade
+
+    async def get_review_progress(self, run_id: UUID) -> dict[str, int]:
+        total = await self.session.scalar(
+            select(func.count()).select_from(JudgeVerdict).where(JudgeVerdict.run_id == run_id)
+        )
+        reviewed = await self.session.scalar(
+            select(func.count())
+            .select_from(JudgeVerdict)
+            .join(HumanAiGrade, HumanAiGrade.verdict_id == JudgeVerdict.id)
+            .where(JudgeVerdict.run_id == run_id)
+        )
+        overridden = await self.session.scalar(
+            select(func.count())
+            .select_from(JudgeVerdict)
+            .join(HumanAiGrade, HumanAiGrade.verdict_id == JudgeVerdict.id)
+            .where(
+                JudgeVerdict.run_id == run_id,
+                HumanAiGrade.override_score.is_not(None),
+            )
+        )
+        total_count = int(total or 0)
+        reviewed_count = int(reviewed or 0)
+        overridden_count = int(overridden or 0)
+        return {
+            "total_verdicts": total_count,
+            "pending_review": max(0, total_count - reviewed_count),
+            "reviewed": reviewed_count,
+            "overridden": overridden_count,
+        }
+
+    async def get_latest_completed_run_score(
+        self,
+        *,
+        workspace_id: UUID,
+        agent_fqn: str,
+        eval_set_id: UUID,
+    ) -> float | None:
+        result = await self.session.execute(
+            select(EvaluationRun.aggregate_score)
+            .where(
+                EvaluationRun.workspace_id == workspace_id,
+                EvaluationRun.agent_fqn == agent_fqn,
+                EvaluationRun.eval_set_id == eval_set_id,
+                EvaluationRun.status == RunStatus.completed,
+            )
+            .order_by(EvaluationRun.completed_at.desc(), EvaluationRun.created_at.desc())
+            .limit(1)
+        )
+        score = result.scalar_one_or_none()
+        return float(score) if score is not None else None
