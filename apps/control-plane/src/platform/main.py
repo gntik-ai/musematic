@@ -89,6 +89,16 @@ from platform.registry.index_worker import RegistryIndexWorker
 from platform.registry.registry_opensearch_setup import create_marketplace_agents_index
 from platform.registry.registry_qdrant_setup import create_agent_embeddings_collection
 from platform.registry.router import router as registry_router
+from platform.trust.dependencies import (
+    build_ate_service,
+    build_certification_service,
+    build_circuit_breaker_service,
+    build_prescreener_service,
+    build_recertification_service,
+    build_trust_tier_service,
+)
+from platform.trust.events import register_trust_event_types
+from platform.trust.router import router as trust_router
 from platform.workflows.dependencies import build_workflow_service
 from platform.workflows.events import register_workflows_event_types
 from platform.workflows.models import TriggerType
@@ -142,6 +152,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_workflows_event_types()
     register_execution_event_types()
     register_marketplace_event_types()
+    register_trust_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -272,8 +283,27 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             startup_errors["marketplace_scheduler"] = str(exc)
             LOGGER.warning("Failed to start marketplace scheduler: %s", exc)
     try:
+        await _load_trust_runtime_assets(app)
+    except Exception as exc:
+        app.state.degraded = True
+        startup_errors["trust_runtime_assets"] = str(exc)
+        LOGGER.warning("Failed to initialize trust runtime assets: %s", exc)
+    trust_certifier_scheduler = getattr(app.state, "trust_certifier_scheduler", None)
+    if trust_certifier_scheduler is not None:
+        try:
+            trust_certifier_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["trust_certifier_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start trust certifier scheduler: %s", exc)
+    try:
         yield
     finally:
+        if trust_certifier_scheduler is not None:
+            try:
+                trust_certifier_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop trust certifier scheduler cleanly: %s", exc)
         if marketplace_scheduler is not None:
             try:
                 marketplace_scheduler.shutdown(wait=False)
@@ -359,6 +389,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.workflow_execution_scheduler = None
     app.state.workflow_scheduler = None
     app.state.marketplace_scheduler = None
+    app.state.trust_certifier_scheduler = None
     if resolved.profile == "worker":
         app.state.analytics_consumer = AnalyticsPipelineConsumer(
             settings=resolved,
@@ -378,6 +409,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.workflow_execution_scheduler = _build_workflow_execution_scheduler(app)
         app.state.workflow_scheduler = app.state.workflow_execution_scheduler
         app.state.marketplace_scheduler = _build_marketplace_scheduler(app)
+    if resolved.profile == "trust-certifier":
+        app.state.trust_certifier_scheduler = _build_trust_certifier_scheduler(app)
     if resolved.profile in {"scheduler", "context-engineering"}:
         app.state.context_engineering_drift_scheduler = _build_context_engineering_scheduler(app)
     exception_handler = cast(
@@ -438,6 +471,36 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
                 "marketplace-quality-signals",
                 _build_marketplace_quality_handler(app, "handle_trust_event"),
             )
+            consumer_manager.subscribe(
+                "registry.events",
+                f"{resolved.kafka.consumer_group}-trust-recertification",
+                _build_trust_registry_handler(app),
+            )
+            consumer_manager.subscribe(
+                "policy.events",
+                f"{resolved.kafka.consumer_group}-trust-recertification",
+                _build_trust_policy_handler(app),
+            )
+            consumer_manager.subscribe(
+                "workflow.runtime",
+                f"{resolved.kafka.consumer_group}-trust-runtime",
+                _build_trust_runtime_handler(app),
+            )
+            consumer_manager.subscribe(
+                "simulation.events",
+                f"{resolved.kafka.consumer_group}-trust-ate",
+                _build_trust_simulation_handler(app),
+            )
+            consumer_manager.subscribe(
+                "trust.events",
+                f"{resolved.kafka.consumer_group}-trust-tier",
+                _build_trust_event_handler(app),
+            )
+            consumer_manager.subscribe(
+                "trust.events",
+                f"{resolved.kafka.consumer_group}-trust-prescreener",
+                _build_trust_prescreener_handler(app),
+            )
 
     api_router = APIRouter(prefix="/api/v1")
 
@@ -462,6 +525,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(policies_router)
         app.include_router(workflows_router)
         app.include_router(execution_router)
+        app.include_router(trust_router, prefix="/api/v1/trust")
 
     setup_telemetry(
         service_name=f"{resolved.otel.service_name}-{resolved.profile}",
@@ -1189,6 +1253,257 @@ def _build_marketplace_quality_handler(
                     "Marketplace quality consumer failed",
                     extra={"handler": method_name},
                 )
+
+    return _handle
+
+
+async def _load_trust_runtime_assets(app: FastAPI) -> None:
+    async with database.AsyncSessionLocal() as session:
+        prescreener_service = build_prescreener_service(
+            session=session,
+            settings=cast(PlatformSettings, app.state.settings),
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+            object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+        )
+        await prescreener_service.load_active_rules()
+        circuit_breaker_service = build_circuit_breaker_service(
+            session=session,
+            settings=cast(PlatformSettings, app.state.settings),
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+            runtime_controller=cast(
+                RuntimeControllerClient | None,
+                app.state.clients.get("runtime_controller"),
+            ),
+        )
+        await circuit_breaker_service.load_script()
+
+
+def _build_trust_certifier_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+        trigger_module = __import__(
+            "apscheduler.triggers.cron",
+            fromlist=["CronTrigger"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+    cron_trigger = trigger_module.CronTrigger
+
+    async def _run_expire_stale() -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = build_certification_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            try:
+                await service.expire_stale()
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Trust certification stale expiry scan failed")
+
+    async def _run_expiry_approaching_scan() -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = build_recertification_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            try:
+                await service.scan_expiry_approaching()
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Trust recertification expiry scan failed")
+
+    async def _run_ate_timeout_scan() -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = build_ate_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                simulation_controller=cast(
+                    SimulationControllerClient | None,
+                    app.state.clients.get("simulation_controller"),
+                ),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+            )
+            try:
+                await service.scan_timed_out_runs()
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Trust ATE timeout scan failed")
+
+    scheduler.add_job(_run_expire_stale, "interval", hours=1, id="trust-expire-stale")
+    scheduler.add_job(
+        _run_expiry_approaching_scan,
+        cron_trigger(hour=0, minute=5, timezone="UTC"),
+        id="trust-recertification-expiry-approaching",
+    )
+    scheduler.add_job(
+        _run_ate_timeout_scan,
+        "interval",
+        minutes=5,
+        id="trust-ate-timeout-scan",
+    )
+    return scheduler
+
+
+def _build_trust_registry_handler(app: FastAPI) -> Callable[[Any], Awaitable[None]]:
+    async def _handle(envelope: Any) -> None:
+        payload = envelope.payload
+        if payload.get("event_type") not in {None, "agent_revision.published"}:
+            return
+        async with database.AsyncSessionLocal() as session:
+            service = build_recertification_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            try:
+                await service.handle_registry_event(payload)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Trust registry consumer failed")
+
+    return _handle
+
+
+def _build_trust_policy_handler(app: FastAPI) -> Callable[[Any], Awaitable[None]]:
+    async def _handle(envelope: Any) -> None:
+        payload = envelope.payload
+        if payload.get("event_type") not in {None, "policy.updated"}:
+            return
+        async with database.AsyncSessionLocal() as session:
+            service = build_recertification_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            try:
+                await service.handle_policy_event(payload)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Trust policy consumer failed")
+
+    return _handle
+
+
+def _build_trust_runtime_handler(app: FastAPI) -> Callable[[Any], Awaitable[None]]:
+    async def _handle(envelope: Any) -> None:
+        payload = envelope.payload
+        event_type = payload.get("event_type")
+        if event_type not in {"execution.guardrail_failed", "conformance_failed"}:
+            return
+        async with database.AsyncSessionLocal() as session:
+            circuit_breaker_service = build_circuit_breaker_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                runtime_controller=cast(
+                    RuntimeControllerClient | None,
+                    app.state.clients.get("runtime_controller"),
+                ),
+            )
+            recertification_service = build_recertification_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            try:
+                agent_id = payload.get("agent_id")
+                workspace_id = payload.get("workspace_id")
+                if isinstance(agent_id, str) and isinstance(workspace_id, str):
+                    await circuit_breaker_service.record_failure(
+                        agent_id,
+                        workspace_id,
+                        execution_id=payload.get("execution_id"),
+                        fleet_id=payload.get("fleet_id"),
+                    )
+                await recertification_service.handle_runtime_event(payload)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Trust workflow runtime consumer failed")
+
+    return _handle
+
+
+def _build_trust_simulation_handler(app: FastAPI) -> Callable[[Any], Awaitable[None]]:
+    async def _handle(envelope: Any) -> None:
+        payload = envelope.payload
+        if payload.get("event_type") not in {None, "simulation.completed"}:
+            return
+        async with database.AsyncSessionLocal() as session:
+            service = build_ate_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                simulation_controller=cast(
+                    SimulationControllerClient | None,
+                    app.state.clients.get("simulation_controller"),
+                ),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+            )
+            try:
+                await service.handle_simulation_completed(payload)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Trust simulation consumer failed")
+
+    return _handle
+
+
+def _build_trust_event_handler(app: FastAPI) -> Callable[[Any], Awaitable[None]]:
+    async def _handle(envelope: Any) -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = build_trust_tier_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            try:
+                await service.handle_trust_event(envelope.payload)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Trust event consumer failed")
+
+    return _handle
+
+
+def _build_trust_prescreener_handler(app: FastAPI) -> Callable[[Any], Awaitable[None]]:
+    async def _handle(envelope: Any) -> None:
+        payload = envelope.payload
+        if payload.get("event_type") not in {None, "prescreener.rule_set.activated"}:
+            return
+        async with database.AsyncSessionLocal() as session:
+            service = build_prescreener_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+            )
+            try:
+                await service.handle_rule_set_activated(payload)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Trust prescreener consumer failed")
 
     return _handle
 

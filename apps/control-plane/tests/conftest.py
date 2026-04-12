@@ -1,35 +1,42 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator, Iterator
 import importlib.util
 import os
-from pathlib import Path
 import socket
-from tempfile import TemporaryDirectory
 import time
+from collections.abc import AsyncIterator, Iterator
+from pathlib import Path
+from platform.common.clients.clickhouse import AsyncClickHouseClient
+from platform.common.clients.neo4j import AsyncNeo4jClient
+from platform.common.clients.object_storage import AsyncObjectStorageClient
+from platform.common.clients.opensearch import AsyncOpenSearchClient
+from platform.common.clients.qdrant import AsyncQdrantClient
+from platform.common.clients.redis import AsyncRedisClient
+from platform.common.config import PlatformSettings, Settings
+from tempfile import TemporaryDirectory
+from unittest.mock import AsyncMock
 from urllib import request
 from uuid import uuid4
 
 import boto3
+import pytest
+import pytest_asyncio
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-import pytest
-import pytest_asyncio
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from testcontainers.core.container import DockerContainer
 from testcontainers.postgres import PostgresContainer
 from testcontainers.redis import RedisContainer
 
 from helpers import make_async_database_url, run_alembic
-from platform.common.clients.clickhouse import AsyncClickHouseClient
-from platform.common.clients.opensearch import AsyncOpenSearchClient
-from platform.common.clients.object_storage import AsyncObjectStorageClient
-from platform.common.clients.neo4j import AsyncNeo4jClient
-from platform.common.clients.qdrant import AsyncQdrantClient
-from platform.common.config import PlatformSettings, Settings
-from platform.common.clients.redis import AsyncRedisClient
+from tests.trust_support import FakeObjectStorage, FakeTrustRedisClient
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 NEO4J_INIT_CYPHER = REPO_ROOT / "deploy" / "neo4j" / "init.cypher"
@@ -81,8 +88,10 @@ async def async_engine(migrated_database_url: str) -> AsyncIterator[AsyncEngine]
 
 
 @pytest.fixture
-async def session_factory(async_engine: AsyncEngine) -> AsyncIterator[async_sessionmaker[AsyncSession]]:
-    yield async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
+async def session_factory(
+    async_engine: AsyncEngine,
+) -> AsyncIterator[async_sessionmaker[AsyncSession]]:
+    return async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
 
 @pytest.fixture(scope="session")
@@ -219,7 +228,9 @@ def object_storage_settings(
 
 
 @pytest_asyncio.fixture
-async def object_storage_client(object_storage_settings: Settings) -> AsyncIterator[AsyncObjectStorageClient]:
+async def object_storage_client(
+    object_storage_settings: Settings,
+) -> AsyncIterator[AsyncObjectStorageClient]:
     client = AsyncObjectStorageClient(object_storage_settings)
     yield client
 
@@ -232,10 +243,14 @@ def auth_settings() -> PlatformSettings:
         format=serialization.PrivateFormat.PKCS8,
         encryption_algorithm=serialization.NoEncryption(),
     ).decode("utf-8")
-    public_pem = private_key.public_key().public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    ).decode("utf-8")
+    public_pem = (
+        private_key.public_key()
+        .public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        .decode("utf-8")
+    )
     return PlatformSettings(
         AUTH_JWT_PRIVATE_KEY=private_pem,
         AUTH_JWT_PUBLIC_KEY=public_pem,
@@ -306,7 +321,9 @@ async def qdrant_client(qdrant_settings: Settings) -> AsyncIterator[AsyncQdrantC
 
 
 @pytest_asyncio.fixture
-async def qdrant_test_collection(qdrant_client: AsyncQdrantClient, qdrant_settings: Settings) -> AsyncIterator[str]:
+async def qdrant_test_collection(
+    qdrant_client: AsyncQdrantClient, qdrant_settings: Settings
+) -> AsyncIterator[str]:
     qdrant_models = __import__("qdrant_client.models", fromlist=["models"])
     collection_name = f"test-{uuid4().hex}"
     await qdrant_client.create_collection_if_not_exists(
@@ -491,7 +508,9 @@ async def clickhouse_client(clickhouse_settings: Settings) -> AsyncIterator[Asyn
 
 
 def _load_opensearch_init_module():
-    spec = importlib.util.spec_from_file_location("musematic_opensearch_init", OPENSEARCH_INIT_SCRIPT)
+    spec = importlib.util.spec_from_file_location(
+        "musematic_opensearch_init", OPENSEARCH_INIT_SCRIPT
+    )
     if spec is None or spec.loader is None:  # pragma: no cover - broken workspace
         raise RuntimeError(f"Unable to load OpenSearch init script from {OPENSEARCH_INIT_SCRIPT}")
     module = importlib.util.module_from_spec(spec)
@@ -567,7 +586,9 @@ def opensearch_server() -> Iterator[dict[str, object]]:
             "password": os.environ.get("OPENSEARCH_TEST_PASSWORD", ""),
             "snapshot_type": os.environ.get("OPENSEARCH_TEST_SNAPSHOT_TYPE", "fs"),
             "snapshot_location": os.environ.get("OPENSEARCH_TEST_SNAPSHOT_LOCATION"),
-            "snapshot_endpoint": os.environ.get("OPENSEARCH_TEST_SNAPSHOT_ENDPOINT", "http://musematic-minio:9000"),
+            "snapshot_endpoint": os.environ.get(
+                "OPENSEARCH_TEST_SNAPSHOT_ENDPOINT", "http://musematic-minio:9000"
+            ),
         }
         return
 
@@ -635,3 +656,41 @@ async def initialized_opensearch_client(
 ) -> AsyncIterator[AsyncOpenSearchClient]:
     await _apply_opensearch_init(opensearch_client, opensearch_init_module, opensearch_server)
     yield opensearch_client
+
+
+@pytest.fixture
+def mock_policy_governance_engine() -> AsyncMock:
+    engine = AsyncMock()
+    engine.evaluate_tool_access.return_value = True
+    engine.evaluate_memory_write.return_value = True
+    engine.check_privacy_compliance.return_value = {
+        "compliant": True,
+        "blocked": False,
+        "violations": [],
+    }
+    return engine
+
+
+@pytest.fixture
+def mock_runtime_controller_client() -> AsyncMock:
+    client = AsyncMock()
+    client.stop_runtime.return_value = None
+    client.pause_workflow.return_value = None
+    return client
+
+
+@pytest.fixture
+def mock_simulation_controller_client() -> AsyncMock:
+    client = AsyncMock()
+    client.create_simulation.return_value = {"simulation_id": "sim-fixture"}
+    return client
+
+
+@pytest.fixture
+def mock_minio_trust() -> FakeObjectStorage:
+    return FakeObjectStorage()
+
+
+@pytest.fixture
+def trust_redis_test_client() -> FakeTrustRedisClient:
+    return FakeTrustRedisClient()
