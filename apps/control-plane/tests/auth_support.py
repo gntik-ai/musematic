@@ -84,6 +84,20 @@ class FakeAsyncRedisClient:
     async def _get_client(self) -> MemoryRedis:
         return self.client
 
+    async def get(self, key: str) -> bytes | None:
+        value = await self.client.get(key)
+        if value is None:
+            return None
+        if isinstance(value, bytes):
+            return value
+        return str(value).encode()
+
+    async def set(self, key: str, value: bytes, ttl: int | None = None) -> None:
+        await self.client.set(key, value, ex=ttl)
+
+    async def delete(self, key: str) -> None:
+        await self.client.delete(key)
+
     async def connect(self) -> None:
         return None
 

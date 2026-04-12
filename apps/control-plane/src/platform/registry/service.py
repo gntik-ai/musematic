@@ -84,9 +84,7 @@ def build_search_document(
     revision: AgentRevision | None,
 ) -> dict[str, Any]:
     namespace_name = (
-        profile.namespace.name
-        if profile.namespace is not None
-        else profile.fqn.split(":", 1)[0]
+        profile.namespace.name if profile.namespace is not None else profile.fqn.split(":", 1)[0]
     )
     return {
         "agent_profile_id": str(profile.id),
@@ -358,6 +356,12 @@ class RegistryService:
 
         fetch_limit = max(params.limit + params.offset, 200)
         if params.keyword:
+            visibility_filter = None
+            if requesting_agent_id is not None:
+                visibility_filter = await self.resolve_effective_visibility(
+                    requesting_agent_id,
+                    workspace_id,
+                )
             agent_ids, _ = await self.repository.search_by_keyword(
                 workspace_id=workspace_id,
                 keyword=params.keyword,
@@ -367,26 +371,28 @@ class RegistryService:
                 offset=0,
                 index_name=self.settings.registry.search_index,
             )
-            profiles = await self.repository.get_agents_by_ids(workspace_id, agent_ids)
+            profiles = await self.repository.get_agents_by_ids(
+                workspace_id,
+                agent_ids,
+                visibility_filter=visibility_filter,
+            )
+            visible_profiles = profiles
         else:
-            profiles, _ = await self.repository.list_agents_by_workspace(
+            visibility_filter = None
+            if requesting_agent_id is not None:
+                visibility_filter = await self.resolve_effective_visibility(
+                    requesting_agent_id,
+                    workspace_id,
+                )
+            visible_profiles, total = await self.repository.list_agents_by_workspace(
                 workspace_id,
                 status=params.status,
                 maturity_min=params.maturity_min,
                 limit=fetch_limit,
                 offset=0,
+                visibility_filter=visibility_filter,
             )
-
-        visible_profiles = profiles
-        if requesting_agent_id is not None:
-            effective_visibility = await self.resolve_effective_visibility(
-                requesting_agent_id,
-                workspace_id,
-            )
-            visible_profiles = filter_profiles_by_patterns(
-                profiles,
-                effective_visibility.agent_patterns,
-            )
+            del total
 
         if params.fqn_pattern:
             visible_profiles = [
@@ -597,9 +603,7 @@ class RegistryService:
             workspace_id=profile.workspace_id,
             created_at=profile.created_at,
             current_revision=(
-                self._revision_response(current_revision)
-                if current_revision is not None
-                else None
+                self._revision_response(current_revision) if current_revision is not None else None
             ),
         )
 
@@ -662,8 +666,7 @@ class RegistryService:
             workspace_id,
         )
         if not any(
-            fqn_matches(pattern, profile.fqn)
-            for pattern in effective_visibility.agent_patterns
+            fqn_matches(pattern, profile.fqn) for pattern in effective_visibility.agent_patterns
         ):
             raise AgentNotFoundError(profile.id)
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from platform.common.clients.opensearch import AsyncOpenSearchClient
 from platform.registry.models import (
@@ -15,10 +16,12 @@ from platform.registry.models import (
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import false, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import Select
+
+_WILDCARD_PATTERN = re.compile(r"^[A-Za-z0-9:_*.-]+$")
 
 
 class RegistryRepository:
@@ -177,6 +180,7 @@ class RegistryRepository:
         maturity_min: int,
         limit: int,
         offset: int,
+        visibility_filter: Any | None = None,
     ) -> tuple[list[AgentProfile], int]:
         filters = [
             AgentProfile.workspace_id == workspace_id,
@@ -184,6 +188,7 @@ class RegistryRepository:
         ]
         if status is not None:
             filters.append(AgentProfile.status == status)
+        filters.append(self._visibility_predicate(visibility_filter))
 
         total = await self.session.scalar(
             select(func.count()).select_from(AgentProfile).where(*filters)
@@ -201,6 +206,8 @@ class RegistryRepository:
         self,
         workspace_id: UUID,
         agent_ids: Sequence[UUID],
+        *,
+        visibility_filter: Any | None = None,
     ) -> list[AgentProfile]:
         if not agent_ids:
             return []
@@ -208,6 +215,7 @@ class RegistryRepository:
             self._profile_query().where(
                 AgentProfile.workspace_id == workspace_id,
                 AgentProfile.id.in_(list(agent_ids)),
+                self._visibility_predicate(visibility_filter),
             )
         )
         profiles = list(result.scalars().all())
@@ -403,3 +411,25 @@ class RegistryRepository:
 
     def _profile_query(self) -> Select[tuple[AgentProfile]]:
         return select(AgentProfile).options(selectinload(AgentProfile.namespace))
+
+    def _visibility_predicate(self, visibility_filter: Any | None) -> Any:
+        patterns = list(getattr(visibility_filter, "agent_patterns", []) or [])
+        if not patterns:
+            return false()
+
+        predicates: list[Any] = []
+        for pattern in patterns:
+            normalized = str(pattern).strip()
+            if not normalized:
+                continue
+            if "*" not in normalized and _WILDCARD_PATTERN.fullmatch(normalized):
+                predicates.append(AgentProfile.fqn == normalized)
+                continue
+            if _WILDCARD_PATTERN.fullmatch(normalized):
+                predicates.append(AgentProfile.fqn.like(normalized.replace("*", "%")))
+                continue
+            predicates.append(AgentProfile.fqn.op("~")(normalized))
+
+        if not predicates:
+            return false()
+        return or_(*predicates)
