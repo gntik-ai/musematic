@@ -92,6 +92,22 @@ approval_timeout_action = postgresql.ENUM(
 )
 
 
+LEGACY_EXECUTION_EVENTS_TABLE = "legacy_execution_events"
+
+
+def _has_table(bind: sa.engine.Connection, table_name: str) -> bool:
+    return sa.inspect(bind).has_table(table_name)
+
+
+def _should_rename_legacy_execution_events(bind: sa.engine.Connection) -> bool:
+    if not _has_table(bind, "execution_events"):
+        return False
+    columns = {
+        column["name"] for column in sa.inspect(bind).get_columns("execution_events")
+    }
+    return "occurred_at" in columns and "sequence" not in columns
+
+
 def upgrade() -> None:
     bind = op.get_bind()
     workflow_status.create(bind, checkfirst=True)
@@ -101,6 +117,8 @@ def upgrade() -> None:
     approval_decision.create(bind, checkfirst=True)
     compensation_outcome.create(bind, checkfirst=True)
     approval_timeout_action.create(bind, checkfirst=True)
+    if _should_rename_legacy_execution_events(bind):
+        op.rename_table("execution_events", LEGACY_EXECUTION_EVENTS_TABLE)
 
     op.create_table(
         "workflow_definitions",
@@ -776,6 +794,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    bind = op.get_bind()
+
     op.drop_index(
         "ix_execution_compensation_records_execution_id",
         table_name="execution_compensation_records",
@@ -821,6 +841,8 @@ def downgrade() -> None:
     op.drop_index("ix_execution_events_execution_type", table_name="execution_events")
     op.drop_index("uq_execution_events_execution_sequence", table_name="execution_events")
     op.drop_table("execution_events")
+    if _has_table(bind, LEGACY_EXECUTION_EVENTS_TABLE):
+        op.rename_table(LEGACY_EXECUTION_EVENTS_TABLE, "execution_events")
 
     op.drop_index("ix_executions_correlation_goal_id", table_name="executions")
     op.drop_index("ix_executions_workflow_definition_id", table_name="executions")
