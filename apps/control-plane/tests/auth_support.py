@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from fnmatch import fnmatch
 from typing import Any
 from uuid import UUID
 
@@ -75,6 +76,19 @@ class MemoryRedis:
 
     async def ping(self) -> bool:
         return True
+
+    async def scan(
+        self,
+        *,
+        cursor: int = 0,
+        match: str | None = None,
+        count: int | None = None,
+    ) -> tuple[int, list[str]]:
+        del cursor, count
+        keys = list(self.strings.keys())
+        if match is not None:
+            keys = [key for key in keys if fnmatch(key, match)]
+        return 0, keys
 
 
 class FakeAsyncRedisClient:

@@ -51,6 +51,8 @@ importlib.import_module("platform.policies.models")
 importlib.import_module("platform.workflows.models")
 importlib.import_module("platform.execution.models")
 importlib.import_module("platform.trust.models")
+importlib.import_module("platform.fleets.models")
+importlib.import_module("platform.fleet_learning.models")
 
 config = context.config
 
