@@ -255,6 +255,16 @@ class ConnectorsSettings(BaseSettings):
     vault_mock_secrets_file: str = ".vault-secrets.json"
 
 
+class TrustSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="TRUST_", extra="ignore")
+
+    evidence_bucket: str = "trust-evidence"
+    output_moderation_url: str = ""
+    recertification_expiry_threshold_days: int = 30
+    attention_target_identity: str = "platform_admin"
+    default_workspace_id: str = "00000000-0000-0000-0000-000000000000"
+
+
 class PlatformSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="PLATFORM_", extra="ignore")
 
@@ -280,6 +290,7 @@ class PlatformSettings(BaseSettings):
     memory: MemorySettings = Field(default_factory=MemorySettings)
     interactions: InteractionsSettings = Field(default_factory=InteractionsSettings)
     connectors: ConnectorsSettings = Field(default_factory=ConnectorsSettings)
+    trust: TrustSettings = Field(default_factory=TrustSettings)
     profile: str = "api"
 
     @model_validator(mode="before")
@@ -476,6 +487,14 @@ class PlatformSettings(BaseSettings):
             "EMAIL_POLL_INTERVAL_SECONDS": ("connectors", "email_poll_interval_seconds"),
             "VAULT_MODE": ("connectors", "vault_mode"),
             "VAULT_MOCK_SECRETS_FILE": ("connectors", "vault_mock_secrets_file"),
+            "TRUST_EVIDENCE_BUCKET": ("trust", "evidence_bucket"),
+            "TRUST_OUTPUT_MODERATION_URL": ("trust", "output_moderation_url"),
+            "TRUST_RECERTIFICATION_EXPIRY_THRESHOLD_DAYS": (
+                "trust",
+                "recertification_expiry_threshold_days",
+            ),
+            "TRUST_ATTENTION_TARGET_IDENTITY": ("trust", "attention_target_identity"),
+            "TRUST_DEFAULT_WORKSPACE_ID": ("trust", "default_workspace_id"),
             "WS_CLIENT_BUFFER_SIZE": ("ws_hub", "client_buffer_size"),
             "WS_HEARTBEAT_INTERVAL_SECONDS": ("ws_hub", "heartbeat_interval_seconds"),
             "WS_HEARTBEAT_TIMEOUT_SECONDS": ("ws_hub", "heartbeat_timeout_seconds"),
@@ -955,6 +974,26 @@ class PlatformSettings(BaseSettings):
     @property
     def WS_MAX_MALFORMED_MESSAGES(self) -> int:
         return self.ws_hub.max_malformed_messages
+
+    @property
+    def TRUST_EVIDENCE_BUCKET(self) -> str:
+        return self.trust.evidence_bucket
+
+    @property
+    def TRUST_OUTPUT_MODERATION_URL(self) -> str:
+        return self.trust.output_moderation_url
+
+    @property
+    def TRUST_RECERTIFICATION_EXPIRY_THRESHOLD_DAYS(self) -> int:
+        return self.trust.recertification_expiry_threshold_days
+
+    @property
+    def TRUST_ATTENTION_TARGET_IDENTITY(self) -> str:
+        return self.trust.attention_target_identity
+
+    @property
+    def TRUST_DEFAULT_WORKSPACE_ID(self) -> str:
+        return self.trust.default_workspace_id
 
 
 Settings = PlatformSettings
