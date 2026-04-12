@@ -160,6 +160,12 @@ class RegistryRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_agent_by_id_any(self, agent_id: UUID) -> AgentProfile | None:
+        result = await self.session.execute(
+            self._profile_query().where(AgentProfile.id == agent_id)
+        )
+        return result.scalar_one_or_none()
+
     async def get_agent_by_fqn(self, workspace_id: UUID, fqn: str) -> AgentProfile | None:
         result = await self.session.execute(
             self._profile_query().where(

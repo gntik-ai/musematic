@@ -567,6 +567,14 @@ class RegistryService:
             tool_patterns=self._dedupe(tool_patterns),
         )
 
+    async def get_agent_namespace_owner(self, agent_id: UUID) -> UUID | None:
+        profile = await self.repository.get_agent_by_id_any(agent_id)
+        if profile is None:
+            return None
+        if profile.namespace is not None and profile.namespace.created_by is not None:
+            return profile.namespace.created_by
+        return profile.created_by
+
     async def _get_workspace_visibility(self, workspace_id: UUID) -> EffectiveVisibility:
         if self.workspaces_service is None:
             return EffectiveVisibility([], [])

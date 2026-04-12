@@ -512,6 +512,12 @@ class WorkspacesService:
             return None
         return self._visibility_response(visibility)
 
+    async def get_visibility_config(
+        self,
+        workspace_id: UUID,
+    ) -> VisibilityGrantResponse | None:
+        return await self.get_workspace_visibility_grant(workspace_id)
+
     async def get_settings(self, workspace_id: UUID, requester_id: UUID) -> SettingsResponse:
         await self._require_membership(workspace_id, requester_id, WorkspaceRole.viewer)
         settings = await self.repo.get_settings(workspace_id)
