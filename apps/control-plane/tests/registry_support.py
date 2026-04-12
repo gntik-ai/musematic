@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import re
 import stat
 import tarfile
 import zipfile
@@ -44,6 +45,20 @@ from tests.auth_support import RecordingProducer
 
 def build_registry_settings(**overrides: Any) -> PlatformSettings:
     return PlatformSettings(**overrides)
+
+
+def _matches_visibility_patterns(fqn: str, patterns: list[str]) -> bool:
+    if not patterns:
+        return False
+    for pattern in patterns:
+        if "*" in pattern and re.fullmatch(r"[A-Za-z0-9:_*.-]+", pattern):
+            regex = "^" + re.escape(pattern).replace(r"\*", ".*") + "$"
+            if re.fullmatch(regex, fqn):
+                return True
+            continue
+        if re.fullmatch(pattern, fqn):
+            return True
+    return False
 
 
 def build_manifest_payload(**overrides: Any) -> dict[str, Any]:
@@ -658,6 +673,7 @@ class RegistryRepoStub:
         maturity_min: int,
         limit: int,
         offset: int,
+        visibility_filter: Any | None = None,
     ) -> tuple[list[AgentProfile], int]:
         profiles = [
             profile
@@ -665,6 +681,13 @@ class RegistryRepoStub:
             if profile.workspace_id == workspace_id
             and profile.maturity_level >= maturity_min
             and (status is None or profile.status == status)
+            and (
+                visibility_filter is None
+                or _matches_visibility_patterns(
+                    profile.fqn,
+                    list(getattr(visibility_filter, "agent_patterns", []) or []),
+                )
+            )
         ]
         profiles.sort(key=lambda profile: (profile.created_at, profile.id))
         return profiles[offset : offset + limit], len(profiles)
@@ -673,11 +696,20 @@ class RegistryRepoStub:
         self,
         workspace_id: UUID,
         agent_ids: list[UUID],
+        *,
+        visibility_filter: Any | None = None,
     ) -> list[AgentProfile]:
         return [
             profile
             for agent_id in agent_ids
             if (profile := await self.get_agent_by_id(workspace_id, agent_id)) is not None
+            and (
+                visibility_filter is None
+                or _matches_visibility_patterns(
+                    profile.fqn,
+                    list(getattr(visibility_filter, "agent_patterns", []) or []),
+                )
+            )
         ]
 
     async def insert_revision(

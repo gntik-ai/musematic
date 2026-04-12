@@ -58,6 +58,9 @@ from platform.memory.embedding_worker import EmbeddingWorker
 from platform.memory.events import register_memory_event_types
 from platform.memory.memory_setup import setup_memory_collections
 from platform.memory.router import router as memory_router
+from platform.policies.dependencies import build_policy_service
+from platform.policies.events import PolicyEventConsumer, register_policies_event_types
+from platform.policies.router import router as policies_router
 from platform.registry.dependencies import build_registry_service
 from platform.registry.events import register_registry_event_types
 from platform.registry.index_worker import RegistryIndexWorker
@@ -69,7 +72,7 @@ from platform.workspaces.dependencies import build_workspaces_service
 from platform.workspaces.events import register_workspaces_event_types
 from platform.workspaces.router import router as workspaces_router
 from typing import Any, cast
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.responses import Response
@@ -109,6 +112,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_memory_event_types()
     register_interactions_event_types()
     register_connectors_event_types()
+    register_policies_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -327,6 +331,9 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
             redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
             producer=cast(EventProducer | None, app.state.clients.get("kafka")),
         ).register(consumer_manager)
+        PolicyEventConsumer(
+            invalidate_bundle_by_revision=_build_policy_bundle_invalidator(app),
+        ).register(consumer_manager)
         if resolved.profile == "worker" and resolved.connectors.worker_enabled:
             consumer_manager.subscribe(
                 resolved.connectors.delivery_topic,
@@ -353,6 +360,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(memory_router)
         app.include_router(interactions_router)
         app.include_router(connectors_router)
+        app.include_router(policies_router)
 
     setup_telemetry(
         service_name=f"{resolved.otel.service_name}-{resolved.profile}",
@@ -455,7 +463,18 @@ def _build_context_engineering_scheduler(app: FastAPI) -> Any | None:
                 interactions_service=interactions_service,
                 memory_service=memory_service,
                 connectors_service=None,
-                policies_service=None,
+                policies_service=build_policy_service(
+                    session=session,
+                    settings=cast(PlatformSettings, app.state.settings),
+                    producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                    redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                    registry_service=registry_service,
+                    workspaces_service=workspaces_service,
+                    reasoning_client=cast(
+                        ReasoningEngineClient | None,
+                        app.state.clients.get("reasoning_engine"),
+                    ),
+                ),
             )
             await DriftMonitorTask(service).run()
 
@@ -625,6 +644,43 @@ def _build_connector_delivery_handler(
                 )
 
     return _handle
+
+
+def _build_policy_bundle_invalidator(
+    app: FastAPI,
+) -> Callable[[str], Awaitable[None]]:
+    async def _invalidate(revision_id: str) -> None:
+        async with database.AsyncSessionLocal() as session:
+            workspaces_service = build_workspaces_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                accounts_service=None,
+            )
+            registry_service = build_registry_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                opensearch=cast(AsyncOpenSearchClient, app.state.clients["opensearch"]),
+                qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
+                workspaces_service=workspaces_service,
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            service = build_policy_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                registry_service=registry_service,
+                workspaces_service=workspaces_service,
+                reasoning_client=cast(
+                    ReasoningEngineClient | None,
+                    app.state.clients.get("reasoning_engine"),
+                ),
+            )
+            await service.invalidate_bundle_by_revision(revision_id)
+
+    return _invalidate
 
 
 def _build_connectors_worker_scheduler(app: FastAPI) -> Any | None:
