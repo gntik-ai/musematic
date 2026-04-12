@@ -4,6 +4,7 @@ import logging
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
 from fnmatch import fnmatch
 from platform.accounts.events import register_accounts_event_types
 from platform.accounts.router import router as accounts_router
@@ -58,6 +59,13 @@ from platform.execution.events import (
 from platform.execution.models import ExecutionEventType, ExecutionStatus
 from platform.execution.router import router as execution_router
 from platform.execution.schemas import ExecutionCreate
+from platform.fleet_learning.dependencies import build_adaptation_service, build_performance_service
+from platform.fleet_learning.router import router as fleet_learning_router
+from platform.fleets.dependencies import build_fleet_service, build_health_service
+from platform.fleets.events import register_fleet_event_types
+from platform.fleets.repository import FleetMemberRepository
+from platform.fleets.router import router as fleets_router
+from platform.fleets.service import route_execution_event_to_observers
 from platform.interactions.dependencies import build_interactions_service
 from platform.interactions.events import register_interactions_event_types
 from platform.interactions.router import router as interactions_router
@@ -153,6 +161,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_execution_event_types()
     register_marketplace_event_types()
     register_trust_event_types()
+    register_fleet_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -254,6 +263,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     connectors_worker_scheduler = getattr(app.state, "connectors_worker_scheduler", None)
     workflow_execution_scheduler = getattr(app.state, "workflow_execution_scheduler", None)
     marketplace_scheduler = getattr(app.state, "marketplace_scheduler", None)
+    fleet_learning_scheduler = getattr(app.state, "fleet_learning_scheduler", None)
     if memory_scheduler is not None:
         try:
             memory_scheduler.start()
@@ -282,6 +292,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["marketplace_scheduler"] = str(exc)
             LOGGER.warning("Failed to start marketplace scheduler: %s", exc)
+    if fleet_learning_scheduler is not None:
+        try:
+            fleet_learning_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["fleet_learning_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start fleet learning scheduler: %s", exc)
     try:
         await _load_trust_runtime_assets(app)
     except Exception as exc:
@@ -309,6 +326,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                 marketplace_scheduler.shutdown(wait=False)
             except Exception as exc:
                 LOGGER.warning("Failed to stop marketplace scheduler cleanly: %s", exc)
+        if fleet_learning_scheduler is not None:
+            try:
+                fleet_learning_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop fleet learning scheduler cleanly: %s", exc)
         if workflow_execution_scheduler is not None:
             try:
                 workflow_execution_scheduler.shutdown(wait=False)
@@ -389,6 +411,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.workflow_execution_scheduler = None
     app.state.workflow_scheduler = None
     app.state.marketplace_scheduler = None
+    app.state.fleet_learning_scheduler = None
     app.state.trust_certifier_scheduler = None
     if resolved.profile == "worker":
         app.state.analytics_consumer = AnalyticsPipelineConsumer(
@@ -409,6 +432,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.workflow_execution_scheduler = _build_workflow_execution_scheduler(app)
         app.state.workflow_scheduler = app.state.workflow_execution_scheduler
         app.state.marketplace_scheduler = _build_marketplace_scheduler(app)
+        app.state.fleet_learning_scheduler = _build_fleet_learning_scheduler(app)
     if resolved.profile == "trust-certifier":
         app.state.trust_certifier_scheduler = _build_trust_certifier_scheduler(app)
     if resolved.profile in {"scheduler", "context-engineering"}:
@@ -501,6 +525,16 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
                 f"{resolved.kafka.consumer_group}-trust-prescreener",
                 _build_trust_prescreener_handler(app),
             )
+            consumer_manager.subscribe(
+                "runtime.lifecycle",
+                f"{resolved.kafka.consumer_group}-fleet-health",
+                _build_fleet_runtime_lifecycle_handler(app),
+            )
+            consumer_manager.subscribe(
+                "workflow.runtime",
+                f"{resolved.kafka.consumer_group}-fleet-observers",
+                _build_fleet_observer_runtime_handler(app),
+            )
 
     api_router = APIRouter(prefix="/api/v1")
 
@@ -526,6 +560,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(workflows_router)
         app.include_router(execution_router)
         app.include_router(trust_router, prefix="/api/v1/trust")
+        app.include_router(fleets_router)
+        app.include_router(fleet_learning_router)
 
     setup_telemetry(
         service_name=f"{resolved.otel.service_name}-{resolved.profile}",
@@ -1232,6 +1268,88 @@ def _build_marketplace_scheduler(app: FastAPI) -> Any | None:
     return scheduler
 
 
+def _build_fleet_learning_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+        trigger_module = __import__(
+            "apscheduler.triggers.cron",
+            fromlist=["CronTrigger"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+    cron_trigger = trigger_module.CronTrigger
+
+    async def _run_compute_profiles() -> None:
+        async with database.AsyncSessionLocal() as session:
+            fleet_service = build_fleet_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                registry_service=None,
+                health_service=None,
+                runtime_controller=cast(
+                    RuntimeControllerClient | None,
+                    app.state.clients.get("runtime_controller"),
+                ),
+            )
+            service = build_performance_service(
+                session=session,
+                clickhouse=cast(AsyncClickHouseClient, app.state.clients["clickhouse"]),
+                fleet_service=fleet_service,
+            )
+            try:
+                now = datetime.now(UTC)
+                period_end = now.replace(hour=0, minute=0, second=0, microsecond=0)
+                period_start = period_end - timedelta(days=1)
+                await service.compute_all_profiles(period_start, period_end)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Fleet performance profile scheduler failed")
+
+    async def _run_adaptation_scan() -> None:
+        async with database.AsyncSessionLocal() as session:
+            fleet_service = build_fleet_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                registry_service=None,
+                health_service=None,
+                runtime_controller=cast(
+                    RuntimeControllerClient | None,
+                    app.state.clients.get("runtime_controller"),
+                ),
+            )
+            service = build_adaptation_service(
+                session=session,
+                fleet_service=fleet_service,
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            try:
+                await service.evaluate_all_fleets()
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Fleet adaptation scheduler failed")
+
+    scheduler.add_job(
+        _run_compute_profiles,
+        cron_trigger(hour=1, minute=0),
+        id="fleet-learning-compute-profiles",
+    )
+    scheduler.add_job(
+        _run_adaptation_scan,
+        cron_trigger(hour=1, minute=5),
+        id="fleet-learning-evaluate-adaptations",
+    )
+    return scheduler
+
+
 def _build_marketplace_quality_handler(
     app: FastAPI,
     method_name: str,
@@ -1356,6 +1474,51 @@ def _build_trust_certifier_scheduler(app: FastAPI) -> Any | None:
         id="trust-ate-timeout-scan",
     )
     return scheduler
+
+
+def _build_fleet_runtime_lifecycle_handler(app: FastAPI) -> Callable[[Any], Awaitable[None]]:
+    async def _handle(envelope: Any) -> None:
+        payload = envelope.payload
+        event_type = payload.get("event_type") or envelope.event_type
+        if event_type not in {"runtime.heartbeat_missed", "runtime.started"}:
+            return
+        agent_fqn = payload.get("agent_fqn") or payload.get("source_agent_fqn")
+        if not isinstance(agent_fqn, str) or not agent_fqn:
+            return
+        async with database.AsyncSessionLocal() as session:
+            service = build_health_service(
+                session=session,
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            try:
+                await service.handle_member_availability_change(
+                    agent_fqn,
+                    is_available=event_type == "runtime.started",
+                )
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Fleet runtime lifecycle consumer failed")
+
+    return _handle
+
+
+def _build_fleet_observer_runtime_handler(app: FastAPI) -> Callable[[Any], Awaitable[None]]:
+    async def _handle(envelope: Any) -> None:
+        async with database.AsyncSessionLocal() as session:
+            try:
+                await route_execution_event_to_observers(
+                    envelope,
+                    member_repo=FleetMemberRepository(session),
+                    producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                )
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Fleet observer routing consumer failed")
+
+    return _handle
 
 
 def _build_trust_registry_handler(app: FastAPI) -> Callable[[Any], Awaitable[None]]:
