@@ -4,6 +4,7 @@ import logging
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from fnmatch import fnmatch
 from platform.accounts.events import register_accounts_event_types
 from platform.accounts.router import router as accounts_router
 from platform.analytics.clickhouse_setup import run_setup as run_analytics_clickhouse_setup
@@ -49,6 +50,14 @@ from platform.context_engineering.dependencies import build_context_engineering_
 from platform.context_engineering.drift_monitor import DriftMonitorTask
 from platform.context_engineering.events import register_context_engineering_event_types
 from platform.context_engineering.router import router as context_engineering_router
+from platform.execution.dependencies import build_execution_service, build_scheduler_service
+from platform.execution.events import (
+    register_execution_consumers,
+    register_execution_event_types,
+)
+from platform.execution.models import ExecutionEventType, ExecutionStatus
+from platform.execution.router import router as execution_router
+from platform.execution.schemas import ExecutionCreate
 from platform.interactions.dependencies import build_interactions_service
 from platform.interactions.events import register_interactions_event_types
 from platform.interactions.router import router as interactions_router
@@ -67,6 +76,10 @@ from platform.registry.index_worker import RegistryIndexWorker
 from platform.registry.registry_opensearch_setup import create_marketplace_agents_index
 from platform.registry.registry_qdrant_setup import create_agent_embeddings_collection
 from platform.registry.router import router as registry_router
+from platform.workflows.dependencies import build_workflow_service
+from platform.workflows.events import register_workflows_event_types
+from platform.workflows.models import TriggerType
+from platform.workflows.router import router as workflows_router
 from platform.workspaces.consumer import WorkspacesConsumer
 from platform.workspaces.dependencies import build_workspaces_service
 from platform.workspaces.events import register_workspaces_event_types
@@ -113,6 +126,8 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_interactions_event_types()
     register_connectors_event_types()
     register_policies_event_types()
+    register_workflows_event_types()
+    register_execution_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -212,6 +227,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             LOGGER.warning("Failed to start context engineering scheduler: %s", exc)
     memory_scheduler = getattr(app.state, "memory_scheduler", None)
     connectors_worker_scheduler = getattr(app.state, "connectors_worker_scheduler", None)
+    workflow_execution_scheduler = getattr(app.state, "workflow_execution_scheduler", None)
     if memory_scheduler is not None:
         try:
             memory_scheduler.start()
@@ -226,9 +242,24 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["connectors_worker_scheduler"] = str(exc)
             LOGGER.warning("Failed to start connectors worker scheduler: %s", exc)
+    if workflow_execution_scheduler is not None:
+        try:
+            workflow_execution_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["workflow_execution_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start workflow execution scheduler: %s", exc)
     try:
         yield
     finally:
+        if workflow_execution_scheduler is not None:
+            try:
+                workflow_execution_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning(
+                    "Failed to stop workflow execution scheduler cleanly: %s",
+                    exc,
+                )
         if connectors_worker_scheduler is not None:
             try:
                 connectors_worker_scheduler.shutdown(wait=False)
@@ -298,6 +329,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.context_engineering_drift_scheduler = None
     app.state.memory_scheduler = None
     app.state.connectors_worker_scheduler = None
+    app.state.workflow_execution_scheduler = None
+    app.state.workflow_scheduler = None
     if resolved.profile == "worker":
         app.state.analytics_consumer = AnalyticsPipelineConsumer(
             settings=resolved,
@@ -314,6 +347,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
             )
         if resolved.connectors.worker_enabled:
             app.state.connectors_worker_scheduler = _build_connectors_worker_scheduler(app)
+        app.state.workflow_execution_scheduler = _build_workflow_execution_scheduler(app)
+        app.state.workflow_scheduler = app.state.workflow_execution_scheduler
     if resolved.profile in {"scheduler", "context-engineering"}:
         app.state.context_engineering_drift_scheduler = _build_context_engineering_scheduler(app)
     exception_handler = cast(
@@ -340,6 +375,25 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
                 resolved.connectors.delivery_consumer_group,
                 _build_connector_delivery_handler(app),
             )
+        if resolved.profile == "worker":
+            register_execution_consumers(
+                consumer_manager,
+                group_id=f"{resolved.kafka.consumer_group}-workflow-execution",
+                workflow_runtime_handler=_build_workflow_runtime_handler(app),
+                reasoning_handler=_build_reprioritization_handler(
+                    app,
+                    "budget_threshold_breached",
+                ),
+                fleet_handler=_build_reprioritization_handler(
+                    app,
+                    "resource_constraint_changed",
+                ),
+                workspace_goal_handler=_build_workspace_goal_handler(app),
+                attention_handler=_build_reprioritization_handler(
+                    app,
+                    "external_event",
+                ),
+            )
 
     api_router = APIRouter(prefix="/api/v1")
 
@@ -361,6 +415,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(interactions_router)
         app.include_router(connectors_router)
         app.include_router(policies_router)
+        app.include_router(workflows_router)
+        app.include_router(execution_router)
 
     setup_telemetry(
         service_name=f"{resolved.otel.service_name}-{resolved.profile}",
@@ -616,6 +672,311 @@ def _build_memory_scheduler(app: FastAPI) -> Any | None:
         id="memory-session-cleaner",
     )
     return scheduler
+
+
+def _build_workflow_execution_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+        trigger_module = __import__(
+            "apscheduler.triggers.cron",
+            fromlist=["CronTrigger"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+    cron_trigger = trigger_module.CronTrigger
+
+    async def _fire_cron_trigger(workflow_id: str, trigger_id: str) -> None:
+        async with database.AsyncSessionLocal() as session:
+            workflow_service = build_workflow_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                scheduler=app.state.workflow_scheduler,
+            )
+            execution_service = build_execution_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                runtime_controller=cast(
+                    RuntimeControllerClient | None,
+                    app.state.clients.get("runtime_controller"),
+                ),
+                reasoning_engine=cast(
+                    ReasoningEngineClient | None,
+                    app.state.clients.get("reasoning_engine"),
+                ),
+                context_engineering_service=None,
+            )
+            try:
+                workflow = await workflow_service.get_workflow(UUID(workflow_id))
+                execution = await execution_service.create_execution(
+                    ExecutionCreate(
+                        workflow_definition_id=workflow.id,
+                        trigger_type=TriggerType.cron,
+                        trigger_id=UUID(trigger_id),
+                        input_parameters={},
+                        workspace_id=workflow.workspace_id,
+                    )
+                )
+                await workflow_service.record_trigger_fired(
+                    UUID(trigger_id),
+                    execution_id=execution.id,
+                )
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception(
+                    "Workflow cron trigger failed",
+                    extra={"workflow_id": workflow_id, "trigger_id": trigger_id},
+                )
+
+    async def _load_cron_triggers() -> None:
+        async with database.AsyncSessionLocal() as session:
+            workflow_service = build_workflow_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                scheduler=app.state.workflow_scheduler,
+            )
+            try:
+                triggers = await workflow_service.repository.list_active_triggers_by_type(
+                    TriggerType.cron
+                )
+                for trigger in triggers:
+                    expression = str(trigger.config.get("cron_expression", "")).strip()
+                    timezone = str(trigger.config.get("timezone", "UTC"))
+                    if not expression:
+                        continue
+                    scheduler.add_job(
+                        _fire_cron_trigger,
+                        cron_trigger.from_crontab(expression, timezone=timezone),
+                        id=str(trigger.id),
+                        replace_existing=True,
+                        args=[str(trigger.definition_id), str(trigger.id)],
+                    )
+            except Exception:
+                LOGGER.exception("Failed to load workflow cron triggers")
+
+    async def _run_tick() -> None:
+        async with database.AsyncSessionLocal() as session:
+            scheduler_service = build_scheduler_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                runtime_controller=cast(
+                    RuntimeControllerClient | None,
+                    app.state.clients.get("runtime_controller"),
+                ),
+                reasoning_engine=cast(
+                    ReasoningEngineClient | None,
+                    app.state.clients.get("reasoning_engine"),
+                ),
+                context_engineering_service=None,
+                interactions_service=None,
+            )
+            try:
+                await scheduler_service.tick()
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Workflow execution tick failed")
+
+    async def _run_approval_timeout_scan() -> None:
+        async with database.AsyncSessionLocal() as session:
+            scheduler_service = build_scheduler_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                runtime_controller=cast(
+                    RuntimeControllerClient | None,
+                    app.state.clients.get("runtime_controller"),
+                ),
+                reasoning_engine=cast(
+                    ReasoningEngineClient | None,
+                    app.state.clients.get("reasoning_engine"),
+                ),
+                context_engineering_service=None,
+                interactions_service=None,
+            )
+            try:
+                await scheduler_service.scan_approval_timeouts()
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Workflow approval timeout scan failed")
+
+    scheduler.add_job(_load_cron_triggers, "date", id="workflow-cron-loader")
+    scheduler.add_job(_run_tick, "interval", seconds=1, id="workflow-execution-tick")
+    scheduler.add_job(
+        _run_approval_timeout_scan,
+        "interval",
+        seconds=60,
+        id="workflow-approval-timeout-scan",
+    )
+    return scheduler
+
+
+def _build_workflow_runtime_handler(app: FastAPI) -> Callable[[Any], Awaitable[None]]:
+    async def _handle(envelope: Any) -> None:
+        payload = envelope.payload
+        execution_id = payload.get("execution_id")
+        event_type = payload.get("event_type")
+        if execution_id is None or event_type is None:
+            return
+        async with database.AsyncSessionLocal() as session:
+            service = build_execution_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                runtime_controller=cast(
+                    RuntimeControllerClient | None,
+                    app.state.clients.get("runtime_controller"),
+                ),
+                reasoning_engine=cast(
+                    ReasoningEngineClient | None,
+                    app.state.clients.get("reasoning_engine"),
+                ),
+                context_engineering_service=None,
+            )
+            status_map = {
+                "completed": ExecutionStatus.running,
+                "failed": ExecutionStatus.failed,
+                "runtime_started": ExecutionStatus.running,
+            }
+            event_enum = ExecutionEventType(str(event_type))
+            try:
+                await service.record_runtime_event(
+                    UUID(str(execution_id)),
+                    step_id=payload.get("step_id"),
+                    event_type=event_enum,
+                    payload=dict(payload),
+                    status=status_map.get(event_enum.value),
+                )
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Workflow runtime consumer failed")
+
+    return _handle
+
+
+def _build_reprioritization_handler(
+    app: FastAPI,
+    trigger_reason: str,
+) -> Callable[[Any], Awaitable[None]]:
+    async def _handle(envelope: Any) -> None:
+        execution_id = envelope.payload.get("execution_id")
+        if execution_id is None:
+            return
+        async with database.AsyncSessionLocal() as session:
+            scheduler_service = build_scheduler_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                runtime_controller=cast(
+                    RuntimeControllerClient | None,
+                    app.state.clients.get("runtime_controller"),
+                ),
+                reasoning_engine=cast(
+                    ReasoningEngineClient | None,
+                    app.state.clients.get("reasoning_engine"),
+                ),
+                context_engineering_service=None,
+                interactions_service=None,
+            )
+            try:
+                await scheduler_service.handle_reprioritization_trigger(
+                    trigger_reason,
+                    UUID(str(execution_id)),
+                )
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception(
+                    "Workflow reprioritization consumer failed",
+                    extra={"trigger_reason": trigger_reason},
+                )
+
+    return _handle
+
+
+def _build_workspace_goal_handler(app: FastAPI) -> Callable[[Any], Awaitable[None]]:
+    async def _handle(envelope: Any) -> None:
+        workspace_id = envelope.payload.get("workspace_id")
+        goal_type = str(envelope.payload.get("goal_type", ""))
+        goal_id = envelope.payload.get("goal_id")
+        if workspace_id is None:
+            return
+        async with database.AsyncSessionLocal() as session:
+            workflow_service = build_workflow_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                scheduler=app.state.workflow_scheduler,
+            )
+            execution_service = build_execution_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                runtime_controller=cast(
+                    RuntimeControllerClient | None,
+                    app.state.clients.get("runtime_controller"),
+                ),
+                reasoning_engine=cast(
+                    ReasoningEngineClient | None,
+                    app.state.clients.get("reasoning_engine"),
+                ),
+                context_engineering_service=None,
+            )
+            try:
+                triggers = await workflow_service.repository.list_active_triggers_by_type(
+                    TriggerType.workspace_goal
+                )
+                for trigger in triggers:
+                    configured_workspace = str(trigger.config.get("workspace_id", workspace_id))
+                    pattern = str(trigger.config.get("goal_type_pattern", "*"))
+                    if configured_workspace != str(workspace_id):
+                        continue
+                    if not fnmatch(goal_type, pattern):
+                        continue
+                    workflow = await workflow_service.get_workflow(trigger.definition_id)
+                    execution = await execution_service.create_execution(
+                        ExecutionCreate(
+                            workflow_definition_id=workflow.id,
+                            trigger_type=TriggerType.workspace_goal,
+                            trigger_id=trigger.id,
+                            input_parameters=dict(envelope.payload),
+                            workspace_id=workflow.workspace_id,
+                            correlation_goal_id=UUID(str(goal_id)) if goal_id else None,
+                        )
+                    )
+                    await workflow_service.record_trigger_fired(
+                        trigger.id,
+                        execution_id=execution.id,
+                    )
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Workspace goal trigger consumer failed")
+
+    return _handle
 
 
 def _build_connector_delivery_handler(

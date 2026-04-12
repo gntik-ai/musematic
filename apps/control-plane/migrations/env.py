@@ -48,6 +48,8 @@ importlib.import_module("platform.memory.models")
 importlib.import_module("platform.interactions.models")
 importlib.import_module("platform.connectors.models")
 importlib.import_module("platform.policies.models")
+importlib.import_module("platform.workflows.models")
+importlib.import_module("platform.execution.models")
 
 config = context.config
 
