@@ -1,8 +1,11 @@
 import { http, HttpResponse } from "msw";
 import { homeHandlers } from "@/mocks/handlers/home";
+import {
+  marketplaceHandlers,
+  resetMarketplaceFixtures,
+} from "@/mocks/handlers/marketplace";
 import { adminHandlers, conversationHandlers } from "@/tests/mocks/handlers";
 import type { TokenPair, UserProfile } from "@/types/auth";
-import type { Workspace } from "@/types/workspace";
 
 const mockUser: UserProfile = {
   id: "4d1b0f76-a961-4f8d-8bcb-3f7d5f530001",
@@ -38,25 +41,6 @@ function toLoginSuccess(user: UserProfile = mockUser) {
     },
   };
 }
-
-const workspaces: Workspace[] = [
-  {
-    id: "workspace-1",
-    name: "Signal Lab",
-    slug: "signal-lab",
-    description: "Primary operations workspace",
-    memberCount: 18,
-    createdAt: "2026-04-10T09:00:00.000Z",
-  },
-  {
-    id: "workspace-2",
-    name: "Trust Foundry",
-    slug: "trust-foundry",
-    description: "Safety and governance programs",
-    memberCount: 11,
-    createdAt: "2026-04-08T13:30:00.000Z",
-  },
-];
 
 const authHandlers = [
   http.post("*/api/v1/auth/login", async ({ request }) => {
@@ -119,8 +103,8 @@ const authHandlers = [
       recovery_code_consumed: body.use_recovery_code === true,
     });
   }),
-  http.post("*/api/v1/auth/password-reset/request", async () => HttpResponse.json({}, { status: 202 })),
-  http.post("*/api/v1/auth/password-reset/complete", async ({ request }) => {
+  http.post("*/api/v1/password-reset/request", async () => HttpResponse.json({}, { status: 202 })),
+  http.post("*/api/v1/password-reset/complete", async ({ request }) => {
     const body = (await request.json()) as { token?: string };
     if (body.token?.includes("expired") || body.token?.includes("used")) {
       return HttpResponse.json(
@@ -179,14 +163,20 @@ const authHandlers = [
     }),
   ),
   http.post("*/api/v1/auth/logout", async () => new HttpResponse(null, { status: 204 })),
-  http.get("*/api/v1/workspaces", async () => HttpResponse.json({ items: workspaces })),
 ];
 
 export const handlers = [
+  ...marketplaceHandlers,
   ...authHandlers,
   ...homeHandlers,
   ...conversationHandlers,
   ...adminHandlers,
 ];
 
-export { mockMfaSessionToken, mockTokenPair, mockUser, toLoginSuccess, workspaces };
+export {
+  mockMfaSessionToken,
+  mockTokenPair,
+  mockUser,
+  resetMarketplaceFixtures,
+  toLoginSuccess,
+};

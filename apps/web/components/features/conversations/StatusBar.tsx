@@ -40,14 +40,14 @@ export function StatusBar({
       >
         {formatStateLabel(interaction.state)}
       </Badge>
-      <span className="min-w-0 truncate text-sm text-muted-foreground">
+      <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
         {interaction.agent_fqn}
       </span>
-      <span className="text-sm text-muted-foreground">
+      <span className="min-w-0 truncate text-sm text-muted-foreground">
         {formatReasoningMode(interaction.reasoning_mode)}
       </span>
       {interaction.self_correction_count > 0 ? (
-        <span className="text-sm text-muted-foreground">
+        <span className="min-w-0 truncate text-sm text-muted-foreground">
           {interaction.self_correction_count} corrections
         </span>
       ) : null}

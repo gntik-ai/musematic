@@ -10,6 +10,9 @@ describe("InteractionTabs", () => {
   it("switches interactions and shows unread indicators", async () => {
     const user = userEvent.setup();
     const conversation = getConversationFixtures().conversations[0];
+    if (!conversation) {
+      throw new Error("Expected a conversation fixture");
+    }
     const onInteractionChange = vi.fn();
 
     useConversationStore.setState({

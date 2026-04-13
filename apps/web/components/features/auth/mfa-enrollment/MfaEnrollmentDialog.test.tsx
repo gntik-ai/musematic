@@ -42,7 +42,7 @@ describe("MfaEnrollmentDialog", () => {
 
     await screen.findByRole("button", { name: /next/i });
     await user.click(screen.getByRole("button", { name: /next/i }));
-    expect(screen.getByText(/verify your authenticator/i)).toBeInTheDocument();
+    expect(screen.getByText(/confirm your authenticator/i)).toBeInTheDocument();
 
     await user.type(
       screen.getByLabelText(/authenticator verification code/i),

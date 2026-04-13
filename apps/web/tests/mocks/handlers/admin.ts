@@ -256,7 +256,7 @@ function replaceUserStatus(userId: string, status: AdminUserRow["status"]) {
       return user;
     }
 
-    const available_actions =
+    const available_actions: AdminUserRow["available_actions"] =
       status === "pending_approval"
         ? ["approve", "reject"]
         : status === "active"

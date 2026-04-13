@@ -18,12 +18,12 @@ import type { Message } from "@/types/conversations";
 
 interface MessageBubbleProps {
   message: Message;
-  isStreaming?: boolean;
-  streamingContent?: string;
-  showBranchOrigin?: boolean;
-  showBranchOriginIndicator?: boolean;
-  onBranchFrom?: () => void;
-  children?: React.ReactNode;
+  isStreaming?: boolean | undefined;
+  streamingContent?: string | undefined;
+  showBranchOrigin?: boolean | undefined;
+  showBranchOriginIndicator?: boolean | undefined;
+  onBranchFrom?: (() => void) | undefined;
+  children?: React.ReactNode | undefined;
 }
 
 const MAX_CONTENT_LENGTH = 50_000;

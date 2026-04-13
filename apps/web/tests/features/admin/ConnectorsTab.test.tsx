@@ -25,8 +25,9 @@ describe("ConnectorsTab", () => {
     const user = userEvent.setup();
 
     server.use(
-      http.patch("*/api/v1/admin/settings/connectors/email", () =>
-        HttpResponse.json(
+      http.patch("*/api/v1/admin/settings/connectors/email", async () => {
+        await new Promise((resolve) => window.setTimeout(resolve, 50));
+        return HttpResponse.json(
           {
             error: {
               code: "connector_update_failed",
@@ -34,8 +35,8 @@ describe("ConnectorsTab", () => {
             },
           },
           { status: 500 },
-        ),
-      ),
+        );
+      }),
     );
 
     renderWithProviders(<ConnectorsTab />);
@@ -45,7 +46,9 @@ describe("ConnectorsTab", () => {
 
     await user.click(toggle);
 
-    expect(toggle).toHaveAttribute("aria-checked", "false");
+    await waitFor(() => {
+      expect(toggle).toHaveAttribute("aria-checked", "false");
+    });
 
     await waitFor(() => {
       expect(toggle).toHaveAttribute("aria-checked", "true");

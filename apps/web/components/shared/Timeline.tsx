@@ -11,10 +11,10 @@ export interface TimelineEvent {
   id: string;
   timestamp: string;
   label: string;
-  description?: string;
-  status?: StatusSemantic;
-  href?: string;
-  timestampLabel?: string;
+  description?: string | undefined;
+  status?: StatusSemantic | undefined;
+  href?: string | undefined;
+  timestampLabel?: string | undefined;
 }
 
 export function Timeline({
@@ -29,7 +29,7 @@ export function Timeline({
   isLoading?: boolean;
   emptyTitle?: string;
   emptyDescription?: string;
-  emptyIcon?: LucideIcon;
+    emptyIcon?: LucideIcon | undefined;
   skeletonCount?: number;
 }) {
   if (isLoading) {

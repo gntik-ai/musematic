@@ -19,9 +19,10 @@ export function GoalSelector({
     goals.find((goal) => goal.id === selectedGoalId) ?? goals[0] ?? null;
 
   return (
-    <div className="space-y-2">
+    <div className="min-w-0 space-y-2">
       <Select
         aria-label="Select goal"
+        className="min-w-0"
         onChange={(event) => setSelectedGoal(event.target.value)}
         value={selectedGoal?.id ?? ""}
       >

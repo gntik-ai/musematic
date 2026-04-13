@@ -122,8 +122,8 @@
 - [ ] T030 [P] Responsive layout verification — resize browser to 320px, 640px, 768px, 1024px, 1280px; verify no horizontal scroll; verify MetricCard grid: 1→2→4 columns at sm/lg breakpoints; verify activity/pending stack on `< lg`; verify quick actions wrap without overflow
 - [x] T031 [P] Register MSW handlers in `apps/web/mocks/handlers/index.ts` — add `home` handlers to the MSW handler array for use in `NEXT_PUBLIC_MSW_ENABLED=true` dev mode
 - [ ] T032 [P] Run `pnpm test:coverage` and verify ≥ 95% coverage for all files under `components/features/home/` and `lib/hooks/use-home-data.ts`
-- [ ] T033 [P] Run `pnpm type-check` (TypeScript strict compilation) and fix any type errors in home feature files
-- [ ] T034 [P] Run `pnpm lint` (ESLint) on home feature files and fix any lint warnings
+- [X] T033 [P] Run `pnpm type-check` (TypeScript strict compilation) and fix any type errors in home feature files
+- [X] T034 [P] Run `pnpm lint` (ESLint) on home feature files and fix any lint warnings
 
 ---
 

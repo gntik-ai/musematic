@@ -12,8 +12,9 @@ describe("useMessageStream", () => {
   });
 
   it("accumulates deltas and flushes them on animation frame", () => {
+    let frameCallback: FrameRequestCallback | undefined;
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
-      callback(16);
+      frameCallback = callback;
       return 1;
     });
 
@@ -24,12 +25,17 @@ describe("useMessageStream", () => {
       result.current.addDelta("message-1", "world");
     });
 
+    act(() => {
+      frameCallback?.(16);
+    });
+
     expect(result.current.getStreamingContent("message-1")).toBe("hello world");
   });
 
   it("clears stream content", () => {
+    let frameCallback: FrameRequestCallback | undefined;
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
-      callback(16);
+      frameCallback = callback;
       return 1;
     });
 
@@ -40,7 +46,15 @@ describe("useMessageStream", () => {
     });
 
     act(() => {
+      frameCallback?.(16);
+    });
+
+    act(() => {
       clearStream("message-1");
+    });
+
+    act(() => {
+      frameCallback?.(16);
     });
 
     expect(result.current.getStreamingContent("message-1")).toBeUndefined();

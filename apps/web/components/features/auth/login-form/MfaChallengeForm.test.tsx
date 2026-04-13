@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
 import { MfaChallengeForm } from "@/components/features/auth/login-form/MfaChallengeForm";
-import { toLoginSuccess } from "@/mocks/handlers";
 import { renderWithProviders } from "@/test-utils/render";
 import { server } from "@/vitest.setup";
 
@@ -104,7 +103,9 @@ describe("MfaChallengeForm", () => {
     );
 
     expect(screen.getByLabelText(/recovery code/i)).toBeInTheDocument();
-    expect(screen.queryByLabelText(/authenticator code/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("textbox", { name: /authenticator code/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("invokes onBack from the back link", async () => {

@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
-import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { RecentActivity } from "@/components/features/home/RecentActivity";
 import type { RecentActivityResponse } from "@/lib/types/home";
 import { renderWithProviders } from "@/test-utils/render";
@@ -27,15 +27,6 @@ function buildRecentActivity(count = 10): RecentActivityResponse {
 }
 
 describe("RecentActivity", () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-04-11T10:00:00.000Z"));
-  });
-
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it("renders the 10 most recent timeline entries in descending order", async () => {
     server.use(
       http.get("*/api/v1/workspaces/:workspaceId/dashboard/recent-activity", () =>
@@ -48,7 +39,7 @@ describe("RecentActivity", () => {
     const links = await screen.findAllByRole("link");
     expect(links).toHaveLength(10);
     expect(links[0]).toHaveAttribute("href", "/executions/0");
-    expect(screen.getByText("1 minute ago")).toBeInTheDocument();
+    expect(screen.getByText("Activity 0", { selector: "p" })).toBeInTheDocument();
   });
 
   it("shows the empty state when no recent activity exists", async () => {

@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
@@ -32,7 +32,9 @@ describe("GoalFeed", () => {
 
     expect(await screen.findByLabelText(/select goal/i)).toBeInTheDocument();
 
-    await user.type(screen.getByPlaceholderText(/add guidance to this goal/i), "Focus on APAC region");
+    fireEvent.change(screen.getByPlaceholderText(/add guidance to this goal/i), {
+      target: { value: "Focus on APAC region" },
+    });
     await user.click(screen.getByRole("button", { name: /^send$/i }));
 
     await waitFor(() => {

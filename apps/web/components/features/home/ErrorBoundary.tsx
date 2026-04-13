@@ -1,6 +1,6 @@
 "use client";
 
-import { Component, type ErrorInfo, type ReactNode } from "react";
+import { Component, type ReactNode } from "react";
 
 interface ErrorBoundaryProps {
   fallback: ReactNode;
@@ -24,7 +24,9 @@ export class ErrorBoundary extends Component<
     return { hasError: true };
   }
 
-  componentDidCatch(_error: Error, _errorInfo: ErrorInfo): void {}
+  componentDidCatch(): void {
+    // React requires the hook to exist for error boundary reporting.
+  }
 
   componentDidUpdate(prevProps: ErrorBoundaryProps): void {
     if (prevProps.resetKey !== this.props.resetKey && this.state.hasError) {

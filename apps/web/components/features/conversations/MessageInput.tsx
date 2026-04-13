@@ -35,7 +35,7 @@ export function MessageInput({
   return (
     <div className="space-y-3 rounded-2xl border border-border bg-card p-4">
       {isAgentProcessing ? (
-        <div className="rounded-xl bg-amber-100 px-3 py-2 text-sm text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+        <div className="rounded-xl bg-yellow-500/10 px-3 py-2 text-sm text-yellow-700 dark:text-yellow-300">
           Agent is processing — your message will be delivered as guidance
         </div>
       ) : null}

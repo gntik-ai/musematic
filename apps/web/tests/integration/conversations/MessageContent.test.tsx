@@ -7,8 +7,16 @@ import { renderWithProviders } from "@/test-utils/render";
 
 describe("MessageContent", () => {
   it("renders markdown and attachments using the conversation message surface", () => {
-    const fixtureMessage =
-      getConversationFixtures().interactionMessages["interaction-1"][1];
+    const interactionMessages =
+      getConversationFixtures().interactionMessages["interaction-1"];
+    if (!interactionMessages) {
+      throw new Error("Expected interaction message fixtures");
+    }
+
+    const fixtureMessage = interactionMessages[1];
+    if (!fixtureMessage) {
+      throw new Error("Expected an interaction message fixture");
+    }
 
     renderWithProviders(<MessageBubble message={fixtureMessage} />);
 

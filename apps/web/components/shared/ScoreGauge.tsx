@@ -25,7 +25,7 @@ export function ScoreGauge({
       <div style={{ height: size, width: size }}>
         <ResponsiveContainer width="100%" height="100%">
           <RadialBarChart cx="50%" cy="50%" data={[{ name: "score", value: score }]} endAngle={-270} innerRadius="75%" outerRadius="100%" startAngle={90}>
-            <RadialBar background clockWise cornerRadius={999} dataKey="value" fill={color} />
+            <RadialBar background cornerRadius={999} dataKey="value" fill={color} />
             <text dominantBaseline="middle" fill="currentColor" textAnchor="middle" x="50%" y="50%">
               <tspan className="fill-foreground text-lg font-semibold">{score}</tspan>
             </text>

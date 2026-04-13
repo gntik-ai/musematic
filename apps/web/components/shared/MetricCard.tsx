@@ -15,12 +15,12 @@ export interface SparklineDataPoint {
 export interface MetricCardProps {
   title: string;
   value: string | number;
-  unit?: string;
-  trend?: TrendDirection;
-  trendValue?: string;
-  sparklineData?: SparklineDataPoint[];
-  isLoading?: boolean;
-  className?: string;
+  unit?: string | undefined;
+  trend?: TrendDirection | undefined;
+  trendValue?: string | undefined;
+  sparklineData?: SparklineDataPoint[] | undefined;
+  isLoading?: boolean | undefined;
+  className?: string | undefined;
 }
 
 const trendIcon = {

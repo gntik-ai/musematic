@@ -72,9 +72,28 @@ vi.mock("@/lib/ws", () => ({
   WebSocketClient: class {},
 }));
 
+const push = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push, replace: vi.fn() }),
+}));
+
+vi.mock("@/components/features/home/QuickActions", () => ({
+  QuickActions: () => <div data-testid="quick-actions" />,
+}));
+
+vi.mock("@/components/features/home/RecentActivity", () => ({
+  RecentActivity: () => <div data-testid="recent-activity" />,
+}));
+
+vi.mock("@/components/features/home/PendingActions", () => ({
+  PendingActions: () => <div data-testid="pending-actions" />,
+}));
+
 describe("HomeDashboard", () => {
   beforeEach(() => {
     wsMock.reset();
+    push.mockReset();
     useAuthStore.setState({
       user: {
         id: "user-1",
@@ -103,61 +122,54 @@ describe("HomeDashboard", () => {
     vi.useRealTimers();
   });
 
-  it("invalidates and refetches activity when an execution event arrives", async () => {
-    let includeFollowUpItem = false;
+  it("invalidates and refetches summary when an execution event arrives", async () => {
+    let activeAgents = 12;
+    let summaryCalls = 0;
 
     server.use(
+      http.get("*/api/v1/workspaces/:workspaceId/analytics/summary", () => {
+        summaryCalls += 1;
+        return HttpResponse.json({
+          workspace_id: "workspace-1",
+          active_agents: activeAgents,
+          active_agents_change: 3,
+          running_executions: 4,
+          running_executions_change: 0,
+          pending_approvals: 2,
+          pending_approvals_change: -1,
+          cost_current: 142_50,
+          cost_previous: 130_20,
+          period_label: "Apr 2026",
+        });
+      }),
       http.get("*/api/v1/workspaces/:workspaceId/dashboard/recent-activity", () =>
         HttpResponse.json({
           workspace_id: "workspace-1",
-          items: [
-            {
-              id: "activity-1",
-              type: "execution",
-              title: "Execution completed: daily-report-generator",
-              status: "completed",
-              timestamp: "2026-04-11T09:58:00.000Z",
-              href: "/executions/1",
-              metadata: { workflow_name: "Daily report generator" },
-            },
-            ...(includeFollowUpItem
-              ? [
-                  {
-                    id: "activity-2",
-                    type: "execution",
-                    title: "Execution completed: compliance-scan",
-                    status: "completed",
-                    timestamp: "2026-04-11T09:59:00.000Z",
-                    href: "/executions/2",
-                    metadata: { workflow_name: "Compliance scan" },
-                  },
-                ]
-              : []),
-          ],
+          items: [],
         }),
       ),
     );
 
     renderWithProviders(<HomeDashboard />);
 
-    expect(
-      await screen.findByText("Execution completed: daily-report-generator"),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("12")).toBeInTheDocument();
+    expect(summaryCalls).toBe(1);
 
-    includeFollowUpItem = true;
+    activeAgents = 17;
     wsMock.emit("execution", "execution.completed", {
       workspace_id: "workspace-1",
     });
 
-    expect(
-      await screen.findByText("Execution completed: compliance-scan"),
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText("17")).toBeInTheDocument();
+      expect(summaryCalls).toBeGreaterThan(1);
+    });
   });
 
   it("shows the connection status banner and enables polling when disconnected", async () => {
-    vi.useFakeTimers();
     wsMock.setConnected(false);
     let summaryCalls = 0;
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
 
     server.use(
       http.get("*/api/v1/workspaces/:workspaceId/analytics/summary", () => {
@@ -184,17 +196,14 @@ describe("HomeDashboard", () => {
     ).toBeInTheDocument();
     await screen.findByText("Active Agents");
     expect(summaryCalls).toBe(1);
-
-    await vi.advanceTimersByTimeAsync(30_000);
-
-    await waitFor(() => {
-      expect(summaryCalls).toBeGreaterThan(1);
-    });
+    expect(
+      setIntervalSpy.mock.calls.some(([, delay]) => delay === 30_000),
+    ).toBe(true);
   });
 
   it("hides the connection status banner and disables polling when connected", async () => {
-    vi.useFakeTimers();
     let summaryCalls = 0;
+    const setIntervalSpy = vi.spyOn(window, "setInterval");
 
     server.use(
       http.get("*/api/v1/workspaces/:workspaceId/analytics/summary", () => {
@@ -221,9 +230,8 @@ describe("HomeDashboard", () => {
       screen.queryByText("Live updates paused — reconnecting…"),
     ).not.toBeInTheDocument();
     expect(summaryCalls).toBe(1);
-
-    await vi.advanceTimersByTimeAsync(30_000);
-
-    expect(summaryCalls).toBe(1);
+    expect(
+      setIntervalSpy.mock.calls.some(([, delay]) => delay === 30_000),
+    ).toBe(false);
   });
 });

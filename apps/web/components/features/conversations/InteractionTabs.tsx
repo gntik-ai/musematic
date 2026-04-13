@@ -25,9 +25,9 @@ export function InteractionTabs({
   const unreadInteractionIds = useConversationStore((state) => state.unreadInteractionIds);
 
   return (
-    <Tabs>
+    <Tabs aria-label="Conversation interactions">
       <TabsList
-        className="flex w-full flex-wrap gap-2 overflow-x-auto bg-transparent p-0"
+        className="flex w-full min-w-0 flex-wrap gap-2 overflow-x-auto bg-transparent p-0"
         role="tablist"
       >
         {conversation.interactions.map((interaction) => {
@@ -37,8 +37,10 @@ export function InteractionTabs({
 
           return (
             <TabsTrigger
+              aria-controls="conversation-panel"
               aria-selected={isActive}
               className={`border ${isActive ? "border-brand-accent bg-accent" : "border-border bg-muted/40"}`}
+              id={`conversation-interaction-tab-${interaction.id}`}
               key={interaction.id}
               onClick={() => {
                 setActiveBranch(null);
@@ -61,8 +63,10 @@ export function InteractionTabs({
 
           return (
             <TabsTrigger
+              aria-controls="conversation-panel"
               aria-selected={isActive}
               className={`border italic ${isActive ? "border-brand-accent bg-accent" : "border-border bg-muted/40"}`}
+              id={`conversation-branch-tab-${branch.id}`}
               key={branch.id}
               onClick={() => {
                 setActiveBranch(branch.id);
@@ -80,7 +84,7 @@ export function InteractionTabs({
       </TabsList>
       {activeBranchId ? (
         <div className="mt-3">
-          <Button size="sm" variant="outline">
+          <Button aria-label="Branch view is active" size="sm" variant="outline">
             Active branch
           </Button>
         </div>

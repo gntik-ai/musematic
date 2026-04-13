@@ -21,13 +21,18 @@ function toFormValues(data: SignupPolicySettings) {
   };
 }
 
+type SignupPolicyFormValues = {
+  signup_mode: SignupPolicySettings["signup_mode"];
+  mfa_enforcement: SignupPolicySettings["mfa_enforcement"];
+};
+
 export function SignupPolicyTab() {
   const query = useSignupPolicy();
   const mutation = useSignupPolicyMutation();
   const { toast } = useToast();
   const [isSaved, setIsSaved] = useState(false);
   const [isStale, setIsStale] = useState(false);
-  const form = useForm({
+  const form = useForm<SignupPolicyFormValues>({
     defaultValues: {
       signup_mode: "open" as const,
       mfa_enforcement: "optional" as const,

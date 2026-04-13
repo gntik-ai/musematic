@@ -29,10 +29,10 @@ export interface DataTableProps<TData> {
   pageSize?: number;
   enableSorting?: boolean;
   enableFiltering?: boolean;
-  onPaginationChange?: (state: PaginationState) => void;
-  onSortingChange?: (state: SortingState) => void;
-  onFilterChange?: (state: ColumnFiltersState) => void;
-  totalCount?: number;
+  onPaginationChange?: ((state: PaginationState) => void) | undefined;
+  onSortingChange?: ((state: SortingState) => void) | undefined;
+  onFilterChange?: ((state: ColumnFiltersState) => void) | undefined;
+  totalCount?: number | undefined;
 }
 
 export function DataTable<TData>({
@@ -63,8 +63,8 @@ export function DataTable<TData>({
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: totalCount ? undefined : getPaginationRowModel(),
-    manualPagination: Boolean(totalCount),
+    ...(totalCount === undefined ? { getPaginationRowModel: getPaginationRowModel() } : {}),
+    manualPagination: totalCount !== undefined,
     onSortingChange: (updater) => {
       const next = typeof updater === "function" ? updater(sorting) : updater;
       setSorting(next);
