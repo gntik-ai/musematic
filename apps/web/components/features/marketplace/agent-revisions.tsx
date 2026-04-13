@@ -13,14 +13,18 @@ export function AgentRevisions({
   revisions,
   currentVersion,
 }: AgentRevisionsProps) {
+  const hasExplicitCurrentRevision = revisions.some((revision) => revision.isCurrent);
+
   return (
     <ol className="space-y-3">
       {revisions.map((revision) => {
-        const isCurrent = revision.version === currentVersion || revision.isCurrent;
+        const isCurrent = revision.isCurrent || (
+          !hasExplicitCurrentRevision && revision.version === currentVersion
+        );
 
         return (
           <li
-            key={revision.version}
+            key={`${revision.version}-${revision.publishedAt}`}
             className="rounded-2xl border border-border/60 bg-card/70 p-4"
           >
             <div className="flex flex-wrap items-center justify-between gap-3">

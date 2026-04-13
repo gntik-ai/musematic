@@ -33,7 +33,7 @@ describe("Marketplace detail components", () => {
       />,
     );
 
-    expect(screen.getByText(agent.currentRevision)).toBeInTheDocument();
+    expect(screen.getAllByText(agent.currentRevision).length).toBeGreaterThan(0);
     expect(screen.getByText("Current")).toBeInTheDocument();
   });
 

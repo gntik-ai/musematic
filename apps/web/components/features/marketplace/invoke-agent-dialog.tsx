@@ -47,7 +47,9 @@ export function InvokeAgentDialog({
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState<Step>("workspace");
   const currentWorkspace = useWorkspaceStore((state) => state.currentWorkspace);
-  const { isLoading, isError, workspaces } = useWorkspaces();
+  const { isLoading, isError, workspaces } = useWorkspaces({
+    enabled: open && isVisible,
+  });
   const form = useForm<InvocationValues>({
     resolver: zodResolver(InvocationSchema),
     defaultValues: {
@@ -141,6 +143,7 @@ export function InvokeAgentDialog({
                                   className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border/60 bg-card/70 p-4 transition hover:border-brand-accent/40"
                                 >
                                   <input
+                                    aria-label={workspace.name}
                                     checked={checked}
                                     className="mt-1 h-4 w-4 accent-[hsl(var(--primary))]"
                                     name="workspaceId"

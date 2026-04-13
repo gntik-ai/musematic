@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -90,13 +90,17 @@ describe("Marketplace interactions", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "Start Conversation" }));
-    await user.click(screen.getByLabelText(marketplaceFixtures.workspaces[0]!.name));
-    await user.click(screen.getByRole("button", { name: "Next" }));
+    const dialog = screen.getByRole("dialog");
+
+    await user.click(within(dialog).getByLabelText(marketplaceFixtures.workspaces[0]!.name));
+    await user.click(within(dialog).getByRole("button", { name: "Next" }));
     await user.type(
       screen.getByLabelText("Task brief"),
       "Analyze Q1 customer churn patterns",
     );
-    await user.click(screen.getByRole("button", { name: /start conversation/i }));
+    await user.click(
+      within(dialog).getByRole("button", { name: /start conversation/i }),
+    );
 
     expect(push).toHaveBeenCalledWith(
       expect.stringContaining("/conversations/new?"),
