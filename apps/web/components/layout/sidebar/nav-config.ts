@@ -41,6 +41,13 @@ export const NAV_ITEMS: NavItem[] = [
     requiredRoles: ["workspace_editor", "workspace_admin", "superadmin"],
   },
   {
+    id: "workflow-editor-monitor",
+    label: "Workflow Studio",
+    icon: "Workflow",
+    href: "/workflow-editor-monitor",
+    requiredRoles: ["workspace_editor", "workspace_admin", "superadmin"],
+  },
+  {
     id: "analytics",
     label: "Analytics",
     icon: "LineChart",

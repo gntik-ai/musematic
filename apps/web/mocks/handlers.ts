@@ -1,9 +1,22 @@
 import { http, HttpResponse } from "msw";
 import { homeHandlers } from "@/mocks/handlers/home";
+import { analyticsHandlers, resetAnalyticsFixtures } from "@/mocks/handlers/analytics";
+import {
+  executionHandlers,
+  resetExecutionFixtures,
+} from "@/mocks/handlers/executions";
 import {
   marketplaceHandlers,
   resetMarketplaceFixtures,
 } from "@/mocks/handlers/marketplace";
+import {
+  resetTaskPlanFixtures,
+  taskPlanHandlers,
+} from "@/mocks/handlers/task-plan";
+import {
+  resetWorkflowFixtures,
+  workflowHandlers,
+} from "@/mocks/handlers/workflows";
 import { adminHandlers, conversationHandlers } from "@/tests/mocks/handlers";
 import type { TokenPair, UserProfile } from "@/types/auth";
 
@@ -166,6 +179,10 @@ const authHandlers = [
 ];
 
 export const handlers = [
+  ...workflowHandlers,
+  ...executionHandlers,
+  ...taskPlanHandlers,
+  ...analyticsHandlers,
   ...marketplaceHandlers,
   ...authHandlers,
   ...homeHandlers,
@@ -177,6 +194,10 @@ export {
   mockMfaSessionToken,
   mockTokenPair,
   mockUser,
+  resetAnalyticsFixtures,
+  resetExecutionFixtures,
   resetMarketplaceFixtures,
+  resetTaskPlanFixtures,
+  resetWorkflowFixtures,
   toLoginSuccess,
 };

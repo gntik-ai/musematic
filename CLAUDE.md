@@ -1,6 +1,6 @@
 # musematic Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-12
+Auto-generated from all feature plans. Last updated: 2026-04-13
 
 ## Active Technologies
 - Python 3.12+ (control plane client), Go 1.22+ (reasoning engine client) + `redis-py 5.x` (Python async), `go-redis/redis/v9` (Go), Bitnami `redis-cluster` Helm chart (002-redis-cache-hot-state)
@@ -84,10 +84,10 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 036-workflow-editor-monitor: TypeScript 5.x + Next.js 14+ App Router, React 18+, shadcn/ui, Tailwind CSS 3.4+, TanStack Query v5, Zustand 5.x (workflow-editor-store + execution-monitor-store), React Hook Form 7.x + Zod 3.x, Monaco Editor 0.50+ (monaco-yaml), @xyflow/react 12+ (@dagrejs/dagre), Recharts 2.x, date-fns 4.x, Vitest + RTL + Playwright + MSW
+- 036-workflow-editor-monitor: Workflow Editor + Execution Monitor UI (`apps/web/app/(main)/workflow-editor-monitor/`) — 5 pages (list, new, editor, execution history, live monitor), 14 components (MonacoYamlEditor, WorkflowGraphPreview, ExecutionGraph, ExecutionTimeline, StepDetailPanel, StepOverviewTab, ReasoningTraceViewer, SelfCorrectionChart, TaskPlanViewer, CostTracker, ExecutionControls + shells), 13 hooks (list/editor/graph/schema/controls/monitor/journal/step-detail/reasoning/task-plan/cost), 2 Zustand stores, dagre DAG layout, WebSocket execution channel, RBAC-gated controls with confirmation dialogs
 - 035-agent-marketplace-ui: TypeScript 5.x + Next.js 14+ App Router, React 18+, shadcn/ui, Tailwind CSS 3.4+, TanStack Query v5 (useInfiniteQuery infinite scroll + 4 useQuery hooks), Zustand 5.x (useComparisonStore session-scoped max-4), React Hook Form 7.x + Zod 3.x, Recharts 2.x, date-fns 4.x, Vitest + RTL + Playwright + MSW
 - 035-agent-marketplace-ui: Agent Marketplace UI (`apps/web/app/(main)/marketplace/`) — 3 pages (landing, `/[namespace]/[name]` detail, compare), 18 components across search/filter/card/detail/comparison/reviews/invocation/recommendations/analytics; URL-param search state, 300ms debounce custom hook, mobile Sheet filter drawer, FQN two-segment routing, analytics tab not rendered for non-owners
-- 034-evaluation-semantic-testing: Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, aiokafka 0.11+, qdrant-client 1.12+ gRPC (semantic similarity), clickhouse-connect 0.8+ (drift metrics), httpx 0.27+ (LLM-as-Judge + adversarial gen), APScheduler 3.x (drift scanner), aioboto3 latest (MinIO ATE evidence), grpcio 1.65+ (SimulationControllerClient, ReasoningEngineClient)
-- 034-evaluation-semantic-testing: evaluation/ + testing/ bounded contexts — 13 PostgreSQL tables (evaluation_eval_sets, evaluation_benchmark_cases, evaluation_runs, evaluation_judge_verdicts, evaluation_ab_experiments, evaluation_ate_configs, evaluation_ate_runs, evaluation_robustness_runs, evaluation_human_grades, testing_generated_suites, testing_adversarial_cases, testing_coordination_results, testing_drift_alerts), Qdrant evaluation_embeddings collection (semantic similarity scoring), ClickHouse testing_drift_metrics time-series, MinIO evaluation-ate-evidence + evaluation-generated-suites buckets, Kafka evaluation.events topic, Alembic migration 034
 
 
 <!-- MANUAL ADDITIONS START -->
