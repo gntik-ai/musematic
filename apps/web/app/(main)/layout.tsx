@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { CommandPalette } from "@/components/layout/command-palette/CommandPalette";
 import { CommandPaletteProvider } from "@/components/layout/command-palette/CommandPaletteProvider";
 import { MfaEnrollmentDialog } from "@/components/features/auth/mfa-enrollment/MfaEnrollmentDialog";
@@ -12,16 +12,18 @@ import { useAuthStore } from "@/store/auth-store";
 export default function MainLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
   const [mounted, setMounted] = useState(false);
 
   const redirectTarget = useMemo(() => {
-    const query = searchParams.toString();
-    return query ? `${pathname}?${query}` : pathname;
-  }, [pathname, searchParams]);
+    if (typeof window === "undefined") {
+      return pathname;
+    }
+
+    return `${window.location.pathname}${window.location.search}`;
+  }, [pathname]);
 
   useEffect(() => {
     setMounted(true);

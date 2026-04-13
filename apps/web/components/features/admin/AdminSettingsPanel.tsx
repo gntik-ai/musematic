@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { ShieldCheck, Users, UserPlus2, Gauge, PlugZap, Mail, Lock } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -44,12 +44,13 @@ export function AdminSettingsPanel({
 }) {
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const [currentTab, setCurrentTab] = useState<AdminTabValue>(() => {
+    return isAdminTabValue(defaultTab) ? defaultTab : "users";
+  });
 
-  const currentTab = useMemo<AdminTabValue>(() => {
-    const tab = searchParams.get("tab") ?? defaultTab;
-    return isAdminTabValue(tab) ? tab : "users";
-  }, [defaultTab, searchParams]);
+  useEffect(() => {
+    setCurrentTab(isAdminTabValue(defaultTab) ? defaultTab : "users");
+  }, [defaultTab]);
 
   const ActiveTab = tabs.find((tab) => tab.value === currentTab)?.component ?? UsersTab;
 
@@ -92,9 +93,8 @@ export function AdminSettingsPanel({
                     : "text-muted-foreground hover:bg-background/60 hover:text-foreground",
                 )}
                 onClick={() => {
-                  const nextParams = new URLSearchParams(searchParams.toString());
-                  nextParams.set("tab", tab.value);
-                  router.push(`${pathname}?${nextParams.toString()}`);
+                  setCurrentTab(tab.value);
+                  router.push(`${pathname}?tab=${tab.value}`);
                 }}
               >
                 <Icon className="h-4 w-4" />

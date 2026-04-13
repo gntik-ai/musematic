@@ -121,14 +121,9 @@ export function UsersTab() {
   );
 
   const onPaginationChange: DataTableProps<AdminUserRow>["onPaginationChange"] = (
-    paginationState,
+    paginationState: PaginationState,
   ) => {
-    const nextState =
-      typeof paginationState === "function"
-        ? paginationState({ pageIndex: page - 1, pageSize: PAGE_SIZE })
-        : paginationState;
-    const nextPage = (nextState as PaginationState).pageIndex + 1;
-    setPage(nextPage);
+    setPage(paginationState.pageIndex + 1);
   };
 
   return (
@@ -176,7 +171,7 @@ export function UsersTab() {
           enableFiltering={false}
           isLoading={usersQuery.isLoading}
           pageSize={PAGE_SIZE}
-          totalCount={usersQuery.data?.total}
+          totalCount={usersQuery.data?.total ?? 0}
           onPaginationChange={onPaginationChange}
         />
       </CardContent>

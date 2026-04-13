@@ -17,8 +17,8 @@ const variantIcons = {
 
 export interface ToastProps {
   title: string;
-  description?: string;
-  variant?: ToastVariant;
+  description?: string | undefined;
+  variant?: ToastVariant | undefined;
 }
 
 export function Toast({ description, title, variant = "default" }: ToastProps) {

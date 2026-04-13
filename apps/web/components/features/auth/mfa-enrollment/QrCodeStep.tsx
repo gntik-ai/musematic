@@ -9,9 +9,9 @@ import { useMfaEnrollMutation } from "@/lib/hooks/use-auth-mutations";
 import { toast } from "@/lib/hooks/use-toast";
 
 interface QrCodeStepProps {
-  allowSkip?: boolean;
+  allowSkip?: boolean | undefined;
   onNext: () => void;
-  onSkip?: () => void;
+  onSkip?: (() => void) | undefined;
 }
 
 export function QrCodeStep({

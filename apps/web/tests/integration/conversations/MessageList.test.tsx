@@ -9,11 +9,13 @@ describe("MessageList", () => {
   it("renders conversation messages with the expected aria contract", () => {
     useConversationStore.setState({
       ...useConversationStore.getState(),
+      autoScrollEnabled: false,
       isAgentProcessing: true,
       pendingMessageCount: 2,
     });
 
-    const messages = getConversationFixtures().interactionMessages["interaction-1"];
+    const messages =
+      getConversationFixtures().interactionMessages["interaction-1"] ?? [];
 
     renderWithProviders(
       <MessageList

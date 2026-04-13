@@ -1,17 +1,38 @@
 import type { PropsWithChildren, ReactElement } from "react";
 import { render } from "@testing-library/react";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@/lib/query-client";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 
-function Providers({ children }: PropsWithChildren): ReactElement {
+function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+        gcTime: 0,
+        refetchOnWindowFocus: false,
+      },
+      mutations: {
+        retry: false,
+      },
+    },
+  });
+}
+
+function Providers({
+  children,
+  client,
+}: PropsWithChildren<{ client: QueryClient }>): ReactElement {
   return (
     <ThemeProvider>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
     </ThemeProvider>
   );
 }
 
 export function renderWithProviders(ui: ReactElement) {
-  return render(ui, { wrapper: Providers });
+  const client = createTestQueryClient();
+
+  return render(ui, {
+    wrapper: ({ children }) => <Providers client={client}>{children}</Providers>,
+  });
 }

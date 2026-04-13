@@ -5,9 +5,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
 interface SectionErrorProps {
-  title?: string;
-  message?: string;
-  onRetry?: () => void;
+  title?: string | undefined;
+  message?: string | undefined;
+  onRetry?: (() => void) | undefined;
 }
 
 export function SectionError({

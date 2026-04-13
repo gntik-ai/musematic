@@ -123,8 +123,8 @@
 - [ ] T032 [P] Verify and fix keyboard navigation Tab order on all auth pages (`/login`, `/forgot-password`, `/reset-password/[token]`): confirm Tab sequence matches visual order, Enter submits forms, focus moves to code input on MFA step transition; fix any focus traps or missing `aria-label` attributes in `apps/web/components/features/auth/`
 - [ ] T033 [P] Verify and fix dark mode rendering on all auth pages and dialogs: toggle `.dark` class in browser, confirm no un-themed elements (white-on-white, missing `text-foreground`, hardcoded colors) in `apps/web/components/features/auth/` and `apps/web/app/(auth)/`
 - [ ] T034 [P] Verify and fix responsive layout 320px–2560px: check `/login`, `/forgot-password`, `/reset-password`, and enrollment dialog at 320px, 768px, 1440px, 2560px; ensure no horizontal scrolling, no overlapping elements; fix any Tailwind utility issues
-- [ ] T035 [P] Run `tsc --noEmit` from `apps/web/` and fix all TypeScript strict-mode errors in auth components and hooks
-- [ ] T036 [P] Run `pnpm lint` from `apps/web/` and fix all ESLint errors in auth components, hooks, and pages
+- [X] T035 [P] Run `tsc --noEmit` from `apps/web/` and fix all TypeScript strict-mode errors in auth components and hooks
+- [X] T036 [P] Run `pnpm lint` from `apps/web/` and fix all ESLint errors in auth components, hooks, and pages
 - [X] T037 Write Playwright E2E test in `apps/web/e2e/auth/login.spec.ts` covering: credential login → dashboard redirect, deep link preservation via `?redirectTo`, generic error message on bad credentials, MFA step appears for enrolled user, lockout message after repeated failures
 - [X] T038 Write Playwright E2E test in `apps/web/e2e/auth/mfa-enrollment.spec.ts` covering: enrollment dialog appears for user without MFA, QR code renders, verification code entry advances to recovery codes, dialog blocks closure without acknowledgment, enrollment completes and dialog closes
 

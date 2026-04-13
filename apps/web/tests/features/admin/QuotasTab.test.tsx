@@ -63,10 +63,21 @@ describe("QuotasTab", () => {
       expect(screen.getAllByLabelText("Max agents")[1]).toHaveValue(250);
     });
 
-    await user.clear(screen.getAllByLabelText("Max agents")[1]);
-    await user.clear(screen.getAllByLabelText("Storage quota (GB)")[1]);
-    await user.type(screen.getAllByLabelText("Storage quota (GB)")[1], "640");
-    await user.click(screen.getAllByRole("button", { name: "Save" })[1]);
+    const overrideMaxAgents = screen.getAllByLabelText("Max agents")[1];
+    const overrideStorageQuota = screen.getAllByLabelText("Storage quota (GB)")[1];
+    if (!overrideMaxAgents || !overrideStorageQuota) {
+      throw new Error("Expected workspace override inputs to be present");
+    }
+
+    await user.clear(overrideMaxAgents);
+    await user.clear(overrideStorageQuota);
+    await user.type(overrideStorageQuota, "640");
+    const overrideSaveButton = screen.getAllByRole("button", { name: "Save" })[1];
+    if (!overrideSaveButton) {
+      throw new Error("Expected workspace override save button to be present");
+    }
+
+    await user.click(overrideSaveButton);
 
     await waitFor(() => {
       expect(capturedBody).toEqual(

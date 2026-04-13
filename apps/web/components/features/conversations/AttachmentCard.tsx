@@ -78,7 +78,6 @@ function ImageAttachmentCard({
           onClick={() => setOpen(true)}
           type="button"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             alt={attachment.filename}
             className="max-h-64 w-full object-cover"
@@ -87,7 +86,6 @@ function ImageAttachmentCard({
         </button>
       </div>
       <DialogContent className="max-w-4xl p-0">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           alt={attachment.filename}
           className="max-h-[80vh] w-full object-contain"

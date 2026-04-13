@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { LoginForm } from "@/components/features/auth/login-form/LoginForm";
@@ -29,7 +29,7 @@ function getRedirectTarget(redirectTo: string | null): string {
   return redirectTo;
 }
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const setAuth = useAuthStore((state) => state.setAuth);
@@ -133,5 +133,13 @@ export default function LoginPage() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="space-y-6" />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

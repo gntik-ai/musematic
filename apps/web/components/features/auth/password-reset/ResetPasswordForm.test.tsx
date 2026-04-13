@@ -90,7 +90,7 @@ describe("ResetPasswordForm", () => {
     await user.type(screen.getByLabelText(/confirm password/i), "StrongPass1!");
     await user.click(screen.getByRole("button", { name: /update password/i }));
 
-    expect(await screen.findByText("This reset link can't be used")).toBeInTheDocument();
+    expect(await screen.findByText("This link can't be used")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /request a new link/i })).toHaveAttribute(
       "href",
       "/forgot-password",

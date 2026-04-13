@@ -30,6 +30,9 @@ describe("RecoveryCodesStep", () => {
 
   it("copies every recovery code to the clipboard", async () => {
     const user = userEvent.setup();
+    const writeText = vi
+      .spyOn(navigator.clipboard, "writeText")
+      .mockResolvedValue(undefined);
 
     render(
       <RecoveryCodesStep
@@ -40,7 +43,7 @@ describe("RecoveryCodesStep", () => {
 
     await user.click(screen.getByRole("button", { name: /copy all codes/i }));
 
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+    expect(writeText).toHaveBeenCalledWith(
       "alpha\nbravo\ncharlie",
     );
     expect(screen.getByRole("button", { name: /copied!/i })).toBeInTheDocument();

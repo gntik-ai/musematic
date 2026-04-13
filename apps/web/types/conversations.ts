@@ -101,7 +101,7 @@ export interface ConversationListResponse {
   items: Conversation[];
 }
 
-export interface ConversationResponse extends Conversation {}
+export type ConversationResponse = Conversation;
 
 export interface BranchCreateRequest {
   name: string;

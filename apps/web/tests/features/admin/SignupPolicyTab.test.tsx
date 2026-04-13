@@ -25,10 +25,10 @@ describe("SignupPolicyTab", () => {
     renderWithProviders(<SignupPolicyTab />);
 
     const saveButton = await screen.findByRole("button", { name: "Save" });
-    expect(screen.getByLabelText("Open signups")).toBeChecked();
+    expect(screen.getByRole("radio", { name: /open signups/i })).toBeChecked();
     expect(saveButton).toBeDisabled();
 
-    await user.click(screen.getByLabelText("Invite only"));
+    await user.click(screen.getByRole("radio", { name: /invite only/i }));
 
     expect(saveButton).toBeEnabled();
     await user.click(saveButton);
@@ -57,8 +57,8 @@ describe("SignupPolicyTab", () => {
 
     renderWithProviders(<SignupPolicyTab />);
 
-    await screen.findByLabelText("Open signups");
-    await user.click(screen.getByLabelText("Invite only"));
+    await screen.findByRole("radio", { name: /open signups/i });
+    await user.click(screen.getByRole("radio", { name: /invite only/i }));
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     expect(
@@ -68,7 +68,7 @@ describe("SignupPolicyTab", () => {
     await user.click(screen.getByRole("button", { name: "Reload" }));
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Open signups")).toBeChecked();
+      expect(screen.getByRole("radio", { name: /open signups/i })).toBeChecked();
     });
   });
 });

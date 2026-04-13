@@ -1,6 +1,6 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { UsersTab } from "@/components/features/admin/tabs/UsersTab";
 import { renderWithProviders } from "@/test-utils/render";
 import { setPlatformAdminUser } from "@/tests/features/admin/test-helpers";
@@ -17,40 +17,29 @@ describe("UsersTab", () => {
     setPlatformAdminUser();
   });
 
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
   it("renders the table and debounces search/filter changes", async () => {
-    vi.useFakeTimers();
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-
     renderWithProviders(<UsersTab />);
 
     expect(await screen.findByText("John Example")).toBeInTheDocument();
     expect(screen.getByText("Riley Ops")).toBeInTheDocument();
 
-    await user.type(
-      screen.getByLabelText("Search users by name or email"),
-      "john@example.com",
-    );
+    fireEvent.change(screen.getByLabelText("Search users by name or email"), {
+      target: { value: "john@example.com" },
+    });
 
     expect(screen.getByText("Riley Ops")).toBeInTheDocument();
 
-    await vi.advanceTimersByTimeAsync(300);
-
     await waitFor(() => {
       expect(screen.queryByText("Riley Ops")).not.toBeInTheDocument();
-    });
+    }, { timeout: 1500 });
 
-    await user.selectOptions(
-      screen.getByLabelText("Filter users by status"),
-      "pending_approval",
-    );
+    fireEvent.change(screen.getByLabelText("Filter users by status"), {
+      target: { value: "pending_approval" },
+    });
 
     await waitFor(() => {
       expect(screen.getByText("John Example")).toBeInTheDocument();
-    });
+    }, { timeout: 1500 });
   });
 
   it("approves a pending user through the dialog and updates the row", async () => {

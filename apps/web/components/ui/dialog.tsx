@@ -12,7 +12,7 @@ interface DialogContextValue {
 type DismissableEvent = {
   defaultPrevented: boolean;
   preventDefault: () => void;
-  originalEvent?: Event;
+  originalEvent: Event | undefined;
 };
 
 const DialogContext = React.createContext<DialogContextValue | null>(null);
@@ -38,6 +38,25 @@ function createDismissableEvent(originalEvent?: Event): DismissableEvent {
   };
 }
 
+function getFocusableElements(container: HTMLElement | null): HTMLElement[] {
+  if (!container) {
+    return [];
+  }
+
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(
+      [
+        "a[href]",
+        "button:not([disabled])",
+        "input:not([disabled])",
+        "select:not([disabled])",
+        "textarea:not([disabled])",
+        "[tabindex]:not([tabindex='-1'])",
+      ].join(","),
+    ),
+  ).filter((element) => !element.hasAttribute("disabled"));
+}
+
 export function Dialog({
   children,
   open,
@@ -58,7 +77,13 @@ export function DialogTrigger({
 
   if (asChild && React.isValidElement(children)) {
     return React.cloneElement(children as React.ReactElement<Record<string, unknown>>, {
-      onClick: () => setOpen(!open),
+      onClick: (event: React.MouseEvent<HTMLElement>) => {
+        const childProps = children.props as { onClick?: (event: React.MouseEvent<HTMLElement>) => void };
+        childProps.onClick?.(event);
+        if (!event.defaultPrevented) {
+          setOpen(!open);
+        }
+      },
     });
   }
 
@@ -81,10 +106,28 @@ export function DialogContent({
 }) {
   const { open, setOpen } = useDialogContext();
   const [mounted, setMounted] = React.useState(false);
+  const contentRef = React.useRef<HTMLDivElement | null>(null);
+  const previousFocusedElementRef = React.useRef<HTMLElement | null>(null);
 
   React.useEffect(() => {
     setMounted(true);
   }, []);
+
+  React.useEffect(() => {
+    if (!open) {
+      previousFocusedElementRef.current?.focus();
+      return;
+    }
+
+    previousFocusedElementRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    window.setTimeout(() => {
+      const focusable = getFocusableElements(contentRef.current);
+      const target = focusable[0] ?? contentRef.current;
+      target?.focus();
+    }, 0);
+  }, [open]);
 
   React.useEffect(() => {
     if (!open) {
@@ -93,6 +136,35 @@ export function DialogContent({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape") {
+        if (event.key !== "Tab") {
+          return;
+        }
+
+        const focusable = getFocusableElements(contentRef.current);
+        if (focusable.length === 0) {
+          event.preventDefault();
+          contentRef.current?.focus();
+          return;
+        }
+
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        const activeElement =
+          document.activeElement instanceof HTMLElement
+            ? document.activeElement
+            : null;
+
+        if (!event.shiftKey && activeElement === last) {
+          event.preventDefault();
+          first?.focus();
+          return;
+        }
+
+        if (event.shiftKey && activeElement === first) {
+          event.preventDefault();
+          last?.focus();
+        }
+
         return;
       }
 
@@ -129,12 +201,14 @@ export function DialogContent({
       }}
     >
       <div
+        ref={contentRef}
         role="dialog"
         aria-modal="true"
         className={cn(
           "w-full max-w-lg rounded-2xl border border-border bg-background p-6 shadow-2xl",
           className,
         )}
+        tabIndex={-1}
         {...props}
       >
         {children}

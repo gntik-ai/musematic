@@ -36,6 +36,11 @@ export function ConversationView({
 
   const activeBranch =
     conversation.branches.find((branch) => branch.id === activeBranchId) ?? null;
+  const activeTabId = activeBranch
+    ? `conversation-branch-tab-${activeBranch.id}`
+    : currentInteraction
+      ? `conversation-interaction-tab-${currentInteraction.id}`
+      : undefined;
 
   const messageQuery = useMessages({
     branchId: activeBranchId,
@@ -54,38 +59,45 @@ export function ConversationView({
         conversation={conversation}
         onInteractionChange={setActiveInteraction}
       />
-      {currentInteraction ? (
-        <StatusBar
-          interaction={currentInteraction}
-          isProcessing={isAgentProcessing}
+      <div
+        aria-labelledby={activeTabId}
+        className="space-y-4"
+        id="conversation-panel"
+        role="tabpanel"
+      >
+        {currentInteraction ? (
+          <StatusBar
+            interaction={currentInteraction}
+            isProcessing={isAgentProcessing}
+          />
+        ) : null}
+        {activeBranch ? (
+          <div className="flex justify-end">
+            <Button
+              aria-label="Open branch merge panel"
+              onClick={() => setMergeSheetOpen(true)}
+              size="sm"
+              variant="outline"
+            >
+              <GitMerge className="h-4 w-4" />
+              Merge branch
+            </Button>
+          </div>
+        ) : null}
+        <MessageList
+          branchOriginMessageIds={branchOriginMessageIds}
+          getStreamingContent={getStreamingContent}
+          messages={messageQuery.messages}
+          onBranchFromMessage={(messageId) => setBranchDialogMessageId(messageId)}
         />
-      ) : null}
-      {activeBranch ? (
-        <div className="flex justify-end">
-          <Button
-            aria-label="Open branch merge panel"
-            onClick={() => setMergeSheetOpen(true)}
-            size="sm"
-            variant="outline"
-          >
-            <GitMerge className="h-4 w-4" />
-            Merge branch
-          </Button>
-        </div>
-      ) : null}
-      <MessageList
-        branchOriginMessageIds={branchOriginMessageIds}
-        getStreamingContent={getStreamingContent}
-        messages={messageQuery.messages}
-        onBranchFromMessage={(messageId) => setBranchDialogMessageId(messageId)}
-      />
-      {currentInteraction ? (
-        <MessageInput
-          conversationId={conversation.id}
-          interactionId={currentInteraction.id}
-          isAgentProcessing={isAgentProcessing}
-        />
-      ) : null}
+        {currentInteraction ? (
+          <MessageInput
+            conversationId={conversation.id}
+            interactionId={currentInteraction.id}
+            isAgentProcessing={isAgentProcessing}
+          />
+        ) : null}
+      </div>
       <BranchCreationDialog
         conversationId={conversation.id}
         messageId={branchDialogMessageId}

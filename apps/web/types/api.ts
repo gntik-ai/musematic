@@ -13,8 +13,8 @@ export interface ApiErrorPayload {
 export class ApiError extends Error {
   public readonly code: string;
   public readonly status: number;
-  public readonly details?: ApiErrorDetail[];
-  public readonly meta?: Record<string, unknown>;
+  public readonly details: ApiErrorDetail[] | undefined;
+  public readonly meta: Record<string, unknown> | undefined;
 
   constructor(
     code: string,

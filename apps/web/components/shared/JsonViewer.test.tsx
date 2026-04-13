@@ -5,7 +5,7 @@ import { JsonViewer } from "@/components/shared/JsonViewer";
 describe("JsonViewer", () => {
   it("renders nested keys", () => {
     render(<JsonViewer value={{ root: { leaf: true } }} />);
-    expect(screen.getByText("root")).toBeInTheDocument();
+    expect(screen.getAllByText("root")).toHaveLength(2);
   });
 
   it("copies JSON to the clipboard", () => {

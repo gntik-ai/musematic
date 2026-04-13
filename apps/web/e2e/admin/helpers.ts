@@ -15,7 +15,59 @@ function nowVersion(): string {
   return new Date().toISOString();
 }
 
-function createAdminState() {
+function createAdminState(): {
+  securityPolicy: {
+    password_min_length: number;
+    password_require_uppercase: boolean;
+    password_require_lowercase: boolean;
+    password_require_digit: boolean;
+    password_require_special: boolean;
+    password_expiry_days: null;
+    session_duration_minutes: number;
+    lockout_max_attempts: number;
+    lockout_duration_minutes: number;
+    updated_at: string;
+  };
+  signupPolicy: {
+    signup_mode: "open" | "invite_only" | "admin_approval";
+    mfa_enforcement: "optional" | "required";
+    updated_at: string;
+  };
+  users: AdminUserRecord[];
+} {
+  const users: AdminUserRecord[] = [
+    {
+      id: "admin-1",
+      name: "Pat Admin",
+      email: "pat.admin@musematic.dev",
+      status: "active",
+      role: "platform_admin",
+      last_login_at: "2026-04-12T08:45:00.000Z",
+      created_at: "2026-03-01T12:00:00.000Z",
+      available_actions: ["suspend"],
+    },
+    {
+      id: "user-1",
+      name: "John Example",
+      email: "john@example.com",
+      status: "pending_approval",
+      role: "workspace_owner",
+      last_login_at: null,
+      created_at: "2026-04-09T08:10:00.000Z",
+      available_actions: ["approve", "reject"],
+    },
+    {
+      id: "user-2",
+      name: "Riley Ops",
+      email: "riley.ops@musematic.dev",
+      status: "active",
+      role: "workspace_admin",
+      last_login_at: "2026-04-11T16:20:00.000Z",
+      created_at: "2026-03-14T10:20:00.000Z",
+      available_actions: ["suspend"],
+    },
+  ];
+
   return {
     signupPolicy: {
       signup_mode: "open",
@@ -34,38 +86,7 @@ function createAdminState() {
       lockout_duration_minutes: 15,
       updated_at: nowVersion(),
     },
-    users: [
-      {
-        id: "admin-1",
-        name: "Pat Admin",
-        email: "pat.admin@musematic.dev",
-        status: "active",
-        role: "platform_admin",
-        last_login_at: "2026-04-12T08:45:00.000Z",
-        created_at: "2026-03-01T12:00:00.000Z",
-        available_actions: ["suspend"],
-      },
-      {
-        id: "user-1",
-        name: "John Example",
-        email: "john@example.com",
-        status: "pending_approval",
-        role: "workspace_owner",
-        last_login_at: null,
-        created_at: "2026-04-09T08:10:00.000Z",
-        available_actions: ["approve", "reject"],
-      },
-      {
-        id: "user-2",
-        name: "Riley Ops",
-        email: "riley.ops@musematic.dev",
-        status: "active",
-        role: "workspace_admin",
-        last_login_at: "2026-04-11T16:20:00.000Z",
-        created_at: "2026-03-14T10:20:00.000Z",
-        available_actions: ["suspend"],
-      },
-    ] satisfies AdminUserRecord[],
+    users,
   };
 }
 
@@ -81,13 +102,13 @@ function updateUserStatus(
   users: AdminUserRecord[],
   userId: string,
   status: AdminUserRecord["status"],
-) {
+): AdminUserRecord[] {
   return users.map((user) => {
     if (user.id !== userId) {
       return user;
     }
 
-    const available_actions =
+    const available_actions: AdminUserRecord["available_actions"] =
       status === "pending_approval"
         ? ["approve", "reject"]
         : status === "active"

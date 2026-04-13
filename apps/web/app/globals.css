@@ -4,6 +4,8 @@
 
 @layer base {
   :root {
+    --font-sans: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+    --font-mono: "IBM Plex Mono", "SFMono-Regular", "Menlo", monospace;
     --background: 220 33% 98%;
     --foreground: 224 27% 14%;
     --card: 0 0% 100%;

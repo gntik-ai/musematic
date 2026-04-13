@@ -8,12 +8,12 @@ export function EmptyState({
   onCtaClick,
   icon: Icon,
 }: {
-  title: string;
-  description: string;
-  ctaLabel?: string;
-  onCtaClick?: () => void;
-  icon?: LucideIcon;
-}) {
+    title: string;
+    description: string;
+    ctaLabel?: string | undefined;
+    onCtaClick?: (() => void) | undefined;
+    icon?: LucideIcon | undefined;
+  }) {
   return (
     <div className="flex min-h-48 flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-muted/30 px-6 py-10 text-center">
       {Icon ? <Icon className="mb-4 h-8 w-8 text-brand-accent" /> : null}

@@ -7,7 +7,15 @@ import { homeFixtures } from "@/mocks/handlers/home";
 import { renderWithProviders } from "@/test-utils/render";
 import { server } from "@/vitest.setup";
 
-const toastSpy = vi.fn();
+const { toastSpy } = vi.hoisted(() => ({
+  toastSpy: vi.fn(),
+}));
+
+const push = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push, replace: vi.fn() }),
+}));
 
 vi.mock("@/lib/hooks/use-toast", () => ({
   toast: toastSpy,
@@ -17,6 +25,7 @@ vi.mock("@/lib/hooks/use-toast", () => ({
 describe("PendingActions", () => {
   beforeEach(() => {
     toastSpy.mockReset();
+    push.mockReset();
   });
 
   it("renders pending action cards sorted by urgency", async () => {
@@ -129,6 +138,7 @@ describe("PendingActions", () => {
 
     renderWithProviders(<PendingActions isConnected workspaceId="workspace-1" />);
 
-    expect(await screen.findByText("Pending actions unavailable")).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.getAllByText("Pending actions unavailable")).toHaveLength(2);
   });
 });

@@ -60,6 +60,12 @@ const quotaFields: Array<{
   { name: "storage_quota_gb", label: "Storage quota (GB)" },
 ];
 
+type DefaultQuotaFormValues = Omit<DefaultQuotas, "updated_at">;
+type WorkspaceQuotaOverrideFormValues = Omit<
+  WorkspaceQuotaOverride,
+  "updated_at" | "workspace_id" | "workspace_name"
+>;
+
 export function QuotasTab() {
   const defaultQuery = useDefaultQuotas();
   const defaultMutation = useDefaultQuotasMutation();
@@ -75,7 +81,7 @@ export function QuotasTab() {
   const [defaultStale, setDefaultStale] = useState(false);
   const [overrideStale, setOverrideStale] = useState(false);
 
-  const defaultForm = useForm({
+  const defaultForm = useForm<DefaultQuotaFormValues>({
     defaultValues: {
       max_agents: 100,
       max_concurrent_executions: 30,
@@ -86,7 +92,7 @@ export function QuotasTab() {
     resolver: zodResolver(defaultQuotasSchema),
   });
 
-  const overrideForm = useForm({
+  const overrideForm = useForm<WorkspaceQuotaOverrideFormValues>({
     defaultValues: {
       max_agents: null,
       max_concurrent_executions: null,

@@ -5,6 +5,7 @@ import { queryClient } from "@/lib/query-client";
 import { resetStreamState } from "@/lib/hooks/use-message-stream";
 import { useConversationStore } from "@/lib/stores/conversation-store";
 import { resetHomeFixtures } from "@/mocks/handlers/home";
+import { resetMarketplaceFixtures } from "@/mocks/handlers";
 import {
   resetAdminFixtures,
   resetConversationFixtures,
@@ -14,11 +15,24 @@ import { handlers } from "@/mocks/handlers";
 
 export const server = setupServer(...handlers);
 
+function defineWritableProperty<T extends object>(
+  target: T,
+  key: PropertyKey,
+  value: unknown,
+) {
+  Object.defineProperty(target, key, {
+    configurable: true,
+    writable: true,
+    value,
+  });
+}
+
 beforeAll(() => {
   server.listen({ onUnhandledRequest: "bypass" });
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    value: vi.fn().mockImplementation((query: string) => ({
+  defineWritableProperty(
+    window,
+    "matchMedia",
+    vi.fn().mockImplementation((query: string) => ({
       matches: false,
       media: query,
       onchange: null,
@@ -28,25 +42,31 @@ beforeAll(() => {
       removeListener: vi.fn(),
       dispatchEvent: vi.fn(),
     })),
-  });
-  Object.defineProperty(window, "scrollTo", {
-    writable: true,
-    value: vi.fn(),
-  });
-  Object.defineProperty(window, "IntersectionObserver", {
-    writable: true,
-    value: vi.fn().mockImplementation(() => ({
+  );
+  defineWritableProperty(window, "scrollTo", vi.fn());
+  defineWritableProperty(HTMLElement.prototype, "scrollIntoView", vi.fn());
+  defineWritableProperty(
+    window,
+    "IntersectionObserver",
+    vi.fn().mockImplementation(() => ({
       observe: vi.fn(),
       unobserve: vi.fn(),
       disconnect: vi.fn(),
       takeRecords: vi.fn(() => []),
     })),
-  });
-  Object.defineProperty(navigator, "clipboard", {
-    writable: true,
-    value: {
-      writeText: vi.fn(),
-    },
+  );
+
+  class ResizeObserverMock {
+    observe = vi.fn();
+    unobserve = vi.fn();
+    disconnect = vi.fn();
+  }
+
+  defineWritableProperty(window, "ResizeObserver", ResizeObserverMock);
+  defineWritableProperty(globalThis, "ResizeObserver", ResizeObserverMock);
+
+  defineWritableProperty(navigator, "clipboard", {
+    writeText: vi.fn().mockResolvedValue(undefined),
   });
 });
 
@@ -55,6 +75,7 @@ afterEach(() => {
   server.resetHandlers();
   queryClient.clear();
   resetHomeFixtures();
+  resetMarketplaceFixtures();
   resetAdminFixtures();
   resetConversationFixtures();
   resetStreamState();
