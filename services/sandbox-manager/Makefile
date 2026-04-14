@@ -32,6 +32,9 @@ test:
 	GOCACHE=/tmp/sandbox-manager-gocache go test ./... -coverprofile=coverage.out
 
 test-integration:
+	@set -e; \
+	docker compose -f testdata/docker-compose.yml up -d; \
+	trap 'docker compose -f testdata/docker-compose.yml down -v' EXIT; \
 	GOCACHE=/tmp/sandbox-manager-gocache go test ./... -tags=integration -v -timeout 120s
 
 lint:

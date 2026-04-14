@@ -162,7 +162,7 @@
 - [x] T043 [P] Run full coverage audit: `pytest tests/ --cov=src/platform/accounts --cov-report=term-missing` — identify and fill gaps to reach ≥95% line coverage on all `accounts/` modules
 - [x] T044 [P] Run `ruff check src/platform/accounts/` — fix ALL warnings and errors until output is clean
 - [x] T045 [P] Run `mypy src/platform/accounts/ --strict` — fix ALL type errors until output is clean
-- [ ] T046 Verify quickstart.md steps all pass end-to-end per `specs/016-accounts-bounded-context/quickstart.md` — registration, approval, invitation, lifecycle, anti-enumeration flows
+- [X] T046 Verify quickstart.md steps all pass end-to-end per `specs/016-accounts-bounded-context/quickstart.md` — registration, approval, invitation, lifecycle, anti-enumeration flows
 
 ---
 

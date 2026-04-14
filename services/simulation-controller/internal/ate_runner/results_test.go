@@ -222,3 +222,33 @@ func TestResultsAggregatorGeneratesATEReport(t *testing.T) {
 	require.EqualValues(t, 1, summary["passed"])
 	require.EqualValues(t, 1, summary["failed"])
 }
+
+func TestATEHelpersCoverDeleteCleanupAndParsers(t *testing.T) {
+	t.Parallel()
+
+	client := fake.NewSimpleClientset()
+	require.NoError(t, DeleteATEConfigMap(context.Background(), client, sim_manager.DefaultNamespace, "missing"))
+
+	runner := &Runner{}
+	require.NoError(t, runner.Cleanup(context.Background(), "session-1"))
+	require.EqualValues(t, 1, safeInt32(1))
+	require.EqualValues(t, int32(2147483647), safeInt32(1<<62))
+
+	require.Nil(t, parseBoolPtr(""))
+	require.False(t, *parseBoolPtr("false"))
+	require.Nil(t, parseFloat("bad"))
+	require.Nil(t, parseInt32("bad"))
+
+	report := buildReport(AggregationRequest{
+		SessionID: "session-1",
+		AgentID:   "agent-1",
+		ExpectedScenarios: []*simulationv1.ATEScenario{
+			{ScenarioId: "scenario-1"},
+			{ScenarioId: "missing"},
+		},
+	}, map[string]scenarioReport{
+		"scenario-1": {ScenarioID: "scenario-1", Passed: true},
+	})
+	require.EqualValues(t, 1, report.Summary.Total)
+	require.EqualValues(t, 1, report.Summary.Passed)
+}

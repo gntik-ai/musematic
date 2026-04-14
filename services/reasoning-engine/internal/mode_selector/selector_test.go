@@ -112,3 +112,32 @@ func TestScoreAndDetectSpecialMode(t *testing.T) {
 		t.Fatalf("DetectSpecialMode() = %s, want CODE_AS_REASONING", got)
 	}
 }
+
+func TestSelectorHelpers(t *testing.T) {
+	selector := NewRuleBasedSelector()
+
+	if got := selector.bestFallback("TREE_OF_THOUGHT", []string{"DIRECT", "CHAIN_OF_THOUGHT"}); got != "CHAIN_OF_THOUGHT" {
+		t.Fatalf("bestFallback() = %s, want CHAIN_OF_THOUGHT", got)
+	}
+	if got := selector.bestFallback("TREE_OF_THOUGHT", nil); got != "" {
+		t.Fatalf("bestFallback() = %s, want empty", got)
+	}
+	if got := selector.recommendedBudget("UNKNOWN", BudgetConstraints{}); got.Tokens != 0 || got.Rounds != 0 || got.Cost != 0 || got.TimeMS != 0 {
+		t.Fatalf("recommendedBudget(unknown) = %+v", got)
+	}
+	if got := rationale("DEBATE", 7, "DEBATE", 3); got != "selected DEBATE from keyword override with complexity score 7" {
+		t.Fatalf("rationale() = %q", got)
+	}
+	if got := rationale("DIRECT", 1, "", 1); got != "selected only feasible mode DIRECT" {
+		t.Fatalf("rationale() = %q", got)
+	}
+	if got := chooseInt64(1, 10, 0.01); got != 1 {
+		t.Fatalf("chooseInt64() = %d, want 1", got)
+	}
+	if got := chooseFloat64(0.1, 10, -1); got != 10 {
+		t.Fatalf("chooseFloat64() = %v, want fallback", got)
+	}
+	if contains([]string{"A", "B"}, "C") {
+		t.Fatal("contains() should return false for missing item")
+	}
+}

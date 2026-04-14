@@ -46,6 +46,7 @@ async def _seed_user_for_lifecycle(session_factory: async_sessionmaker) -> UUID:
                 status="active",
             )
         )
+        await session.flush()
         session.add(
             UserCredential(
                 user_id=user_id,
@@ -54,6 +55,7 @@ async def _seed_user_for_lifecycle(session_factory: async_sessionmaker) -> UUID:
                 is_active=True,
             )
         )
+        await session.flush()
         session.add(
             MfaEnrollment(
                 user_id=user_id,

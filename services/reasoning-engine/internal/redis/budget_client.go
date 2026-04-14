@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"os"
-	"path/filepath"
 	"strconv"
 	"time"
 
@@ -56,8 +55,7 @@ func (r redisBudgetScript) Run(ctx context.Context, key string, now int64, dimen
 }
 
 func NewClusterClient(addrs []string, password string) (*BudgetClient, error) {
-	scriptPath := filepath.Join("lua", "budget_decrement.lua")
-	source, err := os.ReadFile(scriptPath)
+	source, err := os.ReadFile("lua/budget_decrement.lua")
 	if err != nil {
 		return nil, err
 	}

@@ -22,15 +22,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class ExecutionRepository:
+    """Provide persistence helpers for execution."""
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
     async def create_execution(self, execution: Execution) -> Execution:
+        """Create execution."""
         self.session.add(execution)
         await self.session.flush()
         return execution
 
     async def get_execution_by_id(self, execution_id: UUID) -> Execution | None:
+        """Return execution by id."""
         result = await self.session.execute(select(Execution).where(Execution.id == execution_id))
         return result.scalar_one_or_none()
 
@@ -46,6 +49,7 @@ class ExecutionRepository:
         offset: int,
         limit: int,
     ) -> tuple[list[Execution], int]:
+        """List executions."""
         query = select(Execution).where(Execution.workspace_id == workspace_id)
         count_query = (
             select(func.count())
@@ -76,6 +80,7 @@ class ExecutionRepository:
         return list(result.scalars().all()), int(total or 0)
 
     async def list_by_statuses(self, statuses: list[ExecutionStatus]) -> list[Execution]:
+        """List by statuses."""
         result = await self.session.execute(
             select(Execution)
             .where(Execution.status.in_(statuses))
@@ -84,6 +89,7 @@ class ExecutionRepository:
         return list(result.scalars().all())
 
     async def count_active_for_trigger(self, trigger_id: UUID) -> int:
+        """Count active for trigger."""
         total = await self.session.scalar(
             select(func.count())
             .select_from(Execution)
@@ -109,6 +115,7 @@ class ExecutionRepository:
         started_at: datetime | None = None,
         completed_at: datetime | None = None,
     ) -> Execution:
+        """Update execution status."""
         execution.status = status
         if started_at is not None:
             execution.started_at = started_at
@@ -132,6 +139,7 @@ class ExecutionRepository:
         correlation_goal_id: UUID | None = None,
         correlation_fleet_id: UUID | None = None,
     ) -> ExecutionEvent:
+        """Handle append event."""
         next_sequence = int(await self.count_events(execution_id)) + 1
         event = ExecutionEvent(
             execution_id=execution_id,
@@ -158,6 +166,7 @@ class ExecutionRepository:
         since_sequence: int | None = None,
         event_type: ExecutionEventType | None = None,
     ) -> list[ExecutionEvent]:
+        """Return events."""
         query = select(ExecutionEvent).where(ExecutionEvent.execution_id == execution_id)
         if since_sequence is not None:
             query = query.where(ExecutionEvent.sequence > since_sequence)
@@ -167,6 +176,7 @@ class ExecutionRepository:
         return list(result.scalars().all())
 
     async def count_events(self, execution_id: UUID) -> int:
+        """Count events."""
         total = await self.session.scalar(
             select(func.count())
             .select_from(ExecutionEvent)
@@ -175,11 +185,13 @@ class ExecutionRepository:
         return int(total or 0)
 
     async def create_checkpoint(self, checkpoint: ExecutionCheckpoint) -> ExecutionCheckpoint:
+        """Create checkpoint."""
         self.session.add(checkpoint)
         await self.session.flush()
         return checkpoint
 
     async def get_latest_checkpoint(self, execution_id: UUID) -> ExecutionCheckpoint | None:
+        """Return latest checkpoint."""
         result = await self.session.execute(
             select(ExecutionCheckpoint)
             .where(ExecutionCheckpoint.execution_id == execution_id)
@@ -195,6 +207,7 @@ class ExecutionRepository:
         self,
         lease: ExecutionDispatchLease,
     ) -> ExecutionDispatchLease:
+        """Create dispatch lease."""
         self.session.add(lease)
         await self.session.flush()
         return lease
@@ -204,6 +217,7 @@ class ExecutionRepository:
         execution_id: UUID,
         step_id: str,
     ) -> ExecutionDispatchLease | None:
+        """Return active dispatch lease."""
         result = await self.session.execute(
             select(ExecutionDispatchLease)
             .where(
@@ -223,6 +237,7 @@ class ExecutionRepository:
         released_at: datetime,
         expired: bool = False,
     ) -> ExecutionDispatchLease:
+        """Handle release dispatch lease."""
         lease.released_at = released_at
         lease.expired = expired
         await self.session.flush()
@@ -232,6 +247,7 @@ class ExecutionRepository:
         self,
         record: ExecutionTaskPlanRecord,
     ) -> ExecutionTaskPlanRecord:
+        """Handle upsert task plan record."""
         existing = await self.get_task_plan_record(record.execution_id, record.step_id)
         if existing is None:
             self.session.add(record)
@@ -253,6 +269,7 @@ class ExecutionRepository:
         return existing
 
     async def list_task_plan_records(self, execution_id: UUID) -> list[ExecutionTaskPlanRecord]:
+        """List task plan records."""
         result = await self.session.execute(
             select(ExecutionTaskPlanRecord)
             .where(ExecutionTaskPlanRecord.execution_id == execution_id)
@@ -265,6 +282,7 @@ class ExecutionRepository:
         execution_id: UUID,
         step_id: str,
     ) -> ExecutionTaskPlanRecord | None:
+        """Return task plan record."""
         result = await self.session.execute(
             select(ExecutionTaskPlanRecord).where(
                 ExecutionTaskPlanRecord.execution_id == execution_id,
@@ -277,6 +295,7 @@ class ExecutionRepository:
         self,
         approval_wait: ExecutionApprovalWait,
     ) -> ExecutionApprovalWait:
+        """Create approval wait."""
         self.session.add(approval_wait)
         await self.session.flush()
         return approval_wait
@@ -286,6 +305,7 @@ class ExecutionRepository:
         execution_id: UUID,
         step_id: str,
     ) -> ExecutionApprovalWait | None:
+        """Return approval wait."""
         result = await self.session.execute(
             select(ExecutionApprovalWait).where(
                 ExecutionApprovalWait.execution_id == execution_id,
@@ -295,6 +315,7 @@ class ExecutionRepository:
         return result.scalar_one_or_none()
 
     async def list_approval_waits(self, execution_id: UUID) -> list[ExecutionApprovalWait]:
+        """List approval waits."""
         result = await self.session.execute(
             select(ExecutionApprovalWait)
             .where(ExecutionApprovalWait.execution_id == execution_id)
@@ -303,6 +324,7 @@ class ExecutionRepository:
         return list(result.scalars().all())
 
     async def list_pending_approval_waits(self, now: datetime) -> list[ExecutionApprovalWait]:
+        """List pending approval waits."""
         result = await self.session.execute(
             select(ExecutionApprovalWait).where(
                 ExecutionApprovalWait.timeout_at < now,
@@ -319,6 +341,7 @@ class ExecutionRepository:
         decided_by: str | None,
         decided_at: datetime,
     ) -> ExecutionApprovalWait:
+        """Update approval wait."""
         approval_wait.decision = decision
         approval_wait.decided_by = decided_by
         approval_wait.decided_at = decided_at
@@ -329,6 +352,7 @@ class ExecutionRepository:
         self,
         record: ExecutionCompensationRecord,
     ) -> ExecutionCompensationRecord:
+        """Create compensation record."""
         self.session.add(record)
         await self.session.flush()
         return record

@@ -130,10 +130,10 @@
 - [X] T031 [P] Implement `health_check()` method in `apps/control-plane/src/platform/common/clients/redis.py` that `PING`s the cluster and returns `True` if successful, `False` on any `RedisError`
 - [X] T032 [P] Create Go budget client reference at `services/reasoning-engine/internal/redis/budget_client.go`: `NewClusterClient` with `PoolSize: 50`, `MinIdleConns: 25`; `redis.NewScript(budget_decrement_lua_source)` loaded from `lua/budget_decrement.lua` at startup; `DecrementBudget(ctx, executionID, stepID, dimension, amount)` with 10ms context timeout; `BudgetResult` struct; `Close()` for graceful shutdown
 - [X] T033 Add Redis integration test job to `.github/workflows/db-check.yml`: start `redis:7` service container on port 6379; set `REDIS_URL=redis://localhost:6379`; run `pytest apps/control-plane/tests/integration/test_redis_*.py -v`
-- [ ] T034 Run `helm lint deploy/helm/redis --strict` and `helm template deploy/helm/redis -f deploy/helm/redis/values-prod.yaml` and fix any warnings
+- [X] T034 Run `helm lint deploy/helm/redis --strict` and `helm template deploy/helm/redis -f deploy/helm/redis/values-prod.yaml` and fix any warnings
 - [X] T035 [P] Run `ruff check apps/control-plane/src/platform/common/clients/redis.py` and fix any lint violations
 - [X] T036 [P] Run `mypy --strict apps/control-plane/src/platform/common/clients/redis.py` and fix any type errors
-- [ ] T037 [P] Run `pytest apps/control-plane/tests/integration/test_redis_*.py --cov=platform.common.clients.redis --cov-report=term-missing` and confirm coverage ≥95%
+- [X] T037 [P] Run `pytest apps/control-plane/tests/integration/test_redis_*.py --cov=platform.common.clients.redis --cov-report=term-missing` and confirm coverage ≥95%
 - [X] T038 Update `CLAUDE.md` with Redis client usage patterns: import path, how to initialize for tests vs production, key namespace conventions, when to use each Lua script
 
 ---

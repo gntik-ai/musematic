@@ -59,3 +59,28 @@ func TestTruncateOutput(t *testing.T) {
 		t.Fatalf("unexpected truncate result: %q %q %v", stdout, stderr, truncated)
 	}
 }
+
+type fakeExitCodeError struct {
+	code int
+}
+
+func (e fakeExitCodeError) Error() string   { return "exit" }
+func (e fakeExitCodeError) ExitStatus() int { return e.code }
+
+func TestDetectOOMAndExitCodeHelpers(t *testing.T) {
+	if DetectOOM(context.Background(), fakePodGetter{err: errors.New("lookup boom")}, "pod-1", errors.New("boom")) {
+		t.Fatal("expected DetectOOM() to ignore lookup failures without OOM signal")
+	}
+	if got := exitCodeFor(nil, true, false); got != 124 {
+		t.Fatalf("exitCodeFor(timeout) = %d", got)
+	}
+	if got := exitCodeFor(nil, false, true); got != 137 {
+		t.Fatalf("exitCodeFor(oom) = %d", got)
+	}
+	if got := exitCodeFor(fakeExitCodeError{code: 23}, false, false); got != 23 {
+		t.Fatalf("exitCodeFor(exit coder) = %d", got)
+	}
+	if got := exitCodeFor(errors.New("boom"), false, false); got != 1 {
+		t.Fatalf("exitCodeFor(default) = %d", got)
+	}
+}

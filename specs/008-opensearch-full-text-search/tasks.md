@@ -48,7 +48,7 @@
 - [X] T008 [P] [US1] Create `deploy/helm/opensearch/values-prod.yaml` with production overrides: `replicas: 3`, JVM heap `8g`, persistence `100Gi` storageClass `fast`, Dashboards pointing to HTTPS endpoint per data-model.md §4.2
 - [X] T009 [P] [US1] Create `deploy/helm/opensearch/values-dev.yaml` with dev overrides: `replicas: 1`, JVM heap `512m`, `DISABLE_SECURITY_PLUGIN: "true"`, `discovery.type: single-node`, `DISABLE_SECURITY_DASHBOARDS_PLUGIN: "true"` per data-model.md §4.3
 - [X] T010 [US1] Create NetworkPolicy template `deploy/helm/opensearch/templates/network-policy.yaml`: allow ingress on `9200/TCP` from `platform-control` and `platform-execution` namespaces, `9600/TCP` from `platform-observability`, `9200/TCP` within `platform-data` (for Dashboards); deny all other ingress per contracts/opensearch-cluster.md §7
-- [ ] T011 [US1] Validate the wrapper chart renders correctly: run `helm dependency update deploy/helm/opensearch` then `helm template musematic-opensearch deploy/helm/opensearch -f deploy/helm/opensearch/values-dev.yaml` and confirm StatefulSet, Dashboards Deployment, Secret, ConfigMap, NetworkPolicy, and future Job all render without errors
+- [X] T011 [US1] Validate the wrapper chart renders correctly: run `helm dependency update deploy/helm/opensearch` then `helm template musematic-opensearch deploy/helm/opensearch -f deploy/helm/opensearch/values-dev.yaml` and confirm StatefulSet, Dashboards Deployment, Secret, ConfigMap, NetworkPolicy, and future Job all render without errors
 - [X] T012 [US1] Integration test in `apps/control-plane/tests/integration/test_opensearch_cluster.py`: deploy OpenSearch testcontainer (single-node, security disabled), call `GET /_cluster/health` via opensearch-py, assert `status == "yellow"` and `number_of_nodes == 1`; call `GET /_analyze` with `agent_analyzer` after template init, assert synonym tokens present
 
 **Checkpoint**: Running cluster with green/yellow health, Dashboards accessible, ICU analyzer functional. US1 independently testable.
@@ -137,7 +137,7 @@
 
 **Independent Test**: Helm template renders NetworkPolicy with correct `namespaceSelector` entries; manual validation: connection from `platform-control` succeeds, connection from `default` namespace fails.
 
-- [ ] T034 [US7] Validate NetworkPolicy template in `deploy/helm/opensearch/templates/network-policy.yaml`: render with `helm template` and assert the rendered YAML contains `ingress` rules for `platform-control` (port 9200), `platform-execution` (port 9200), `platform-observability` (port 9600), and `platform-data` (same namespace, port 9200 for Dashboards); assert no `ingress` rule exists for `default` namespace or wildcard (per contracts/opensearch-cluster.md §7)
+- [X] T034 [US7] Validate NetworkPolicy template in `deploy/helm/opensearch/templates/network-policy.yaml`: render with `helm template` and assert the rendered YAML contains `ingress` rules for `platform-control` (port 9200), `platform-execution` (port 9200), `platform-observability` (port 9600), and `platform-data` (same namespace, port 9200 for Dashboards); assert no `ingress` rule exists for `default` namespace or wildcard (per contracts/opensearch-cluster.md §7)
 
 **Checkpoint**: NetworkPolicy template verified. US7 complete.
 

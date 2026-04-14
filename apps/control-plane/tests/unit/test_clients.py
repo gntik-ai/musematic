@@ -61,6 +61,72 @@ async def test_redis_client_methods() -> None:
 
 
 @pytest.mark.asyncio
+async def test_redis_client_initialize_uses_runtime_env(monkeypatch) -> None:
+    calls: dict[str, object] = {}
+
+    class FakeStandaloneBackend:
+        async def script_load(self, source: str) -> str:
+            return f"sha:{hash(source)}"
+
+        async def aclose(self) -> None:
+            return None
+
+    def fake_from_url(url: str, **kwargs) -> FakeStandaloneBackend:
+        calls["url"] = url
+        calls["kwargs"] = kwargs
+        return FakeStandaloneBackend()
+
+    client = AsyncRedisClient(nodes=["redis:6379"])
+    monkeypatch.setattr("platform.common.clients.redis.Redis.from_url", fake_from_url)
+    monkeypatch.setenv("REDIS_TEST_MODE", "standalone")
+    monkeypatch.setenv("REDIS_URL", "redis://test-redis:6379")
+
+    await client.initialize()
+    await client.close()
+
+    assert calls == {
+        "url": "redis://test-redis:6379",
+        "kwargs": {"decode_responses": True},
+    }
+
+
+@pytest.mark.asyncio
+async def test_redis_client_cluster_uses_require_full_coverage(monkeypatch) -> None:
+    calls: dict[str, object] = {}
+
+    class FakeClusterBackend:
+        async def script_load(self, source: str) -> str:
+            return f"sha:{hash(source)}"
+
+        async def aclose(self) -> None:
+            return None
+
+    def fake_cluster_from_url(url: str, **kwargs) -> FakeClusterBackend:
+        calls["url"] = url
+        calls["kwargs"] = kwargs
+        return FakeClusterBackend()
+
+    monkeypatch.delenv("REDIS_TEST_MODE", raising=False)
+    monkeypatch.delenv("REDIS_URL", raising=False)
+    client = AsyncRedisClient(nodes=["redis-cluster:6379"])
+    monkeypatch.setattr(
+        "platform.common.clients.redis.RedisCluster.from_url",
+        fake_cluster_from_url,
+    )
+
+    await client.initialize()
+    await client.close()
+
+    assert calls["url"] == "redis://:@redis-cluster:6379"
+    assert calls["kwargs"] == {
+        "password": None,
+        "max_connections": 32,
+        "decode_responses": True,
+        "require_full_coverage": False,
+    }
+
+
+@pytest.mark.asyncio
 async def test_qdrant_client_methods(monkeypatch) -> None:
     calls: dict[str, object] = {}
 
@@ -224,7 +290,7 @@ async def test_object_storage_client_methods(monkeypatch) -> None:
             return {"Contents": [{"Key": "a.txt", "Size": 1, "LastModified": None, "ETag": '"a"'}]}
 
         async def head_bucket(self, **kwargs) -> None:
-            raise ClientError({"Error": {"Code": "NoSuchBucket"}}, "HeadBucket")
+            raise ClientError({"Error": {"Code": "404"}}, "HeadBucket")
 
         async def create_bucket(self, **kwargs) -> None:
             self.created_bucket = True
@@ -246,7 +312,8 @@ async def test_object_storage_client_methods(monkeypatch) -> None:
     assert await client.get_object("bucket", "key") == b"payload"
     assert await client.list_objects("bucket") == ["a.txt"]
     await client.create_bucket_if_not_exists("bucket")
-    assert await client.health_check() is True
+    assert fake_s3.created_bucket is True
+    assert await client.health_check() == {"status": "ok", "bucket_count": 1}
 
 
 @pytest.mark.asyncio

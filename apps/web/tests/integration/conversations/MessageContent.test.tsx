@@ -47,4 +47,21 @@ describe("MessageContent", () => {
     expect(screen.getByRole("button", { name: /copy code block/i })).toBeInTheDocument();
     expect(screen.getByText(/root/i)).toBeInTheDocument();
   });
+
+  it("renders streaming, plain text, and inline code paths", () => {
+    const { rerender } = renderWithProviders(
+      <MessageContent content="still streaming" isStreaming />,
+    );
+
+    expect(screen.getByText("still streaming")).toBeInTheDocument();
+
+    rerender(<MessageContent content='{"status":"ok"}' />);
+    expect(screen.getByText(/status/i)).toBeInTheDocument();
+
+    rerender(<MessageContent content="Just a plain response" />);
+    expect(screen.getByText("Just a plain response")).toBeInTheDocument();
+
+    rerender(<MessageContent content="- `inline code`" />);
+    expect(screen.getByText("inline code")).toBeInTheDocument();
+  });
 });

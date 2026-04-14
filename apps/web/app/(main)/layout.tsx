@@ -7,6 +7,7 @@ import { CommandPaletteProvider } from "@/components/layout/command-palette/Comm
 import { MfaEnrollmentDialog } from "@/components/features/auth/mfa-enrollment/MfaEnrollmentDialog";
 import { Header } from "@/components/layout/header/Header";
 import { Sidebar } from "@/components/layout/sidebar/Sidebar";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useAuthStore } from "@/store/auth-store";
 
 export default function MainLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -16,6 +17,7 @@ export default function MainLayout({ children }: Readonly<{ children: React.Reac
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
   const [mounted, setMounted] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const redirectTarget = useMemo(() => {
     if (typeof window === "undefined") {
@@ -42,10 +44,12 @@ export default function MainLayout({ children }: Readonly<{ children: React.Reac
   return (
     <CommandPaletteProvider>
       <div className="flex min-h-screen">
-        <Sidebar />
+        <div className="hidden lg:flex">
+          <Sidebar />
+        </div>
         <div className="flex min-w-0 flex-1 flex-col">
-          <Header />
-          <main className="flex-1 overflow-auto p-6">{children}</main>
+          <Header onOpenMobileNav={() => setMobileNavOpen(true)} />
+          <main className="flex-1 overflow-auto p-4 sm:p-6">{children}</main>
           {user && !user.mfaEnrolled ? (
             <MfaEnrollmentDialog
               onEnrolled={() => {
@@ -55,6 +59,11 @@ export default function MainLayout({ children }: Readonly<{ children: React.Reac
             />
           ) : null}
         </div>
+        <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+          <SheetContent className="mr-auto h-full w-full max-w-[280px] rounded-none border-r border-l-0 p-0">
+            <Sidebar mobile onNavigate={() => setMobileNavOpen(false)} />
+          </SheetContent>
+        </Sheet>
         <CommandPalette />
       </div>
     </CommandPaletteProvider>

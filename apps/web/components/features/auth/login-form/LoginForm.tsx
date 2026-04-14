@@ -151,7 +151,10 @@ export function LoginForm({
           <div className="flex items-center justify-between text-sm">
             <span className="text-muted-foreground">Need help getting back in?</span>
             <Link
-              className="font-medium text-brand-primary transition hover:text-brand-primary/80"
+              className={[
+                "font-medium text-brand-primary transition hover:text-brand-primary/80",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              ].join(" ")}
               href="/forgot-password"
             >
               Forgot password?

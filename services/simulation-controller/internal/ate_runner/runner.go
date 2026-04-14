@@ -3,6 +3,7 @@ package ate_runner
 import (
 	"context"
 	"log/slog"
+	"math"
 	"time"
 
 	"github.com/google/uuid"
@@ -50,6 +51,7 @@ type Runner struct {
 	NewID      func() string
 }
 
+//nolint:gocyclo
 func (r *Runner) Start(ctx context.Context, req ATERequest) (*simulationv1.ATEHandle, error) {
 	if r == nil || r.Client == nil || r.Manager == nil || r.Store == nil {
 		return nil, persistence.ErrNotFound
@@ -165,7 +167,7 @@ func (r *Runner) Start(ctx context.Context, req ATERequest) (*simulationv1.ATEHa
 		SessionId:     req.SessionID,
 		SimulationId:  simulationID,
 		Status:        "PROVISIONING",
-		ScenarioCount: int32(len(req.Scenarios)),
+		ScenarioCount: safeInt32(len(req.Scenarios)),
 		CreatedAt:     timestamppb.New(now),
 	}, nil
 }
@@ -175,4 +177,14 @@ func (r *Runner) Cleanup(ctx context.Context, sessionID string) error {
 		return nil
 	}
 	return DeleteATEConfigMap(ctx, r.Client, r.Namespace, sessionID)
+}
+
+func safeInt32(value int) int32 {
+	if value > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	if value < math.MinInt32 {
+		return math.MinInt32
+	}
+	return int32(value)
 }

@@ -37,6 +37,7 @@ async def create_workflow(
     current_user: dict[str, Any] = Depends(get_current_user),
     workflow_service: WorkflowService = Depends(get_workflow_service),
 ) -> WorkflowResponse:
+    """Create workflow."""
     return await workflow_service.create_workflow(payload, _actor_id(current_user))
 
 
@@ -50,6 +51,7 @@ async def list_workflows(
     current_user: dict[str, Any] = Depends(get_current_user),
     workflow_service: WorkflowService = Depends(get_workflow_service),
 ) -> WorkflowListResponse:
+    """List workflows."""
     del current_user
     parsed_tags = [item.strip() for item in tags.split(",")] if tags else None
     return await workflow_service.list_workflows(
@@ -67,6 +69,7 @@ async def get_workflow(
     current_user: dict[str, Any] = Depends(get_current_user),
     workflow_service: WorkflowService = Depends(get_workflow_service),
 ) -> WorkflowResponse:
+    """Return workflow."""
     del current_user
     return await workflow_service.get_workflow(workflow_id)
 
@@ -78,6 +81,7 @@ async def update_workflow(
     current_user: dict[str, Any] = Depends(get_current_user),
     workflow_service: WorkflowService = Depends(get_workflow_service),
 ) -> WorkflowResponse:
+    """Update workflow."""
     return await workflow_service.update_workflow(workflow_id, payload, _actor_id(current_user))
 
 
@@ -87,6 +91,7 @@ async def archive_workflow(
     current_user: dict[str, Any] = Depends(get_current_user),
     workflow_service: WorkflowService = Depends(get_workflow_service),
 ) -> WorkflowResponse:
+    """Archive workflow."""
     return await workflow_service.archive_workflow(workflow_id, _actor_id(current_user))
 
 
@@ -96,6 +101,7 @@ async def list_versions(
     current_user: dict[str, Any] = Depends(get_current_user),
     workflow_service: WorkflowService = Depends(get_workflow_service),
 ) -> list[WorkflowVersionResponse]:
+    """List versions."""
     del current_user
     return await workflow_service.list_versions(workflow_id)
 
@@ -107,6 +113,7 @@ async def get_version(
     current_user: dict[str, Any] = Depends(get_current_user),
     workflow_service: WorkflowService = Depends(get_workflow_service),
 ) -> WorkflowVersionResponse:
+    """Return version."""
     del current_user
     return await workflow_service.get_version(workflow_id, version_number)
 
@@ -122,6 +129,7 @@ async def create_trigger(
     current_user: dict[str, Any] = Depends(get_current_user),
     workflow_service: WorkflowService = Depends(get_workflow_service),
 ) -> TriggerResponse:
+    """Create trigger."""
     del current_user
     return await workflow_service.create_trigger(workflow_id, payload)
 
@@ -132,6 +140,7 @@ async def list_triggers(
     current_user: dict[str, Any] = Depends(get_current_user),
     workflow_service: WorkflowService = Depends(get_workflow_service),
 ) -> TriggerListResponse:
+    """List triggers."""
     del current_user
     return await workflow_service.list_triggers(workflow_id)
 
@@ -144,6 +153,7 @@ async def update_trigger(
     current_user: dict[str, Any] = Depends(get_current_user),
     workflow_service: WorkflowService = Depends(get_workflow_service),
 ) -> TriggerResponse:
+    """Update trigger."""
     del current_user
     return await workflow_service.update_trigger(workflow_id, trigger_id, payload)
 
@@ -155,6 +165,7 @@ async def delete_trigger(
     current_user: dict[str, Any] = Depends(get_current_user),
     workflow_service: WorkflowService = Depends(get_workflow_service),
 ) -> Response:
+    """Delete trigger."""
     del current_user
     await workflow_service.delete_trigger(workflow_id, trigger_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -169,6 +180,7 @@ async def invoke_webhook_trigger(
     workflow_service: WorkflowService = Depends(get_workflow_service),
     execution_service: ExecutionService = Depends(get_execution_service),
 ) -> dict[str, str]:
+    """Invoke webhook trigger."""
     trigger_list = await workflow_service.list_triggers(workflow_id)
     trigger = next((item for item in trigger_list.items if item.id == trigger_id), None)
     if trigger is None or trigger.trigger_type != TriggerType.webhook:

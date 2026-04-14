@@ -84,7 +84,7 @@ export function MfaEnrollmentDialog({
       open={open}
     >
       <DialogContent
-        className="max-w-2xl"
+        className="max-w-2xl overflow-hidden p-4 sm:p-6"
         onEscapeKeyDown={(event) => {
           event.preventDefault();
           preventDismiss();

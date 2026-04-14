@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it, vi } from "vitest";
 import { GoalFeed } from "@/components/features/goals/GoalFeed";
+import { useConversationStore } from "@/lib/stores/conversation-store";
 import { renderWithProviders } from "@/test-utils/render";
 import { server } from "@/vitest.setup";
 
@@ -31,6 +32,7 @@ describe("GoalFeed", () => {
     renderWithProviders(<GoalFeed workspaceId="workspace-1" />);
 
     expect(await screen.findByLabelText(/select goal/i)).toBeInTheDocument();
+    expect(await screen.findByRole("option", { name: /q2 sales analysis/i })).toBeInTheDocument();
 
     fireEvent.change(screen.getByPlaceholderText(/add guidance to this goal/i), {
       target: { value: "Focus on APAC region" },
@@ -41,6 +43,10 @@ describe("GoalFeed", () => {
       expect(requestSpy).toHaveBeenCalledWith({
         content: "Focus on APAC region",
       });
+    });
+
+    await waitFor(() => {
+      expect(useConversationStore.getState().selectedGoalId).toBe("goal-1");
     });
   });
 });

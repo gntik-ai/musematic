@@ -16,15 +16,18 @@ from sqlalchemy.orm import selectinload
 
 
 class WorkflowRepository:
+    """Provide persistence helpers for workflow."""
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
     async def create_definition(self, definition: WorkflowDefinition) -> WorkflowDefinition:
+        """Create definition."""
         self.session.add(definition)
         await self.session.flush()
         return definition
 
     async def get_definition_by_id(self, workflow_id: UUID) -> WorkflowDefinition | None:
+        """Return definition by id."""
         result = await self.session.execute(
             select(WorkflowDefinition)
             .options(
@@ -42,6 +45,7 @@ class WorkflowRepository:
         workspace_id: UUID,
         name: str,
     ) -> WorkflowDefinition | None:
+        """Return definition by name."""
         result = await self.session.execute(
             select(WorkflowDefinition).where(
                 WorkflowDefinition.workspace_id == workspace_id,
@@ -59,6 +63,7 @@ class WorkflowRepository:
         offset: int,
         limit: int,
     ) -> tuple[list[WorkflowDefinition], int]:
+        """List definitions."""
         query = select(WorkflowDefinition).where(WorkflowDefinition.workspace_id == workspace_id)
         count_query = (
             select(func.count())
@@ -81,6 +86,7 @@ class WorkflowRepository:
         return list(result.scalars().all()), int(total or 0)
 
     async def create_version(self, version: WorkflowVersion) -> WorkflowVersion:
+        """Create version."""
         self.session.add(version)
         await self.session.flush()
         return version
@@ -90,6 +96,7 @@ class WorkflowRepository:
         workflow_id: UUID,
         version_number: int,
     ) -> WorkflowVersion | None:
+        """Return version by number."""
         result = await self.session.execute(
             select(WorkflowVersion).where(
                 WorkflowVersion.definition_id == workflow_id,
@@ -99,12 +106,14 @@ class WorkflowRepository:
         return result.scalar_one_or_none()
 
     async def get_version_by_id(self, version_id: UUID) -> WorkflowVersion | None:
+        """Return version by id."""
         result = await self.session.execute(
             select(WorkflowVersion).where(WorkflowVersion.id == version_id)
         )
         return result.scalar_one_or_none()
 
     async def list_versions(self, workflow_id: UUID) -> list[WorkflowVersion]:
+        """List versions."""
         result = await self.session.execute(
             select(WorkflowVersion)
             .where(WorkflowVersion.definition_id == workflow_id)
@@ -119,6 +128,7 @@ class WorkflowRepository:
         *,
         schema_version: int,
     ) -> WorkflowDefinition:
+        """Update current version id."""
         definition.current_version_id = version_id
         definition.schema_version = schema_version
         await self.session.flush()
@@ -128,17 +138,20 @@ class WorkflowRepository:
         self,
         trigger: WorkflowTriggerDefinition,
     ) -> WorkflowTriggerDefinition:
+        """Create trigger."""
         self.session.add(trigger)
         await self.session.flush()
         return trigger
 
     async def get_trigger_by_id(self, trigger_id: UUID) -> WorkflowTriggerDefinition | None:
+        """Return trigger by id."""
         result = await self.session.execute(
             select(WorkflowTriggerDefinition).where(WorkflowTriggerDefinition.id == trigger_id)
         )
         return result.scalar_one_or_none()
 
     async def list_triggers(self, workflow_id: UUID) -> list[WorkflowTriggerDefinition]:
+        """List triggers."""
         result = await self.session.execute(
             select(WorkflowTriggerDefinition)
             .where(WorkflowTriggerDefinition.definition_id == workflow_id)
@@ -150,6 +163,7 @@ class WorkflowRepository:
         self,
         trigger_type: TriggerType,
     ) -> list[WorkflowTriggerDefinition]:
+        """List active triggers by type."""
         result = await self.session.execute(
             select(WorkflowTriggerDefinition)
             .options(selectinload(WorkflowTriggerDefinition.definition))
@@ -165,11 +179,13 @@ class WorkflowRepository:
         trigger: WorkflowTriggerDefinition,
         **fields: Any,
     ) -> WorkflowTriggerDefinition:
+        """Update trigger."""
         for key, value in fields.items():
             setattr(trigger, key, value)
         await self.session.flush()
         return trigger
 
     async def delete_trigger(self, trigger: WorkflowTriggerDefinition) -> None:
+        """Delete trigger."""
         await self.session.delete(trigger)
         await self.session.flush()

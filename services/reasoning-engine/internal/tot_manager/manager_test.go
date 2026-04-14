@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/musematic/reasoning-engine/internal/budget_tracker"
 	"github.com/musematic/reasoning-engine/internal/quality_evaluator"
@@ -166,5 +167,51 @@ func TestManagerDuplicateBranchAndTreeNotFound(t *testing.T) {
 	}
 	if !result.NoViableBranches {
 		t.Fatalf("expected no viable branches for evaluator error, got %+v", result)
+	}
+}
+
+func TestManagerHelpers(t *testing.T) {
+	manager := NewManager(nil, nil, nil, 0)
+	if cap(manager.semaphore) != 10 {
+		t.Fatalf("default concurrency = %d, want 10", cap(manager.semaphore))
+	}
+
+	createdAt := time.Unix(10, 0).UTC()
+	if err := manager.createBranchRecord("tree-helpers", "branch-1", "helper hypothesis", createdAt); err != nil {
+		t.Fatalf("createBranchRecord() error = %v", err)
+	}
+	if err := manager.createBranchRecord("tree-helpers", "branch-1", "duplicate", createdAt); !errors.Is(err, ErrBranchExists) {
+		t.Fatalf("duplicate createBranchRecord() error = %v", err)
+	}
+
+	firstWG := manager.waitGroup("tree-helpers")
+	secondWG := manager.waitGroup("tree-helpers")
+	if firstWG != secondWG {
+		t.Fatal("waitGroup() should reuse the same wait group per tree")
+	}
+
+	snapshot := manager.snapshot("tree-helpers")
+	if len(snapshot) != 1 || snapshot[0].BranchID != "branch-1" {
+		t.Fatalf("snapshot() = %+v", snapshot)
+	}
+
+	manager.updateBranch("tree-helpers", "branch-1", func(branch *BranchSummary) {
+		branch.Status = "COMPLETED"
+		branch.Score = 0.9
+	})
+	if got := manager.hypothesis("tree-helpers", "branch-1"); got != "helper hypothesis" {
+		t.Fatalf("hypothesis() = %q", got)
+	}
+
+	manager.removeBranch("tree-helpers", "branch-1")
+	if got := manager.hypothesis("tree-helpers", "branch-1"); got != "" {
+		t.Fatalf("hypothesis() after remove = %q", got)
+	}
+
+	if got := tokenCostFor("tiny words"); got != 2 {
+		t.Fatalf("tokenCostFor(short) = %d, want 2", got)
+	}
+	if got := tokenCostFor("one two three four five six seven eight"); got != 3 {
+		t.Fatalf("tokenCostFor(long) = %d, want 3", got)
 	}
 }

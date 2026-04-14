@@ -58,6 +58,7 @@ from uuid import UUID, uuid4
 
 
 class ExecutionService:
+    """Provide execution operations."""
     def __init__(
         self,
         *,
@@ -95,6 +96,7 @@ class ExecutionService:
         precompleted_step_ids: list[str] | None = None,
         step_results: dict[str, Any] | None = None,
     ) -> ExecutionResponse:
+        """Create execution."""
         definition = await self.workflow_repository.get_definition_by_id(
             data.workflow_definition_id
         )
@@ -169,6 +171,7 @@ class ExecutionService:
         return ExecutionResponse.model_validate(execution)
 
     async def get_execution(self, execution_id: UUID) -> ExecutionResponse:
+        """Return execution."""
         execution = await self._get_execution_or_raise(execution_id)
         return ExecutionResponse.model_validate(execution)
 
@@ -184,6 +187,7 @@ class ExecutionService:
         page: int,
         page_size: int,
     ) -> ExecutionListResponse:
+        """List executions."""
         items, total = await self.repository.list_executions(
             workspace_id=workspace_id,
             workflow_id=workflow_id,
@@ -200,6 +204,7 @@ class ExecutionService:
         )
 
     async def cancel_execution(self, execution_id: UUID) -> ExecutionResponse:
+        """Cancel execution."""
         execution = await self._get_execution_or_raise(execution_id)
         if execution.status in {
             ExecutionStatus.completed,
@@ -220,6 +225,7 @@ class ExecutionService:
         return ExecutionResponse.model_validate(execution)
 
     async def get_execution_state(self, execution_id: UUID) -> ExecutionStateResponse:
+        """Return execution state."""
         cache_key = self._state_cache_key(execution_id)
         cached = await self.redis_client.get(cache_key)
         if cached is not None:
@@ -246,6 +252,7 @@ class ExecutionService:
         since_sequence: int | None = None,
         event_type: ExecutionEventType | None = None,
     ) -> ExecutionEventListResponse:
+        """Return journal."""
         await self._get_execution_or_raise(execution_id)
         events = await self.repository.get_events(
             execution_id,
@@ -258,6 +265,7 @@ class ExecutionService:
         )
 
     async def replay_execution(self, execution_id: UUID) -> ExecutionStateResponse:
+        """Replay execution."""
         execution = await self._get_execution_or_raise(execution_id)
         events = await self.repository.get_events(execution_id)
         state = self.projector.project_state(events)
@@ -265,6 +273,7 @@ class ExecutionService:
         return state
 
     async def resume_execution(self, execution_id: UUID) -> ExecutionResponse:
+        """Resume execution."""
         execution = await self._get_execution_or_raise(execution_id)
         if execution.status in {
             ExecutionStatus.queued,
@@ -313,6 +322,7 @@ class ExecutionService:
         execution_id: UUID,
         input_overrides: dict[str, Any] | None,
     ) -> ExecutionResponse:
+        """Rerun execution."""
         execution = await self._get_execution_or_raise(execution_id)
         merged_input = dict(execution.input_parameters)
         merged_input.update(input_overrides or {})
@@ -338,6 +348,7 @@ class ExecutionService:
         execution_id: UUID,
         new_version_id: UUID,
     ) -> HotChangeCompatibilityResult:
+        """Validate hot change."""
         execution = await self._get_execution_or_raise(execution_id)
         state = await self.get_execution_state(execution_id)
         old_version = await self._resolve_workflow_version(
@@ -359,6 +370,7 @@ class ExecutionService:
         execution_id: UUID,
         new_version_id: UUID,
     ) -> ExecutionResponse:
+        """Apply hot change."""
         result = await self.validate_hot_change(execution_id, new_version_id)
         if not result.compatible:
             raise HotChangeIncompatibleError(result.issues)
@@ -378,6 +390,7 @@ class ExecutionService:
         return ExecutionResponse.model_validate(execution)
 
     async def list_approvals(self, execution_id: UUID) -> ApprovalWaitListResponse:
+        """List approvals."""
         await self._get_execution_or_raise(execution_id)
         waits = await self.repository.list_approval_waits(execution_id)
         return ApprovalWaitListResponse(
@@ -393,6 +406,7 @@ class ExecutionService:
         *,
         decided_by: UUID,
     ) -> ApprovalWaitResponse:
+        """Record approval decision."""
         execution = await self._get_execution_or_raise(execution_id)
         approval_wait = await self.repository.get_approval_wait(execution_id, step_id)
         if approval_wait is None:
@@ -423,6 +437,14 @@ class ExecutionService:
             step_id=step_id,
             payload={"comment": request.comment},
         )
+        if request.decision == ApprovalDecision.approved:
+            await self.repository.update_execution_status(execution, ExecutionStatus.queued)
+            await self._append_domain_event(
+                execution,
+                ExecutionEventType.resumed,
+                step_id=step_id,
+                payload={"reason": "approval_granted"},
+            )
         return ApprovalWaitResponse.model_validate(updated)
 
     async def trigger_compensation(
@@ -432,6 +454,7 @@ class ExecutionService:
         *,
         triggered_by: str,
     ) -> None:
+        """Trigger compensation."""
         execution = await self._get_execution_or_raise(execution_id)
         state = await self.get_execution_state(execution_id)
         if step_id not in state.completed_step_ids:
@@ -476,6 +499,7 @@ class ExecutionService:
         execution_id: UUID,
         step_id: str | None,
     ) -> TaskPlanFullResponse | list[TaskPlanRecordResponse]:
+        """Return task plan."""
         await self._get_execution_or_raise(execution_id)
         if step_id is None:
             records = await self.repository.list_task_plan_records(execution_id)
@@ -508,6 +532,7 @@ class ExecutionService:
         payload: dict[str, Any],
         status: ExecutionStatus | None = None,
     ) -> None:
+        """Record runtime event."""
         execution = await self._get_execution_or_raise(execution_id)
         if status is not None:
             await self.repository.update_execution_status(execution, status)
@@ -574,6 +599,7 @@ class ExecutionService:
         trigger_reason: str,
         steps_affected: list[str],
     ) -> None:
+        """Publish reprioritization."""
         await publish_execution_reprioritized(
             self.producer,
             ExecutionReprioritizedEvent(

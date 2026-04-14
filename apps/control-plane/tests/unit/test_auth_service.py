@@ -29,6 +29,7 @@ class FakeAuthRepository:
     def __init__(self) -> None:
         self.user_id = uuid4()
         self.email = "user@example.com"
+        self.platform_user = SimpleNamespace(id=self.user_id, status="active")
         self.credential = SimpleNamespace(
             user_id=self.user_id,
             password_hash=hash_password("SecureP@ss123"),
@@ -42,6 +43,9 @@ class FakeAuthRepository:
 
     async def get_credential_by_email(self, email: str):
         return self.credential if email == self.email else None
+
+    async def get_platform_user(self, user_id):
+        return self.platform_user if user_id == self.user_id else None
 
     async def update_password_hash(self, user_id, new_hash: str) -> None:
         assert user_id == self.user_id

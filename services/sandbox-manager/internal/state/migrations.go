@@ -3,7 +3,7 @@ package state
 import (
 	"context"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 var migrationStatements = []string{
@@ -41,7 +41,11 @@ CREATE TABLE IF NOT EXISTS sandbox_events (
 	`CREATE INDEX IF NOT EXISTS idx_sandbox_events_sandbox_emitted ON sandbox_events (sandbox_id, emitted_at DESC)`,
 }
 
-func RunMigrations(ctx context.Context, pool *pgxpool.Pool) error {
+type migrationExecutor interface {
+	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
+}
+
+func RunMigrations(ctx context.Context, pool migrationExecutor) error {
 	for _, stmt := range migrationStatements {
 		if _, err := pool.Exec(ctx, stmt); err != nil {
 			return err

@@ -160,12 +160,12 @@
 
 - [X] T058 Mount connectors router in `apps/control-plane/src/platform/api/__init__.py`
 - [X] T059 [P] Wire connector worker components into `apps/control-plane/entrypoints/worker_main.py` — Kafka consumer group for `connector.delivery` topic (calls `execute_delivery()`); `RetryScanner` APScheduler job (every 30s); `EmailPollingJob` APScheduler job (per-instance interval, default 60s)
-- [ ] T060 [P] Run `alembic upgrade head` to apply migration 010 and verify all 6 tables are created correctly
-- [ ] T061 [P] Run `python -m platform.connectors.seed` to verify 4 connector types are seeded correctly
-- [ ] T062 [P] Run full test suite `pytest tests/ --cov=src/platform/connectors --cov-report=term-missing` and verify coverage ≥ 95%
+- [X] T060 [P] Run `alembic upgrade head` to apply migration 010 and verify all 6 tables are created correctly
+- [X] T061 [P] Run `python -m platform.connectors.seed` to verify 4 connector types are seeded correctly
+- [X] T062 [P] Run full test suite `pytest tests/ --cov=src/platform/connectors --cov-report=term-missing` and verify coverage ≥ 95%
 - [X] T063 [P] Run `ruff check apps/control-plane/src/platform/connectors/` and fix all linting issues
 - [X] T064 [P] Run `mypy apps/control-plane/src/platform/connectors/ --strict` and fix all type errors
-- [ ] T065 [P] Execute quickstart.md Scenario 1 (Slack connector CRUD + health check) end-to-end
+- [X] T065 [P] Execute quickstart.md Scenario 1 (Slack connector CRUD + health check) end-to-end
 
 ---
 

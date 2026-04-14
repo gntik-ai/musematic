@@ -10,10 +10,6 @@ import {
 import type { MessageAttachment } from "@/types/conversations";
 
 function getAttachmentIcon(attachment: MessageAttachment) {
-  if (attachment.mime_type.startsWith("image/")) {
-    return FileImage;
-  }
-
   if (
     attachment.mime_type.includes("json") ||
     attachment.mime_type.includes("javascript") ||

@@ -6,6 +6,7 @@ from typing import Any
 
 @dataclass(slots=True)
 class RetryConfigIR:
+    """Represent the retry config i r."""
     max_retries: int = 3
     backoff_strategy: str = "fixed"
     base_delay_seconds: float = 5.0
@@ -13,12 +14,14 @@ class RetryConfigIR:
     retry_on_event_types: list[str] | None = None
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize this object to a dictionary."""
         payload = asdict(self)
         payload["retry_on_event_types"] = self.retry_on_event_types or []
         return payload
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> RetryConfigIR:
+        """Build an instance from a dictionary payload."""
         return cls(
             max_retries=int(payload.get("max_retries", 3)),
             backoff_strategy=str(payload.get("backoff_strategy", "fixed")),
@@ -30,15 +33,18 @@ class RetryConfigIR:
 
 @dataclass(slots=True)
 class ApprovalConfigIR:
+    """Represent the approval config i r."""
     required_approvers: list[str]
     timeout_seconds: int = 86400
     timeout_action: str = "fail"
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize this object to a dictionary."""
         return asdict(self)
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> ApprovalConfigIR:
+        """Build an instance from a dictionary payload."""
         return cls(
             required_approvers=[str(item) for item in payload.get("required_approvers", [])],
             timeout_seconds=int(payload.get("timeout_seconds", 86400)),
@@ -48,6 +54,7 @@ class ApprovalConfigIR:
 
 @dataclass(slots=True)
 class StepIR:
+    """Represent the step i r."""
     step_id: str
     step_type: str
     agent_fqn: str | None = None
@@ -64,6 +71,7 @@ class StepIR:
     condition_expression: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize this object to a dictionary."""
         return {
             "step_id": self.step_id,
             "step_type": self.step_type,
@@ -85,6 +93,7 @@ class StepIR:
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> StepIR:
+        """Build an instance from a dictionary payload."""
         retry_payload = payload.get("retry_config")
         approval_payload = payload.get("approval_config")
         return cls(
@@ -123,6 +132,7 @@ class StepIR:
 
 @dataclass(slots=True)
 class WorkflowIR:
+    """Represent the workflow i r."""
     schema_version: int
     workflow_id: str
     steps: list[StepIR]
@@ -131,6 +141,7 @@ class WorkflowIR:
     metadata: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
+        """Serialize this object to a dictionary."""
         return {
             "schema_version": self.schema_version,
             "workflow_id": self.workflow_id,
@@ -142,6 +153,7 @@ class WorkflowIR:
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> WorkflowIR:
+        """Build an instance from a dictionary payload."""
         return cls(
             schema_version=int(payload["schema_version"]),
             workflow_id=str(payload["workflow_id"]),

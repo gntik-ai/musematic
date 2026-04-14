@@ -16,6 +16,7 @@ def _clean_optional_text(value: str | None) -> str | None:
 
 
 class WorkflowCreate(BaseModel):
+    """Represent the workflow create."""
     model_config = ConfigDict(extra="forbid")
 
     name: str = Field(min_length=1, max_length=200)
@@ -28,20 +29,24 @@ class WorkflowCreate(BaseModel):
     @field_validator("name")
     @classmethod
     def normalize_name(cls, value: str) -> str:
+        """Handle normalize name."""
         return value.strip()
 
     @field_validator("description", "change_summary")
     @classmethod
     def normalize_optional(cls, value: str | None) -> str | None:
+        """Handle normalize optional."""
         return _clean_optional_text(value)
 
     @field_validator("tags")
     @classmethod
     def normalize_tags(cls, value: list[str]) -> list[str]:
+        """Handle normalize tags."""
         return [item.strip() for item in value if item.strip()]
 
 
 class WorkflowUpdate(BaseModel):
+    """Represent the workflow update."""
     model_config = ConfigDict(extra="forbid")
 
     yaml_source: str = Field(min_length=1)
@@ -50,10 +55,12 @@ class WorkflowUpdate(BaseModel):
     @field_validator("change_summary")
     @classmethod
     def normalize_summary(cls, value: str | None) -> str | None:
+        """Handle normalize summary."""
         return _clean_optional_text(value)
 
 
 class WorkflowVersionResponse(BaseModel):
+    """Represent the workflow version response payload."""
     id: UUID
     version_number: int
     schema_version: int
@@ -66,6 +73,7 @@ class WorkflowVersionResponse(BaseModel):
 
 
 class WorkflowResponse(BaseModel):
+    """Represent the workflow response payload."""
     id: UUID
     name: str
     description: str | None
@@ -81,11 +89,13 @@ class WorkflowResponse(BaseModel):
 
 
 class WorkflowListResponse(BaseModel):
+    """Represent the workflow list response payload."""
     items: list[WorkflowResponse]
     total: int
 
 
 class TriggerCreate(BaseModel):
+    """Represent the trigger create."""
     model_config = ConfigDict(extra="forbid")
 
     trigger_type: TriggerType
@@ -97,10 +107,12 @@ class TriggerCreate(BaseModel):
     @field_validator("name")
     @classmethod
     def normalize_name(cls, value: str) -> str:
+        """Handle normalize name."""
         return value.strip()
 
 
 class TriggerResponse(BaseModel):
+    """Represent the trigger response payload."""
     id: UUID
     trigger_type: TriggerType
     name: str
@@ -115,5 +127,6 @@ class TriggerResponse(BaseModel):
 
 
 class TriggerListResponse(BaseModel):
+    """Represent the trigger list response payload."""
     items: list[TriggerResponse]
     total: int

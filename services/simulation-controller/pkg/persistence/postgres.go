@@ -70,7 +70,13 @@ type ATEResultRecord struct {
 	ErrorMessage    string
 }
 
+type storeDB interface {
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
 type Store struct {
+	db   storeDB
 	pool *pgxpool.Pool
 }
 
@@ -101,7 +107,7 @@ func NewPostgresPool(dsn string) *pgxpool.Pool {
 }
 
 func NewStore(pool *pgxpool.Pool) *Store {
-	return &Store{pool: pool}
+	return &Store{db: pool, pool: pool}
 }
 
 func (s *Store) Pool() *pgxpool.Pool {
@@ -112,11 +118,11 @@ func (s *Store) Pool() *pgxpool.Pool {
 }
 
 func (s *Store) InsertSimulation(ctx context.Context, record SimulationRecord) error {
-	if s == nil || s.pool == nil {
+	if s == nil || s.db == nil {
 		return errors.New("postgres store is not configured")
 	}
 
-	_, err := s.pool.Exec(
+	_, err := s.db.Exec(
 		ctx,
 		`INSERT INTO simulations (
 			simulation_id, agent_image, agent_config_json, status, namespace, pod_name,
@@ -142,11 +148,11 @@ func (s *Store) InsertSimulation(ctx context.Context, record SimulationRecord) e
 }
 
 func (s *Store) UpdateSimulationStatus(ctx context.Context, simulationID string, update SimulationStatusUpdate) error {
-	if s == nil || s.pool == nil {
+	if s == nil || s.db == nil {
 		return errors.New("postgres store is not configured")
 	}
 
-	tag, err := s.pool.Exec(
+	tag, err := s.db.Exec(
 		ctx,
 		`UPDATE simulations
 		SET status = $2,
@@ -174,12 +180,12 @@ func (s *Store) UpdateSimulationStatus(ctx context.Context, simulationID string,
 }
 
 func (s *Store) GetSimulation(ctx context.Context, simulationID string) (SimulationRecord, error) {
-	if s == nil || s.pool == nil {
+	if s == nil || s.db == nil {
 		return SimulationRecord{}, errors.New("postgres store is not configured")
 	}
 
 	var record SimulationRecord
-	err := s.pool.QueryRow(
+	err := s.db.QueryRow(
 		ctx,
 		`SELECT simulation_id, agent_image, agent_config_json, status, namespace, COALESCE(pod_name, ''),
 		        cpu_request, memory_request, max_duration_seconds, created_at, started_at,
@@ -213,11 +219,11 @@ func (s *Store) GetSimulation(ctx context.Context, simulationID string) (Simulat
 }
 
 func (s *Store) InsertSimulationArtifact(ctx context.Context, record SimulationArtifactRecord) error {
-	if s == nil || s.pool == nil {
+	if s == nil || s.db == nil {
 		return errors.New("postgres store is not configured")
 	}
 
-	_, err := s.pool.Exec(
+	_, err := s.db.Exec(
 		ctx,
 		`INSERT INTO simulation_artifacts (simulation_id, object_key, filename, size_bytes, content_type)
 		 VALUES ($1,$2,$3,$4,$5)`,
@@ -231,11 +237,11 @@ func (s *Store) InsertSimulationArtifact(ctx context.Context, record SimulationA
 }
 
 func (s *Store) InsertATESession(ctx context.Context, record ATESessionRecord) error {
-	if s == nil || s.pool == nil {
+	if s == nil || s.db == nil {
 		return errors.New("postgres store is not configured")
 	}
 
-	_, err := s.pool.Exec(
+	_, err := s.db.Exec(
 		ctx,
 		`INSERT INTO ate_sessions (session_id, simulation_id, agent_id, scenarios_json, report_object_key, created_at, completed_at)
 		 VALUES ($1,$2,$3,$4,NULLIF($5, ''),$6,$7)`,
@@ -251,11 +257,11 @@ func (s *Store) InsertATESession(ctx context.Context, record ATESessionRecord) e
 }
 
 func (s *Store) InsertATEResult(ctx context.Context, record ATEResultRecord) error {
-	if s == nil || s.pool == nil {
+	if s == nil || s.db == nil {
 		return errors.New("postgres store is not configured")
 	}
 
-	_, err := s.pool.Exec(
+	_, err := s.db.Exec(
 		ctx,
 		`INSERT INTO ate_results (
 			session_id, scenario_id, passed, quality_score, latency_ms, cost, safety_compliant, error_message
@@ -280,11 +286,11 @@ func (s *Store) InsertATEResult(ctx context.Context, record ATEResultRecord) err
 }
 
 func (s *Store) UpdateATEReport(ctx context.Context, sessionID, objectKey string, completedAt time.Time) error {
-	if s == nil || s.pool == nil {
+	if s == nil || s.db == nil {
 		return errors.New("postgres store is not configured")
 	}
 
-	tag, err := s.pool.Exec(
+	tag, err := s.db.Exec(
 		ctx,
 		`UPDATE ate_sessions
 		 SET report_object_key = $2, completed_at = $3
@@ -303,12 +309,12 @@ func (s *Store) UpdateATEReport(ctx context.Context, sessionID, objectKey string
 }
 
 func (s *Store) FindATESessionIDBySimulation(ctx context.Context, simulationID string) (string, error) {
-	if s == nil || s.pool == nil {
+	if s == nil || s.db == nil {
 		return "", errors.New("postgres store is not configured")
 	}
 
 	var sessionID string
-	err := s.pool.QueryRow(
+	err := s.db.QueryRow(
 		ctx,
 		`SELECT session_id FROM ate_sessions WHERE simulation_id = $1`,
 		simulationID,

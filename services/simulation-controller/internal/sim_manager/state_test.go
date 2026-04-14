@@ -104,6 +104,42 @@ func TestOrphanScannerDeletesPodsMissingFromRegistry(t *testing.T) {
 	require.Equal(t, []string{"orphan-pod"}, deleter.names)
 }
 
+func TestStateRegistryLifecycleHelpers(t *testing.T) {
+	t.Parallel()
+
+	registry := NewStateRegistry()
+	registry.Register(SimulationState{})
+	require.Empty(t, registry.List())
+
+	registry.Register(SimulationState{SimulationID: "sim-1", Status: "CREATING"})
+	require.True(t, registry.UpdateStatus("sim-1", "COMPLETED"))
+
+	state, ok := registry.Get("sim-1")
+	require.True(t, ok)
+	require.Equal(t, "COMPLETED", state.Status)
+	require.NotNil(t, state.CompletedAt)
+	require.Len(t, registry.List(), 1)
+
+	registry.Delete("sim-1")
+	_, ok = registry.Get("sim-1")
+	require.False(t, ok)
+	require.False(t, registry.UpdateStatus("missing", "FAILED"))
+}
+
+func TestStateHelpersCoverFallbackBranches(t *testing.T) {
+	t.Parallel()
+
+	require.Equal(t, ResourceUsage{}, resourceUsageFromPod(corev1.Pod{}))
+
+	succeeded := corev1.Pod{Status: corev1.PodStatus{Phase: corev1.PodSucceeded}}
+	failed := corev1.Pod{Status: corev1.PodStatus{Phase: corev1.PodFailed}}
+	pending := corev1.Pod{Status: corev1.PodStatus{Phase: corev1.PodPending}}
+
+	require.Equal(t, "COMPLETED", statusFromPhase(succeeded))
+	require.Equal(t, "FAILED", statusFromPhase(failed))
+	require.Equal(t, "CREATING", statusFromPhase(pending))
+}
+
 func mustQuantity(value string) resource.Quantity {
 	return resource.MustParse(value)
 }

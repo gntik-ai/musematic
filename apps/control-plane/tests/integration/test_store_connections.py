@@ -69,7 +69,9 @@ async def test_store_wrapper_health_checks(
     assert await neo4j_client.health_check() is True
     assert await clickhouse_client.health_check() is True
     assert await opensearch_client.health_check() is True
-    assert await object_storage_client.health_check() is True
+    object_storage_health = await object_storage_client.health_check()
+    assert object_storage_health["status"] == "ok"
+    assert int(object_storage_health["bucket_count"]) >= 0
 
 
 async def test_store_wrapper_typed_operations(

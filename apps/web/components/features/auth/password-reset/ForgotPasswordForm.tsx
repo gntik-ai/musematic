@@ -110,7 +110,10 @@ export function ForgotPasswordForm() {
           </Button>
           <div className="text-right text-sm">
             <Link
-              className="font-medium text-brand-primary transition hover:text-brand-primary/80"
+              className={[
+                "font-medium text-brand-primary transition hover:text-brand-primary/80",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              ].join(" ")}
               href="/login"
             >
               Back to login

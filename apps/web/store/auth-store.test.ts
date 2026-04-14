@@ -52,4 +52,39 @@ describe("auth-store", () => {
     expect(useAuthStore.getState().user).toBeNull();
     expect(useAuthStore.getState().isAuthenticated).toBe(false);
   });
+
+  it("marks the session as authenticated when tokens are set without a user", () => {
+    useAuthStore.getState().setTokens({
+      accessToken: "access",
+      refreshToken: "refresh",
+      expiresIn: 900,
+    });
+
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+  });
+
+  it("keeps the session authenticated when a user is set after tokens already exist", () => {
+    useAuthStore.setState({
+      accessToken: "access",
+      refreshToken: "refresh",
+      isAuthenticated: true,
+    });
+
+    useAuthStore.getState().setUser({
+      id: "user-2",
+      email: "owner@musematic.dev",
+      displayName: "Owner",
+      avatarUrl: null,
+      roles: ["workspace_admin"],
+      workspaceId: "workspace-1",
+      mfaEnrolled: true,
+    });
+
+    expect(useAuthStore.getState().isAuthenticated).toBe(true);
+  });
+
+  it("updates the loading flag", () => {
+    useAuthStore.getState().setLoading(true);
+    expect(useAuthStore.getState().isLoading).toBe(true);
+  });
 });

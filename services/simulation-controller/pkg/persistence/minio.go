@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -63,13 +62,6 @@ func (c *MinIOClient) PresignGetURL(key string) string {
 		return ""
 	}
 	return c.objectURL(key)
-}
-
-func getenv(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
 }
 
 func normaliseEndpoint(endpoint string) string {

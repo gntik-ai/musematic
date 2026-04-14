@@ -3,6 +3,8 @@ package redis
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -51,6 +53,40 @@ func TestConversionHelpers(t *testing.T) {
 func TestNewClusterClientRequiresLuaScript(t *testing.T) {
 	if _, err := NewClusterClient([]string{"127.0.0.1:6379"}, ""); err == nil {
 		t.Fatal("expected missing lua script error from package-local cwd")
+	}
+}
+
+func TestNewClusterClientAndScriptRunWithoutRedis(t *testing.T) {
+	dir := t.TempDir()
+	luaDir := filepath.Join(dir, "lua")
+	if err := os.MkdirAll(luaDir, 0o750); err != nil {
+		t.Fatalf("MkdirAll() error = %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(luaDir, "budget_decrement.lua"), []byte("return {1, 0, 0, 0, 0}"), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Getwd() error = %v", err)
+	}
+	defer func() {
+		_ = os.Chdir(cwd)
+	}()
+	if err := os.Chdir(dir); err != nil {
+		t.Fatalf("Chdir() error = %v", err)
+	}
+
+	client, err := NewClusterClient([]string{"127.0.0.1:6379"}, "")
+	if err != nil {
+		t.Fatalf("NewClusterClient() error = %v", err)
+	}
+	defer func() {
+		_ = client.Close()
+	}()
+
+	if _, err := client.DecrementBudget(context.Background(), "exec-1", "step-1", "tokens", 1); err == nil {
+		t.Fatal("expected redis error without a live cluster")
 	}
 }
 

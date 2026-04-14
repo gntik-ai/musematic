@@ -72,7 +72,7 @@ func TestSplitCSVAndRedisClient(t *testing.T) {
 	if client.Options().ClusterSlots == nil {
 		t.Fatal("expected standalone cluster slots override")
 	}
-	client.Close()
+	_ = client.Close()
 }
 
 func TestPostgresAndKafkaHelpers(t *testing.T) {
@@ -85,6 +85,9 @@ func TestPostgresAndKafkaHelpers(t *testing.T) {
 		t.Fatal("expected postgres pool")
 	}
 	pool.Close()
+	assertPanics(t, func() {
+		_ = NewPostgresPool("://bad dsn")
+	})
 
 	var nilProducer *KafkaProducer
 	if err := nilProducer.Produce(context.Background(), "topic", "key", []byte("value")); err != nil {
@@ -95,6 +98,12 @@ func TestPostgresAndKafkaHelpers(t *testing.T) {
 	if NewKafkaProducer("") != nil {
 		t.Fatal("expected nil kafka producer for empty brokers")
 	}
+
+	constructed := NewKafkaProducer("127.0.0.1:9092")
+	if constructed == nil {
+		t.Fatal("expected kafka producer for non-empty brokers")
+	}
+	constructed.Close()
 
 	producer := &KafkaProducer{producer: &fakeKafkaProducer{event: &kafka.Message{}}}
 	if err := producer.Produce(context.Background(), "topic", "key", []byte("value")); err != nil {
@@ -149,8 +158,21 @@ func TestMinIOClientUploadAndURL(t *testing.T) {
 	if client.GetURL("path/object.txt") == "" {
 		t.Fatal("expected object url")
 	}
+	if err := (*MinIOClient)(nil).Upload(context.Background(), "path/object.txt", []byte("payload")); err != nil {
+		t.Fatalf("nil Upload() error = %v", err)
+	}
+	var nilClient *MinIOClient
+	if nilClient.GetURL("path/object.txt") != "" {
+		t.Fatal("expected empty url for nil minio client")
+	}
 	if NewMinIOClient("minio.internal:9000", "bucket").GetURL("path/object.txt") != "http://minio.internal:9000/bucket/path/object.txt" {
 		t.Fatal("expected endpoint normalization")
+	}
+	if NewMinIOClient("", "bucket") != nil || NewMinIOClient("http://example.test", "") != nil {
+		t.Fatal("expected nil minio client for missing endpoint or bucket")
+	}
+	if client.GetURL("/leading/slash.txt") != "http://example.test/bucket/leading/slash.txt" {
+		t.Fatalf("unexpected escaped url: %s", client.GetURL("/leading/slash.txt"))
 	}
 
 	client.client = &http.Client{
@@ -166,4 +188,23 @@ func TestMinIOClientUploadAndURL(t *testing.T) {
 	if err := client.Upload(context.Background(), "path/object.txt", []byte("payload")); err == nil {
 		t.Fatal("expected upload error for bad response")
 	}
+
+	client.client = &http.Client{
+		Transport: roundTripper(func(*http.Request) (*http.Response, error) {
+			return nil, errors.New("dial failed")
+		}),
+	}
+	if err := client.Upload(context.Background(), "path/object.txt", []byte("payload")); err == nil {
+		t.Fatal("expected upload transport error")
+	}
+}
+
+func assertPanics(t *testing.T, fn func()) {
+	t.Helper()
+	defer func() {
+		if recover() == nil {
+			t.Fatal("expected panic")
+		}
+	}()
+	fn()
 }

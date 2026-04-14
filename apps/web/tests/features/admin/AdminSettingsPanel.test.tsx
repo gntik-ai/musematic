@@ -46,6 +46,18 @@ describe("AdminSettingsPanel", () => {
     expect(push).toHaveBeenCalledWith("/admin/settings?tab=security");
   });
 
+  it("falls back to the users tab for unknown values and reacts to prop changes", async () => {
+    const view = renderWithProviders(<AdminSettingsPanel defaultTab="unknown-tab" />);
+
+    expect(
+      await screen.findByText("Search, review, and manage platform access for all users."),
+    ).toBeInTheDocument();
+
+    view.rerender(<AdminSettingsPanel defaultTab="email" />);
+
+    expect(await screen.findByText("Email delivery")).toBeInTheDocument();
+  });
+
   it("redirects non-admin users from the admin layout", async () => {
     setNonAdminUser();
 

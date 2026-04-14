@@ -37,7 +37,7 @@ export const useAuthStore = create<AuthStore>()(
         set((state) => ({
           ...state,
           user,
-          isAuthenticated: state.accessToken !== null || user !== null,
+          isAuthenticated: true,
         })),
       setAuth: ({ user, accessToken, refreshToken }) =>
         set((state) => ({
@@ -55,7 +55,20 @@ export const useAuthStore = create<AuthStore>()(
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         refreshToken: state.refreshToken,
+        user: state.user,
       }),
+      merge: (persistedState, currentState) => {
+        const hydratedState = {
+          ...currentState,
+          ...(persistedState as Partial<AuthState>),
+        };
+
+        return {
+          ...hydratedState,
+          isAuthenticated:
+            hydratedState.refreshToken !== null || hydratedState.user !== null,
+        };
+      },
     },
   ),
 );

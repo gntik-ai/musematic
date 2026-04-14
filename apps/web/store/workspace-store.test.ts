@@ -22,4 +22,21 @@ describe("workspace-store", () => {
     useWorkspaceStore.getState().setSidebarCollapsed(true);
     expect(localStorage.getItem("workspace-storage")).toContain("sidebarCollapsed");
   });
+
+  it("updates the workspace list and loading state", () => {
+    useWorkspaceStore.getState().setWorkspaceList([
+      {
+        id: "workspace-1",
+        name: "Signal Lab",
+        slug: "signal-lab",
+        description: null,
+        memberCount: 18,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    useWorkspaceStore.getState().setLoading(true);
+
+    expect(useWorkspaceStore.getState().workspaceList).toHaveLength(1);
+    expect(useWorkspaceStore.getState().isLoading).toBe(true);
+  });
 });

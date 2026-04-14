@@ -52,6 +52,7 @@ def build_execution_service(
     reasoning_engine: ReasoningEngineClient | Any | None,
     context_engineering_service: Any | None = None,
 ) -> ExecutionService:
+    """Handle build execution service."""
     return ExecutionService(
         repository=ExecutionRepository(session),
         settings=settings,
@@ -77,6 +78,7 @@ def build_scheduler_service(
     context_engineering_service: Any | None = None,
     interactions_service: Any | None = None,
 ) -> SchedulerService:
+    """Handle build scheduler service."""
     execution_service = build_execution_service(
         session=session,
         settings=settings,
@@ -106,6 +108,7 @@ async def get_execution_service(
     request: Request,
     session: AsyncSession = Depends(get_db),
 ) -> ExecutionService:
+    """Return execution service."""
     return build_execution_service(
         session=session,
         settings=_get_settings(request),
@@ -122,6 +125,7 @@ async def get_scheduler_service(
     request: Request,
     session: AsyncSession = Depends(get_db),
 ) -> SchedulerService:
+    """Return scheduler service."""
     return build_scheduler_service(
         session=session,
         settings=_get_settings(request),

@@ -11,6 +11,7 @@ import (
 type fakeProducer struct {
 	event   kafka.Event
 	err     error
+	skip    bool
 	flushed bool
 	closed  bool
 }
@@ -19,7 +20,9 @@ func (f *fakeProducer) Produce(_ *kafka.Message, deliveryChan chan kafka.Event) 
 	if f.err != nil {
 		return f.err
 	}
-	deliveryChan <- f.event
+	if !f.skip {
+		deliveryChan <- f.event
+	}
 	return nil
 }
 
@@ -37,6 +40,14 @@ func TestNewKafkaProducerRequiresBootstrapServers(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for empty bootstrap servers")
 	}
+}
+
+func TestNewKafkaProducerSucceeds(t *testing.T) {
+	producer, err := NewKafkaProducer("127.0.0.1:9092")
+	if err != nil {
+		t.Fatalf("NewKafkaProducer() error = %v", err)
+	}
+	producer.Close()
 }
 
 func TestProduceRequiresInitializedProducer(t *testing.T) {
@@ -76,6 +87,16 @@ func TestProduceSucceeds(t *testing.T) {
 
 	if err := producer.Produce(context.Background(), "topic", "key", []byte("value")); err != nil {
 		t.Fatalf("Produce() error = %v", err)
+	}
+}
+
+func TestProduceRespectsContextCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	producer := &KafkaProducer{producer: &fakeProducer{skip: true}}
+	if err := producer.Produce(ctx, "topic", "key", []byte("value")); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Produce() error = %v, want context canceled", err)
 	}
 }
 

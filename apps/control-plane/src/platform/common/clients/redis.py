@@ -73,6 +73,8 @@ class AsyncRedisClient:
             if self._current_client() is not None:
                 return
 
+            self._refresh_runtime_config()
+
             if self._standalone:
                 if self._url:
                     self.client = Redis.from_url(self._url, decode_responses=True)
@@ -93,7 +95,7 @@ class AsyncRedisClient:
                     password=self.password,
                     max_connections=32,
                     decode_responses=True,
-                    skip_full_coverage_check=True,
+                    require_full_coverage=False,
                 )
 
             for script_name in (
@@ -107,7 +109,11 @@ class AsyncRedisClient:
     async def close(self) -> None:
         if self.client is None:
             return
-        await self.client.close()
+        aclose = getattr(self.client, "aclose", None)
+        if callable(aclose):
+            await aclose()
+        else:
+            await self.client.close()
         self.client = None
 
     async def connect(self) -> None:
@@ -339,6 +345,15 @@ class AsyncRedisClient:
 
     def _current_client(self) -> Redis | RedisCluster | None:
         return self.client
+
+    def _refresh_runtime_config(self) -> None:
+        test_mode = os.environ.get("REDIS_TEST_MODE")
+        if test_mode is not None:
+            self._standalone = test_mode == "standalone"
+
+        redis_url = os.environ.get("REDIS_URL")
+        if redis_url is not None:
+            self._url = redis_url
 
     async def _eval_script(
         self,

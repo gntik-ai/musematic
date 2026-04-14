@@ -132,7 +132,10 @@ export function MfaChallengeForm({
         <div className="flex items-center justify-between gap-4 text-sm">
           <button
             aria-label={useRecoveryCode ? "Use authenticator code" : "Use a recovery code instead"}
-            className="font-medium text-brand-primary transition hover:text-brand-primary/80"
+            className={[
+              "font-medium text-brand-primary transition hover:text-brand-primary/80",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            ].join(" ")}
             onClick={() => {
               setCode("");
               setErrorMessage(null);
@@ -143,7 +146,10 @@ export function MfaChallengeForm({
             {useRecoveryCode ? "Use authenticator code" : "Use a recovery code instead"}
           </button>
           <button
-            className="text-muted-foreground transition hover:text-foreground"
+            className={[
+              "text-muted-foreground transition hover:text-foreground",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            ].join(" ")}
             onClick={onBack}
             type="button"
           >

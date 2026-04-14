@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/musematic/reasoning-engine/pkg/metrics"
 )
@@ -43,6 +44,7 @@ func NewPipeline(repository TraceRepository, producer EventProducer, uploader Ob
 	}
 }
 
+//nolint:gocyclo // This method coordinates the full trace streaming pipeline end to end.
 func (p *Pipeline) ProcessStream(ctx context.Context, stream TraceStream) (*TraceAck, error) {
 	type queuedEvent struct {
 		event *TraceEvent
@@ -192,11 +194,20 @@ func (p *Pipeline) ProcessStream(ctx context.Context, stream TraceStream) (*Trac
 }
 
 type PGTraceRepository struct {
-	pool *pgxpool.Pool
+	pool traceStore
+}
+
+type traceStore interface {
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	SendBatch(ctx context.Context, batch *pgx.Batch) pgx.BatchResults
 }
 
 func NewPGTraceRepository(pool *pgxpool.Pool) *PGTraceRepository {
-	return &PGTraceRepository{pool: pool}
+	var store traceStore
+	if pool != nil {
+		store = pool
+	}
+	return &PGTraceRepository{pool: store}
 }
 
 func (r *PGTraceRepository) EnsureTrace(ctx context.Context, executionID string, startedAt time.Time) (string, error) {
@@ -228,7 +239,9 @@ INSERT INTO reasoning_events (trace_id, event_type, sequence_num, occurred_at, p
 VALUES ($1, $2, $3, $4, $5, $6)
 `, uuidFor(traceID), event.EventType, event.SequenceNum, event.OccurredAt, event.PayloadSize, nullIfEmpty(event.ObjectKey))
 	results := r.pool.SendBatch(ctx, batch)
-	defer results.Close()
+	defer func() {
+		_ = results.Close()
+	}()
 	_, err := results.Exec()
 	return err
 }

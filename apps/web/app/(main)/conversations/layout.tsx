@@ -85,7 +85,7 @@ export default function ConversationsLayout({
               Goal feed
             </Button>
           </SheetTrigger>
-          <SheetContent className="ml-auto flex h-full w-full flex-col sm:max-w-xl">
+          <SheetContent className="ml-auto flex h-full w-full max-w-none flex-col rounded-none border-0 p-4 sm:max-w-xl sm:rounded-2xl sm:border sm:p-6">
             <SheetTitle>Workspace goals</SheetTitle>
             <SheetDescription>
               Goal activity stays synchronized with the active workspace.

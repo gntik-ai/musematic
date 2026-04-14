@@ -35,4 +35,39 @@ describe("InteractionTabs", () => {
 
     expect(onInteractionChange).toHaveBeenCalledWith("interaction-2");
   });
+
+  it("renders branch tabs, clears branch unread state, and marks the branch as active", async () => {
+    const user = userEvent.setup();
+    const conversation = getConversationFixtures().conversations[0];
+    if (!conversation) {
+      throw new Error("Expected a conversation fixture");
+    }
+
+    useConversationStore.setState({
+      ...useConversationStore.getState(),
+      activeBranchId: null,
+      activeInteractionId: conversation.interactions[0]?.id ?? null,
+      branchTabs: [
+        {
+          id: "branch-1",
+          interactionId: null,
+          name: "Approach B",
+        },
+      ],
+      unreadBranchIds: ["branch-1"],
+    });
+
+    renderWithProviders(
+      <InteractionTabs
+        conversation={conversation}
+        onInteractionChange={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("tab", { name: /approach b/i }));
+
+    expect(useConversationStore.getState().activeBranchId).toBe("branch-1");
+    expect(useConversationStore.getState().unreadBranchIds).toEqual([]);
+    expect(screen.getByRole("button", { name: /branch view is active/i })).toBeInTheDocument();
+  });
 });

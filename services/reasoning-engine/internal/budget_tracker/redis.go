@@ -20,7 +20,15 @@ type commandStore interface {
 }
 
 type redisStore struct {
-	client redis.Cmdable
+	client redisHashClient
+}
+
+type redisHashClient interface {
+	Exists(ctx context.Context, keys ...string) *redis.IntCmd
+	HSet(ctx context.Context, key string, values ...any) *redis.IntCmd
+	Expire(ctx context.Context, key string, ttl time.Duration) *redis.BoolCmd
+	EvalSha(ctx context.Context, sha string, keys []string, args ...any) *redis.Cmd
+	HGetAll(ctx context.Context, key string) *redis.MapStringStringCmd
 }
 
 func (r redisStore) Exists(ctx context.Context, key string) (int64, error) {
@@ -132,6 +140,7 @@ func (t *RedisTracker) Allocate(ctx context.Context, execID, stepID string, limi
 	return nil
 }
 
+//nolint:gocyclo // The budget decrement flow intentionally handles each exhaustion path inline.
 func (t *RedisTracker) Decrement(ctx context.Context, execID, stepID, dimension string, amount float64) (float64, error) {
 	if t.store == nil {
 		return 0, fmt.Errorf("redis client is required")

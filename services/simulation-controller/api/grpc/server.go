@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math"
 	"time"
 
 	simulationv1 "github.com/musematic/simulation-controller/api/grpc/v1"
@@ -318,7 +319,7 @@ func (h *Handler) CollectSimulationArtifacts(ctx context.Context, req *simulatio
 
 	return &simulationv1.ArtifactCollectionResult{
 		SimulationId:       req.GetSimulationId(),
-		ArtifactsCollected: int32(len(artifacts)),
+		ArtifactsCollected: safeInt32(len(artifacts)),
 		TotalBytes:         totalBytes,
 		Artifacts:          artifacts,
 		Partial:            partial,
@@ -381,4 +382,14 @@ func timestamp(value *time.Time) *timestamppb.Timestamp {
 		return nil
 	}
 	return timestamppb.New(value.UTC())
+}
+
+func safeInt32(value int) int32 {
+	if value > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	if value < math.MinInt32 {
+		return math.MinInt32
+	}
+	return int32(value)
 }

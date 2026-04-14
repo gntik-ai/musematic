@@ -16,6 +16,44 @@ function nowVersion(): string {
 }
 
 function createAdminState(): {
+  connectorTypes: Array<{
+    slug: string;
+    display_name: string;
+    description: string;
+    is_enabled: boolean;
+    active_instance_count: number;
+    max_payload_size_bytes: number;
+    default_retry_count: number;
+    updated_at: string;
+  }>;
+  defaultQuotas: {
+    max_agents: number;
+    max_concurrent_executions: number;
+    max_sandboxes: number;
+    monthly_token_budget: number;
+    storage_quota_gb: number;
+    updated_at: string;
+  };
+  emailConfig: {
+    mode: "smtp" | "ses";
+    smtp?: {
+      host: string;
+      port: number;
+      username: string;
+      password_set: boolean;
+      encryption: "tls" | "starttls" | "none";
+    };
+    ses?: {
+      region: string;
+      access_key_id: string;
+      secret_access_key_set: boolean;
+    };
+    from_address: string;
+    from_name: string;
+    verification_status: "verified" | "unverified" | "error";
+    last_delivery_at: string | null;
+    updated_at: string;
+  };
   securityPolicy: {
     password_min_length: number;
     password_require_uppercase: boolean;
@@ -34,6 +72,17 @@ function createAdminState(): {
     updated_at: string;
   };
   users: AdminUserRecord[];
+  workspaceOverride: {
+    workspace_id: string;
+    workspace_name: string;
+    max_agents: number | null;
+    max_concurrent_executions: number | null;
+    max_sandboxes: number | null;
+    monthly_token_budget: number | null;
+    storage_quota_gb: number | null;
+    updated_at: string;
+  };
+  workspaces: Array<{ id: string; name: string }>;
 } {
   const users: AdminUserRecord[] = [
     {
@@ -69,6 +118,51 @@ function createAdminState(): {
   ];
 
   return {
+    connectorTypes: [
+      {
+        slug: "slack",
+        display_name: "Slack",
+        description: "Route workspace notifications into Slack channels.",
+        is_enabled: true,
+        active_instance_count: 3,
+        max_payload_size_bytes: 262144,
+        default_retry_count: 3,
+        updated_at: nowVersion(),
+      },
+      {
+        slug: "email",
+        display_name: "Email",
+        description: "Deliver outbound messages through SMTP or SES.",
+        is_enabled: true,
+        active_instance_count: 1,
+        max_payload_size_bytes: 1048576,
+        default_retry_count: 5,
+        updated_at: nowVersion(),
+      },
+    ],
+    defaultQuotas: {
+      max_agents: 100,
+      max_concurrent_executions: 30,
+      max_sandboxes: 12,
+      monthly_token_budget: 1000,
+      storage_quota_gb: 500,
+      updated_at: nowVersion(),
+    },
+    emailConfig: {
+      mode: "smtp",
+      smtp: {
+        host: "smtp.musematic.dev",
+        port: 587,
+        username: "mailer",
+        password_set: true,
+        encryption: "starttls",
+      },
+      from_address: "noreply@musematic.dev",
+      from_name: "Musematic",
+      verification_status: "verified",
+      last_delivery_at: "2026-04-12T12:00:00.000Z",
+      updated_at: nowVersion(),
+    },
     signupPolicy: {
       signup_mode: "open",
       mfa_enforcement: "optional",
@@ -87,6 +181,20 @@ function createAdminState(): {
       updated_at: nowVersion(),
     },
     users,
+    workspaceOverride: {
+      workspace_id: "workspace-1",
+      workspace_name: "Current workspace",
+      max_agents: 40,
+      max_concurrent_executions: 10,
+      max_sandboxes: 4,
+      monthly_token_budget: 250,
+      storage_quota_gb: 120,
+      updated_at: nowVersion(),
+    },
+    workspaces: [
+      { id: "workspace-1", name: "Current workspace" },
+      { id: "workspace-2", name: "Operations lab" },
+    ],
   };
 }
 
@@ -204,5 +312,95 @@ export async function mockAdminApi(page: Page) {
     }
 
     await fulfillJson(route, state.securityPolicy);
+  });
+
+  await page.route("**/api/v1/admin/settings/quotas", async (route) => {
+    if (route.request().method() === "PATCH") {
+      const body = (await route.request().postDataJSON()) as Omit<
+        typeof state.defaultQuotas,
+        "updated_at"
+      >;
+      state.defaultQuotas = {
+        ...body,
+        updated_at: nowVersion(),
+      };
+      await fulfillJson(route, state.defaultQuotas);
+      return;
+    }
+
+    await fulfillJson(route, state.defaultQuotas);
+  });
+
+  await page.route("**/api/v1/admin/workspaces**", async (route) => {
+    await fulfillJson(route, {
+      items: state.workspaces,
+      total: state.workspaces.length,
+    });
+  });
+
+  await page.route("**/api/v1/admin/settings/quotas/workspaces/*", async (route) => {
+    if (route.request().method() === "PATCH") {
+      const body = (await route.request().postDataJSON()) as Omit<
+        typeof state.workspaceOverride,
+        "updated_at" | "workspace_id" | "workspace_name"
+      >;
+      state.workspaceOverride = {
+        ...state.workspaceOverride,
+        ...body,
+        updated_at: nowVersion(),
+      };
+      await fulfillJson(route, state.workspaceOverride);
+      return;
+    }
+
+    await fulfillJson(route, state.workspaceOverride);
+  });
+
+  await page.route("**/api/v1/admin/settings/connectors", async (route) => {
+    await fulfillJson(route, state.connectorTypes);
+  });
+
+  await page.route("**/api/v1/admin/settings/connectors/*", async (route) => {
+    const slug = route.request().url().split("/").pop() ?? "";
+    const body = (await route.request().postDataJSON().catch(() => null)) as
+      | { is_enabled?: boolean }
+      | null;
+
+    state.connectorTypes = state.connectorTypes.map((config) =>
+      config.slug === slug
+        ? {
+            ...config,
+            is_enabled: body?.is_enabled ?? config.is_enabled,
+            updated_at: nowVersion(),
+          }
+        : config,
+    );
+
+    await fulfillJson(
+      route,
+      state.connectorTypes.find((config) => config.slug === slug) ?? null,
+    );
+  });
+
+  await page.route("**/api/v1/admin/settings/email", async (route) => {
+    if (route.request().method() === "PATCH") {
+      const body = (await route.request().postDataJSON()) as Record<string, unknown>;
+      state.emailConfig = {
+        ...state.emailConfig,
+        ...body,
+        updated_at: nowVersion(),
+      };
+      await fulfillJson(route, state.emailConfig);
+      return;
+    }
+
+    await fulfillJson(route, state.emailConfig);
+  });
+
+  await page.route("**/api/v1/admin/settings/email/test", async (route) => {
+    await fulfillJson(route, {
+      success: true,
+      message: "Test email delivered successfully.",
+    });
   });
 }

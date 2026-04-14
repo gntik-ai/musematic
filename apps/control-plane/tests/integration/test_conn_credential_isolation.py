@@ -14,6 +14,7 @@ from tests.connectors_support import (
     build_app,
     build_connectors_settings,
     seed_connector_types,
+    seed_workspace,
     write_mock_vault,
 )
 
@@ -44,13 +45,14 @@ async def test_connector_credential_isolation_and_rotation(
     )
     async with session_factory() as session:
         await seed_connector_types(session)
+        workspace_id = uuid4()
+        user_id = uuid4()
+        await seed_workspace(session, workspace_id=workspace_id, owner_id=user_id, name="Secure")
         await session.commit()
 
     producer = RecordingProducer()
     app = build_app(settings=settings, redis_client=redis_client, producer=producer)
-    workspace_id = uuid4()
     other_workspace_id = uuid4()
-    user_id = uuid4()
     seen_tokens: list[str] = []
 
     async def _current_user() -> dict[str, str]:

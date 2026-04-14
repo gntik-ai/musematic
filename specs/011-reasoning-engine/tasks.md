@@ -180,8 +180,8 @@ go test ./internal/budget_tracker/... -run TestFanOutRegistry -v
 
 - [ ] T046 Write `services/reasoning-engine/Dockerfile` — multi-stage: Stage 1 `FROM golang:1.22-alpine AS builder` copies source, runs `go mod download` then `CGO_ENABLED=0 GOOS=linux go build -o /reasoning-engine ./cmd/reasoning-engine/`; Stage 2 `FROM gcr.io/distroless/static:nonroot` copies binary only; `EXPOSE 50052`; `USER nonroot:nonroot`; verify `docker images` shows size < 50MB
 - [X] T047 [P] Write Helm chart at `deploy/helm/reasoning-engine/Chart.yaml` (name: reasoning-engine, version: 0.1.0, appVersion: 0.1.0), `values.yaml` (image, replicaCount: 2, resources: limits cpu=500m mem=256Mi, env vars from ConfigMap/Secret), `templates/deployment.yaml` (with `livenessProbe` and `readinessProbe` on gRPC health endpoint via `grpc-health-probe`), `templates/service.yaml` (ClusterIP, port 50052), `templates/configmap.yaml` (non-secret env vars), `templates/hpa.yaml` (min=2, max=10, targetCPU=70%)
-- [ ] T048 [P] Write `.golangci.yml` at `services/reasoning-engine/.golangci.yml` — enable: `errcheck`, `govet`, `staticcheck`, `unused`, `gosec`, `gocyclo` (max 15), `dupl`; run `make lint` and fix all warnings
-- [ ] T049 Run `go test ./... -coverprofile=coverage.out` in `services/reasoning-engine/`, open coverage report — verify ≥ 95% coverage; add missing unit tests for any uncovered branches in `mode_selector`, `budget_tracker`, `correction_loop`, `tot_manager` until threshold is met
+- [X] T048 [P] Write `.golangci.yml` at `services/reasoning-engine/.golangci.yml` — enable: `errcheck`, `govet`, `staticcheck`, `unused`, `gosec`, `gocyclo` (max 15), `dupl`; run `make lint` and fix all warnings
+- [X] T049 Run `go test ./... -coverprofile=coverage.out` in `services/reasoning-engine/`, open coverage report — verify ≥ 95% coverage; add missing unit tests for any uncovered branches in `mode_selector`, `budget_tracker`, `correction_loop`, `tot_manager` until threshold is met
 
 ---
 

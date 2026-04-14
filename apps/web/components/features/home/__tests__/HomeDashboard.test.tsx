@@ -2,6 +2,11 @@ import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HomeDashboard } from "@/components/features/home/HomeDashboard";
+import {
+  useDashboardWebSocket,
+  usePendingActions,
+  useWorkspaceSummary,
+} from "@/lib/hooks/use-home-data";
 import { renderWithProviders } from "@/test-utils/render";
 import { server } from "@/vitest.setup";
 import { useAuthStore } from "@/store/auth-store";
@@ -90,6 +95,13 @@ vi.mock("@/components/features/home/PendingActions", () => ({
   PendingActions: () => <div data-testid="pending-actions" />,
 }));
 
+function DashboardProbe({ workspaceId }: { workspaceId: string }) {
+  useDashboardWebSocket(workspaceId);
+  useWorkspaceSummary(workspaceId, { isConnected: true });
+  usePendingActions(workspaceId, { isConnected: true });
+  return <div data-testid="dashboard-probe" />;
+}
+
 describe("HomeDashboard", () => {
   beforeEach(() => {
     wsMock.reset();
@@ -120,6 +132,43 @@ describe("HomeDashboard", () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it("renders the workspace picker empty state when no workspace is selected", () => {
+    useAuthStore.setState({
+      user: null,
+      accessToken: null,
+      refreshToken: null,
+      isAuthenticated: false,
+    });
+    useWorkspaceStore.setState({
+      currentWorkspace: null,
+      workspaceList: [],
+      sidebarCollapsed: false,
+      isLoading: false,
+    });
+
+    renderWithProviders(<HomeDashboard />);
+
+    expect(screen.getByText("Select a workspace")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Choose a workspace to load summary metrics, recent activity, and pending actions\./i,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("falls back to the authenticated user's workspace id when the workspace store is empty", () => {
+    useWorkspaceStore.setState({
+      currentWorkspace: null,
+      workspaceList: [],
+      sidebarCollapsed: false,
+      isLoading: false,
+    });
+
+    renderWithProviders(<HomeDashboard />);
+
+    expect(screen.getByRole("heading", { name: "Current workspace overview" })).toBeInTheDocument();
   });
 
   it("invalidates and refetches summary when an execution event arrives", async () => {
@@ -233,5 +282,105 @@ describe("HomeDashboard", () => {
     expect(
       setIntervalSpy.mock.calls.some(([, delay]) => delay === 30_000),
     ).toBe(false);
+  });
+
+  it("invalidates pending actions and summary when interaction attention is requested", async () => {
+    let summaryCalls = 0;
+    let pendingCalls = 0;
+
+    server.use(
+      http.get("*/api/v1/workspaces/:workspaceId/analytics/summary", () => {
+        summaryCalls += 1;
+        return HttpResponse.json({
+          workspace_id: "workspace-1",
+          active_agents: 12,
+          active_agents_change: 0,
+          running_executions: 4,
+          running_executions_change: 0,
+          pending_approvals: pendingCalls > 1 ? 3 : 2,
+          pending_approvals_change: 1,
+          cost_current: 142_50,
+          cost_previous: 142_50,
+          period_label: "Apr 2026",
+        });
+      }),
+      http.get("*/api/v1/workspaces/:workspaceId/dashboard/pending-actions", () => {
+        pendingCalls += 1;
+        return HttpResponse.json({
+          workspace_id: "workspace-1",
+          total: pendingCalls > 1 ? 2 : 1,
+          items: [],
+        });
+      }),
+    );
+
+    renderWithProviders(<DashboardProbe workspaceId="workspace-1" />);
+
+    await waitFor(() => {
+      expect(summaryCalls).toBe(1);
+      expect(pendingCalls).toBe(1);
+    });
+
+    expect(summaryCalls).toBe(1);
+    expect(pendingCalls).toBe(1);
+
+    wsMock.emit("interaction", "interaction.attention.requested", {
+      workspaceId: "workspace-1",
+    });
+
+    await waitFor(() => {
+      expect(summaryCalls).toBeGreaterThan(1);
+      expect(pendingCalls).toBeGreaterThan(1);
+    });
+  });
+
+  it("ignores dashboard websocket events for a different workspace", async () => {
+    let summaryCalls = 0;
+    let pendingCalls = 0;
+
+    server.use(
+      http.get("*/api/v1/workspaces/:workspaceId/analytics/summary", () => {
+        summaryCalls += 1;
+        return HttpResponse.json({
+          workspace_id: "workspace-1",
+          active_agents: 12,
+          active_agents_change: 0,
+          running_executions: 4,
+          running_executions_change: 0,
+          pending_approvals: 2,
+          pending_approvals_change: 0,
+          cost_current: 142_50,
+          cost_previous: 142_50,
+          period_label: "Apr 2026",
+        });
+      }),
+      http.get("*/api/v1/workspaces/:workspaceId/dashboard/pending-actions", () => {
+        pendingCalls += 1;
+        return HttpResponse.json({
+          workspace_id: "workspace-1",
+          total: 1,
+          items: [],
+        });
+      }),
+    );
+
+    renderWithProviders(<DashboardProbe workspaceId="workspace-1" />);
+
+    await waitFor(() => {
+      expect(summaryCalls).toBe(1);
+      expect(pendingCalls).toBe(1);
+    });
+
+    expect(summaryCalls).toBe(1);
+    expect(pendingCalls).toBe(1);
+
+    wsMock.emit("workspace", "workspace.approval.created", {
+      workspace_id: "workspace-2",
+    });
+
+    await waitFor(() => {
+      expect(summaryCalls).toBe(1);
+      expect(pendingCalls).toBe(1);
+    });
   });
 });

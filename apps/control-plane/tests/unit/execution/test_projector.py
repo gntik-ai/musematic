@@ -66,3 +66,93 @@ def test_projector_tracks_state_transitions() -> None:
     assert state.pending_step_ids == []
     assert state.step_results["step_a"]["output"] == {"ok": True}
     assert state.last_event_sequence == 7
+
+
+def test_projector_handles_checkpoints_and_additional_event_types() -> None:
+    execution_id = uuid4()
+    checkpoint = __import__(
+        "platform.execution.models",
+        fromlist=["ExecutionCheckpoint"],
+    ).ExecutionCheckpoint(
+        id=uuid4(),
+        execution_id=execution_id,
+        last_event_sequence=2,
+        step_results={"_execution_data": {"budget": 12}, "step_a": {"status": "completed"}},
+        completed_step_ids=["step_a"],
+        active_step_ids=["step_b"],
+        pending_step_ids=["step_c"],
+        execution_data={"budget": 12},
+        created_at=datetime.now(UTC),
+        updated_at=datetime.now(UTC),
+    )
+    events = [
+        ExecutionEvent(
+            id=uuid4(),
+            execution_id=execution_id,
+            sequence=3,
+            event_type=ExecutionEventType.rejected,
+            step_id="step_b",
+            agent_fqn=None,
+            payload={"reason": "manual"},
+            correlation_workspace_id=uuid4(),
+            correlation_conversation_id=None,
+            correlation_interaction_id=None,
+            correlation_goal_id=None,
+            correlation_fleet_id=None,
+            correlation_execution_id=execution_id,
+            created_at=datetime.now(UTC),
+        ),
+        _event(
+            4,
+            ExecutionEventType.approval_timed_out,
+            step_id="step_c",
+            payload={"timeout_action": "skip"},
+        ),
+        _event(5, ExecutionEventType.resumed),
+        _event(6, ExecutionEventType.retried, step_id="step_c"),
+        _event(7, ExecutionEventType.failed, step_id="step_c", payload={"error": "boom"}),
+        _event(8, ExecutionEventType.canceled, step_id="step_c"),
+        _event(
+            9,
+            ExecutionEventType.compensated,
+            step_id="step_a",
+            payload={"compensation_handler": "undo"},
+        ),
+        _event(
+            10,
+            ExecutionEventType.compensation_failed,
+            step_id="step_c",
+            payload={"compensation_handler": "undo", "outcome": "failed"},
+        ),
+        _event(
+            11,
+            ExecutionEventType.hot_changed,
+            payload={"new_version_id": str(uuid4())},
+        ),
+        _event(
+            12,
+            ExecutionEventType.context_assembled,
+            step_id="step_c",
+            payload={"sources": ["workspace"]},
+        ),
+        _event(
+            13,
+            ExecutionEventType.reprioritized,
+            payload={"trigger_reason": "budget_threshold_breached"},
+        ),
+        _event(14, ExecutionEventType.reasoning_trace_emitted),
+        _event(15, ExecutionEventType.self_correction_started),
+        _event(16, ExecutionEventType.self_correction_converged),
+    ]
+
+    state = ExecutionProjector().project_state(events, checkpoint)
+
+    assert state.status.value == "failed"
+    assert state.step_results["_execution_data"] == {"budget": 12}
+    assert state.step_results["step_b"]["status"] == "rejected"
+    assert state.step_results["step_c"]["context"] == {"sources": ["workspace"]}
+    assert state.step_results["step_a"]["status"] == "compensated"
+    assert state.step_results["_reprioritization"] == [
+        {"trigger_reason": "budget_threshold_breached"}
+    ]
+    assert state.last_event_sequence == 16

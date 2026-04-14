@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -14,6 +16,15 @@ var ErrNotFound = errors.New("record not found")
 
 type Store struct {
 	pool *pgxpool.Pool
+	db   queryExecutor
+}
+
+type queryExecutor interface {
+	Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
+	Query(context.Context, string, ...any) (pgx.Rows, error)
+	QueryRow(context.Context, string, ...any) pgx.Row
+	Ping(context.Context) error
+	Close()
 }
 
 type SandboxRecord struct {
@@ -49,7 +60,11 @@ func NewStore(ctx context.Context, dsn string) (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Store{pool: pool}, nil
+	return &Store{pool: pool, db: pool}, nil
+}
+
+func newStoreForQueries(db queryExecutor) *Store {
+	return &Store{db: db}
 }
 
 func (s *Store) Pool() *pgxpool.Pool {
@@ -59,5 +74,9 @@ func (s *Store) Pool() *pgxpool.Pool {
 func (s *Store) Close() {
 	if s.pool != nil {
 		s.pool.Close()
+		return
+	}
+	if s.db != nil {
+		s.db.Close()
 	}
 }

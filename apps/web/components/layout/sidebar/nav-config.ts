@@ -8,7 +8,8 @@ export interface QuickAction {
   id: string;
   label: string;
   shortcut?: string;
-  callback: () => void;
+  href?: string;
+  callback?: () => void;
 }
 
 export const NAV_ITEMS: NavItem[] = [
@@ -91,11 +92,7 @@ export const QUICK_ACTIONS: QuickAction[] = [
     id: "component-showcase",
     label: "Open component showcase",
     shortcut: "Dev",
-    callback: () => {
-      if (typeof window !== "undefined") {
-        window.location.assign("/dev/components");
-      }
-    },
+    href: "/dev/components",
   },
   {
     id: "sign-out",

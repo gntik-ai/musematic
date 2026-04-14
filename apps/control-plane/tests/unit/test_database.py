@@ -80,7 +80,7 @@ async def test_database_health_check_uses_engine(monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_get_db_commits_and_closes_on_success(monkeypatch) -> None:
     session = FakeSession()
-    monkeypatch.setattr(dependencies, "AsyncSessionLocal", lambda: session)
+    monkeypatch.setattr(database, "AsyncSessionLocal", lambda: session)
 
     generator = dependencies.get_db()
     yielded = await anext(generator)
@@ -97,7 +97,7 @@ async def test_get_db_commits_and_closes_on_success(monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_get_db_rolls_back_on_exception(monkeypatch) -> None:
     session = FakeSession()
-    monkeypatch.setattr(dependencies, "AsyncSessionLocal", lambda: session)
+    monkeypatch.setattr(database, "AsyncSessionLocal", lambda: session)
 
     generator = dependencies.get_db()
     await anext(generator)

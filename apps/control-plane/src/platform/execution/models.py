@@ -16,6 +16,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class ExecutionStatus(StrEnum):
+    """Represent the execution status."""
     queued = "queued"
     running = "running"
     waiting_for_approval = "waiting_for_approval"
@@ -26,6 +27,7 @@ class ExecutionStatus(StrEnum):
 
 
 class ExecutionEventType(StrEnum):
+    """Represent the execution event type."""
     created = "created"
     queued = "queued"
     dispatched = "dispatched"
@@ -51,6 +53,7 @@ class ExecutionEventType(StrEnum):
 
 
 class ApprovalDecision(StrEnum):
+    """Represent the approval decision."""
     approved = "approved"
     rejected = "rejected"
     timed_out = "timed_out"
@@ -58,18 +61,21 @@ class ApprovalDecision(StrEnum):
 
 
 class CompensationOutcome(StrEnum):
+    """Represent the compensation outcome."""
     completed = "completed"
     failed = "failed"
     not_available = "not_available"
 
 
 class ApprovalTimeoutAction(StrEnum):
+    """Represent the approval timeout action."""
     fail = "fail"
     skip = "skip"
     escalate = "escalate"
 
 
 class Execution(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+    """Represent the execution."""
     __tablename__ = "executions"
     __table_args__ = (
         Index("ix_executions_workspace_status", "workspace_id", "status"),
@@ -147,6 +153,7 @@ class Execution(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
 
 
 class ExecutionEvent(Base, UUIDMixin):
+    """Represent the execution event payload."""
     __tablename__ = "execution_events"
     __table_args__ = (
         Index("uq_execution_events_execution_sequence", "execution_id", "sequence", unique=True),
@@ -196,6 +203,7 @@ class ExecutionEvent(Base, UUIDMixin):
 
 
 class ExecutionCheckpoint(Base, UUIDMixin, TimestampMixin):
+    """Represent the execution checkpoint."""
     __tablename__ = "execution_checkpoints"
     __table_args__ = (
         Index(
@@ -234,6 +242,7 @@ class ExecutionCheckpoint(Base, UUIDMixin, TimestampMixin):
 
 
 class ExecutionDispatchLease(Base, UUIDMixin, TimestampMixin):
+    """Represent the execution dispatch lease."""
     __tablename__ = "execution_dispatch_leases"
     __table_args__ = (
         Index("ix_execution_dispatch_leases_execution_step", "execution_id", "step_id"),
@@ -254,6 +263,7 @@ class ExecutionDispatchLease(Base, UUIDMixin, TimestampMixin):
 
 
 class ExecutionTaskPlanRecord(Base, UUIDMixin, TimestampMixin):
+    """Represent the execution task plan record."""
     __tablename__ = "execution_task_plan_records"
     __table_args__ = (
         Index("ix_execution_task_plan_records_execution_id", "execution_id"),
@@ -285,6 +295,7 @@ class ExecutionTaskPlanRecord(Base, UUIDMixin, TimestampMixin):
 
 
 class ExecutionApprovalWait(Base, UUIDMixin, TimestampMixin):
+    """Represent the execution approval wait."""
     __tablename__ = "execution_approval_waits"
     __table_args__ = (
         Index("ix_execution_approval_waits_execution_step", "execution_id", "step_id"),
@@ -318,6 +329,7 @@ class ExecutionApprovalWait(Base, UUIDMixin, TimestampMixin):
 
 
 class ExecutionCompensationRecord(Base, UUIDMixin, TimestampMixin):
+    """Represent the execution compensation record."""
     __tablename__ = "execution_compensation_records"
     __table_args__ = (Index("ix_execution_compensation_records_execution_id", "execution_id"),)
 

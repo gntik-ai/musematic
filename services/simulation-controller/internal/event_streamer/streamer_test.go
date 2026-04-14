@@ -3,6 +3,7 @@ package event_streamer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -25,14 +26,21 @@ func (r *recordingProducer) Produce(topic, key string, _ []byte) error {
 type fakeWatcher struct {
 	fanout *FanoutRegistry
 	events []*simulationv1.SimulationEvent
+	calls  int
+	done   chan struct{}
 }
 
-func (f *fakeWatcher) Watch(_ context.Context, simulationID string) error {
+func (f *fakeWatcher) Watch(ctx context.Context, simulationID string) error {
+	f.calls++
 	for _, event := range f.events {
 		f.fanout.Publish(simulationID, event)
 		if isTerminalEvent(event.GetEventType()) {
 			f.fanout.Close(simulationID)
 		}
+	}
+	if f.done != nil {
+		<-ctx.Done()
+		close(f.done)
 	}
 	return nil
 }
@@ -113,4 +121,45 @@ func TestMarshalEventEnvelopeMapsEventType(t *testing.T) {
 	require.NoError(t, json.Unmarshal(payload, &envelope))
 	require.Equal(t, "simulation.created", envelope["event_type"])
 	require.Equal(t, true, envelope["simulation"])
+}
+
+func TestFanoutHelpersCoverDefaultsAndUnsubscribe(t *testing.T) {
+	t.Parallel()
+
+	fanout := NewFanoutRegistry(0)
+	first := fanout.Subscribe("sim-1")
+	second := fanout.Subscribe("sim-1")
+	require.Equal(t, 2, fanout.SubscriberCount("sim-1"))
+
+	fanout.Unsubscribe("sim-1", first)
+	require.Equal(t, 1, fanout.SubscriberCount("sim-1"))
+
+	fanout.Publish("sim-1", nil)
+	select {
+	case <-second:
+		t.Fatal("unexpected event")
+	default:
+	}
+}
+
+func TestStreamerWatchReferenceCountingAndSendErrors(t *testing.T) {
+	t.Parallel()
+
+	fanout := NewFanoutRegistry(2)
+	watcher := &fakeWatcher{fanout: fanout, done: make(chan struct{})}
+	streamer := NewStreamer(fanout, watcher)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- streamer.Stream(ctx, "sim-1", func(event *simulationv1.SimulationEvent) error {
+			return errors.New("send failed")
+		})
+	}()
+
+	fanout.Publish("sim-1", &simulationv1.SimulationEvent{SimulationId: "sim-1", EventType: "POD_RUNNING"})
+	require.EqualError(t, <-errCh, "send failed")
+	cancel()
+	<-watcher.done
+	require.Equal(t, 1, watcher.calls)
 }

@@ -105,9 +105,11 @@ async def test_open_signup_registration_verify_and_resend_rate_limit(
 async def test_admin_approval_mode_stops_after_email_verification(
     monkeypatch,
     auth_settings,
+    session_factory: async_sessionmaker,
     redis_client,
     migrated_database_url: str,
 ) -> None:
+    del session_factory
     producer = RecordingProducer()
     sent_tokens: list[str] = []
     settings = build_test_settings(
@@ -158,3 +160,78 @@ async def test_admin_approval_mode_stops_after_email_verification(
         "accounts.user.registered",
         "accounts.user.email_verified",
     ]
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_registration_and_resend_verification_preserve_anti_enumeration(
+    monkeypatch,
+    auth_settings,
+    session_factory: async_sessionmaker,
+    redis_client,
+    migrated_database_url: str,
+) -> None:
+    del session_factory
+    producer = RecordingProducer()
+    sent_tokens: list[str] = []
+    settings = build_test_settings(
+        auth_settings,
+        database_url=migrated_database_url,
+        redis_url=_redis_url(redis_client),
+        signup_mode="open",
+    )
+
+    async def capture_verification_email(
+        user_id, email: str, token: str, display_name: str, notification_client=None
+    ) -> None:
+        del user_id, email, display_name, notification_client
+        sent_tokens.append(token)
+
+    monkeypatch.setattr(
+        "platform.main._build_clients",
+        lambda resolved: build_test_clients(redis_client, producer),
+    )
+    monkeypatch.setattr(
+        "platform.accounts.email.send_verification_email",
+        capture_verification_email,
+    )
+    app = create_app(settings=settings)
+
+    async with app.router.lifespan_context(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client:
+            first_register = await client.post(
+                "/api/v1/accounts/register",
+                json={
+                    "email": "existing@example.com",
+                    "display_name": "Existing User",
+                    "password": "StrongP@ssw0rd!",
+                },
+            )
+            duplicate_register = await client.post(
+                "/api/v1/accounts/register",
+                json={
+                    "email": "existing@example.com",
+                    "display_name": "Existing User",
+                    "password": "StrongP@ssw0rd!",
+                },
+            )
+            known_resend = await client.post(
+                "/api/v1/accounts/resend-verification",
+                json={"email": "existing@example.com"},
+            )
+            unknown_resend = await client.post(
+                "/api/v1/accounts/resend-verification",
+                json={"email": "doesnotexist@example.com"},
+            )
+
+    assert first_register.status_code == 202
+    assert duplicate_register.status_code == 202
+    assert first_register.json() == duplicate_register.json()
+    assert known_resend.status_code == 202
+    assert unknown_resend.status_code == 202
+    assert known_resend.json() == unknown_resend.json()
+    assert len(sent_tokens) == 2
+    assert [event["event_type"] for event in producer.events] == ["accounts.user.registered"]
