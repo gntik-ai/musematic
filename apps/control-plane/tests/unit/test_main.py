@@ -6,6 +6,7 @@ import httpx
 import pytest
 
 from platform.common.config import PlatformSettings
+import platform.main as main_module
 from platform.main import _build_clients, _lifespan, create_app
 
 
@@ -42,8 +43,9 @@ def test_build_clients_returns_expected_keys() -> None:
 
 
 @pytest.mark.asyncio
-async def test_lifespan_handles_clients_without_close_and_close_failures() -> None:
+async def test_lifespan_handles_clients_without_close_and_close_failures(monkeypatch) -> None:
     app = SimpleNamespace(state=SimpleNamespace(clients={}))
+    app.state.settings = PlatformSettings()
     app.state.clients = {
         "redis": FakeClient(),
         "kafka_consumer": FakeClient(),
@@ -52,6 +54,7 @@ async def test_lifespan_handles_clients_without_close_and_close_failures() -> No
         "close_error": FakeClient(close_raises=True),
     }
 
+    monkeypatch.setattr(main_module, "_load_trust_runtime_assets", _async_none_with_app)
     async with _lifespan(app):
         assert app.state.degraded is False
         assert app.state.clients["redis"].connected is True
@@ -97,4 +100,9 @@ async def _async_true() -> bool:
 
 
 async def _async_none() -> None:
+    return None
+
+
+async def _async_none_with_app(app) -> None:
+    del app
     return None

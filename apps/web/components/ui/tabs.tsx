@@ -10,7 +10,16 @@ export function TabsList({ className, ...props }: React.HTMLAttributes<HTMLDivEl
 }
 
 export function TabsTrigger({ className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) {
-  return <button type="button" className={cn("rounded-md px-3 py-1.5 text-sm", className)} {...props} />;
+  return (
+    <button
+      type="button"
+      className={cn(
+        "rounded-md px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        className,
+      )}
+      {...props}
+    />
+  );
 }
 
 export function TabsContent({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {

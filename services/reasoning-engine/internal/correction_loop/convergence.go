@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/musematic/reasoning-engine/internal/escalation"
 	"github.com/redis/go-redis/v9"
@@ -20,11 +21,11 @@ type Producer interface {
 }
 
 type LoopService struct {
-	client   redis.Cmdable
+	client   redisClient
 	scripts  map[string]string
 	producer Producer
 	router   *escalation.Router
-	pool     *pgxpool.Pool
+	pool     iterationStore
 	now      func() time.Time
 
 	mu     sync.Mutex
@@ -43,13 +44,42 @@ type loopState struct {
 	StartedAt       time.Time
 }
 
+type redisClient interface {
+	HSet(ctx context.Context, key string, values ...any) error
+	EvalSha(ctx context.Context, sha string, keys []string, args ...any) (any, error)
+}
+
+type redisCmdable struct {
+	client redis.Cmdable
+}
+
+func (r redisCmdable) HSet(ctx context.Context, key string, values ...any) error {
+	return r.client.HSet(ctx, key, values...).Err()
+}
+
+func (r redisCmdable) EvalSha(ctx context.Context, sha string, keys []string, args ...any) (any, error) {
+	return r.client.EvalSha(ctx, sha, keys, args...).Result()
+}
+
+type iterationStore interface {
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+}
+
 func NewLoopService(client redis.Cmdable, scripts map[string]string, producer Producer, router *escalation.Router, pool *pgxpool.Pool) *LoopService {
+	var wrapped redisClient
+	var recorder iterationStore
+	if client != nil {
+		wrapped = redisCmdable{client: client}
+	}
+	if pool != nil {
+		recorder = pool
+	}
 	return &LoopService{
-		client:   client,
+		client:   wrapped,
 		scripts:  scripts,
 		producer: producer,
 		router:   router,
-		pool:     pool,
+		pool:     recorder,
 		now:      func() time.Time { return time.Now().UTC() },
 		states:   map[string]*loopState{},
 	}
@@ -92,7 +122,7 @@ func (s *LoopService) Start(ctx context.Context, loopID, execID string, cfg Loop
 			"prev_prev_quality": -1,
 			"status":            "RUNNING",
 		}
-		if err := s.client.HSet(ctx, redisKey(loopID), values).Err(); err != nil {
+		if err := s.client.HSet(ctx, redisKey(loopID), values); err != nil {
 			return nil, err
 		}
 	}
@@ -105,6 +135,7 @@ func (s *LoopService) Start(ctx context.Context, loopID, execID string, cfg Loop
 	}, nil
 }
 
+//nolint:gocyclo // The convergence state machine is easier to audit as one linear flow.
 func (s *LoopService) Submit(ctx context.Context, loopID string, quality, cost float64, durationMs int64) (Status, int, float64, error) {
 	if quality < 0 || quality > 1 {
 		return "", 0, 0, fmt.Errorf("quality_score must be within [0,1]")
@@ -137,7 +168,7 @@ func (s *LoopService) Submit(ctx context.Context, loopID string, quality, cost f
 
 	converged := false
 	if s.client != nil && s.scripts["convergence_check"] != "" {
-		result, err := s.client.EvalSha(ctx, s.scripts["convergence_check"], []string{redisKey(loopID)}, quality, state.Config.Epsilon).Result()
+		result, err := s.client.EvalSha(ctx, s.scripts["convergence_check"], []string{redisKey(loopID)}, quality, state.Config.Epsilon)
 		if err != nil {
 			return "", 0, 0, err
 		}
@@ -148,11 +179,11 @@ func (s *LoopService) Submit(ctx context.Context, loopID string, quality, cost f
 
 	budgetExceeded := false
 	if s.client != nil && s.scripts["budget_decrement"] != "" {
-		iterationRes, err := s.client.EvalSha(ctx, s.scripts["budget_decrement"], []string{redisKey(loopID)}, "used_iterations", 1).Result()
+		iterationRes, err := s.client.EvalSha(ctx, s.scripts["budget_decrement"], []string{redisKey(loopID)}, "used_iterations", 1)
 		if err != nil {
 			return "", 0, 0, err
 		}
-		costRes, err := s.client.EvalSha(ctx, s.scripts["budget_decrement"], []string{redisKey(loopID)}, "used_cost", cost).Result()
+		costRes, err := s.client.EvalSha(ctx, s.scripts["budget_decrement"], []string{redisKey(loopID)}, "used_cost", cost)
 		if err != nil {
 			return "", 0, 0, err
 		}
@@ -181,7 +212,7 @@ func (s *LoopService) Submit(ctx context.Context, loopID string, quality, cost f
 	s.mu.Unlock()
 
 	if s.client != nil {
-		if err := s.client.HSet(ctx, redisKey(loopID), "status", stateCopy.Status).Err(); err != nil {
+		if err := s.client.HSet(ctx, redisKey(loopID), "status", stateCopy.Status); err != nil {
 			return "", 0, 0, err
 		}
 	}

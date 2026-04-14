@@ -19,6 +19,7 @@ from platform.connectors.models import (
 )
 from platform.connectors.router import router
 from platform.connectors.seed import _connector_type_seed_data
+from platform.workspaces.models import Workspace
 from types import SimpleNamespace
 from uuid import UUID, uuid4
 
@@ -107,6 +108,17 @@ async def seed_connector_types(session: AsyncSession) -> None:
             existing.is_deprecated = False
             existing.deprecated_at = None
             existing.deprecation_note = None
+    await session.flush()
+
+
+async def seed_workspace(
+    session: AsyncSession,
+    *,
+    workspace_id: UUID,
+    owner_id: UUID,
+    name: str = "Connectors",
+) -> None:
+    session.add(Workspace(id=workspace_id, name=name, owner_id=owner_id))
     await session.flush()
 
 

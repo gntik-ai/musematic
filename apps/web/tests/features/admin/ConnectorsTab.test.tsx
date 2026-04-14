@@ -1,7 +1,8 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
-import { beforeEach, describe, expect, it } from "vitest";
+import * as adminHooks from "@/lib/hooks/use-admin-settings";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConnectorsTab } from "@/components/features/admin/tabs/ConnectorsTab";
 import { renderWithProviders } from "@/test-utils/render";
 import { setPlatformAdminUser } from "@/tests/features/admin/test-helpers";
@@ -76,5 +77,18 @@ describe("ConnectorsTab", () => {
     renderWithProviders(<ConnectorsTab />);
 
     expect(await screen.findByText("3 active instances")).toBeInTheDocument();
+  });
+
+  it("shows loading skeleton cards while connector configs are pending", () => {
+    const hookSpy = vi.spyOn(adminHooks, "useConnectorTypeConfigs").mockReturnValue({
+      data: undefined,
+      isLoading: true,
+    } as never);
+
+    renderWithProviders(<ConnectorsTab />);
+
+    expect(document.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
+
+    hookSpy.mockRestore();
   });
 });

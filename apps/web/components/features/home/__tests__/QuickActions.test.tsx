@@ -59,4 +59,25 @@ describe("QuickActions", () => {
     ).toBeDisabled();
     expect(screen.getAllByText("Requires write access").length).toBeGreaterThan(0);
   });
+
+  it("falls back to read-only actions when no authenticated user is available", () => {
+    useAuthStore.setState({
+      user: null,
+      accessToken: null,
+      refreshToken: null,
+      isAuthenticated: false,
+    });
+
+    renderWithProviders(<QuickActions />);
+
+    expect(
+      screen.getByRole("link", { name: "New Conversation" }),
+    ).toHaveAttribute("href", "/conversations/new");
+    expect(
+      screen.getByRole("button", { name: "Upload Agent" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Create Workflow" }),
+    ).toBeDisabled();
+  });
 });

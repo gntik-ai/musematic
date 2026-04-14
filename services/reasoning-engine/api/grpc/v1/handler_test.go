@@ -2,6 +2,7 @@ package reasoningv1
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net"
@@ -34,8 +35,10 @@ func (s modeSelectorStub) Select(context.Context, mode_selector.Request) (mode_s
 }
 
 type budgetTrackerStub struct {
-	statuses map[string]*budget_tracker.BudgetStatus
-	registry *budget_tracker.EventRegistry
+	statuses    map[string]*budget_tracker.BudgetStatus
+	registry    *budget_tracker.EventRegistry
+	allocateErr error
+	statusErr   error
 }
 
 func newBudgetTrackerStub(registry *budget_tracker.EventRegistry) *budgetTrackerStub {
@@ -46,6 +49,9 @@ func newBudgetTrackerStub(registry *budget_tracker.EventRegistry) *budgetTracker
 }
 
 func (b *budgetTrackerStub) Allocate(_ context.Context, execID, stepID string, limits budget_tracker.BudgetAllocation, _ int64) error {
+	if b.allocateErr != nil {
+		return b.allocateErr
+	}
 	status := &budget_tracker.BudgetStatus{
 		ExecutionID: execID,
 		StepID:      stepID,
@@ -79,6 +85,9 @@ func (b *budgetTrackerStub) Decrement(_ context.Context, execID, stepID, _ strin
 }
 
 func (b *budgetTrackerStub) GetStatus(_ context.Context, execID, stepID string) (*budget_tracker.BudgetStatus, error) {
+	if b.statusErr != nil {
+		return nil, b.statusErr
+	}
 	statusValue, ok := b.statuses[budget_tracker.Key(execID, stepID)]
 	if !ok {
 		return nil, budget_tracker.ErrBudgetNotFound
@@ -86,9 +95,14 @@ func (b *budgetTrackerStub) GetStatus(_ context.Context, execID, stepID string) 
 	return statusValue, nil
 }
 
-type traceCoordinatorStub struct{}
+type traceCoordinatorStub struct {
+	err error
+}
 
-func (traceCoordinatorStub) ProcessStream(_ context.Context, stream cot_coordinator.TraceStream) (*cot_coordinator.TraceAck, error) {
+func (s traceCoordinatorStub) ProcessStream(_ context.Context, stream cot_coordinator.TraceStream) (*cot_coordinator.TraceAck, error) {
+	if s.err != nil {
+		return nil, s.err
+	}
 	ack := &cot_coordinator.TraceAck{}
 	for {
 		event, err := stream.Recv()
@@ -104,13 +118,22 @@ func (traceCoordinatorStub) ProcessStream(_ context.Context, stream cot_coordina
 	}
 }
 
-type totManagerStub struct{}
+type totManagerStub struct {
+	createErr error
+	evalErr   error
+}
 
-func (totManagerStub) CreateBranch(_ context.Context, treeID, branchID, hypothesis string, _ budget_tracker.BudgetAllocation) (*tot_manager.BranchHandle, error) {
+func (s totManagerStub) CreateBranch(_ context.Context, treeID, branchID, hypothesis string, _ budget_tracker.BudgetAllocation) (*tot_manager.BranchHandle, error) {
+	if s.createErr != nil {
+		return nil, s.createErr
+	}
 	return &tot_manager.BranchHandle{TreeID: treeID, BranchID: branchID, Status: "CREATED", CreatedAt: time.Now().UTC()}, nil
 }
 
-func (totManagerStub) EvaluateBranches(context.Context, string, string) (*tot_manager.SelectionResult, error) {
+func (s totManagerStub) EvaluateBranches(context.Context, string, string) (*tot_manager.SelectionResult, error) {
+	if s.evalErr != nil {
+		return nil, s.evalErr
+	}
 	return &tot_manager.SelectionResult{
 		SelectedBranchID:  "branch-1",
 		SelectedQuality:   0.9,
@@ -126,16 +149,32 @@ func (totManagerStub) EvaluateBranches(context.Context, string, string) (*tot_ma
 	}, nil
 }
 
-type correctionLoopStub struct{}
+type correctionLoopStub struct {
+	startErr  error
+	submitErr error
+	status    correction_loop.Status
+	iteration int
+	delta     float64
+}
 
-func (correctionLoopStub) Start(context.Context, string, string, correction_loop.LoopConfig) (*correction_loop.LoopHandle, error) {
+func (s correctionLoopStub) Start(context.Context, string, string, correction_loop.LoopConfig) (*correction_loop.LoopHandle, error) {
+	if s.startErr != nil {
+		return nil, s.startErr
+	}
 	return &correction_loop.LoopHandle{LoopID: "loop-1", Status: "RUNNING", StartedAt: time.Now().UTC()}, nil
 }
 
-func (correctionLoopStub) Submit(context.Context, string, float64, float64, int64) (correction_loop.Status, int, float64, error) {
-	return correction_loop.StatusConverged, 6, 0.003, nil
+func (s correctionLoopStub) Submit(context.Context, string, float64, float64, int64) (correction_loop.Status, int, float64, error) {
+	if s.submitErr != nil {
+		return "", 0, 0, s.submitErr
+	}
+	if s.status == "" {
+		return correction_loop.StatusConverged, 6, 0.003, nil
+	}
+	return s.status, s.iteration, s.delta, nil
 }
 
+//nolint:gocyclo // This test intentionally exercises the whole public gRPC surface in one flow.
 func TestHandlerUnaryAndStreamingRPCs(t *testing.T) {
 	registry := budget_tracker.NewEventRegistry()
 	budgets := newBudgetTrackerStub(registry)
@@ -164,7 +203,9 @@ func TestHandlerUnaryAndStreamingRPCs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("grpc.NewClient() error = %v", err)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	client := NewReasoningEngineServiceClient(conn)
 
@@ -189,6 +230,24 @@ func TestHandlerUnaryAndStreamingRPCs(t *testing.T) {
 	statusResp, err := client.GetReasoningBudgetStatus(context.Background(), &GetBudgetStatusRequest{ExecutionId: "exec-1", StepId: "step-1"})
 	if err != nil || statusResp.GetEnvelope().GetExecutionId() != "exec-1" {
 		t.Fatalf("GetReasoningBudgetStatus() resp=%+v err=%v", statusResp, err)
+	}
+
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		registry.Close(budget_tracker.Key("exec-1", "step-1"), budget_tracker.BudgetEvent{
+			ExecutionID: "exec-1",
+			StepID:      "step-1",
+			EventType:   "COMPLETED",
+			OccurredAt:  time.Now().UTC(),
+		})
+	}()
+	budgetStream, err := client.StreamBudgetEvents(context.Background(), &StreamBudgetEventsRequest{ExecutionId: "exec-1", StepId: "step-1"})
+	if err != nil {
+		t.Fatalf("StreamBudgetEvents() error = %v", err)
+	}
+	event, err := budgetStream.Recv()
+	if err != nil || event.GetEventType() != "COMPLETED" {
+		t.Fatalf("StreamBudgetEvents() event=%+v err=%v", event, err)
 	}
 
 	registry.Register(budget_tracker.Key("exec-1", "step-1"))
@@ -369,6 +428,9 @@ func TestHandlerValidationAndHelpers(t *testing.T) {
 	if convergenceToProto(correction_loop.StatusEscalateToHuman) != ConvergenceStatus_ESCALATE_TO_HUMAN {
 		t.Fatal("convergenceToProto() did not map ESCALATE_TO_HUMAN")
 	}
+	if safeInt32(1<<62) != 2147483647 {
+		t.Fatal("safeInt32() did not clamp upper bound")
+	}
 
 	envelope := envelopeFromBudgetStatus(&budget_tracker.BudgetStatus{
 		ExecutionID: "exec-1",
@@ -380,6 +442,84 @@ func TestHandlerValidationAndHelpers(t *testing.T) {
 	})
 	if envelope.GetUsed().GetTokens() != 5 {
 		t.Fatalf("envelope used tokens = %d, want 5", envelope.GetUsed().GetTokens())
+	}
+	if (traceStreamAdapter{stream: &fakeReasoningTraceStream{ctx: context.Background()}}).Context() == nil {
+		t.Fatal("traceStreamAdapter Context() returned nil")
+	}
+}
+
+func TestHandlerErrorMappings(t *testing.T) {
+	registry := budget_tracker.NewEventRegistry()
+	budgets := newBudgetTrackerStub(registry)
+	handler := NewHandler(HandlerDependencies{
+		ModeSelector:   modeSelectorStub{err: mode_selector.ErrNoModeFits},
+		BudgetTracker:  budgets,
+		EventRegistry:  registry,
+		CoTCoordinator: traceCoordinatorStub{err: errors.New("trace failed")},
+		ToTManager:     totManagerStub{createErr: tot_manager.ErrConcurrencyLimit, evalErr: tot_manager.ErrTreeNotFound},
+		CorrectionLoop: correctionLoopStub{startErr: correction_loop.ErrLoopExists},
+	})
+
+	_, err := handler.SelectReasoningMode(context.Background(), &SelectReasoningModeRequest{
+		ExecutionId: "exec-1",
+		TaskBrief:   "complex",
+	})
+	if status.Code(err) != codes.ResourceExhausted {
+		t.Fatalf("SelectReasoningMode() code = %s", status.Code(err))
+	}
+
+	budgets.allocateErr = budget_tracker.ErrAlreadyExists
+	_, err = handler.AllocateReasoningBudget(context.Background(), &AllocateReasoningBudgetRequest{
+		ExecutionId: "exec-1",
+		StepId:      "step-1",
+		Limits:      &BudgetAllocation{Tokens: 1},
+	})
+	if status.Code(err) != codes.AlreadyExists {
+		t.Fatalf("AllocateReasoningBudget() code = %s", status.Code(err))
+	}
+
+	budgets.allocateErr = nil
+	_, err = handler.AllocateReasoningBudget(context.Background(), &AllocateReasoningBudgetRequest{
+		ExecutionId: "exec-1",
+		StepId:      "step-1",
+		Limits:      &BudgetAllocation{Tokens: -1},
+	})
+	if status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("AllocateReasoningBudget() invalid code = %s", status.Code(err))
+	}
+
+	budgets.statusErr = errors.New("boom")
+	_, err = handler.GetReasoningBudgetStatus(context.Background(), &GetBudgetStatusRequest{ExecutionId: "exec-1", StepId: "step-1"})
+	if status.Code(err) != codes.Internal {
+		t.Fatalf("GetReasoningBudgetStatus() code = %s", status.Code(err))
+	}
+
+	err = handler.StreamReasoningTrace(&fakeReasoningTraceStream{ctx: context.Background()})
+	if status.Code(err) != codes.Internal {
+		t.Fatalf("StreamReasoningTrace() code = %s", status.Code(err))
+	}
+
+	_, err = handler.CreateTreeBranch(context.Background(), &CreateTreeBranchRequest{})
+	if status.Code(err) != codes.ResourceExhausted {
+		t.Fatalf("CreateTreeBranch() code = %s", status.Code(err))
+	}
+
+	_, err = handler.EvaluateTreeBranches(context.Background(), &EvaluateTreeBranchesRequest{})
+	if status.Code(err) != codes.NotFound {
+		t.Fatalf("EvaluateTreeBranches() code = %s", status.Code(err))
+	}
+
+	_, err = handler.StartSelfCorrectionLoop(context.Background(), &StartSelfCorrectionRequest{})
+	if status.Code(err) != codes.AlreadyExists {
+		t.Fatalf("StartSelfCorrectionLoop() code = %s", status.Code(err))
+	}
+
+	handler = NewHandler(HandlerDependencies{
+		CorrectionLoop: correctionLoopStub{submitErr: correction_loop.ErrLoopNotRunning},
+	})
+	_, err = handler.SubmitCorrectionIteration(context.Background(), &CorrectionIterationEvent{LoopId: "loop-1"})
+	if status.Code(err) != codes.FailedPrecondition {
+		t.Fatalf("SubmitCorrectionIteration() code = %s", status.Code(err))
 	}
 }
 
@@ -397,6 +537,106 @@ func TestInterceptorsRecoverPanics(t *testing.T) {
 	}); status.Code(err) != codes.Internal {
 		t.Fatalf("StreamInterceptor() code = %s", status.Code(err))
 	}
+}
+
+func TestHandlerAdditionalBranches(t *testing.T) {
+	t.Run("unimplemented dependencies", func(t *testing.T) {
+		handler := NewHandler(HandlerDependencies{})
+
+		if _, err := handler.SelectReasoningMode(context.Background(), &SelectReasoningModeRequest{ExecutionId: "exec", TaskBrief: "brief"}); status.Code(err) != codes.Unimplemented {
+			t.Fatalf("SelectReasoningMode() code = %s", status.Code(err))
+		}
+		if _, err := handler.AllocateReasoningBudget(context.Background(), &AllocateReasoningBudgetRequest{ExecutionId: "exec", StepId: "step"}); status.Code(err) != codes.Unimplemented {
+			t.Fatalf("AllocateReasoningBudget() code = %s", status.Code(err))
+		}
+		if err := handler.StreamBudgetEvents(&StreamBudgetEventsRequest{ExecutionId: "exec", StepId: "step"}, &fakeBudgetEventStream{ctx: context.Background()}); status.Code(err) != codes.Unimplemented {
+			t.Fatalf("StreamBudgetEvents() code = %s", status.Code(err))
+		}
+		if err := handler.StreamReasoningTrace(&fakeReasoningTraceStream{ctx: context.Background()}); status.Code(err) != codes.Unimplemented {
+			t.Fatalf("StreamReasoningTrace() code = %s", status.Code(err))
+		}
+		if _, err := handler.CreateTreeBranch(context.Background(), &CreateTreeBranchRequest{}); status.Code(err) != codes.Unimplemented {
+			t.Fatalf("CreateTreeBranch() code = %s", status.Code(err))
+		}
+		if _, err := handler.EvaluateTreeBranches(context.Background(), &EvaluateTreeBranchesRequest{}); status.Code(err) != codes.Unimplemented {
+			t.Fatalf("EvaluateTreeBranches() code = %s", status.Code(err))
+		}
+		if _, err := handler.StartSelfCorrectionLoop(context.Background(), &StartSelfCorrectionRequest{}); status.Code(err) != codes.Unimplemented {
+			t.Fatalf("StartSelfCorrectionLoop() code = %s", status.Code(err))
+		}
+		if _, err := handler.SubmitCorrectionIteration(context.Background(), &CorrectionIterationEvent{}); status.Code(err) != codes.Unimplemented {
+			t.Fatalf("SubmitCorrectionIteration() code = %s", status.Code(err))
+		}
+	})
+
+	t.Run("generic handler mappings", func(t *testing.T) {
+		registry := budget_tracker.NewEventRegistry()
+		budgets := newBudgetTrackerStub(registry)
+		handler := NewHandler(HandlerDependencies{
+			ModeSelector:   modeSelectorStub{err: errors.New("selector failed")},
+			BudgetTracker:  budgets,
+			EventRegistry:  registry,
+			CoTCoordinator: traceCoordinatorStub{},
+			ToTManager:     totManagerStub{createErr: tot_manager.ErrBranchExists, evalErr: errors.New("eval failed")},
+			CorrectionLoop: correctionLoopStub{startErr: errors.New("bad config"), submitErr: correction_loop.ErrLoopNotFound},
+			Metrics:        metrics.New(),
+		})
+
+		if _, err := handler.SelectReasoningMode(context.Background(), &SelectReasoningModeRequest{ExecutionId: "exec", TaskBrief: "brief"}); status.Code(err) != codes.Internal {
+			t.Fatalf("SelectReasoningMode() code = %s", status.Code(err))
+		}
+		budgets.allocateErr = errors.New("allocate failed")
+		if _, err := handler.AllocateReasoningBudget(context.Background(), &AllocateReasoningBudgetRequest{ExecutionId: "exec", StepId: "step", Limits: &BudgetAllocation{Tokens: 1}}); status.Code(err) != codes.Internal {
+			t.Fatalf("AllocateReasoningBudget() code = %s", status.Code(err))
+		}
+		budgets.allocateErr = nil
+		budgets.statusErr = budget_tracker.ErrBudgetNotFound
+		if _, err := handler.GetReasoningBudgetStatus(context.Background(), &GetBudgetStatusRequest{ExecutionId: "exec", StepId: "step"}); status.Code(err) != codes.NotFound {
+			t.Fatalf("GetReasoningBudgetStatus() code = %s", status.Code(err))
+		}
+		budgets.statusErr = nil
+
+		if _, err := handler.CreateTreeBranch(context.Background(), &CreateTreeBranchRequest{BranchBudget: &BudgetAllocation{}}); status.Code(err) != codes.AlreadyExists {
+			t.Fatalf("CreateTreeBranch() code = %s", status.Code(err))
+		}
+		if _, err := handler.EvaluateTreeBranches(context.Background(), &EvaluateTreeBranchesRequest{}); status.Code(err) != codes.Internal {
+			t.Fatalf("EvaluateTreeBranches() code = %s", status.Code(err))
+		}
+		if _, err := handler.StartSelfCorrectionLoop(context.Background(), &StartSelfCorrectionRequest{}); status.Code(err) != codes.InvalidArgument {
+			t.Fatalf("StartSelfCorrectionLoop() code = %s", status.Code(err))
+		}
+		if _, err := handler.SubmitCorrectionIteration(context.Background(), &CorrectionIterationEvent{LoopId: "loop"}); status.Code(err) != codes.NotFound {
+			t.Fatalf("SubmitCorrectionIteration() code = %s", status.Code(err))
+		}
+	})
+
+	t.Run("stream branches", func(t *testing.T) {
+		registry := budget_tracker.NewEventRegistry()
+		handler := NewHandler(HandlerDependencies{EventRegistry: registry, CoTCoordinator: traceCoordinatorStub{}})
+
+		if err := handler.StreamBudgetEvents(&StreamBudgetEventsRequest{ExecutionId: "exec", StepId: "missing"}, &fakeBudgetEventStream{ctx: context.Background()}); status.Code(err) != codes.NotFound {
+			t.Fatalf("StreamBudgetEvents() code = %s", status.Code(err))
+		}
+
+		key := budget_tracker.Key("exec", "step")
+		registry.Register(key)
+		stream := &fakeBudgetEventStream{ctx: context.Background(), sendErr: errors.New("send failed")}
+		go registry.Publish(key, budget_tracker.BudgetEvent{ExecutionID: "exec", StepID: "step", EventType: "THRESHOLD_80", OccurredAt: time.Now().UTC()})
+		if err := handler.StreamBudgetEvents(&StreamBudgetEventsRequest{ExecutionId: "exec", StepId: "step"}, stream); err == nil || err.Error() != "send failed" {
+			t.Fatalf("StreamBudgetEvents() error = %v", err)
+		}
+
+		cancelCtx, cancel := context.WithCancel(context.Background())
+		cancel()
+		registry.Register(key)
+		if err := handler.StreamBudgetEvents(&StreamBudgetEventsRequest{ExecutionId: "exec", StepId: "step"}, &fakeBudgetEventStream{ctx: cancelCtx}); !errors.Is(err, context.Canceled) {
+			t.Fatalf("StreamBudgetEvents() error = %v", err)
+		}
+
+		if err := handler.StreamReasoningTrace(&fakeReasoningTraceStream{ctx: context.Background(), sendErr: errors.New("close failed")}); err == nil || err.Error() != "close failed" {
+			t.Fatalf("StreamReasoningTrace() error = %v", err)
+		}
+	})
 }
 
 func TestGeneratedProtoHelpers(t *testing.T) {
@@ -456,12 +696,16 @@ type fakeServerStream struct {
 func (s *fakeServerStream) Context() context.Context { return s.ctx }
 
 type fakeBudgetEventStream struct {
-	ctx    context.Context
-	events []*BudgetEvent
+	ctx     context.Context
+	events  []*BudgetEvent
+	sendErr error
 }
 
 func (s *fakeBudgetEventStream) Context() context.Context { return s.ctx }
 func (s *fakeBudgetEventStream) Send(event *BudgetEvent) error {
+	if s.sendErr != nil {
+		return s.sendErr
+	}
 	s.events = append(s.events, event)
 	return nil
 }
@@ -470,6 +714,41 @@ func (s *fakeBudgetEventStream) SendHeader(metadata.MD) error { return nil }
 func (s *fakeBudgetEventStream) SetTrailer(metadata.MD)       {}
 func (s *fakeBudgetEventStream) SendMsg(any) error            { return nil }
 func (s *fakeBudgetEventStream) RecvMsg(any) error            { return nil }
+
+type fakeReasoningTraceStream struct {
+	grpc.ServerStream
+	ctx      context.Context
+	recvErr  error
+	ack      *ReasoningTraceAck
+	sendErr  error
+	received bool
+}
+
+func (s *fakeReasoningTraceStream) Context() context.Context { return s.ctx }
+func (s *fakeReasoningTraceStream) SendAndClose(ack *ReasoningTraceAck) error {
+	if s.sendErr != nil {
+		return s.sendErr
+	}
+	s.ack = ack
+	return nil
+}
+func (s *fakeReasoningTraceStream) Recv() (*ReasoningTraceEvent, error) {
+	if s.recvErr != nil {
+		return nil, s.recvErr
+	}
+	if s.received {
+		return nil, io.EOF
+	}
+	s.received = true
+	return &ReasoningTraceEvent{
+		ExecutionId: "exec-1",
+		StepId:      "step-1",
+		EventId:     "event-1",
+		EventType:   "reasoning_step",
+		Payload:     []byte("payload"),
+		OccurredAt:  timestamppb.Now(),
+	}, nil
+}
 
 type generatedBudgetEventServerStream struct {
 	grpc.ServerStream
@@ -497,7 +776,8 @@ func (s *generatedBudgetEventServerStream) RecvMsg(msg any) error {
 	if !ok {
 		return nil
 	}
-	*request = *s.req
+	proto.Reset(request)
+	proto.Merge(request, s.req)
 	return nil
 }
 

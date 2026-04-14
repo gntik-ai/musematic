@@ -135,7 +135,7 @@
 **Purpose**: Quality gates, linting, type checking, Helm lint.
 
 - [X] T024 [P] Implement `create_collection_if_not_exists` and `create_payload_index` methods in `apps/control-plane/src/platform/common/clients/qdrant.py` (stub from T006 → full implementation): `create_collection_if_not_exists` calls `self._client.get_collection(name)` — if `CollectionNotExistsException`, calls `self._client.create_collection(...)` with the provided `VectorsConfig` and `HnswConfigDiff`; returns `True` if created, `False` if already existed; `create_payload_index` calls `self._client.create_payload_index(collection_name, field_name, field_schema=field_type)`
-- [ ] T025 [P] Run `helm lint deploy/helm/qdrant` and fix any linting errors; run `helm dependency update deploy/helm/qdrant` to download the pinned Qdrant chart version and commit `Chart.lock`; verify `helm template` renders valid YAML for both prod and dev values
+- [X] T025 [P] Run `helm lint deploy/helm/qdrant` and fix any linting errors; run `helm dependency update deploy/helm/qdrant` to download the pinned Qdrant chart version and commit `Chart.lock`; verify `helm template` renders valid YAML for both prod and dev values
 - [X] T026 [P] Run `ruff check apps/control-plane/src/platform/common/clients/qdrant.py apps/control-plane/scripts/init_qdrant_collections.py apps/control-plane/scripts/backup_qdrant_snapshots.py` and fix violations
 - [X] T027 [P] Run `mypy apps/control-plane/src/platform/common/clients/qdrant.py` in strict mode and fix type errors; add `# type: ignore[import-untyped]` with comment for any missing `qdrant-client` stubs
 

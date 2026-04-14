@@ -6,12 +6,14 @@ test("login, shell navigation, breadcrumbs, and dark mode work together", async 
   await page.goto("/login");
   await signIn(page);
   await expect(page).toHaveURL(/home/);
-  await page.keyboard.press("Control+K");
-  await page.getByTestId("command-input").fill("create agent");
-  await page.getByText("Agents").click();
+  await page.getByTestId("command-palette-toggle").click();
+  await page.getByTestId("command-input").fill("agents");
+  await page.getByRole("button", { name: /^Agents/ }).click();
   await page.goto("/agents/create");
   await expect(page.getByText("Create Agent")).toBeVisible();
-  await expect(page.getByText("Agents")).toBeVisible();
+  const breadcrumb = page.getByLabel("Breadcrumb").first();
+  await expect(breadcrumb.getByRole("link", { name: "Agents" })).toBeVisible();
+  await expect(breadcrumb.getByText("Create")).toBeVisible();
   await page.getByTestId("theme-toggle").click();
   await expect(page.locator("html")).toHaveClass(/dark/);
 });

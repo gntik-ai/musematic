@@ -143,7 +143,7 @@
 
 - [X] T028 [P] Create `services/reasoning-engine/internal/events/producer.go` — Go `KafkaProducer` struct using `confluent-kafka-go/v2`; `NewKafkaProducer(bootstrapServers string) (*KafkaProducer, error)` constructor; `Produce(ctx context.Context, topic string, key string, valueJSON []byte) error` method that wraps `confluent-kafka-go` `Producer.Produce()` with delivery channel; `Close()` flushes and closes the producer; configured with `acks=all`, `enable.idempotence=true`
 - [X] T029 [P] Create `services/reasoning-engine/internal/events/producer_test.go` — unit tests using `confluent-kafka-go` mock producer; tests: (1) `NewKafkaProducer` returns error on invalid bootstrap servers; (2) `Produce` encodes key and value correctly; (3) `Close` flushes pending messages
-- [ ] T030 [P] Run `helm lint deploy/helm/kafka` and fix any linting errors — confirm no wildcard versions, no missing required fields, no stale template placeholders
+- [X] T030 [P] Run `helm lint deploy/helm/kafka` and fix any linting errors — confirm no wildcard versions, no missing required fields, no stale template placeholders
 - [X] T031 [P] Run `ruff check apps/control-plane/src/platform/common/events/` and fix any linting violations in envelope.py, producer.py, consumer.py, retry.py
 - [X] T032 [P] Run `mypy apps/control-plane/src/platform/common/events/` in strict mode and fix any type errors
 - [X] T033 Add Kafka broker connectivity + topic existence check to platform-cli health diagnostics — in `apps/control-plane/src/platform/common/events/producer.py`, add `async def health_check(settings: Settings) -> dict` that connects, lists topics (expecting ≥ 38), and returns `{"status": "ok", "topic_count": N}` or `{"status": "error", "error": msg}`

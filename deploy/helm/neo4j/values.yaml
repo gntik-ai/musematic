@@ -1,4 +1,5 @@
 neo4j:
+  disableLookups: true
   edition: community
   minimumClusterSize: 1
   name: musematic-neo4j
@@ -6,6 +7,8 @@ neo4j:
   passwordFromSecret: neo4j-credentials
   acceptLicenseAgreement: "yes"
   resources:
+    cpu: "1"
+    memory: 3Gi
     requests:
       memory: 3Gi
       cpu: "1"
@@ -20,6 +23,37 @@ neo4j:
     dbms.security.procedures.allowlist: "apoc.*"
   env:
     NEO4J_PLUGINS: '["apoc"]'
+  neo4j:
+    edition: community
+    minimumClusterSize: 1
+    name: musematic-neo4j
+    password: ""
+    passwordFromSecret: neo4j-credentials
+    acceptLicenseAgreement: "yes"
+    resources:
+      cpu: "1"
+      memory: 3Gi
+      requests:
+        memory: 3Gi
+        cpu: "1"
+      limits:
+        memory: 4Gi
+        cpu: "2"
+    config:
+      server.memory.heap.initial_size: "1G"
+      server.memory.heap.max_size: "2G"
+      server.memory.pagecache.size: "1G"
+      dbms.security.procedures.unrestricted: "apoc.*"
+      dbms.security.procedures.allowlist: "apoc.*"
+    env:
+      NEO4J_PLUGINS: '["apoc"]'
+  volumes:
+    data:
+      mode: dynamic
+      dynamic:
+        storageClassName: standard
+        requests:
+          storage: 20Gi
 
 persistence:
   storageClassName: standard

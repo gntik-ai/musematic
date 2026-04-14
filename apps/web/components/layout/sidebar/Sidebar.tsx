@@ -29,27 +29,33 @@ function canView(requiredRoles: string[], userRoles: string[]): boolean {
   return requiredRoles.some((role) => userRoles.includes(role));
 }
 
-export function Sidebar() {
+interface SidebarProps {
+  mobile?: boolean;
+  onNavigate?: () => void;
+}
+
+export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
   const pathname = usePathname();
   const user = useAuthStore((state) => state.user);
   const sidebarCollapsed = useWorkspaceStore((state) => state.sidebarCollapsed);
   const setSidebarCollapsed = useWorkspaceStore((state) => state.setSidebarCollapsed);
   const userRoles = user?.roles ?? [];
   const visibleItems = NAV_ITEMS.filter((item) => canView(item.requiredRoles, userRoles));
+  const isCollapsed = !mobile && sidebarCollapsed;
 
   return (
     <aside
       className={cn(
         "flex h-screen flex-col border-r border-border/80 bg-sidebar text-sidebar-foreground transition-[width] duration-200",
-        sidebarCollapsed ? "w-16" : "w-[260px]",
+        mobile ? "w-full max-w-[280px]" : isCollapsed ? "w-16" : "w-[260px]",
       )}
     >
-      <div className={cn("border-b border-border/70 px-3 py-4", sidebarCollapsed ? "items-center" : "")}>
-        <div className={cn("flex items-center gap-3", sidebarCollapsed && "justify-center")}>
+      <div className={cn("border-b border-border/70 px-3 py-4", isCollapsed ? "items-center" : "")}>
+        <div className={cn("flex items-center gap-3", isCollapsed && "justify-center")}>
           <div className="rounded-2xl bg-brand-primary/10 p-2 text-brand-primary">
             <Bot className="h-5 w-5" />
           </div>
-          {!sidebarCollapsed ? (
+          {!isCollapsed ? (
             <div className="animate-sidebar-in">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-accent">Musematic</p>
               <p className="text-base font-semibold">Agentic Mesh</p>
@@ -69,29 +75,32 @@ export function Sidebar() {
               className={cn(
                 "flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors hover:bg-sidebar-accent/80",
                 isActive && "bg-sidebar-accent text-foreground",
-                sidebarCollapsed && "justify-center px-0",
+                isCollapsed && "justify-center px-0",
               )}
               href={item.href}
-              title={sidebarCollapsed ? item.label : undefined}
+              title={isCollapsed ? item.label : undefined}
+              onClick={() => onNavigate?.()}
             >
               <Icon className="h-4 w-4 shrink-0" />
-              {!sidebarCollapsed ? <span className="truncate">{item.label}</span> : null}
+              {!isCollapsed ? <span className="truncate">{item.label}</span> : null}
             </Link>
           );
         })}
       </nav>
-      <div className="border-t border-border/70 p-2">
-        <Button
-          className={cn("w-full", sidebarCollapsed ? "px-0" : "justify-between")}
-          data-testid="sidebar-toggle"
-          size={sidebarCollapsed ? "icon" : "default"}
-          variant="ghost"
-          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-        >
-          {!sidebarCollapsed ? <span>Collapse</span> : null}
-          {sidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-        </Button>
-      </div>
+      {!mobile ? (
+        <div className="border-t border-border/70 p-2">
+          <Button
+            className={cn("w-full", isCollapsed ? "px-0" : "justify-between")}
+            data-testid="sidebar-toggle"
+            size={isCollapsed ? "icon" : "default"}
+            variant="ghost"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          >
+            {!isCollapsed ? <span>Collapse</span> : null}
+            {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+          </Button>
+        </div>
+      ) : null}
     </aside>
   );
 }

@@ -2,12 +2,31 @@ neo4j:
   edition: community
   minimumClusterSize: 1
   resources:
+    cpu: "500m"
+    memory: 2Gi
     requests:
-      memory: 1Gi
+      memory: 2Gi
       cpu: "500m"
     limits:
       memory: 2Gi
       cpu: "1"
+  neo4j:
+    edition: community
+    minimumClusterSize: 1
+    resources:
+      cpu: "500m"
+      memory: 2Gi
+      requests:
+        memory: 2Gi
+        cpu: "500m"
+      limits:
+        memory: 2Gi
+        cpu: "1"
+  volumes:
+    data:
+      dynamic:
+        requests:
+          storage: 10Gi
 
 persistence:
   size: 10Gi

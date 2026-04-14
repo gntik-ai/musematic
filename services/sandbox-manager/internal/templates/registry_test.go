@@ -24,6 +24,23 @@ func TestLookupUnknownTemplate(t *testing.T) {
 	}
 }
 
+func TestNamesReturnsBuiltins(t *testing.T) {
+	names := Names()
+	expected := []string{"python3.12", "node20", "go1.22", "code-as-reasoning"}
+	for _, name := range expected {
+		found := false
+		for _, current := range names {
+			if current == name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("expected template %q in %v", name, names)
+		}
+	}
+}
+
 func TestCodeAsReasoningCommandWrapsJSON(t *testing.T) {
 	command := BuildWrappedCommand("result = 6 * 7\nprint(result)", 15)
 	if len(command) < 6 {

@@ -5,7 +5,13 @@ import { queryClient } from "@/lib/query-client";
 import { resetStreamState } from "@/lib/hooks/use-message-stream";
 import { useConversationStore } from "@/lib/stores/conversation-store";
 import { resetHomeFixtures } from "@/mocks/handlers/home";
-import { resetMarketplaceFixtures } from "@/mocks/handlers";
+import {
+  resetAnalyticsFixtures,
+  resetExecutionFixtures,
+  resetMarketplaceFixtures,
+  resetTaskPlanFixtures,
+  resetWorkflowFixtures,
+} from "@/mocks/handlers";
 import {
   resetAdminFixtures,
   resetConversationFixtures,
@@ -75,6 +81,10 @@ afterEach(() => {
   server.resetHandlers();
   queryClient.clear();
   resetHomeFixtures();
+  resetWorkflowFixtures();
+  resetExecutionFixtures();
+  resetTaskPlanFixtures();
+  resetAnalyticsFixtures();
   resetMarketplaceFixtures();
   resetAdminFixtures();
   resetConversationFixtures();

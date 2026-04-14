@@ -26,13 +26,16 @@ LOGGER = logging.getLogger(__name__)
 
 
 class PriorityChange(TypedDict):
+    """Represent the priority change."""
     step_id: str
     old_priority: float
     new_priority: float
 
 
 class PriorityScorer:
+    """Represent the priority scorer."""
     def compute(self, step: StepIR, execution_context: dict[str, Any]) -> float:
+        """Handle compute."""
         now = execution_context["now"]
         execution: Execution = execution_context["execution"]
         urgency = 1.0 if execution.status == ExecutionStatus.running else 0.5
@@ -57,6 +60,7 @@ class PriorityScorer:
 
 
 class SchedulerService:
+    """Provide scheduler operations."""
     def __init__(
         self,
         *,
@@ -88,9 +92,11 @@ class SchedulerService:
         self.worker_id = f"worker-{uuid4()}"
 
     async def tick(self) -> None:
+        """Handle tick."""
         executions = await self.repository.list_by_statuses(
             [ExecutionStatus.queued, ExecutionStatus.running]
         )
+        executions.sort(key=self._execution_priority_key)
         for execution in executions:
             await self._process_execution(execution)
 
@@ -99,6 +105,7 @@ class SchedulerService:
         trigger_reason: str,
         execution_id: Any,
     ) -> None:
+        """Handle reprioritization trigger."""
         execution = await self.repository.get_execution_by_id(execution_id)
         if execution is None:
             return
@@ -146,6 +153,7 @@ class SchedulerService:
         )
 
     async def scan_approval_timeouts(self) -> None:
+        """Scan approval timeouts."""
         overdue = await self.repository.list_pending_approval_waits(datetime.now(UTC))
         for approval_wait in overdue:
             request = (
@@ -202,6 +210,12 @@ class SchedulerService:
                 await self.handle_reprioritization_trigger("sla_deadline_approaching", execution.id)
 
         runnable = self._runnable_steps(ir, state)
+        retryable = await self._collect_retryable_steps(execution, ir, state)
+        retryable_ids = {step.step_id for step in retryable}
+        if retryable:
+            combined = {step.step_id: step for step in runnable}
+            combined.update({step.step_id: step for step in retryable})
+            runnable = list(combined.values())
         if not runnable:
             if (
                 len(state.completed_step_ids) == len(ir.steps)
@@ -251,7 +265,11 @@ class SchedulerService:
             await self.execution_service.record_runtime_event(
                 execution.id,
                 step_id=step.step_id,
-                event_type=ExecutionEventType.dispatched,
+                event_type=(
+                    ExecutionEventType.retried
+                    if step.step_id in retryable_ids
+                    else ExecutionEventType.dispatched
+                ),
                 payload={"step_type": step.step_type},
                 status=ExecutionStatus.running,
             )
@@ -449,6 +467,7 @@ class SchedulerService:
         cache: dict[str, float] = {}
 
         def depth(step_id: str) -> float:
+            """Handle depth."""
             if step_id in cache:
                 return cache[step_id]
             if not parents.get(step_id):
@@ -459,3 +478,39 @@ class SchedulerService:
             return value
 
         return {step.step_id: depth(step.step_id) for step in ir.steps}
+
+    async def _collect_retryable_steps(
+        self,
+        execution: Execution,
+        ir: WorkflowIR,
+        state: ExecutionStateResponse,
+    ) -> list[StepIR]:
+        if not state.active_step_ids:
+            return []
+
+        client = await self.redis_client._get_client()
+        retryable: list[StepIR] = []
+        now = datetime.now(UTC)
+        for step_id in list(state.active_step_ids):
+            lease = await self.repository.get_active_dispatch_lease(execution.id, step_id)
+            if lease is None:
+                continue
+            key = f"exec:lease:{execution.id}:{step_id}"
+            redis_exists = bool(await client.exists(key))
+            if lease.expires_at > now and redis_exists:
+                continue
+            await client.delete(key)
+            await self.repository.release_dispatch_lease(
+                lease,
+                released_at=now,
+                expired=True,
+            )
+            step = next((item for item in ir.steps if item.step_id == step_id), None)
+            if step is not None:
+                retryable.append(step)
+        return retryable
+
+    @staticmethod
+    def _execution_priority_key(execution: Execution) -> tuple[datetime, datetime]:
+        deadline = execution.sla_deadline or datetime.max.replace(tzinfo=UTC)
+        return (deadline, execution.created_at)

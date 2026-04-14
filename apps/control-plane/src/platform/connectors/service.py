@@ -69,6 +69,7 @@ from platform.connectors.security import (
     payload_to_json,
     scrub_secret_text,
 )
+from sqlalchemy.orm.attributes import set_committed_value
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -132,8 +133,8 @@ class ConnectorsService:
                 workspace_id,
                 payload.credential_refs,
             )
-            instance.connector_type = connector_type
-            instance.credential_refs = refs
+            set_committed_value(instance, "connector_type", connector_type)
+            set_committed_value(instance, "credential_refs", refs)
             return self._connector_instance_response(instance)
         except Exception as exc:
             if exc.__class__.__name__ == "IntegrityError":

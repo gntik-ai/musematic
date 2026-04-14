@@ -8,7 +8,8 @@ export interface QuickAction {
   id: string;
   label: string;
   shortcut?: string;
-  callback: () => void;
+  href?: string;
+  callback?: () => void;
 }
 
 export const NAV_ITEMS: NavItem[] = [
@@ -38,6 +39,13 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Workflows",
     icon: "Workflow",
     href: "/workflows",
+    requiredRoles: ["workspace_editor", "workspace_admin", "superadmin"],
+  },
+  {
+    id: "workflow-editor-monitor",
+    label: "Workflow Studio",
+    icon: "Workflow",
+    href: "/workflow-editor-monitor",
     requiredRoles: ["workspace_editor", "workspace_admin", "superadmin"],
   },
   {
@@ -84,11 +92,7 @@ export const QUICK_ACTIONS: QuickAction[] = [
     id: "component-showcase",
     label: "Open component showcase",
     shortcut: "Dev",
-    callback: () => {
-      if (typeof window !== "undefined") {
-        window.location.assign("/dev/components");
-      }
-    },
+    href: "/dev/components",
   },
   {
     id: "sign-out",

@@ -37,6 +37,7 @@ from uuid import UUID, uuid4
 
 
 class WorkflowService:
+    """Provide workflow operations."""
     def __init__(
         self,
         *,
@@ -57,6 +58,7 @@ class WorkflowService:
         data: WorkflowCreate,
         created_by: UUID,
     ) -> WorkflowResponse:
+        """Create workflow."""
         existing = await self.repository.get_definition_by_name(
             workspace_id=data.workspace_id,
             name=data.name,
@@ -113,6 +115,7 @@ class WorkflowService:
         data: WorkflowUpdate,
         updated_by: UUID,
     ) -> WorkflowResponse:
+        """Update workflow."""
         definition = await self._get_definition_or_raise(workflow_id)
         compiled_ir = self.validate_and_compile(data.yaml_source)
         versions = await self.repository.list_versions(workflow_id)
@@ -147,6 +150,7 @@ class WorkflowService:
         return self._workflow_response(definition)
 
     async def archive_workflow(self, workflow_id: UUID, updated_by: UUID) -> WorkflowResponse:
+        """Archive workflow."""
         definition = await self._get_definition_or_raise(workflow_id)
         if definition.status == WorkflowStatus.archived:
             raise ValidationError("WORKFLOW_ALREADY_ARCHIVED", "Workflow is already archived")
@@ -156,6 +160,7 @@ class WorkflowService:
         return self._workflow_response(definition)
 
     async def get_workflow(self, workflow_id: UUID) -> WorkflowResponse:
+        """Return workflow."""
         return self._workflow_response(await self._get_definition_or_raise(workflow_id))
 
     async def list_workflows(
@@ -167,6 +172,7 @@ class WorkflowService:
         page: int,
         page_size: int,
     ) -> WorkflowListResponse:
+        """List workflows."""
         items, total = await self.repository.list_definitions(
             workspace_id=workspace_id,
             status=status,
@@ -180,12 +186,14 @@ class WorkflowService:
         )
 
     async def get_version(self, workflow_id: UUID, version_number: int) -> WorkflowVersionResponse:
+        """Return version."""
         version = await self.repository.get_version_by_number(workflow_id, version_number)
         if version is None:
             raise WorkflowNotFoundError(f"{workflow_id}/versions/{version_number}")
         return WorkflowVersionResponse.model_validate(version)
 
     async def list_versions(self, workflow_id: UUID) -> list[WorkflowVersionResponse]:
+        """List versions."""
         await self._get_definition_or_raise(workflow_id)
         versions = await self.repository.list_versions(workflow_id)
         return [WorkflowVersionResponse.model_validate(item) for item in versions]
@@ -195,6 +203,7 @@ class WorkflowService:
         workflow_id: UUID,
         data: TriggerCreate,
     ) -> TriggerResponse:
+        """Create trigger."""
         definition = await self._get_definition_or_raise(workflow_id)
         trigger = await self.repository.create_trigger(
             WorkflowTriggerDefinition(
@@ -215,6 +224,7 @@ class WorkflowService:
         trigger_id: UUID,
         data: TriggerCreate,
     ) -> TriggerResponse:
+        """Update trigger."""
         await self._get_definition_or_raise(workflow_id)
         trigger = await self.repository.get_trigger_by_id(trigger_id)
         if trigger is None or trigger.definition_id != workflow_id:
@@ -232,6 +242,7 @@ class WorkflowService:
         return self._trigger_response(updated)
 
     async def delete_trigger(self, workflow_id: UUID, trigger_id: UUID) -> None:
+        """Delete trigger."""
         await self._get_definition_or_raise(workflow_id)
         trigger = await self.repository.get_trigger_by_id(trigger_id)
         if trigger is None or trigger.definition_id != workflow_id:
@@ -240,6 +251,7 @@ class WorkflowService:
         await self.repository.delete_trigger(trigger)
 
     async def list_triggers(self, workflow_id: UUID) -> TriggerListResponse:
+        """List triggers."""
         await self._get_definition_or_raise(workflow_id)
         items = await self.repository.list_triggers(workflow_id)
         return TriggerListResponse(
@@ -253,10 +265,11 @@ class WorkflowService:
         *,
         execution_id: UUID | None,
     ) -> None:
+        """Record trigger fired."""
         trigger = await self.repository.get_trigger_by_id(trigger_id)
         if trigger is None:
             raise TriggerNotFoundError(trigger_id)
-        trigger.last_fired_at = datetime.now(UTC)
+        trigger.last_fired_at = datetime.now(UTC).replace(tzinfo=None)
         await self.repository.session.flush()
         await publish_trigger_fired(
             self.producer,
@@ -270,6 +283,7 @@ class WorkflowService:
         )
 
     def validate_and_compile(self, yaml_source: str) -> WorkflowIR:
+        """Validate and compile."""
         return self.compiler.compile(yaml_source, 1)
 
     async def _get_definition_or_raise(self, workflow_id: UUID) -> WorkflowDefinition:

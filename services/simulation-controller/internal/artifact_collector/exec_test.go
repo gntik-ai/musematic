@@ -71,3 +71,20 @@ func TestCollectMarksPartialWhenPodIsGone(t *testing.T) {
 	require.True(t, partial)
 	require.Empty(t, refs)
 }
+
+func TestCollectHelpersCoverFallbackBranches(t *testing.T) {
+	t.Parallel()
+
+	collector := NewExecCollector("platform-simulation", nil, nil, nil)
+	require.NotNil(t, collector)
+
+	refs, partial, err := collector.Collect(context.Background(), "sim-1", "pod-1", []string{"/output"})
+	require.NoError(t, err)
+	require.False(t, partial)
+	require.Empty(t, refs)
+
+	require.Equal(t, "artifacts.tar.gz", artifactFilename("/"))
+	require.Equal(t, "output.tar.gz", artifactFilename("/output/"))
+	require.False(t, isPartialCollectionError(nil))
+	require.False(t, isPartialCollectionError(errors.New("permission denied")))
+}

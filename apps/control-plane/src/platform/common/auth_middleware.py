@@ -13,6 +13,9 @@ EXEMPT_PATHS: set[str] = {
     "/docs",
     "/openapi.json",
     "/redoc",
+    "/api/v1/accounts/register",
+    "/api/v1/accounts/verify-email",
+    "/api/v1/accounts/resend-verification",
     "/api/v1/auth/login",
     "/api/v1/auth/refresh",
     "/api/v1/auth/mfa/verify",
@@ -38,7 +41,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: RequestResponseEndpoint,
     ) -> Response:
-        if request.url.path in EXEMPT_PATHS:
+        path = request.url.path
+        public_invitation_endpoint = path.startswith("/api/v1/accounts/invitations/") and (
+            request.method == "GET" or (request.method == "POST" and path.endswith("/accept"))
+        )
+        if path in EXEMPT_PATHS or public_invitation_endpoint:
             return await call_next(request)
 
         api_key = request.headers.get("X-API-Key", "").strip()

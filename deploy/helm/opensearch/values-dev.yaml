@@ -25,7 +25,7 @@ opensearch-dashboards:
       value: "true"
 
 networkPolicy:
-  enabled: false
+  enabled: true
 
 initJob:
   opensearchUrl: "http://musematic-opensearch:9200"

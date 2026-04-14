@@ -11,11 +11,13 @@ from pydantic import BaseModel
 
 
 class WorkflowEventType(StrEnum):
+    """Represent the workflow event type."""
     workflow_published = "workflows.workflow.published"
     trigger_fired = "workflows.trigger.fired"
 
 
 class WorkflowPublishedEvent(BaseModel):
+    """Represent the workflow published event payload."""
     workflow_id: UUID
     version_id: UUID
     version_number: int
@@ -24,6 +26,7 @@ class WorkflowPublishedEvent(BaseModel):
 
 
 class TriggerFiredEvent(BaseModel):
+    """Represent the trigger fired event payload."""
     workflow_id: UUID
     trigger_id: UUID
     trigger_type: str
@@ -37,6 +40,7 @@ WORKFLOW_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
 
 
 def register_workflows_event_types() -> None:
+    """Register workflows event types."""
     for event_type, schema in WORKFLOW_EVENT_SCHEMAS.items():
         event_registry.register(event_type, schema)
 
@@ -46,6 +50,7 @@ async def publish_workflow_published(
     event: WorkflowPublishedEvent,
     correlation_ctx: CorrelationContext,
 ) -> None:
+    """Publish workflow published."""
     if producer is None:
         return
     await producer.publish(
@@ -63,6 +68,7 @@ async def publish_trigger_fired(
     event: TriggerFiredEvent,
     correlation_ctx: CorrelationContext,
 ) -> None:
+    """Publish trigger fired."""
     if producer is None:
         return
     await producer.publish(

@@ -55,6 +55,7 @@ type ateReport struct {
 	} `json:"summary"`
 }
 
+//nolint:gocyclo
 func (a *ResultsAggregator) Run(ctx context.Context, req AggregationRequest) error {
 	if a == nil || a.Fanout == nil {
 		return nil

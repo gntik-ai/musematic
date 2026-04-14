@@ -117,11 +117,11 @@
 **Purpose**: Final assembly, accessibility, dark mode, coverage audit
 
 - [x] T027 Finalize `apps/web/components/features/home/HomeDashboard.tsx` — ensure layout matches contracts/home-ui.md: ConnectionStatusBanner → QuickActions (Card) → WorkspaceSummary grid → 2-column [RecentActivity | PendingActions] at `lg:` breakpoint → stacked on `< lg`; verify all sections in independent `<ErrorBoundary>` wrappers
-- [ ] T028 [P] Accessibility audit on all home components — add `aria-label` to each MetricCard including change direction ("Active Agents: 12, increased by 3"); add `role="status"` + `aria-live` to ConnectionStatusBanner; verify all interactive elements have visible `focus-visible:ring-2` focus ring; run `pnpm test:a11y` targeting `/home` route
-- [ ] T029 [P] Dark mode verification — open dashboard in dark mode (`dark` class on `<html>`); verify all color classes use CSS custom properties (`text-foreground`, `bg-background`, `border-border`) not hardcoded Tailwind palette colors; spot-check ConnectionStatusBanner uses `dark:bg-amber-950`
-- [ ] T030 [P] Responsive layout verification — resize browser to 320px, 640px, 768px, 1024px, 1280px; verify no horizontal scroll; verify MetricCard grid: 1→2→4 columns at sm/lg breakpoints; verify activity/pending stack on `< lg`; verify quick actions wrap without overflow
+- [X] T028 [P] Accessibility audit on all home components — add `aria-label` to each MetricCard including change direction ("Active Agents: 12, increased by 3"); add `role="status"` + `aria-live` to ConnectionStatusBanner; verify all interactive elements have visible `focus-visible:ring-2` focus ring; run `pnpm test:a11y` targeting `/home` route
+- [X] T029 [P] Dark mode verification — open dashboard in dark mode (`dark` class on `<html>`); verify all color classes use CSS custom properties (`text-foreground`, `bg-background`, `border-border`) not hardcoded Tailwind palette colors; spot-check ConnectionStatusBanner uses `dark:bg-amber-950`
+- [X] T030 [P] Responsive layout verification — resize browser to 320px, 640px, 768px, 1024px, 1280px; verify no horizontal scroll; verify MetricCard grid: 1→2→4 columns at sm/lg breakpoints; verify activity/pending stack on `< lg`; verify quick actions wrap without overflow
 - [x] T031 [P] Register MSW handlers in `apps/web/mocks/handlers/index.ts` — add `home` handlers to the MSW handler array for use in `NEXT_PUBLIC_MSW_ENABLED=true` dev mode
-- [ ] T032 [P] Run `pnpm test:coverage` and verify ≥ 95% coverage for all files under `components/features/home/` and `lib/hooks/use-home-data.ts`
+- [X] T032 [P] Run `pnpm test:coverage` and verify ≥ 95% coverage for all files under `components/features/home/` and `lib/hooks/use-home-data.ts`
 - [X] T033 [P] Run `pnpm type-check` (TypeScript strict compilation) and fix any type errors in home feature files
 - [X] T034 [P] Run `pnpm lint` (ESLint) on home feature files and fix any lint warnings
 

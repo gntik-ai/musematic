@@ -57,7 +57,7 @@
 ### Tests for User Story 1
 
 - [x] T017 [P] [US1] Create `apps/control-plane/tests/unit/workflows/test_compiler.py` — test cases matching quickstart.md scenarios 1, 2: valid multi-step YAML compiles to `WorkflowIR` with correct step count and DAG edges; update produces version 2 with version 1 preserved; invalid YAML (negative timeout) returns `WorkflowCompilationError` with `steps[0].timeout_seconds` in error path; circular dependency raises `WorkflowCompilationError` citing the cycle; YAML with undefined step reference raises error with step name in message
-- [ ] T018 [P] [US1] Create `apps/control-plane/tests/integration/workflows/test_workflow_crud.py` — test cases matching quickstart.md scenarios 1, 2, 11, 12: `POST /workflows` returns version 1; `PATCH` creates version 2 with version 1 still retrievable; `POST /workflows/{id}/archive` removes from active list; `POST /triggers` creates cron trigger; webhook trigger returns 202 on valid HMAC; invalid HMAC returns 401
+- [x] T018 [P] [US1] Create `apps/control-plane/tests/integration/workflows/test_workflow_crud.py` — test cases matching quickstart.md scenarios 1, 2, 11, 12: `POST /workflows` returns version 1; `PATCH` creates version 2 with version 1 still retrievable; `POST /workflows/{id}/archive` removes from active list; `POST /triggers` creates cron trigger; webhook trigger returns 202 on valid HMAC; invalid HMAC returns 401
 
 ### Implementation for User Story 1
 
@@ -78,7 +78,7 @@
 ### Tests for User Story 2
 
 - [x] T022 [P] [US2] Create `apps/control-plane/tests/unit/execution/test_projector.py` — unit tests for all 21 `ExecutionEventType` transitions in `ExecutionProjector`: `created` → status=queued; `dispatched` → step moves to active; `completed` → step moves to completed; `failed` → step moves to failed; `waiting_for_approval` → execution status=waiting_for_approval; `hot_changed` → workflow_version_id updated in state; `reprioritized` → event recorded but active steps unchanged; verify `project_state` is pure/stateless (same inputs → same output)
-- [ ] T023 [P] [US2] Create `apps/control-plane/tests/integration/execution/test_execution_journal.py` — test cases matching quickstart.md scenario 3: create execution → verify `created` event in journal; verify `sequence=1`; verify `UPDATE execution_events` raises DB-level error; project state → verify status=queued; get journal → verify events in sequence order; scenario 16 (approval gate): approve → resumed journal event appended
+- [x] T023 [P] [US2] Create `apps/control-plane/tests/integration/execution/test_execution_journal.py` — test cases matching quickstart.md scenario 3: create execution → verify `created` event in journal; verify `sequence=1`; verify `UPDATE execution_events` raises DB-level error; project state → verify status=queued; get journal → verify events in sequence order; scenario 16 (approval gate): approve → resumed journal event appended
 
 ### Implementation for User Story 2
 
@@ -99,7 +99,7 @@
 ### Tests for User Story 3
 
 - [x] T027 [P] [US3] Create `apps/control-plane/tests/unit/execution/test_priority_scorer.py` — unit tests for `PriorityScorer.compute`: urgency-dominant case; SLA deadline proximity increases priority; higher importance wins over lower; reasoning budget depletion reduces priority; dependency depth breaks ties; test scoring consistency (deterministic for same inputs)
-- [ ] T028 [P] [US3] Create `apps/control-plane/tests/integration/execution/test_scheduler_dispatch.py` — test cases matching quickstart.md scenarios 4, 5: sequential DAG dispatches step A before step B; higher SLA-proximity step dispatched first; Redis lease prevents duplicate dispatch; `tick()` called again while lease active → no second dispatch; expired lease TTL → step re-enters runnable pool on next tick; approval gate step → `waiting_for_approval` event written, NOT dispatched to runtime controller, `ExecutionApprovalWait` record created; scenario 16 approval flow end-to-end
+- [x] T028 [P] [US3] Create `apps/control-plane/tests/integration/execution/test_scheduler_dispatch.py` — test cases matching quickstart.md scenarios 4, 5: sequential DAG dispatches step A before step B; higher SLA-proximity step dispatched first; Redis lease prevents duplicate dispatch; `tick()` called again while lease active → no second dispatch; expired lease TTL → step re-enters runnable pool on next tick; approval gate step → `waiting_for_approval` event written, NOT dispatched to runtime controller, `ExecutionApprovalWait` record created; scenario 16 approval flow end-to-end
 
 ### Implementation for User Story 3
 
@@ -118,7 +118,7 @@
 
 ### Tests for User Story 6
 
-- [ ] T031 [P] [US6] Create `apps/control-plane/tests/integration/execution/test_task_plan_records.py` — test cases matching quickstart.md scenario 14: intercept dispatch → verify TaskPlanRecord PostgreSQL row exists before gRPC call; verify MinIO object at `storage_key` path exists; `GET /executions/{id}/task-plan` returns metadata list; `GET /executions/{id}/task-plan/{step_id}` returns full payload including `considered_agents`, `parameters` with provenance, `rejected_alternatives`; verify task plan is distinct from journal events (different endpoint, different schema)
+- [x] T031 [P] [US6] Create `apps/control-plane/tests/integration/execution/test_task_plan_records.py` — test cases matching quickstart.md scenario 14: intercept dispatch → verify TaskPlanRecord PostgreSQL row exists before gRPC call; verify MinIO object at `storage_key` path exists; `GET /executions/{id}/task-plan` returns metadata list; `GET /executions/{id}/task-plan/{step_id}` returns full payload including `considered_agents`, `parameters` with provenance, `rejected_alternatives`; verify task plan is distinct from journal events (different endpoint, different schema)
 
 ### Implementation for User Story 6
 
@@ -137,7 +137,7 @@
 
 ### Tests for User Story 4
 
-- [ ] T034 [P] [US4] Create `apps/control-plane/tests/integration/execution/test_replay_resume_rerun.py` — test cases matching quickstart.md scenarios 6, 7, 8: replay completed execution → reconstructed state matches original (all completed_step_ids equal, step_results equal, no new events written); resume failed execution at step 3 → new Execution created with `parent_execution_id` set → steps a+b NOT in dispatch calls for new execution → step_c IS dispatched; rerun completed execution → new Execution with `rerun_of_execution_id` set, same `workflow_version_id`, journal starts at sequence=1
+- [x] T034 [P] [US4] Create `apps/control-plane/tests/integration/execution/test_replay_resume_rerun.py` — test cases matching quickstart.md scenarios 6, 7, 8: replay completed execution → reconstructed state matches original (all completed_step_ids equal, step_results equal, no new events written); resume failed execution at step 3 → new Execution created with `parent_execution_id` set → steps a+b NOT in dispatch calls for new execution → step_c IS dispatched; rerun completed execution → new Execution with `rerun_of_execution_id` set, same `workflow_version_id`, journal starts at sequence=1
 
 ### Implementation for User Story 4
 
@@ -157,12 +157,12 @@
 
 ### Tests for User Story 5
 
-- [ ] T038 [P] [US5] Create `apps/control-plane/tests/integration/execution/test_triggers.py` — test cases matching quickstart.md scenarios 11, 12, 13: webhook with valid HMAC → 202 + execution with TriggerType.WEBHOOK; webhook with invalid HMAC → 401; cron handler fires → execution created with TriggerType.CRON; workspace-goal Kafka event with matching goal_type_pattern → execution created with `correlation_goal_id` set; event-bus Kafka event matching topic pattern → execution created with TriggerType.EVENT_BUS; concurrency limit reached → 409; no matching trigger → no execution created
+- [x] T038 [P] [US5] Create `apps/control-plane/tests/integration/execution/test_triggers.py` — test cases matching quickstart.md scenarios 11, 12, 13: webhook with valid HMAC → 202 + execution with TriggerType.WEBHOOK; webhook with invalid HMAC → 401; cron handler fires → execution created with TriggerType.CRON; workspace-goal Kafka event with matching goal_type_pattern → execution created with `correlation_goal_id` set; event-bus Kafka event matching topic pattern → execution created with TriggerType.EVENT_BUS; concurrency limit reached → 409; no matching trigger → no execution created
 
 ### Implementation for User Story 5
 
 - [x] T039 [P] [US5] Add APScheduler cron registration to `apps/control-plane/src/platform/workflows/service.py` — on `create_trigger(trigger_type=CRON)`: register `AsyncIOScheduler.add_job(cron_trigger_handler, CronTrigger.from_crontab(expr, timezone=tz), id=trigger_id)`; on `delete_trigger` or `is_active=False`: `scheduler.remove_job(trigger_id)`; add startup hook to `apps/control-plane/entrypoints/worker_main.py` that loads all active CRON triggers from DB and registers them in APScheduler on startup
-- [ ] T040 [P] [US5] Implement Kafka consumers for triggers in `apps/control-plane/src/platform/execution/events.py` — `workspace_goal_consumer_handler(event, session)`: load all active WORKSPACE_GOAL triggers matching `event.workspace_id` and `event.goal_type` against `trigger.config.goal_type_pattern` (fnmatch); for each match: check concurrency limit → call `execution_service.create_execution()` with `correlation_goal_id=event.goal_id`; `event_bus_consumer_handler(event, session)`: load all active EVENT_BUS triggers matching `event.topic` and `event.event_type`; create execution on match; register both consumers in Kafka consumer group startup
+- [x] T040 [P] [US5] Implement Kafka consumers for triggers in `apps/control-plane/src/platform/execution/events.py` — `workspace_goal_consumer_handler(event, session)`: load all active WORKSPACE_GOAL triggers matching `event.workspace_id` and `event.goal_type` against `trigger.config.goal_type_pattern` (fnmatch); for each match: check concurrency limit → call `execution_service.create_execution()` with `correlation_goal_id=event.goal_id`; `event_bus_consumer_handler(event, session)`: load all active EVENT_BUS triggers matching `event.topic` and `event.event_type`; create execution on match; register both consumers in Kafka consumer group startup
 - [x] T041 [US5] Add HMAC webhook validation to existing `POST /workflows/{id}/webhook/{trigger_id}` endpoint in `apps/control-plane/src/platform/workflows/router.py` — compute `hmac.new(trigger.config.secret.encode(), request_body, hashlib.sha256).hexdigest()`; compare with `X-Webhook-Signature` header value (constant-time comparison via `hmac.compare_digest`); raise `HTTPException(401)` on mismatch; on success call `execution_service.create_execution()` and return `202 {"execution_id": "..."}`
 
 **Checkpoint**: All 7 trigger types initiate workflow execution; HMAC validation working; Kafka consumers active.
@@ -177,7 +177,7 @@
 
 ### Tests for User Story 7
 
-- [ ] T042 [P] [US7] Create `apps/control-plane/tests/integration/execution/test_hot_change_compensation.py` — test cases matching quickstart.md scenarios 9, 10: compatible hot change (add step) applied → `hot_changed` event in journal; incompatible hot change (remove active step) → `HotChangeIncompatibleError` raised, execution status unchanged; compensation triggered on completed step → `ExecutionCompensationRecord` created with `outcome=completed` + `compensated` event; compensation on step without handler → record with `outcome=not_available`; compensation on in-progress step → rejected
+- [x] T042 [P] [US7] Create `apps/control-plane/tests/integration/execution/test_hot_change_compensation.py` — test cases matching quickstart.md scenarios 9, 10: compatible hot change (add step) applied → `hot_changed` event in journal; incompatible hot change (remove active step) → `HotChangeIncompatibleError` raised, execution status unchanged; compensation triggered on completed step → `ExecutionCompensationRecord` created with `outcome=completed` + `compensated` event; compensation on step without handler → record with `outcome=not_available`; compensation on in-progress step → rejected
 
 ### Implementation for User Story 7
 
@@ -196,7 +196,7 @@
 
 ### Tests for User Story 8
 
-- [ ] T045 [P] [US8] Create `apps/control-plane/tests/integration/execution/test_reprioritization.py` — test cases matching quickstart.md scenario 15: budget breach event → `reprioritized` journal event appended with `trigger_reason=budget_threshold_breached`; SLA deadline > 80% consumed → SLA-bound step promoted in queue; fleet member failure → re-prioritization triggered for fleet-linked executions; already-dispatched steps unaffected; `execution.events` Kafka message with `event_type=execution.reprioritized` emitted
+- [x] T045 [P] [US8] Create `apps/control-plane/tests/integration/execution/test_reprioritization.py` — test cases matching quickstart.md scenario 15: budget breach event → `reprioritized` journal event appended with `trigger_reason=budget_threshold_breached`; SLA deadline > 80% consumed → SLA-bound step promoted in queue; fleet member failure → re-prioritization triggered for fleet-linked executions; already-dispatched steps unaffected; `execution.events` Kafka message with `event_type=execution.reprioritized` emitted
 
 ### Implementation for User Story 8
 
@@ -214,9 +214,9 @@
 - [x] T048 Register `workflows.router` and `execution.router` in `apps/control-plane/src/platform/api/__init__.py` — add `app.include_router(workflows_router, prefix="/api/v1")` and `app.include_router(execution_router, prefix="/api/v1")`
 - [x] T049 Wire APScheduler into `apps/control-plane/entrypoints/worker_main.py` lifespan — on startup: create `AsyncIOScheduler`, load all active CRON triggers from DB and register, add `SchedulerService.tick` job (interval 1s), add approval timeout scan job (interval 60s); on shutdown: shutdown scheduler gracefully
 - [x] T050 [P] Register `execution/events.py` Kafka consumers in the `worker` profile lifespan — subscribe consumer group to `workflow.runtime` (step completion), `runtime.reasoning` (budget threshold), `fleet.health` (member failure), `interaction.attention` (external event), `workspace.goal` (workspace-goal trigger)
-- [ ] T051 [P] Add `tests/integration/workflows/__init__.py` and `tests/integration/execution/__init__.py` + shared `conftest.py` with fixtures — async test session, test PostgreSQL DB with migration 029 applied, Redis client, MinIO test bucket `execution-task-plans`, mock gRPC stubs (`RuntimeControlServiceStub`, `ReasoningEngineServiceStub`, `ContextEngineeringServiceStub`), `kafka_mock` fixture
-- [ ] T052 [P] Run `pytest tests/unit/workflows/ tests/unit/execution/ tests/integration/workflows/ tests/integration/execution/ --cov=platform/workflows --cov=platform/execution --cov-report=term-missing` — confirm ≥95% line coverage; add missing test cases for any uncovered branches
-- [ ] T053 [P] Run `ruff check apps/control-plane/src/platform/workflows/ apps/control-plane/src/platform/execution/` and `mypy --strict apps/control-plane/src/platform/workflows/ apps/control-plane/src/platform/execution/` — fix all violations; confirm all public functions have docstrings; all signatures fully annotated
+- [x] T051 [P] Add `tests/integration/workflows/__init__.py` and `tests/integration/execution/__init__.py` + shared `conftest.py` with fixtures — async test session, test PostgreSQL DB with migration 029 applied, Redis client, MinIO test bucket `execution-task-plans`, mock gRPC stubs (`RuntimeControlServiceStub`, `ReasoningEngineServiceStub`, `ContextEngineeringServiceStub`), `kafka_mock` fixture
+- [X] T052 [P] Run `pytest tests/unit/workflows/ tests/unit/execution/ tests/integration/workflows/ tests/integration/execution/ --cov=platform/workflows --cov=platform/execution --cov-report=term-missing` — confirm ≥95% line coverage; add missing test cases for any uncovered branches
+- [X] T053 [P] Run `ruff check apps/control-plane/src/platform/workflows/ apps/control-plane/src/platform/execution/` and `mypy --strict apps/control-plane/src/platform/workflows/ apps/control-plane/src/platform/execution/` — fix all violations; confirm all public functions have docstrings; all signatures fully annotated
 
 ---
 

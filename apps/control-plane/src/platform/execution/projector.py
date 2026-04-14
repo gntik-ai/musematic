@@ -13,11 +13,13 @@ LOGGER = logging.getLogger(__name__)
 
 
 class ExecutionProjector:
+    """Project execution state."""
     def project_state(
         self,
         events: list[ExecutionEvent],
         checkpoint: ExecutionCheckpoint | None = None,
     ) -> ExecutionStateResponse:
+        """Project execution state from recorded events."""
         state = ExecutionStateResponse(
             execution_id=events[-1].execution_id if events else checkpoint.execution_id,  # type: ignore[union-attr]
             status=ExecutionStatus.queued,

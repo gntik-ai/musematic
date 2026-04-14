@@ -3,6 +3,7 @@ package reasoningv1
 import (
 	"context"
 	"errors"
+	"math"
 
 	"github.com/musematic/reasoning-engine/internal/budget_tracker"
 	"github.com/musematic/reasoning-engine/internal/correction_loop"
@@ -76,7 +77,7 @@ func (h *Handler) SelectReasoningMode(ctx context.Context, req *SelectReasoningM
 	h.metrics.RecordModeSelection(ctx, selection.Mode)
 	return &ReasoningModeConfig{
 		Mode:            modeToProto(selection.Mode),
-		ComplexityScore: int32(selection.ComplexityScore),
+		ComplexityScore: safeInt32(selection.ComplexityScore),
 		RecommendedBudget: &BudgetAllocation{
 			Tokens: selection.RecommendedBudget.Tokens,
 			Rounds: selection.RecommendedBudget.Rounds,
@@ -305,7 +306,7 @@ func (h *Handler) SubmitCorrectionIteration(ctx context.Context, req *Correction
 	h.metrics.RecordCorrectionIteration(ctx, string(statusValue))
 	return &ConvergenceResult{
 		Status:       convergenceToProto(statusValue),
-		IterationNum: int32(iterationNum),
+		IterationNum: safeInt32(iterationNum),
 		Delta:        delta,
 		LoopId:       req.GetLoopId(),
 	}, nil
@@ -392,4 +393,14 @@ func convergenceToProto(value correction_loop.Status) ConvergenceStatus {
 	default:
 		return ConvergenceStatus_CONVERGENCE_STATUS_UNSPECIFIED
 	}
+}
+
+func safeInt32(value int) int32 {
+	if value > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	if value < math.MinInt32 {
+		return math.MinInt32
+	}
+	return int32(value)
 }

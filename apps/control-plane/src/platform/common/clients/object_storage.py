@@ -285,13 +285,15 @@ class AsyncObjectStorageClient:
             if item.get("Key") == key
         ]
 
-    async def health_check(self) -> bool:
+    async def health_check(self) -> dict[str, Any]:
         try:
             async with self._client() as s3:
-                await s3.list_buckets()
-            return True
-        except Exception:
-            return False
+                response = await s3.list_buckets()
+            buckets = response.get("Buckets", [])
+            # The platform expects 8 provisioned buckets; diagnose tooling should flag drift.
+            return {"status": "ok", "bucket_count": len(buckets)}
+        except Exception as exc:
+            return {"status": "error", "error": str(exc)}
 
     async def __aenter__(self) -> AsyncObjectStorageClient:
         return self
@@ -337,7 +339,14 @@ class AsyncObjectStorageClient:
         code = str(exc.response.get("Error", {}).get("Code", ""))
         if code in {"NoSuchBucket"}:
             return BucketNotFoundError(f"Bucket '{bucket}' not found.")
+        if code in {"404", "NotFound"} and key is None:
+            return BucketNotFoundError(f"Bucket '{bucket}' not found.")
         if code in {"NoSuchKey", "NoSuchVersion", "404", "NotFound"}:
             target = f"object '{key}'" if key is not None else "object"
             return ObjectNotFoundError(f"{target} not found in bucket '{bucket}'.")
         return ObjectStorageError(f"S3 operation failed for bucket '{bucket}': {code or exc}")
+
+
+async def check_object_storage(settings: Settings | None = None) -> dict[str, Any]:
+    client = AsyncObjectStorageClient.from_settings(settings or default_settings)
+    return await client.health_check()

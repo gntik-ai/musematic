@@ -19,7 +19,18 @@ import {
 } from "@/components/ui/tooltip";
 import type { QuickAction } from "@/lib/types/home";
 
-const QUICK_ACTIONS: QuickAction[] = [
+const iconMap = {
+  MessageSquarePlus,
+  Upload,
+  Workflow,
+  Store,
+} as const;
+
+type QuickActionDefinition = Omit<QuickAction, "icon"> & {
+  icon: keyof typeof iconMap;
+};
+
+const QUICK_ACTIONS: QuickActionDefinition[] = [
   {
     id: "new-conversation",
     label: "New Conversation",
@@ -48,13 +59,6 @@ const QUICK_ACTIONS: QuickAction[] = [
   },
 ];
 
-const iconMap: Record<string, LucideIcon> = {
-  MessageSquarePlus,
-  Upload,
-  Workflow,
-  Store,
-};
-
 const writeRoles = new Set([
   "superadmin",
   "platform_admin",
@@ -68,12 +72,14 @@ const writeRoles = new Set([
   "operator",
 ]);
 
+const EMPTY_ROLES: string[] = [];
+
 function hasWriteAccess(roles: string[]): boolean {
   return roles.some((role) => writeRoles.has(role));
 }
 
 export function QuickActions() {
-  const roles = useAuthStore((state) => state.user?.roles ?? []);
+  const roles = useAuthStore((state) => state.user?.roles ?? EMPTY_ROLES);
   const canWrite = hasWriteAccess(roles);
 
   return (
@@ -85,7 +91,7 @@ export function QuickActions() {
         <TooltipProvider>
           <div className="flex flex-wrap gap-3">
             {QUICK_ACTIONS.map((action) => {
-              const Icon = iconMap[action.icon] ?? MessageSquarePlus;
+              const Icon: LucideIcon = iconMap[action.icon];
               const disabled = action.requiredPermission === "write" && !canWrite;
 
               if (disabled) {

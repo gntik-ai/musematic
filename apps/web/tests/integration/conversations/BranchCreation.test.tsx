@@ -50,4 +50,36 @@ describe("BranchCreationDialog", () => {
       );
     });
   });
+
+  it("does not create a branch when the source message is missing and supports cancel", async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    const requestSpy = vi.fn();
+
+    server.use(
+      http.post("*/api/v1/conversations/:conversationId/branches", async ({ request }) => {
+        requestSpy(await request.json());
+        return HttpResponse.json({});
+      }),
+    );
+
+    renderWithProviders(
+      <BranchCreationDialog
+        conversationId="conversation-1"
+        messageId={null}
+        onOpenChange={onOpenChange}
+        open
+      />,
+    );
+
+    await user.type(screen.getByLabelText(/^name$/i), "No source branch");
+    await user.click(screen.getByRole("button", { name: /create branch/i }));
+
+    await waitFor(() => {
+      expect(requestSpy).not.toHaveBeenCalled();
+    });
+
+    await user.click(screen.getByRole("button", { name: /cancel/i }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
 });

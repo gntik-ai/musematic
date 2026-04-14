@@ -22,6 +22,7 @@ import (
 	"github.com/musematic/reasoning-engine/pkg/lua"
 	"github.com/musematic/reasoning-engine/pkg/metrics"
 	"github.com/musematic/reasoning-engine/pkg/persistence"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -40,10 +41,35 @@ type config struct {
 	budgetDefaultTTLSeconds int64
 }
 
+type grpcServer interface {
+	RegisterService(*grpc.ServiceDesc, any)
+	Serve(net.Listener) error
+	GracefulStop()
+	Stop()
+}
+
+type runtimeDeps struct {
+	handler reasoningv1.HandlerDependencies
+	cleanup func()
+}
+
+var (
+	buildRuntimeDeps           = defaultBuildRuntimeDeps
+	notifyContextFn            = signal.NotifyContext
+	newGRPCServerFn            = func(opts ...grpc.ServerOption) grpcServer { return grpc.NewServer(opts...) }
+	registerReasoningServiceFn = reasoningv1.RegisterReasoningEngineServiceServer
+	registerHealthServiceFn    = healthpb.RegisterHealthServer
+	listenFn                   = net.Listen
+	afterFn                    = time.After
+	runFn                      = run
+	exitFn                     = os.Exit
+	loadLuaFn                  = lua.Load
+)
+
 func main() {
-	if err := run(); err != nil {
+	if err := runFn(); err != nil {
 		slog.Error("reasoning engine failed", "error", err)
-		os.Exit(1)
+		exitFn(1)
 	}
 }
 
@@ -54,66 +80,27 @@ func run() error {
 		return err
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	ctx, cancel := notifyContextFn(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	redisClient := persistence.NewRedisClient(cfg.redisAddr)
-	if redisClient == nil {
-		return fmt.Errorf("REDIS_ADDR is required")
-	}
-	defer redisClient.Close()
-
-	pgPool := persistence.NewPostgresPool(cfg.postgresDSN)
-	if pgPool == nil {
-		return fmt.Errorf("POSTGRES_DSN is required")
-	}
-	defer pgPool.Close()
-
-	kafkaProducer := persistence.NewKafkaProducer(cfg.kafkaBrokers)
-	if kafkaProducer == nil {
-		return fmt.Errorf("KAFKA_BROKERS is required")
-	}
-	defer kafkaProducer.Close()
-
-	minioClient := persistence.NewMinIOClient(cfg.minioEndpoint, cfg.minioBucket)
-	if minioClient == nil {
-		return fmt.Errorf("MINIO_ENDPOINT and MINIO_BUCKET are required")
-	}
-
-	telemetry := metrics.New()
-	scripts, err := lua.Load(ctx, redisClient)
+	deps, err := buildRuntimeDeps(ctx, cfg)
 	if err != nil {
 		return err
 	}
-
-	eventRegistry := budget_tracker.NewEventRegistry()
-	modeSelector := mode_selector.NewRuleBasedSelector()
-	budgetTracker := budget_tracker.NewRedisTracker(redisClient, scripts, eventRegistry, telemetry, cfg.budgetDefaultTTLSeconds)
-	traceRepository := cot_coordinator.NewPGTraceRepository(pgPool)
-	traceCoordinator := cot_coordinator.NewPipeline(traceRepository, kafkaProducer, minioClient, telemetry, cfg.traceBufferSize, cfg.tracePayloadThreshold)
-	escalationRouter := escalation.NewRouter(kafkaProducer)
-	correctionLoop := correction_loop.NewLoopService(redisClient, scripts, kafkaProducer, escalationRouter, pgPool)
-	totManager := tot_manager.NewManager(budgetTracker, quality_evaluator.StaticEvaluator{}, telemetry, cfg.maxToTConcurrency)
+	defer deps.cleanup()
 
 	healthServer := health.NewServer()
 	healthServer.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
 
-	grpcServer := grpc.NewServer(
+	grpcServer := newGRPCServerFn(
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.UnaryInterceptor(reasoningv1.UnaryInterceptor(logger)),
 		grpc.StreamInterceptor(reasoningv1.StreamInterceptor(logger)),
 	)
-	reasoningv1.RegisterReasoningEngineServiceServer(grpcServer, reasoningv1.NewHandler(reasoningv1.HandlerDependencies{
-		ModeSelector:   modeSelector,
-		BudgetTracker:  budgetTracker,
-		EventRegistry:  eventRegistry,
-		CoTCoordinator: traceCoordinator,
-		ToTManager:     totManager,
-		CorrectionLoop: correctionLoop,
-		Metrics:        telemetry,
-	}))
-	healthpb.RegisterHealthServer(grpcServer, healthServer)
+	registerReasoningServiceFn(grpcServer, reasoningv1.NewHandler(deps.handler))
+	registerHealthServiceFn(grpcServer, healthServer)
 
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.grpcPort))
+	listener, err := listenFn("tcp", fmt.Sprintf(":%d", cfg.grpcPort))
 	if err != nil {
 		return err
 	}
@@ -128,13 +115,76 @@ func run() error {
 
 		select {
 		case <-stopped:
-		case <-time.After(10 * time.Second):
+		case <-afterFn(10 * time.Second):
 			grpcServer.Stop()
 		}
 	}()
 
 	logger.Info("reasoning engine starting", "grpc_port", cfg.grpcPort)
 	return grpcServer.Serve(listener)
+}
+
+func defaultBuildRuntimeDeps(ctx context.Context, cfg config) (runtimeDeps, error) {
+	redisClient := persistence.NewRedisClient(cfg.redisAddr)
+	if redisClient == nil {
+		return runtimeDeps{}, fmt.Errorf("REDIS_ADDR is required")
+	}
+
+	pgPool := persistence.NewPostgresPool(cfg.postgresDSN)
+	if pgPool == nil {
+		_ = redisClient.Close()
+		return runtimeDeps{}, fmt.Errorf("POSTGRES_DSN is required")
+	}
+
+	kafkaProducer := persistence.NewKafkaProducer(cfg.kafkaBrokers)
+	if kafkaProducer == nil {
+		pgPool.Close()
+		_ = redisClient.Close()
+		return runtimeDeps{}, fmt.Errorf("KAFKA_BROKERS is required")
+	}
+
+	minioClient := persistence.NewMinIOClient(cfg.minioEndpoint, cfg.minioBucket)
+	if minioClient == nil {
+		kafkaProducer.Close()
+		pgPool.Close()
+		_ = redisClient.Close()
+		return runtimeDeps{}, fmt.Errorf("MINIO_ENDPOINT and MINIO_BUCKET are required")
+	}
+
+	telemetry := metrics.New()
+	scripts, err := loadLuaFn(ctx, redisClient)
+	if err != nil {
+		kafkaProducer.Close()
+		pgPool.Close()
+		_ = redisClient.Close()
+		return runtimeDeps{}, err
+	}
+
+	eventRegistry := budget_tracker.NewEventRegistry()
+	modeSelector := mode_selector.NewRuleBasedSelector()
+	budgetTracker := budget_tracker.NewRedisTracker(redisClient, scripts, eventRegistry, telemetry, cfg.budgetDefaultTTLSeconds)
+	traceRepository := cot_coordinator.NewPGTraceRepository(pgPool)
+	traceCoordinator := cot_coordinator.NewPipeline(traceRepository, kafkaProducer, minioClient, telemetry, cfg.traceBufferSize, cfg.tracePayloadThreshold)
+	escalationRouter := escalation.NewRouter(kafkaProducer)
+	correctionLoop := correction_loop.NewLoopService(redisClient, scripts, kafkaProducer, escalationRouter, pgPool)
+	totManager := tot_manager.NewManager(budgetTracker, quality_evaluator.StaticEvaluator{}, telemetry, cfg.maxToTConcurrency)
+
+	return runtimeDeps{
+		handler: reasoningv1.HandlerDependencies{
+			ModeSelector:   modeSelector,
+			BudgetTracker:  budgetTracker,
+			EventRegistry:  eventRegistry,
+			CoTCoordinator: traceCoordinator,
+			ToTManager:     totManager,
+			CorrectionLoop: correctionLoop,
+			Metrics:        telemetry,
+		},
+		cleanup: func() {
+			kafkaProducer.Close()
+			pgPool.Close()
+			_ = redisClient.Close()
+		},
+	}, nil
 }
 
 func loadConfig() (config, error) {

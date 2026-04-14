@@ -38,6 +38,7 @@ async def create_execution(
     current_user: dict[str, Any] = Depends(get_current_user),
     execution_service: ExecutionService = Depends(get_execution_service),
 ) -> ExecutionResponse:
+    """Create execution."""
     return await execution_service.create_execution(payload, created_by=_actor_id(current_user))
 
 
@@ -54,6 +55,7 @@ async def list_executions(
     current_user: dict[str, Any] = Depends(get_current_user),
     execution_service: ExecutionService = Depends(get_execution_service),
 ) -> ExecutionListResponse:
+    """List executions."""
     del current_user
     return await execution_service.list_executions(
         workspace_id=workspace_id,
@@ -73,6 +75,7 @@ async def get_execution(
     current_user: dict[str, Any] = Depends(get_current_user),
     execution_service: ExecutionService = Depends(get_execution_service),
 ) -> ExecutionResponse:
+    """Return execution."""
     del current_user
     return await execution_service.get_execution(execution_id)
 
@@ -83,6 +86,7 @@ async def cancel_execution(
     current_user: dict[str, Any] = Depends(get_current_user),
     execution_service: ExecutionService = Depends(get_execution_service),
 ) -> ExecutionResponse:
+    """Cancel execution."""
     del current_user
     return await execution_service.cancel_execution(execution_id)
 
@@ -93,6 +97,7 @@ async def get_execution_state(
     current_user: dict[str, Any] = Depends(get_current_user),
     execution_service: ExecutionService = Depends(get_execution_service),
 ) -> ExecutionStateResponse:
+    """Return execution state."""
     del current_user
     return await execution_service.get_execution_state(execution_id)
 
@@ -105,6 +110,7 @@ async def get_execution_journal(
     current_user: dict[str, Any] = Depends(get_current_user),
     execution_service: ExecutionService = Depends(get_execution_service),
 ) -> ExecutionEventListResponse:
+    """Return execution journal."""
     del current_user
     return await execution_service.get_journal(
         execution_id,
@@ -119,6 +125,7 @@ async def replay_execution(
     current_user: dict[str, Any] = Depends(get_current_user),
     execution_service: ExecutionService = Depends(get_execution_service),
 ) -> ExecutionStateResponse:
+    """Replay execution."""
     del current_user
     return await execution_service.replay_execution(execution_id)
 
@@ -131,6 +138,7 @@ async def resume_execution(
     current_user: dict[str, Any] = Depends(get_current_user),
     execution_service: ExecutionService = Depends(get_execution_service),
 ) -> ExecutionResponse:
+    """Resume execution."""
     del current_user
     return await execution_service.resume_execution(execution_id)
 
@@ -144,6 +152,7 @@ async def rerun_execution(
     current_user: dict[str, Any] = Depends(get_current_user),
     execution_service: ExecutionService = Depends(get_execution_service),
 ) -> ExecutionResponse:
+    """Rerun execution."""
     del current_user
     return await execution_service.rerun_execution(
         execution_id,
@@ -157,6 +166,7 @@ async def list_approvals(
     current_user: dict[str, Any] = Depends(get_current_user),
     execution_service: ExecutionService = Depends(get_execution_service),
 ) -> ApprovalWaitListResponse:
+    """List approvals."""
     del current_user
     return await execution_service.list_approvals(execution_id)
 
@@ -172,6 +182,7 @@ async def decide_approval(
     current_user: dict[str, Any] = Depends(get_current_user),
     execution_service: ExecutionService = Depends(get_execution_service),
 ) -> ApprovalWaitResponse:
+    """Handle decide approval."""
     return await execution_service.record_approval_decision(
         execution_id,
         step_id,
@@ -189,6 +200,7 @@ async def list_task_plans(
     current_user: dict[str, Any] = Depends(get_current_user),
     execution_service: ExecutionService = Depends(get_execution_service),
 ) -> list[TaskPlanRecordResponse]:
+    """List task plans."""
     del current_user
     result = await execution_service.get_task_plan(execution_id, None)
     assert isinstance(result, list)
@@ -205,6 +217,7 @@ async def get_task_plan(
     current_user: dict[str, Any] = Depends(get_current_user),
     execution_service: ExecutionService = Depends(get_execution_service),
 ) -> TaskPlanFullResponse:
+    """Return task plan."""
     del current_user
     result = await execution_service.get_task_plan(execution_id, step_id)
     assert not isinstance(result, list)
@@ -218,6 +231,7 @@ async def hot_change_execution(
     current_user: dict[str, Any] = Depends(get_current_user),
     execution_service: ExecutionService = Depends(get_execution_service),
 ) -> HotChangeApplyResponse:
+    """Handle hot change execution."""
     del current_user
     compatibility = await execution_service.validate_hot_change(
         execution_id, payload.new_version_id
@@ -233,6 +247,7 @@ async def trigger_compensation(
     current_user: dict[str, Any] = Depends(get_current_user),
     execution_service: ExecutionService = Depends(get_execution_service),
 ) -> Response:
+    """Trigger compensation."""
     await execution_service.trigger_compensation(
         execution_id,
         step_id,

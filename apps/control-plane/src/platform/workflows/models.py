@@ -20,12 +20,14 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class WorkflowStatus(StrEnum):
+    """Represent the workflow status."""
     active = "active"
     archived = "archived"
     draft = "draft"
 
 
 class TriggerType(StrEnum):
+    """Represent the trigger type."""
     webhook = "webhook"
     cron = "cron"
     orchestrator = "orchestrator"
@@ -36,6 +38,7 @@ class TriggerType(StrEnum):
 
 
 class WorkflowDefinition(Base, UUIDMixin, TimestampMixin, AuditMixin, WorkspaceScopedMixin):
+    """Represent the workflow definition."""
     __tablename__ = "workflow_definitions"
     __table_args__ = (
         Index("ix_workflow_definitions_name", "name"),
@@ -83,6 +86,7 @@ class WorkflowDefinition(Base, UUIDMixin, TimestampMixin, AuditMixin, WorkspaceS
 
 
 class WorkflowVersion(Base, UUIDMixin, TimestampMixin):
+    """Represent the workflow version."""
     __tablename__ = "workflow_versions"
     __table_args__ = (
         Index("ix_workflow_versions_definition_id", "definition_id"),
@@ -119,6 +123,7 @@ class WorkflowVersion(Base, UUIDMixin, TimestampMixin):
 
 
 class WorkflowTriggerDefinition(Base, UUIDMixin, TimestampMixin):
+    """Represent the workflow trigger definition."""
     __tablename__ = "workflow_trigger_definitions"
     __table_args__ = (
         Index("ix_workflow_trigger_definitions_definition_id", "definition_id"),

@@ -174,8 +174,8 @@
 - [X] T040 [P] Create `apps/web/tests/features/admin/AdminSettingsPanel.test.tsx` — test cases: route guard redirects non-admin, URL param `?tab=signup` activates Signup tab, tab click updates URL via `router.push`, all 6 TabsTrigger labels render
 - [X] T041 [P] Create `apps/web/tests/features/admin/e2e/admin-route-guard.spec.ts` — Playwright: login as workspace_owner, navigate to `/admin/settings`, verify redirect to `/home` and toast
 - [X] T042 [P] Accessibility pass on `apps/web/components/features/admin/` — add `aria-label` to all icon-only buttons (UserActionsMenu kebab, combobox trigger, credential "Update" button); verify all form fields have associated `<label>` or `aria-label`; verify `AlertDialog` has correct `aria-labelledby` and `aria-describedby`
-- [ ] T043 [P] Dark mode verification across all 6 tab components — ensure no hardcoded `bg-white`/`text-black` classes; all colors use Tailwind theme tokens (`bg-background`, `text-foreground`, `border-border`, etc.); run quickstart.md Scenario 14 manually
-- [ ] T044 Run coverage report: `pnpm vitest run --coverage apps/web/tests/features/admin/`; confirm ≥95% line coverage across all admin feature files; address any gaps
+- [X] T043 [P] Dark mode verification across all 6 tab components — ensure no hardcoded `bg-white`/`text-black` classes; all colors use Tailwind theme tokens (`bg-background`, `text-foreground`, `border-border`, etc.); run quickstart.md Scenario 14 manually
+- [X] T044 Run coverage report: `pnpm vitest run --coverage apps/web/tests/features/admin/`; confirm ≥95% line coverage across all admin feature files; address any gaps
 
 ---
 

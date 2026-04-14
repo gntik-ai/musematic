@@ -9,6 +9,14 @@ dlqRetentionMs: 2592000000
 dlqPartitions: 6
 metricsPort: 9404
 combined: false
+brokerReplicas: 3
+controllerReplicas: 3
+combinedReplicas: 1
+networkPolicy:
+  enabled: false
+storage:
+  size: 100Gi
+  class: standard
 topics:
   - name: interaction.events
     partitions: 12
@@ -68,4 +76,3 @@ topics:
   - name: interaction.attention
     partitions: 6
     retentionMs: 604800000
-

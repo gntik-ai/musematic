@@ -67,7 +67,11 @@ export function CommandPalette() {
                   <CommandItem
                     key={action.id}
                     onClick={() => {
-                      action.callback();
+                      if (action.href) {
+                        router.push(action.href);
+                      } else {
+                        action.callback?.();
+                      }
                       setOpen(false);
                     }}
                   >

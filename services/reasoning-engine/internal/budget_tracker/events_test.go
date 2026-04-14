@@ -10,8 +10,14 @@ import (
 )
 
 type fakeStore struct {
-	mu     sync.Mutex
-	hashes map[string]map[string]string
+	mu            sync.Mutex
+	hashes        map[string]map[string]string
+	existsErr     error
+	hsetErr       error
+	hsetFieldsErr error
+	expireErr     error
+	evalErr       error
+	hgetallErr    error
 }
 
 func newFakeStore() *fakeStore {
@@ -19,6 +25,9 @@ func newFakeStore() *fakeStore {
 }
 
 func (s *fakeStore) Exists(_ context.Context, key string) (int64, error) {
+	if s.existsErr != nil {
+		return 0, s.existsErr
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, ok := s.hashes[key]; ok {
@@ -28,6 +37,9 @@ func (s *fakeStore) Exists(_ context.Context, key string) (int64, error) {
 }
 
 func (s *fakeStore) HSet(_ context.Context, key string, values map[string]any) error {
+	if s.hsetErr != nil {
+		return s.hsetErr
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, ok := s.hashes[key]; !ok {
@@ -40,6 +52,9 @@ func (s *fakeStore) HSet(_ context.Context, key string, values map[string]any) e
 }
 
 func (s *fakeStore) HSetFields(_ context.Context, key string, values ...any) error {
+	if s.hsetFieldsErr != nil {
+		return s.hsetFieldsErr
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if _, ok := s.hashes[key]; !ok {
@@ -52,10 +67,13 @@ func (s *fakeStore) HSetFields(_ context.Context, key string, values ...any) err
 }
 
 func (s *fakeStore) Expire(context.Context, string, time.Duration) error {
-	return nil
+	return s.expireErr
 }
 
 func (s *fakeStore) EvalSha(_ context.Context, _ string, keys []string, args ...any) (any, error) {
+	if s.evalErr != nil {
+		return nil, s.evalErr
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	key := keys[0]
@@ -73,6 +91,9 @@ func (s *fakeStore) EvalSha(_ context.Context, _ string, keys []string, args ...
 }
 
 func (s *fakeStore) HGetAll(_ context.Context, key string) (map[string]string, error) {
+	if s.hgetallErr != nil {
+		return nil, s.hgetallErr
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	current := s.hashes[key]
@@ -277,6 +298,99 @@ func TestTrackerHelperBranches(t *testing.T) {
 		Limits:      BudgetAllocation{Cost: 1},
 		Used:        BudgetAllocation{Cost: 1},
 	}, "cost")
+	if currentValue(&BudgetStatus{Used: BudgetAllocation{Rounds: 3}}, "rounds") != 3 {
+		t.Fatal("expected currentValue() to map rounds")
+	}
+	if maxValue(&BudgetStatus{Limits: BudgetAllocation{TimeMS: 12}}, "time") != 12 {
+		t.Fatal("expected maxValue() to map time")
+	}
+	if currentValue(&BudgetStatus{}, "unknown") != 0 || maxValue(&BudgetStatus{}, "unknown") != 0 {
+		t.Fatal("expected zero values for unknown dimensions")
+	}
+	NewEventRegistry().PublishExceeded("missing", nil, "tokens")
+}
+
+func TestRedisTrackerErrorBranches(t *testing.T) {
+	expected := fmt.Errorf("boom")
+
+	tracker := &RedisTracker{
+		store:      &fakeStore{hashes: map[string]map[string]string{}, existsErr: expected},
+		defaultTTL: 60,
+		now:        func() time.Time { return time.UnixMilli(1_000).UTC() },
+	}
+	if err := tracker.Allocate(context.Background(), "exec-err", "step-1", BudgetAllocation{Tokens: 1}, 10); err != expected {
+		t.Fatalf("Allocate() error = %v", err)
+	}
+
+	tracker.store = &fakeStore{hashes: map[string]map[string]string{}, hsetErr: expected}
+	if err := tracker.Allocate(context.Background(), "exec-err", "step-1", BudgetAllocation{Tokens: 1}, 10); err != expected {
+		t.Fatalf("Allocate() error = %v", err)
+	}
+
+	tracker.store = &fakeStore{hashes: map[string]map[string]string{}, expireErr: expected}
+	if err := tracker.Allocate(context.Background(), "exec-err", "step-1", BudgetAllocation{Tokens: 1}, 10); err != expected {
+		t.Fatalf("Allocate() error = %v", err)
+	}
+
+	store := &fakeStore{
+		hashes: map[string]map[string]string{
+			redisKey("exec-dec", "step-1"): {
+				"execution_id":    "exec-dec",
+				"step_id":         "step-1",
+				"max_tokens":      "10",
+				"max_rounds":      "2",
+				"max_cost":        "1.5",
+				"max_time_ms":     "1000",
+				"used_tokens":     "0",
+				"used_rounds":     "0",
+				"used_cost":       "0",
+				"start_time_ms":   "1000",
+				"allocated_at_ms": "1000",
+				"status":          "ACTIVE",
+			},
+		},
+		evalErr: expected,
+	}
+	tracker = &RedisTracker{
+		store:   store,
+		scripts: map[string]string{"budget_decrement": "budget_decrement"},
+		now:     func() time.Time { return time.UnixMilli(1_100).UTC() },
+	}
+	if _, err := tracker.Decrement(context.Background(), "exec-dec", "step-1", "tokens", 1); err != expected {
+		t.Fatalf("Decrement() error = %v", err)
+	}
+
+	store = newFakeStore()
+	_ = store.HSet(context.Background(), redisKey("exec-dec", "step-2"), map[string]any{
+		"execution_id":    "exec-dec",
+		"step_id":         "step-2",
+		"max_tokens":      10,
+		"max_rounds":      2,
+		"max_cost":        1.5,
+		"max_time_ms":     1000,
+		"used_tokens":     0,
+		"used_rounds":     0,
+		"used_cost":       0,
+		"start_time_ms":   1000,
+		"allocated_at_ms": 1000,
+		"status":          "ACTIVE",
+	})
+	store.hsetFieldsErr = expected
+	tracker = &RedisTracker{
+		store:   store,
+		scripts: map[string]string{"budget_decrement": "budget_decrement"},
+		now:     func() time.Time { return time.UnixMilli(1_100).UTC() },
+	}
+	if _, err := tracker.Decrement(context.Background(), "exec-dec", "step-2", "tokens", 11); err != expected {
+		t.Fatalf("Decrement() error = %v", err)
+	}
+
+	if _, err := tracker.Decrement(context.Background(), "exec-dec", "step-2", "tokens", 0); err == nil {
+		t.Fatal("expected amount validation error")
+	}
+	if _, err := tracker.Decrement(context.Background(), "exec-dec", "step-2", "unsupported", 1); err == nil {
+		t.Fatal("expected unsupported dimension error")
+	}
 }
 
 func recvEvent(t *testing.T, ch <-chan BudgetEvent) BudgetEvent {

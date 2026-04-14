@@ -13,8 +13,8 @@ export function WorkspaceSelector() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button className="min-w-52 justify-between" variant="outline">
-          <span className="truncate">{currentWorkspace?.name ?? "Select workspace"}</span>
+        <Button className="w-full min-w-0 justify-between sm:min-w-52" variant="outline">
+          <span className="min-w-0 flex-1 truncate text-left">{currentWorkspace?.name ?? "Select workspace"}</span>
           <ChevronDown className="h-4 w-4 text-muted-foreground" />
         </Button>
       </DropdownMenuTrigger>

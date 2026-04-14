@@ -26,3 +26,14 @@ func TestFanoutRegistryPublishesToMultipleSubscribers(t *testing.T) {
 		t.Fatal("expected line in history buffer")
 	}
 }
+
+func TestNewFanoutRegistryUsesDefaultBufferSize(t *testing.T) {
+	registry := NewFanoutRegistry(0)
+	ch, cancel := registry.Subscribe("sandbox-1")
+	defer cancel()
+
+	registry.Publish("sandbox-1", &sandboxv1.SandboxLogLine{Line: "hello"})
+	if got := (<-ch).Line; got != "hello" {
+		t.Fatalf("unexpected line %q", got)
+	}
+}

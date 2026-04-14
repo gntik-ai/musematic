@@ -92,3 +92,96 @@ func TestExecuteStep(t *testing.T) {
 		t.Fatalf("expected first step number, got %d", stepNum)
 	}
 }
+
+func TestExecuteCodeAsReasoningReturnsStructuredOutput(t *testing.T) {
+	pods := &execPodController{}
+	manager := sandbox.NewManager(sandbox.ManagerConfig{
+		Namespace:      "platform-execution",
+		DefaultTimeout: 30 * time.Second,
+		MaxTimeout:     300 * time.Second,
+		MaxConcurrent:  2,
+		Store:          execStore{},
+		Pods:           pods,
+		Emitter:        execEmitter{},
+	})
+	entry, err := manager.Create(context.Background(), &sandboxv1.CreateSandboxRequest{
+		TemplateName: "code-as-reasoning",
+		Correlation: &sandboxv1.CorrelationContext{
+			WorkspaceId: "ws-1",
+			ExecutionId: "exec-1",
+		},
+	})
+	if err != nil {
+		t.Fatalf("create sandbox: %v", err)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		current, getErr := manager.Get(entry.SandboxID)
+		if getErr == nil && current.State == sandboxv1.SandboxState_SANDBOX_STATE_READY {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	exec := New(manager, pods, nil, 1024)
+	exec.Exec = func(_ context.Context, _ *rest.Config, _, _ string, _ []string, _ io.Reader, stdout io.Writer, _ io.Writer) error {
+		_, _ = stdout.Write([]byte(`{"result":"42","error":"","exit_code":0}`))
+		return nil
+	}
+
+	result, _, err := exec.Execute(context.Background(), entry.SandboxID, `print(42)`, 5)
+	if err != nil {
+		t.Fatalf("execute step: %v", err)
+	}
+	if result.StructuredOutput == "" {
+		t.Fatal("expected structured output to be returned")
+	}
+	if result.Stdout != "" {
+		t.Fatalf("expected stdout to be cleared when structured output is detected, got %q", result.Stdout)
+	}
+}
+
+func TestExecuteStepMarksTimeout(t *testing.T) {
+	pods := &execPodController{}
+	manager := sandbox.NewManager(sandbox.ManagerConfig{
+		Namespace:      "platform-execution",
+		DefaultTimeout: 30 * time.Second,
+		MaxTimeout:     300 * time.Second,
+		MaxConcurrent:  2,
+		Store:          execStore{},
+		Pods:           pods,
+		Emitter:        execEmitter{},
+	})
+	entry, err := manager.Create(context.Background(), &sandboxv1.CreateSandboxRequest{
+		TemplateName: "python3.12",
+		Correlation: &sandboxv1.CorrelationContext{
+			WorkspaceId: "ws-1",
+			ExecutionId: "exec-1",
+		},
+	})
+	if err != nil {
+		t.Fatalf("create sandbox: %v", err)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		current, getErr := manager.Get(entry.SandboxID)
+		if getErr == nil && current.State == sandboxv1.SandboxState_SANDBOX_STATE_READY {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	exec := New(manager, pods, nil, 1024)
+	exec.Exec = func(ctx context.Context, _ *rest.Config, _, _ string, _ []string, _ io.Reader, _ io.Writer, _ io.Writer) error {
+		<-ctx.Done()
+		return ctx.Err()
+	}
+
+	result, _, err := exec.Execute(context.Background(), entry.SandboxID, `print("slow")`, 1)
+	if err != nil {
+		t.Fatalf("execute step: %v", err)
+	}
+	if !result.TimedOut || result.ExitCode != 124 {
+		t.Fatalf("unexpected timeout result: %#v", result)
+	}
+}

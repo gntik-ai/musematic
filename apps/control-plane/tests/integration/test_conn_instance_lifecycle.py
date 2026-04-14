@@ -4,6 +4,7 @@ from platform.common.dependencies import get_current_user
 from platform.connectors.implementations.slack import SlackConnector
 from platform.connectors.models import ConnectorHealthStatus
 from platform.connectors.plugin import HealthCheckResult
+from platform.workspaces.models import Workspace
 from uuid import uuid4
 
 import httpx
@@ -47,6 +48,9 @@ async def test_connector_instance_lifecycle_end_to_end(
     )
     async with session_factory() as session:
         await seed_connector_types(session)
+        workspace_id = uuid4()
+        user_id = uuid4()
+        session.add(Workspace(id=workspace_id, name="Connectors", owner_id=user_id))
         await session.commit()
 
     producer = RecordingProducer()
@@ -56,9 +60,7 @@ async def test_connector_instance_lifecycle_end_to_end(
         producer=producer,
         object_storage=object_storage_client,
     )
-    workspace_id = uuid4()
     other_workspace_id = uuid4()
-    user_id = uuid4()
 
     async def _current_user() -> dict[str, str]:
         return {"sub": str(user_id)}
@@ -75,6 +77,7 @@ async def test_connector_instance_lifecycle_end_to_end(
         transport=httpx.ASGITransport(app=app),
         base_url="http://testserver",
     ) as client:
+        connector_types = await client.get("/api/v1/connectors/types")
         created = await client.post(
             f"/api/v1/workspaces/{workspace_id}/connectors",
             json={
@@ -107,6 +110,15 @@ async def test_connector_instance_lifecycle_end_to_end(
         health = await client.post(
             f"/api/v1/workspaces/{workspace_id}/connectors/{connector_id}/health-check"
         )
+        route = await client.post(
+            f"/api/v1/workspaces/{workspace_id}/connectors/{connector_id}/routes",
+            json={
+                "name": "Support channel → triage",
+                "channel_pattern": "#support*",
+                "target_agent_fqn": "support-ops:triage-agent",
+                "priority": 10,
+            },
+        )
         updated = await client.put(
             f"/api/v1/workspaces/{workspace_id}/connectors/{connector_id}",
             json={"name": "Support Slack", "status": "disabled"},
@@ -119,6 +131,9 @@ async def test_connector_instance_lifecycle_end_to_end(
         )
         missing = await client.get(f"/api/v1/workspaces/{workspace_id}/connectors/{connector_id}")
 
+    assert connector_types.status_code == 200
+    assert connector_types.json()["total"] == 4
+    assert any(item["slug"] == "slack" for item in connector_types.json()["items"])
     assert created.status_code == 201
     assert invalid.status_code == 400
     assert listed.status_code == 200
@@ -127,6 +142,8 @@ async def test_connector_instance_lifecycle_end_to_end(
     assert "vault_path" not in created.text
     assert health.status_code == 200
     assert health.json()["status"] == "healthy"
+    assert route.status_code == 201
+    assert route.json()["name"] == "Support channel → triage"
     assert updated.status_code == 200
     assert updated.json()["status"] == "disabled"
     assert cross_workspace.status_code == 404

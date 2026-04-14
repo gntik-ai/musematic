@@ -138,7 +138,7 @@
 
 **Purpose**: Quality gates, linting, type checking, Helm lint.
 
-- [ ] T028 [P] Run `helm lint deploy/helm/neo4j` and fix any linting errors; run `helm dependency update deploy/helm/neo4j` to download the pinned Neo4j chart version and commit `Chart.lock`; verify `helm template` renders valid YAML for both prod and dev values files
+- [X] T028 [P] Run `helm lint deploy/helm/neo4j` and fix any linting errors; run `helm dependency update deploy/helm/neo4j` to download the pinned Neo4j chart version and commit `Chart.lock`; verify `helm template` renders valid YAML for both prod and dev values files
 - [x] T029 [P] Run `ruff check apps/control-plane/src/platform/common/clients/neo4j.py apps/control-plane/scripts/backup_neo4j_dump.py` and fix all violations; ensure all public functions have type annotations
 - [x] T030 [P] Run `mypy apps/control-plane/src/platform/common/clients/neo4j.py` in strict mode; fix all type errors; add `# type: ignore[import-untyped]` with comment for any missing `neo4j` driver stubs
 - [x] T031 [P] Write integration test `apps/control-plane/tests/integration/test_neo4j_constraints.py`: (1) run schema init Cypher against test Neo4j; verify all 5 constraints and 3 indexes exist via `SHOW CONSTRAINTS` and `SHOW INDEXES`; (2) attempt to create two `Agent` nodes with same `id` → second `create_node` raises `Neo4jConstraintViolationError`; (3) run schema init again → no error (idempotency)

@@ -4,11 +4,13 @@ from platform.common.exceptions import NotFoundError, ValidationError
 
 
 class WorkflowNotFoundError(NotFoundError):
+    """Raise when workflow not found."""
     def __init__(self, workflow_id: object) -> None:
         super().__init__("WORKFLOW_NOT_FOUND", f"Workflow '{workflow_id}' was not found")
 
 
 class WorkflowCompilationError(ValidationError):
+    """Raise when workflow compilation."""
     def __init__(
         self,
         message: str,
@@ -26,5 +28,6 @@ class WorkflowCompilationError(ValidationError):
 
 
 class TriggerNotFoundError(NotFoundError):
+    """Raise when trigger not found."""
     def __init__(self, trigger_id: object) -> None:
         super().__init__("TRIGGER_NOT_FOUND", f"Trigger '{trigger_id}' was not found")

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"net"
 	"os"
 	"os/signal"
@@ -20,6 +21,7 @@ import (
 	"github.com/musematic/simulation-controller/internal/sim_manager"
 	"github.com/musematic/simulation-controller/pkg/metrics"
 	"github.com/musematic/simulation-controller/pkg/persistence"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
@@ -135,6 +137,7 @@ func run() error {
 	healthServer.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
 
 	grpcServer := grpc.NewServer(
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.UnaryInterceptor(grpcserver.UnaryInterceptor(logger)),
 		grpc.StreamInterceptor(grpcserver.StreamInterceptor(logger)),
 	)
@@ -185,7 +188,7 @@ func loadConfig() config {
 		simulationBucket:    envString("SIMULATION_BUCKET", sim_manager.DefaultBucket),
 		simulationNamespace: envString("SIMULATION_NAMESPACE", sim_manager.DefaultNamespace),
 		orphanScanInterval:  time.Duration(envInt("ORPHAN_SCAN_INTERVAL_SECONDS", 60)) * time.Second,
-		defaultMaxDuration:  int32(envInt("DEFAULT_MAX_DURATION_SECONDS", int(sim_manager.DefaultMaxDurationSec))),
+		defaultMaxDuration:  safeInt32(envInt("DEFAULT_MAX_DURATION_SECONDS", int(sim_manager.DefaultMaxDurationSec))),
 		kubeconfig:          os.Getenv("KUBECONFIG"),
 	}
 }
@@ -230,4 +233,14 @@ func envInt(key string, fallback int) int {
 		}
 	}
 	return fallback
+}
+
+func safeInt32(value int) int32 {
+	if value > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	if value < math.MinInt32 {
+		return math.MinInt32
+	}
+	return int32(value)
 }

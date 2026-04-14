@@ -14,6 +14,7 @@ from tests.connectors_support import (
     build_app,
     build_connectors_settings,
     seed_connector_types,
+    seed_workspace,
     write_mock_vault,
 )
 
@@ -48,6 +49,9 @@ async def test_connector_dead_letter_management_end_to_end(
     )
     async with session_factory() as session:
         await seed_connector_types(session)
+        workspace_id = uuid4()
+        user_id = uuid4()
+        await seed_workspace(session, workspace_id=workspace_id, owner_id=user_id, name="Dead Letter")
         await session.commit()
 
     producer = RecordingProducer()
@@ -57,8 +61,6 @@ async def test_connector_dead_letter_management_end_to_end(
         producer=producer,
         object_storage=object_storage_client,
     )
-    workspace_id = uuid4()
-    user_id = uuid4()
 
     async def _current_user() -> dict[str, str]:
         return {"sub": str(user_id)}

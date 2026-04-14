@@ -157,7 +157,6 @@ omit = [
   "src/platform/common/clients/opensearch.py",
   "src/platform/common/clients/qdrant.py",
   "src/platform/common/clients/reasoning_engine.py",
-  "src/platform/common/clients/redis.py",
   "src/platform/common/clients/runtime_controller.py",
   "src/platform/common/clients/sandbox_manager.py",
   "src/platform/common/clients/simulation_controller.py",

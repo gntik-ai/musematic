@@ -2,12 +2,31 @@ neo4j:
   edition: enterprise
   minimumClusterSize: 3
   resources:
+    cpu: "2"
+    memory: 6Gi
     requests:
       memory: 6Gi
       cpu: "2"
     limits:
       memory: 8Gi
       cpu: "4"
+  neo4j:
+    edition: enterprise
+    minimumClusterSize: 3
+    resources:
+      cpu: "2"
+      memory: 6Gi
+      requests:
+        memory: 6Gi
+        cpu: "2"
+      limits:
+        memory: 8Gi
+        cpu: "4"
+  volumes:
+    data:
+      dynamic:
+        requests:
+          storage: 100Gi
 
 persistence:
   size: 100Gi

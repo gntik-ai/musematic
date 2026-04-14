@@ -206,10 +206,10 @@
 - [X] T069 Write `apps/web/app/error.tsx` — React error boundary with `useEffect` to log error; renders shadcn `Card` with `AlertTriangle` icon, error title, optional `error.message` in dev mode, "Try again" button calling `reset()`; `app/(main)/error.tsx` to scope boundary to main layout
 - [X] T070 [P] Run full TypeScript check: `pnpm tsc --noEmit` — fix ALL errors until output is clean
 - [X] T071 [P] Run ESLint: `pnpm next lint` — fix ALL warnings and errors until output is clean
-- [ ] T072 Run Vitest coverage: `pnpm test:coverage` — ensure `lib/` and `store/` modules hit ≥95% coverage; add missing test cases for any gaps in `lib/api.ts`, `lib/ws.ts`, `lib/auth.ts`, `store/auth-store.ts`, `store/workspace-store.ts`
+- [X] T072 Run Vitest coverage: `pnpm test:coverage` — ensure `lib/` and `store/` modules hit ≥95% coverage; add missing test cases for any gaps in `lib/api.ts`, `lib/ws.ts`, `lib/auth.ts`, `store/auth-store.ts`, `store/workspace-store.ts`
 - [X] T073 [P] Write `apps/web/e2e/full-flow.spec.ts` Playwright test — full flow: navigate to app → auth guard redirects to login → mock login (via MSW) → app shell renders → sidebar RBAC visible → collapse sidebar → open command palette → navigate via palette → verify breadcrumbs update → toggle dark mode
 - [X] T074 Run `pnpm build` — verify First Load JS for main route < 200kB; if exceeded, identify large imports (highlight.js, recharts) and add dynamic imports where not already done
-- [ ] T075 Verify quickstart.md steps all pass end-to-end per `specs/015-nextjs-app-scaffold/quickstart.md`
+- [X] T075 Verify quickstart.md steps all pass end-to-end per `specs/015-nextjs-app-scaffold/quickstart.md`
 
 ---
 

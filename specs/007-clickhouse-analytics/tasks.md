@@ -157,7 +157,7 @@
 
 **Purpose**: Quality gates, linting, type checking, Helm lint.
 
-- [ ] T036 [P] Run `helm lint deploy/helm/clickhouse` and fix any linting errors; verify `helm template` renders valid YAML for both prod and dev values
+- [X] T036 [P] Run `helm lint deploy/helm/clickhouse` and fix any linting errors; verify `helm template` renders valid YAML for both prod and dev values
 - [x] T037 [P] Run `ruff check apps/control-plane/src/platform/common/clients/clickhouse.py` and fix all violations; ensure all public methods have type annotations
 - [x] T038 [P] Run `mypy apps/control-plane/src/platform/common/clients/clickhouse.py` in strict mode; fix type errors; add `# type: ignore[import-untyped]` with comment for any missing `clickhouse-connect` stubs
 - [x] T039 [P] Create `deploy/helm/clickhouse/templates/configmap-init-scripts.yaml` — `ConfigMap` that bundles all 6 SQL files from `deploy/clickhouse/init/` for mounting into the schema init Job; verify the schema init Job (T022) references this ConfigMap correctly and executes scripts in order 001–006

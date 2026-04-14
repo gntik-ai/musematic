@@ -14,6 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class ExecutionCreate(BaseModel):
+    """Represent the execution create."""
     model_config = ConfigDict(extra="forbid")
 
     workflow_version_id: UUID | None = None
@@ -30,6 +31,7 @@ class ExecutionCreate(BaseModel):
 
 
 class ExecutionResponse(BaseModel):
+    """Represent the execution response payload."""
     id: UUID
     workflow_definition_id: UUID
     workflow_version_id: UUID
@@ -51,11 +53,13 @@ class ExecutionResponse(BaseModel):
 
 
 class ExecutionListResponse(BaseModel):
+    """Represent the execution list response payload."""
     items: list[ExecutionResponse]
     total: int
 
 
 class ExecutionEventResponse(BaseModel):
+    """Represent the execution event response payload."""
     id: UUID
     sequence: int
     event_type: ExecutionEventType
@@ -68,11 +72,13 @@ class ExecutionEventResponse(BaseModel):
 
 
 class ExecutionEventListResponse(BaseModel):
+    """Represent the execution event list response payload."""
     items: list[ExecutionEventResponse]
     total: int
 
 
 class ExecutionStateResponse(BaseModel):
+    """Represent the execution state response payload."""
     execution_id: UUID
     status: ExecutionStatus
     completed_step_ids: list[str] = Field(default_factory=list)
@@ -84,6 +90,7 @@ class ExecutionStateResponse(BaseModel):
 
 
 class CheckpointResponse(BaseModel):
+    """Represent the checkpoint response payload."""
     id: UUID
     last_event_sequence: int
     created_at: datetime
@@ -92,6 +99,7 @@ class CheckpointResponse(BaseModel):
 
 
 class TaskPlanRecordResponse(BaseModel):
+    """Represent the task plan record response payload."""
     id: UUID
     execution_id: UUID
     step_id: str
@@ -109,6 +117,7 @@ class TaskPlanRecordResponse(BaseModel):
 
 
 class TaskPlanFullResponse(TaskPlanRecordResponse):
+    """Represent the task plan full response payload."""
     considered_agents: list[dict[str, Any]] = Field(default_factory=list)
     considered_tools: list[dict[str, Any]] = Field(default_factory=list)
     parameters: dict[str, Any] = Field(default_factory=dict)
@@ -116,6 +125,7 @@ class TaskPlanFullResponse(TaskPlanRecordResponse):
 
 
 class ApprovalDecisionRequest(BaseModel):
+    """Represent the approval decision request payload."""
     model_config = ConfigDict(extra="forbid")
 
     decision: ApprovalDecision
@@ -123,6 +133,7 @@ class ApprovalDecisionRequest(BaseModel):
 
 
 class ReprioritizationEvent(BaseModel):
+    """Represent the reprioritization event payload."""
     execution_id: UUID
     trigger_reason: str
     steps_affected: list[str]
@@ -130,18 +141,21 @@ class ReprioritizationEvent(BaseModel):
 
 
 class HotChangeRequest(BaseModel):
+    """Represent the hot change request payload."""
     model_config = ConfigDict(extra="forbid")
 
     new_version_id: UUID
 
 
 class HotChangeCompatibilityResult(BaseModel):
+    """Represent the hot change compatibility result."""
     compatible: bool
     issues: list[str] = Field(default_factory=list)
     active_step_ids: list[str] = Field(default_factory=list)
 
 
 class ApprovalWaitResponse(BaseModel):
+    """Represent the approval wait response payload."""
     id: UUID
     execution_id: UUID
     step_id: str
@@ -157,10 +171,12 @@ class ApprovalWaitResponse(BaseModel):
 
 
 class ApprovalWaitListResponse(BaseModel):
+    """Represent the approval wait list response payload."""
     items: list[ApprovalWaitResponse]
     total: int
 
 
 class HotChangeApplyResponse(BaseModel):
+    """Represent the hot change apply response payload."""
     result: HotChangeCompatibilityResult
     execution: ExecutionResponse

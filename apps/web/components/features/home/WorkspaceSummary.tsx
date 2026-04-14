@@ -12,6 +12,9 @@ interface WorkspaceSummaryProps {
 }
 
 type MetricChangeDirection = NonNullable<MetricCardData["change"]>["direction"];
+type SummaryMetricCard = Omit<MetricCardData, "change"> & {
+  change: NonNullable<MetricCardData["change"]>;
+};
 
 function formatCurrency(cents: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -48,11 +51,7 @@ function formatDelta(direction: MetricChangeDirection, delta: number): string {
   return `${delta > 0 ? "+" : ""}${delta}`;
 }
 
-function buildAriaLabel(card: MetricCardData): string {
-  if (!card.change) {
-    return `${card.label}: ${card.value}`;
-  }
-
+function buildAriaLabel(card: SummaryMetricCard): string {
   if (card.change.direction === "stable") {
     return `${card.label}: ${card.value}, stable`;
   }
@@ -71,7 +70,7 @@ export function WorkspaceSummary({
     { isConnected },
   );
 
-  const cards = useMemo<MetricCardData[]>(() => {
+  const cards = useMemo<SummaryMetricCard[]>(() => {
     if (!data) {
       return [];
     }
@@ -152,16 +151,14 @@ export function WorkspaceSummary({
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
       {cards.map((card) => {
-        const direction = card.change?.direction ?? "stable";
-        const delta = card.change?.delta ?? 0;
+        const direction = card.change.direction;
+        const delta = card.change.delta;
         const trendValue =
-          card.change === null
-            ? undefined
-            : direction === "stable"
-              ? "Stable"
-              : card.id === "cost"
-                ? `${direction === "up" ? "+" : "-"}${delta}`
-                : formatDelta(direction, Number(delta));
+          direction === "stable"
+            ? "Stable"
+            : card.id === "cost"
+              ? `${direction === "up" ? "+" : "-"}${delta}`
+              : formatDelta(direction, Number(delta));
 
         return (
           <div

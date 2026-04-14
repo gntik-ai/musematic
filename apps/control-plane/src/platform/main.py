@@ -59,6 +59,7 @@ from platform.evaluation.repository import EvaluationRepository
 from platform.evaluation.scorers.semantic import SemanticSimilarityScorer
 from platform.execution.dependencies import build_execution_service, build_scheduler_service
 from platform.execution.events import (
+    event_bus_consumer_handler,
     register_execution_consumers,
     register_execution_event_types,
 )
@@ -560,6 +561,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
                     app,
                     "external_event",
                 ),
+                event_bus_handler=_build_event_bus_handler(app),
             )
             consumer_manager.subscribe(
                 "workflow.runtime",
@@ -1203,6 +1205,45 @@ def _build_workspace_goal_handler(app: FastAPI) -> Callable[[Any], Awaitable[Non
             except Exception:
                 await session.rollback()
                 LOGGER.exception("Workspace goal trigger consumer failed")
+
+    return _handle
+
+
+def _build_event_bus_handler(app: FastAPI) -> Callable[[Any], Awaitable[None]]:
+    async def _handle(envelope: Any) -> None:
+        async with database.AsyncSessionLocal() as session:
+            workflow_service = build_workflow_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                scheduler=app.state.workflow_scheduler,
+            )
+            execution_service = build_execution_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                runtime_controller=cast(
+                    RuntimeControllerClient | None,
+                    app.state.clients.get("runtime_controller"),
+                ),
+                reasoning_engine=cast(
+                    ReasoningEngineClient | None,
+                    app.state.clients.get("reasoning_engine"),
+                ),
+                context_engineering_service=None,
+            )
+            try:
+                await event_bus_consumer_handler(
+                    envelope,
+                    workflow_service=workflow_service,
+                    execution_service=execution_service,
+                )
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Event bus trigger consumer failed")
 
     return _handle
 

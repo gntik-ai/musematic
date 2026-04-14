@@ -13,10 +13,12 @@ if TYPE_CHECKING:
 
 
 class WorkflowCompiler:
+    """Represent the workflow compiler."""
     def __init__(self, schema_root: Path | None = None) -> None:
         self.schema_root = schema_root or Path(__file__).resolve().parent / "schemas"
 
     def compile(self, yaml_source: str, schema_version: int) -> WorkflowIR:
+        """Compile a workflow definition into intermediate representation."""
         try:
             payload = yaml.safe_load(yaml_source) or {}
         except yaml.YAMLError as exc:
@@ -60,6 +62,7 @@ class WorkflowCompiler:
         new_ir: WorkflowIR,
         active_step_ids: list[str],
     ) -> HotChangeCompatibilityResult:
+        """Validate compatibility."""
         from platform.execution.schemas import HotChangeCompatibilityResult
 
         old_map = {step.step_id: step for step in old_ir.steps}
@@ -544,6 +547,7 @@ class WorkflowCompiler:
         trail: list[str] = []
 
         def visit(node: str) -> None:
+            """Handle visit."""
             if node in visited:
                 return
             if node in visiting:

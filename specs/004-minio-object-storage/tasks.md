@@ -133,7 +133,7 @@
 **Independent Test**: Port-forward port 9000; `curl http://localhost:9000/minio/v2/metrics/cluster` returns Prometheus-format metrics including `minio_cluster_nodes_online` and `minio_bucket_objects_count`; port-forward port 9001; confirm console lists 8 buckets.
 
 - [X] T029 [US7] Verify the `Tenant` CR in `deploy/helm/minio/templates/tenant.yaml` has `spec.prometheusOperator: false` set (MinIO serves its own metrics at `/minio/v2/metrics/cluster` on port 9000 without a separate exporter — no additional configuration needed); add a `Service` resource comment in `tenant.yaml` confirming `musematic-minio` service exposes port 9000 and `musematic-minio-console` service exposes port 9001 — these are created automatically by the MinIO Operator
-- [ ] T030 [US7] Add `health_check` invocation to the platform-cli diagnose command — in `apps/control-plane/src/platform/common/clients/object_storage.py`, confirm `health_check()` returns `{"status": "ok", "bucket_count": N}` (already implemented in T022); document in a comment that the expected `bucket_count` is 8 and any deviation should be flagged
+- [X] T030 [US7] Add `health_check` invocation to the platform-cli diagnose command — in `apps/control-plane/src/platform/common/clients/object_storage.py`, confirm `health_check()` returns `{"status": "ok", "bucket_count": N}` (already implemented in T022); document in a comment that the expected `bucket_count` is 8 and any deviation should be flagged
 
 **Checkpoint**: `curl http://localhost:9000/minio/v2/metrics/cluster | grep minio_cluster_nodes_online` returns a metric line; management console accessible at port 9001 showing 8 buckets.
 
@@ -143,7 +143,7 @@
 
 **Purpose**: Quality gates, linting, type checking, Helm lint.
 
-- [ ] T031 [P] Run `helm lint deploy/helm/minio` and fix any linting errors — confirm no wildcard versions, no missing required fields, no stale template placeholders; verify `helm template` renders valid YAML for both prod and dev values
+- [X] T031 [P] Run `helm lint deploy/helm/minio` and fix any linting errors — confirm no wildcard versions, no missing required fields, no stale template placeholders; verify `helm template` renders valid YAML for both prod and dev values
 - [X] T032 [P] Run `ruff check apps/control-plane/src/platform/common/clients/object_storage.py` and fix any linting violations
 - [X] T033 [P] Run `mypy apps/control-plane/src/platform/common/clients/object_storage.py` in strict mode and fix any type errors — pay special attention to `aioboto3` type stubs (may need `# type: ignore` for missing stubs with a comment explaining why)
 - [X] T034 [P] Add `aioboto3` to `apps/control-plane/pyproject.toml` `[project.optional-dependencies]` under `[test]` group alongside `testcontainers[minio]` for integration test support

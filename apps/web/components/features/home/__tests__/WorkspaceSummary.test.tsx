@@ -1,4 +1,5 @@
 import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 import { WorkspaceSummary } from "@/components/features/home/WorkspaceSummary";
@@ -79,6 +80,41 @@ describe("WorkspaceSummary", () => {
     expect(screen.getByRole("button", { name: /retry/i })).toBeInTheDocument();
   });
 
+  it("refetches the summary when retry is clicked after an error", async () => {
+    let attempt = 0;
+
+    server.use(
+      http.get("*/api/v1/workspaces/:workspaceId/analytics/summary", () => {
+        attempt += 1;
+
+        if (attempt === 1) {
+          return HttpResponse.json(
+            {
+              error: {
+                code: "summary_unavailable",
+                message: "Summary backend unavailable",
+              },
+            },
+            { status: 500 },
+          );
+        }
+
+        return HttpResponse.json(workspaceOne);
+      }),
+    );
+
+    const user = userEvent.setup();
+    renderWithProviders(
+      <WorkspaceSummary isConnected workspaceId="workspace-1" />,
+    );
+
+    await screen.findByText("Workspace summary unavailable");
+    await user.click(screen.getByRole("button", { name: /retry/i }));
+
+    expect(await screen.findByText("Active Agents")).toBeInTheDocument();
+    expect(attempt).toBeGreaterThan(1);
+  });
+
   it("renders loading skeletons before data resolves", () => {
     server.use(
       http.get("*/api/v1/workspaces/:workspaceId/analytics/summary", async () => {
@@ -117,5 +153,50 @@ describe("WorkspaceSummary", () => {
       expect(screen.getByText("7")).toBeInTheDocument();
       expect(screen.getByText("$70.00")).toBeInTheDocument();
     });
+  });
+
+  it("announces stable, increasing, and decreasing trends for screen readers", async () => {
+    server.use(
+      http.get("*/api/v1/workspaces/:workspaceId/analytics/summary", ({ params }) =>
+        HttpResponse.json(
+          params.workspaceId === "workspace-2"
+            ? {
+                ...workspaceTwo,
+                cost_current: 81_00,
+                cost_previous: 81_00,
+              }
+            : workspaceOne,
+        ),
+      ),
+    );
+
+    const view = renderWithProviders(
+      <WorkspaceSummary isConnected workspaceId="workspace-1" />,
+    );
+
+    expect(
+      await screen.findByRole("group", {
+        name: "Active Agents: 12, increased by 3",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("group", {
+        name: "Running Executions: 4, stable",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("group", {
+        name: "Pending Approvals: 2, decreased by 1",
+      }),
+    ).toBeInTheDocument();
+
+    view.rerender(<WorkspaceSummary isConnected workspaceId="workspace-2" />);
+
+    expect(
+      await screen.findByRole("group", {
+        name: "Cost (Apr 2026): $81.00, stable",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Stable").length).toBeGreaterThan(0);
   });
 });

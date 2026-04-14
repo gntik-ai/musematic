@@ -141,4 +141,99 @@ describe("PendingActions", () => {
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.getAllByText("Pending actions unavailable")).toHaveLength(2);
   });
+
+  it("retries the pending actions query after an error", async () => {
+    let attempt = 0;
+
+    server.use(
+      http.get("*/api/v1/workspaces/:workspaceId/dashboard/pending-actions", () => {
+        attempt += 1;
+
+        if (attempt === 1) {
+          return HttpResponse.json(
+            {
+              error: {
+                code: "pending_actions_unavailable",
+                message: "Pending actions unavailable",
+              },
+            },
+            { status: 500 },
+          );
+        }
+
+        return HttpResponse.json({
+          workspace_id: "workspace-1",
+          items: [],
+          total: 0,
+        });
+      }),
+    );
+
+    const user = userEvent.setup();
+    renderWithProviders(<PendingActions isConnected workspaceId="workspace-1" />);
+
+    await screen.findByRole("alert");
+    await user.click(screen.getByRole("button", { name: /retry/i }));
+
+    expect(await screen.findByText("All clear")).toBeInTheDocument();
+    expect(attempt).toBeGreaterThan(1);
+  });
+
+  it("shows loading skeletons while the pending actions query is resolving", () => {
+    server.use(
+      http.get("*/api/v1/workspaces/:workspaceId/dashboard/pending-actions", async () => {
+        await new Promise((resolve) => {
+          window.setTimeout(resolve, 200);
+        });
+        return HttpResponse.json(homeFixtures.pendingByWorkspace["workspace-1"]);
+      }),
+    );
+
+    const { container } = renderWithProviders(
+      <PendingActions isConnected workspaceId="workspace-1" />,
+    );
+
+    expect(container.querySelectorAll(".animate-pulse").length).toBeGreaterThan(0);
+  });
+
+  it("sorts equally urgent items by newest first", async () => {
+    server.use(
+      http.get("*/api/v1/workspaces/:workspaceId/dashboard/pending-actions", () =>
+        HttpResponse.json({
+          workspace_id: "workspace-1",
+          total: 2,
+          items: [
+            {
+              id: "approval-older",
+              type: "approval",
+              title: "Older approval",
+              description: "Created earlier",
+              urgency: "medium",
+              created_at: "2026-04-10T08:00:00.000Z",
+              href: "/older",
+              actions: [],
+            },
+            {
+              id: "approval-newer",
+              type: "approval",
+              title: "Newer approval",
+              description: "Created later",
+              urgency: "medium",
+              created_at: "2026-04-10T09:00:00.000Z",
+              href: "/newer",
+              actions: [],
+            },
+          ],
+        }),
+      ),
+    );
+
+    renderWithProviders(<PendingActions isConnected workspaceId="workspace-1" />);
+
+    const headings = await screen.findAllByRole("heading", { level: 3 });
+    expect(headings.map((heading) => heading.textContent)).toEqual([
+      "Newer approval",
+      "Older approval",
+    ]);
+  });
 });
