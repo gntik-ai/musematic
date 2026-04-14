@@ -103,6 +103,8 @@ async def test_initialize_uses_standalone_host_and_port_without_url(
         "_script_source",
         lambda self, script_name: f"-- {script_name}",
     )
+    monkeypatch.setenv("REDIS_TEST_MODE", "standalone")
+    monkeypatch.delenv("REDIS_URL", raising=False)
 
     client = AsyncRedisClient(nodes=["localhost:6380"], password="pw")
     client._standalone = True
@@ -130,6 +132,8 @@ async def test_initialize_uses_cluster_when_not_in_standalone(monkeypatch: pytes
         "_script_source",
         lambda self, script_name: f"-- {script_name}",
     )
+    monkeypatch.delenv("REDIS_TEST_MODE", raising=False)
+    monkeypatch.delenv("REDIS_URL", raising=False)
 
     client = AsyncRedisClient(nodes=["cluster-a:6379"], password="pw")
     client._standalone = False
@@ -158,6 +162,8 @@ async def test_initialize_uses_explicit_cluster_url(monkeypatch: pytest.MonkeyPa
         "_script_source",
         lambda self, script_name: f"-- {script_name}",
     )
+    monkeypatch.setenv("REDIS_TEST_MODE", "cluster")
+    monkeypatch.setenv("REDIS_URL", "redis://cluster-bootstrap:6379")
 
     client = AsyncRedisClient(nodes=["cluster-a:6379"], password="pw")
     client._standalone = False
