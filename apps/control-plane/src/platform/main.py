@@ -45,6 +45,8 @@ from platform.common.events.consumer import EventConsumerManager
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import PlatformError, platform_exception_handler
 from platform.common.telemetry import setup_telemetry
+from platform.composition.events import register_composition_event_types
+from platform.composition.router import router as composition_router
 from platform.connectors.dependencies import build_connectors_service
 from platform.connectors.events import register_connectors_event_types
 from platform.connectors.implementations.email import EmailPollingJob
@@ -178,6 +180,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_trust_event_types()
     register_fleet_event_types()
     register_agentops_event_types()
+    register_composition_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -664,7 +667,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     ) -> dict[str, Any]:
         return {"status": "ok", "user": current_user}
 
-    if resolved.profile in {"api", "agentops"}:
+    if resolved.profile in {"api", "agentops", "composition"}:
         app.include_router(api_router)
         app.include_router(auth_router)
         app.include_router(accounts_router)
@@ -685,6 +688,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(fleets_router)
         app.include_router(fleet_learning_router)
         app.include_router(agentops_router)
+        app.include_router(composition_router)
 
     setup_telemetry(
         service_name=f"{resolved.otel.service_name}-{resolved.profile}",
