@@ -280,6 +280,18 @@ class AgentOpsSettings(BaseSettings):
     recertification_grace_period_days: int = 7
 
 
+class CompositionSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="COMPOSITION_", extra="ignore")
+
+    llm_api_url: str = "http://localhost:8080/v1/chat/completions"
+    llm_model: str = "claude-opus-4-6"
+    llm_timeout_seconds: float = 25.0
+    llm_max_retries: int = 2
+    description_max_chars: int = 10000
+    low_confidence_threshold: float = 0.5
+    validation_timeout_seconds: float = 10.0
+
+
 class PlatformSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="PLATFORM_", extra="ignore")
 
@@ -307,6 +319,7 @@ class PlatformSettings(BaseSettings):
     connectors: ConnectorsSettings = Field(default_factory=ConnectorsSettings)
     trust: TrustSettings = Field(default_factory=TrustSettings)
     agentops: AgentOpsSettings = Field(default_factory=AgentOpsSettings)
+    composition: CompositionSettings = Field(default_factory=CompositionSettings)
     profile: str = "api"
 
     @model_validator(mode="before")
@@ -544,6 +557,25 @@ class PlatformSettings(BaseSettings):
             "AGENTOPS_RECERTIFICATION_GRACE_PERIOD_DAYS": (
                 "agentops",
                 "recertification_grace_period_days",
+            ),
+            "COMPOSITION_LLM_API_URL": ("composition", "llm_api_url"),
+            "COMPOSITION_LLM_MODEL": ("composition", "llm_model"),
+            "COMPOSITION_LLM_TIMEOUT_SECONDS": (
+                "composition",
+                "llm_timeout_seconds",
+            ),
+            "COMPOSITION_LLM_MAX_RETRIES": ("composition", "llm_max_retries"),
+            "COMPOSITION_DESCRIPTION_MAX_CHARS": (
+                "composition",
+                "description_max_chars",
+            ),
+            "COMPOSITION_LOW_CONFIDENCE_THRESHOLD": (
+                "composition",
+                "low_confidence_threshold",
+            ),
+            "COMPOSITION_VALIDATION_TIMEOUT_SECONDS": (
+                "composition",
+                "validation_timeout_seconds",
             ),
             "WS_CLIENT_BUFFER_SIZE": ("ws_hub", "client_buffer_size"),
             "WS_HEARTBEAT_INTERVAL_SECONDS": ("ws_hub", "heartbeat_interval_seconds"),
@@ -1085,6 +1117,34 @@ class PlatformSettings(BaseSettings):
     @property
     def AGENTOPS_RECERTIFICATION_GRACE_PERIOD_DAYS(self) -> int:
         return self.agentops.recertification_grace_period_days
+
+    @property
+    def COMPOSITION_LLM_API_URL(self) -> str:
+        return self.composition.llm_api_url
+
+    @property
+    def COMPOSITION_LLM_MODEL(self) -> str:
+        return self.composition.llm_model
+
+    @property
+    def COMPOSITION_LLM_TIMEOUT_SECONDS(self) -> float:
+        return self.composition.llm_timeout_seconds
+
+    @property
+    def COMPOSITION_LLM_MAX_RETRIES(self) -> int:
+        return self.composition.llm_max_retries
+
+    @property
+    def COMPOSITION_DESCRIPTION_MAX_CHARS(self) -> int:
+        return self.composition.description_max_chars
+
+    @property
+    def COMPOSITION_LOW_CONFIDENCE_THRESHOLD(self) -> float:
+        return self.composition.low_confidence_threshold
+
+    @property
+    def COMPOSITION_VALIDATION_TIMEOUT_SECONDS(self) -> float:
+        return self.composition.validation_timeout_seconds
 
 
 Settings = PlatformSettings

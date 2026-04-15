@@ -1,0 +1,2 @@
+"""Blueprint generators for composition."""
+

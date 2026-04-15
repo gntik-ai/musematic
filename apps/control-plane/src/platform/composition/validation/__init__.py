@@ -1,0 +1,2 @@
+"""Blueprint validation for composition."""
+
