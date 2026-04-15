@@ -55,6 +55,7 @@ importlib.import_module("platform.fleets.models")
 importlib.import_module("platform.fleet_learning.models")
 importlib.import_module("platform.evaluation.models")
 importlib.import_module("platform.testing.models")
+importlib.import_module("platform.agentops.models")
 
 config = context.config
 

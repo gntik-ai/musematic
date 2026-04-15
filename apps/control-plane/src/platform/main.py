@@ -8,6 +8,10 @@ from datetime import UTC, datetime, timedelta
 from fnmatch import fnmatch
 from platform.accounts.events import register_accounts_event_types
 from platform.accounts.router import router as accounts_router
+from platform.agentops.dependencies import build_agentops_service
+from platform.agentops.events import register_agentops_event_types
+from platform.agentops.governance.triggers import AgentOpsGovernanceTriggers
+from platform.agentops.router import router as agentops_router
 from platform.analytics.clickhouse_setup import run_setup as run_analytics_clickhouse_setup
 from platform.analytics.consumer import AnalyticsPipelineConsumer
 from platform.analytics.dependencies import build_analytics_service
@@ -173,6 +177,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_marketplace_event_types()
     register_trust_event_types()
     register_fleet_event_types()
+    register_agentops_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -306,6 +311,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     workflow_execution_scheduler = getattr(app.state, "workflow_execution_scheduler", None)
     marketplace_scheduler = getattr(app.state, "marketplace_scheduler", None)
     fleet_learning_scheduler = getattr(app.state, "fleet_learning_scheduler", None)
+    agentops_lifecycle_scheduler = getattr(app.state, "agentops_lifecycle_scheduler", None)
     agentops_drift_scheduler = getattr(app.state, "agentops_drift_scheduler", None)
     robustness_orchestrator_scheduler = getattr(
         app.state,
@@ -347,6 +353,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["fleet_learning_scheduler"] = str(exc)
             LOGGER.warning("Failed to start fleet learning scheduler: %s", exc)
+    if agentops_lifecycle_scheduler is not None:
+        try:
+            agentops_lifecycle_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["agentops_lifecycle_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start agentops lifecycle scheduler: %s", exc)
     if agentops_drift_scheduler is not None:
         try:
             agentops_drift_scheduler.start()
@@ -391,6 +404,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                 agentops_drift_scheduler.shutdown(wait=False)
             except Exception as exc:
                 LOGGER.warning("Failed to stop agentops drift scheduler cleanly: %s", exc)
+        if agentops_lifecycle_scheduler is not None:
+            try:
+                agentops_lifecycle_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop agentops lifecycle scheduler cleanly: %s", exc)
         if trust_certifier_scheduler is not None:
             try:
                 trust_certifier_scheduler.shutdown(wait=False)
@@ -487,6 +505,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.workflow_scheduler = None
     app.state.marketplace_scheduler = None
     app.state.fleet_learning_scheduler = None
+    app.state.agentops_lifecycle_scheduler = None
     app.state.agentops_drift_scheduler = None
     app.state.robustness_orchestrator_scheduler = None
     app.state.trust_certifier_scheduler = None
@@ -510,6 +529,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.workflow_scheduler = app.state.workflow_execution_scheduler
         app.state.marketplace_scheduler = _build_marketplace_scheduler(app)
         app.state.fleet_learning_scheduler = _build_fleet_learning_scheduler(app)
+    if resolved.profile == "agentops":
+        app.state.agentops_lifecycle_scheduler = _build_agentops_lifecycle_scheduler(app)
     if resolved.profile == "agentops-testing":
         app.state.agentops_drift_scheduler = _build_agentops_drift_scheduler(app)
         app.state.robustness_orchestrator_scheduler = _build_robustness_orchestrator_scheduler(
@@ -537,6 +558,22 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         PolicyEventConsumer(
             invalidate_bundle_by_revision=_build_policy_bundle_invalidator(app),
         ).register(consumer_manager)
+        if resolved.profile == "agentops":
+            consumer_manager.subscribe(
+                "evaluation.events",
+                f"{resolved.kafka.consumer_group}-agentops-regression",
+                _build_agentops_evaluation_handler(app),
+            )
+            consumer_manager.subscribe(
+                "trust.events",
+                f"{resolved.kafka.consumer_group}-agentops-governance",
+                _build_agentops_trust_handler(app),
+            )
+            consumer_manager.subscribe(
+                "agentops.events",
+                f"{resolved.kafka.consumer_group}-agentops-retirement",
+                _build_agentops_retirement_handler(app),
+            )
         if resolved.profile == "worker" and resolved.connectors.worker_enabled:
             consumer_manager.subscribe(
                 resolved.connectors.delivery_topic,
@@ -627,7 +664,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     ) -> dict[str, Any]:
         return {"status": "ok", "user": current_user}
 
-    if resolved.profile == "api":
+    if resolved.profile in {"api", "agentops"}:
         app.include_router(api_router)
         app.include_router(auth_router)
         app.include_router(accounts_router)
@@ -647,6 +684,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(trust_router, prefix="/api/v1/trust")
         app.include_router(fleets_router)
         app.include_router(fleet_learning_router)
+        app.include_router(agentops_router)
 
     setup_telemetry(
         service_name=f"{resolved.otel.service_name}-{resolved.profile}",
@@ -1474,6 +1512,83 @@ def _build_fleet_learning_scheduler(app: FastAPI) -> Any | None:
     return scheduler
 
 
+def _build_agentops_lifecycle_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run_handler(method_name: str) -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = build_agentops_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                clickhouse_client=cast(AsyncClickHouseClient, app.state.clients["clickhouse"]),
+                reasoning_client=cast(
+                    ReasoningEngineClient | None,
+                    app.state.clients.get("reasoning_engine"),
+                ),
+            )
+            try:
+                await cast(Callable[[], Awaitable[None]], getattr(service, method_name))()
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception(
+                    "AgentOps lifecycle scheduler failed",
+                    extra={"handler": method_name},
+                )
+
+    async def _run_health_scores() -> None:
+        await _run_handler("score_all_agents_task")
+
+    async def _run_canary_monitor() -> None:
+        await _run_handler("monitor_active_canaries_task")
+
+    async def _run_retirement_grace() -> None:
+        await _run_handler("retirement_grace_period_scanner_task")
+
+    async def _run_recertification_grace() -> None:
+        await _run_handler("recertification_grace_period_scanner_task")
+
+    scheduler.add_job(
+        _run_health_scores,
+        "interval",
+        minutes=15,
+        id="agentops-health-score",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _run_canary_monitor,
+        "interval",
+        minutes=5,
+        id="agentops-canary-monitor",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _run_retirement_grace,
+        "interval",
+        hours=1,
+        id="agentops-retirement-grace",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _run_recertification_grace,
+        "interval",
+        hours=1,
+        id="agentops-recertification-grace",
+        replace_existing=True,
+    )
+    return scheduler
+
+
 def _build_agentops_drift_scheduler(app: FastAPI) -> Any | None:
     try:
         scheduler_module = __import__(
@@ -1909,6 +2024,105 @@ def _build_trust_prescreener_handler(app: FastAPI) -> Callable[[Any], Awaitable[
             except Exception:
                 await session.rollback()
                 LOGGER.exception("Trust prescreener consumer failed")
+
+    return _handle
+
+
+def _build_agentops_evaluation_handler(app: FastAPI) -> Callable[[Any], Awaitable[None]]:
+    async def _handle(envelope: Any) -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = build_agentops_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                clickhouse_client=cast(AsyncClickHouseClient, app.state.clients["clickhouse"]),
+                reasoning_client=cast(
+                    ReasoningEngineClient | None,
+                    app.state.clients.get("reasoning_engine"),
+                ),
+            )
+            triggers = AgentOpsGovernanceTriggers(
+                repository=service.repository,
+                detector=service.regression_detector(),
+                evaluation_repository=EvaluationRepository(session),
+                registry_service=service.registry_service,
+                trust_service=service.trust_service,
+                governance_publisher=service.governance_publisher,
+                agentops_service=service,
+            )
+            try:
+                await triggers.handle_evaluation_event(envelope)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("AgentOps evaluation consumer failed")
+
+    return _handle
+
+
+def _build_agentops_retirement_handler(app: FastAPI) -> Callable[[Any], Awaitable[None]]:
+    async def _handle(envelope: Any) -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = build_agentops_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                clickhouse_client=cast(AsyncClickHouseClient, app.state.clients["clickhouse"]),
+                reasoning_client=cast(
+                    ReasoningEngineClient | None,
+                    app.state.clients.get("reasoning_engine"),
+                ),
+            )
+            triggers = AgentOpsGovernanceTriggers(
+                repository=service.repository,
+                detector=service.regression_detector(),
+                evaluation_repository=EvaluationRepository(session),
+                registry_service=service.registry_service,
+                trust_service=service.trust_service,
+                governance_publisher=service.governance_publisher,
+                agentops_service=service,
+            )
+            try:
+                await triggers.handle_agentops_event(envelope)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("AgentOps retirement consumer failed")
+
+    return _handle
+
+
+def _build_agentops_trust_handler(app: FastAPI) -> Callable[[Any], Awaitable[None]]:
+    async def _handle(envelope: Any) -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = build_agentops_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                clickhouse_client=cast(AsyncClickHouseClient, app.state.clients["clickhouse"]),
+                reasoning_client=cast(
+                    ReasoningEngineClient | None,
+                    app.state.clients.get("reasoning_engine"),
+                ),
+            )
+            triggers = AgentOpsGovernanceTriggers(
+                repository=service.repository,
+                detector=service.regression_detector(),
+                evaluation_repository=EvaluationRepository(session),
+                registry_service=service.registry_service,
+                trust_service=service.trust_service,
+                governance_publisher=service.governance_publisher,
+                agentops_service=service,
+            )
+            try:
+                await triggers.handle_trust_event(envelope)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("AgentOps trust consumer failed")
 
     return _handle
 

@@ -218,6 +218,13 @@ venv.bak/
 # Rope project settings
 .ropeproject
 
+# Universal editor / OS noise
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.vscode/
+
 # Node / frontend
 node_modules/
 .next/
