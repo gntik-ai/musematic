@@ -11,14 +11,18 @@ import (
 	"github.com/andrea-mucci/musematic/services/runtime-controller/internal/events"
 	"github.com/andrea-mucci/musematic/services/runtime-controller/internal/launcher"
 	"github.com/andrea-mucci/musematic/services/runtime-controller/internal/state"
+	"github.com/andrea-mucci/musematic/services/runtime-controller/pkg/metrics"
+	"go.opentelemetry.io/otel"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	v1 "k8s.io/api/core/v1"
 )
 
 type PodExecutor interface {
 	ExecInPod(context.Context, string, []string) ([]byte, error)
+	GetPod(context.Context, string) (*v1.Pod, error)
 	DeletePod(context.Context, string, int64) error
 }
 
@@ -37,9 +41,11 @@ type RuntimeControlServiceServer struct {
 	Collector *artifacts.Collector
 	Fanout    *events.FanoutRegistry
 	Logger    *slog.Logger
+	Metrics   *metrics.Registry
 }
 
 func (s *RuntimeControlServiceServer) LaunchRuntime(ctx context.Context, req *runtimev1.LaunchRuntimeRequest) (*runtimev1.LaunchRuntimeResponse, error) {
+	start := time.Now()
 	info, warmStart, err := s.Launcher.Launch(ctx, req.Contract)
 	if err != nil {
 		switch {
@@ -50,6 +56,10 @@ func (s *RuntimeControlServiceServer) LaunchRuntime(ctx context.Context, req *ru
 		default:
 			return nil, status.Error(codes.Internal, err.Error())
 		}
+	}
+	if s.Metrics != nil {
+		s.Metrics.IncLaunches()
+		s.Metrics.ObserveLaunchDuration(time.Since(start))
 	}
 	return &runtimev1.LaunchRuntimeResponse{
 		RuntimeId: info.RuntimeId,
@@ -102,7 +112,7 @@ func (s *RuntimeControlServiceServer) ResumeRuntime(ctx context.Context, req *ru
 		return nil, status.Error(codes.FailedPrecondition, "runtime is not paused")
 	}
 	if _, err := s.Pods.ExecInPod(ctx, record.PodName, []string{"sh", "-c", "kill -CONT 1"}); err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		return &runtimev1.ResumeRuntimeResponse{State: runtimev1.RuntimeState_RUNTIME_STATE_PAUSED}, nil
 	}
 	if err := s.Store.UpdateRuntimeState(ctx, req.ExecutionId, "running", ""); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
@@ -124,17 +134,55 @@ func (s *RuntimeControlServiceServer) StopRuntime(ctx context.Context, req *runt
 		grace = 30
 	}
 	if s.Collector != nil {
-		_, _, _ = s.Collector.Collect(ctx, req.ExecutionId)
+		collectionCtx, cancel := context.WithTimeout(context.Background(), time.Duration(grace)*time.Second)
+		defer cancel()
+		go func() { _, _, _ = s.Collector.Collect(collectionCtx, req.ExecutionId) }()
 	}
 	_, _ = s.Pods.ExecInPod(ctx, record.PodName, []string{"sh", "-c", "kill -TERM 1"})
-	if err := s.Pods.DeletePod(ctx, record.PodName, grace); err != nil {
+	terminated := s.waitForTermination(ctx, record.PodName, time.Duration(grace)*time.Second)
+	deleteGrace := grace
+	stateValue := "stopped"
+	eventType := runtimev1.RuntimeEventType_RUNTIME_EVENT_STOPPED
+	protoState := runtimev1.RuntimeState_RUNTIME_STATE_STOPPED
+	forceKilled := false
+	if !terminated {
+		deleteGrace = 0
+		stateValue = "force_stopped"
+		eventType = runtimev1.RuntimeEventType_RUNTIME_EVENT_FORCE_STOPPED
+		protoState = runtimev1.RuntimeState_RUNTIME_STATE_FORCE_STOPPED
+		forceKilled = true
+	}
+	if err := s.Pods.DeletePod(ctx, record.PodName, deleteGrace); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	if err := s.Store.UpdateRuntimeState(ctx, req.ExecutionId, "stopped", ""); err != nil {
+	if err := s.Store.UpdateRuntimeState(ctx, req.ExecutionId, stateValue, ""); err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	s.broadcast(record, "runtime.stopped", runtimev1.RuntimeEventType_RUNTIME_EVENT_STOPPED, runtimev1.RuntimeState_RUNTIME_STATE_STOPPED, "")
-	return &runtimev1.StopRuntimeResponse{State: runtimev1.RuntimeState_RUNTIME_STATE_STOPPED}, nil
+	s.broadcast(record, "runtime."+stateValue, eventType, protoState, "")
+	return &runtimev1.StopRuntimeResponse{State: protoState, ForceKilled: forceKilled}, nil
+}
+
+func (s *RuntimeControlServiceServer) waitForTermination(ctx context.Context, podName string, timeout time.Duration) bool {
+	deadline := time.NewTimer(timeout)
+	defer deadline.Stop()
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		pod, err := s.Pods.GetPod(ctx, podName)
+		if err != nil {
+			return true
+		}
+		if pod.Status.Phase == v1.PodSucceeded || pod.Status.Phase == v1.PodFailed {
+			return true
+		}
+		select {
+		case <-ctx.Done():
+			return false
+		case <-deadline.C:
+			return false
+		case <-ticker.C:
+		}
+	}
 }
 
 func (s *RuntimeControlServiceServer) StreamRuntimeEvents(req *runtimev1.StreamRuntimeEventsRequest, stream runtimev1.RuntimeControlService_StreamRuntimeEventsServer) error {
@@ -212,11 +260,29 @@ func UnaryLoggingInterceptor(logger *slog.Logger) grpc.UnaryServerInterceptor {
 	}
 }
 
+func UnaryTracingInterceptor() grpc.UnaryServerInterceptor {
+	tracer := otel.Tracer("runtime-controller/grpc")
+	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		ctx, span := tracer.Start(ctx, info.FullMethod)
+		defer span.End()
+		return handler(ctx, req)
+	}
+}
+
 func StreamLoggingInterceptor(logger *slog.Logger) grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		if logger != nil {
 			logger.Info("grpc stream request", "method", info.FullMethod)
 		}
+		return handler(srv, ss)
+	}
+}
+
+func StreamTracingInterceptor() grpc.StreamServerInterceptor {
+	tracer := otel.Tracer("runtime-controller/grpc")
+	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		_, span := tracer.Start(ss.Context(), info.FullMethod)
+		defer span.End()
 		return handler(srv, ss)
 	}
 }

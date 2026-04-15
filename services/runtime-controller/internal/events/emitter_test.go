@@ -77,6 +77,18 @@ func TestEmitLifecyclePropagatesDeliveryError(t *testing.T) {
 	}
 }
 
+func TestEmitterHandlesNilAndProduceErrors(t *testing.T) {
+	var nilEmitter *EventEmitter
+	if err := nilEmitter.EmitLifecycle(context.Background(), &runtimev1.RuntimeEvent{}, BuildEnvelope("runtime.launched", "rt", "exec", nil, nil)); err != nil {
+		t.Fatalf("nil emitter should no-op, got %v", err)
+	}
+
+	emitter := NewEventEmitter(&fakeProducer{produceErr: errors.New("produce failed")})
+	if err := emitter.EmitLifecycle(context.Background(), &runtimev1.RuntimeEvent{}, BuildEnvelope("runtime.launched", "rt", "exec", nil, nil)); err == nil {
+		t.Fatalf("expected produce error")
+	}
+}
+
 func TestEmitDriftIsNonBlocking(t *testing.T) {
 	producer := &fakeProducer{}
 	emitter := NewEventEmitter(producer)

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { FileCode2, FileImage, FileText } from "lucide-react";
+import { FileCode2, FileText } from "lucide-react";
 import {
   Dialog,
   DialogContent,

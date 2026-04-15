@@ -57,6 +57,7 @@ importlib.import_module("platform.evaluation.models")
 importlib.import_module("platform.testing.models")
 importlib.import_module("platform.agentops.models")
 importlib.import_module("platform.composition.models")
+importlib.import_module("platform.discovery.models")
 
 config = context.config
 

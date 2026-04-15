@@ -21,6 +21,7 @@ var (
 
 type PodManager interface {
 	CreatePod(context.Context, *v1.Pod) (*v1.Pod, error)
+	PrepareWarmPod(context.Context, string, *runtimev1.RuntimeContract) error
 }
 
 type SecretResolver interface {
@@ -40,7 +41,7 @@ type Presigner interface {
 }
 
 type WarmPoolDispatcher interface {
-	Dispatch(string, string) (string, bool)
+	Dispatch(context.Context, string, string, uuid.UUID) (string, bool, error)
 }
 
 type Launcher struct {
@@ -101,7 +102,12 @@ func (l *Launcher) Launch(ctx context.Context, contract *runtimev1.RuntimeContra
 	}
 
 	if l.WarmPool != nil {
-		if podName, ok := l.WarmPool.Dispatch(contract.CorrelationContext.WorkspaceId, contract.AgentRevision); ok {
+		if podName, ok, err := l.WarmPool.Dispatch(ctx, contract.CorrelationContext.WorkspaceId, contract.AgentRevision, runtimeID); err != nil {
+			return nil, false, err
+		} else if ok {
+			if err := l.Pods.PrepareWarmPod(ctx, podName, contract); err != nil {
+				return nil, false, err
+			}
 			if err := l.Store.UpdateRuntimeState(ctx, contract.CorrelationContext.ExecutionId, "running", ""); err != nil {
 				return nil, false, err
 			}

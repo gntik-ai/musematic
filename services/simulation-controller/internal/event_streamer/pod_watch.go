@@ -152,10 +152,11 @@ func podEventType(eventType watch.EventType, pod *corev1.Pod) (string, string) {
 
 func hasOOMKill(pod *corev1.Pod) bool {
 	for _, status := range pod.Status.ContainerStatuses {
-		if strings.EqualFold(status.LastTerminationState.Terminated.Reason, "OOMKilled") {
+		if status.LastTerminationState.Terminated != nil &&
+			strings.EqualFold(status.LastTerminationState.Terminated.Reason, "OOMKilled") {
 			return true
 		}
-		if strings.EqualFold(status.State.Terminated.Reason, "OOMKilled") {
+		if status.State.Terminated != nil && strings.EqualFold(status.State.Terminated.Reason, "OOMKilled") {
 			return true
 		}
 	}

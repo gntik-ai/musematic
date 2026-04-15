@@ -3,6 +3,7 @@ package ate_runner
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"testing"
@@ -16,36 +17,55 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 )
 
 type runnerStore struct {
-	simulations []persistence.SimulationRecord
-	sessions    []persistence.ATESessionRecord
-	results     []persistence.ATEResultRecord
-	reportKey   string
+	simulations     []persistence.SimulationRecord
+	sessions        []persistence.ATESessionRecord
+	results         []persistence.ATEResultRecord
+	reportKey       string
+	insertSimErr    error
+	insertATEErr    error
+	insertResultErr error
+	updateStatusErr error
+	updateReportErr error
 }
 
 func (r *runnerStore) InsertSimulation(_ context.Context, record persistence.SimulationRecord) error {
+	if r.insertSimErr != nil {
+		return r.insertSimErr
+	}
 	r.simulations = append(r.simulations, record)
 	return nil
 }
 
 func (r *runnerStore) UpdateSimulationStatus(context.Context, string, persistence.SimulationStatusUpdate) error {
-	return nil
+	return r.updateStatusErr
 }
 
 func (r *runnerStore) InsertATESession(_ context.Context, record persistence.ATESessionRecord) error {
+	if r.insertATEErr != nil {
+		return r.insertATEErr
+	}
 	r.sessions = append(r.sessions, record)
 	return nil
 }
 
 func (r *runnerStore) InsertATEResult(_ context.Context, record persistence.ATEResultRecord) error {
+	if r.insertResultErr != nil {
+		return r.insertResultErr
+	}
 	r.results = append(r.results, record)
 	return nil
 }
 
 func (r *runnerStore) UpdateATEReport(_ context.Context, _ string, objectKey string, _ time.Time) error {
+	if r.updateReportErr != nil {
+		return r.updateReportErr
+	}
 	r.reportKey = objectKey
 	return nil
 }
@@ -53,9 +73,13 @@ func (r *runnerStore) UpdateATEReport(_ context.Context, _ string, objectKey str
 type capturingManager struct {
 	specs []sim_manager.SimulationPodSpec
 	pod   *corev1.Pod
+	err   error
 }
 
 func (c *capturingManager) CreatePod(_ context.Context, spec sim_manager.SimulationPodSpec) (*corev1.Pod, error) {
+	if c.err != nil {
+		return nil, c.err
+	}
 	c.specs = append(c.specs, spec)
 	pod, err := sim_manager.BuildPod(spec, sim_manager.DefaultNamespace, sim_manager.DefaultBucket, sim_manager.DefaultMaxDurationSec)
 	if err != nil {
@@ -73,13 +97,29 @@ type recordingUploader struct {
 	key      string
 	payload  []byte
 	metadata map[string]string
+	err      error
 }
 
 func (r *recordingUploader) Upload(_ context.Context, key string, data []byte, metadata map[string]string) error {
+	if r.err != nil {
+		return r.err
+	}
 	r.key = key
 	r.payload = append([]byte(nil), data...)
 	r.metadata = metadata
 	return nil
+}
+
+type recordingAggregator struct {
+	called chan struct{}
+	err    error
+}
+
+func (r *recordingAggregator) Run(context.Context, AggregationRequest) error {
+	if r.called != nil {
+		close(r.called)
+	}
+	return r.err
 }
 
 func TestBuildATEConfigMapSerializesScenarioData(t *testing.T) {
@@ -154,6 +194,83 @@ func TestRunnerStartCreatesConfigMapAndATEPod(t *testing.T) {
 	require.Equal(t, "CREATING", state.Status)
 }
 
+func TestRunnerStartErrorBranchesAndAggregator(t *testing.T) {
+	t.Parallel()
+
+	_, err := (*Runner)(nil).Start(context.Background(), ATERequest{})
+	require.ErrorIs(t, err, persistence.ErrNotFound)
+	_, err = (&Runner{}).Start(context.Background(), ATERequest{})
+	require.ErrorIs(t, err, persistence.ErrNotFound)
+
+	baseReq := ATERequest{
+		SessionID: "session-1",
+		AgentID:   "agent-1",
+		Config:    &simulationv1.SimulationConfig{AgentImage: "busybox:latest"},
+		Scenarios: []*simulationv1.ATEScenario{{ScenarioId: "scenario-1"}},
+	}
+
+	client := fake.NewSimpleClientset(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "ate-session-1", Namespace: sim_manager.DefaultNamespace}})
+	_, err = (&Runner{
+		Client:    client,
+		Namespace: sim_manager.DefaultNamespace,
+		Manager:   &capturingManager{},
+		Store:     &runnerStore{},
+	}).Start(context.Background(), baseReq)
+	require.Error(t, err)
+
+	insertSimErr := errors.New("insert simulation failed")
+	_, err = (&Runner{
+		Client:    fake.NewSimpleClientset(),
+		Namespace: sim_manager.DefaultNamespace,
+		Manager:   &capturingManager{},
+		Store:     &runnerStore{insertSimErr: insertSimErr},
+	}).Start(context.Background(), baseReq)
+	require.ErrorIs(t, err, insertSimErr)
+
+	insertATEErr := errors.New("insert ate failed")
+	_, err = (&Runner{
+		Client:    fake.NewSimpleClientset(),
+		Namespace: sim_manager.DefaultNamespace,
+		Manager:   &capturingManager{},
+		Store:     &runnerStore{insertATEErr: insertATEErr},
+	}).Start(context.Background(), baseReq)
+	require.ErrorIs(t, err, insertATEErr)
+
+	createErr := errors.New("create pod failed")
+	store := &runnerStore{}
+	_, err = (&Runner{
+		Client:    fake.NewSimpleClientset(),
+		Namespace: sim_manager.DefaultNamespace,
+		Manager:   &capturingManager{err: createErr},
+		Store:     store,
+	}).Start(context.Background(), baseReq)
+	require.ErrorIs(t, err, createErr)
+
+	called := make(chan struct{})
+	_, err = (&Runner{
+		Client:    fake.NewSimpleClientset(),
+		Namespace: sim_manager.DefaultNamespace,
+		Bucket:    sim_manager.DefaultBucket,
+		Manager:   &capturingManager{},
+		Store:     &runnerStore{},
+		Aggregator: &recordingAggregator{
+			called: called,
+			err:    errors.New("aggregate failed"),
+		},
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		NewID:  func() string { return "sim-aggregator" },
+	}).Start(context.Background(), baseReq)
+	require.NoError(t, err)
+	require.Eventually(t, func() bool {
+		select {
+		case <-called:
+			return true
+		default:
+			return false
+		}
+	}, time.Second, 10*time.Millisecond)
+}
+
 func TestResultsAggregatorGeneratesATEReport(t *testing.T) {
 	t.Parallel()
 
@@ -223,20 +340,116 @@ func TestResultsAggregatorGeneratesATEReport(t *testing.T) {
 	require.EqualValues(t, 1, summary["failed"])
 }
 
+func TestResultsAggregatorErrorAndExitBranches(t *testing.T) {
+	t.Parallel()
+
+	require.NoError(t, (*ResultsAggregator)(nil).Run(context.Background(), AggregationRequest{}))
+	require.NoError(t, (&ResultsAggregator{}).Run(context.Background(), AggregationRequest{}))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err := (&ResultsAggregator{Fanout: event_streamer.NewFanoutRegistry(1)}).Run(ctx, AggregationRequest{SimulationID: "sim-1"})
+	require.ErrorIs(t, err, context.Canceled)
+
+	fanout := event_streamer.NewFanoutRegistry(1)
+	storeErr := errors.New("store failed")
+	done := make(chan error, 1)
+	go func() {
+		done <- (&ResultsAggregator{
+			Fanout: fanout,
+			Store:  &runnerStore{insertResultErr: storeErr},
+		}).Run(context.Background(), AggregationRequest{
+			SimulationID:      "sim-store",
+			SessionID:         "session-1",
+			ExpectedScenarios: []*simulationv1.ATEScenario{{ScenarioId: "scenario-1"}},
+		})
+	}()
+	require.Eventually(t, func() bool {
+		return fanout.SubscriberCount("sim-store") == 1
+	}, time.Second, 10*time.Millisecond)
+	fanout.Publish("sim-store", &simulationv1.SimulationEvent{
+		EventType: "ATE_SCENARIO_COMPLETED",
+		Metadata:  map[string]string{"scenario_id": "scenario-1"},
+	})
+	require.ErrorIs(t, <-done, storeErr)
+
+	for _, tc := range []struct {
+		name     string
+		uploader *recordingUploader
+		store    *runnerStore
+		wantErr  error
+	}{
+		{name: "upload", uploader: &recordingUploader{err: errors.New("upload failed")}, store: &runnerStore{}},
+		{name: "update", uploader: &recordingUploader{}, store: &runnerStore{updateReportErr: errors.New("update failed")}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fanout := event_streamer.NewFanoutRegistry(1)
+			done := make(chan error, 1)
+			go func() {
+				done <- (&ResultsAggregator{
+					Fanout:   fanout,
+					Store:    tc.store,
+					Uploader: tc.uploader,
+				}).Run(context.Background(), AggregationRequest{
+					SimulationID:      "sim-" + tc.name,
+					SessionID:         "session-1",
+					ExpectedScenarios: []*simulationv1.ATEScenario{{ScenarioId: "scenario-1"}},
+				})
+			}()
+			require.Eventually(t, func() bool {
+				return fanout.SubscriberCount("sim-"+tc.name) == 1
+			}, time.Second, 10*time.Millisecond)
+			fanout.Publish("sim-"+tc.name, &simulationv1.SimulationEvent{
+				EventType: "ATE_SCENARIO_COMPLETED",
+				Metadata: map[string]string{
+					"scenario_id": "scenario-1",
+					"passed":      "true",
+				},
+			})
+			require.Error(t, <-done)
+		})
+	}
+
+	closingFanout := event_streamer.NewFanoutRegistry(1)
+	done = make(chan error, 1)
+	go func() {
+		done <- (&ResultsAggregator{Fanout: closingFanout}).Run(context.Background(), AggregationRequest{SimulationID: "sim-close"})
+	}()
+	require.Eventually(t, func() bool {
+		return closingFanout.SubscriberCount("sim-close") == 1
+	}, time.Second, 10*time.Millisecond)
+	closingFanout.Close("sim-close")
+	require.NoError(t, <-done)
+}
+
 func TestATEHelpersCoverDeleteCleanupAndParsers(t *testing.T) {
 	t.Parallel()
 
 	client := fake.NewSimpleClientset()
+	_, err := CreateATEConfigMap(context.Background(), client, sim_manager.DefaultNamespace, "session-1", nil, nil)
+	require.NoError(t, err)
+	require.NoError(t, (&Runner{Client: client, Namespace: sim_manager.DefaultNamespace}).Cleanup(context.Background(), "session-1"))
 	require.NoError(t, DeleteATEConfigMap(context.Background(), client, sim_manager.DefaultNamespace, "missing"))
+
+	errorClient := fake.NewSimpleClientset(&corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "ate-session-err", Namespace: sim_manager.DefaultNamespace}})
+	deleteErr := errors.New("delete failed")
+	errorClient.PrependReactor("delete", "configmaps", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, deleteErr
+	})
+	require.ErrorIs(t, DeleteATEConfigMap(context.Background(), errorClient, sim_manager.DefaultNamespace, "session-err"), deleteErr)
 
 	runner := &Runner{}
 	require.NoError(t, runner.Cleanup(context.Background(), "session-1"))
+	require.NoError(t, (*Runner)(nil).Cleanup(context.Background(), "session-1"))
 	require.EqualValues(t, 1, safeInt32(1))
 	require.EqualValues(t, int32(2147483647), safeInt32(1<<62))
+	require.EqualValues(t, int32(-2147483648), safeInt32(-1<<62))
 
 	require.Nil(t, parseBoolPtr(""))
 	require.False(t, *parseBoolPtr("false"))
+	require.Nil(t, parseFloat(""))
 	require.Nil(t, parseFloat("bad"))
+	require.Nil(t, parseInt32(""))
 	require.Nil(t, parseInt32("bad"))
 
 	report := buildReport(AggregationRequest{

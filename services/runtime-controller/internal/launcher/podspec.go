@@ -22,8 +22,13 @@ func BuildPodSpec(contract *runtimev1.RuntimeContract, presignedURL string, name
 	envVars := []v1.EnvVar{
 		{Name: "EXECUTION_ID", Value: executionID},
 		{Name: "WORKSPACE_ID", Value: workspaceID},
+		{Name: "SANITIZER_PATTERNS_URL", Value: "configmap://runtime-sanitizer-patterns/patterns.json"},
 	}
 	for key, value := range contract.EnvVars {
+		if key == "SANITIZER_PATTERNS_URL" {
+			envVars[2].Value = value
+			continue
+		}
 		envVars = append(envVars, v1.EnvVar{Name: key, Value: value})
 	}
 	envVars = append(envVars, secretEnvs...)

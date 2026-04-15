@@ -43,7 +43,7 @@ func (c *Collector) Collect(ctx context.Context, executionID string) ([]*runtime
 	logs, err := c.Pods.GetPodLogs(ctx, runtimeRecord.PodName)
 	if err == nil {
 		key := path.Join("artifacts", executionID, "runtime.log")
-		if uploadErr := c.Uploader.Upload(ctx, key, logs, "text/plain"); uploadErr == nil {
+		if uploadErr := c.uploadWithRetry(ctx, key, logs, "text/plain"); uploadErr == nil {
 			entries = append(entries, entryFromBytes(key, "runtime.log", "text/plain", logs))
 		} else {
 			complete = false
@@ -61,7 +61,7 @@ func (c *Collector) Collect(ctx context.Context, executionID string) ([]*runtime
 				continue
 			}
 			key := path.Join("artifacts", executionID, file)
-			if uploadErr := c.Uploader.Upload(ctx, key, content, "application/octet-stream"); uploadErr == nil {
+			if uploadErr := c.uploadWithRetry(ctx, key, content, "application/octet-stream"); uploadErr == nil {
 				entries = append(entries, entryFromBytes(key, file, "application/octet-stream", content))
 			} else {
 				complete = false
@@ -70,6 +70,25 @@ func (c *Collector) Collect(ctx context.Context, executionID string) ([]*runtime
 	}
 
 	return entries, complete, nil
+}
+
+func (c *Collector) uploadWithRetry(ctx context.Context, key string, body []byte, contentType string) error {
+	var err error
+	backoff := 10 * time.Millisecond
+	for attempt := 0; attempt < 3; attempt++ {
+		if err = c.Uploader.Upload(ctx, key, body, contentType); err == nil {
+			return nil
+		}
+		timer := time.NewTimer(backoff)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+		backoff *= 2
+	}
+	return err
 }
 
 type BytesUploader struct {

@@ -101,6 +101,8 @@ func TestNewStoreExposesPool(t *testing.T) {
 
 	store := NewStore(nil)
 	require.Nil(t, store.Pool())
+	var nilStore *Store
+	require.Nil(t, nilStore.Pool())
 }
 
 func TestKafkaProducerNilIsNoop(t *testing.T) {
@@ -138,6 +140,16 @@ func TestKafkaProducerProduceReturnsDeliveryError(t *testing.T) {
 	require.Equal(t, []byte("sim-1"), client.messages[0].Key)
 }
 
+func TestKafkaProducerProduceReturnsImmediateError(t *testing.T) {
+	t.Parallel()
+
+	producer := &KafkaProducer{
+		producer:        &fakeKafkaClient{produceErr: errors.New("produce failed")},
+		deliveryTimeout: time.Second,
+	}
+	require.EqualError(t, producer.Produce("simulation.events", "sim-1", []byte("payload")), "produce failed")
+}
+
 func TestKafkaProducerProduceTimeoutReturnsNil(t *testing.T) {
 	t.Parallel()
 
@@ -147,6 +159,10 @@ func TestKafkaProducerProduceTimeoutReturnsNil(t *testing.T) {
 
 func TestKafkaProducerCloseIsIdempotent(t *testing.T) {
 	t.Parallel()
+
+	require.NotPanics(t, func() {
+		(&KafkaProducer{}).Close()
+	})
 
 	client := &fakeKafkaClient{}
 	producer := &KafkaProducer{producer: client}
@@ -196,6 +212,7 @@ func TestMinIOHelpersHandleNilAndSchemes(t *testing.T) {
 	t.Parallel()
 
 	var client *MinIOClient
+	require.NoError(t, client.Upload(context.Background(), "ignored", nil, nil))
 	require.Equal(t, "", client.PresignGetURL("ignored"))
 	require.Nil(t, NewMinIOClient("", "bucket"))
 	require.Equal(t, "https://minio.local:9000", normaliseEndpoint("https://minio.local:9000/"))
@@ -205,6 +222,9 @@ func TestMapPGErrorConvertsUniqueViolations(t *testing.T) {
 	t.Parallel()
 	err := mapPGError(&pgconn.PgError{Code: "23505"})
 	require.ErrorIs(t, err, ErrAlreadyExists)
+	require.NoError(t, mapPGError(nil))
+	otherErr := errors.New("other")
+	require.ErrorIs(t, mapPGError(otherErr), otherErr)
 }
 
 func TestStoreMethodsRequireConfiguredDB(t *testing.T) {
@@ -234,6 +254,31 @@ func TestStoreInsertSimulationMapsUniqueViolation(t *testing.T) {
 
 	err := store.InsertSimulation(context.Background(), SimulationRecord{SimulationID: "sim-1"})
 	require.ErrorIs(t, err, ErrAlreadyExists)
+}
+
+func TestStoreExecAndQueryErrorBranches(t *testing.T) {
+	t.Parallel()
+
+	execErr := errors.New("exec failed")
+	store := &Store{db: fakeDB{
+		exec: func(context.Context, string, ...any) (pgconn.CommandTag, error) {
+			return pgconn.CommandTag{}, execErr
+		},
+		row: func(context.Context, string, ...any) pgx.Row {
+			return fakeRow{scan: func(dest ...any) error { return errors.New("scan failed") }}
+		},
+	}}
+
+	require.ErrorIs(t, store.UpdateSimulationStatus(context.Background(), "sim-1", SimulationStatusUpdate{}), execErr)
+	require.ErrorIs(t, store.UpdateATEReport(context.Background(), "session-1", "report", time.Now().UTC()), execErr)
+	_, err := store.GetSimulation(context.Background(), "sim-1")
+	require.EqualError(t, err, "scan failed")
+	_, err = store.FindATESessionIDBySimulation(context.Background(), "sim-1")
+	require.EqualError(t, err, "scan failed")
+
+	require.ErrorIs(t, store.InsertSimulationArtifact(context.Background(), SimulationArtifactRecord{}), execErr)
+	require.ErrorIs(t, store.InsertATESession(context.Background(), ATESessionRecord{}), execErr)
+	require.ErrorIs(t, store.InsertATEResult(context.Background(), ATEResultRecord{}), execErr)
 }
 
 func TestStoreUpdateSimulationStatusNotFound(t *testing.T) {

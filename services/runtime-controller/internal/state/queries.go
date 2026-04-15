@@ -3,6 +3,8 @@ package state
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"path"
 	"time"
 
 	"github.com/google/uuid"
@@ -146,16 +148,40 @@ func (s *Store) InsertTaskPlanRecord(ctx context.Context, record TaskPlanRecord)
 	if record.RecordID == uuid.Nil {
 		record.RecordID = uuid.New()
 	}
-	_, err := s.pool.Exec(ctx, `
+	prepared, err := s.prepareTaskPlanRecord(ctx, record)
+	if err != nil {
+		return err
+	}
+	_, err = s.pool.Exec(ctx, `
 INSERT INTO task_plan_records (
     record_id, execution_id, step_id, workspace_id, considered_agents, selected_agent,
     selection_rationale, parameters, parameter_provenance, payload_json, payload_object_key
 ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-		record.RecordID, record.ExecutionID, nilIfEmpty(record.StepID), record.WorkspaceID,
-		nullJSON(record.ConsideredAgents), nilIfEmpty(record.SelectedAgent), nilIfEmpty(record.SelectionRationale),
-		nullJSON(record.Parameters), nullJSON(record.ParameterProvenance), nullJSON(record.PayloadJSON), nilIfEmpty(record.PayloadObjectKey),
+		prepared.RecordID, prepared.ExecutionID, nilIfEmpty(prepared.StepID), prepared.WorkspaceID,
+		nullJSON(prepared.ConsideredAgents), nilIfEmpty(prepared.SelectedAgent), nilIfEmpty(prepared.SelectionRationale),
+		nullJSON(prepared.Parameters), nullJSON(prepared.ParameterProvenance), nullJSON(prepared.PayloadJSON), nilIfEmpty(prepared.PayloadObjectKey),
 	)
 	return err
+}
+
+func (s *Store) prepareTaskPlanRecord(ctx context.Context, record TaskPlanRecord) (TaskPlanRecord, error) {
+	if len(record.PayloadJSON) <= 65536 {
+		return record, nil
+	}
+	if s.TaskPlanUploader == nil {
+		return TaskPlanRecord{}, fmt.Errorf("task plan payload exceeds 65536 bytes and no uploader is configured")
+	}
+	stepID := record.StepID
+	if stepID == "" {
+		stepID = "task-plan"
+	}
+	key := path.Join("task-plans", record.ExecutionID, stepID+".json")
+	if err := s.TaskPlanUploader.UploadTaskPlan(ctx, key, []byte(record.PayloadJSON)); err != nil {
+		return TaskPlanRecord{}, err
+	}
+	record.PayloadJSON = nil
+	record.PayloadObjectKey = key
+	return record, nil
 }
 
 func (s *Store) InsertRuntimeEvent(ctx context.Context, event RuntimeEventRecord) error {

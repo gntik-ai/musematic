@@ -1,0 +1,28 @@
+replicas: 1
+
+image:
+  repository: ghcr.io/andrea-mucci/musematic/runtime-controller
+  tag: latest
+  pullPolicy: IfNotPresent
+
+grpcPort: 50051
+httpPort: 8080
+configSecretRef: runtime-controller-secrets
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+config:
+  k8sNamespace: platform-execution
+  reconcileInterval: 30s
+  heartbeatTimeout: 60s
+  heartbeatCheckInterval: 10s
+  warmPoolIdleTimeout: 5m
+  warmPoolReplenishInterval: 30s
+  stopGracePeriod: 30s
+  agentPackagePresignTTL: 2h

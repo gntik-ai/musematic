@@ -1,0 +1,6 @@
+apiVersion: v2
+name: runtime-controller
+description: Runtime Controller service for Musematic agent runtimes
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

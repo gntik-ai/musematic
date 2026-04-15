@@ -1,9 +1,22 @@
 from __future__ import annotations
 
+import uuid
+from dataclasses import dataclass, field
 from importlib import import_module
 from platform.common.config import PlatformSettings, Settings
 from platform.common.config import settings as default_settings
 from typing import Any
+from uuid import UUID
+
+
+@dataclass(frozen=True, slots=True)
+class SandboxExecutionResult:
+    execution_id: str
+    status: str
+    stdout: str = ""
+    stderr: str = ""
+    exit_code: int | None = None
+    artifacts: list[dict[str, Any]] = field(default_factory=list)
 
 
 class SandboxManagerClient:
@@ -45,3 +58,56 @@ class SandboxManagerClient:
             return "SHUTDOWN" not in str(state)
         except Exception:
             return False
+
+    async def execute_code(
+        self,
+        template: str,
+        code: str,
+        workspace_id: UUID,
+        timeout_seconds: int,
+    ) -> SandboxExecutionResult:
+        """Execute code through sandbox-manager when an RPC stub is available.
+
+        The repository currently does not include generated sandbox protobufs, so
+        this wrapper is intentionally tolerant: tests can attach a stub exposing
+        ExecuteCode, while local/dev mode returns a deterministic queued result.
+        """
+        await self.connect()
+        execute = getattr(self.stub, "ExecuteCode", None)
+        if execute is None:
+            return SandboxExecutionResult(
+                execution_id=str(uuid.uuid4()),
+                status="queued",
+                stdout="",
+                stderr="sandbox manager ExecuteCode RPC is not available",
+                exit_code=None,
+                artifacts=[],
+            )
+        request = {
+            "template": template,
+            "code": code,
+            "workspace_id": str(workspace_id),
+            "timeout_seconds": timeout_seconds,
+        }
+        response = execute(request)
+        if hasattr(response, "__await__"):
+            response = await response
+        if isinstance(response, SandboxExecutionResult):
+            return response
+        if isinstance(response, dict):
+            return SandboxExecutionResult(
+                execution_id=str(response.get("execution_id") or uuid.uuid4()),
+                status=str(response.get("status") or "completed"),
+                stdout=str(response.get("stdout") or ""),
+                stderr=str(response.get("stderr") or ""),
+                exit_code=response.get("exit_code"),
+                artifacts=list(response.get("artifacts") or []),
+            )
+        return SandboxExecutionResult(
+            execution_id=str(getattr(response, "execution_id", uuid.uuid4())),
+            status=str(getattr(response, "status", "completed")),
+            stdout=str(getattr(response, "stdout", "")),
+            stderr=str(getattr(response, "stderr", "")),
+            exit_code=getattr(response, "exit_code", None),
+            artifacts=list(getattr(response, "artifacts", []) or []),
+        )

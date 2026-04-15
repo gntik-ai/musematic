@@ -23,8 +23,14 @@ import (
 	"github.com/andrea-mucci/musematic/services/runtime-controller/pkg/config"
 	"github.com/andrea-mucci/musematic/services/runtime-controller/pkg/health"
 	k8spkg "github.com/andrea-mucci/musematic/services/runtime-controller/pkg/k8s"
+	runtimemetrics "github.com/andrea-mucci/musematic/services/runtime-controller/pkg/metrics"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/redis/go-redis/v9"
+	"go.opentelemetry.io/otel"
+	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
 )
 
@@ -49,6 +55,10 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	tracerProvider := tracesdk.NewTracerProvider()
+	otel.SetTracerProvider(tracerProvider)
+	defer func() { _ = tracerProvider.Shutdown(context.Background()) }()
+
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
@@ -60,6 +70,15 @@ func run() error {
 	if err := state.RunMigrations(ctx, store.Pool()); err != nil {
 		return err
 	}
+	awsCfg, err := awsconfig.LoadDefaultConfig(ctx)
+	if err != nil {
+		return err
+	}
+	s3Client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
+		o.BaseEndpoint = aws.String(cfg.MinIOEndpoint)
+		o.UsePathStyle = true
+	})
+	store.TaskPlanUploader = state.S3TaskPlanUploader{Client: s3Client, Bucket: cfg.MinIOBucket}
 
 	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 	defer redisClient.Close()
@@ -70,19 +89,20 @@ func run() error {
 		defer kafkaProducer.Close()
 	}
 
-	clientset, _, err := k8spkg.NewClient()
+	clientset, restConfig, err := k8spkg.NewClient()
 	if err != nil && !cfg.K8sDryRun {
 		return err
 	}
-	podClient := &k8spkg.PodClient{Client: clientset, Namespace: cfg.K8sNamespace, DryRun: cfg.K8sDryRun}
+	podClient := &k8spkg.PodClient{Client: clientset, RestConfig: restConfig, Namespace: cfg.K8sNamespace, DryRun: cfg.K8sDryRun}
 	fanout := events.NewFanoutRegistry()
+	metricRegistry := runtimemetrics.NewRegistry()
 	var emitter *events.EventEmitter
 	if kafkaProducer != nil {
 		emitter = events.NewEventEmitter(kafkaProducer)
 	} else {
 		emitter = events.NewEventEmitter(nil)
 	}
-	warmPoolManager := warmpool.NewManager()
+	warmPoolManager := warmpool.NewManager(store)
 	_ = warmPoolManager.LoadFromDB(ctx, store)
 	var kafkaHealth health.KafkaMetadataChecker
 	if kafkaProducer != nil {
@@ -113,9 +133,7 @@ func run() error {
 		Kafka:    kafkaHealth,
 		K8s:      restHealth{},
 	}))
-	httpMux.HandleFunc("/metrics", func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte("# runtime_controller metrics placeholder\n"))
-	})
+	httpMux.HandleFunc("/metrics", metricRegistry.Handler())
 	httpServer := &http.Server{
 		Addr:              net.JoinHostPort("", toPort(cfg.HTTPPort)),
 		Handler:           httpMux,
@@ -123,8 +141,8 @@ func run() error {
 	}
 
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(grpcserver.UnaryLoggingInterceptor(logger)),
-		grpc.StreamInterceptor(grpcserver.StreamLoggingInterceptor(logger)),
+		grpc.ChainUnaryInterceptor(grpcserver.UnaryTracingInterceptor(), grpcserver.UnaryLoggingInterceptor(logger)),
+		grpc.ChainStreamInterceptor(grpcserver.StreamTracingInterceptor(), grpcserver.StreamLoggingInterceptor(logger)),
 	)
 	runtimev1.RegisterRuntimeControlServiceServer(grpcServer, &grpcserver.RuntimeControlServiceServer{
 		Launcher:  launchService,
@@ -133,6 +151,7 @@ func run() error {
 		Collector: collector,
 		Fanout:    fanout,
 		Logger:    logger,
+		Metrics:   metricRegistry,
 	})
 
 	reconcileLoop := &reconciler.Reconciler{
@@ -142,6 +161,7 @@ func run() error {
 		Emitter:  emitter,
 		Fanout:   fanout,
 		Logger:   logger,
+		Metrics:  metricRegistry,
 	}
 	heartbeatLoop := &heartbeat.Scanner{
 		Redis:    redisClient,
@@ -150,13 +170,14 @@ func run() error {
 		Emitter:  emitter,
 		Fanout:   fanout,
 		Logger:   logger,
+		Metrics:  metricRegistry,
 	}
-	replenisher := &warmpool.Replenisher{Interval: cfg.WarmPoolReplenishInterval, Logger: logger, Store: store, Manager: warmPoolManager}
-	idleScanner := &warmpool.IdleScanner{Interval: cfg.WarmPoolReplenishInterval, IdleTimeout: cfg.WarmPoolIdleTimeout, Logger: logger, Store: store}
+	replenisher := &warmpool.Replenisher{Interval: cfg.WarmPoolReplenishInterval, Logger: logger, Store: store, Manager: warmPoolManager, Pods: podClient, Namespace: cfg.K8sNamespace}
+	idleScanner := &warmpool.IdleScanner{Interval: cfg.WarmPoolReplenishInterval, IdleTimeout: cfg.WarmPoolIdleTimeout, Logger: logger, Store: store, Pods: podClient, Manager: warmPoolManager}
 
 	go func() { _ = reconcileLoop.Run(ctx) }()
 	go func() { _ = heartbeatLoop.Run(ctx) }()
-	go func() { _ = replenisher.Run(ctx, map[string]int{}) }()
+	go func() { _ = replenisher.Run(ctx, cfg.WarmPoolTargets) }()
 	go func() { _ = idleScanner.Run(ctx) }()
 
 	go func() {

@@ -8,6 +8,7 @@ import (
 	runtimev1 "github.com/andrea-mucci/musematic/services/runtime-controller/api/grpc/v1"
 	"github.com/andrea-mucci/musematic/services/runtime-controller/internal/events"
 	"github.com/andrea-mucci/musematic/services/runtime-controller/internal/state"
+	"github.com/andrea-mucci/musematic/services/runtime-controller/pkg/metrics"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -26,6 +27,7 @@ type Scanner struct {
 	Emitter  *events.EventEmitter
 	Fanout   *events.FanoutRegistry
 	Logger   *slog.Logger
+	Metrics  *metrics.Registry
 }
 
 func (s *Scanner) Run(ctx context.Context) error {
@@ -58,6 +60,9 @@ func (s *Scanner) ScanOnce(ctx context.Context) error {
 		}
 		if err := s.Store.UpdateRuntimeState(ctx, runtime.ExecutionID, "failed", "heartbeat_timeout"); err != nil {
 			return err
+		}
+		if s.Metrics != nil {
+			s.Metrics.IncHeartbeatTimeouts()
 		}
 		envelope := events.BuildEnvelope("runtime.failed", runtime.RuntimeID.String(), runtime.ExecutionID, &runtimev1.CorrelationContext{
 			WorkspaceId: runtime.WorkspaceID,

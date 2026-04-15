@@ -3,6 +3,8 @@ package grpcserver
 import (
 	"context"
 	"errors"
+	"io"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/andrea-mucci/musematic/services/runtime-controller/internal/events"
 	"github.com/andrea-mucci/musematic/services/runtime-controller/internal/launcher"
 	"github.com/andrea-mucci/musematic/services/runtime-controller/internal/state"
+	runtimemetrics "github.com/andrea-mucci/musematic/services/runtime-controller/pkg/metrics"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"google.golang.org/grpc"
@@ -115,6 +118,8 @@ type fakePodOps struct {
 	deleteErr   error
 	logsErr     error
 	logs        []byte
+	phase       v1.PodPhase
+	getErr      error
 	execOutputs map[string][]byte
 	execCalls   [][]string
 	deletes     []int64
@@ -123,6 +128,10 @@ type fakePodOps struct {
 func (f *fakePodOps) CreatePod(_ context.Context, pod *v1.Pod) (*v1.Pod, error) {
 	f.created = pod
 	return pod, nil
+}
+
+func (f *fakePodOps) PrepareWarmPod(context.Context, string, *runtimev1.RuntimeContract) error {
+	return nil
 }
 
 func (f *fakePodOps) ExecInPod(_ context.Context, _ string, cmd []string) ([]byte, error) {
@@ -136,6 +145,17 @@ func (f *fakePodOps) ExecInPod(_ context.Context, _ string, cmd []string) ([]byt
 		}
 	}
 	return []byte("ok"), nil
+}
+
+func (f *fakePodOps) GetPod(context.Context, string) (*v1.Pod, error) {
+	if f.getErr != nil {
+		return nil, f.getErr
+	}
+	phase := f.phase
+	if phase == "" {
+		phase = v1.PodSucceeded
+	}
+	return &v1.Pod{Status: v1.PodStatus{Phase: phase}}, nil
 }
 
 func (f *fakePodOps) DeletePod(_ context.Context, _ string, gracePeriodSeconds int64) error {
@@ -207,6 +227,7 @@ func TestLaunchRuntimeSuccessAndAlreadyExists(t *testing.T) {
 			Pods:       pods,
 			Presigner:  fakePresigner{},
 		},
+		Metrics: runtimemetrics.NewRegistry(),
 	}
 
 	response, err := service.LaunchRuntime(context.Background(), &runtimev1.LaunchRuntimeRequest{
@@ -237,6 +258,15 @@ func TestLaunchRuntimeSuccessAndAlreadyExists(t *testing.T) {
 	_, err = service.LaunchRuntime(context.Background(), &runtimev1.LaunchRuntimeRequest{Contract: &runtimev1.RuntimeContract{}})
 	if status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("expected InvalidArgument, got %v", err)
+	}
+
+	launchStore = &fakeLaunchStore{getErr: pgx.ErrNoRows, insertErr: errors.New("insert failed")}
+	service.Launcher.Store = launchStore
+	_, err = service.LaunchRuntime(context.Background(), &runtimev1.LaunchRuntimeRequest{
+		Contract: &runtimev1.RuntimeContract{CorrelationContext: &runtimev1.CorrelationContext{ExecutionId: "exec-2", WorkspaceId: "ws-1"}},
+	})
+	if status.Code(err) != codes.Internal {
+		t.Fatalf("expected Internal, got %v", err)
 	}
 }
 
@@ -289,6 +319,45 @@ func TestPauseResumeAndStopRuntime(t *testing.T) {
 	}
 }
 
+func TestStopRuntimeForceKillsWhenPodDoesNotTerminate(t *testing.T) {
+	store := &fakeServerStore{record: runtimeRecord("running")}
+	pods := &fakePodOps{phase: v1.PodRunning}
+	service := &RuntimeControlServiceServer{Store: store, Pods: pods, Fanout: events.NewFanoutRegistry()}
+
+	response, err := service.StopRuntime(context.Background(), &runtimev1.StopRuntimeRequest{ExecutionId: "exec-1", GracePeriodSeconds: 1})
+	if err != nil {
+		t.Fatalf("StopRuntime returned error: %v", err)
+	}
+	if !response.ForceKilled || response.State != runtimev1.RuntimeState_RUNTIME_STATE_FORCE_STOPPED {
+		t.Fatalf("expected force stop response, got %+v", response)
+	}
+	if len(pods.deletes) != 1 || pods.deletes[0] != 0 {
+		t.Fatalf("expected force delete grace 0, got %+v", pods.deletes)
+	}
+}
+
+func TestStopRuntimeTreatsMissingPodAsTerminatedAndStartsCollection(t *testing.T) {
+	store := &fakeServerStore{record: runtimeRecord("running")}
+	pods := &fakePodOps{getErr: errors.New("pod disappeared"), logs: []byte("logs")}
+	service := &RuntimeControlServiceServer{
+		Store: store,
+		Pods:  pods,
+		Collector: &artifacts.Collector{
+			Store:    store,
+			Pods:     pods,
+			Uploader: &artifacts.BytesUploader{},
+		},
+	}
+
+	response, err := service.StopRuntime(context.Background(), &runtimev1.StopRuntimeRequest{ExecutionId: "exec-1", GracePeriodSeconds: 1})
+	if err != nil {
+		t.Fatalf("StopRuntime returned error: %v", err)
+	}
+	if response.ForceKilled {
+		t.Fatalf("missing pod should be treated as already terminated")
+	}
+}
+
 func TestPauseResumeAndStopRuntimeErrorBranches(t *testing.T) {
 	store := &fakeServerStore{record: runtimeRecord("paused")}
 	pods := &fakePodOps{}
@@ -311,8 +380,9 @@ func TestPauseResumeAndStopRuntimeErrorBranches(t *testing.T) {
 	}
 
 	store.record.State = "paused"
-	if _, err := service.ResumeRuntime(context.Background(), &runtimev1.ResumeRuntimeRequest{ExecutionId: "exec-1"}); status.Code(err) != codes.Internal {
-		t.Fatalf("expected resume internal error, got %v", err)
+	resume, err := service.ResumeRuntime(context.Background(), &runtimev1.ResumeRuntimeRequest{ExecutionId: "exec-1"})
+	if err != nil || resume.State != runtimev1.RuntimeState_RUNTIME_STATE_PAUSED {
+		t.Fatalf("expected resume fallback, got response=%+v err=%v", resume, err)
 	}
 
 	store.record.State = "running"
@@ -320,6 +390,35 @@ func TestPauseResumeAndStopRuntimeErrorBranches(t *testing.T) {
 	pods.deleteErr = errors.New("delete failed")
 	if _, err := service.StopRuntime(context.Background(), &runtimev1.StopRuntimeRequest{ExecutionId: "exec-1", GracePeriodSeconds: 5}); status.Code(err) != codes.Internal {
 		t.Fatalf("expected stop internal error, got %v", err)
+	}
+}
+
+func TestRuntimeStateHandlersReturnLookupAndUpdateErrors(t *testing.T) {
+	store := &fakeServerStore{getErr: pgx.ErrNoRows}
+	service := &RuntimeControlServiceServer{Store: store, Pods: &fakePodOps{}}
+	if _, err := service.PauseRuntime(context.Background(), &runtimev1.PauseRuntimeRequest{ExecutionId: "missing"}); status.Code(err) != codes.NotFound {
+		t.Fatalf("expected pause not found, got %v", err)
+	}
+	if _, err := service.ResumeRuntime(context.Background(), &runtimev1.ResumeRuntimeRequest{ExecutionId: "missing"}); status.Code(err) != codes.NotFound {
+		t.Fatalf("expected resume not found, got %v", err)
+	}
+	if _, err := service.StopRuntime(context.Background(), &runtimev1.StopRuntimeRequest{ExecutionId: "missing"}); status.Code(err) != codes.NotFound {
+		t.Fatalf("expected stop not found, got %v", err)
+	}
+
+	store = &fakeServerStore{record: runtimeRecord("running"), updateErr: errors.New("update failed")}
+	service = &RuntimeControlServiceServer{Store: store, Pods: &fakePodOps{}}
+	if _, err := service.PauseRuntime(context.Background(), &runtimev1.PauseRuntimeRequest{ExecutionId: "exec-1"}); status.Code(err) != codes.Internal {
+		t.Fatalf("expected pause update error, got %v", err)
+	}
+	if _, err := service.StopRuntime(context.Background(), &runtimev1.StopRuntimeRequest{ExecutionId: "exec-1"}); status.Code(err) != codes.Internal {
+		t.Fatalf("expected stop update error, got %v", err)
+	}
+
+	store = &fakeServerStore{record: runtimeRecord("paused"), updateErr: errors.New("update failed")}
+	service = &RuntimeControlServiceServer{Store: store, Pods: &fakePodOps{}}
+	if _, err := service.ResumeRuntime(context.Background(), &runtimev1.ResumeRuntimeRequest{ExecutionId: "exec-1"}); status.Code(err) != codes.Internal {
+		t.Fatalf("expected resume update error, got %v", err)
 	}
 }
 
@@ -422,7 +521,8 @@ func TestUtilityHelpersAndInterceptors(t *testing.T) {
 	}
 
 	unaryCalled := false
-	unary, err := UnaryLoggingInterceptor(nil)(context.Background(), "request", nil, func(context.Context, any) (any, error) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	unary, err := UnaryLoggingInterceptor(logger)(context.Background(), "request", &grpc.UnaryServerInfo{FullMethod: "/runtime.Log"}, func(context.Context, any) (any, error) {
 		unaryCalled = true
 		return "response", nil
 	})
@@ -431,12 +531,30 @@ func TestUtilityHelpersAndInterceptors(t *testing.T) {
 	}
 
 	streamCalled := false
-	err = StreamLoggingInterceptor(nil)("srv", &fakeRuntimeEventStream{ctx: context.Background()}, nil, func(any, grpc.ServerStream) error {
+	err = StreamLoggingInterceptor(logger)("srv", &fakeRuntimeEventStream{ctx: context.Background()}, &grpc.StreamServerInfo{FullMethod: "/runtime.StreamLog"}, func(any, grpc.ServerStream) error {
 		streamCalled = true
 		return nil
 	})
 	if err != nil || !streamCalled {
 		t.Fatalf("unexpected stream interceptor result: %v", err)
+	}
+
+	tracingUnaryCalled := false
+	tracingUnary, err := UnaryTracingInterceptor()(context.Background(), "request", &grpc.UnaryServerInfo{FullMethod: "/runtime.Trace"}, func(context.Context, any) (any, error) {
+		tracingUnaryCalled = true
+		return "traced", nil
+	})
+	if err != nil || tracingUnary != "traced" || !tracingUnaryCalled {
+		t.Fatalf("unexpected tracing unary interceptor result: %v %v", tracingUnary, err)
+	}
+
+	tracingStreamCalled := false
+	err = StreamTracingInterceptor()("srv", &fakeRuntimeEventStream{ctx: context.Background()}, &grpc.StreamServerInfo{FullMethod: "/runtime.TraceStream"}, func(any, grpc.ServerStream) error {
+		tracingStreamCalled = true
+		return nil
+	})
+	if err != nil || !tracingStreamCalled {
+		t.Fatalf("unexpected tracing stream interceptor result: %v", err)
 	}
 }
 
@@ -452,6 +570,21 @@ func TestStreamRuntimeEventsAndCollectArtifactsErrorBranches(t *testing.T) {
 	response, err := service.CollectRuntimeArtifacts(context.Background(), &runtimev1.CollectRuntimeArtifactsRequest{ExecutionId: "exec-1"})
 	if err != nil || len(response.Artifacts) != 0 || response.Complete {
 		t.Fatalf("unexpected nil collector result: %+v err=%v", response, err)
+	}
+
+	service = &RuntimeControlServiceServer{Store: &fakeServerStore{record: runtimeRecord("running"), eventsErr: errors.New("replay failed")}}
+	err = service.StreamRuntimeEvents(&runtimev1.StreamRuntimeEventsRequest{ExecutionId: "exec-1", Since: timestamppb.Now()}, &fakeRuntimeEventStream{ctx: context.Background()})
+	if status.Code(err) != codes.Internal {
+		t.Fatalf("expected replay internal error, got %v", err)
+	}
+
+	service = &RuntimeControlServiceServer{
+		Store:  &fakeServerStore{record: runtimeRecord("running"), eventsSince: []state.RuntimeEventRecord{{RuntimeID: uuid.New(), ExecutionID: "exec-1", EmittedAt: time.Now()}}},
+		Fanout: events.NewFanoutRegistry(),
+	}
+	err = service.StreamRuntimeEvents(&runtimev1.StreamRuntimeEventsRequest{ExecutionId: "exec-1", Since: timestamppb.Now()}, &fakeRuntimeEventStream{ctx: context.Background(), err: errors.New("send failed")})
+	if err == nil {
+		t.Fatalf("expected stream send error")
 	}
 
 	service = &RuntimeControlServiceServer{

@@ -13,7 +13,11 @@ type IdleScanner struct {
 	Interval    time.Duration
 	IdleTimeout time.Duration
 	Logger      *slog.Logger
-	Store       interface {
+	Pods        interface {
+		DeletePod(context.Context, string, int64) error
+	}
+	Manager *Manager
+	Store   interface {
 		ListWarmPoolPodsByStatus(context.Context, string) ([]state.WarmPoolPod, error)
 		UpdateWarmPoolPodStatus(context.Context, string, string, *uuid.UUID) error
 	}
@@ -42,7 +46,13 @@ func (s *IdleScanner) ScanOnce(ctx context.Context) error {
 	cutoff := time.Now().Add(-s.IdleTimeout)
 	for _, pod := range pods {
 		if pod.IdleSince != nil && pod.IdleSince.Before(cutoff) {
+			if s.Pods != nil {
+				_ = s.Pods.DeletePod(ctx, pod.PodName, 0)
+			}
 			_ = s.Store.UpdateWarmPoolPodStatus(ctx, pod.PodName, "recycling", nil)
+			if s.Manager != nil {
+				s.Manager.RemoveReadyPod(pod.WorkspaceID, pod.AgentType, pod.PodName)
+			}
 		}
 	}
 	return nil

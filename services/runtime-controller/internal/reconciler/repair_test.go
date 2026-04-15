@@ -9,6 +9,7 @@ import (
 	runtimev1 "github.com/andrea-mucci/musematic/services/runtime-controller/api/grpc/v1"
 	"github.com/andrea-mucci/musematic/services/runtime-controller/internal/events"
 	"github.com/andrea-mucci/musematic/services/runtime-controller/internal/state"
+	"github.com/andrea-mucci/musematic/services/runtime-controller/pkg/metrics"
 	"github.com/google/uuid"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -67,6 +68,23 @@ func TestApplyRepairsDeletesOrphansAndPublishesEvents(t *testing.T) {
 	}
 }
 
+func TestApplyRepairsHandlesRunningMismatchAndUpdateError(t *testing.T) {
+	mismatch := state.RuntimeRecord{RuntimeID: uuid.New(), ExecutionID: "exec-running", WorkspaceID: "ws-1"}
+	store := &recordingStore{fakeRuntimeStore: fakeRuntimeStore{}}
+	report := DriftReport{Mismatches: []DriftItem{{Runtime: mismatch, Reason: "running"}}}
+	if err := ApplyRepairs(context.Background(), report, store, &fakePods{}, store, nil, nil, nil); err != nil {
+		t.Fatalf("ApplyRepairs returned error: %v", err)
+	}
+	if got := store.updated["exec-running"]; got != "running" {
+		t.Fatalf("unexpected mismatch repair state: %q", got)
+	}
+
+	store = &recordingStore{fakeRuntimeStore: fakeRuntimeStore{updateErr: errors.New("update failed")}}
+	if err := ApplyRepairs(context.Background(), DriftReport{Missing: []DriftItem{{Runtime: mismatch}}}, store, &fakePods{}, store, nil, nil, nil); err == nil {
+		t.Fatalf("expected update error")
+	}
+}
+
 func TestStateFromPodPhase(t *testing.T) {
 	if got := stateFromPodPhase(v1.PodPending); got != "pending" {
 		t.Fatalf("unexpected pending mapping: %s", got)
@@ -94,6 +112,7 @@ func TestReconcilerRunOnceAndRun(t *testing.T) {
 		Interval: time.Millisecond,
 		Store:    store,
 		Pods:     pods,
+		Metrics:  metrics.NewRegistry(),
 	}
 
 	if err := reconciler.RunOnce(context.Background()); err != nil {
