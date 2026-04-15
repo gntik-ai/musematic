@@ -265,6 +265,21 @@ class TrustSettings(BaseSettings):
     default_workspace_id: str = "00000000-0000-0000-0000-000000000000"
 
 
+class AgentOpsSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="AGENTOPS_", extra="ignore")
+
+    health_scoring_interval_minutes: int = 15
+    default_min_sample_size: int = 50
+    default_rolling_window_days: int = 30
+    regression_significance_threshold: float = 0.05
+    regression_normality_sample_min: int = 30
+    canary_monitor_interval_minutes: int = 5
+    canary_max_traffic_pct: int = 50
+    retirement_grace_period_days: int = 14
+    retirement_critical_intervals: int = 5
+    recertification_grace_period_days: int = 7
+
+
 class PlatformSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="PLATFORM_", extra="ignore")
 
@@ -291,6 +306,7 @@ class PlatformSettings(BaseSettings):
     interactions: InteractionsSettings = Field(default_factory=InteractionsSettings)
     connectors: ConnectorsSettings = Field(default_factory=ConnectorsSettings)
     trust: TrustSettings = Field(default_factory=TrustSettings)
+    agentops: AgentOpsSettings = Field(default_factory=AgentOpsSettings)
     profile: str = "api"
 
     @model_validator(mode="before")
@@ -495,11 +511,46 @@ class PlatformSettings(BaseSettings):
             ),
             "TRUST_ATTENTION_TARGET_IDENTITY": ("trust", "attention_target_identity"),
             "TRUST_DEFAULT_WORKSPACE_ID": ("trust", "default_workspace_id"),
+            "AGENTOPS_HEALTH_SCORING_INTERVAL_MINUTES": (
+                "agentops",
+                "health_scoring_interval_minutes",
+            ),
+            "AGENTOPS_DEFAULT_MIN_SAMPLE_SIZE": ("agentops", "default_min_sample_size"),
+            "AGENTOPS_DEFAULT_ROLLING_WINDOW_DAYS": (
+                "agentops",
+                "default_rolling_window_days",
+            ),
+            "AGENTOPS_REGRESSION_SIGNIFICANCE_THRESHOLD": (
+                "agentops",
+                "regression_significance_threshold",
+            ),
+            "AGENTOPS_REGRESSION_NORMALITY_SAMPLE_MIN": (
+                "agentops",
+                "regression_normality_sample_min",
+            ),
+            "AGENTOPS_CANARY_MONITOR_INTERVAL_MINUTES": (
+                "agentops",
+                "canary_monitor_interval_minutes",
+            ),
+            "AGENTOPS_CANARY_MAX_TRAFFIC_PCT": ("agentops", "canary_max_traffic_pct"),
+            "AGENTOPS_RETIREMENT_GRACE_PERIOD_DAYS": (
+                "agentops",
+                "retirement_grace_period_days",
+            ),
+            "AGENTOPS_RETIREMENT_CRITICAL_INTERVALS": (
+                "agentops",
+                "retirement_critical_intervals",
+            ),
+            "AGENTOPS_RECERTIFICATION_GRACE_PERIOD_DAYS": (
+                "agentops",
+                "recertification_grace_period_days",
+            ),
             "WS_CLIENT_BUFFER_SIZE": ("ws_hub", "client_buffer_size"),
             "WS_HEARTBEAT_INTERVAL_SECONDS": ("ws_hub", "heartbeat_interval_seconds"),
             "WS_HEARTBEAT_TIMEOUT_SECONDS": ("ws_hub", "heartbeat_timeout_seconds"),
             "WS_MAX_MALFORMED_MESSAGES": ("ws_hub", "max_malformed_messages"),
             "PLATFORM_PROFILE": ("profile", ""),
+            "RUNTIME_PROFILE": ("profile", ""),
         }
         for key, target in mappings.items():
             if key not in values:
@@ -994,6 +1045,46 @@ class PlatformSettings(BaseSettings):
     @property
     def TRUST_DEFAULT_WORKSPACE_ID(self) -> str:
         return self.trust.default_workspace_id
+
+    @property
+    def AGENTOPS_HEALTH_SCORING_INTERVAL_MINUTES(self) -> int:
+        return self.agentops.health_scoring_interval_minutes
+
+    @property
+    def AGENTOPS_DEFAULT_MIN_SAMPLE_SIZE(self) -> int:
+        return self.agentops.default_min_sample_size
+
+    @property
+    def AGENTOPS_DEFAULT_ROLLING_WINDOW_DAYS(self) -> int:
+        return self.agentops.default_rolling_window_days
+
+    @property
+    def AGENTOPS_REGRESSION_SIGNIFICANCE_THRESHOLD(self) -> float:
+        return self.agentops.regression_significance_threshold
+
+    @property
+    def AGENTOPS_REGRESSION_NORMALITY_SAMPLE_MIN(self) -> int:
+        return self.agentops.regression_normality_sample_min
+
+    @property
+    def AGENTOPS_CANARY_MONITOR_INTERVAL_MINUTES(self) -> int:
+        return self.agentops.canary_monitor_interval_minutes
+
+    @property
+    def AGENTOPS_CANARY_MAX_TRAFFIC_PCT(self) -> int:
+        return self.agentops.canary_max_traffic_pct
+
+    @property
+    def AGENTOPS_RETIREMENT_GRACE_PERIOD_DAYS(self) -> int:
+        return self.agentops.retirement_grace_period_days
+
+    @property
+    def AGENTOPS_RETIREMENT_CRITICAL_INTERVALS(self) -> int:
+        return self.agentops.retirement_critical_intervals
+
+    @property
+    def AGENTOPS_RECERTIFICATION_GRACE_PERIOD_DAYS(self) -> int:
+        return self.agentops.recertification_grace_period_days
 
 
 Settings = PlatformSettings
