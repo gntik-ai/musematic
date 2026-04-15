@@ -2,22 +2,31 @@ package sim_manager
 
 import (
 	"context"
+	"errors"
+	"io"
+	"log/slog"
 	"testing"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/stretchr/testify/require"
 )
 
 type recordingDeleter struct {
 	names []string
+	err   error
 }
 
 func (r *recordingDeleter) DeletePod(_ context.Context, podName string) error {
+	if r.err != nil {
+		return r.err
+	}
 	r.names = append(r.names, podName)
 	return nil
 }
@@ -104,6 +113,51 @@ func TestOrphanScannerDeletesPodsMissingFromRegistry(t *testing.T) {
 	require.Equal(t, []string{"orphan-pod"}, deleter.names)
 }
 
+func TestOrphanScannerRunAndErrorBranches(t *testing.T) {
+	t.Parallel()
+
+	require.NoError(t, (*OrphanScanner)(nil).Run(context.Background()))
+	require.NoError(t, (&OrphanScanner{}).Run(context.Background()))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	err := (&OrphanScanner{
+		Client:    fake.NewSimpleClientset(),
+		Namespace: DefaultNamespace,
+		Registry:  NewStateRegistry(),
+		Interval:  time.Nanosecond,
+		Logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}).Run(ctx)
+	require.ErrorIs(t, err, context.Canceled)
+
+	listErrClient := fake.NewSimpleClientset()
+	listErrClient.PrependReactor("list", "pods", func(k8stesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("list failed")
+	})
+	require.EqualError(t, (&OrphanScanner{
+		Client:    listErrClient,
+		Namespace: DefaultNamespace,
+		Registry:  NewStateRegistry(),
+	}).scan(context.Background()), "list failed")
+
+	deleteErr := errors.New("delete failed")
+	scanner := &OrphanScanner{
+		Client: fake.NewSimpleClientset(&corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+			Name:      "orphan-pod",
+			Namespace: DefaultNamespace,
+			Labels: map[string]string{
+				SimulationLabelKey:   "true",
+				SimulationIDLabelKey: "sim-orphan",
+			},
+		}}),
+		Namespace: DefaultNamespace,
+		Registry:  NewStateRegistry(),
+		Pods:      &recordingDeleter{err: deleteErr},
+		Logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	require.ErrorIs(t, scanner.scan(context.Background()), deleteErr)
+}
+
 func TestStateRegistryLifecycleHelpers(t *testing.T) {
 	t.Parallel()
 
@@ -124,6 +178,13 @@ func TestStateRegistryLifecycleHelpers(t *testing.T) {
 	_, ok = registry.Get("sim-1")
 	require.False(t, ok)
 	require.False(t, registry.UpdateStatus("missing", "FAILED"))
+
+	var nilRegistry *StateRegistry
+	nilRegistry.Register(SimulationState{SimulationID: "ignored"})
+	nilRegistry.Delete("ignored")
+	require.Nil(t, nilRegistry.List())
+	_, ok = nilRegistry.Get("ignored")
+	require.False(t, ok)
 }
 
 func TestStateHelpersCoverFallbackBranches(t *testing.T) {
@@ -138,6 +199,18 @@ func TestStateHelpersCoverFallbackBranches(t *testing.T) {
 	require.Equal(t, "COMPLETED", statusFromPhase(succeeded))
 	require.Equal(t, "FAILED", statusFromPhase(failed))
 	require.Equal(t, "CREATING", statusFromPhase(pending))
+
+	require.NoError(t, (*StateRegistry)(nil).RebuildFromPodList(context.Background(), fake.NewSimpleClientset(), DefaultNamespace))
+	require.NoError(t, NewStateRegistry().RebuildFromPodList(context.Background(), nil, DefaultNamespace))
+
+	client := fake.NewSimpleClientset(&corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+		Name:      "missing-id",
+		Namespace: DefaultNamespace,
+		Labels:    map[string]string{SimulationLabelKey: "true"},
+	}})
+	registry := NewStateRegistry()
+	require.NoError(t, registry.RebuildFromPodList(context.Background(), client, DefaultNamespace))
+	require.Empty(t, registry.List())
 }
 
 func mustQuantity(value string) resource.Quantity {

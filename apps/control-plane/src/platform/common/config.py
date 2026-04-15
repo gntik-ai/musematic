@@ -292,6 +292,24 @@ class CompositionSettings(BaseSettings):
     validation_timeout_seconds: float = 10.0
 
 
+class DiscoverySettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="DISCOVERY_", extra="ignore")
+
+    elo_k_factor: int = 32
+    elo_default_score: float = 1000.0
+    convergence_threshold: float = 0.05
+    convergence_stable_rounds: int = 2
+    max_cycles_default: int = 10
+    min_hypotheses: int = 3
+    proximity_clustering_threshold: float = 0.3
+    proximity_over_explored_min_size: int = 5
+    proximity_over_explored_similarity: float = 0.85
+    proximity_gap_distance_threshold: float = 0.5
+    qdrant_collection: str = "discovery_hypotheses"
+    embedding_vector_size: int = 1536
+    experiment_sandbox_timeout_seconds: int = 120
+
+
 class PlatformSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="PLATFORM_", extra="ignore")
 
@@ -320,6 +338,7 @@ class PlatformSettings(BaseSettings):
     trust: TrustSettings = Field(default_factory=TrustSettings)
     agentops: AgentOpsSettings = Field(default_factory=AgentOpsSettings)
     composition: CompositionSettings = Field(default_factory=CompositionSettings)
+    discovery: DiscoverySettings = Field(default_factory=DiscoverySettings)
     profile: str = "api"
 
     @model_validator(mode="before")
@@ -576,6 +595,37 @@ class PlatformSettings(BaseSettings):
             "COMPOSITION_VALIDATION_TIMEOUT_SECONDS": (
                 "composition",
                 "validation_timeout_seconds",
+            ),
+            "DISCOVERY_ELO_K_FACTOR": ("discovery", "elo_k_factor"),
+            "DISCOVERY_ELO_DEFAULT_SCORE": ("discovery", "elo_default_score"),
+            "DISCOVERY_CONVERGENCE_THRESHOLD": ("discovery", "convergence_threshold"),
+            "DISCOVERY_CONVERGENCE_STABLE_ROUNDS": (
+                "discovery",
+                "convergence_stable_rounds",
+            ),
+            "DISCOVERY_MAX_CYCLES_DEFAULT": ("discovery", "max_cycles_default"),
+            "DISCOVERY_MIN_HYPOTHESES": ("discovery", "min_hypotheses"),
+            "DISCOVERY_PROXIMITY_CLUSTERING_THRESHOLD": (
+                "discovery",
+                "proximity_clustering_threshold",
+            ),
+            "DISCOVERY_PROXIMITY_OVER_EXPLORED_MIN_SIZE": (
+                "discovery",
+                "proximity_over_explored_min_size",
+            ),
+            "DISCOVERY_PROXIMITY_OVER_EXPLORED_SIMILARITY": (
+                "discovery",
+                "proximity_over_explored_similarity",
+            ),
+            "DISCOVERY_PROXIMITY_GAP_DISTANCE_THRESHOLD": (
+                "discovery",
+                "proximity_gap_distance_threshold",
+            ),
+            "DISCOVERY_QDRANT_COLLECTION": ("discovery", "qdrant_collection"),
+            "DISCOVERY_EMBEDDING_VECTOR_SIZE": ("discovery", "embedding_vector_size"),
+            "DISCOVERY_EXPERIMENT_SANDBOX_TIMEOUT_SECONDS": (
+                "discovery",
+                "experiment_sandbox_timeout_seconds",
             ),
             "WS_CLIENT_BUFFER_SIZE": ("ws_hub", "client_buffer_size"),
             "WS_HEARTBEAT_INTERVAL_SECONDS": ("ws_hub", "heartbeat_interval_seconds"),
@@ -1145,6 +1195,58 @@ class PlatformSettings(BaseSettings):
     @property
     def COMPOSITION_VALIDATION_TIMEOUT_SECONDS(self) -> float:
         return self.composition.validation_timeout_seconds
+
+    @property
+    def DISCOVERY_ELO_K_FACTOR(self) -> int:
+        return self.discovery.elo_k_factor
+
+    @property
+    def DISCOVERY_ELO_DEFAULT_SCORE(self) -> float:
+        return self.discovery.elo_default_score
+
+    @property
+    def DISCOVERY_CONVERGENCE_THRESHOLD(self) -> float:
+        return self.discovery.convergence_threshold
+
+    @property
+    def DISCOVERY_CONVERGENCE_STABLE_ROUNDS(self) -> int:
+        return self.discovery.convergence_stable_rounds
+
+    @property
+    def DISCOVERY_MAX_CYCLES_DEFAULT(self) -> int:
+        return self.discovery.max_cycles_default
+
+    @property
+    def DISCOVERY_MIN_HYPOTHESES(self) -> int:
+        return self.discovery.min_hypotheses
+
+    @property
+    def DISCOVERY_PROXIMITY_CLUSTERING_THRESHOLD(self) -> float:
+        return self.discovery.proximity_clustering_threshold
+
+    @property
+    def DISCOVERY_PROXIMITY_OVER_EXPLORED_MIN_SIZE(self) -> int:
+        return self.discovery.proximity_over_explored_min_size
+
+    @property
+    def DISCOVERY_PROXIMITY_OVER_EXPLORED_SIMILARITY(self) -> float:
+        return self.discovery.proximity_over_explored_similarity
+
+    @property
+    def DISCOVERY_PROXIMITY_GAP_DISTANCE_THRESHOLD(self) -> float:
+        return self.discovery.proximity_gap_distance_threshold
+
+    @property
+    def DISCOVERY_QDRANT_COLLECTION(self) -> str:
+        return self.discovery.qdrant_collection
+
+    @property
+    def DISCOVERY_EMBEDDING_VECTOR_SIZE(self) -> int:
+        return self.discovery.embedding_vector_size
+
+    @property
+    def DISCOVERY_EXPERIMENT_SANDBOX_TIMEOUT_SECONDS(self) -> int:
+        return self.discovery.experiment_sandbox_timeout_seconds
 
 
 Settings = PlatformSettings

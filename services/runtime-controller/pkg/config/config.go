@@ -22,6 +22,7 @@ type Config struct {
 	HeartbeatCheckInterval    time.Duration
 	WarmPoolIdleTimeout       time.Duration
 	WarmPoolReplenishInterval time.Duration
+	WarmPoolTargets           map[string]int
 	StopGracePeriod           time.Duration
 	AgentPackagePresignTTL    time.Duration
 	K8sDryRun                 bool
@@ -42,6 +43,7 @@ func Load() (Config, error) {
 		HeartbeatCheckInterval:    readDuration("HEARTBEAT_CHECK_INTERVAL", 10*time.Second),
 		WarmPoolIdleTimeout:       readDuration("WARM_POOL_IDLE_TIMEOUT", 5*time.Minute),
 		WarmPoolReplenishInterval: readDuration("WARM_POOL_REPLENISH_INTERVAL", 30*time.Second),
+		WarmPoolTargets:           readTargetMap("WARM_POOL_TARGETS"),
 		StopGracePeriod:           readDuration("STOP_GRACE_PERIOD", 30*time.Second),
 		AgentPackagePresignTTL:    readDuration("AGENT_PACKAGE_PRESIGN_TTL", 2*time.Hour),
 		K8sDryRun:                 readBool("K8S_DRY_RUN", false),
@@ -53,6 +55,26 @@ func Load() (Config, error) {
 		return Config{}, fmt.Errorf("REDIS_ADDR is required")
 	}
 	return cfg, nil
+}
+
+func readTargetMap(key string) map[string]int {
+	raw := strings.TrimSpace(os.Getenv(key))
+	targets := map[string]int{}
+	if raw == "" {
+		return targets
+	}
+	for _, part := range strings.Split(raw, ",") {
+		name, value, ok := strings.Cut(strings.TrimSpace(part), "=")
+		if !ok || strings.TrimSpace(name) == "" {
+			continue
+		}
+		count, err := strconv.Atoi(strings.TrimSpace(value))
+		if err != nil || count < 0 {
+			continue
+		}
+		targets[strings.TrimSpace(name)] = count
+	}
+	return targets
 }
 
 func readString(key string, defaultValue string) string {

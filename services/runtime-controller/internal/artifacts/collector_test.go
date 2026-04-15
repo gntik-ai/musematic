@@ -51,11 +51,16 @@ func (f fakePodArtifacts) ExecInPod(_ context.Context, _ string, cmd []string) (
 }
 
 type fakeUploader struct {
-	uploads map[string][]byte
-	failFor map[string]error
+	uploads   map[string][]byte
+	failFor   map[string]error
+	failCount map[string]int
 }
 
 func (f *fakeUploader) Upload(_ context.Context, key string, body []byte, _ string) error {
+	if f.failCount != nil && f.failCount[key] > 0 {
+		f.failCount[key]--
+		return errors.New("transient upload failure")
+	}
 	if err := f.failFor[key]; err != nil {
 		return err
 	}
@@ -64,6 +69,32 @@ func (f *fakeUploader) Upload(_ context.Context, key string, body []byte, _ stri
 	}
 	f.uploads[key] = append([]byte(nil), body...)
 	return nil
+}
+
+func TestCollectRetriesTransientUploadFailures(t *testing.T) {
+	uploader := &fakeUploader{failCount: map[string]int{"artifacts/exec-1/runtime.log": 2}}
+	collector := &Collector{
+		Store:    fakeRuntimeLookup{record: state.RuntimeRecord{RuntimeID: uuid.New(), ExecutionID: "exec-1", PodName: "pod-1"}},
+		Pods:     fakePodArtifacts{logs: []byte("runtime logs")},
+		Uploader: uploader,
+	}
+
+	entries, complete, err := collector.Collect(context.Background(), "exec-1")
+	if err != nil {
+		t.Fatalf("Collect returned error: %v", err)
+	}
+	if !complete || len(entries) != 1 {
+		t.Fatalf("expected successful retry, complete=%v entries=%d", complete, len(entries))
+	}
+}
+
+func TestUploadWithRetryStopsOnContextCancellation(t *testing.T) {
+	collector := &Collector{Uploader: &fakeUploader{failFor: map[string]error{"k": errors.New("upload failed")}}}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := collector.uploadWithRetry(ctx, "k", []byte("body"), "text/plain"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context cancellation, got %v", err)
+	}
 }
 
 func TestCollectUploadsLogsAndArtifacts(t *testing.T) {

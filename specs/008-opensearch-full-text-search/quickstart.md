@@ -198,7 +198,23 @@ curl -s -X POST http://localhost:9200/marketplace-agents-000001/_search \
 # Index agent in workspace ws-other
 curl -s -X PUT http://localhost:9200/marketplace-agents-000001/_doc/other-agent \
   -H 'Content-Type: application/json' \
-  -d '{ "agent_id": "other-agent", "workspace_id": "ws-other", "name": "Other Agent", ... }'
+  -d '{
+    "agent_id": "other-agent",
+    "name": "Other Agent",
+    "purpose": "Belongs to another workspace",
+    "description": "This document must not be visible from ws-test searches",
+    "tags": ["isolation-test"],
+    "capabilities": ["testing"],
+    "maturity_level": 1,
+    "trust_score": 0.1,
+    "workspace_id": "ws-other",
+    "lifecycle_state": "active",
+    "certification_status": "uncertified",
+    "publisher_id": "pub-2",
+    "fqn": "test:other-agent",
+    "indexed_at": "2026-04-10T00:00:00Z",
+    "updated_at": "2026-04-10T00:00:00Z"
+  }'
 curl -s -X POST http://localhost:9200/marketplace-agents-000001/_refresh
 
 # Search with ws-test filter — must NOT return ws-other documents
@@ -266,7 +282,10 @@ To add new synonyms:
    ```bash
    kubectl edit configmap opensearch-synonyms -n platform-data
    ```
-   Add new lines to `agent-synonyms.txt` in `synonyms: key key key` format.
+   Add new comma-separated synonym lines to `agent-synonyms.txt`, matching the mounted file format:
+   ```text
+   compressor, data compression agent
+   ```
 
 2. Reload synonyms by closing and reopening the index (no data loss):
    ```bash

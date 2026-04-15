@@ -11,9 +11,10 @@ import (
 )
 
 type fakeRuntimeStore struct {
-	runtimes []state.RuntimeRecord
-	updated  map[string]string
-	listErr  error
+	runtimes  []state.RuntimeRecord
+	updated   map[string]string
+	listErr   error
+	updateErr error
 }
 
 func (f *fakeRuntimeStore) ListActiveRuntimes(context.Context) ([]state.RuntimeRecord, error) {
@@ -21,6 +22,9 @@ func (f *fakeRuntimeStore) ListActiveRuntimes(context.Context) ([]state.RuntimeR
 }
 
 func (f *fakeRuntimeStore) UpdateRuntimeState(_ context.Context, executionID string, stateValue string, _ string) error {
+	if f.updateErr != nil {
+		return f.updateErr
+	}
 	if f.updated == nil {
 		f.updated = map[string]string{}
 	}

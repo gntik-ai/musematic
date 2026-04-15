@@ -59,6 +59,8 @@ from platform.context_engineering.dependencies import build_context_engineering_
 from platform.context_engineering.drift_monitor import DriftMonitorTask
 from platform.context_engineering.events import register_context_engineering_event_types
 from platform.context_engineering.router import router as context_engineering_router
+from platform.discovery.events import register_discovery_event_types
+from platform.discovery.router import router as discovery_router
 from platform.evaluation.dependencies import build_eval_runner_service, build_robustness_service
 from platform.evaluation.events import register_evaluation_event_types
 from platform.evaluation.repository import EvaluationRepository
@@ -181,6 +183,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_fleet_event_types()
     register_agentops_event_types()
     register_composition_event_types()
+    register_discovery_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -316,6 +319,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     fleet_learning_scheduler = getattr(app.state, "fleet_learning_scheduler", None)
     agentops_lifecycle_scheduler = getattr(app.state, "agentops_lifecycle_scheduler", None)
     agentops_drift_scheduler = getattr(app.state, "agentops_drift_scheduler", None)
+    discovery_proximity_scheduler = getattr(app.state, "discovery_proximity_scheduler", None)
     robustness_orchestrator_scheduler = getattr(
         app.state,
         "robustness_orchestrator_scheduler",
@@ -377,6 +381,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["robustness_orchestrator_scheduler"] = str(exc)
             LOGGER.warning("Failed to start robustness orchestrator scheduler: %s", exc)
+    if discovery_proximity_scheduler is not None:
+        try:
+            discovery_proximity_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["discovery_proximity_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start discovery proximity scheduler: %s", exc)
     try:
         await _load_trust_runtime_assets(app)
     except Exception as exc:
@@ -402,6 +413,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                     "Failed to stop robustness orchestrator scheduler cleanly: %s",
                     exc,
                 )
+        if discovery_proximity_scheduler is not None:
+            try:
+                discovery_proximity_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop discovery proximity scheduler cleanly: %s", exc)
         if agentops_drift_scheduler is not None:
             try:
                 agentops_drift_scheduler.shutdown(wait=False)
@@ -510,6 +526,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.fleet_learning_scheduler = None
     app.state.agentops_lifecycle_scheduler = None
     app.state.agentops_drift_scheduler = None
+    app.state.discovery_proximity_scheduler = None
     app.state.robustness_orchestrator_scheduler = None
     app.state.trust_certifier_scheduler = None
     if resolved.profile == "worker":
@@ -536,11 +553,11 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.agentops_lifecycle_scheduler = _build_agentops_lifecycle_scheduler(app)
     if resolved.profile == "agentops-testing":
         app.state.agentops_drift_scheduler = _build_agentops_drift_scheduler(app)
-        app.state.robustness_orchestrator_scheduler = _build_robustness_orchestrator_scheduler(
-            app
-        )
+        app.state.robustness_orchestrator_scheduler = _build_robustness_orchestrator_scheduler(app)
     if resolved.profile == "trust-certifier":
         app.state.trust_certifier_scheduler = _build_trust_certifier_scheduler(app)
+    if resolved.profile == "discovery":
+        app.state.discovery_proximity_scheduler = _build_discovery_proximity_scheduler(app)
     if resolved.profile in {"scheduler", "context-engineering"}:
         app.state.context_engineering_drift_scheduler = _build_context_engineering_scheduler(app)
     exception_handler = cast(
@@ -576,6 +593,12 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
                 "agentops.events",
                 f"{resolved.kafka.consumer_group}-agentops-retirement",
                 _build_agentops_retirement_handler(app),
+            )
+        if resolved.profile == "discovery":
+            consumer_manager.subscribe(
+                "workflow.runtime",
+                f"{resolved.kafka.consumer_group}-discovery-runtime",
+                _build_discovery_workflow_runtime_handler(app),
             )
         if resolved.profile == "worker" and resolved.connectors.worker_enabled:
             consumer_manager.subscribe(
@@ -667,7 +690,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     ) -> dict[str, Any]:
         return {"status": "ok", "user": current_user}
 
-    if resolved.profile in {"api", "agentops", "composition"}:
+    if resolved.profile in {"api", "agentops", "composition", "discovery"}:
         app.include_router(api_router)
         app.include_router(auth_router)
         app.include_router(accounts_router)
@@ -689,6 +712,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(fleet_learning_router)
         app.include_router(agentops_router)
         app.include_router(composition_router)
+        app.include_router(discovery_router)
 
     setup_telemetry(
         service_name=f"{resolved.otel.service_name}-{resolved.profile}",
@@ -810,6 +834,32 @@ def _build_context_engineering_scheduler(app: FastAPI) -> Any | None:
         _run_drift_analysis,
         trigger,
         id="context-engineering-drift-analysis",
+    )
+    return scheduler
+
+
+def _build_discovery_proximity_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _drain_cycle_completed_queue() -> None:
+        # Actual cycle-completed events are delivered through Kafka. This periodic
+        # job is intentionally lightweight and keeps the discovery runtime profile
+        # ready for queued proximity work without scanning unrelated tables.
+        return None
+
+    scheduler.add_job(
+        _drain_cycle_completed_queue,
+        "interval",
+        seconds=60,
+        id="discovery-proximity-clustering",
     )
     return scheduler
 
@@ -1141,6 +1191,22 @@ def _build_workflow_runtime_handler(app: FastAPI) -> Callable[[Any], Awaitable[N
             except Exception:
                 await session.rollback()
                 LOGGER.exception("Workflow runtime consumer failed")
+
+    return _handle
+
+
+def _build_discovery_workflow_runtime_handler(app: FastAPI) -> Callable[[Any], Awaitable[None]]:
+    async def _handle(envelope: Any) -> None:
+        payload = getattr(envelope, "payload", {})
+        if payload.get("session_id") is None:
+            return
+        LOGGER.debug(
+            "Discovery workflow runtime event received",
+            extra={
+                "profile": app.state.settings.profile,
+                "session_id": payload.get("session_id"),
+            },
+        )
 
     return _handle
 

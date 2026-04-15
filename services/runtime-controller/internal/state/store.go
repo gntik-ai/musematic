@@ -10,7 +10,12 @@ import (
 )
 
 type Store struct {
-	pool *pgxpool.Pool
+	pool             *pgxpool.Pool
+	TaskPlanUploader TaskPlanUploader
+}
+
+type TaskPlanUploader interface {
+	UploadTaskPlan(context.Context, string, []byte) error
 }
 
 type RuntimeRecord struct {

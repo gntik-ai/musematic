@@ -22,4 +22,7 @@ func TestFanoutRegistryPublishesToMultipleSubscribers(t *testing.T) {
 	if got := <-second; got.ExecutionId != "exec-1" {
 		t.Fatalf("unexpected second event: %+v", got)
 	}
+
+	registry.Publish(nil)
+	registry.Publish(&runtimev1.RuntimeEvent{ExecutionId: "no-subscribers"})
 }

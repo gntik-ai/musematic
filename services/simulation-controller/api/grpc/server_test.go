@@ -13,6 +13,7 @@ import (
 	"github.com/musematic/simulation-controller/internal/ate_runner"
 	"github.com/musematic/simulation-controller/internal/event_streamer"
 	"github.com/musematic/simulation-controller/internal/sim_manager"
+	"github.com/musematic/simulation-controller/pkg/metrics"
 	"github.com/musematic/simulation-controller/pkg/persistence"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -56,9 +57,10 @@ func (f *fakeStore) FindATESessionIDBySimulation(context.Context, string) (strin
 }
 
 type fakeManager struct {
-	deleted []string
-	pod     *corev1.Pod
-	err     error
+	deleted   []string
+	pod       *corev1.Pod
+	err       error
+	deleteErr error
 }
 
 func (f *fakeManager) CreatePod(context.Context, sim_manager.SimulationPodSpec) (*corev1.Pod, error) {
@@ -72,6 +74,9 @@ func (f *fakeManager) CreatePod(context.Context, sim_manager.SimulationPodSpec) 
 }
 
 func (f *fakeManager) DeletePod(_ context.Context, podName string) error {
+	if f.deleteErr != nil {
+		return f.deleteErr
+	}
 	f.deleted = append(f.deleted, podName)
 	return nil
 }
@@ -138,8 +143,9 @@ func (f *fakeATERunner) Cleanup(_ context.Context, sessionID string) error {
 }
 
 type fakeSimulationStream struct {
-	ctx    context.Context
-	events []*simulationv1.SimulationEvent
+	ctx     context.Context
+	sendErr error
+	events  []*simulationv1.SimulationEvent
 }
 
 func (f *fakeSimulationStream) SetHeader(metadata.MD) error  { return nil }
@@ -154,6 +160,9 @@ func (f *fakeSimulationStream) Context() context.Context {
 func (f *fakeSimulationStream) SendMsg(any) error { return nil }
 func (f *fakeSimulationStream) RecvMsg(any) error { return nil }
 func (f *fakeSimulationStream) Send(event *simulationv1.SimulationEvent) error {
+	if f.sendErr != nil {
+		return f.sendErr
+	}
 	f.events = append(f.events, event)
 	return nil
 }
@@ -188,6 +197,40 @@ func TestGetSimulationStatusUsesRegistryFastPath(t *testing.T) {
 	require.Equal(t, "RUNNING", response.GetStatus())
 	require.Equal(t, "pod-1", response.GetPodName())
 	require.Greater(t, response.GetElapsedSeconds(), int64(0))
+}
+
+func TestGetSimulationStatusValidationAndCompletedElapsed(t *testing.T) {
+	t.Parallel()
+
+	handler := NewHandler(HandlerDependencies{})
+	_, err := handler.GetSimulationStatus(context.Background(), &simulationv1.GetSimulationStatusRequest{})
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+
+	_, err = handler.GetSimulationStatus(context.Background(), &simulationv1.GetSimulationStatusRequest{SimulationId: "sim-1"})
+	require.Equal(t, codes.Unimplemented, status.Code(err))
+
+	registry := sim_manager.NewStateRegistry()
+	_, err = NewHandler(HandlerDependencies{StateRegistry: registry}).GetSimulationStatus(
+		context.Background(),
+		&simulationv1.GetSimulationStatusRequest{SimulationId: "missing"},
+	)
+	require.Equal(t, codes.NotFound, status.Code(err))
+
+	startedAt := time.Date(2026, 4, 10, 12, 0, 0, 0, time.UTC)
+	completedAt := startedAt.Add(45 * time.Second)
+	registry.Register(sim_manager.SimulationState{
+		SimulationID: "sim-1",
+		Status:       "COMPLETED",
+		StartedAt:    &startedAt,
+		CompletedAt:  &completedAt,
+	})
+	response, err := NewHandler(HandlerDependencies{StateRegistry: registry}).GetSimulationStatus(
+		context.Background(),
+		&simulationv1.GetSimulationStatusRequest{SimulationId: "sim-1"},
+	)
+	require.NoError(t, err)
+	require.EqualValues(t, 45, response.GetElapsedSeconds())
+	require.NotNil(t, response.GetCompletedAt())
 }
 
 func TestTerminateSimulationPublishesEventAndLeavesOtherStatesUntouched(t *testing.T) {
@@ -287,6 +330,49 @@ func TestCreateSimulationMapsValidationAndAlreadyExists(t *testing.T) {
 	require.Equal(t, codes.AlreadyExists, status.Code(err))
 }
 
+func TestCreateSimulationMapsDependencyFailuresAndMetrics(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewHandler(HandlerDependencies{}).CreateSimulation(context.Background(), &simulationv1.CreateSimulationRequest{
+		SimulationId: "sim-1",
+		Config:       &simulationv1.SimulationConfig{AgentImage: "busybox:latest"},
+	})
+	require.Equal(t, codes.Unimplemented, status.Code(err))
+
+	_, err = NewHandler(HandlerDependencies{
+		SimManager: &fakeManager{},
+		Store:      &fakeStore{insertErr: errors.New("insert failed")},
+	}).CreateSimulation(context.Background(), &simulationv1.CreateSimulationRequest{
+		SimulationId: "sim-1",
+		Config:       &simulationv1.SimulationConfig{AgentImage: "busybox:latest"},
+	})
+	require.Equal(t, codes.Internal, status.Code(err))
+
+	store := &fakeStore{}
+	_, err = NewHandler(HandlerDependencies{
+		SimManager: &fakeManager{err: errors.New("create failed")},
+		Store:      store,
+	}).CreateSimulation(context.Background(), &simulationv1.CreateSimulationRequest{
+		SimulationId: "sim-1",
+		Config:       &simulationv1.SimulationConfig{AgentImage: "busybox:latest"},
+	})
+	require.Equal(t, codes.Internal, status.Code(err))
+	require.Len(t, store.updates, 1)
+	require.Equal(t, "FAILED", store.updates[0].Status)
+	require.NotNil(t, store.updates[0].ErrorMessage)
+
+	response, err := NewHandler(HandlerDependencies{
+		SimManager: &fakeManager{pod: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod-1"}}},
+		Store:      &fakeStore{},
+		Metrics:    metrics.New(),
+	}).CreateSimulation(context.Background(), &simulationv1.CreateSimulationRequest{
+		SimulationId: "sim-2",
+		Config:       &simulationv1.SimulationConfig{AgentImage: "busybox:latest"},
+	})
+	require.NoError(t, err)
+	require.Equal(t, "sim-2", response.GetSimulationId())
+}
+
 func TestStreamSimulationEventsDelegatesToStreamer(t *testing.T) {
 	t.Parallel()
 
@@ -326,6 +412,77 @@ func TestStreamSimulationEventsValidationBranches(t *testing.T) {
 		EventStreamer: &fakeEventStreamer{},
 	}).StreamSimulationEvents(&simulationv1.StreamSimulationEventsRequest{SimulationId: "sim-1"}, stream)
 	require.Equal(t, codes.NotFound, status.Code(err))
+
+	registry := sim_manager.NewStateRegistry()
+	registry.Register(sim_manager.SimulationState{SimulationID: "sim-1"})
+	err = NewHandler(HandlerDependencies{
+		StateRegistry: registry,
+		EventStreamer: &fakeEventStreamer{events: []*simulationv1.SimulationEvent{{SimulationId: "sim-1"}}},
+	}).StreamSimulationEvents(&simulationv1.StreamSimulationEventsRequest{SimulationId: "sim-1"}, &fakeSimulationStream{sendErr: errors.New("send failed")})
+	require.EqualError(t, err, "send failed")
+}
+
+func TestTerminateSimulationValidationAndErrorBranches(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewHandler(HandlerDependencies{}).TerminateSimulation(context.Background(), &simulationv1.TerminateSimulationRequest{})
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+
+	_, err = NewHandler(HandlerDependencies{}).TerminateSimulation(context.Background(), &simulationv1.TerminateSimulationRequest{SimulationId: "sim-1"})
+	require.Equal(t, codes.Unimplemented, status.Code(err))
+
+	registry := sim_manager.NewStateRegistry()
+	_, err = NewHandler(HandlerDependencies{
+		SimManager:    &fakeManager{},
+		StateRegistry: registry,
+		Store:         &fakeStore{},
+	}).TerminateSimulation(context.Background(), &simulationv1.TerminateSimulationRequest{SimulationId: "missing"})
+	require.Equal(t, codes.NotFound, status.Code(err))
+
+	registry.Register(sim_manager.SimulationState{SimulationID: "done", Status: "COMPLETED", PodName: "pod-done"})
+	_, err = NewHandler(HandlerDependencies{
+		SimManager:    &fakeManager{},
+		StateRegistry: registry,
+		Store:         &fakeStore{},
+	}).TerminateSimulation(context.Background(), &simulationv1.TerminateSimulationRequest{SimulationId: "done"})
+	require.Equal(t, codes.FailedPrecondition, status.Code(err))
+
+	registry.Register(sim_manager.SimulationState{SimulationID: "sim-delete", Status: "RUNNING", PodName: "pod-delete"})
+	_, err = NewHandler(HandlerDependencies{
+		SimManager:    &fakeManager{deleteErr: errors.New("delete failed")},
+		StateRegistry: registry,
+		Store:         &fakeStore{},
+	}).TerminateSimulation(context.Background(), &simulationv1.TerminateSimulationRequest{SimulationId: "sim-delete"})
+	require.Equal(t, codes.Internal, status.Code(err))
+
+	registry.Register(sim_manager.SimulationState{SimulationID: "sim-update", Status: "RUNNING", PodName: "pod-update"})
+	_, err = NewHandler(HandlerDependencies{
+		SimManager:    &fakeManager{},
+		StateRegistry: registry,
+		Store:         &fakeStore{updateErr: errors.New("update failed")},
+	}).TerminateSimulation(context.Background(), &simulationv1.TerminateSimulationRequest{SimulationId: "sim-update"})
+	require.Equal(t, codes.Internal, status.Code(err))
+}
+
+func TestTerminateSimulationCleansATESessionAndRecordsMetrics(t *testing.T) {
+	t.Parallel()
+
+	registry := sim_manager.NewStateRegistry()
+	registry.Register(sim_manager.SimulationState{SimulationID: "sim-1", Status: "RUNNING", PodName: "pod-1"})
+	runner := &fakeATERunner{}
+	response, err := NewHandler(HandlerDependencies{
+		SimManager:    &fakeManager{},
+		StateRegistry: registry,
+		Store:         &fakeStore{findSessionID: "session-1"},
+		ATERunner:     runner,
+		Metrics:       metrics.New(),
+	}).TerminateSimulation(context.Background(), &simulationv1.TerminateSimulationRequest{
+		SimulationId: "sim-1",
+		Reason:       "manual",
+	})
+	require.NoError(t, err)
+	require.True(t, response.GetSuccess())
+	require.Equal(t, []string{"session-1"}, runner.cleanups)
 }
 
 func TestCollectSimulationArtifactsUsesDefaultPaths(t *testing.T) {
@@ -353,6 +510,33 @@ func TestCollectSimulationArtifactsUsesDefaultPaths(t *testing.T) {
 	require.EqualValues(t, 1, response.GetArtifactsCollected())
 	require.Equal(t, []string{"/output"}, collector.paths)
 	require.Equal(t, []string{"simulation.events"}, producer.topics)
+}
+
+func TestCollectSimulationArtifactsUsesExplicitPathsPartialAndMetrics(t *testing.T) {
+	t.Parallel()
+
+	registry := sim_manager.NewStateRegistry()
+	registry.Register(sim_manager.SimulationState{SimulationID: "sim-1", PodName: "pod-1"})
+	collector := &fakeCollector{
+		partial: true,
+		refs: []*simulationv1.ArtifactRef{{
+			ObjectKey: "sim-1/workspace.tar.gz",
+			SizeBytes: 512,
+		}},
+	}
+
+	response, err := NewHandler(HandlerDependencies{
+		StateRegistry:     registry,
+		ArtifactCollector: collector,
+		Metrics:           metrics.New(),
+	}).CollectSimulationArtifacts(context.Background(), &simulationv1.CollectSimulationArtifactsRequest{
+		SimulationId: "sim-1",
+		Paths:        []string{"/custom"},
+	})
+	require.NoError(t, err)
+	require.True(t, response.GetPartial())
+	require.EqualValues(t, 512, response.GetTotalBytes())
+	require.Equal(t, []string{"/custom"}, collector.paths)
 }
 
 func TestCollectSimulationArtifactsValidationBranches(t *testing.T) {
@@ -391,7 +575,7 @@ func TestCreateAccreditedTestEnvDelegatesToRunner(t *testing.T) {
 		Status:        "PROVISIONING",
 		ScenarioCount: 1,
 	}}
-	handler := NewHandler(HandlerDependencies{ATERunner: runner})
+	handler := NewHandler(HandlerDependencies{ATERunner: runner, Metrics: metrics.New()})
 
 	handle, err := handler.CreateAccreditedTestEnv(context.Background(), &simulationv1.CreateATERequest{
 		SessionId: "session-1",

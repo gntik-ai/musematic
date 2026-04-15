@@ -125,9 +125,9 @@ describe("QuotasTab", () => {
     renderWithProviders(<QuotasTab />);
 
     const maxAgentInputs = await screen.findAllByLabelText("Max agents");
-    await user.clear(maxAgentInputs[0]);
-    await user.type(maxAgentInputs[0], "120");
-    await user.click(screen.getAllByRole("button", { name: "Save" })[0]);
+    await user.clear(maxAgentInputs[0]!);
+    await user.type(maxAgentInputs[0]!, "120");
+    await user.click(screen.getAllByRole("button", { name: "Save" })[0]!);
 
     expect(
       await screen.findByText(/Settings were changed by another administrator/i),
@@ -146,17 +146,17 @@ describe("QuotasTab", () => {
     renderWithProviders(<QuotasTab />);
 
     const maxAgentInputs = await screen.findAllByLabelText("Max agents");
-    await user.clear(maxAgentInputs[0]);
-    await user.type(maxAgentInputs[0], "140");
-    await user.click(screen.getAllByRole("button", { name: "Reset" })[0]);
+    await user.clear(maxAgentInputs[0]!);
+    await user.type(maxAgentInputs[0]!, "140");
+    await user.click(screen.getAllByRole("button", { name: "Reset" })[0]!);
 
     await waitFor(() => {
       expect(screen.getAllByLabelText("Max agents")[0]).toHaveValue(100);
     });
 
-    await user.clear(screen.getAllByLabelText("Max agents")[0]);
-    await user.type(screen.getAllByLabelText("Max agents")[0], "155");
-    await user.click(screen.getAllByRole("button", { name: "Save" })[0]);
+    await user.clear(screen.getAllByLabelText("Max agents")[0]!);
+    await user.type(screen.getAllByLabelText("Max agents")[0]!, "155");
+    await user.click(screen.getAllByRole("button", { name: "Save" })[0]!);
 
     expect(await screen.findByRole("button", { name: /Saved ✓/i })).toBeInTheDocument();
 
@@ -188,9 +188,9 @@ describe("QuotasTab", () => {
     renderWithProviders(<QuotasTab />);
 
     const maxAgentInputs = await screen.findAllByLabelText("Max agents");
-    await user.clear(maxAgentInputs[0]);
-    await user.type(maxAgentInputs[0], "160");
-    await user.click(screen.getAllByRole("button", { name: "Save" })[0]);
+    await user.clear(maxAgentInputs[0]!);
+    await user.type(maxAgentInputs[0]!, "160");
+    await user.click(screen.getAllByRole("button", { name: "Save" })[0]!);
 
     await waitFor(() => {
       expect(toast).toHaveBeenCalledWith(
@@ -217,9 +217,9 @@ describe("QuotasTab", () => {
     renderWithProviders(<QuotasTab />);
 
     const maxAgentInputs = await screen.findAllByLabelText("Max agents");
-    await user.clear(maxAgentInputs[0]);
-    await user.type(maxAgentInputs[0], "140");
-    await user.click(screen.getAllByRole("button", { name: "Save" })[0]);
+    await user.clear(maxAgentInputs[0]!);
+    await user.type(maxAgentInputs[0]!, "140");
+    await user.click(screen.getAllByRole("button", { name: "Save" })[0]!);
 
     expect(mutation).not.toHaveBeenCalled();
 
@@ -237,9 +237,9 @@ describe("QuotasTab", () => {
     renderWithProviders(<QuotasTab />);
 
     const maxAgentInputs = await screen.findAllByLabelText("Max agents");
-    await user.clear(maxAgentInputs[0]);
-    await user.type(maxAgentInputs[0], "170");
-    await user.click(screen.getAllByRole("button", { name: "Save" })[0]);
+    await user.clear(maxAgentInputs[0]!);
+    await user.type(maxAgentInputs[0]!, "170");
+    await user.click(screen.getAllByRole("button", { name: "Save" })[0]!);
 
     await waitFor(() => {
       expect(toast).toHaveBeenCalledWith(
@@ -282,16 +282,16 @@ describe("QuotasTab", () => {
       expect(screen.getAllByLabelText("Storage quota (GB)")[1]).toHaveValue(null);
     });
 
-    const overrideStorageQuota = screen.getAllByLabelText("Storage quota (GB)")[1];
+    const overrideStorageQuota = screen.getAllByLabelText("Storage quota (GB)")[1]!;
     await user.type(overrideStorageQuota, "640");
-    await user.click(screen.getAllByRole("button", { name: "Reset" })[1]);
+    await user.click(screen.getAllByRole("button", { name: "Reset" })[1]!);
 
     await waitFor(() => {
       expect(screen.getAllByLabelText("Storage quota (GB)")[1]).toHaveValue(null);
     });
 
-    await user.type(screen.getAllByLabelText("Storage quota (GB)")[1], "777");
-    await user.click(screen.getAllByRole("button", { name: "Save" })[1]);
+    await user.type(screen.getAllByLabelText("Storage quota (GB)")[1]!, "777");
+    await user.click(screen.getAllByRole("button", { name: "Save" })[1]!);
 
     await waitFor(() => {
       expect(toast).toHaveBeenCalledWith(
@@ -348,10 +348,10 @@ describe("QuotasTab", () => {
       expect(screen.getAllByLabelText("Monthly token budget")[1]).toHaveValue(5000);
     });
 
-    const monthlyBudget = screen.getAllByLabelText("Monthly token budget")[1];
+    const monthlyBudget = screen.getAllByLabelText("Monthly token budget")[1]!;
     await user.clear(monthlyBudget);
     await user.type(monthlyBudget, "6100");
-    await user.click(screen.getAllByRole("button", { name: "Save" })[1]);
+    await user.click(screen.getAllByRole("button", { name: "Save" })[1]!);
 
     expect(
       await screen.findByText(/Settings were changed by another administrator/i),
@@ -362,9 +362,9 @@ describe("QuotasTab", () => {
       expect(screen.getAllByLabelText("Monthly token budget")[1]).toHaveValue(5000);
     });
 
-    await user.clear(screen.getAllByLabelText("Monthly token budget")[1]);
-    await user.type(screen.getAllByLabelText("Monthly token budget")[1], "6200");
-    await user.click(screen.getAllByRole("button", { name: "Save" })[1]);
+    await user.clear(screen.getAllByLabelText("Monthly token budget")[1]!);
+    await user.type(screen.getAllByLabelText("Monthly token budget")[1]!, "6200");
+    await user.click(screen.getAllByRole("button", { name: "Save" })[1]!);
 
     expect(await screen.findAllByRole("button", { name: /Saved ✓/i })).toHaveLength(1);
 
@@ -396,9 +396,9 @@ describe("QuotasTab", () => {
     await user.type(screen.getByLabelText("Search workspaces"), "Signal");
     await user.click(screen.getByRole("button", { name: /Signal Lab/i }));
 
-    const overrideMaxAgents = screen.getAllByLabelText("Max agents")[1];
+    const overrideMaxAgents = screen.getAllByLabelText("Max agents")[1]!;
     await user.type(overrideMaxAgents, "320");
-    await user.click(screen.getAllByRole("button", { name: "Save" })[1]);
+    await user.click(screen.getAllByRole("button", { name: "Save" })[1]!);
 
     expect(mutation).not.toHaveBeenCalled();
 
@@ -425,8 +425,8 @@ describe("QuotasTab", () => {
       expect(screen.getAllByLabelText("Storage quota (GB)")[1]).toBeInTheDocument();
     });
 
-    await user.type(screen.getAllByLabelText("Storage quota (GB)")[1], "900");
-    await user.click(screen.getAllByRole("button", { name: "Save" })[1]);
+    await user.type(screen.getAllByLabelText("Storage quota (GB)")[1]!, "900");
+    await user.click(screen.getAllByRole("button", { name: "Save" })[1]!);
 
     await waitFor(() => {
       expect(toast).toHaveBeenCalledWith(

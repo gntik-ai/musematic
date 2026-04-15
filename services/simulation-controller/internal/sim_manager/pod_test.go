@@ -1,9 +1,13 @@
 package sim_manager
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 )
 
 func TestBuildPodIncludesSimulationIsolationConfig(t *testing.T) {
@@ -70,4 +74,52 @@ func TestBuildPodAddsATEMounts(t *testing.T) {
 		}
 	}
 	require.True(t, foundMount)
+}
+
+func TestPodManagerClientOperations(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	manager := NewPodManager(client, "sim-ns", "bucket-a", 99)
+
+	pod, err := manager.CreatePod(context.Background(), SimulationPodSpec{
+		SimulationID: "sim-1",
+		AgentImage:   "busybox:latest",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "sim-ns", pod.Namespace)
+	require.Equal(t, "sim-sim-1", pod.Name)
+
+	pod.Status.Phase = corev1.PodRunning
+	_, err = client.CoreV1().Pods("sim-ns").UpdateStatus(context.Background(), pod, metav1.UpdateOptions{})
+	require.NoError(t, err)
+
+	phase, err := manager.GetPodPhase(context.Background(), pod.Name)
+	require.NoError(t, err)
+	require.Equal(t, "Running", phase)
+
+	require.NoError(t, manager.DeletePod(context.Background(), pod.Name))
+	require.NoError(t, manager.DeletePod(context.Background(), "already-gone"))
+}
+
+func TestPodManagerDefaultsAndErrors(t *testing.T) {
+	manager := NewPodManager(fake.NewSimpleClientset(), "", "", 0)
+	require.Equal(t, DefaultNamespace, manager.Namespace)
+	require.Equal(t, DefaultBucket, manager.Bucket)
+	require.Equal(t, int32(DefaultMaxDurationSec), manager.DefaultMaxDuration)
+
+	nilManager := &PodManager{}
+	_, err := nilManager.CreatePod(context.Background(), SimulationPodSpec{})
+	require.Error(t, err)
+	require.Error(t, nilManager.DeletePod(context.Background(), "pod"))
+	_, err = nilManager.GetPodPhase(context.Background(), "pod")
+	require.Error(t, err)
+
+	_, err = BuildPod(SimulationPodSpec{SimulationID: "bad", AgentImage: "busybox", CPURequest: "not-a-quantity"}, "", "", 0)
+	require.Error(t, err)
+	_, err = BuildPod(SimulationPodSpec{SimulationID: "bad", AgentImage: "busybox", MemoryRequest: "not-a-quantity"}, "", "", 0)
+	require.Error(t, err)
+	_, err = BuildPod(SimulationPodSpec{SimulationID: "bad", AgentImage: "busybox", CPULimit: "not-a-quantity"}, "", "", 0)
+	require.Error(t, err)
+	_, err = BuildPod(SimulationPodSpec{SimulationID: "bad", AgentImage: "busybox", MemoryLimit: "not-a-quantity"}, "", "", 0)
+	require.Error(t, err)
+	require.Equal(t, "", firstNonEmpty("", ""))
 }

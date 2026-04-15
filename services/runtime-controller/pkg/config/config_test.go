@@ -21,6 +21,7 @@ func clearConfigEnv(t *testing.T) {
 		"HEARTBEAT_CHECK_INTERVAL",
 		"WARM_POOL_IDLE_TIMEOUT",
 		"WARM_POOL_REPLENISH_INTERVAL",
+		"WARM_POOL_TARGETS",
 		"STOP_GRACE_PERIOD",
 		"AGENT_PACKAGE_PRESIGN_TTL",
 		"K8S_DRY_RUN",
@@ -66,6 +67,9 @@ func TestLoadUsesDefaults(t *testing.T) {
 	if cfg.K8sDryRun {
 		t.Fatalf("expected dry-run default false")
 	}
+	if len(cfg.WarmPoolTargets) != 0 {
+		t.Fatalf("expected empty warm pool targets by default")
+	}
 }
 
 func TestLoadParsesCustomValues(t *testing.T) {
@@ -83,6 +87,7 @@ func TestLoadParsesCustomValues(t *testing.T) {
 	t.Setenv("HEARTBEAT_CHECK_INTERVAL", "15s")
 	t.Setenv("WARM_POOL_IDLE_TIMEOUT", "10m")
 	t.Setenv("WARM_POOL_REPLENISH_INTERVAL", "90s")
+	t.Setenv("WARM_POOL_TARGETS", "ws-1/agent-a=2,invalid,ws-2/agent-b=1")
 	t.Setenv("STOP_GRACE_PERIOD", "45s")
 	t.Setenv("AGENT_PACKAGE_PRESIGN_TTL", "30m")
 	t.Setenv("K8S_DRY_RUN", "true")
@@ -105,6 +110,9 @@ func TestLoadParsesCustomValues(t *testing.T) {
 	}
 	if !cfg.K8sDryRun {
 		t.Fatalf("expected dry-run true")
+	}
+	if cfg.WarmPoolTargets["ws-1/agent-a"] != 2 || cfg.WarmPoolTargets["ws-2/agent-b"] != 1 {
+		t.Fatalf("unexpected warm pool targets: %+v", cfg.WarmPoolTargets)
 	}
 }
 

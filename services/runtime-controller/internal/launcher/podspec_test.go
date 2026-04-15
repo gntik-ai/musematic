@@ -20,7 +20,7 @@ func TestBuildPodSpecAppliesLabelsVolumesAndResources(t *testing.T) {
 			MemoryRequest: "256Mi",
 			MemoryLimit:   "512Mi",
 		},
-		EnvVars: map[string]string{"FOO": "bar"},
+		EnvVars: map[string]string{"FOO": "bar", "SANITIZER_PATTERNS_URL": "https://config/patterns.json"},
 	}
 
 	pod := BuildPodSpec(contract, "https://example.invalid/package.tgz", "platform-execution", []v1.VolumeProjection{}, nil)
@@ -36,6 +36,9 @@ func TestBuildPodSpecAppliesLabelsVolumesAndResources(t *testing.T) {
 	if got := pod.Spec.Containers[0].Resources.Requests.Cpu().String(); got != "250m" {
 		t.Fatalf("unexpected cpu request: %s", got)
 	}
+	if pod.Spec.Containers[0].Env[2].Value != "https://config/patterns.json" {
+		t.Fatalf("unexpected sanitizer URL env: %+v", pod.Spec.Containers[0].Env)
+	}
 }
 
 func TestPodSpecHelpersHandleSecretMountsAndEmptyValues(t *testing.T) {
@@ -48,6 +51,9 @@ func TestPodSpecHelpersHandleSecretMountsAndEmptyValues(t *testing.T) {
 	}
 	if got := sanitizeLabelValue("Agent/FQN.With:Chars"); got != "agent-fqn.with-chars" {
 		t.Fatalf("unexpected sanitized label: %s", got)
+	}
+	if got := sanitizeLabelValue("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnop"); len(got) != 63 {
+		t.Fatalf("expected truncated label, got %q len=%d", got, len(got))
 	}
 	if got := buildPodName(""); got != "runtime-unknown" {
 		t.Fatalf("unexpected pod name: %s", got)

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	runtimev1 "github.com/andrea-mucci/musematic/services/runtime-controller/api/grpc/v1"
+	"github.com/andrea-mucci/musematic/services/runtime-controller/internal/events"
 	"github.com/andrea-mucci/musematic/services/runtime-controller/internal/state"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -15,16 +16,21 @@ import (
 )
 
 type fakeStore struct {
-	inserted  []state.RuntimeRecord
-	taskPlans []state.TaskPlanRecord
-	events    []state.RuntimeEventRecord
-	runtime   state.RuntimeRecord
-	getErr    error
-	updatedTo string
-	updateErr error
+	inserted    []state.RuntimeRecord
+	taskPlans   []state.TaskPlanRecord
+	events      []state.RuntimeEventRecord
+	runtime     state.RuntimeRecord
+	getErr      error
+	insertErr   error
+	taskPlanErr error
+	updatedTo   string
+	updateErr   error
 }
 
 func (f *fakeStore) InsertRuntime(_ context.Context, record state.RuntimeRecord) error {
+	if f.insertErr != nil {
+		return f.insertErr
+	}
 	f.inserted = append(f.inserted, record)
 	return nil
 }
@@ -42,6 +48,9 @@ func (f *fakeStore) UpdateRuntimeState(_ context.Context, _ string, stateValue s
 }
 
 func (f *fakeStore) InsertTaskPlanRecord(_ context.Context, record state.TaskPlanRecord) error {
+	if f.taskPlanErr != nil {
+		return f.taskPlanErr
+	}
 	f.taskPlans = append(f.taskPlans, record)
 	return nil
 }
@@ -51,11 +60,27 @@ func (f *fakeStore) InsertRuntimeEvent(_ context.Context, event state.RuntimeEve
 	return nil
 }
 
-type fakePodManager struct{ created *v1.Pod }
+type fakePodManager struct {
+	created    *v1.Pod
+	createErr  error
+	prepareErr error
+	prepared   string
+}
 
 func (f *fakePodManager) CreatePod(_ context.Context, pod *v1.Pod) (*v1.Pod, error) {
+	if f.createErr != nil {
+		return nil, f.createErr
+	}
 	f.created = pod
 	return pod, nil
+}
+
+func (f *fakePodManager) PrepareWarmPod(context.Context, string, *runtimev1.RuntimeContract) error {
+	if f.prepareErr != nil {
+		return f.prepareErr
+	}
+	f.prepared = "called"
+	return nil
 }
 
 type fakeSecretResolver struct{ err error }
@@ -79,9 +104,12 @@ func (fakePresignerError) PresignAgentPackageURL(context.Context, string, time.D
 type fakeWarmPoolDispatcher struct {
 	podName string
 	ok      bool
+	err     error
 }
 
-func (f fakeWarmPoolDispatcher) Dispatch(string, string) (string, bool) { return f.podName, f.ok }
+func (f fakeWarmPoolDispatcher) Dispatch(context.Context, string, string, uuid.UUID) (string, bool, error) {
+	return f.podName, f.ok, f.err
+}
 
 func TestLaunchCreatesPendingRuntimeThenRunningPod(t *testing.T) {
 	store := &fakeStore{getErr: pgx.ErrNoRows}
@@ -92,6 +120,7 @@ func TestLaunchCreatesPendingRuntimeThenRunningPod(t *testing.T) {
 		Store:      store,
 		Pods:       pods,
 		Presigner:  fakePresigner{},
+		Fanout:     events.NewFanoutRegistry(),
 	}
 	info, warmStart, err := service.Launch(context.Background(), &runtimev1.RuntimeContract{
 		AgentRevision: "agent-v1",
@@ -163,6 +192,37 @@ func TestLaunchUsesWarmPoolWithoutCreatingPod(t *testing.T) {
 	}
 }
 
+func TestLaunchWarmPoolErrors(t *testing.T) {
+	store := &fakeStore{getErr: pgx.ErrNoRows}
+	service := &Launcher{
+		Namespace: "platform-execution",
+		Store:     store,
+		Pods:      &fakePodManager{},
+		WarmPool:  fakeWarmPoolDispatcher{err: errors.New("dispatch failed")},
+	}
+	if _, _, err := service.Launch(context.Background(), &runtimev1.RuntimeContract{
+		AgentRevision: "agent-v1",
+		CorrelationContext: &runtimev1.CorrelationContext{
+			ExecutionId: "exec-1",
+			WorkspaceId: "ws-1",
+		},
+	}); err == nil {
+		t.Fatalf("expected warm pool dispatch error")
+	}
+
+	service.WarmPool = fakeWarmPoolDispatcher{podName: "warm-pod-1", ok: true}
+	service.Pods = &fakePodManager{prepareErr: errors.New("prepare failed")}
+	if _, _, err := service.Launch(context.Background(), &runtimev1.RuntimeContract{
+		AgentRevision: "agent-v1",
+		CorrelationContext: &runtimev1.CorrelationContext{
+			ExecutionId: "exec-2",
+			WorkspaceId: "ws-1",
+		},
+	}); err == nil {
+		t.Fatalf("expected warm pod preparation error")
+	}
+}
+
 func TestLaunchPropagatesSecretResolutionError(t *testing.T) {
 	store := &fakeStore{getErr: pgx.ErrNoRows}
 	service := &Launcher{
@@ -199,9 +259,42 @@ func TestSecretResolverFuncResolveDelegates(t *testing.T) {
 }
 
 func TestLaunchPropagatesOperationalErrors(t *testing.T) {
-	store := &fakeStore{getErr: pgx.ErrNoRows}
+	store := &fakeStore{getErr: errors.New("lookup failed")}
+	service := &Launcher{Store: store}
+	if _, _, err := service.Launch(context.Background(), &runtimev1.RuntimeContract{
+		CorrelationContext: &runtimev1.CorrelationContext{ExecutionId: "exec-1", WorkspaceId: "ws-1"},
+	}); err == nil {
+		t.Fatalf("expected lookup error")
+	}
+
+	store = &fakeStore{getErr: pgx.ErrNoRows, insertErr: errors.New("insert failed")}
+	service = &Launcher{Store: store}
+	if _, _, err := service.Launch(context.Background(), &runtimev1.RuntimeContract{
+		CorrelationContext: &runtimev1.CorrelationContext{ExecutionId: "exec-1", WorkspaceId: "ws-1"},
+	}); err == nil {
+		t.Fatalf("expected insert error")
+	}
+
+	store = &fakeStore{getErr: pgx.ErrNoRows, taskPlanErr: errors.New("task plan failed")}
+	service = &Launcher{Store: store}
+	if _, _, err := service.Launch(context.Background(), &runtimev1.RuntimeContract{
+		TaskPlanJson:       `{"task":"plan"}`,
+		CorrelationContext: &runtimev1.CorrelationContext{ExecutionId: "exec-1", WorkspaceId: "ws-1"},
+	}); err == nil {
+		t.Fatalf("expected task plan error")
+	}
+
+	store = &fakeStore{getErr: pgx.ErrNoRows}
+	service = &Launcher{Store: store, Pods: &fakePodManager{createErr: errors.New("create failed")}}
+	if _, _, err := service.Launch(context.Background(), &runtimev1.RuntimeContract{
+		CorrelationContext: &runtimev1.CorrelationContext{ExecutionId: "exec-1", WorkspaceId: "ws-1"},
+	}); err == nil {
+		t.Fatalf("expected create pod error")
+	}
+
+	store = &fakeStore{getErr: pgx.ErrNoRows}
 	pods := &fakePodManager{}
-	service := &Launcher{
+	service = &Launcher{
 		Namespace:  "platform-execution",
 		Store:      store,
 		Pods:       pods,
@@ -239,6 +332,9 @@ func TestLaunchPropagatesOperationalErrors(t *testing.T) {
 }
 
 func TestMustJSON(t *testing.T) {
+	if mustJSON(nil) != nil {
+		t.Fatalf("expected nil JSON for nil value")
+	}
 	body := mustJSON(map[string]string{"hello": "world"})
 	var decoded map[string]string
 	if err := json.Unmarshal(body, &decoded); err != nil {

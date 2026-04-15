@@ -37,6 +37,8 @@ export function ForgotPasswordForm() {
   const handleSubmit = form.handleSubmit(async (values) => {
     try {
       await forgotPasswordMutation.mutateAsync(values);
+    } catch {
+      // Preserve account-enumeration resistance: every server response reaches the same UI.
     } finally {
       setIsConfirmed(true);
     }

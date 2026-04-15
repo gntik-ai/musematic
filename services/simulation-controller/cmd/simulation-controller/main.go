@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	grpcserver "github.com/musematic/simulation-controller/api/grpc"
 	simulationv1 "github.com/musematic/simulation-controller/api/grpc/v1"
 	"github.com/musematic/simulation-controller/internal/artifact_collector"
@@ -42,6 +43,60 @@ type config struct {
 	kubeconfig          string
 }
 
+type runtimeStore interface {
+	InsertSimulation(ctx context.Context, record persistence.SimulationRecord) error
+	UpdateSimulationStatus(ctx context.Context, simulationID string, update persistence.SimulationStatusUpdate) error
+	FindATESessionIDBySimulation(ctx context.Context, simulationID string) (string, error)
+	InsertSimulationArtifact(ctx context.Context, record persistence.SimulationArtifactRecord) error
+	InsertATESession(ctx context.Context, record persistence.ATESessionRecord) error
+	InsertATEResult(ctx context.Context, record persistence.ATEResultRecord) error
+	UpdateATEReport(ctx context.Context, sessionID, objectKey string, completedAt time.Time) error
+}
+
+type runtimeUploader interface {
+	Upload(ctx context.Context, key string, data []byte, metadata map[string]string) error
+}
+
+type runtimeComponents struct {
+	store     runtimeStore
+	producer  persistence.Producer
+	uploader  runtimeUploader
+	clientset kubernetes.Interface
+	restCfg   *rest.Config
+	listener  net.Listener
+	close     func()
+}
+
+var (
+	newPostgresPoolFunc  = persistence.NewPostgresPool
+	newPostgresStoreFunc = func(pool *pgxpool.Pool) runtimeStore {
+		return persistence.NewStore(pool)
+	}
+	closePostgresPoolFunc = func(pool *pgxpool.Pool) {
+		if pool != nil {
+			pool.Close()
+		}
+	}
+	newRuntimeProducerFunc = func(brokers string) persistence.Producer {
+		producer := persistence.NewKafkaProducer(brokers)
+		if producer == nil {
+			return nil
+		}
+		return producer
+	}
+	newRuntimeUploaderFunc = func(endpoint, bucket string) runtimeUploader {
+		uploader := persistence.NewMinIOClient(endpoint, bucket)
+		if uploader == nil {
+			return nil
+		}
+		return uploader
+	}
+	newKubernetesClientFunc = func(kubeconfig string) (kubernetes.Interface, *rest.Config, error) {
+		return newKubernetesClient(kubeconfig)
+	}
+	listenTCPFunc = net.Listen
+)
+
 func main() {
 	if err := run(); err != nil {
 		slog.Error("simulation controller failed", "error", err)
@@ -55,66 +110,104 @@ func run() error {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	if cfg.postgresDSN == "" || cfg.kafkaBrokers == "" || cfg.minioEndpoint == "" {
-		return fmt.Errorf("POSTGRES_DSN, KAFKA_BROKERS, and MINIO_ENDPOINT are required")
-	}
-
-	pool := persistence.NewPostgresPool(cfg.postgresDSN)
-	if pool == nil {
-		return fmt.Errorf("POSTGRES_DSN is required")
-	}
-	defer pool.Close()
-	store := persistence.NewStore(pool)
-
-	producer := persistence.NewKafkaProducer(cfg.kafkaBrokers)
-	if producer == nil {
-		return fmt.Errorf("KAFKA_BROKERS is required")
-	}
-	defer producer.Close()
-
-	minio := persistence.NewMinIOClient(cfg.minioEndpoint, cfg.simulationBucket)
-	if minio == nil {
-		return fmt.Errorf("MINIO_ENDPOINT is required")
-	}
-
-	clientset, restCfg, err := newKubernetesClient(cfg.kubeconfig)
+	components, err := buildRuntimeComponents(ctx, cfg)
 	if err != nil {
 		return err
+	}
+	defer components.close()
+	return runWithComponents(ctx, cfg, components, logger)
+}
+
+func buildRuntimeComponents(ctx context.Context, cfg config) (runtimeComponents, error) {
+	if cfg.postgresDSN == "" || cfg.kafkaBrokers == "" || cfg.minioEndpoint == "" {
+		return runtimeComponents{}, fmt.Errorf("POSTGRES_DSN, KAFKA_BROKERS, and MINIO_ENDPOINT are required")
+	}
+
+	pool := newPostgresPoolFunc(cfg.postgresDSN)
+	if pool == nil {
+		return runtimeComponents{}, fmt.Errorf("POSTGRES_DSN is required")
+	}
+	store := newPostgresStoreFunc(pool)
+
+	producer := newRuntimeProducerFunc(cfg.kafkaBrokers)
+	if producer == nil {
+		closePostgresPoolFunc(pool)
+		return runtimeComponents{}, fmt.Errorf("KAFKA_BROKERS is required")
+	}
+
+	minio := newRuntimeUploaderFunc(cfg.minioEndpoint, cfg.simulationBucket)
+	if minio == nil {
+		closePostgresPoolFunc(pool)
+		producer.Close()
+		return runtimeComponents{}, fmt.Errorf("MINIO_ENDPOINT is required")
+	}
+
+	clientset, restCfg, err := newKubernetesClientFunc(cfg.kubeconfig)
+	if err != nil {
+		closePostgresPoolFunc(pool)
+		producer.Close()
+		return runtimeComponents{}, err
+	}
+
+	listener, err := listenTCPFunc("tcp", fmt.Sprintf(":%d", cfg.grpcPort))
+	if err != nil {
+		closePostgresPoolFunc(pool)
+		producer.Close()
+		return runtimeComponents{}, err
+	}
+
+	return runtimeComponents{
+		store:     store,
+		producer:  producer,
+		uploader:  minio,
+		clientset: clientset,
+		restCfg:   restCfg,
+		listener:  listener,
+		close: func() {
+			closePostgresPoolFunc(pool)
+			producer.Close()
+		},
+	}, nil
+}
+
+func runWithComponents(ctx context.Context, cfg config, components runtimeComponents, logger *slog.Logger) error {
+	if logger == nil {
+		logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
 	}
 
 	telemetry := metrics.New()
 	registry := sim_manager.NewStateRegistry()
-	if err := registry.RebuildFromPodList(ctx, clientset, cfg.simulationNamespace); err != nil {
+	if err := registry.RebuildFromPodList(ctx, components.clientset, cfg.simulationNamespace); err != nil {
 		return err
 	}
 
-	podManager := sim_manager.NewPodManager(clientset, cfg.simulationNamespace, cfg.simulationBucket, cfg.defaultMaxDuration)
+	podManager := sim_manager.NewPodManager(components.clientset, cfg.simulationNamespace, cfg.simulationBucket, cfg.defaultMaxDuration)
 	if err := podManager.EnsureNetworkPolicy(ctx); err != nil {
 		return err
 	}
 
 	fanout := event_streamer.NewFanoutRegistry(64)
 	watcher := &event_streamer.PodWatcher{
-		Client:    clientset,
+		Client:    components.clientset,
 		Namespace: cfg.simulationNamespace,
 		Fanout:    fanout,
-		Producer:  producer,
+		Producer:  components.producer,
 		Logger:    logger,
 	}
 	streamer := event_streamer.NewStreamer(fanout, watcher)
-	collector := artifact_collector.NewExecCollector(cfg.simulationNamespace, restCfg, minio, store)
+	collector := artifact_collector.NewExecCollector(cfg.simulationNamespace, components.restCfg, components.uploader, components.store)
 	aggregator := &ate_runner.ResultsAggregator{
 		Fanout:   fanout,
-		Store:    store,
-		Uploader: minio,
+		Store:    components.store,
+		Uploader: components.uploader,
 		Metrics:  telemetry,
 	}
 	runner := &ate_runner.Runner{
-		Client:     clientset,
+		Client:     components.clientset,
 		Namespace:  cfg.simulationNamespace,
 		Bucket:     cfg.simulationBucket,
 		Manager:    podManager,
-		Store:      store,
+		Store:      components.store,
 		Registry:   registry,
 		Aggregator: aggregator,
 		Logger:     logger,
@@ -123,12 +216,12 @@ func run() error {
 	handler := grpcserver.NewHandler(grpcserver.HandlerDependencies{
 		SimManager:        podManager,
 		StateRegistry:     registry,
-		Store:             store,
+		Store:             components.store,
 		ArtifactCollector: collector,
 		ATERunner:         runner,
 		EventStreamer:     streamer,
 		Fanout:            fanout,
-		Producer:          producer,
+		Producer:          components.producer,
 		Metrics:           telemetry,
 		Logger:            logger,
 	})
@@ -146,7 +239,7 @@ func run() error {
 
 	go func() {
 		_ = (&sim_manager.OrphanScanner{
-			Client:    clientset,
+			Client:    components.clientset,
 			Namespace: cfg.simulationNamespace,
 			Registry:  registry,
 			Pods:      podManager,
@@ -154,11 +247,6 @@ func run() error {
 			Logger:    logger,
 		}).Run(ctx)
 	}()
-
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.grpcPort))
-	if err != nil {
-		return err
-	}
 
 	go func() {
 		<-ctx.Done()
@@ -176,7 +264,7 @@ func run() error {
 	}()
 
 	logger.Info("simulation controller starting", "grpc_port", cfg.grpcPort)
-	return grpcServer.Serve(listener)
+	return grpcServer.Serve(components.listener)
 }
 
 func loadConfig() config {

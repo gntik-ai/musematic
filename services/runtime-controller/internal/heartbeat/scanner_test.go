@@ -9,6 +9,7 @@ import (
 	runtimev1 "github.com/andrea-mucci/musematic/services/runtime-controller/api/grpc/v1"
 	"github.com/andrea-mucci/musematic/services/runtime-controller/internal/events"
 	"github.com/andrea-mucci/musematic/services/runtime-controller/internal/state"
+	"github.com/andrea-mucci/musematic/services/runtime-controller/pkg/metrics"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )
@@ -65,9 +66,10 @@ func TestScanOnceMarksMissingHeartbeatFailedAndPublishes(t *testing.T) {
 	ch, unsubscribe := fanout.Subscribe("exec-1")
 	defer unsubscribe()
 	scanner := &Scanner{
-		Redis:  &fakeRedisExists{values: map[string]int64{"heartbeat:exec-1": 0}},
-		Store:  store,
-		Fanout: fanout,
+		Redis:   &fakeRedisExists{values: map[string]int64{"heartbeat:exec-1": 0}},
+		Store:   store,
+		Fanout:  fanout,
+		Metrics: metrics.NewRegistry(),
 	}
 
 	if err := scanner.ScanOnce(context.Background()); err != nil {
