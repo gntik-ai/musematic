@@ -28,6 +28,13 @@ export const NAV_ITEMS: NavItem[] = [
     requiredRoles: ["platform_admin"],
   },
   {
+    id: "operator",
+    label: "Operator",
+    icon: "Activity",
+    href: "/operator",
+    requiredRoles: ["platform_admin", "superadmin"],
+  },
+  {
     id: "agents",
     label: "Agents",
     icon: "Bot",

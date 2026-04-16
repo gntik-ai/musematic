@@ -7,18 +7,28 @@ export function ScoreGauge({
   score,
   size = 120,
   thresholds = { warning: 40, good: 75 },
+  tone = "higher-is-better",
+  valueLabel,
 }: {
   label?: string;
   score: number;
   size?: 80 | 120 | 160;
   thresholds?: { warning: number; good: number };
+  tone?: "higher-is-better" | "lower-is-better";
+  valueLabel?: string;
 }) {
   const color =
-    score < thresholds.warning
-      ? "hsl(var(--destructive))"
-      : score < thresholds.good
-        ? "hsl(var(--warning))"
-        : "hsl(var(--brand-primary))";
+    tone === "higher-is-better"
+      ? score < thresholds.warning
+        ? "hsl(var(--destructive))"
+        : score < thresholds.good
+          ? "hsl(var(--warning))"
+          : "hsl(var(--brand-primary))"
+      : score >= thresholds.good
+        ? "hsl(var(--destructive))"
+        : score >= thresholds.warning
+          ? "hsl(var(--warning))"
+          : "hsl(var(--brand-primary))";
 
   return (
     <div className="flex flex-col items-center gap-2">
@@ -27,7 +37,9 @@ export function ScoreGauge({
           <RadialBarChart cx="50%" cy="50%" data={[{ name: "score", value: score }]} endAngle={-270} innerRadius="75%" outerRadius="100%" startAngle={90}>
             <RadialBar background cornerRadius={999} dataKey="value" fill={color} />
             <text dominantBaseline="middle" fill="currentColor" textAnchor="middle" x="50%" y="50%">
-              <tspan className="fill-foreground text-lg font-semibold">{score}</tspan>
+              <tspan className="fill-foreground text-lg font-semibold">
+                {valueLabel ?? score}
+              </tspan>
             </text>
           </RadialBarChart>
         </ResponsiveContainer>
