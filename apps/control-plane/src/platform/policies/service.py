@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import UTC, datetime, timedelta
 from platform.common.events.envelope import CorrelationContext
 from platform.policies.compiler import GovernanceCompiler
@@ -84,6 +86,31 @@ class PolicyService:
         self.workspaces_service = workspaces_service
         self.reasoning_client = reasoning_client
         self.compiler = compiler or GovernanceCompiler()
+
+    async def register_simulation_policy_bundle(
+        self,
+        simulation_run_id: UUID,
+        rules: list[dict[str, Any]],
+        workspace_id: UUID,
+    ) -> str:
+        payload = {
+            "simulation_run_id": str(simulation_run_id),
+            "workspace_id": str(workspace_id),
+            "rules": rules,
+        }
+        encoded = json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
+        fingerprint = hashlib.sha256(encoded).hexdigest()
+        if self.redis_client is not None:
+            await self.redis_client.set(
+                f"policy:simulation:{fingerprint}",
+                encoded,
+                ttl=24 * 60 * 60,
+            )
+        return fingerprint
+
+    async def deregister_simulation_policy_bundle(self, bundle_fingerprint: str) -> None:
+        if self.redis_client is not None:
+            await self.redis_client.delete(f"policy:simulation:{bundle_fingerprint}")
 
     async def create_policy(
         self, data: PolicyCreate, created_by: UUID
