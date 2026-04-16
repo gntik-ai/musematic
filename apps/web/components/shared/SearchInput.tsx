@@ -35,7 +35,12 @@ export function SearchInput({
         onChange={(event) => setValue(event.target.value)}
       />
       {value ? (
-        <button className="absolute inset-y-0 right-3 flex items-center text-muted-foreground" type="button" onClick={() => setValue("")}>
+        <button
+          aria-label="Clear search"
+          className="absolute inset-y-0 right-3 flex items-center text-muted-foreground"
+          type="button"
+          onClick={() => setValue("")}
+        >
           <X className="h-4 w-4" />
         </button>
       ) : null}

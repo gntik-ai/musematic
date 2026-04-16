@@ -35,6 +35,13 @@ export const NAV_ITEMS: NavItem[] = [
     requiredRoles: ["agent_operator", "agent_viewer", "workspace_admin", "superadmin"],
   },
   {
+    id: "fleet",
+    label: "Fleet",
+    icon: "Network",
+    href: "/fleet",
+    requiredRoles: ["agent_operator", "agent_viewer", "workspace_admin", "superadmin"],
+  },
+  {
     id: "workflows",
     label: "Workflows",
     icon: "Workflow",

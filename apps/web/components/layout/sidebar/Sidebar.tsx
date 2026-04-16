@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bot, ChevronLeft, ChevronRight, Fingerprint, LayoutDashboard, LineChart, Settings2, ShieldCheck, Workflow } from "lucide-react";
+import { Bot, ChevronLeft, ChevronRight, Fingerprint, LayoutDashboard, LineChart, Network, Settings2, ShieldCheck, Workflow } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/store/auth-store";
@@ -14,6 +14,7 @@ const iconMap = {
   Bot,
   Workflow,
   LineChart,
+  Network,
   ShieldCheck,
   Fingerprint,
   Settings2,

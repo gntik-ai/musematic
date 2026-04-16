@@ -55,6 +55,22 @@ export function DataTable<TData>({
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [pagination, setPagination] = React.useState<PaginationState>({ pageIndex: 0, pageSize });
+  const firstColumnId = React.useMemo(() => {
+    const firstColumn = columns[0] as
+      | (ColumnDef<TData> & { accessorKey?: unknown })
+      | undefined;
+    if (!firstColumn) {
+      return undefined;
+    }
+
+    if (firstColumn.id) {
+      return firstColumn.id;
+    }
+
+    return typeof firstColumn.accessorKey === "string"
+      ? firstColumn.accessorKey
+      : undefined;
+  }, [columns]);
 
   const table = useReactTable({
     data,
@@ -92,9 +108,9 @@ export function DataTable<TData>({
         <Input
           aria-label="Filter rows"
           placeholder="Filter rows"
-          value={(table.getColumn(columns[0]?.id ?? "")?.getFilterValue() as string | undefined) ?? ""}
+          value={(table.getColumn(firstColumnId ?? "")?.getFilterValue() as string | undefined) ?? ""}
           onChange={(event) => {
-            const column = columns[0]?.id ? table.getColumn(columns[0].id) : undefined;
+            const column = firstColumnId ? table.getColumn(firstColumnId) : undefined;
             column?.setFilterValue(event.target.value);
           }}
         />
@@ -136,13 +152,24 @@ export function DataTable<TData>({
                   </TableRow>
                 ))
               : table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id}>
+                  <TableRow
+                    key={row.id}
+                    className={onRowClick ? "cursor-pointer focus-within:bg-muted/40 hover:bg-muted/30" : undefined}
+                    tabIndex={onRowClick ? 0 : undefined}
+                    onClick={() => onRowClick?.(row.original)}
+                    onKeyDown={(event) => {
+                      if (!onRowClick) {
+                        return;
+                      }
+
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        onRowClick(row.original);
+                      }
+                    }}
+                  >
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell
-                        key={cell.id}
-                        className={onRowClick ? "cursor-pointer" : undefined}
-                        onClick={() => onRowClick?.(row.original)}
-                      >
+                      <TableCell key={cell.id}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
