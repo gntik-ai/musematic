@@ -35,6 +35,7 @@ export interface DataTableProps<TData> {
   onSortingChange?: ((state: SortingState) => void) | undefined;
   onFilterChange?: ((state: ColumnFiltersState) => void) | undefined;
   totalCount?: number | undefined;
+  getRowAriaLabel?: ((row: TData) => string) | undefined;
 }
 
 export function DataTable<TData>({
@@ -51,6 +52,7 @@ export function DataTable<TData>({
   onSortingChange,
   pageSize = 10,
   totalCount,
+  getRowAriaLabel,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
@@ -154,6 +156,7 @@ export function DataTable<TData>({
               : table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
+                    aria-label={getRowAriaLabel?.(row.original)}
                     className={onRowClick ? "cursor-pointer focus-within:bg-muted/40 hover:bg-muted/30" : undefined}
                     tabIndex={onRowClick ? 0 : undefined}
                     onClick={() => onRowClick?.(row.original)}
