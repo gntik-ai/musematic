@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import asyncio
 import os
 from dataclasses import dataclass
@@ -17,9 +15,10 @@ SYNONYM_RULES = [
 class SnapshotRepositorySettings:
     name: str = "opensearch-backups"
     type: str = "s3"
-    bucket: str = "musematic-backups"
+    bucket: str = "backups"
     base_path: str = "backups/opensearch"
     endpoint: str = "http://musematic-minio:9000"
+    region: str | None = "us-east-1"
     location: str | None = None
 
 
@@ -27,14 +26,51 @@ def build_snapshot_repository_settings() -> SnapshotRepositorySettings:
     return SnapshotRepositorySettings(
         name=os.environ.get("OPENSEARCH_SNAPSHOT_REPOSITORY", "opensearch-backups"),
         type=os.environ.get("OPENSEARCH_SNAPSHOT_TYPE", "s3"),
-        bucket=os.environ.get("OPENSEARCH_SNAPSHOT_BUCKET", "musematic-backups"),
+        bucket=os.environ.get("OPENSEARCH_SNAPSHOT_BUCKET", "backups"),
         base_path=os.environ.get("OPENSEARCH_SNAPSHOT_BASE_PATH", "backups/opensearch"),
         endpoint=os.environ.get("OPENSEARCH_SNAPSHOT_ENDPOINT", "http://musematic-minio:9000"),
+        region=os.environ.get("OPENSEARCH_SNAPSHOT_REGION", "us-east-1"),
         location=os.environ.get("OPENSEARCH_SNAPSHOT_LOCATION"),
     )
 
 
+def _async_opensearch_client_class() -> Any:
+    opensearch_module = import_module("opensearchpy")
+    client_cls = getattr(opensearch_module, "AsyncOpenSearch", None)
+    if client_cls is not None:
+        return client_cls
+    return import_module("opensearchpy._async.client").AsyncOpenSearch
+
+
+def _exception_status(exc: Exception) -> int | None:
+    status = getattr(exc, "status_code", None)
+    if status is not None:
+        try:
+            return int(status)
+        except (TypeError, ValueError):
+            return None
+    status = getattr(exc, "status", None)
+    if status is not None:
+        try:
+            return int(status)
+        except (TypeError, ValueError):
+            return None
+    return None
+
+
 async def create_ism_policies(client: Any) -> None:
+    async def put_policy(policy_id: str, body: dict[str, Any]) -> None:
+        try:
+            await client.transport.perform_request(
+                method="PUT",
+                url=f"/_plugins/_ism/policies/{policy_id}",
+                body=body,
+            )
+        except Exception as exc:
+            if _exception_status(exc) == 409:
+                return
+            raise
+
     audit_policy = {
         "policy": {
             "description": "Audit events: rollover at 50GB or 30 days, delete after 90 days",
@@ -74,16 +110,8 @@ async def create_ism_policies(client: Any) -> None:
         }
     }
 
-    await client.transport.perform_request(
-        method="PUT",
-        url="/_plugins/_ism/policies/audit-events-policy",
-        body=audit_policy,
-    )
-    await client.transport.perform_request(
-        method="PUT",
-        url="/_plugins/_ism/policies/connector-payloads-policy",
-        body=connector_policy,
-    )
+    await put_policy("audit-events-policy", audit_policy)
+    await put_policy("connector-payloads-policy", connector_policy)
 
 
 async def create_index_templates(client: Any) -> None:
@@ -103,6 +131,11 @@ async def create_index_templates(client: Any) -> None:
                         "icu_folding": {"type": "icu_folding"},
                     },
                     "analyzer": {
+                        "agent_index_analyzer": {
+                            "type": "custom",
+                            "tokenizer": "standard",
+                            "filter": ["lowercase", "icu_folding"],
+                        },
                         "agent_analyzer": {
                             "type": "custom",
                             "tokenizer": "standard",
@@ -116,11 +149,20 @@ async def create_index_templates(client: Any) -> None:
                     "agent_id": {"type": "keyword"},
                     "name": {
                         "type": "text",
-                        "analyzer": "agent_analyzer",
+                        "analyzer": "agent_index_analyzer",
+                        "search_analyzer": "agent_analyzer",
                         "fields": {"keyword": {"type": "keyword"}},
                     },
-                    "purpose": {"type": "text", "analyzer": "agent_analyzer"},
-                    "description": {"type": "text", "analyzer": "agent_analyzer"},
+                    "purpose": {
+                        "type": "text",
+                        "analyzer": "agent_index_analyzer",
+                        "search_analyzer": "agent_analyzer",
+                    },
+                    "description": {
+                        "type": "text",
+                        "analyzer": "agent_index_analyzer",
+                        "search_analyzer": "agent_analyzer",
+                    },
                     "tags": {"type": "keyword"},
                     "capabilities": {"type": "keyword"},
                     "maturity_level": {"type": "integer"},
@@ -224,6 +266,7 @@ async def setup_snapshot_management(
                 "bucket": repository.bucket,
                 "base_path": repository.base_path,
                 "endpoint": repository.endpoint,
+                "region": repository.region,
                 "protocol": "http" if repository.endpoint.startswith("http://") else "https",
                 "path_style_access": True,
             },
@@ -241,7 +284,7 @@ async def setup_snapshot_management(
             "deletion": {
                 "schedule": {"cron": {"expression": "0 6 * * *", "timezone": "UTC"}},
                 "time_limit": "30m",
-                "delete_condition": {"max_count": 30, "max_age": "30d"},
+                "condition": {"max_count": 30, "max_age": "30d"},
             },
             "snapshot_config": {
                 "repository": repository.name,
@@ -251,8 +294,19 @@ async def setup_snapshot_management(
             },
         }
     }
+    try:
+        await client.transport.perform_request(
+            method="GET",
+            url="/_plugins/_sm/policies/daily-snapshot",
+        )
+    except Exception as exc:
+        if _exception_status(exc) != 404:
+            raise
+    else:
+        return
+
     await client.transport.perform_request(
-        method="PUT",
+        method="POST",
         url="/_plugins/_sm/policies/daily-snapshot",
         body=policy,
     )
@@ -262,8 +316,7 @@ async def initialize_opensearch(client: Any | None = None) -> None:
     owned_client = False
     async_client = client
     if async_client is None:
-        opensearch_module = import_module("opensearchpy")
-        client_cls = getattr(opensearch_module, "AsyncOpenSearch")
+        client_cls = _async_opensearch_client_class()
         hosts = [host.strip() for host in os.environ.get("OPENSEARCH_HOSTS", "http://localhost:9200").split(",")]
         username = os.environ.get("OPENSEARCH_USERNAME", "")
         password = os.environ.get("OPENSEARCH_PASSWORD", "")

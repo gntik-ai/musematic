@@ -5,6 +5,22 @@ opensearch:
       value: "-Xms8g -Xmx8g"
     - name: DISABLE_SECURITY_PLUGIN
       value: "false"
+    - name: AWS_EC2_METADATA_DISABLED
+      value: "true"
+    - name: AWS_REGION
+      value: "us-east-1"
+    - name: AWS_DEFAULT_REGION
+      value: "us-east-1"
+    - name: AWS_ACCESS_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: minio-platform-credentials
+          key: MINIO_ACCESS_KEY
+    - name: AWS_SECRET_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: minio-platform-credentials
+          key: MINIO_SECRET_KEY
   persistence:
     size: 100Gi
     storageClass: "fast"

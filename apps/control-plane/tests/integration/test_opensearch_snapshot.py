@@ -1,11 +1,8 @@
-from __future__ import annotations
-
 import os
+from platform.search.projections import AgentSearchProjection
+from uuid import uuid4
 
 import pytest
-
-from platform.search.projections import AgentSearchProjection
-
 
 pytestmark = pytest.mark.asyncio
 
@@ -15,6 +12,7 @@ pytestmark = pytest.mark.asyncio
     reason="Snapshot create/restore is expensive and depends on runtime repository support.",
 )
 async def test_manual_snapshot_and_restore(initialized_opensearch_client) -> None:
+    snapshot_name = f"manual-test-{uuid4().hex}"
     projection = AgentSearchProjection(initialized_opensearch_client)
     for index in range(25):
         await projection.index_agent(
@@ -38,14 +36,14 @@ async def test_manual_snapshot_and_restore(initialized_opensearch_client) -> Non
 
     await initialized_opensearch_client._client.snapshot.create(
         repository="opensearch-backups",
-        snapshot="manual-test-1",
+        snapshot=snapshot_name,
         body={"indices": "*", "ignore_unavailable": True, "include_global_state": False},
         wait_for_completion=True,
     )
     await initialized_opensearch_client._client.indices.delete(index="marketplace-agents-000001")
     await initialized_opensearch_client._client.snapshot.restore(
         repository="opensearch-backups",
-        snapshot="manual-test-1",
+        snapshot=snapshot_name,
         body={"indices": "marketplace-agents-000001", "include_global_state": False},
         wait_for_completion=True,
     )
@@ -60,14 +58,16 @@ async def test_manual_snapshot_and_restore(initialized_opensearch_client) -> Non
 
 
 async def test_snapshot_repository_and_sm_policy_exist(initialized_opensearch_client) -> None:
-    repository = await initialized_opensearch_client._client.snapshot.get_repository(repository="opensearch-backups")
+    repository = await initialized_opensearch_client._client.snapshot.get_repository(
+        repository="opensearch-backups"
+    )
     assert "opensearch-backups" in repository
 
     policy = await initialized_opensearch_client._client.transport.perform_request(
         method="GET",
         url="/_plugins/_sm/policies/daily-snapshot",
     )
-    creation = policy["policy"]["creation"]["schedule"]["cron"]["expression"]
-    deletion = policy["policy"]["deletion"]["delete_condition"]["max_count"]
+    creation = policy["sm_policy"]["creation"]["schedule"]["cron"]["expression"]
+    deletion = policy["sm_policy"]["deletion"]["condition"]["max_count"]
     assert creation == "0 5 * * *"
     assert deletion == 30

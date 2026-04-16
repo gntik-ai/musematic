@@ -9,7 +9,7 @@
 
 - Kubernetes cluster (1.28+) with `platform-data` namespace
 - Helm 3.x installed and configured
-- MinIO (feature 004) deployed — provides `musematic-backups` bucket for snapshots
+- MinIO (feature 004) deployed — provides the `backups` bucket used for OpenSearch snapshots
 - `kubectl` context pointing to the target cluster
 
 ---
@@ -26,7 +26,7 @@ helm repo update
 ## 2. Deploy (Development — Single Node, Security Disabled)
 
 ```bash
-helm install musematic-opensearch deploy/helm/opensearch \
+helm upgrade --install musematic-opensearch deploy/helm/opensearch \
   -n platform-data \
   -f deploy/helm/opensearch/values-dev.yaml \
   --wait --timeout 5m
@@ -35,11 +35,12 @@ helm install musematic-opensearch deploy/helm/opensearch \
 Expected output:
 - `musematic-opensearch-0` pod Running
 - `musematic-opensearch-dashboards-*` pod Running
-- `opensearch-init` Job Completed
+- `musematic-opensearch-init-*` Job Completed
+- Re-running the command applies chart updates in place instead of failing on an existing release
 
 ---
 
-## 3. Deploy (Production — 3 Nodes, Security Enabled)
+## 3. Deploy (Production — 3 Nodes, Security Enabled, Reference)
 
 ```bash
 # Create credentials secret before deploying
@@ -48,7 +49,7 @@ kubectl create secret generic opensearch-credentials \
   --from-literal=OPENSEARCH_USERNAME=admin \
   --from-literal=OPENSEARCH_PASSWORD='<strong-password>'
 
-helm install musematic-opensearch deploy/helm/opensearch \
+helm upgrade --install musematic-opensearch deploy/helm/opensearch \
   -n platform-data \
   -f deploy/helm/opensearch/values-prod.yaml \
   --wait --timeout 10m
@@ -57,6 +58,8 @@ helm install musematic-opensearch deploy/helm/opensearch \
 Expected output:
 - `musematic-opensearch-0`, `-1`, `-2` pods Running
 - Cluster health: green
+
+For a dev-only validation run, render this path with `helm template ... -f deploy/helm/opensearch/values-prod.yaml` and reserve the actual deploy for a prod-like cluster.
 
 ---
 
@@ -110,7 +113,7 @@ curl -s http://localhost:9200/_plugins/_ism/policies | python3 -m json.tool
 ## 7. Test ICU Analyzer (Synonym Expansion)
 
 ```bash
-# Test the agent_analyzer — verify synonym expansion
+# Test the search-time analyzer — verify synonym expansion
 curl -s -X POST http://localhost:9200/marketplace-agents-000001/_analyze \
   -H 'Content-Type: application/json' \
   -d '{
@@ -119,6 +122,7 @@ curl -s -X POST http://localhost:9200/marketplace-agents-000001/_analyze \
   }' | python3 -m json.tool
 
 # Expected tokens should include: "summarizer", "text", "summary", "agent", "summarization"
+# Indexing uses `agent_index_analyzer`; synonyms are expanded by `agent_analyzer` at search time.
 ```
 
 ---
@@ -233,13 +237,14 @@ curl -s -X POST http://localhost:9200/marketplace-agents-000001/_search \
 curl -s http://localhost:9200/_snapshot/opensearch-backups | python3 -m json.tool
 
 # Trigger a manual snapshot
-curl -s -X PUT http://localhost:9200/_snapshot/opensearch-backups/manual-test-1 \
+SNAPSHOT_NAME="manual-test-$(date +%s)"
+curl -s -X PUT "http://localhost:9200/_snapshot/opensearch-backups/${SNAPSHOT_NAME}" \
   -H 'Content-Type: application/json' \
   -d '{ "indices": "*", "ignore_unavailable": true, "include_global_state": false }'
 
 # Check snapshot status (wait ~30s then verify)
 sleep 30
-curl -s http://localhost:9200/_snapshot/opensearch-backups/manual-test-1 | python3 -m json.tool
+curl -s "http://localhost:9200/_snapshot/opensearch-backups/${SNAPSHOT_NAME}" | python3 -m json.tool
 # Expected: "state": "SUCCESS"
 ```
 
@@ -249,11 +254,18 @@ curl -s http://localhost:9200/_snapshot/opensearch-backups/manual-test-1 | pytho
 
 ```bash
 kubectl port-forward svc/musematic-opensearch-dashboards 5601:5601 -n platform-data &
-open http://localhost:5601
+
+# Verify the HTTP endpoint responds before opening it in a browser
+curl -I http://localhost:5601
 ```
 
 Login credentials (prod): admin / `<password from secret>`  
 Dev: no authentication required.
+
+Expected output during the dev quickstart:
+- `HTTP/1.1 302 Found` with `location: /app/home` (or `200 OK` after following redirects)
+
+Then open `http://localhost:5601` in a browser.
 
 Navigate to **Index Management** → **Indices** to verify all three initial indexes exist.  
 Navigate to **Dev Tools** to run ad-hoc queries.
@@ -264,13 +276,23 @@ Navigate to **Dev Tools** to run ad-hoc queries.
 
 ```bash
 cd apps/control-plane
+python -m venv .venv
+. .venv/bin/activate
+pip install -e .[dev]
 
-# Start test container (testcontainers spins up OpenSearch automatically)
-pytest tests/integration/test_opensearch_basic.py -v
-pytest tests/integration/test_opensearch_search.py -v
-pytest tests/integration/test_opensearch_facets.py -v
-pytest tests/integration/test_opensearch_synonyms.py -v
+# Reuse the live dev deployment from sections 2–12.
+# If you forwarded OpenSearch to a different local port, update OPENSEARCH_TEST_URL accordingly.
+OPENSEARCH_TEST_MODE=external \
+OPENSEARCH_TEST_URL=http://127.0.0.1:9200 \
+OPENSEARCH_TEST_SNAPSHOT_TYPE=s3 \
+OPENSEARCH_TEST_SNAPSHOT_ENDPOINT=http://musematic-minio.platform-data:9000 \
+RUN_LONG_OPENSEARCH_TESTS=1 \
+python -m pytest -o addopts='-ra' --run-integration tests/integration/test_opensearch_*.py -v
 ```
+
+Expected output during the validated dev flow:
+- `15 passed, 1 skipped`
+- The skipped test is the external-mode synonym extension case; validate that workflow with section 14 after editing the ConfigMap
 
 ---
 
@@ -295,7 +317,7 @@ To add new synonyms:
 
 3. Verify the new synonyms are active with the analyzer test in section 7.
 
-> **Note**: The `updateable: true` setting in the synonym filter allows synonym reload via `_reload_search_analyzers` API without closing the index, but only when using a file-based synonym source.
+> **Note**: The `updateable: true` setting only applies to the search-time analyzer. Indexing uses `agent_index_analyzer`, while synonym expansion is handled by `agent_analyzer` during search.
 
 ---
 
@@ -304,7 +326,8 @@ To add new synonyms:
 | Symptom | Likely Cause | Fix |
 |---------|-------------|-----|
 | Init Job fails with connection refused | OpenSearch not yet ready | Check pod readiness; increase `initJob.backoff` |
-| Analyzer test returns no synonym tokens | ICU plugin not installed | Check init container logs for plugin install errors |
+| Analyzer test returns no synonym tokens | ICU plugin not installed | Check OpenSearch pod startup logs and the chart plugin installer configuration |
+| Snapshot repository registration fails with `repository type [s3] does not exist` | `repository-s3` plugin missing | Ensure `repository-s3` is present in `opensearch.plugins.installList` and restart the pod |
 | Cluster health: red | Shard allocation failure | Check `GET /_cluster/allocation/explain` |
 | Dashboards shows "Unable to connect" | Security config mismatch | Ensure `DISABLE_SECURITY_DASHBOARDS_PLUGIN` matches `DISABLE_SECURITY_PLUGIN` |
 | Snapshot fails with S3 error | MinIO unreachable or bucket missing | Verify feature 004 (minio-object-storage) is deployed |

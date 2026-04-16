@@ -543,6 +543,7 @@ async def _reset_opensearch(async_client) -> None:
     for path in (
         "/_plugins/_ism/policies/audit-events-policy",
         "/_plugins/_ism/policies/connector-payloads-policy",
+        "/_plugins/_ism/policies/test-short-retention",
         "/_plugins/_sm/policies/daily-snapshot",
     ):
         try:
@@ -563,7 +564,7 @@ async def _apply_opensearch_init(
     repository = init_module.SnapshotRepositorySettings(
         name="opensearch-backups",
         type=str(opensearch_server.get("snapshot_type", "fs")),
-        bucket="musematic-backups",
+        bucket="backups",
         base_path="backups/opensearch",
         endpoint=str(opensearch_server.get("snapshot_endpoint", "http://musematic-minio:9000")),
         location=(
@@ -642,6 +643,8 @@ def opensearch_settings(opensearch_server: dict[str, object]) -> Settings:
 async def opensearch_client(opensearch_settings: Settings) -> AsyncIterator[AsyncOpenSearchClient]:
     pytest.importorskip("opensearchpy")
     client = AsyncOpenSearchClient.from_settings(opensearch_settings)
+    await client.connect()
+    assert client._client is not None
     await _reset_opensearch(client._client)
     yield client
     await _reset_opensearch(client._client)

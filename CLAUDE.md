@@ -1,6 +1,6 @@
 # musematic Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-15
+Auto-generated from all feature plans. Last updated: 2026-04-16
 
 ## Active Technologies
 - Python 3.12+ (control plane client), Go 1.22+ (reasoning engine client) + `redis-py 5.x` (Python async), `go-redis/redis/v9` (Go), Bitnami `redis-cluster` Helm chart (002-redis-cache-hot-state)
@@ -71,6 +71,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-15
 - PostgreSQL 16 (8 tables) + Redis sorted sets (`leaderboard:{session_id}`) + Neo4j 5.x (provenance graph) + Qdrant (discovery_hypotheses collection, 1536-dim Cosine) (039-scientific-discovery-orchestration)
 - Python 3.12+ (strict mypy) + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, aiokafka 0.11+, grpcio 1.65+ (SimulationControllerClient), clickhouse-connect 0.8+ (behavioral history), scipy >= 1.13 (regression + t-test), numpy >= 1.26, redis-py 5.x async (040-simulation-digital-twins)
 - PostgreSQL 16 (5 tables) + Redis (simulation status cache `sim:status:{run_id}`) + ClickHouse (read-only: `execution_metrics_daily` from feature 020) (040-simulation-digital-twins)
+- TypeScript 5.x, React 18+, Next.js 14+ App Router + shadcn/ui, TanStack Query v5, Zustand 5.x, React Hook Form 7.x + Zod 3.x, Monaco Editor 0.50+, date-fns 4.x, Lucide React, Tailwind CSS 3.4+ (041-agent-catalog-workbench)
+- N/A (frontend only — data sourced from registry API 021, composition API 038, policy API 028) (041-agent-catalog-workbench)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -90,10 +92,10 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 041-agent-catalog-workbench: TypeScript 5.x + Next.js 14+ App Router, React 18+, shadcn/ui (ALL UI primitives), Tailwind CSS 3.4+ (utility-only), TanStack Query v5 (useInfiniteQuery for catalog, useMutation for upload/metadata/publish/rollback), Zustand 5.x (useCompositionWizardStore — session-only, not persisted), React Hook Form 7.x + Zod 3.x (MetadataFormSchema), Monaco Editor 0.50+ (MonacoDiffEditor), date-fns 4.x, Lucide React, Vitest + RTL + Playwright + MSW
+- 041-agent-catalog-workbench: Agent Catalog and Creator Workbench (`apps/web/app/(main)/agent-management/`) — 4 pages (catalog, [fqn] detail, [fqn]/revisions, wizard); 19 components (AgentDataTable, AgentMaturityBadge, AgentStatusBadge, AgentDetailView, AgentHealthScoreGauge, AgentMetadataEditor, FQNInput, VisibilityPatternPanel, RoleTypeSelector, AgentUploadZone, AgentPublicationPanel, PublicationConfirmDialog, AgentRevisionTimeline, RevisionDiffViewer, CompositionWizard, WizardStepDescribe, WizardStepReviewBlueprint, WizardStepCustomize, WizardStepValidate); 9 hooks (use-agents, use-agent-mutations, use-agent-upload, use-agent-revisions, use-agent-health, use-agent-policies, use-namespaces, use-composition); XHR upload progress; If-Unmodified-Since 412 conflict detection; URL ?tab= routing (same as feature 027); FQN URL-encoded [fqn] segment; native drag/drop (no react-dropzone)
 - 040-simulation-digital-twins: Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, aiokafka 0.11+, grpcio 1.65+ (SimulationControllerClient port 50055), clickhouse-connect 0.8+ (behavioral history reads from execution_metrics_daily), scipy>=1.13 (linregress + ttest_ind), numpy>=1.26, redis-py 5.x async, pytest + pytest-asyncio 8.x, ruff 0.7+, mypy 1.11+ strict
 - 040-simulation-digital-twins: Simulation bounded context (`apps/control-plane/src/platform/simulation/`) — 5 PostgreSQL tables (simulation_runs, simulation_digital_twins, simulation_behavioral_predictions, simulation_isolation_policies, simulation_comparison_reports); 5 sub-modules (coordination/, twins/, isolation/, prediction/, comparison/); SimulationRunner (gRPC → SimulationControlService); TwinSnapshotService (RegistryServiceInterface + ClickHouse 30-day history); IsolationEnforcer (PolicyServiceInterface bundle registration/deregistration); BehavioralForecaster (scipy linregress, confidence intervals, trend); ComparisonAnalyzer (Welch's t-test significance); Kafka simulation.events topic; `sim:status:{run_id}` Redis cache; Alembic migration 040
-- 039-scientific-discovery-orchestration: Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, aiokafka 0.11+, redis-py 5.x async (Elo sorted sets `leaderboard:{session_id}`), qdrant-client 1.12+ async gRPC (discovery_hypotheses collection 1536-dim), neo4j-python-driver 5.x async (provenance graph), grpcio 1.65+ (sandbox manager experiments), scipy>=1.13 + numpy>=1.26 (already in stack — used for proximity clustering), APScheduler 3.x, pytest + pytest-asyncio 8.x, ruff 0.7+, mypy 1.11+ strict
-- 039-scientific-discovery-orchestration: Discovery bounded context (`apps/control-plane/src/platform/discovery/`) — 8 PostgreSQL tables (sessions, hypotheses, critiques, tournament_rounds, elo_scores, experiments, gde_cycles, hypothesis_clusters); 6 sub-modules (tournament/, critique/, gde/, experiment/, provenance/, proximity/); EloRatingEngine (K=32, Redis ZADD); GDECycleOrchestrator (convergence detection); ProvenanceGraph (Neo4j GENERATED_BY/SUPPORTS/CONTRADICTS edges); ProximityClustering (scipy hierarchical + gap detection); Kafka discovery.events topic; 3 consumed service interfaces (policy, sandbox manager gRPC, workflow); 1 exposed DiscoveryServiceInterface; Alembic migration 039
 
 
 <!-- MANUAL ADDITIONS START -->

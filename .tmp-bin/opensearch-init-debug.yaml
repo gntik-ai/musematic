@@ -1,0 +1,53 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: opensearch-init-debug
+  namespace: platform-data
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: init
+          image: python:3.12-slim
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              pip install --no-cache-dir -r /opt/init/requirements.txt
+              python /opt/init/init_opensearch.py
+          env:
+            - name: OPENSEARCH_HOSTS
+              value: http://musematic-opensearch:9200
+            - name: OPENSEARCH_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: opensearch-credentials
+                  key: OPENSEARCH_USERNAME
+            - name: OPENSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: opensearch-credentials
+                  key: OPENSEARCH_PASSWORD
+            - name: OPENSEARCH_TIMEOUT
+              value: "30"
+            - name: OPENSEARCH_SNAPSHOT_REPOSITORY
+              value: opensearch-backups
+            - name: OPENSEARCH_SNAPSHOT_TYPE
+              value: s3
+            - name: OPENSEARCH_SNAPSHOT_BUCKET
+              value: backups
+            - name: OPENSEARCH_SNAPSHOT_BASE_PATH
+              value: backups/opensearch
+            - name: OPENSEARCH_SNAPSHOT_ENDPOINT
+              value: http://musematic-minio.platform-data:9000
+          volumeMounts:
+            - name: init-script
+              mountPath: /opt/init
+              readOnly: true
+      volumes:
+        - name: init-script
+          configMap:
+            name: opensearch-init-script

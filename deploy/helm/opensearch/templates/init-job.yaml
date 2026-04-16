@@ -46,6 +46,8 @@ spec:
               value: {{ .Values.initJob.snapshotRepository.basePath | quote }}
             - name: OPENSEARCH_SNAPSHOT_ENDPOINT
               value: {{ .Values.initJob.snapshotRepository.endpoint | quote }}
+            - name: OPENSEARCH_SNAPSHOT_REGION
+              value: {{ .Values.initJob.snapshotRepository.region | quote }}
           volumeMounts:
             - name: init-script
               mountPath: /opt/init

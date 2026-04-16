@@ -9,10 +9,49 @@ data:
     import asyncio
     import os
 
-    from opensearchpy import AsyncOpenSearch
+    try:
+        from opensearchpy import AsyncOpenSearch
+    except ImportError:
+        from opensearchpy._async.client import AsyncOpenSearch
+
+    def exception_status(exc):
+        status = getattr(exc, "status_code", None)
+        if status is not None:
+            try:
+                return int(status)
+            except (TypeError, ValueError):
+                return None
+        status = getattr(exc, "status", None)
+        if status is not None:
+            try:
+                return int(status)
+            except (TypeError, ValueError):
+                return None
+        return None
 
     async def put(client, path, body):
-        await client.transport.perform_request(method="PUT", url=path, body=body)
+        try:
+            await client.transport.perform_request(method="PUT", url=path, body=body)
+        except Exception as exc:
+            if exception_status(exc) == 409:
+                return
+            raise
+
+    async def post(client, path, body):
+        try:
+            await client.transport.perform_request(method="POST", url=path, body=body)
+        except Exception as exc:
+            if exception_status(exc) == 409:
+                return
+            raise
+
+    async def get_or_none(client, path):
+        try:
+            return await client.transport.perform_request(method="GET", url=path)
+        except Exception as exc:
+            if exception_status(exc) == 404:
+                return None
+            raise
 
     async def main():
         hosts = [host.strip() for host in os.environ["OPENSEARCH_HOSTS"].split(",") if host.strip()]
@@ -72,6 +111,11 @@ data:
                             "icu_folding": {"type": "icu_folding"},
                         },
                         "analyzer": {
+                            "agent_index_analyzer": {
+                                "type": "custom",
+                                "tokenizer": "standard",
+                                "filter": ["lowercase", "icu_folding"],
+                            },
                             "agent_analyzer": {
                                 "type": "custom",
                                 "tokenizer": "standard",
@@ -83,9 +127,9 @@ data:
                 "mappings": {
                     "properties": {
                         "agent_id": {"type": "keyword"},
-                        "name": {"type": "text", "analyzer": "agent_analyzer", "fields": {"keyword": {"type": "keyword"}}},
-                        "purpose": {"type": "text", "analyzer": "agent_analyzer"},
-                        "description": {"type": "text", "analyzer": "agent_analyzer"},
+                        "name": {"type": "text", "analyzer": "agent_index_analyzer", "search_analyzer": "agent_analyzer", "fields": {"keyword": {"type": "keyword"}}},
+                        "purpose": {"type": "text", "analyzer": "agent_index_analyzer", "search_analyzer": "agent_analyzer"},
+                        "description": {"type": "text", "analyzer": "agent_index_analyzer", "search_analyzer": "agent_analyzer"},
                         "tags": {"type": "keyword"},
                         "capabilities": {"type": "keyword"},
                         "maturity_level": {"type": "integer"},
@@ -158,33 +202,36 @@ data:
         await client.snapshot.create_repository(repository=os.environ.get("OPENSEARCH_SNAPSHOT_REPOSITORY", "opensearch-backups"), body={
             "type": os.environ.get("OPENSEARCH_SNAPSHOT_TYPE", "s3"),
             "settings": {
-                "bucket": os.environ.get("OPENSEARCH_SNAPSHOT_BUCKET", "musematic-backups"),
+                "bucket": os.environ.get("OPENSEARCH_SNAPSHOT_BUCKET", "backups"),
                 "base_path": os.environ.get("OPENSEARCH_SNAPSHOT_BASE_PATH", "backups/opensearch"),
                 "endpoint": os.environ.get("OPENSEARCH_SNAPSHOT_ENDPOINT", "http://musematic-minio:9000"),
+                "region": os.environ.get("OPENSEARCH_SNAPSHOT_REGION", "us-east-1"),
                 "protocol": "http",
                 "path_style_access": True,
             }
         })
-        await put(client, "/_plugins/_sm/policies/daily-snapshot", {
-            "policy": {
-                "description": "Daily snapshot at 05:00 UTC",
-                "creation": {"schedule": {"cron": {"expression": "0 5 * * *", "timezone": "UTC"}}, "time_limit": "1h"},
-                "deletion": {
-                    "schedule": {"cron": {"expression": "0 6 * * *", "timezone": "UTC"}},
-                    "time_limit": "30m",
-                    "delete_condition": {"max_count": 30, "max_age": "30d"},
-                },
-                "snapshot_config": {
-                    "repository": os.environ.get("OPENSEARCH_SNAPSHOT_REPOSITORY", "opensearch-backups"),
-                    "indices": "*",
-                    "ignore_unavailable": True,
-                    "include_global_state": False,
-                },
-            }
-        })
+        if await get_or_none(client, "/_plugins/_sm/policies/daily-snapshot") is None:
+            await post(client, "/_plugins/_sm/policies/daily-snapshot", {
+                "policy": {
+                    "description": "Daily snapshot at 05:00 UTC",
+                    "creation": {"schedule": {"cron": {"expression": "0 5 * * *", "timezone": "UTC"}}, "time_limit": "1h"},
+                    "deletion": {
+                        "schedule": {"cron": {"expression": "0 6 * * *", "timezone": "UTC"}},
+                        "time_limit": "30m",
+                        "condition": {"max_count": 30, "max_age": "30d"},
+                    },
+                    "snapshot_config": {
+                        "repository": os.environ.get("OPENSEARCH_SNAPSHOT_REPOSITORY", "opensearch-backups"),
+                        "indices": "*",
+                        "ignore_unavailable": True,
+                        "include_global_state": False,
+                    },
+                }
+            })
         await client.close()
 
     asyncio.run(main())
   requirements.txt: |
     opensearch-py>=2.0,<3
+    aiohttp>=3.10,<4
 {{- end }}

@@ -90,7 +90,11 @@ export function ComponentsShowcase() {
             filters={filters}
             onChange={(id, value) =>
               setFilters((current) =>
-                current.map((filter) => (filter.id === id ? { ...filter, value } : filter)),
+                current.map((filter) =>
+                  filter.id === id
+                    ? { ...filter, value: Array.isArray(value) ? value[0] ?? "" : value }
+                    : filter,
+                ),
               )
             }
             onClear={() => setFilters((current) => current.map((filter) => ({ ...filter, value: "" })))}

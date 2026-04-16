@@ -12,7 +12,9 @@
 
 **Pattern**: `marketplace-agents-*`  
 **ISM Policy**: None (retained indefinitely)  
-**Analyzer**: `agent_analyzer` (BM25 + synonym expansion + ICU folding)
+**Analyzers**:
+- `agent_index_analyzer` for index-time normalization (lowercase + ICU folding)
+- `agent_analyzer` for search-time synonym expansion (lowercase + ICU folding + synonyms)
 
 ```json
 {
@@ -33,6 +35,11 @@
           }
         },
         "analyzer": {
+          "agent_index_analyzer": {
+            "type": "custom",
+            "tokenizer": "standard",
+            "filter": ["lowercase", "icu_folding"]
+          },
           "agent_analyzer": {
             "type": "custom",
             "tokenizer": "standard",
@@ -44,9 +51,9 @@
     "mappings": {
       "properties": {
         "agent_id":            { "type": "keyword" },
-        "name":                { "type": "text", "analyzer": "agent_analyzer", "fields": { "keyword": { "type": "keyword" } } },
-        "purpose":             { "type": "text", "analyzer": "agent_analyzer" },
-        "description":         { "type": "text", "analyzer": "agent_analyzer" },
+        "name":                { "type": "text", "analyzer": "agent_index_analyzer", "search_analyzer": "agent_analyzer", "fields": { "keyword": { "type": "keyword" } } },
+        "purpose":             { "type": "text", "analyzer": "agent_index_analyzer", "search_analyzer": "agent_analyzer" },
+        "description":         { "type": "text", "analyzer": "agent_index_analyzer", "search_analyzer": "agent_analyzer" },
         "tags":                { "type": "keyword" },
         "capabilities":        { "type": "keyword" },
         "maturity_level":      { "type": "integer" },
@@ -204,7 +211,7 @@ classifier, categorizer, classification agent
     "deletion": {
       "schedule": { "cron": { "expression": "0 6 * * *", "timezone": "UTC" } },
       "time_limit": "30m",
-      "delete_condition": { "max_count": 30, "max_age": "30d" }
+      "condition": { "max_count": 30, "max_age": "30d" }
     },
     "snapshot_config": {
       "repository": "opensearch-backups",
@@ -240,15 +247,12 @@ opensearch:
     - name: DISABLE_SECURITY_PLUGIN
       value: "false"
   
-  # ICU plugin via init container
-  initContainers:
-    - name: install-icu-plugin
-      image: opensearchproject/opensearch:2.18.0
-      command: ["/bin/sh", "-c"]
-      args: ["opensearch-plugin install --batch analysis-icu"]
-      volumeMounts:
-        - name: plugins-volume
-          mountPath: /usr/share/opensearch/plugins
+  # Plugins installed by the wrapper chart before OpenSearch starts
+  plugins:
+    enabled: true
+    installList:
+      - analysis-icu
+      - repository-s3
 
   # Synonym ConfigMap mount
   extraVolumes:
@@ -303,7 +307,7 @@ initJob:
   opensearchUrl: "http://musematic-opensearch:9200"
   snapshotRepository:
     name: "opensearch-backups"
-    bucket: "musematic-backups"
+    bucket: "backups"
     basePath: "backups/opensearch"
     minioEndpoint: "http://musematic-minio:9000"
 ```
