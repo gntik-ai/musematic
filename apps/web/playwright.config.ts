@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
+const firefoxExecutablePath = process.env.PLAYWRIGHT_FIREFOX_EXECUTABLE_PATH;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,
@@ -13,11 +16,29 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      use: {
+        ...devices["Desktop Chrome"],
+        ...(chromiumExecutablePath
+          ? {
+              launchOptions: {
+                executablePath: chromiumExecutablePath,
+              },
+            }
+          : {}),
+      },
     },
     {
       name: "firefox",
-      use: { ...devices["Desktop Firefox"] },
+      use: {
+        ...devices["Desktop Firefox"],
+        ...(firefoxExecutablePath
+          ? {
+              launchOptions: {
+                executablePath: firefoxExecutablePath,
+              },
+            }
+          : {}),
+      },
     },
   ],
 });
