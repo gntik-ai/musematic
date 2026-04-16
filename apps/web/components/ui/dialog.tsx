@@ -54,7 +54,10 @@ function getFocusableElements(container: HTMLElement | null): HTMLElement[] {
         "[tabindex]:not([tabindex='-1'])",
       ].join(","),
     ),
-  ).filter((element) => !element.hasAttribute("disabled"));
+  ).filter(
+    (element) =>
+      !element.hasAttribute("disabled") && element.getClientRects().length > 0,
+  );
 }
 
 export function Dialog({

@@ -1,7 +1,7 @@
-from __future__ import annotations
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
-
 
 pytestmark = pytest.mark.asyncio
 
@@ -18,7 +18,7 @@ async def test_init_creates_templates_and_policies(
         repository_settings=opensearch_init_module.SnapshotRepositorySettings(
             name="opensearch-backups",
             type=str(opensearch_server.get("snapshot_type", "fs")),
-            bucket="musematic-backups",
+            bucket="backups",
             base_path="backups/opensearch",
             endpoint=str(opensearch_server.get("snapshot_endpoint", "http://musematic-minio:9000")),
             location=(
@@ -29,13 +29,22 @@ async def test_init_creates_templates_and_policies(
         ),
     )
 
-    marketplace = await opensearch_client._client.indices.get_index_template(name="marketplace-agents")
-    settings = marketplace["index_templates"][0]["index_template"]["template"]["settings"]
+    marketplace = await opensearch_client._client.indices.get_index_template(
+        name="marketplace-agents"
+    )
+    settings = marketplace["index_templates"][0]["index_template"]["template"]["settings"]["index"]
+    mappings = marketplace["index_templates"][0]["index_template"]["template"]["mappings"]
+    assert settings["analysis"]["analyzer"]["agent_index_analyzer"]["filter"] == [
+        "lowercase",
+        "icu_folding",
+    ]
     assert settings["analysis"]["analyzer"]["agent_analyzer"]["filter"] == [
         "lowercase",
         "icu_folding",
         "synonym_filter",
     ]
+    assert mappings["properties"]["name"]["analyzer"] == "agent_index_analyzer"
+    assert mappings["properties"]["name"]["search_analyzer"] == "agent_analyzer"
 
     audit_policy = await opensearch_client._client.transport.perform_request(
         method="GET",
@@ -44,11 +53,15 @@ async def test_init_creates_templates_and_policies(
     assert audit_policy["policy"]["default_state"] == "hot"
 
 
-async def test_init_is_idempotent(initialized_opensearch_client, opensearch_init_module, opensearch_server) -> None:
+async def test_init_is_idempotent(
+    initialized_opensearch_client,
+    opensearch_init_module,
+    opensearch_server,
+) -> None:
     repository = opensearch_init_module.SnapshotRepositorySettings(
         name="opensearch-backups",
         type=str(opensearch_server.get("snapshot_type", "fs")),
-        bucket="musematic-backups",
+        bucket="backups",
         base_path="backups/opensearch",
         endpoint=str(opensearch_server.get("snapshot_endpoint", "http://musematic-minio:9000")),
         location=(
@@ -64,5 +77,50 @@ async def test_init_is_idempotent(initialized_opensearch_client, opensearch_init
         repository_settings=repository,
     )
 
-    aliases = await initialized_opensearch_client._client.indices.get_alias(index="marketplace-agents-000001")
+    aliases = await initialized_opensearch_client._client.indices.get_alias(
+        index="marketplace-agents-000001"
+    )
     assert "marketplace-agents" in aliases["marketplace-agents-000001"]["aliases"]
+
+
+async def test_setup_snapshot_management_posts_policy_when_missing(opensearch_init_module) -> None:
+    missing_policy = Exception()
+    missing_policy.status_code = 404
+    client = SimpleNamespace(
+        snapshot=SimpleNamespace(create_repository=AsyncMock()),
+        transport=SimpleNamespace(
+            perform_request=AsyncMock(
+                side_effect=[
+                    missing_policy,
+                    {"_id": "daily-snapshot-sm-policy"},
+                ]
+            )
+        ),
+    )
+
+    await opensearch_init_module.setup_snapshot_management(client)
+
+    assert client.transport.perform_request.await_args_list[0].kwargs == {
+        "method": "GET",
+        "url": "/_plugins/_sm/policies/daily-snapshot",
+    }
+    assert client.transport.perform_request.await_args_list[1].kwargs["method"] == "POST"
+    assert (
+        client.transport.perform_request.await_args_list[1].kwargs["url"]
+        == "/_plugins/_sm/policies/daily-snapshot"
+    )
+
+async def test_setup_snapshot_management_skips_create_when_policy_exists(
+    opensearch_init_module,
+) -> None:
+    client = SimpleNamespace(
+        snapshot=SimpleNamespace(create_repository=AsyncMock()),
+        transport=SimpleNamespace(perform_request=AsyncMock(return_value={"policy": {}})),
+    )
+
+    await opensearch_init_module.setup_snapshot_management(client)
+
+    client.transport.perform_request.assert_awaited_once_with(
+        method="GET",
+        url="/_plugins/_sm/policies/daily-snapshot",
+    )

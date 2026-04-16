@@ -1,9 +1,7 @@
-from __future__ import annotations
-
+import asyncio
 import os
 
 import pytest
-
 
 pytestmark = pytest.mark.asyncio
 
@@ -24,7 +22,9 @@ async def test_short_retention_ism_policy_can_delete_index(initialized_opensearc
                     {
                         "name": "hot",
                         "actions": [],
-                        "transitions": [{"state_name": "delete", "conditions": {"min_index_age": "1m"}}],
+                        "transitions": [
+                            {"state_name": "delete", "conditions": {"min_index_age": "1m"}}
+                        ],
                     },
                     {"name": "delete", "actions": [{"delete": {}}], "transitions": []},
                 ],
@@ -40,16 +40,40 @@ async def test_short_retention_ism_policy_can_delete_index(initialized_opensearc
         method="GET",
         url="/_plugins/_ism/explain/audit-events-ism-test-000001",
     )
-    assert explain["audit-events-ism-test-000001"]["policy_id"] == "test-short-retention"
+    policy_id = explain["audit-events-ism-test-000001"].get("policy_id") or explain[
+        "audit-events-ism-test-000001"
+    ].get("index.plugins.index_state_management.policy_id")
+    if policy_id != "test-short-retention":
+        for _ in range(10):
+            await asyncio.sleep(1)
+            explain = await initialized_opensearch_client._client.transport.perform_request(
+                method="GET",
+                url="/_plugins/_ism/explain/audit-events-ism-test-000001",
+            )
+            policy_id = explain["audit-events-ism-test-000001"].get("policy_id") or explain[
+                "audit-events-ism-test-000001"
+            ].get("index.plugins.index_state_management.policy_id")
+            if policy_id == "test-short-retention":
+                break
+    assert policy_id == "test-short-retention"
 
 
-async def test_marketplace_index_has_no_ism_policy_and_connector_template_does(initialized_opensearch_client) -> None:
+async def test_marketplace_index_has_no_ism_policy_and_connector_template_does(
+    initialized_opensearch_client,
+) -> None:
     explain = await initialized_opensearch_client._client.transport.perform_request(
         method="GET",
         url="/_plugins/_ism/explain/marketplace-agents-000001",
     )
-    assert explain["marketplace-agents-000001"]["policy_id"] in (None, "")
+    policy_id = explain["marketplace-agents-000001"].get("policy_id")
+    if policy_id is None:
+        policy_id = explain["marketplace-agents-000001"].get(
+            "index.plugins.index_state_management.policy_id"
+        )
+    assert policy_id in (None, "")
 
-    template = await initialized_opensearch_client._client.indices.get_index_template(name="connector-payloads")
-    settings = template["index_templates"][0]["index_template"]["template"]["settings"]
-    assert settings["plugins.index_state_management.policy_id"] == "connector-payloads-policy"
+    template = await initialized_opensearch_client._client.indices.get_index_template(
+        name="connector-payloads"
+    )
+    settings = template["index_templates"][0]["index_template"]["template"]["settings"]["index"]
+    assert settings["plugins"]["index_state_management"]["policy_id"] == "connector-payloads-policy"

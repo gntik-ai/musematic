@@ -34,14 +34,14 @@ A second chart dependency, `opensearch-project/opensearch-dashboards`, is includ
 
 ---
 
-## Decision 3: ICU Analysis Plugin — Init Container Installation
+## Decision 3: OpenSearch Plugins — Official Chart Installation
 
-**Decision**: The ICU analysis plugin (`analysis-icu`) is installed at pod startup via an **init container** that runs `opensearch-plugin install analysis-icu` before the main OpenSearch container starts. The plugin is not pre-baked into a custom Docker image. The init container uses the same OpenSearch image to ensure version compatibility.
+**Decision**: The ICU analysis plugin (`analysis-icu`) is installed at pod startup via the official chart's plugin installation mechanism before the main OpenSearch process starts. The plugin is not pre-baked into a custom Docker image, which keeps upgrades aligned with the upstream chart and OpenSearch image.
 
-**Rationale**: Baking a custom image requires a CI pipeline and registry management for each OpenSearch version upgrade. The init container approach keeps the Docker image configuration declarative in Helm values and automatically picks up the correct plugin version for each OpenSearch release. The plugin is small and installs in seconds. This pattern is the official recommendation in the OpenSearch Helm chart documentation.
+**Rationale**: Baking a custom image requires a CI pipeline and registry management for each OpenSearch version upgrade. The chart plugin installer keeps the Docker image configuration declarative in Helm values and automatically picks up the correct plugin version for each OpenSearch release. The plugins are small and install in seconds. This pattern aligns with the official OpenSearch Helm chart documentation.
 
 **Alternatives considered**:
-- Custom Docker image with plugin pre-installed: clean but adds image build/publish pipeline. Rejected — init container is simpler and self-updating.
+- Custom Docker image with plugins pre-installed: clean but adds image build/publish pipeline. Rejected — chart-managed plugin installation is simpler and self-updating.
 - `OPENSEARCH_PLUGINS` env var: not a standard OpenSearch mechanism (contrast with Elasticsearch). Rejected — init container is the correct approach.
 - Skip ICU plugin: would drop multilingual text analysis support (FR-016). Rejected.
 
@@ -80,7 +80,7 @@ The init script lives at `deploy/opensearch/init/init_opensearch.py`. A dedicate
 
 ## Decision 6: Synonym Dictionary — ConfigMap-Mounted File
 
-**Decision**: The synonym dictionary is stored as a file in a Kubernetes ConfigMap (`opensearch-synonyms`) mounted into each OpenSearch pod at `/usr/share/opensearch/config/synonyms/agent-synonyms.txt`. The custom analyzer (`agent_analyzer`) in the `marketplace-agents` index template references this file path. The initial dictionary contains the three synonym groups specified in the spec. Administrators update synonyms by editing the ConfigMap; an index close/open or reindex is required for changes to take effect.
+**Decision**: The synonym dictionary is stored as a file in a Kubernetes ConfigMap (`opensearch-synonyms`) mounted into each OpenSearch pod at `/usr/share/opensearch/config/synonyms/agent-synonyms.txt`. The `marketplace-agents` template uses an index-time analyzer without synonyms and a search-time analyzer (`agent_analyzer`) that references this file path. The initial dictionary contains the three synonym groups specified in the spec. Administrators update synonyms by editing the ConfigMap; an index close/open or analyzer reload is required for changes to take effect.
 
 **Rationale**: The spec assumption confirms: "Synonym dictionaries are stored as files in the container image or mounted via ConfigMap." The ConfigMap approach avoids rebuilding the container image for synonym updates. The file path is fixed so the index template can reference it statically. The requirement to close/open or reindex after synonym updates is documented in the spec assumptions and reflected in the quickstart.
 
@@ -93,9 +93,9 @@ The init script lives at `deploy/opensearch/init/init_opensearch.py`. A dedicate
 
 ## Decision 7: Snapshot Backup — S3 Plugin + Snapshot Management (SM)
 
-**Decision**: OpenSearch snapshots are stored in MinIO (feature 004) at the `backups/opensearch/` prefix using the **S3 repository plugin** (pre-installed in the official OpenSearch image). The snapshot repository is registered at init time. Automated daily snapshots are scheduled using **OpenSearch Snapshot Management (SM)** via the `_plugins/_sm/policies` API — this is OpenSearch's native snapshot scheduler. Manual snapshots can be triggered via the OpenSearch REST API or Dashboards UI.
+**Decision**: OpenSearch snapshots are stored in MinIO (feature 004) at the `backups/opensearch/` prefix using the **S3 repository plugin** (`repository-s3`) installed by the wrapper chart alongside `analysis-icu`. The snapshot repository is registered at init time. Automated daily snapshots are scheduled using **OpenSearch Snapshot Management (SM)** via the `_plugins/_sm/policies` API — this is OpenSearch's native snapshot scheduler. Manual snapshots can be triggered via the OpenSearch REST API or Dashboards UI.
 
-**Rationale**: The S3 plugin ships with the official OpenSearch image — no plugin installation needed. OpenSearch SM (Snapshot Management) provides native cron-scheduled snapshots without requiring an external CronJob. SM policies are created by the init Job. Using SM over a Kubernetes CronJob keeps snapshot management inside OpenSearch where failures are observable via the Dashboards UI.
+**Rationale**: The wrapper chart installs `repository-s3` alongside `analysis-icu` so the cluster can register a MinIO-backed snapshot repository without a custom image. OpenSearch SM (Snapshot Management) provides native cron-scheduled snapshots without requiring an external CronJob. SM policies are created by the init Job. Using SM over a Kubernetes CronJob keeps snapshot management inside OpenSearch where failures are observable via the Dashboards UI.
 
 **Alternatives considered**:
 - Kubernetes CronJob calling `PUT _snapshot/{repo}/{snapshot}`: external scheduler, harder to observe. Rejected — SM is the native approach.

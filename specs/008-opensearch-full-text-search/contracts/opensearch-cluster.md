@@ -46,7 +46,7 @@ stringData:
 
 | Template Name | Pattern | ISM Policy | Analyzer |
 |---------------|---------|------------|----------|
-| `marketplace-agents` | `marketplace-agents-*` | None (indefinite) | `agent_analyzer` |
+| `marketplace-agents` | `marketplace-agents-*` | None (indefinite) | `agent_index_analyzer` for indexing, `agent_analyzer` for search |
 | `audit-events` | `audit-events-*` | `audit-events-policy` | `standard` |
 | `connector-payloads` | `connector-payloads-*` | `connector-payloads-policy` | `standard` |
 
@@ -72,7 +72,7 @@ stringData:
 |----------|-------|
 | Repository name | `opensearch-backups` |
 | Type | S3-compatible (MinIO, feature 004) |
-| Bucket | `musematic-backups` |
+| Bucket | `backups` |
 | Base path | `backups/opensearch/` |
 | Endpoint | `http://musematic-minio.platform-data:9000` |
 | Schedule | Daily at 05:00 UTC (OpenSearch SM policy) |
@@ -80,16 +80,14 @@ stringData:
 
 ---
 
-## 6. Custom Analyzer — `agent_analyzer`
+## 6. Custom Analyzers — `agent_index_analyzer` and `agent_analyzer`
 
 Available on the `marketplace-agents-*` index pattern:
 
-| Stage | Component | Effect |
-|-------|-----------|--------|
-| Tokenizer | `standard` | Unicode word boundary splitting |
-| Filter 1 | `lowercase` | Case normalization |
-| Filter 2 | `icu_folding` | Diacritic removal, multilingual normalization |
-| Filter 3 | `synonym_filter` | Synonym expansion from `synonyms/agent-synonyms.txt` |
+| Analyzer | Stage | Components | Effect |
+|----------|-------|------------|--------|
+| `agent_index_analyzer` | Index time | `standard` + `lowercase` + `icu_folding` | Normalized indexing without updateable synonyms |
+| `agent_analyzer` | Search time | `standard` + `lowercase` + `icu_folding` + `synonym_filter` | Query-time synonym expansion from `synonyms/agent-synonyms.txt` |
 
 **Synonym file**: mounted at `/usr/share/opensearch/config/synonyms/agent-synonyms.txt` via ConfigMap `opensearch-synonyms`. Updates require index close/open or reindex.
 
@@ -131,6 +129,6 @@ curl http://musematic-opensearch.platform-data:9200/_snapshot/opensearch-backups
 
 - JVM heap is always 50% of pod memory limit (max 32GB per node per spec FR-001).
 - Security plugin state (`DISABLE_SECURITY_PLUGIN`) must match Dashboards security state (`DISABLE_SECURITY_DASHBOARDS_PLUGIN`).
-- The `analysis-icu` plugin must be installed before index templates are applied (init container runs first).
+- The `analysis-icu` plugin must be installed before index templates are applied (wrapper chart plugin installation runs before OpenSearch starts).
 - Synonym dictionary updates (ConfigMap change) require manual index close/open or reindex — they do not apply automatically.
-- The S3 snapshot plugin is pre-installed in the official OpenSearch 2.x image — no additional plugin installation required for backup.
+- The `repository-s3` plugin must be installed before registering the MinIO-backed snapshot repository.

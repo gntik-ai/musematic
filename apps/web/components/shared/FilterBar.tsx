@@ -12,8 +12,9 @@ export interface FilterOption {
 export interface FilterDefinition {
   id: string;
   label: string;
-  value: string;
+  value: string | string[];
   options: FilterOption[];
+  multiple?: boolean;
 }
 
 export function FilterBar({
@@ -22,18 +23,35 @@ export function FilterBar({
   onClear,
 }: {
   filters: FilterDefinition[];
-  onChange: (id: string, value: string) => void;
+  onChange: (id: string, value: string | string[]) => void;
   onClear: () => void;
 }) {
-  const activeCount = filters.filter((filter) => filter.value.length > 0).length;
+  const activeCount = filters.filter((filter) =>
+    Array.isArray(filter.value) ? filter.value.length > 0 : filter.value.length > 0,
+  ).length;
 
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card/80 p-4">
       {filters.map((filter) => (
         <label key={filter.id} className="min-w-40 space-y-2 text-sm">
           <span className="font-medium">{filter.label}</span>
-          <Select value={filter.value} onChange={(event) => onChange(filter.id, event.target.value)}>
-            <option value="">All</option>
+          <Select
+            className={filter.multiple ? "min-h-24" : undefined}
+            multiple={filter.multiple}
+            value={filter.value}
+            onChange={(event) => {
+              if (filter.multiple) {
+                onChange(
+                  filter.id,
+                  Array.from(event.currentTarget.selectedOptions, (option) => option.value),
+                );
+                return;
+              }
+
+              onChange(filter.id, event.target.value);
+            }}
+          >
+            {!filter.multiple ? <option value="">All</option> : null}
             {filter.options.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}

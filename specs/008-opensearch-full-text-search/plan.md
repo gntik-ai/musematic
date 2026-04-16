@@ -5,7 +5,7 @@
 
 ## Summary
 
-Deploy OpenSearch 2.x as the dedicated full-text search engine for marketplace agent discovery, audit log search, and operator diagnostic queries. The implementation delivers: a wrapper Helm chart at `deploy/helm/opensearch/` using the official `opensearch-project/opensearch` and `opensearch-project/opensearch-dashboards` charts as dependencies, ICU analysis plugin installation via init container, synonym dictionary ConfigMap-mounted at pod startup, three index templates (marketplace-agents, audit-events, connector-payloads) with custom analyzers and ISM lifecycle policies created by an idempotent Python init Job, snapshot backup to MinIO via OpenSearch Snapshot Management (SM), a typed `AsyncOpenSearchClient` wrapper, and workspace-scoped search projection writers.
+Deploy OpenSearch 2.x as the dedicated full-text search engine for marketplace agent discovery, audit log search, and operator diagnostic queries. The implementation delivers: a wrapper Helm chart at `deploy/helm/opensearch/` using the official `opensearch-project/opensearch` and `opensearch-project/opensearch-dashboards` charts as dependencies, ICU analysis plugin installation via the chart plugin installer, synonym dictionary ConfigMap-mounted at pod startup, three index templates (marketplace-agents, audit-events, connector-payloads) with separate index-time and search-time analyzers plus ISM lifecycle policies created by an idempotent Python init Job, snapshot backup to MinIO via OpenSearch Snapshot Management (SM), a typed `AsyncOpenSearchClient` wrapper, and workspace-scoped search projection writers.
 
 ## Technical Context
 
@@ -104,7 +104,7 @@ apps/control-plane/tests/integration/
 All technical decisions resolved in [research.md](research.md):
 - Official OpenSearch Helm chart (wrapper pattern with official chart as dependency)
 - Security plugin disabled dev / enabled prod with internal user database
-- ICU analysis plugin via init container (not custom image)
+- ICU analysis plugin via the official chart plugin installer (not custom image)
 - OpenSearch ISM for lifecycle policies (not Elasticsearch ILM)
 - Python init Job with opensearch-py (idempotent PUT operations)
 - Synonym dictionary as ConfigMap-mounted file
@@ -135,7 +135,7 @@ Artifacts generated:
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Deployment model | Wrapper Helm chart + official opensearch-project charts | Official chart is StatefulSet-based (no operator); wrapper adds project-specific resources |
-| Plugin installation | Init container running `opensearch-plugin install analysis-icu` | No custom image needed; version-compatible; official recommendation |
+| Plugin installation | Official chart plugin installer for `analysis-icu` and `repository-s3` | No custom image needed; version-compatible; required for ICU analysis and MinIO snapshots |
 | Lifecycle policies | OpenSearch ISM (not Elasticsearch ILM) | ISM is the OpenSearch-native equivalent; correct API for OpenSearch 2.x |
 | Index template API | `_index_template` (composable templates) | Current standard; supersedes legacy `_template` in OpenSearch 2.x |
 | Synonym management | ConfigMap-mounted file | Operationally manageable without image rebuild; spec-mandated approach |
@@ -145,7 +145,7 @@ Artifacts generated:
 
 ## Dependencies
 
-- **Upstream**: Feature 004 (minio-object-storage) — MinIO provides `musematic-backups` bucket for snapshots; bucket must exist before snapshot repository registration
+- **Upstream**: Feature 004 (minio-object-storage) — MinIO provides the `backups` bucket for snapshots; bucket must exist before snapshot repository registration
 - **Downstream**: Marketplace discovery APIs (reads from `marketplace-agents-*`); audit compliance APIs (reads from `audit-events-*`); projection-indexer runtime profile (writes to OpenSearch — implemented in downstream feature)
 - **Parallel with**: Neo4j (006), ClickHouse (007), Qdrant (005), Redis (002) — no dependency relationship
 - **Blocks**: Marketplace agent search UI, audit log search, operator diagnostic queries

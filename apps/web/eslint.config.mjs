@@ -8,6 +8,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default [
   {
     ignores: [
+      "build/**",
+      "dist/**",
       ".next/**",
       "coverage/**",
       "eslint.config.mjs",

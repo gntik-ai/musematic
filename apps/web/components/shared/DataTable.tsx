@@ -29,6 +29,8 @@ export interface DataTableProps<TData> {
   pageSize?: number;
   enableSorting?: boolean;
   enableFiltering?: boolean;
+  hidePagination?: boolean;
+  onRowClick?: ((row: TData) => void) | undefined;
   onPaginationChange?: ((state: PaginationState) => void) | undefined;
   onSortingChange?: ((state: SortingState) => void) | undefined;
   onFilterChange?: ((state: ColumnFiltersState) => void) | undefined;
@@ -41,7 +43,9 @@ export function DataTable<TData>({
   emptyStateMessage = "No data available.",
   enableFiltering = true,
   enableSorting = true,
+  hidePagination = false,
   isLoading = false,
+  onRowClick,
   onFilterChange,
   onPaginationChange,
   onSortingChange,
@@ -134,7 +138,13 @@ export function DataTable<TData>({
               : table.getRowModel().rows.map((row) => (
                   <TableRow key={row.id}>
                     {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                      <TableCell
+                        key={cell.id}
+                        className={onRowClick ? "cursor-pointer" : undefined}
+                        onClick={() => onRowClick?.(row.original)}
+                      >
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </TableCell>
                     ))}
                   </TableRow>
                 ))}
@@ -144,29 +154,31 @@ export function DataTable<TData>({
       {!isLoading && table.getRowModel().rows.length === 0 ? (
         <EmptyState description={emptyStateMessage} title="No rows found" />
       ) : null}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          {totalCount ? `${totalCount} total rows` : `${table.getRowModel().rows.length} visible rows`}
-        </p>
-        <div className="flex items-center gap-2">
-          <Button
-            disabled={!table.getCanPreviousPage()}
-            size="icon"
-            variant="outline"
-            onClick={() => table.previousPage()}
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            disabled={!table.getCanNextPage()}
-            size="icon"
-            variant="outline"
-            onClick={() => table.nextPage()}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+      {!hidePagination ? (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            {totalCount ? `${totalCount} total rows` : `${table.getRowModel().rows.length} visible rows`}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              disabled={!table.getCanPreviousPage()}
+              size="icon"
+              variant="outline"
+              onClick={() => table.previousPage()}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              disabled={!table.getCanNextPage()}
+              size="icon"
+              variant="outline"
+              onClick={() => table.nextPage()}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-      </div>
+      ) : null}
     </div>
   );
 }

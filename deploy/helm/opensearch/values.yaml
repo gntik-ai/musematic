@@ -1,6 +1,6 @@
-nameOverride: "musematic-opensearch"
-
 opensearch:
+  fullnameOverride: "musematic-opensearch"
+  masterService: "musematic-opensearch"
   replicas: 1
   image:
     repository: opensearchproject/opensearch
@@ -11,14 +11,53 @@ opensearch:
       value: "-Xms1g -Xmx1g"
     - name: DISABLE_SECURITY_PLUGIN
       value: "false"
-  initContainers:
-    - name: install-icu-plugin
+    - name: AWS_EC2_METADATA_DISABLED
+      value: "true"
+    - name: AWS_REGION
+      value: "us-east-1"
+    - name: AWS_DEFAULT_REGION
+      value: "us-east-1"
+    - name: AWS_ACCESS_KEY_ID
+      valueFrom:
+        secretKeyRef:
+          name: minio-platform-credentials
+          key: MINIO_ACCESS_KEY
+    - name: AWS_SECRET_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: minio-platform-credentials
+          key: MINIO_SECRET_KEY
+  plugins:
+    enabled: true
+    installList:
+      - analysis-icu
+      - repository-s3
+  keystore:
+    - secretName: opensearch-keystore-bootstrap
+  extraInitContainers:
+    - name: configure-s3-keystore
       image: opensearchproject/opensearch:2.18.0
-      command: ["/bin/sh", "-c"]
-      args: ["opensearch-plugin install --batch analysis-icu"]
+      command:
+        - /bin/sh
+        - -ec
+        - |
+          export OPENSEARCH_PATH_CONF=/tmp/keystore
+          echo "$S3_ACCESS_KEY" | /usr/share/opensearch/bin/opensearch-keystore add -xf s3.client.default.access_key
+          echo "$S3_SECRET_KEY" | /usr/share/opensearch/bin/opensearch-keystore add -xf s3.client.default.secret_key
+      env:
+        - name: S3_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: minio-platform-credentials
+              key: MINIO_ACCESS_KEY
+        - name: S3_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: minio-platform-credentials
+              key: MINIO_SECRET_KEY
       volumeMounts:
-        - name: plugins-volume
-          mountPath: /usr/share/opensearch/plugins
+        - name: keystore
+          mountPath: /tmp/keystore
   extraVolumes:
     - name: synonyms
       configMap:
@@ -44,6 +83,7 @@ opensearch:
 
 opensearch-dashboards:
   enabled: true
+  fullnameOverride: "musematic-opensearch-dashboards"
   image:
     repository: opensearchproject/opensearch-dashboards
     tag: "2.18.0"
@@ -78,6 +118,7 @@ initJob:
   snapshotRepository:
     name: "opensearch-backups"
     type: "s3"
-    bucket: "musematic-backups"
+    bucket: "backups"
     basePath: "backups/opensearch"
     endpoint: "http://musematic-minio.platform-data:9000"
+    region: "us-east-1"

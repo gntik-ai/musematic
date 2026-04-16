@@ -44,7 +44,7 @@
 
 **Independent Test**: `helm install --dry-run` succeeds; after real install, `GET /_cluster/health` returns `yellow` (dev single-node) or `green` (prod 3-node); Dashboards pod is Running; analyzer test shows synonym expansion tokens.
 
-- [X] T007 [US1] Create `deploy/helm/opensearch/values.yaml` with shared defaults: ICU analysis-icu init container (using same OpenSearch image, runs `opensearch-plugin install --batch analysis-icu`), synonym ConfigMap volume mount, Dashboards enabled, persistence 10Gi, resource requests per data-model.md §4.1, `DISABLE_SECURITY_PLUGIN: "false"` default
+- [X] T007 [US1] Create `deploy/helm/opensearch/values.yaml` with shared defaults: official chart plugin installer for `analysis-icu` and `repository-s3`, synonym ConfigMap volume mount, Dashboards enabled, persistence 10Gi, resource requests per data-model.md §4.1, `DISABLE_SECURITY_PLUGIN: "false"` default
 - [X] T008 [P] [US1] Create `deploy/helm/opensearch/values-prod.yaml` with production overrides: `replicas: 3`, JVM heap `8g`, persistence `100Gi` storageClass `fast`, Dashboards pointing to HTTPS endpoint per data-model.md §4.2
 - [X] T009 [P] [US1] Create `deploy/helm/opensearch/values-dev.yaml` with dev overrides: `replicas: 1`, JVM heap `512m`, `DISABLE_SECURITY_PLUGIN: "true"`, `discovery.type: single-node`, `DISABLE_SECURITY_DASHBOARDS_PLUGIN: "true"` per data-model.md §4.3
 - [X] T010 [US1] Create NetworkPolicy template `deploy/helm/opensearch/templates/network-policy.yaml`: allow ingress on `9200/TCP` from `platform-control` and `platform-execution` namespaces, `9600/TCP` from `platform-observability`, `9200/TCP` within `platform-data` (for Dashboards); deny all other ingress per contracts/opensearch-cluster.md §7
@@ -63,7 +63,7 @@
 
 - [X] T013 [US2] Implement ISM policy creation in `deploy/opensearch/init/init_opensearch.py`: `create_ism_policies()` function using `opensearch-py` `AsyncOpenSearch` — PUT `_plugins/_ism/policies/audit-events-policy` and `_plugins/_ism/policies/connector-payloads-policy` with retention config from data-model.md §2; use `if_seq_no`/`if_primary_term` pattern or unconditional PUT for idempotency
 - [X] T014 [P] [US2] Implement index template creation in `deploy/opensearch/init/init_opensearch.py`: `create_index_templates()` function — PUT `_index_template/marketplace-agents` with `agent_analyzer` (synonym_filter + icu_folding + lowercase), PUT `_index_template/audit-events`, PUT `_index_template/connector-payloads` with all field mappings from data-model.md §1; create initial alias indexes (`marketplace-agents-000001`, `audit-events-000001`, `connector-payloads-000001`)
-- [X] T015 [P] [US2] Implement snapshot repository registration and SM policy in `deploy/opensearch/init/init_opensearch.py`: `setup_snapshot_management()` — PUT `_snapshot/opensearch-backups` (S3 type, MinIO endpoint, bucket `musematic-backups`, base path `backups/opensearch/`) and PUT `_plugins/_sm/policies/daily-snapshot` (cron `0 5 * * *`, retain 30 snapshots / 30 days) per data-model.md §3
+- [X] T015 [P] [US2] Implement snapshot repository registration and SM policy in `deploy/opensearch/init/init_opensearch.py`: `setup_snapshot_management()` — PUT `_snapshot/opensearch-backups` (S3 type, MinIO endpoint, bucket `backups`, base path `backups/opensearch/`) and POST `_plugins/_sm/policies/daily-snapshot` (cron `0 5 * * *`, retain 30 snapshots / 30 days) per data-model.md §3
 - [X] T016 [US2] Create Helm post-install/post-upgrade Job template `deploy/helm/opensearch/templates/init-job.yaml`: Python 3.12-slim image, runs `python init_opensearch.py`, mounts init script ConfigMap, env vars from `opensearch-credentials` Secret and `initJob.*` Helm values; `restartPolicy: OnFailure`, `helm.sh/hook: post-install,post-upgrade`
 - [X] T017 [US2] Integration test in `apps/control-plane/tests/integration/test_opensearch_init.py`: spin up OpenSearch testcontainer, run `init_opensearch.py` functions directly, assert `marketplace-agents` template has `agent_analyzer` in settings, `audit-events` template references `audit-events-policy`, `connector-payloads` template references `connector-payloads-policy`; run init a second time and assert no errors (idempotency test)
 
@@ -125,7 +125,7 @@
 
 - [X] T031 [US6] Integration test in `apps/control-plane/tests/integration/test_opensearch_snapshot.py`: verify snapshot repository `opensearch-backups` exists (`GET /_snapshot/opensearch-backups`); trigger manual snapshot `PUT /_snapshot/opensearch-backups/manual-test-1`; poll until `state == SUCCESS` (timeout 15 minutes); assert snapshot stored (SC-008)
 - [X] T032 [US6] Integration test in `apps/control-plane/tests/integration/test_opensearch_snapshot.py`: index 100 documents in `marketplace-agents-000001`; take snapshot; delete the index (`DELETE /marketplace-agents-000001`); restore from snapshot (`POST /_snapshot/opensearch-backups/manual-test-1/_restore`); verify restored index has 100 documents with zero document loss (SC-009)
-- [X] T033 [P] [US6] Verify SM policy in `apps/control-plane/tests/integration/test_opensearch_snapshot.py`: call `GET /_plugins/_sm/policies/daily-snapshot`; assert `creation.schedule.cron.expression == "0 5 * * *"` and `deletion.delete_condition.max_count == 30`
+- [X] T033 [P] [US6] Verify SM policy in `apps/control-plane/tests/integration/test_opensearch_snapshot.py`: call `GET /_plugins/_sm/policies/daily-snapshot`; assert `creation.schedule.cron.expression == "0 5 * * *"` and `deletion.condition.max_count == 30`
 
 **Checkpoint**: Snapshot backup and restore fully verified. US6 independently testable.
 
@@ -162,7 +162,7 @@
 
 - [X] T037 [P] Add OpenSearch health check to platform diagnostic tooling: implement `check_opensearch()` in `apps/control-plane/src/platform/common/clients/opensearch.py` calling `health_check()` and returning a structured result for `platform-cli diagnose` — per user's plan item 9
 - [X] T038 [P] Verify `OPENSEARCH_*` environment variables are documented in the Helm chart's `values.yaml` comments and in `deploy/helm/opensearch/templates/init-job.yaml` env mapping; ensure Secret reference is consistent across all templates
-- [ ] T039 Run full quickstart.md validation: execute all 15 sections against a dev deployment; verify every `curl` command, analyzer test, facet aggregation, workspace isolation check, and Dashboards access step produces the documented expected output; file corrections in quickstart.md for any discrepancies
+- [X] T039 Run full quickstart.md validation: execute all 15 sections against a dev deployment; verify every `curl` command, analyzer test, facet aggregation, workspace isolation check, and Dashboards access step produces the documented expected output; file corrections in quickstart.md for any discrepancies
 
 ---
 

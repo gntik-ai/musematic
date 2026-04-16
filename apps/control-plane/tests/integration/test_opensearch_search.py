@@ -1,16 +1,21 @@
-from __future__ import annotations
-
 from datetime import UTC, datetime, timedelta
+from platform.search.projections import (
+    AgentSearchProjection,
+    build_agent_aggregations,
+    build_agent_query,
+)
 
 import pytest
-
-from platform.search.projections import AgentSearchProjection, build_agent_aggregations, build_agent_query
-
 
 pytestmark = pytest.mark.asyncio
 
 
-def _agent(agent_id: int, workspace_id: str, capability: str, name: str | None = None) -> dict[str, object]:
+def _agent(
+    agent_id: int,
+    workspace_id: str,
+    capability: str,
+    name: str | None = None,
+) -> dict[str, object]:
     timestamp = (datetime.now(UTC) - timedelta(minutes=agent_id)).isoformat()
     return {
         "agent_id": f"agent-{agent_id}",
@@ -36,7 +41,12 @@ async def test_marketplace_search_and_workspace_isolation(initialized_opensearch
     documents: list[dict[str, object]] = []
     for index in range(50):
         workspace = "ws-1" if index < 20 else "ws-2" if index < 35 else "ws-3"
-        capability = "summarization" if index % 3 == 0 else "translation" if index % 3 == 1 else "classification"
+        if index % 3 == 0:
+            capability = "summarization"
+        elif index % 3 == 1:
+            capability = "translation"
+        else:
+            capability = "classification"
         documents.append(_agent(index, workspace, capability))
     documents.append(_agent(999, "ws-1", "summarization", name="Text Summary Agent"))
 
@@ -59,7 +69,9 @@ async def test_marketplace_search_and_workspace_isolation(initialized_opensearch
     assert any(bucket["key"] == "summarization" for bucket in buckets)
 
 
-async def test_search_after_paginates_without_cross_workspace_hits(initialized_opensearch_client) -> None:
+async def test_search_after_paginates_without_cross_workspace_hits(
+    initialized_opensearch_client,
+) -> None:
     projection = AgentSearchProjection(initialized_opensearch_client)
     documents = [_agent(index, "ws-page", "translation") for index in range(15)]
     result = await projection.bulk_reindex(documents)
@@ -84,5 +96,7 @@ async def test_search_after_paginates_without_cross_workspace_hits(initialized_o
 
     assert len(first_page.hits) == 5
     assert len(second_page.hits) == 5
-    assert {hit["agent_id"] for hit in first_page.hits}.isdisjoint({hit["agent_id"] for hit in second_page.hits})
+    assert {hit["agent_id"] for hit in first_page.hits}.isdisjoint(
+        {hit["agent_id"] for hit in second_page.hits}
+    )
     assert all(hit["workspace_id"] == "ws-page" for hit in second_page.hits)

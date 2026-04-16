@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 import os
+from platform.search.projections import (
+    AgentSearchProjection,
+    build_agent_aggregations,
+    build_agent_query,
+)
 
 import pytest
-
-from platform.search.projections import AgentSearchProjection, build_agent_aggregations, build_agent_query
-
 
 pytestmark = pytest.mark.asyncio
 
@@ -48,6 +48,12 @@ async def test_synonym_expansion_and_facets(initialized_opensearch_client) -> No
     reason="Requires live analyzer reload against a full OpenSearch runtime.",
 )
 async def test_synonym_dictionary_can_be_extended(initialized_opensearch_client) -> None:
+    if os.environ.get("OPENSEARCH_TEST_MODE") == "external":
+        pytest.skip(
+            "External mode uses file-backed synonyms via Kubernetes ConfigMap; "
+            "validate extension with the quickstart flow."
+        )
+
     projection = AgentSearchProjection(initialized_opensearch_client)
     await projection.index_agent(
         {

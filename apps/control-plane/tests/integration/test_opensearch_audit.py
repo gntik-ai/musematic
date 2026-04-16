@@ -1,11 +1,7 @@
-from __future__ import annotations
-
 from datetime import UTC, datetime, timedelta
-
-import pytest
-
 from platform.search.projections import AuditSearchProjection, build_audit_query
 
+import pytest
 
 pytestmark = pytest.mark.asyncio
 
