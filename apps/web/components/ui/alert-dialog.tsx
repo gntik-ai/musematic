@@ -58,7 +58,11 @@ export function AlertDialogContent({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className={cn("w-full max-w-md rounded-xl border border-border bg-background p-6", className)}>
+      <div
+        aria-modal="true"
+        className={cn("w-full max-w-md rounded-xl border border-border bg-background p-6", className)}
+        role="alertdialog"
+      >
         {children}
       </div>
     </div>
