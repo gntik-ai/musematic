@@ -77,6 +77,13 @@ export const NAV_ITEMS: NavItem[] = [
     requiredRoles: ["trust_officer", "superadmin"],
   },
   {
+    id: "trust-workbench",
+    label: "Trust Workbench",
+    icon: "Fingerprint",
+    href: "/trust-workbench",
+    requiredRoles: ["trust_certifier", "platform_admin", "superadmin"],
+  },
+  {
     id: "settings",
     label: "Settings",
     icon: "Settings2",

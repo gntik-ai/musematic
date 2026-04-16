@@ -1,6 +1,7 @@
 export type RoleType =
   | "superadmin"
   | "platform_admin"
+  | "trust_certifier"
   | "workspace_owner"
   | "workspace_admin"
   | "workspace_editor"
