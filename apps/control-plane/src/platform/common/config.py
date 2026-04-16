@@ -310,6 +310,17 @@ class DiscoverySettings(BaseSettings):
     experiment_sandbox_timeout_seconds: int = 120
 
 
+class SimulationSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="SIMULATION_", extra="ignore")
+
+    max_duration_seconds: int = 1800
+    behavioral_history_days: int = 30
+    min_prediction_history_days: int = 7
+    comparison_significance_alpha: float = 0.05
+    default_strict_isolation: bool = True
+    prediction_worker_interval_seconds: int = 30
+
+
 class PlatformSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="PLATFORM_", extra="ignore")
 
@@ -339,6 +350,7 @@ class PlatformSettings(BaseSettings):
     agentops: AgentOpsSettings = Field(default_factory=AgentOpsSettings)
     composition: CompositionSettings = Field(default_factory=CompositionSettings)
     discovery: DiscoverySettings = Field(default_factory=DiscoverySettings)
+    simulation: SimulationSettings = Field(default_factory=SimulationSettings)
     profile: str = "api"
 
     @model_validator(mode="before")
@@ -626,6 +638,27 @@ class PlatformSettings(BaseSettings):
             "DISCOVERY_EXPERIMENT_SANDBOX_TIMEOUT_SECONDS": (
                 "discovery",
                 "experiment_sandbox_timeout_seconds",
+            ),
+            "SIMULATION_MAX_DURATION_SECONDS": ("simulation", "max_duration_seconds"),
+            "SIMULATION_BEHAVIORAL_HISTORY_DAYS": (
+                "simulation",
+                "behavioral_history_days",
+            ),
+            "SIMULATION_MIN_PREDICTION_HISTORY_DAYS": (
+                "simulation",
+                "min_prediction_history_days",
+            ),
+            "SIMULATION_COMPARISON_SIGNIFICANCE_ALPHA": (
+                "simulation",
+                "comparison_significance_alpha",
+            ),
+            "SIMULATION_DEFAULT_STRICT_ISOLATION": (
+                "simulation",
+                "default_strict_isolation",
+            ),
+            "SIMULATION_PREDICTION_WORKER_INTERVAL_SECONDS": (
+                "simulation",
+                "prediction_worker_interval_seconds",
             ),
             "WS_CLIENT_BUFFER_SIZE": ("ws_hub", "client_buffer_size"),
             "WS_HEARTBEAT_INTERVAL_SECONDS": ("ws_hub", "heartbeat_interval_seconds"),
@@ -1247,6 +1280,30 @@ class PlatformSettings(BaseSettings):
     @property
     def DISCOVERY_EXPERIMENT_SANDBOX_TIMEOUT_SECONDS(self) -> int:
         return self.discovery.experiment_sandbox_timeout_seconds
+
+    @property
+    def SIMULATION_MAX_DURATION_SECONDS(self) -> int:
+        return self.simulation.max_duration_seconds
+
+    @property
+    def SIMULATION_BEHAVIORAL_HISTORY_DAYS(self) -> int:
+        return self.simulation.behavioral_history_days
+
+    @property
+    def SIMULATION_MIN_PREDICTION_HISTORY_DAYS(self) -> int:
+        return self.simulation.min_prediction_history_days
+
+    @property
+    def SIMULATION_COMPARISON_SIGNIFICANCE_ALPHA(self) -> float:
+        return self.simulation.comparison_significance_alpha
+
+    @property
+    def SIMULATION_DEFAULT_STRICT_ISOLATION(self) -> bool:
+        return self.simulation.default_strict_isolation
+
+    @property
+    def SIMULATION_PREDICTION_WORKER_INTERVAL_SECONDS(self) -> int:
+        return self.simulation.prediction_worker_interval_seconds
 
 
 Settings = PlatformSettings

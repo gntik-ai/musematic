@@ -112,6 +112,9 @@ from platform.registry.index_worker import RegistryIndexWorker
 from platform.registry.registry_opensearch_setup import create_marketplace_agents_index
 from platform.registry.registry_qdrant_setup import create_agent_embeddings_collection
 from platform.registry.router import router as registry_router
+from platform.simulation.dependencies import build_simulation_service
+from platform.simulation.events import register_simulation_event_types
+from platform.simulation.router import router as simulation_router
 from platform.testing.dependencies import build_drift_service
 from platform.testing.events import register_testing_event_types
 from platform.trust.dependencies import (
@@ -184,6 +187,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_agentops_event_types()
     register_composition_event_types()
     register_discovery_event_types()
+    register_simulation_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -320,6 +324,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     agentops_lifecycle_scheduler = getattr(app.state, "agentops_lifecycle_scheduler", None)
     agentops_drift_scheduler = getattr(app.state, "agentops_drift_scheduler", None)
     discovery_proximity_scheduler = getattr(app.state, "discovery_proximity_scheduler", None)
+    simulation_prediction_scheduler = getattr(
+        app.state,
+        "simulation_prediction_scheduler",
+        None,
+    )
     robustness_orchestrator_scheduler = getattr(
         app.state,
         "robustness_orchestrator_scheduler",
@@ -388,6 +397,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["discovery_proximity_scheduler"] = str(exc)
             LOGGER.warning("Failed to start discovery proximity scheduler: %s", exc)
+    if simulation_prediction_scheduler is not None:
+        try:
+            simulation_prediction_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["simulation_prediction_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start simulation prediction scheduler: %s", exc)
     try:
         await _load_trust_runtime_assets(app)
     except Exception as exc:
@@ -405,6 +421,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        if simulation_prediction_scheduler is not None:
+            try:
+                simulation_prediction_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop simulation prediction scheduler cleanly: %s", exc)
         if robustness_orchestrator_scheduler is not None:
             try:
                 robustness_orchestrator_scheduler.shutdown(wait=False)
@@ -527,6 +548,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.agentops_lifecycle_scheduler = None
     app.state.agentops_drift_scheduler = None
     app.state.discovery_proximity_scheduler = None
+    app.state.simulation_prediction_scheduler = None
     app.state.robustness_orchestrator_scheduler = None
     app.state.trust_certifier_scheduler = None
     if resolved.profile == "worker":
@@ -558,6 +580,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.trust_certifier_scheduler = _build_trust_certifier_scheduler(app)
     if resolved.profile == "discovery":
         app.state.discovery_proximity_scheduler = _build_discovery_proximity_scheduler(app)
+    if resolved.profile == "simulation":
+        app.state.simulation_prediction_scheduler = _build_simulation_prediction_scheduler(app)
     if resolved.profile in {"scheduler", "context-engineering"}:
         app.state.context_engineering_drift_scheduler = _build_context_engineering_scheduler(app)
     exception_handler = cast(
@@ -599,6 +623,12 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
                 "workflow.runtime",
                 f"{resolved.kafka.consumer_group}-discovery-runtime",
                 _build_discovery_workflow_runtime_handler(app),
+            )
+        if resolved.profile == "simulation":
+            consumer_manager.subscribe(
+                "simulation.events",
+                f"{resolved.kafka.consumer_group}-simulation-status",
+                _build_simulation_event_handler(app),
             )
         if resolved.profile == "worker" and resolved.connectors.worker_enabled:
             consumer_manager.subscribe(
@@ -690,7 +720,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     ) -> dict[str, Any]:
         return {"status": "ok", "user": current_user}
 
-    if resolved.profile in {"api", "agentops", "composition", "discovery"}:
+    if resolved.profile in {"api", "agentops", "composition", "discovery", "simulation"}:
         app.include_router(api_router)
         app.include_router(auth_router)
         app.include_router(accounts_router)
@@ -713,6 +743,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(agentops_router)
         app.include_router(composition_router)
         app.include_router(discovery_router)
+        app.include_router(simulation_router)
 
     setup_telemetry(
         service_name=f"{resolved.otel.service_name}-{resolved.profile}",
@@ -860,6 +891,50 @@ def _build_discovery_proximity_scheduler(app: FastAPI) -> Any | None:
         "interval",
         seconds=60,
         id="discovery-proximity-clustering",
+    )
+    return scheduler
+
+
+def _build_simulation_prediction_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run_prediction_worker() -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = build_simulation_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient | None, app.state.clients.get("redis")),
+                simulation_controller=cast(
+                    SimulationControllerClient | None,
+                    app.state.clients.get("simulation_controller"),
+                ),
+                clickhouse_client=cast(
+                    AsyncClickHouseClient | None, app.state.clients.get("clickhouse")
+                ),
+                registry_service=getattr(app.state, "registry_service", None),
+                policy_service=getattr(app.state, "policy_service", None),
+            )
+            try:
+                await service.prediction_worker.run_once()
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Simulation prediction worker failed")
+
+    scheduler.add_job(
+        _run_prediction_worker,
+        "interval",
+        seconds=app.state.settings.simulation.prediction_worker_interval_seconds,
+        id="simulation-prediction-worker",
     )
     return scheduler
 
@@ -1207,6 +1282,34 @@ def _build_discovery_workflow_runtime_handler(app: FastAPI) -> Callable[[Any], A
                 "session_id": payload.get("session_id"),
             },
         )
+
+    return _handle
+
+
+def _build_simulation_event_handler(app: FastAPI) -> Callable[[Any], Awaitable[None]]:
+    async def _handle(envelope: Any) -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = build_simulation_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient | None, app.state.clients.get("redis")),
+                simulation_controller=cast(
+                    SimulationControllerClient | None,
+                    app.state.clients.get("simulation_controller"),
+                ),
+                clickhouse_client=cast(
+                    AsyncClickHouseClient | None, app.state.clients.get("clickhouse")
+                ),
+                registry_service=getattr(app.state, "registry_service", None),
+                policy_service=getattr(app.state, "policy_service", None),
+            )
+            try:
+                await service.events_consumer.handle_event(envelope)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Simulation event consumer failed")
 
     return _handle
 
