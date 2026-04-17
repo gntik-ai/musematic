@@ -1,0 +1,60 @@
+name: Build Ops CLI
+
+on:
+  push:
+    tags:
+      - cli-v*
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: ${{ matrix.id }}
+    runs-on: ${{ matrix.runs_on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: linux-amd64
+            runs_on: ubuntu-latest
+            python_version: "3.12"
+            artifact_name: platform-cli-linux-amd64
+          - id: linux-arm64
+            runs_on: ubuntu-24.04-arm
+            python_version: "3.12"
+            artifact_name: platform-cli-linux-arm64
+          - id: darwin-amd64
+            runs_on: macos-13
+            python_version: "3.12"
+            artifact_name: platform-cli-darwin-amd64
+          - id: darwin-arm64
+            runs_on: macos-14
+            python_version: "3.12"
+            artifact_name: platform-cli-darwin-arm64
+
+    defaults:
+      run:
+        working-directory: apps/ops-cli
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python_version }}
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]" pyinstaller
+
+      - name: Build standalone binary
+        run: pyinstaller platform-cli.spec --clean
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: apps/ops-cli/dist/platform-cli*
+          if-no-files-found: error
