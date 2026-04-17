@@ -24,6 +24,7 @@ def build_artifact(
     display_name: str,
     path: Path,
     format_name: str,
+    duration_seconds: float = 0.0,
 ) -> BackupArtifact:
     """Create a backup artifact model for one file."""
 
@@ -35,4 +36,5 @@ def build_artifact(
         checksum_sha256=sha256_file(path),
         format=format_name,
         created_at=utc_now_iso(),
+        duration_seconds=duration_seconds,
     )

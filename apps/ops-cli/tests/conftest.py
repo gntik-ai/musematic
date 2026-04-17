@@ -73,3 +73,12 @@ def ndjson_capture() -> io.StringIO:
         yield buffer
     finally:
         reset_output_stream()
+
+
+@pytest.fixture(autouse=True)
+def reset_ndjson_stream_fixture() -> None:
+    """Ensure structured output streams do not leak between tests."""
+
+    reset_output_stream()
+    yield
+    reset_output_stream()

@@ -1,5 +1,6 @@
 "use client";
 
+import { use } from "react";
 import Link from "next/link";
 import { Workflow } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -8,9 +9,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkflow } from "@/lib/hooks/use-workflow";
 
 interface WorkflowEditorMonitorDetailPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 function WorkflowEditorSkeleton() {
@@ -26,7 +27,7 @@ function WorkflowEditorSkeleton() {
 export default function WorkflowEditorMonitorDetailPage({
   params,
 }: WorkflowEditorMonitorDetailPageProps) {
-  const workflowId = params.id;
+  const { id: workflowId } = use(params);
   const workflowQuery = useWorkflow(workflowId);
 
   if (workflowQuery.isLoading) {

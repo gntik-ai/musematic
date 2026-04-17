@@ -86,7 +86,11 @@ func run() error {
 	store.TaskPlanUploader = state.S3TaskPlanUploader{Client: s3Client, Bucket: cfg.MinIOBucket}
 
 	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
-	defer redisClient.Close()
+	defer func() {
+		if closeErr := redisClient.Close(); closeErr != nil {
+			logger.Warn("failed to close redis client", "error", closeErr)
+		}
+	}()
 
 	var kafkaProducer *kafka.Producer
 	if producer, err := events.NewKafkaProducer(cfg.KafkaBrokers); err == nil {

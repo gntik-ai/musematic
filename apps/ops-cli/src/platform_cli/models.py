@@ -10,6 +10,8 @@ from pydantic import BaseModel, Field
 from platform_cli.config import DeploymentMode
 from platform_cli.constants import ComponentCategory
 
+CURRENT_SCHEMA_VERSION = 1
+
 
 class CheckStatus(StrEnum):
     """Terminal health states for diagnostics and verification."""
@@ -71,6 +73,7 @@ class BackupArtifact(BaseModel):
     checksum_sha256: str
     format: str
     created_at: str
+    duration_seconds: float = 0.0
 
 
 class BackupManifest(BaseModel):
@@ -86,6 +89,8 @@ class BackupManifest(BaseModel):
     artifacts: list[BackupArtifact] = Field(default_factory=list)
     total_size_bytes: int = 0
     storage_location: str
+    schema_version: int = CURRENT_SCHEMA_VERSION
+    total_duration_seconds: float = 0.0
 
 
 class RestoreRequest(BaseModel):

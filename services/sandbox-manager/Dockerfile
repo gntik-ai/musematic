@@ -1,4 +1,4 @@
-FROM golang:1.22-alpine AS builder
+FROM golang:1.25-alpine3.23 AS builder
 
 RUN apk add --no-cache build-base pkgconf
 
@@ -8,9 +8,10 @@ RUN go mod download || true
 COPY . .
 RUN CGO_ENABLED=1 GOARCH=amd64 GOOS=linux go build -tags musl -ldflags="-s -w" -o /sandbox-manager ./cmd/sandbox-manager
 
-FROM alpine:3.20
+FROM alpine:3.23.3
 
-RUN apk add --no-cache ca-certificates libstdc++ \
+RUN apk upgrade --no-cache \
+    && apk add --no-cache ca-certificates libstdc++ \
     && addgroup -S app \
     && adduser -S -G app -u 65532 nonroot
 

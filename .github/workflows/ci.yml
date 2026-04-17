@@ -271,14 +271,15 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: services/${{ matrix.service }}/go.mod
           cache: true
 
       - name: GolangCI-Lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v9
         with:
+          version: v2.6.2
           working-directory: services/${{ matrix.service }}
           args: --timeout=5m
 

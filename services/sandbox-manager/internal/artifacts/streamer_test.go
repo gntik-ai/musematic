@@ -29,7 +29,9 @@ func TestExecArchiveStreamerStreamsArchiveBytes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("StreamArchive() error = %v", err)
 	}
-	defer stream.Close()
+	defer func() {
+		_ = stream.Close()
+	}()
 
 	body, err := io.ReadAll(stream)
 	if err != nil {

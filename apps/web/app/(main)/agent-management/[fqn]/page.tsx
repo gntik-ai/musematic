@@ -1,5 +1,6 @@
 "use client";
 
+import { use } from "react";
 import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -12,11 +13,15 @@ import { ApiError } from "@/types/api";
 export default function AgentDetailPage({
   params,
 }: {
-  params: { fqn: string };
+  params: Promise<{ fqn: string }>;
 }) {
   const router = useRouter();
+  const resolvedParams = use(params);
   const workspaceId = useWorkspaceStore((state) => state.currentWorkspace?.id ?? null);
-  const fqn = useMemo(() => decodeURIComponent(params.fqn), [params.fqn]);
+  const fqn = useMemo(
+    () => decodeURIComponent(resolvedParams.fqn),
+    [resolvedParams.fqn],
+  );
   const agentQuery = useAgent(fqn, { workspaceId });
 
   useEffect(() => {

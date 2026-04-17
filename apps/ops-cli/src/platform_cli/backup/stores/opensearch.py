@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from time import monotonic
 
 import httpx
 
@@ -20,6 +21,7 @@ class OpenSearchBackup:
     async def backup(self, output_dir: Path) -> BackupArtifact:
         output_dir.mkdir(parents=True, exist_ok=True)
         snapshot_name = output_dir.name
+        started = monotonic()
         async with httpx.AsyncClient(timeout=20.0) as client:
             response = await client.put(
                 f"{self.url}/_snapshot/{self.repository}/{snapshot_name}",
@@ -33,6 +35,7 @@ class OpenSearchBackup:
             display_name="OpenSearch",
             path=path,
             format_name="snapshot",
+            duration_seconds=monotonic() - started,
         )
 
     async def restore(self, artifact_path: Path) -> bool:

@@ -148,7 +148,7 @@ func TestBuildRuntimeComponentsUsesFactories(t *testing.T) {
 	}
 	newListener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
-	newListener.Close()
+	require.NoError(t, newListener.Close())
 	listenTCPFunc = func(string, string) (net.Listener, error) {
 		return newListener, nil
 	}
@@ -323,7 +323,7 @@ func TestNewKubernetesClientFallsBackToDefaultHomeConfig(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
 	kubeDir := filepath.Join(dir, ".kube")
-	require.NoError(t, os.MkdirAll(kubeDir, 0o755))
+	require.NoError(t, os.MkdirAll(kubeDir, 0o750))
 	kubeconfig := filepath.Join(kubeDir, "config")
 	require.NoError(t, os.WriteFile(kubeconfig, []byte(`
 apiVersion: v1

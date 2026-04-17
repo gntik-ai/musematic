@@ -1,5 +1,6 @@
 "use client";
 
+import { use } from "react";
 import { useMemo, useState } from "react";
 import { ArrowLeftRight } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -11,10 +12,14 @@ import { Button } from "@/components/ui/button";
 export default function AgentRevisionsPage({
   params,
 }: {
-  params: { fqn: string };
+  params: Promise<{ fqn: string }>;
 }) {
   const router = useRouter();
-  const fqn = useMemo(() => decodeURIComponent(params.fqn), [params.fqn]);
+  const resolvedParams = use(params);
+  const fqn = useMemo(
+    () => decodeURIComponent(resolvedParams.fqn),
+    [resolvedParams.fqn],
+  );
   const [selectedRevisions, setSelectedRevisions] = useState<[number, number] | null>(
     null,
   );

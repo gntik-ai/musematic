@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 from platform_cli.config import DeploymentMode, InstallerConfig
 from platform_cli.main import app
 from platform_cli.models import (
+    BackupArtifact,
     BackupManifest,
     BackupStatus,
     CheckStatus,
@@ -84,26 +85,55 @@ def test_backup_commands_cover_create_restore_and_json(monkeypatch, tmp_path: Pa
         status=BackupStatus.COMPLETED,
         created_at="2026-01-01T00:00:00+00:00",
         completed_at="2026-01-01T00:00:10+00:00",
-        artifacts=[],
-        total_size_bytes=0,
+        artifacts=[
+            BackupArtifact(
+                store="redis",
+                display_name="Redis",
+                path=str(tmp_path / "redis.rdb"),
+                size_bytes=1,
+                checksum_sha256="a" * 64,
+                format="rdb",
+                created_at="2026-01-01T00:00:00+00:00",
+                duration_seconds=1.0,
+            )
+        ],
+        total_size_bytes=1,
         storage_location=str(tmp_path),
     )
-    monkeypatch.setattr(
-        "platform_cli.commands.backup.BackupOrchestrator.create",
-        lambda self, tag, stores_filter=None, force=False: asyncio.sleep(0, result=manifest),
-    )
-    monkeypatch.setattr(
-        "platform_cli.commands.backup.BackupOrchestrator.restore",
-        lambda self, backup_id, stores_filter=None, verify_only=False: asyncio.sleep(
-            0, result=True
-        ),
-    )
-    monkeypatch.setattr(
-        "platform_cli.commands.backup.BackupOrchestrator.list", lambda self, limit=20: [manifest]
-    )
+
+    class FakeOrchestrator:
+        RESTORE_ORDER = ("redis",)
+
+        def __init__(self, config) -> None:
+            self.manifests = SimpleNamespace(load=lambda backup_id: manifest)
+            self.last_verification_results = []
+
+        async def create(
+            self,
+            tag: str | None,
+            *,
+            force: bool = False,
+            headless: bool = False,
+        ) -> BackupManifest:
+            return await asyncio.sleep(0, result=manifest)
+
+        async def restore(
+            self,
+            backup_id: str,
+            stores_filter=None,
+            *,
+            verify_only: bool = False,
+            headless: bool = False,
+        ) -> bool:
+            return await asyncio.sleep(0, result=True)
+
+        def list(self, limit: int = 20) -> list[BackupManifest]:
+            return [manifest]
+
+    monkeypatch.setattr("platform_cli.commands.backup.BackupOrchestrator", FakeOrchestrator)
 
     assert runner.invoke(app, ["backup", "create", "--tag", "nightly"]).exit_code == 0
-    assert runner.invoke(app, ["backup", "restore", "bkp-1", "--verify-only"]).exit_code == 0
+    assert runner.invoke(app, ["backup", "restore", "bkp-1", "--yes"]).exit_code == 0
     stream = io.StringIO()
     set_output_stream(stream)
     assert runner.invoke(app, ["--json", "backup", "list"]).exit_code == 0

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from time import monotonic
 
 from platform_cli.backup.stores.common import build_artifact
 from platform_cli.models import BackupArtifact
@@ -26,12 +27,14 @@ class PostgreSQLBackup:
     async def backup(self, output_dir: Path) -> BackupArtifact:
         output_dir.mkdir(parents=True, exist_ok=True)
         path = output_dir / "postgresql.dump"
+        started = monotonic()
         _run(["pg_dump", "--format=custom", "-f", str(path), self.database_url])
         return build_artifact(
             store="postgresql",
             display_name="PostgreSQL",
             path=path,
             format_name="pg_dump",
+            duration_seconds=monotonic() - started,
         )
 
     async def restore(self, artifact_path: Path) -> bool:

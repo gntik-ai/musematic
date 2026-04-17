@@ -1,0 +1,14 @@
+components:
+- postgresql
+- redis
+- kafka
+- qdrant
+- neo4j
+- clickhouse
+- opensearch
+- minio
+- runtime-controller
+- reasoning-engine
+- simulation-controller
+- control-plane
+name: demo

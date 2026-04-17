@@ -1,13 +1,16 @@
 "use client";
 
+import { use } from "react";
 import { FleetDetailView } from "@/components/features/fleet/FleetDetailView";
 
 interface FleetDetailPageProps {
-  params: {
+  params: Promise<{
     fleetId: string;
-  };
+  }>;
 }
 
 export default function FleetDetailPage({ params }: FleetDetailPageProps) {
-  return <FleetDetailView fleetId={params.fleetId} />;
+  const { fleetId } = use(params);
+
+  return <FleetDetailView fleetId={fleetId} />;
 }

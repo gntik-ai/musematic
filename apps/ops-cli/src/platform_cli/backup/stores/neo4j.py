@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from time import monotonic
 
 from platform_cli.backup.stores.common import build_artifact
 from platform_cli.models import BackupArtifact
@@ -24,8 +25,15 @@ class Neo4jBackup:
     async def backup(self, output_dir: Path) -> BackupArtifact:
         output_dir.mkdir(parents=True, exist_ok=True)
         path = output_dir / "neo4j.dump"
+        started = monotonic()
         _run(["neo4j-admin", "database", "dump", self.database_name, f"--to-path={output_dir}"])
-        return build_artifact(store="neo4j", display_name="Neo4j", path=path, format_name="dump")
+        return build_artifact(
+            store="neo4j",
+            display_name="Neo4j",
+            path=path,
+            format_name="dump",
+            duration_seconds=monotonic() - started,
+        )
 
     async def restore(self, artifact_path: Path) -> bool:
         _run(

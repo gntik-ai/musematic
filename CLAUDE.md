@@ -85,6 +85,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-17
 - GitHub Container Registry (ghcr.io) for images; GitHub Release assets for SBOMs (046-cicd-pipeline)
 - YAML (Helm chart templates) + Python 3.12 (kafka_tracing.py) + Go 1.22 (main.go OTLP init) + JSON (Grafana dashboard model) + opentelemetry-collector chart (open-telemetry/opentelemetry-helm-charts), kube-prometheus-stack (prometheus-community), jaeger chart (jaegertracing/jaeger), opentelemetry Python SDK (already in control-plane), go.opentelemetry.io/otel (already in Go services) (047-observability-stack)
 - BadgerDB PVC (5 GiB, Jaeger traces 7d), Prometheus PVC (20 GiB, metrics 15d) (047-observability-stack)
+- Python 3.12+ + Typer 0.12+, Rich, Pydantic v2, APScheduler 3.x, aiokafka 0.11+, aioboto3 (optional, for S3 upload), pytest + pytest-asyncio 8.x (048-backup-restore)
+- JSON manifests on local filesystem or MinIO bucket (no database tables) (048-backup-restore)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -104,9 +106,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 048-backup-restore: Added Python 3.12+ + Typer 0.12+, Rich, Pydantic v2, APScheduler 3.x, aiokafka 0.11+, aioboto3 (optional, for S3 upload), pytest + pytest-asyncio 8.x
 - 047-observability-stack: Added YAML (Helm chart templates) + Python 3.12 (kafka_tracing.py) + Go 1.22 (main.go OTLP init) + JSON (Grafana dashboard model) + opentelemetry-collector chart (open-telemetry/opentelemetry-helm-charts), kube-prometheus-stack (prometheus-community), jaeger chart (jaegertracing/jaeger), opentelemetry Python SDK (already in control-plane), go.opentelemetry.io/otel (already in Go services)
 - 046-cicd-pipeline: Added YAML (GitHub Actions workflow syntax) + Python 3.12, Go 1.22, TypeScript 5.x, Dockerfile + GitHub Actions built-in + dorny/paths-filter@v3, golangci/golangci-lint-action@v6, bufbuild/buf-action@v1, gitleaks/gitleaks-action@v2, aquasecurity/trivy-action, anchore/sbom-action@v0, softprops/action-gh-release@v2, docker/build-push-action@v6
-- 045-installer-operations-cli: Python 3.12+ + Typer 0.12+ (CLI), Rich (terminal UX), Pydantic v2 (config validation), PyYAML 6.x (config files), Jinja2 3.x (Helm values rendering), httpx 0.27+ (HTTP health checks), grpcio 1.65+ (gRPC health checks), asyncpg 0.29+ (PostgreSQL check), cryptography 42+ (RSA key generation), aioboto3 (MinIO/S3 ops), PyInstaller 6.x (standalone binary build), pytest + pytest-asyncio 8.x, ruff 0.7+, mypy 1.11+ strict
 
 
 <!-- MANUAL ADDITIONS START -->

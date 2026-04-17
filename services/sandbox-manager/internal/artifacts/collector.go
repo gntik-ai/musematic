@@ -76,12 +76,16 @@ func (c *Collector) Collect(ctx context.Context, entry sandbox.Entry) ([]*sandbo
 		span.SetStatus(otelcodes.Error, err.Error())
 		return nil, false, err
 	}
-	defer stream.Close()
+	defer func() {
+		_ = stream.Close()
+	}()
 	gz, err := gzip.NewReader(stream)
 	if err != nil {
 		return nil, false, err
 	}
-	defer gz.Close()
+	defer func() {
+		_ = gz.Close()
+	}()
 	reader := tar.NewReader(gz)
 	var files []FileInfo
 	type upload struct {

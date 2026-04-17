@@ -1,5 +1,6 @@
 "use client";
 
+import { use } from "react";
 import Link from "next/link";
 import { formatDistanceStrict, formatDistanceToNow } from "date-fns";
 import { Play, Rows3, Workflow } from "lucide-react";
@@ -17,9 +18,9 @@ import { useWorkflow } from "@/lib/hooks/use-workflow";
 import type { Execution } from "@/types/execution";
 
 interface WorkflowExecutionListPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 }
 
 function ExecutionHistorySkeleton() {
@@ -108,7 +109,7 @@ export default function WorkflowExecutionListPage({
   params,
 }: WorkflowExecutionListPageProps) {
   const router = useRouter();
-  const workflowId = params.id;
+  const { id: workflowId } = use(params);
   const workflowQuery = useWorkflow(workflowId);
   const executionListQuery = useExecutionList(workflowId);
   const startExecution = useStartExecution(workflowId);
