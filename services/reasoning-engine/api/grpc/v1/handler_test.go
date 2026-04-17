@@ -539,7 +539,7 @@ func TestInterceptorsRecoverPanics(t *testing.T) {
 	}
 }
 
-func TestHandlerAdditionalBranches(t *testing.T) {
+func TestHandlerAdditionalBranches(t *testing.T) { //nolint:gocyclo // This test intentionally drives the public handler through many error-mapping branches.
 	t.Run("unimplemented dependencies", func(t *testing.T) {
 		handler := NewHandler(HandlerDependencies{})
 

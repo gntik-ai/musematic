@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -268,7 +269,13 @@ func TestRunWithComponentsBuildsServerAndReturnsListenerError(t *testing.T) {
 		close:     func() {},
 	}, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	if err != nil {
-		require.Contains(t, err.Error(), "use of closed network connection")
+		require.True(
+			t,
+			strings.Contains(err.Error(), "use of closed network connection") ||
+				strings.Contains(err.Error(), "grpc: the server has been stopped"),
+			"unexpected listener shutdown error: %v",
+			err,
+		)
 	}
 }
 

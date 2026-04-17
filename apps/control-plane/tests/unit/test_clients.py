@@ -9,6 +9,7 @@ from botocore.exceptions import ClientError
 from platform.common.clients.clickhouse import AsyncClickHouseClient
 from platform.common.clients.neo4j import AsyncNeo4jClient
 from platform.common.clients.object_storage import AsyncObjectStorageClient
+from platform.common.clients.opensearch import ClusterHealth, SearchResult
 from platform.common.clients.opensearch import AsyncOpenSearchClient
 from platform.common.clients.qdrant import AsyncQdrantClient
 from platform.common.clients.reasoning_engine import ReasoningEngineClient
@@ -264,9 +265,20 @@ async def test_opensearch_client_methods(monkeypatch) -> None:
 
     client = AsyncOpenSearchClient(PlatformSettings(OPENSEARCH_HOSTS="http://search:9200"))
     await client.connect()
-    assert await client.health_check() is True
+    assert await client.health_check() == ClusterHealth(
+        status="green",
+        nodes=0,
+        active_shards=0,
+        relocating_shards=0,
+    )
     await client.index("items", "1", {"name": "doc"})
-    assert await client.search("items", {"match_all": {}}, size=5) == {"hits": {"hits": []}}
+    assert await client.search("items", {"match_all": {}}, "workspace-1", size=5) == SearchResult(
+        hits=[],
+        total=0,
+        aggregations=None,
+        took_ms=0,
+        search_after=None,
+    )
     assert await client.bulk([{"_index": "items", "_source": {"id": "1"}}]) == {"success": 1, "errors": []}
 
 

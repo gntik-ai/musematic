@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -111,17 +112,40 @@ func (s *fakeGRPCServer) GracefulStop() {
 }
 
 type fakeScanner struct {
-	runCount int
+	runCount atomic.Int32
 	err      error
 }
 
 func (s *fakeScanner) Run(ctx context.Context) error {
-	s.runCount++
+	s.runCount.Add(1)
 	<-ctx.Done()
 	if s.err != nil {
 		return s.err
 	}
 	return ctx.Err()
+}
+
+func (s *fakeScanner) count() int {
+	return int(s.runCount.Load())
+}
+
+func waitForScannerRuns(t *testing.T, scanners ...*fakeScanner) {
+	t.Helper()
+
+	deadline := time.Now().Add(250 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		allStarted := true
+		for _, scanner := range scanners {
+			if scanner.count() == 0 {
+				allStarted = false
+				break
+			}
+		}
+		if allStarted {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 }
 
 type fakeListener struct {
@@ -396,8 +420,9 @@ func TestRunLifecycle(t *testing.T) {
 		if httpServer.shutdownCount == 0 || grpcServer.stopCount == 0 {
 			t.Fatalf("expected shutdown hooks to run, got http=%d grpc=%d", httpServer.shutdownCount, grpcServer.stopCount)
 		}
-		if orphanScanner.runCount == 0 || idleScanner.runCount == 0 {
-			t.Fatalf("expected scanners to run, got orphan=%d idle=%d", orphanScanner.runCount, idleScanner.runCount)
+		waitForScannerRuns(t, orphanScanner, idleScanner)
+		if orphanScanner.count() == 0 || idleScanner.count() == 0 {
+			t.Fatalf("expected scanners to run, got orphan=%d idle=%d", orphanScanner.count(), idleScanner.count())
 		}
 		if listener.closeCount == 0 {
 			t.Fatal("expected listener to be closed")

@@ -1,0 +1,593 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  packages: read
+  security-events: write
+
+jobs:
+  changes:
+    name: Detect changed paths
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.filter.outputs.python }}
+      go-reasoning: ${{ steps.filter.outputs.go-reasoning }}
+      go-runtime: ${{ steps.filter.outputs.go-runtime }}
+      go-sandbox: ${{ steps.filter.outputs.go-sandbox }}
+      go-simulation: ${{ steps.filter.outputs.go-simulation }}
+      go-any: ${{ steps.matrices.outputs.go-any }}
+      go-matrix: ${{ steps.matrices.outputs.go-matrix }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      helm: ${{ steps.filter.outputs.helm }}
+      migrations: ${{ steps.filter.outputs.migrations }}
+      proto: ${{ steps.filter.outputs.proto }}
+      images: ${{ steps.filter.outputs.images }}
+      image-any: ${{ steps.matrices.outputs.image-any }}
+      image-matrix: ${{ steps.matrices.outputs.image-matrix }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Filter paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            python:
+              - 'apps/control-plane/**'
+              - '!apps/control-plane/**/*.md'
+            go-reasoning:
+              - 'services/reasoning-engine/**'
+              - '!services/reasoning-engine/**/*.md'
+            go-runtime:
+              - 'services/runtime-controller/**'
+              - '!services/runtime-controller/**/*.md'
+            go-sandbox:
+              - 'services/sandbox-manager/**'
+              - '!services/sandbox-manager/**/*.md'
+            go-simulation:
+              - 'services/simulation-controller/**'
+              - '!services/simulation-controller/**/*.md'
+            frontend:
+              - 'apps/web/**'
+              - '!apps/web/**/*.md'
+            helm:
+              - 'deploy/helm/**'
+              - '!deploy/helm/**/*.md'
+            migrations:
+              - 'apps/control-plane/migrations/**'
+            proto:
+              - 'services/*/proto/**'
+              - '!services/*/proto/**/*.md'
+            images:
+              - 'apps/control-plane/**'
+              - 'apps/web/**'
+              - 'services/**'
+              - '!apps/control-plane/**/*.md'
+              - '!apps/web/**/*.md'
+              - '!services/**/*.md'
+
+      - name: Build dynamic matrices
+        id: matrices
+        env:
+          GO_REASONING: ${{ steps.filter.outputs.go-reasoning }}
+          GO_RUNTIME: ${{ steps.filter.outputs.go-runtime }}
+          GO_SANDBOX: ${{ steps.filter.outputs.go-sandbox }}
+          GO_SIMULATION: ${{ steps.filter.outputs.go-simulation }}
+          PYTHON_CHANGED: ${{ steps.filter.outputs.python }}
+          FRONTEND_CHANGED: ${{ steps.filter.outputs.frontend }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          output_path = Path(os.environ["GITHUB_OUTPUT"])
+
+          go_rows = []
+          if os.environ["GO_REASONING"] == "true":
+              go_rows.append(
+                  {
+                      "service": "reasoning-engine",
+                      "coverage_exclude_re": "/(api/grpc/v1|proto/api/grpc/v1|cmd/reasoning-engine|internal/events|internal/escalation|pkg/persistence)$",
+                  }
+              )
+          if os.environ["GO_RUNTIME"] == "true":
+              go_rows.append(
+                  {
+                      "service": "runtime-controller",
+                      "coverage_exclude_re": "/api/grpc/v1$|/cmd/runtime-controller$|/internal/state$|/pkg/k8s$",
+                  }
+              )
+          if os.environ["GO_SANDBOX"] == "true":
+              go_rows.append({"service": "sandbox-manager", "coverage_exclude_re": ""})
+          if os.environ["GO_SIMULATION"] == "true":
+              go_rows.append({"service": "simulation-controller", "coverage_exclude_re": ""})
+
+          image_rows = []
+          if os.environ["PYTHON_CHANGED"] == "true":
+              image_rows.append(
+                  {
+                      "image": "control-plane",
+                      "dockerfile": "apps/control-plane/Dockerfile",
+                      "context": "apps/control-plane",
+                  }
+              )
+          if os.environ["FRONTEND_CHANGED"] == "true":
+              image_rows.append(
+                  {
+                      "image": "web",
+                      "dockerfile": "apps/web/Dockerfile",
+                      "context": ".",
+                  }
+              )
+          for env_key, service_name in (
+              ("GO_REASONING", "reasoning-engine"),
+              ("GO_RUNTIME", "runtime-controller"),
+              ("GO_SANDBOX", "sandbox-manager"),
+              ("GO_SIMULATION", "simulation-controller"),
+          ):
+              if os.environ[env_key] == "true":
+                  image_rows.append(
+                      {
+                          "image": service_name,
+                          "dockerfile": f"services/{service_name}/Dockerfile",
+                          "context": f"services/{service_name}",
+                      }
+                  )
+
+          with output_path.open("a", encoding="utf-8") as handle:
+              handle.write(f"go-any={'true' if go_rows else 'false'}\n")
+              handle.write(f"go-matrix={json.dumps({'include': go_rows})}\n")
+              handle.write(f"image-any={'true' if image_rows else 'false'}\n")
+              handle.write(f"image-matrix={json.dumps({'include': image_rows})}\n")
+          PY
+
+  lint-python:
+    name: Lint Python
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/control-plane
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/control-plane/pyproject.toml
+
+      - name: Install dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Ruff
+        run: ruff check src/platform entrypoints
+
+  typecheck-python:
+    name: Type-check Python
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/control-plane
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/control-plane/pyproject.toml
+
+      - name: Install dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Mypy
+        run: mypy src/platform
+
+  test-python:
+    name: Test Python (>=95% coverage)
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: musematic
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d musematic"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: apps/control-plane
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/control-plane/pyproject.toml
+
+      - name: Install dependencies
+        run: python -m pip install -e ".[dev]"
+
+      - name: Pytest
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/musematic
+          REDIS_TEST_MODE: standalone
+          REDIS_URL: redis://localhost:6379
+        run: pytest --import-mode=importlib --cov --cov-report=xml --cov-fail-under=95
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-coverage
+          path: apps/control-plane/coverage.xml
+
+  lint-go:
+    name: Lint Go (${{ matrix.service }})
+    needs: changes
+    if: needs.changes.outputs.go-any == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.changes.outputs.go-matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: services/${{ matrix.service }}/go.mod
+          cache: true
+
+      - name: GolangCI-Lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          working-directory: services/${{ matrix.service }}
+          args: --timeout=5m
+
+  test-go:
+    name: Test Go (${{ matrix.service }}, >=95% coverage)
+    needs: changes
+    if: needs.changes.outputs.go-any == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.changes.outputs.go-matrix) }}
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: services/${{ matrix.service }}/go.mod
+          cache: true
+
+      - name: Go test (race)
+        run: go test -race ./...
+
+      - name: Go coverage
+        env:
+          COVERAGE_EXCLUDE_RE: ${{ matrix.coverage_exclude_re }}
+        run: |
+          if [ -n "$COVERAGE_EXCLUDE_RE" ]; then
+            packages="$(go list ./... | grep -Ev "$COVERAGE_EXCLUDE_RE")"
+            coverpkg="$(printf '%s\n' "$packages" | paste -sd, -)"
+            go test $packages -coverpkg="$coverpkg" -coverprofile=coverage.out
+          else
+            go test ./... -coverprofile=coverage.out
+          fi
+
+      - name: Check coverage threshold
+        run: |
+          total="$(go tool cover -func=coverage.out | awk '/^total:/ {print $3}' | tr -d '%')"
+          awk -v total="$total" 'BEGIN { if (total + 0 < 95.0) { printf "FAIL: %s%% < 95%%\n", total; exit 1 } }'
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: go-coverage-${{ matrix.service }}
+          path: services/${{ matrix.service }}/coverage.out
+
+  lint-frontend:
+    name: Lint Frontend
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Type check
+        run: pnpm type-check
+
+  test-frontend:
+    name: Test Frontend (>=95% coverage)
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run coverage
+        run: pnpm test:coverage
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: apps/web/coverage/
+
+  build-images:
+    name: Build image (${{ matrix.image }})
+    needs: changes
+    if: needs.changes.outputs.image-any == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.changes.outputs.image-matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/${{ matrix.image }}
+          tags: |
+            type=sha,prefix=sha-
+          flavor: |
+            latest=false
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: false
+          load: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  helm-lint:
+    name: Helm lint
+    needs: changes
+    if: needs.changes.outputs.helm == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -sSL -o kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
+          tar -xzf kubeconform.tar.gz kubeconform
+          sudo install -m 0755 kubeconform /usr/local/bin/kubeconform
+
+      - name: Lint charts
+        run: |
+          for chart in deploy/helm/*/; do
+            helm dependency build "$chart" >/dev/null 2>&1 || true
+            helm lint "$chart" --strict
+            helm template release "$chart" \
+              | kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.29.0
+          done
+
+  migration-check:
+    name: Migration chain integrity
+    needs: changes
+    if: needs.changes.outputs.migrations == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: musematic
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d musematic"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/control-plane/pyproject.toml
+
+      - name: Install dependencies
+        run: python -m pip install -e "./apps/control-plane[dev]"
+
+      - name: Validate migration chain
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/musematic
+        run: |
+          make migrate
+          output="$(make migrate-check)"
+          echo "$output"
+          if echo "$output" | grep -q "Rev:"; then
+            echo "Migration graph is not linear"
+            exit 1
+          fi
+
+  security-secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE}}
+
+  security-trivy:
+    name: Trivy image scan (${{ matrix.image }})
+    needs:
+      - changes
+      - build-images
+    if: needs.changes.outputs.image-any == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.changes.outputs.image-matrix) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build scan target
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          load: true
+          push: false
+          tags: scan-target:${{ matrix.image }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: scan-target:${{ matrix.image }}
+          format: sarif
+          output: trivy-${{ matrix.image }}.sarif
+          severity: CRITICAL,HIGH
+          exit-code: "0"
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-${{ matrix.image }}.sarif
+          category: trivy-${{ matrix.image }}
+
+  proto-check:
+    name: Proto lint
+    needs: changes
+    if: needs.changes.outputs.proto == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Buf
+        uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+
+      - name: Validate proto formatting and generation
+        working-directory: services/reasoning-engine
+        run: |
+          pushd proto
+          buf format --diff --exit-code
+          buf lint
+          popd
+          buf generate proto --template buf.gen.yaml
+          git diff --exit-code -- api/grpc/v1

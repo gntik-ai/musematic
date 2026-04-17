@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package musematic.reasoning.v1;
 
-option go_package = "github.com/musematic/reasoning-engine/api/grpc/v1;reasoningv1";
-
 import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/musematic/reasoning-engine/api/grpc/v1;reasoningv1";
 
 service ReasoningEngineService {
   rpc SelectReasoningMode(SelectReasoningModeRequest) returns (ReasoningModeConfig);

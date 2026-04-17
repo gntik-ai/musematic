@@ -5,9 +5,13 @@ from typing import Any, cast
 from uuid import UUID
 
 try:
-    import numpy as np
+    import numpy as _np
 except ModuleNotFoundError:  # pragma: no cover
-    np = None
+    _numpy: Any | None = None
+else:
+    _numpy = _np
+
+np: Any | None = _numpy
 
 
 @dataclass(frozen=True, slots=True)

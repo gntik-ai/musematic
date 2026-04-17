@@ -571,9 +571,7 @@ class RegistryService:
         profile = await self.repository.get_agent_by_id_any(agent_id)
         if profile is None:
             return None
-        if profile.namespace is not None and profile.namespace.created_by is not None:
-            return profile.namespace.created_by
-        return profile.created_by
+        return profile.namespace.created_by
 
     async def _get_workspace_visibility(self, workspace_id: UUID) -> EffectiveVisibility:
         if self.workspaces_service is None:

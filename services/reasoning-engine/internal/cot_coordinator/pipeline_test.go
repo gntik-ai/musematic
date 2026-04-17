@@ -351,7 +351,7 @@ func TestPipelineDefaultConfigAndErrors(t *testing.T) {
 	}
 }
 
-func TestPGTraceRepositoryExecPaths(t *testing.T) {
+func TestPGTraceRepositoryExecPaths(t *testing.T) { //nolint:gocyclo // This test intentionally exercises the repository persistence branches end to end.
 	t.Run("ensure trace persists deterministic ids", func(t *testing.T) {
 		store := &fakeTraceStore{}
 		repo := &PGTraceRepository{pool: store}

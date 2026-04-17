@@ -3,10 +3,10 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from contextlib import nullcontext
 from functools import wraps
-from typing import ParamSpec, TypeVar
+from typing import Any, ParamSpec, TypeVar
 
 try:
-    from opentelemetry import trace
+    from opentelemetry import trace as _trace
 except ImportError:  # pragma: no cover - fallback for minimal test environments
     class _TraceShim:
         @staticmethod
@@ -16,7 +16,11 @@ except ImportError:  # pragma: no cover - fallback for minimal test environments
         def start_as_current_span(self, _span_name: str) -> nullcontext[None]:
             return nullcontext()
 
-    trace = _TraceShim()
+    _trace_impl: Any = _TraceShim()
+else:
+    _trace_impl = _trace
+
+trace: Any = _trace_impl
 
 P = ParamSpec("P")
 R = TypeVar("R")

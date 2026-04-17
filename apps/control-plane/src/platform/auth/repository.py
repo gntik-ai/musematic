@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from datetime import UTC, datetime
 from platform.auth.models import (
     AuthAttempt,
@@ -11,7 +12,6 @@ from platform.auth.models import (
     UserRole,
 )
 from platform.common.models.user import User as PlatformUser
-import hashlib
 from uuid import UUID
 
 from sqlalchemy import delete, select, update
@@ -167,7 +167,7 @@ class AuthRepository:
             .where(MfaEnrollment.user_id == user_id)
             .values(status="disabled", expires_at=None)
         )
-        return bool(result.rowcount)
+        return bool(getattr(result, "rowcount", 0))
 
     async def consume_recovery_code(
         self,

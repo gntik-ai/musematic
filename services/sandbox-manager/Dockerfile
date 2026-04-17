@@ -1,10 +1,19 @@
 FROM golang:1.22-alpine AS builder
 
-WORKDIR /src
-COPY . .
-RUN CGO_ENABLED=0 GOARCH=amd64 GOOS=linux go build -ldflags="-s -w" -o /sandbox-manager ./cmd/sandbox-manager
+RUN apk add --no-cache build-base pkgconf
 
-FROM gcr.io/distroless/static-debian12
+WORKDIR /src
+COPY go.mod go.sum* ./
+RUN go mod download || true
+COPY . .
+RUN CGO_ENABLED=1 GOARCH=amd64 GOOS=linux go build -tags musl -ldflags="-s -w" -o /sandbox-manager ./cmd/sandbox-manager
+
+FROM alpine:3.20
+
+RUN apk add --no-cache ca-certificates libstdc++ \
+    && addgroup -S app \
+    && adduser -S -G app -u 65532 nonroot
 
 COPY --from=builder /sandbox-manager /sandbox-manager
+USER nonroot
 ENTRYPOINT ["/sandbox-manager"]

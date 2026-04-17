@@ -69,9 +69,7 @@ func (f *FanoutRegistry) Buffered(sandboxID string) []*sandboxv1.SandboxLogLine 
 	defer f.mu.RUnlock()
 	items := f.history[sandboxID]
 	out := make([]*sandboxv1.SandboxLogLine, 0, len(items))
-	for _, item := range items {
-		out = append(out, item)
-	}
+	out = append(out, items...)
 	return out
 }
 
