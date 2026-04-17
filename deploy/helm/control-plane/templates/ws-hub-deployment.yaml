@@ -34,5 +34,11 @@ spec:
               value: {{ .Values.wsHub.env.WS_HEARTBEAT_INTERVAL_SECONDS | quote }}
             - name: WS_HEARTBEAT_TIMEOUT_SECONDS
               value: {{ .Values.wsHub.env.WS_HEARTBEAT_TIMEOUT_SECONDS | quote }}
+            - name: OTEL_EXPORTER_ENDPOINT
+              value: {{ .Values.wsHub.env.OTEL_EXPORTER_ENDPOINT | quote }}
+            - name: OTEL_SERVICE_NAME
+              value: {{ .Values.wsHub.env.OTEL_SERVICE_NAME | quote }}
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: {{ .Values.wsHub.env.OTEL_RESOURCE_ATTRIBUTES | quote }}
           resources:
 {{ toYaml .Values.wsHub.resources | indent 12 }}

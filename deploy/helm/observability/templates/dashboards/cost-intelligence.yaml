@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-cost-intelligence
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.dashboardLabels" . | indent 4 }}
+data:
+  cost-intelligence.json: |
+    {
+      "__inputs": [],
+      "__requires": [],
+      "annotations": { "list": [] },
+      "description": "Cost breakdown by agent, workspace, and model.",
+      "editable": true,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "id": 1,
+          "type": "barchart",
+          "title": "Top Agent Cost",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "targets": [{ "expr": "topk(10, cost_per_agent_total{workspace_id=~\"$workspace\"})", "legendFormat": "{{ `{{agent_fqn}}` }}", "refId": "A" }]
+        },
+        {
+          "id": 2,
+          "type": "barchart",
+          "title": "Workspace Cost",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "targets": [{ "expr": "cost_per_workspace_total{workspace_id=~\"$workspace\"}", "legendFormat": "{{ `{{workspace_id}}` }}", "refId": "A" }]
+        },
+        {
+          "id": 3,
+          "type": "piechart",
+          "title": "Cost by Model",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 },
+          "targets": [{ "expr": "sum by (model) (cost_per_model_total{workspace_id=~\"$workspace\"})", "legendFormat": "{{ `{{model}}` }}", "refId": "A" }]
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "Cumulative Cost",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 16, "x": 8, "y": 8 },
+          "targets": [{ "expr": "sum by (workspace_id) (cost_per_workspace_total{workspace_id=~\"$workspace\"})", "legendFormat": "{{ `{{workspace_id}}` }}", "refId": "A" }]
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "tags": ["musematic", "cost"],
+      "templating": {
+        "list": [
+          { "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" }, "hide": 0, "includeAll": false, "label": "Datasource", "multi": false, "name": "datasource", "options": [], "query": "prometheus", "refresh": 1, "regex": "", "type": "datasource" },
+          { "current": { "selected": true, "text": ".*", "value": ".*" }, "datasource": { "type": "prometheus", "uid": "$datasource" }, "hide": 0, "includeAll": true, "label": "Workspace", "multi": false, "name": "workspace", "options": [], "query": "label_values(cost_per_workspace_total, workspace_id)", "refresh": 1, "regex": "", "type": "query" }
+        ]
+      },
+      "time": { "from": "now-1h", "to": "now" },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Cost Intelligence",
+      "uid": "cost-intelligence",
+      "version": 1
+    }

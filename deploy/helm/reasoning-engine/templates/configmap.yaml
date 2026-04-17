@@ -9,3 +9,6 @@ data:
   TRACE_BUFFER_SIZE: "{{ .Values.config.traceBufferSize }}"
   TRACE_PAYLOAD_THRESHOLD: "{{ .Values.config.tracePayloadThreshold }}"
   BUDGET_DEFAULT_TTL_SECONDS: "{{ .Values.config.budgetDefaultTTLSeconds }}"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "{{ .Values.config.otelExporterOtlpEndpoint }}"
+  OTEL_SERVICE_NAME: "{{ .Values.config.otelServiceName }}"
+  OTEL_RESOURCE_ATTRIBUTES: "{{ .Values.config.otelResourceAttributes }}"

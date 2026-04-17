@@ -303,7 +303,11 @@ func (h *Handler) SubmitCorrectionIteration(ctx context.Context, req *Correction
 		}
 	}
 
+	h.metrics.RecordCorrectionCost(ctx, req.GetCost())
 	h.metrics.RecordCorrectionIteration(ctx, string(statusValue))
+	if statusValue == correction_loop.StatusBudgetExceeded || statusValue == correction_loop.StatusEscalateToHuman {
+		h.metrics.RecordCorrectionNonConvergence(ctx, string(statusValue))
+	}
 	return &ConvergenceResult{
 		Status:       convergenceToProto(statusValue),
 		IterationNum: safeInt32(iterationNum),

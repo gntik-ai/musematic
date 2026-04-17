@@ -14,6 +14,9 @@ wsHub:
     WS_CLIENT_BUFFER_SIZE: "1000"
     WS_HEARTBEAT_INTERVAL_SECONDS: "30"
     WS_HEARTBEAT_TIMEOUT_SECONDS: "10"
+    OTEL_EXPORTER_ENDPOINT: http://otel-collector.platform-observability.svc.cluster.local:4318
+    OTEL_SERVICE_NAME: control-plane
+    OTEL_RESOURCE_ATTRIBUTES: deployment.environment=production
 
   resources:
     requests:

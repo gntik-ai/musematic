@@ -22,6 +22,7 @@ import (
 	"github.com/musematic/reasoning-engine/pkg/lua"
 	"github.com/musematic/reasoning-engine/pkg/metrics"
 	"github.com/musematic/reasoning-engine/pkg/persistence"
+	"github.com/musematic/reasoning-engine/pkg/telemetry"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -39,6 +40,7 @@ type config struct {
 	traceBufferSize         int
 	tracePayloadThreshold   int
 	budgetDefaultTTLSeconds int64
+	otlpExporterEndpoint    string
 }
 
 type grpcServer interface {
@@ -64,6 +66,7 @@ var (
 	runFn                      = run
 	exitFn                     = os.Exit
 	loadLuaFn                  = lua.Load
+	setupTelemetryFn           = telemetry.Setup
 )
 
 func main() {
@@ -82,6 +85,17 @@ func run() error {
 
 	ctx, cancel := notifyContextFn(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
+
+	serviceName := envString("OTEL_SERVICE_NAME", "reasoning-engine")
+	telemetryShutdown, err := setupTelemetryFn(ctx, serviceName, cfg.otlpExporterEndpoint)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		_ = telemetryShutdown(shutdownCtx)
+	}()
 
 	deps, err := buildRuntimeDeps(ctx, cfg)
 	if err != nil {
@@ -200,6 +214,7 @@ func loadConfig() (config, error) {
 		traceBufferSize:         envInt("TRACE_BUFFER_SIZE", 10000),
 		tracePayloadThreshold:   envInt("TRACE_PAYLOAD_THRESHOLD", 65536),
 		budgetDefaultTTLSeconds: envInt64("BUDGET_DEFAULT_TTL_SECONDS", 3600),
+		otlpExporterEndpoint:    os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"),
 	}, nil
 }
 

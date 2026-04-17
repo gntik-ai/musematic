@@ -9,7 +9,7 @@ from enum import StrEnum
 from pathlib import Path
 from uuid import uuid4
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from platform_cli.config import InstallerConfig
 
@@ -46,6 +46,7 @@ class InstallationCheckpoint(BaseModel):
     started_at: str
     updated_at: str
     steps: list[InstallStep]
+    metadata: dict[str, str] = Field(default_factory=dict)
     completed: bool = False
     admin_credentials_displayed: bool = False
 
@@ -116,8 +117,23 @@ class CheckpointManager:
         step.error = error
         self._checkpoint.updated_at = now.isoformat()
         self._checkpoint.completed = all(
-            item.status == InstallStepStatus.COMPLETED for item in self._checkpoint.steps
+            item.status in {InstallStepStatus.COMPLETED, InstallStepStatus.SKIPPED}
+            for item in self._checkpoint.steps
         )
+        self._write()
+        return self._checkpoint
+
+    def update_metadata(self, **values: str | int | None) -> InstallationCheckpoint:
+        """Merge metadata into the current checkpoint and persist the change."""
+
+        if self._checkpoint is None:
+            raise RuntimeError("No checkpoint loaded or created.")
+        now = _utc_now().isoformat()
+        for key, value in values.items():
+            if value is None:
+                continue
+            self._checkpoint.metadata[key] = str(value)
+        self._checkpoint.updated_at = now
         self._write()
         return self._checkpoint
 

@@ -1,0 +1,22 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-fleet-alerts
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.ruleLabels" . | indent 4 }}
+spec:
+  groups:
+    - name: platform.fleet
+      interval: 1m
+      rules:
+        - alert: FleetDegradedOperation
+          expr: fleet_status{status="degraded"} > 0
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: Fleet is operating in degraded mode
+            description: One or more fleets have been degraded for at least ten minutes.
+            dashboard_url: http://musematic-observability-grafana/d/fleet-health

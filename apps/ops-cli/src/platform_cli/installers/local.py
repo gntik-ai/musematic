@@ -52,6 +52,7 @@ class LocalInstaller(AbstractInstaller):
         self.migration_runner = MigrationRunner()
         self.process: subprocess.Popen[str] | None = None
         self.qdrant_process: subprocess.Popen[str] | None = None
+        self.jaeger_process: subprocess.Popen[str] | None = None
 
     @property
     def pid_path(self) -> Path:
@@ -61,12 +62,21 @@ class LocalInstaller(AbstractInstaller):
     def sqlite_path(self) -> Path:
         return self.config.data_dir / "db" / "platform.db"
 
+    @property
+    def jaeger_pid_path(self) -> Path:
+        return self.config.data_dir / "jaeger.pid"
+
+    @property
+    def jaeger_cid_path(self) -> Path:
+        return self.config.data_dir / "jaeger.cid"
+
     def build_steps(self) -> list[InstallerStep]:
         return [
             InstallerStep("preflight", "Run local preflight checks", self.preflight),
             InstallerStep("directories", "Create data directories", self.prepare_directories),
             InstallerStep("database", "Initialise SQLite database", self.initialize_database),
             InstallerStep("qdrant", "Start local Qdrant", self.start_qdrant),
+            InstallerStep("jaeger", "Start local Jaeger", self.start_jaeger),
             InstallerStep("secrets", "Generate local secrets", self.generate_and_store_secrets),
             InstallerStep("control-plane", "Start control plane", self.start_control_plane),
             InstallerStep("migrate", "Run local migrations", self.migrate),
@@ -85,7 +95,7 @@ class LocalInstaller(AbstractInstaller):
         summary = await PreflightRunner(
             [
                 DiskSpaceCheck(self.config.data_dir),
-                PortAvailabilityCheck((self.port, 6333)),
+                PortAvailabilityCheck((self.port, 6333, 4317, 4318, 16686)),
             ]
         ).run()
         if not summary.passed:
@@ -115,6 +125,75 @@ class LocalInstaller(AbstractInstaller):
         self.generated_secrets = generate_secrets(self.config.secrets)
         store_secrets_local(self.generated_secrets, self.config.data_dir)
 
+    async def start_jaeger(self) -> None:
+        logs_dir = self.config.data_dir / "logs"
+        logs_dir.mkdir(parents=True, exist_ok=True)
+        stdout = None if self.foreground else (logs_dir / "jaeger.out").open("a", encoding="utf-8")
+        stderr = None if self.foreground else (logs_dir / "jaeger.err").open("a", encoding="utf-8")
+
+        docker = shutil.which("docker")
+        jaeger_binary = shutil.which("jaeger-all-in-one")
+        runtime_metadata: dict[str, str | int] = {"jaeger_ui_url": "http://127.0.0.1:16686"}
+
+        if docker is not None:
+            self.jaeger_process = subprocess.Popen(
+                [
+                    docker,
+                    "run",
+                    "--rm",
+                    "--name",
+                    "musematic-jaeger-local",
+                    "--cidfile",
+                    str(self.jaeger_cid_path),
+                    "-p",
+                    "4317:4317",
+                    "-p",
+                    "4318:4318",
+                    "-p",
+                    "16686:16686",
+                    "jaegertracing/all-in-one:latest",
+                ],
+                stdout=stdout,
+                stderr=stderr,
+                text=True,
+            )
+            self.jaeger_pid_path.write_text(str(self.jaeger_process.pid), encoding="utf-8")
+            runtime_metadata.update(
+                {
+                    "jaeger_runtime": "docker",
+                    "jaeger_process_pid": self.jaeger_process.pid,
+                }
+            )
+        elif jaeger_binary is not None:
+            self.jaeger_process = subprocess.Popen(
+                [
+                    jaeger_binary,
+                    "--collector.otlp.grpc.host-port=:4317",
+                    "--collector.otlp.http.host-port=:4318",
+                    "--query.http-server.host-port=:16686",
+                ],
+                stdout=stdout,
+                stderr=stderr,
+                text=True,
+            )
+            self.jaeger_pid_path.write_text(str(self.jaeger_process.pid), encoding="utf-8")
+            runtime_metadata.update(
+                {
+                    "jaeger_runtime": "binary",
+                    "jaeger_process_pid": self.jaeger_process.pid,
+                }
+            )
+        else:
+            raise RuntimeError("docker or jaeger-all-in-one is required for local tracing")
+
+        if self.jaeger_cid_path.exists():
+            runtime_metadata["jaeger_container_id"] = self.jaeger_cid_path.read_text(
+                encoding="utf-8"
+            ).strip()
+        self.checkpoint_manager.update_metadata(**runtime_metadata)
+        await self.wait_for_jaeger()
+        print("Jaeger UI available at http://127.0.0.1:16686")
+
     def build_local_env(self) -> dict[str, str]:
         env = os.environ.copy()
         pythonpath_segments = [str(CONTROL_PLANE_SRC)]
@@ -128,6 +207,7 @@ class LocalInstaller(AbstractInstaller):
                 "REDIS_TEST_MODE": "standalone",
                 "KAFKA_MODE": "local",
                 "MINIO_ENDPOINT": f"file://{self.config.data_dir / 'storage'}",
+                "OTEL_EXPORTER_ENDPOINT": "http://127.0.0.1:4318",
             }
         )
         return env
@@ -175,6 +255,19 @@ class LocalInstaller(AbstractInstaller):
                 await asyncio.sleep(0.2)
         raise RuntimeError("local control plane did not become healthy in time")
 
+    async def wait_for_jaeger(self, timeout_seconds: int = 30) -> None:
+        deadline = monotonic() + timeout_seconds
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            while monotonic() < deadline:
+                try:
+                    response = await client.get("http://127.0.0.1:16686/")
+                    if response.status_code < 500:
+                        return
+                except httpx.HTTPError:
+                    pass
+                await asyncio.sleep(0.2)
+        raise RuntimeError("local Jaeger did not become healthy in time")
+
     async def migrate(self) -> None:
         self.migration_runner.run_alembic(f"sqlite+aiosqlite:///{self.sqlite_path}")
 
@@ -195,10 +288,42 @@ class LocalInstaller(AbstractInstaller):
     def stop(cls, data_dir: Path) -> bool:
         """Stop the local platform process tracked by a PID file."""
 
+        stopped = False
         pid_path = data_dir / "platform.pid"
         if not pid_path.exists():
-            return False
-        pid = int(pid_path.read_text(encoding="utf-8").strip())
-        os.kill(pid, signal.SIGTERM)
-        pid_path.unlink(missing_ok=True)
-        return True
+            pass
+        else:
+            pid = int(pid_path.read_text(encoding="utf-8").strip())
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+            pid_path.unlink(missing_ok=True)
+            stopped = True
+
+        jaeger_cid_path = data_dir / "jaeger.cid"
+        if jaeger_cid_path.exists():
+            container_id = jaeger_cid_path.read_text(encoding="utf-8").strip()
+            docker = shutil.which("docker")
+            if docker is not None and container_id:
+                subprocess.run(
+                    [docker, "stop", container_id],
+                    check=False,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    text=True,
+                )
+                stopped = True
+            jaeger_cid_path.unlink(missing_ok=True)
+
+        jaeger_pid_path = data_dir / "jaeger.pid"
+        if jaeger_pid_path.exists():
+            jaeger_pid = int(jaeger_pid_path.read_text(encoding="utf-8").strip())
+            try:
+                os.kill(jaeger_pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+            jaeger_pid_path.unlink(missing_ok=True)
+            stopped = True
+
+        return stopped

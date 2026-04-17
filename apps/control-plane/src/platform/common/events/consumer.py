@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterator
+from contextlib import contextmanager
 from importlib import import_module
 from platform.common.config import PlatformSettings, Settings
 from platform.common.config import settings as default_settings
 from platform.common.events.envelope import EventEnvelope
 from platform.common.exceptions import KafkaConsumerError
+from platform.common.kafka_tracing import extract_trace_context
+from platform.common.tracing import trace
 from typing import Any
 
 EventHandler = Callable[[EventEnvelope], Awaitable[None]]
@@ -58,9 +61,19 @@ class EventConsumerManager:
 
     async def _consume(self, consumer: Any, handler: EventHandler) -> None:
         try:
+            context_module = import_module("opentelemetry.context")
+        except Exception:
+            context_module = None
+        tracer = trace.get_tracer(__name__)
+        try:
             async for message in consumer:
                 envelope = EventEnvelope.model_validate_json(message.value)
-                await handler(envelope)
+                message_headers = dict(message.headers or [])
+                extracted_context = extract_trace_context(message_headers)
+                topic = getattr(message, "topic", "events")
+                with _attached_context(context_module, extracted_context):
+                    with tracer.start_as_current_span(f"kafka.consume.{topic}"):
+                        await handler(envelope)
                 commit = getattr(consumer, "commit", None)
                 if commit is not None:
                     result = commit()
@@ -73,3 +86,15 @@ class EventConsumerManager:
 
 
 AsyncKafkaConsumer = EventConsumerManager
+
+
+@contextmanager
+def _attached_context(context_module: Any | None, extracted_context: Any) -> Iterator[None]:
+    if context_module is None:
+        yield
+        return
+    token = context_module.attach(extracted_context)
+    try:
+        yield
+    finally:
+        context_module.detach(token)

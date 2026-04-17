@@ -1,0 +1,21 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: otel-collector
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.labels" . | indent 4 }}
+    prometheus: musematic
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ include "musematic-observability.namespace" . }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/name: opentelemetry-collector
+  endpoints:
+    - port: metrics
+      interval: 15s
+      path: /metrics
+

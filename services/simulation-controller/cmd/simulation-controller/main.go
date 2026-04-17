@@ -22,6 +22,7 @@ import (
 	"github.com/musematic/simulation-controller/internal/sim_manager"
 	"github.com/musematic/simulation-controller/pkg/metrics"
 	"github.com/musematic/simulation-controller/pkg/persistence"
+	"github.com/musematic/simulation-controller/pkg/telemetry"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -32,15 +33,16 @@ import (
 )
 
 type config struct {
-	grpcPort            int
-	postgresDSN         string
-	kafkaBrokers        string
-	minioEndpoint       string
-	simulationBucket    string
-	simulationNamespace string
-	orphanScanInterval  time.Duration
-	defaultMaxDuration  int32
-	kubeconfig          string
+	grpcPort             int
+	postgresDSN          string
+	kafkaBrokers         string
+	minioEndpoint        string
+	simulationBucket     string
+	simulationNamespace  string
+	orphanScanInterval   time.Duration
+	defaultMaxDuration   int32
+	kubeconfig           string
+	otlpExporterEndpoint string
 }
 
 type runtimeStore interface {
@@ -94,7 +96,8 @@ var (
 	newKubernetesClientFunc = func(kubeconfig string) (kubernetes.Interface, *rest.Config, error) {
 		return newKubernetesClient(kubeconfig)
 	}
-	listenTCPFunc = net.Listen
+	listenTCPFunc    = net.Listen
+	setupTelemetryFn = telemetry.Setup
 )
 
 func main() {
@@ -109,6 +112,17 @@ func run() error {
 	cfg := loadConfig()
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
+
+	serviceName := envString("OTEL_SERVICE_NAME", "simulation-controller")
+	telemetryShutdown, err := setupTelemetryFn(ctx, serviceName, cfg.otlpExporterEndpoint)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		_ = telemetryShutdown(shutdownCtx)
+	}()
 
 	components, err := buildRuntimeComponents(ctx, cfg)
 	if err != nil {
@@ -269,15 +283,16 @@ func runWithComponents(ctx context.Context, cfg config, components runtimeCompon
 
 func loadConfig() config {
 	return config{
-		grpcPort:            envInt("GRPC_PORT", 50055),
-		postgresDSN:         os.Getenv("POSTGRES_DSN"),
-		kafkaBrokers:        os.Getenv("KAFKA_BROKERS"),
-		minioEndpoint:       os.Getenv("MINIO_ENDPOINT"),
-		simulationBucket:    envString("SIMULATION_BUCKET", sim_manager.DefaultBucket),
-		simulationNamespace: envString("SIMULATION_NAMESPACE", sim_manager.DefaultNamespace),
-		orphanScanInterval:  time.Duration(envInt("ORPHAN_SCAN_INTERVAL_SECONDS", 60)) * time.Second,
-		defaultMaxDuration:  safeInt32(envInt("DEFAULT_MAX_DURATION_SECONDS", int(sim_manager.DefaultMaxDurationSec))),
-		kubeconfig:          os.Getenv("KUBECONFIG"),
+		grpcPort:             envInt("GRPC_PORT", 50055),
+		postgresDSN:          os.Getenv("POSTGRES_DSN"),
+		kafkaBrokers:         os.Getenv("KAFKA_BROKERS"),
+		minioEndpoint:        os.Getenv("MINIO_ENDPOINT"),
+		simulationBucket:     envString("SIMULATION_BUCKET", sim_manager.DefaultBucket),
+		simulationNamespace:  envString("SIMULATION_NAMESPACE", sim_manager.DefaultNamespace),
+		orphanScanInterval:   time.Duration(envInt("ORPHAN_SCAN_INTERVAL_SECONDS", 60)) * time.Second,
+		defaultMaxDuration:   safeInt32(envInt("DEFAULT_MAX_DURATION_SECONDS", int(sim_manager.DefaultMaxDurationSec))),
+		kubeconfig:           os.Getenv("KUBECONFIG"),
+		otlpExporterEndpoint: os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"),
 	}
 }
 

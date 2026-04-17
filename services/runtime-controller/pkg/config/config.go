@@ -26,6 +26,7 @@ type Config struct {
 	StopGracePeriod           time.Duration
 	AgentPackagePresignTTL    time.Duration
 	K8sDryRun                 bool
+	OTLPExporterEndpoint      string
 }
 
 func Load() (Config, error) {
@@ -47,6 +48,7 @@ func Load() (Config, error) {
 		StopGracePeriod:           readDuration("STOP_GRACE_PERIOD", 30*time.Second),
 		AgentPackagePresignTTL:    readDuration("AGENT_PACKAGE_PRESIGN_TTL", 2*time.Hour),
 		K8sDryRun:                 readBool("K8S_DRY_RUN", false),
+		OTLPExporterEndpoint:      readString("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
 	}
 	if cfg.PostgresDSN == "" {
 		return Config{}, fmt.Errorf("POSTGRES_DSN is required")

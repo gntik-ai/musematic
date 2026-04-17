@@ -72,11 +72,16 @@ The system shall support installation in the following deployment modes:
 4. Kubernetes installation;
 5. Incus cluster installation.
 
-### FR-002 Database by Deployment Mode
+### FR-002 Database and Object Storage by Deployment Mode
 The system shall use:
 - SQLite for local native installations;
 - SQLite optionally for non-HA Docker single-host development setups;
 - PostgreSQL for Docker Swarm, Kubernetes, Incus cluster, and any HA or distributed deployment.
+
+For object storage, the system shall use:
+- local filesystem for local native installations;
+- S3-compatible object storage for Docker, Docker Swarm, Kubernetes, Incus, and any networked deployment.
+The platform shall not require any specific S3 provider. Any S3-compatible endpoint (Hetzner Object Storage, AWS S3, Cloudflare R2, Backblaze B2, Wasabi, DigitalOcean Spaces, self-hosted MinIO, or equivalent) shall be supported. For local development, a self-hosted MinIO instance may be used via Docker Compose, but MinIO shall not be a production dependency.
 
 ### FR-003 Installer Modes
 The system shall provide:
@@ -96,6 +101,7 @@ During installation, the system shall:
 The installer shall validate:
 - selected deployment backend availability;
 - database reachability;
+- S3-compatible object storage reachability (endpoint connectivity, credential validity, bucket existence or creation permissions);
 - storage location availability;
 - secret generation;
 - network prerequisites;
@@ -107,7 +113,8 @@ The installer shall be able to generate environment-specific deployment artifact
 - Docker Compose or equivalent single-host artifacts;
 - Docker Swarm stack artifacts;
 - Kubernetes Helm values or manifests;
-- Incus bootstrap or profile artifacts.
+- Incus bootstrap or profile artifacts;
+- S3-compatible object storage configuration (endpoint URL, region, credentials reference, bucket prefix, path-style flag).
 
 ## 4. Identity, Authentication, and Authorization
 
@@ -768,6 +775,10 @@ At installation time, the operator shall choose the execution backend for:
 - agent runtimes;
 - sandbox runtimes.
 
+The operator shall also choose the object storage backend:
+- external S3-compatible provider (endpoint URL, credentials, region); or
+- self-hosted MinIO (development and lab environments only).
+
 ### FR-112 V1 Backend Constraint
 The baseline product may require the same backend family for both agent runtimes and sandboxes in version 1.
 
@@ -799,6 +810,7 @@ The platform shall support configurable storage quotas for:
 - logs;
 - execution artifacts;
 - sandbox artifacts.
+Storage quotas shall be enforced against S3-compatible object storage usage. The platform shall track per-workspace bucket consumption and alert or throttle when thresholds are reached.
 
 ### FR-117 Enforcement and Reporting
 Quota enforcement shall happen at runtime and shall be visible in dashboards and audit logs.
@@ -2549,6 +2561,71 @@ The platform shall support third-party certification where external certifiers (
 ### FR-446 Ongoing Surveillance and Periodic Reassessment
 Certification shall include an ongoing surveillance program with: periodic reassessments on a configurable schedule (e.g., quarterly); automated compliance checks that run continuously; immediate recertification triggers when material changes are detected (revision change, policy change, behavioral regression); and certification expiry with configurable duration and renewal workflow.
 
+
+## 91. S3-Compatible Object Storage
+
+### FR-447 Provider-Agnostic S3 Object Storage
+The platform shall use S3-compatible object storage as the canonical store for all binary and large artifacts, including: agent packages, execution artifacts, reasoning traces, sandbox outputs, evidence bundles, simulation artifacts, and backups. The platform shall access object storage exclusively through standard S3 API operations (PutObject, GetObject, DeleteObject, ListObjects, HeadBucket) and shall not depend on any vendor-specific extension, admin API, or operator. Any S3-compatible endpoint shall work without code changes — configuration (endpoint URL, region, access key, secret key, bucket prefix, addressing style) shall be sufficient to switch providers. Self-hosted MinIO shall remain available as an optional development and lab convenience but shall not be required for production deployments.
+
+## 92. OAuth2 Social Login (Google and GitHub)
+
+### FR-448 OAuth2/OIDC Social Login Framework
+The platform shall support user authentication via external OAuth2/OIDC identity providers as an alternative to local username/password authentication. The framework shall: support multiple concurrent providers (each independently enabled/disabled by administrators); map external identity claims (email, name, avatar, groups) to platform user profiles; handle first-login auto-provisioning (create platform user on first successful OAuth login, subject to tenant policy); support account linking (existing local user can link their account to one or more OAuth providers); and maintain a clear separation between the OAuth token (used only for authentication) and the platform session token (used for all subsequent API access).
+
+### FR-449 Google OAuth2 Login
+The platform shall support Google as an OAuth2 identity provider. Configuration shall include: Google OAuth2 client ID and client secret (stored in vault, never in config files); authorized redirect URI; optional restriction to specific Google Workspace domains (e.g., only `@company.com` addresses allowed); and optional mapping of Google Workspace groups to platform workspace roles. The login flow shall use the standard Authorization Code Grant with PKCE.
+
+### FR-450 GitHub OAuth2 Login
+The platform shall support GitHub as an OAuth2 identity provider. Configuration shall include: GitHub OAuth2 client ID and client secret (stored in vault); authorized redirect URI; optional restriction to specific GitHub organizations (e.g., only members of `my-org` allowed); and optional mapping of GitHub teams to platform workspace roles. The login flow shall use the standard Authorization Code Grant.
+
+### FR-451 Social Login Administration
+Administrators shall be able to: enable or disable each social login provider independently; configure provider-specific settings (client ID, client secret, domain/org restrictions) via API and UI; enforce that social login users must also enroll in MFA (configurable per provider); set the default role for auto-provisioned social login users; and view which users authenticated via which provider in the audit log.
+
+### FR-452 Social Login Security Controls
+Social login shall enforce: CSRF protection via the OAuth2 `state` parameter; PKCE (Proof Key for Code Exchange) for all authorization code flows; token validation (ID token signature verification, issuer verification, audience verification, expiry check); rate limiting on the callback endpoint to prevent abuse; and audit logging of all social login attempts (success and failure) with provider name and external identity reference.
+
+## 93. End-to-End Testing on Kubernetes (kind)
+
+### FR-453 Ephemeral Kind-Based E2E Test Environment
+The platform shall provide an ephemeral end-to-end test environment that runs on a local Kubernetes-in-Docker (kind) cluster. The environment shall: be provisionable with a single command (target: `make e2e-up` or equivalent) in under 10 minutes on a developer laptop (16GB RAM); deploy the complete platform stack including all control plane, satellite services, data stores, and frontend; use the same Helm charts used in production deployments (no test-only bypass paths); be fully destroyable (`make e2e-down`) leaving no artifacts on the host; support multiple parallel clusters on the same host via unique cluster names for CI parallelism.
+
+### FR-454 E2E Test Stack Composition
+The E2E environment shall deploy all platform data stores and services using kind-optimized configurations: PostgreSQL (single-instance, in-cluster), Redis (single-instance, in-cluster), Kafka (single-broker with KRaft, no Zookeeper), Qdrant (single-node), Neo4j (single-node), ClickHouse (single-node), OpenSearch (single-node), S3-compatible object storage (MinIO container for E2E convenience, configured via the same generic S3 client as production), Python control plane (all profiles), Go satellite services (runtime controller, reasoning engine, sandbox manager), frontend (Next.js in dev mode). All resource requests and limits shall be scaled down for developer laptop constraints while preserving production-equivalent behavior.
+
+### FR-455 E2E Test Data Seeding
+The E2E environment shall support deterministic test data seeding including: default admin user with known credentials; test workspaces and namespaces; representative agents covering all role types (executor, planner, orchestrator, observer, judge, enforcer); test tools (mock HTTP tools, mock code-execution tools); test fleets; test policies; pre-created certification chains; sample workspace goals; mock LLM provider with deterministic responses (for tests that must not hit real LLMs). Seeding shall be idempotent and resettable between test runs.
+
+### FR-456 E2E Test Suite Coverage by Bounded Context
+The platform shall maintain E2E test suites organized by bounded context, covering at minimum: authentication (local, MFA, Google OAuth, GitHub OAuth, session lifecycle); registry and FQN (namespace CRUD, agent registration with FQN, FQN resolution, pattern discovery, visibility filtering, zero-trust default); policies and tool gateway (policy evaluation, tool access control, output sanitization); trust (SafetyPreScreener, certification workflow, contract compliance, third-party certifier, ongoing surveillance, decommissioning); governance (Observer → Judge → Enforcer pipeline, verdict issuance, enforcement execution); interactions (conversation lifecycle, workspace goals with GID, agent response decision, attention requests, user alerts); workflows (execution, checkpoints, rollback, re-prioritization); fleets (orchestration, coordination); reasoning (DIRECT, CoT, ToT, ReAct, CoD, self-correction, compute_budget enforcement); evaluation (TrajectoryScorer, LLM-as-Judge with calibration, A/B testing); AgentOps (adaptation pipeline proposal/approval); scientific discovery (hypothesis proximity graph); A2A (Agent Card generation, server mode, client mode, SSE streaming); MCP (client discovery, server exposure); runtime controller (warm pool, secrets injection); IBOR integration; generic S3 storage (upload, download, lifecycle).
+
+### FR-457 E2E Test Framework and Execution
+E2E tests shall be written using **pytest** with an async test fixture that provides a preconfigured HTTP client, WebSocket client, and database session targeting the kind cluster. Tests shall: be runnable individually or by suite; produce JUnit XML output for CI; produce HTML reports with step-by-step trace; capture platform logs, Kafka events, and database state on failure; execute in deterministic order within a suite; support parallel execution across suites when isolated. The test harness shall provide reusable fixtures for common setup (create workspace, register agent, launch execution) to keep test code focused on the behavior being verified.
+
+### FR-458 E2E CI/CD Integration
+The E2E test suite shall run in CI on every pull request and nightly on main. CI shall: provision a fresh kind cluster per run; execute all E2E suites; block merges on test failure; publish test reports as build artifacts; retain failure logs and state dumps for 30 days; support manual re-run on transient infrastructure failures with automatic issue creation after three consecutive failures.
+
+### FR-459 E2E Chaos and Failure Scenarios
+The E2E test suite shall include chaos scenarios that deliberately inject failures to verify platform resilience: killing agent runtime pods mid-execution (verify checkpoint recovery), killing reasoning engine pod (verify reconnection and replay), killing Kafka broker briefly (verify producer retry and no event loss), revoking S3 credentials (verify clear error propagation), network partition between control plane and data stores (verify circuit breaker behavior), policy engine timeout (verify fail-closed default). Each chaos scenario shall have a clear expected recovery behavior and assertion.
+
+### FR-460 E2E Performance Smoke Tests
+The E2E test suite shall include lightweight performance smoke tests: agent launch latency (target <2s warm pool, <10s cold), simple execution round-trip (target <5s for trivial agent), concurrent execution throughput (target 10 simultaneous executions without queue backing up), reasoning trace capture overhead (target <50ms added per step). These are smoke-level checks, not full load tests — their purpose is to detect performance regressions on every PR, not to benchmark production.
+
+## 94. User Journey E2E Tests
+
+### FR-461 User Journey Test Suite
+The platform shall maintain E2E test suites organized by user journey (in addition to the bounded-context suites in FR-456). Each journey simulates a complete user workflow from login through a multi-step business process, crossing at least 4 bounded contexts per journey. Journeys shall cover the following personas and workflows: Platform Administrator (bootstrap to production-ready), Agent Creator (idea to published agent), Consumer (discover, execute, track), Workspace Collaborator (multi-agent goal solving), Trust Officer (policy to enforcement), Operator (monitor, diagnose, recover), Evaluator (quality assessment and improvement loop), External Integrator (A2A and MCP), and Research Scientist (hypothesis to experiment).
+
+### FR-462 Journey Test Assertions at Every Boundary Crossing
+Each journey test shall include explicit assertions at every bounded-context boundary crossing — not just at the start and end. For example, the Consumer journey shall assert: login response, marketplace search results, conversation creation, execution creation, WebSocket event reception, reasoning trace content, result structure, alert delivery, and conversation history. Each journey shall have a minimum of 15 assertion points.
+
+### FR-463 Journey Test Independence and Parallelism
+Journey tests shall be fully independent: each journey creates its own workspace, namespaces, agents, and test data. No journey shall depend on state created by another journey. All 9 journeys shall be runnable in parallel on the same kind cluster without interference. Journey-specific cleanup shall be performed after each test.
+
+### FR-464 Journey Test Narrative Output
+Journey tests shall produce human-readable narrative output describing each step and its result, beyond standard pass/fail. The HTML test report shall display each journey as a sequence of named steps with status indicators, making it possible for a non-developer to understand what the platform did and where it failed.
+
+### FR-465 Journey Test OAuth Flow Coverage
+Journey tests shall exercise the full OAuth2 social login flow with mock identity providers. The Creator journey shall authenticate via GitHub OAuth, the Consumer journey via Google OAuth, and the Admin journey via local auth with MFA. Mock OAuth providers shall simulate the authorization code flow with PKCE, token exchange, and ID token validation without hitting real Google or GitHub servers.
 
 ## 71. Final Comprehensive Acceptance Criteria
 

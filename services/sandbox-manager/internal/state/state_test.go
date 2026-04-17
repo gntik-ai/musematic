@@ -290,6 +290,19 @@ func TestNewStoreRejectsInvalidDSNAndCloseHandlesNil(t *testing.T) {
 	store.Close()
 }
 
+func TestNewStoreAcceptsValidDSNAndClosesPool(t *testing.T) {
+	t.Parallel()
+
+	store, err := NewStore(context.Background(), "postgres://sandbox:test@127.0.0.1:1/musematic?sslmode=disable&connect_timeout=1")
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+	if store == nil || store.Pool() == nil {
+		t.Fatalf("expected NewStore() to initialize a pool, got %+v", store)
+	}
+	store.Close()
+}
+
 func TestStateQueryErrors(t *testing.T) {
 	t.Parallel()
 

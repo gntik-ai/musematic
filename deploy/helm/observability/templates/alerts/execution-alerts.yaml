@@ -1,0 +1,23 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-execution-alerts
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.ruleLabels" . | indent 4 }}
+spec:
+  groups:
+    - name: platform.execution
+      interval: 1m
+      rules:
+        - alert: ExecutionFailureSpike
+          expr: increase(execution_failures_total[5m]) > 10
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: Workflow execution failures are spiking
+            description: Workflow executions have failed more than ten times in the last five minutes.
+            dashboard_url: http://musematic-observability-grafana/d/workflow-execution
+

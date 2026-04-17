@@ -258,6 +258,27 @@ func TestHealthHelpers(t *testing.T) {
 	(*runtimeDeps)(nil).close()
 }
 
+func TestLiveRuntimeStoreUsesPoolWhenPresent(t *testing.T) {
+	restoreMainGlobals(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	store, err := state.NewStore(ctx, "postgres://sandbox:test@127.0.0.1:1/musematic?sslmode=disable&connect_timeout=1")
+	if err != nil {
+		t.Fatalf("NewStore() error = %v", err)
+	}
+	t.Cleanup(store.Close)
+
+	live := liveRuntimeStore{Store: store}
+	if err := live.Ping(ctx); err == nil {
+		t.Fatal("expected liveRuntimeStore.Ping() to use the pool and return an error for unreachable postgres")
+	}
+	if err := live.RunMigrations(ctx); err == nil {
+		t.Fatal("expected liveRuntimeStore.RunMigrations() to use the pool and return an error for unreachable postgres")
+	}
+}
+
 func TestDefaultBuildRuntimeDeps(t *testing.T) {
 	restoreMainGlobals(t)
 
