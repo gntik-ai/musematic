@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager
 from importlib import import_module
 from platform.common.config import PlatformSettings, Settings
@@ -89,7 +89,7 @@ AsyncKafkaConsumer = EventConsumerManager
 
 
 @contextmanager
-def _attached_context(context_module: Any | None, extracted_context: Any):
+def _attached_context(context_module: Any | None, extracted_context: Any) -> Iterator[None]:
     if context_module is None:
         yield
         return

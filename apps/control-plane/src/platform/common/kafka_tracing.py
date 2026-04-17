@@ -10,16 +10,17 @@ except ImportError:  # pragma: no cover - fallback for minimal local test enviro
     class Context:  # type: ignore[no-redef]
         pass
 
-    class _NoopPropagator:
-        @staticmethod
-        def inject(*, carrier: object) -> None:
-            return None
+    def _inject(*, carrier: object) -> None:
+        return None
 
-        @staticmethod
-        def extract(*, carrier: object) -> Context:
-            return Context()
+    def _extract(*, carrier: object) -> Context:
+        return Context()
+else:
+    def _inject(*, carrier: object) -> None:
+        propagate.inject(carrier=carrier)
 
-    propagate = _NoopPropagator()
+    def _extract(*, carrier: object) -> Context:
+        return propagate.extract(carrier=carrier)
 
 
 class _BytesDictCarrier(MutableMapping[str, str]):
@@ -45,10 +46,10 @@ class _BytesDictCarrier(MutableMapping[str, str]):
 
 def inject_trace_context(headers: dict[str, bytes]) -> dict[str, bytes]:
     carrier = _BytesDictCarrier(headers)
-    propagate.inject(carrier=carrier)
+    _inject(carrier=carrier)
     return headers
 
 
 def extract_trace_context(headers: dict[str, bytes]) -> Context:
     carrier = _BytesDictCarrier(headers)
-    return propagate.extract(carrier=carrier)
+    return _extract(carrier=carrier)
