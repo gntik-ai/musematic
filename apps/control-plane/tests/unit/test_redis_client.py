@@ -10,6 +10,12 @@ from platform.common.clients.redis import AsyncRedisClient, BudgetConfig
 from platform.common.config import PlatformSettings
 
 
+@pytest.fixture(autouse=True)
+def _clear_runtime_redis_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("REDIS_TEST_MODE", raising=False)
+    monkeypatch.delenv("REDIS_URL", raising=False)
+
+
 def _build_client() -> SimpleNamespace:
     return SimpleNamespace(
         aclose=AsyncMock(),

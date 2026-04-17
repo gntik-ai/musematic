@@ -17,8 +17,3 @@ linters:
 linters-settings:
   gocyclo:
     min-complexity: 15
-
-formatters:
-  exclude:
-    - api/grpc/v1/*.pb.go
-    - api/grpc/v1/*_grpc.pb.go

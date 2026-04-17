@@ -130,7 +130,6 @@ func TestUnimplementedReasoningEngineServiceServer(t *testing.T) {
 	if _, err := server.SubmitCorrectionIteration(context.Background(), &CorrectionIterationEvent{}); status.Code(err) != codes.Unimplemented {
 		t.Fatalf("SubmitCorrectionIteration() error = %v", err)
 	}
-	server.mustEmbedUnimplementedReasoningEngineServiceServer()
 	server.testEmbeddedByValue()
 }
 
