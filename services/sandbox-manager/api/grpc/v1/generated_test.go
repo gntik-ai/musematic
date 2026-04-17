@@ -316,7 +316,9 @@ func TestGeneratedMessagesEnumsAndClient(t *testing.T) {
 	if err != nil {
 		t.Fatalf("grpc.DialContext() error = %v", err)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	client := NewSandboxServiceClient(conn)
 	if _, err := client.CreateSandbox(context.Background(), &CreateSandboxRequest{}); err != nil {

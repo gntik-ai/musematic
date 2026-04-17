@@ -26,7 +26,9 @@ func (s *Streamer) StreamPodLogs(ctx context.Context, sandboxID string, podName 
 	if err != nil {
 		return err
 	}
-	defer stream.Close()
+	defer func() {
+		_ = stream.Close()
+	}()
 	scanner := bufio.NewScanner(stream)
 	for scanner.Scan() {
 		s.Fanout.Publish(sandboxID, &sandboxv1.SandboxLogLine{

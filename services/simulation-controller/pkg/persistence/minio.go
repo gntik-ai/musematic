@@ -49,7 +49,9 @@ func (c *MinIOClient) Upload(ctx context.Context, key string, data []byte, metad
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 
 	if resp.StatusCode >= http.StatusBadRequest {
 		return fmt.Errorf("minio upload failed: %s", resp.Status)

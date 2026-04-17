@@ -108,10 +108,10 @@ func (r *StateRegistry) RebuildFromPodList(ctx context.Context, client kubernete
 }
 
 func simulationStateFromPod(pod corev1.Pod) SimulationState {
-	createdAt := pod.CreationTimestamp.Time.UTC()
+	createdAt := pod.CreationTimestamp.UTC()
 	var startedAt *time.Time
 	if pod.Status.StartTime != nil {
-		start := pod.Status.StartTime.Time.UTC()
+		start := pod.Status.StartTime.UTC()
 		startedAt = &start
 	}
 
