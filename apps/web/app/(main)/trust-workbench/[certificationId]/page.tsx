@@ -1,5 +1,6 @@
 "use client";
 
+import { use } from "react";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { CertificationDetailView } from "@/components/features/trust-workbench/CertificationDetailView";
@@ -12,21 +13,22 @@ import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 
 interface TrustWorkbenchDetailPageProps {
-  params: {
+  params: Promise<{
     certificationId: string;
-  };
+  }>;
 }
 
 export default function TrustWorkbenchDetailPage({
   params,
 }: TrustWorkbenchDetailPageProps) {
+  const { certificationId } = use(params);
   const workspaceId = useWorkspaceStore((state) => state.currentWorkspace?.id ?? null);
   const authWorkspaceId = useAuthStore((state) => state.user?.workspaceId ?? null);
-  const certificationQuery = useCertification(params.certificationId);
+  const certificationQuery = useCertification(certificationId);
 
   if (certificationQuery.isLoading) {
     return (
-      <section className="space-y-6" data-certification-id={params.certificationId}>
+      <section className="space-y-6" data-certification-id={certificationId}>
         <Skeleton className="h-24 rounded-[2rem]" />
         <Skeleton className="h-16 rounded-2xl" />
         <Skeleton className="h-[720px] rounded-[2rem]" />

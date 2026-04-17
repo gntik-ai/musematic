@@ -1,5 +1,6 @@
 "use client";
 
+import { use } from "react";
 import { Network } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -9,13 +10,14 @@ import { HypothesisNetworkGraph } from "@/components/features/discovery/Hypothes
 import { useDiscoveryNetwork } from "@/lib/hooks/use-discovery-network";
 
 interface DiscoveryNetworkPageProps {
-  params: {
+  params: Promise<{
     session_id: string;
-  };
+  }>;
 }
 
 export default function DiscoveryNetworkPage({ params }: DiscoveryNetworkPageProps) {
-  const network = useDiscoveryNetwork(params.session_id);
+  const { session_id } = use(params);
+  const network = useDiscoveryNetwork(session_id);
 
   if (network.isLoading) {
     return (

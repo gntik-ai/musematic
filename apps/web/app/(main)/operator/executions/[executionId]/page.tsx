@@ -1,15 +1,18 @@
 "use client";
 
+import { use } from "react";
 import { ExecutionDrilldown } from "@/components/features/operator/ExecutionDrilldown";
 
 interface OperatorExecutionDetailPageProps {
-  params: {
+  params: Promise<{
     executionId: string;
-  };
+  }>;
 }
 
 export default function OperatorExecutionDetailPage({
   params,
 }: OperatorExecutionDetailPageProps) {
-  return <ExecutionDrilldown executionId={params.executionId} />;
+  const { executionId } = use(params);
+
+  return <ExecutionDrilldown executionId={executionId} />;
 }

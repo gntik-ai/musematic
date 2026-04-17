@@ -1,2 +1,5 @@
 packages:
   - apps/web
+
+overrides:
+  dompurify: ^3.4.0

@@ -1,5 +1,6 @@
 "use client";
 
+import { use } from "react";
 import Link from "next/link";
 import { useEffect } from "react";
 import { Activity } from "lucide-react";
@@ -12,10 +13,10 @@ import { useWorkflow } from "@/lib/hooks/use-workflow";
 import { useExecutionMonitorStore } from "@/lib/stores/execution-monitor-store";
 
 interface WorkflowExecutionMonitorPageProps {
-  params: {
+  params: Promise<{
     id: string;
     executionId: string;
-  };
+  }>;
 }
 
 function MonitorSkeleton() {
@@ -31,8 +32,7 @@ function MonitorSkeleton() {
 export default function WorkflowExecutionMonitorPage({
   params,
 }: WorkflowExecutionMonitorPageProps) {
-  const workflowId = params.id;
-  const executionId = params.executionId;
+  const { executionId, id: workflowId } = use(params);
   const executionQuery = useExecution(executionId);
   const executionStateQuery = useExecutionState(executionId);
   const workflowQuery = useWorkflow(workflowId);

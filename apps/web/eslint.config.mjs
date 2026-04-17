@@ -13,6 +13,7 @@ export default [
       ".next/**",
       "coverage/**",
       "eslint.config.mjs",
+      "next-env.d.ts",
       "next.config.mjs",
       "node_modules/**",
       "playwright.config.ts",

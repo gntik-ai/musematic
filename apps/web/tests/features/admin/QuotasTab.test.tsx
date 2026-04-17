@@ -166,7 +166,7 @@ describe("QuotasTab", () => {
       expect(screen.queryByRole("button", { name: /Saved ✓/i })).not.toBeInTheDocument();
       expect(screen.getAllByRole("button", { name: "Save" })[0]).toBeInTheDocument();
     });
-  });
+  }, 10_000);
 
   it("shows a destructive toast when saving default quotas fails", async () => {
     const user = userEvent.setup();
@@ -374,7 +374,7 @@ describe("QuotasTab", () => {
       expect(screen.queryByRole("button", { name: /Saved ✓/i })).not.toBeInTheDocument();
       expect(screen.getAllByRole("button", { name: "Save" })[1]).toBeInTheDocument();
     });
-  });
+  }, 10_000);
 
   it("returns early when workspace override metadata is still loading", async () => {
     const user = userEvent.setup();

@@ -1,4 +1,4 @@
-FROM node:20-alpine AS deps
+FROM node:20.20.0-alpine3.23 AS deps
 
 ENV PNPM_HOME=/pnpm
 ENV PATH="${PNPM_HOME}:${PATH}"
@@ -12,7 +12,7 @@ COPY apps/web/package.json apps/web/package.json
 
 RUN pnpm install --frozen-lockfile --filter @musematic/web...
 
-FROM node:20-alpine AS builder
+FROM node:20.20.0-alpine3.23 AS builder
 
 ENV PNPM_HOME=/pnpm
 ENV PATH="${PNPM_HOME}:${PATH}"
@@ -28,7 +28,7 @@ COPY . .
 
 RUN pnpm --filter @musematic/web build
 
-FROM node:20-alpine AS runner
+FROM node:20.20.0-alpine3.23 AS runner
 
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0
@@ -36,7 +36,8 @@ ENV PORT=3000
 
 WORKDIR /app
 
-RUN addgroup -S nodejs -g 1001 \
+RUN apk upgrade --no-cache \
+    && addgroup -S nodejs -g 1001 \
     && adduser -S nextjs -u 1001 -G nodejs
 
 COPY --from=builder /workspace/apps/web/.next/standalone ./
