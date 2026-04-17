@@ -306,6 +306,7 @@ func TestGeneratedMessagesEnumsAndClient(t *testing.T) {
 	}()
 	defer server.Stop()
 
+	//nolint:staticcheck // bufconn tests still need DialContext with a custom in-memory dialer.
 	conn, err := grpc.DialContext(context.Background(), "bufnet",
 		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
 			return listener.Dial()

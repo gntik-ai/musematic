@@ -8,7 +8,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func TestBudgetTrackerHelpers(t *testing.T) {
+func TestBudgetTrackerHelpers(t *testing.T) { //nolint:gocyclo // This helper test keeps all parsing and helper edge cases together for regression coverage.
 	t.Parallel()
 
 	tracker := NewRedisTracker(nil, nil, nil, nil, 0)

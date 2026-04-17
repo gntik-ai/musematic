@@ -69,9 +69,10 @@ from platform.connectors.security import (
     payload_to_json,
     scrub_secret_text,
 )
-from sqlalchemy.orm.attributes import set_committed_value
 from typing import Any
 from uuid import UUID, uuid4
+
+from sqlalchemy.orm.attributes import set_committed_value
 
 
 class ConnectorsService:

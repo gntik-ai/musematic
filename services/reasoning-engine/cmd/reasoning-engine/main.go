@@ -106,6 +106,7 @@ func run() error {
 	}
 
 	go func() {
+		shutdownAfter := afterFn
 		<-ctx.Done()
 		stopped := make(chan struct{})
 		go func() {
@@ -115,7 +116,7 @@ func run() error {
 
 		select {
 		case <-stopped:
-		case <-afterFn(10 * time.Second):
+		case <-shutdownAfter(10 * time.Second):
 			grpcServer.Stop()
 		}
 	}()

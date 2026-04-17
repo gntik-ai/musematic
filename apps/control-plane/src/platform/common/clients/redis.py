@@ -5,6 +5,7 @@ import json
 import os
 import time
 import uuid
+from collections.abc import Awaitable
 from dataclasses import dataclass
 from pathlib import Path
 from platform.common.config import PlatformSettings
@@ -122,7 +123,9 @@ class AsyncRedisClient:
     async def health_check(self) -> bool:
         try:
             client = await self._get_client()
-            response = await client.ping()
+            response = client.ping()
+            if hasattr(response, "__await__"):
+                response = await cast(Awaitable[Any], response)
             return bool(response)
         except RedisError:
             return False

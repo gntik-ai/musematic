@@ -17,3 +17,7 @@ node_modules
 vendor
 *.out
 *.test
+.next
+playwright-report
+test-results
+*.tsbuildinfo

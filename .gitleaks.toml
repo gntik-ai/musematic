@@ -1,0 +1,15 @@
+title = "Musematic gitleaks configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Fixtures, mocks, docs, and spec placeholders"
+paths = [
+  '''^specs/''',
+  '''^docs/''',
+  '''^apps/web/mocks/''',
+]
+regexes = [
+  '''dummy|fake|test|example|placeholder''',
+]

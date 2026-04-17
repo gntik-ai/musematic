@@ -11,6 +11,7 @@ import (
 	"github.com/andrea-mucci/musematic/services/sandbox-manager/internal/state"
 	"github.com/andrea-mucci/musematic/services/sandbox-manager/internal/templates"
 	"github.com/google/uuid"
+	"google.golang.org/protobuf/proto"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -265,12 +266,10 @@ func (e *Entry) Copy() *Entry {
 	}
 	copy := *e
 	if e.ResourceLimits != nil {
-		limitsCopy := *e.ResourceLimits
-		copy.ResourceLimits = &limitsCopy
+		copy.ResourceLimits = proto.Clone(e.ResourceLimits).(*sandboxv1.ResourceLimits)
 	}
 	if e.Correlation != nil {
-		corrCopy := *e.Correlation
-		copy.Correlation = &corrCopy
+		copy.Correlation = proto.Clone(e.Correlation).(*sandboxv1.CorrelationContext)
 	}
 	return &copy
 }

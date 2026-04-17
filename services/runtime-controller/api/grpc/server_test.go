@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"sync"
 	"testing"
 	"time"
 
@@ -113,6 +114,7 @@ func (f *fakeServerStore) InsertRuntimeEvent(_ context.Context, event state.Runt
 }
 
 type fakePodOps struct {
+	mu          sync.Mutex
 	created     *v1.Pod
 	execErr     error
 	deleteErr   error
@@ -126,6 +128,8 @@ type fakePodOps struct {
 }
 
 func (f *fakePodOps) CreatePod(_ context.Context, pod *v1.Pod) (*v1.Pod, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.created = pod
 	return pod, nil
 }
@@ -135,6 +139,8 @@ func (f *fakePodOps) PrepareWarmPod(context.Context, string, *runtimev1.RuntimeC
 }
 
 func (f *fakePodOps) ExecInPod(_ context.Context, _ string, cmd []string) ([]byte, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.execCalls = append(f.execCalls, append([]string(nil), cmd...))
 	if f.execErr != nil {
 		return nil, f.execErr
@@ -148,6 +154,8 @@ func (f *fakePodOps) ExecInPod(_ context.Context, _ string, cmd []string) ([]byt
 }
 
 func (f *fakePodOps) GetPod(context.Context, string) (*v1.Pod, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if f.getErr != nil {
 		return nil, f.getErr
 	}
@@ -159,6 +167,8 @@ func (f *fakePodOps) GetPod(context.Context, string) (*v1.Pod, error) {
 }
 
 func (f *fakePodOps) DeletePod(_ context.Context, _ string, gracePeriodSeconds int64) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	if f.deleteErr != nil {
 		return f.deleteErr
 	}

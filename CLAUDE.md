@@ -1,6 +1,6 @@
 # musematic Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-16
+Auto-generated from all feature plans. Last updated: 2026-04-17
 
 ## Active Technologies
 - Python 3.12+ (control plane client), Go 1.22+ (reasoning engine client) + `redis-py 5.x` (Python async), `go-redis/redis/v9` (Go), Bitnami `redis-cluster` Helm chart (002-redis-cache-hot-state)
@@ -81,6 +81,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-16
 - N/A (frontend only — reads from backend APIs) (044-operator-dashboard-diagnostics)
 - Python 3.12+ + Typer 0.12+ (CLI), Rich (terminal UX), Pydantic v2 (config), PyYAML (config files), Jinja2 (Helm values), httpx (HTTP checks), grpcio (gRPC checks), asyncpg (PostgreSQL check), cryptography (RSA keys), aioboto3 (MinIO), PyInstaller (binary build) (045-installer-operations-cli)
 - JSON files (checkpoints, manifests); no database owned by CLI (045-installer-operations-cli)
+- YAML (GitHub Actions workflow syntax) + Python 3.12, Go 1.22, TypeScript 5.x, Dockerfile + GitHub Actions built-in + dorny/paths-filter@v3, golangci/golangci-lint-action@v6, bufbuild/buf-action@v1, gitleaks/gitleaks-action@v2, aquasecurity/trivy-action, anchore/sbom-action@v0, softprops/action-gh-release@v2, docker/build-push-action@v6 (046-cicd-pipeline)
+- GitHub Container Registry (ghcr.io) for images; GitHub Release assets for SBOMs (046-cicd-pipeline)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -100,10 +102,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 046-cicd-pipeline: Added YAML (GitHub Actions workflow syntax) + Python 3.12, Go 1.22, TypeScript 5.x, Dockerfile + GitHub Actions built-in + dorny/paths-filter@v3, golangci/golangci-lint-action@v6, bufbuild/buf-action@v1, gitleaks/gitleaks-action@v2, aquasecurity/trivy-action, anchore/sbom-action@v0, softprops/action-gh-release@v2, docker/build-push-action@v6
 - 045-installer-operations-cli: Python 3.12+ + Typer 0.12+ (CLI), Rich (terminal UX), Pydantic v2 (config validation), PyYAML 6.x (config files), Jinja2 3.x (Helm values rendering), httpx 0.27+ (HTTP health checks), grpcio 1.65+ (gRPC health checks), asyncpg 0.29+ (PostgreSQL check), cryptography 42+ (RSA key generation), aioboto3 (MinIO/S3 ops), PyInstaller 6.x (standalone binary build), pytest + pytest-asyncio 8.x, ruff 0.7+, mypy 1.11+ strict
 - 045-installer-operations-cli: Installer and Operations CLI (`apps/ops-cli/`) — 6 command groups (install, diagnose, backup, restore, upgrade, admin); 5 deployment modes (kubernetes, docker, swarm, incus, local); 5 installer implementations; 12-component dependency-ordered deployment (8 data stores + 4 satellites); preflight checks per mode; cryptographic secret generation (8 passwords + RSA key pair); Helm values rendering via Jinja2 + subprocess helm; Alembic + init script migration runner; JSON checkpoint/resume; ConfigMap lease / file lock; per-store backup via native tools (pg_dump, BGSAVE, Qdrant snapshot API, neo4j-admin, clickhouse-backup, OpenSearch snapshot, mc mirror); asyncio.gather concurrent diagnostics (<30s); Rich interactive + NDJSON headless output; PyInstaller standalone binary
-- 044-operator-dashboard-diagnostics: TypeScript 5.x + Next.js 14+ App Router, React 18+, shadcn/ui (ALL UI primitives), Tailwind CSS 3.4+ (utility-only), TanStack Query v5 (10 hooks: useOperatorMetrics/15s, useServiceHealth/30s, useActiveExecutions/5s+WS, useQueueLag/15s, useReasoningBudget/10s, useExecutionDetail, useReasoningTrace, useBudgetStatus, useContextQuality, useAttentionFeedInit), Zustand 5.x (useAlertFeedStore ring buffer max 200 + useAttentionFeedStore), Recharts 2.x (BarChart for queue lag), date-fns 4.x, Lucide React — NO new packages
-- 044-operator-dashboard-diagnostics: Operator Dashboard (`apps/web/app/(main)/operator/`) — 2 pages (overview, executions/[executionId] drill-down); 17 components (OperatorMetricsGrid, ServiceHealthPanel, ServiceHealthIndicator, ActiveExecutionsTable, ActiveExecutionStatusBadge, AlertFeed, AlertFeedItem, AttentionFeedPanel, AttentionFeedItem, QueueBacklogChart, ReasoningBudgetGauge, ConnectionStatusBanner, ExecutionDrilldown, ReasoningTracePanel, ReasoningTraceStep, ContextQualityPanel, BudgetConsumptionPanel); 3 WS channels (alerts, attention:{userId} auto-sub, workspace:{workspaceId} for invalidation); ScoreGauge reused for budget gauge; drill-down tabs: Reasoning Trace | Context Quality | Budget Consumption
 
 
 <!-- MANUAL ADDITIONS START -->

@@ -64,12 +64,11 @@ func (e *EventEmitter) emit(_ context.Context, topic string, event *runtimev1.Ru
 	}
 	if wait {
 		defer close(deliveryChan)
-		for evt := range deliveryChan {
+		if evt, ok := <-deliveryChan; ok {
 			msg, ok := evt.(*kafka.Message)
 			if ok && msg.TopicPartition.Error != nil {
 				return msg.TopicPartition.Error
 			}
-			break
 		}
 	}
 	return nil

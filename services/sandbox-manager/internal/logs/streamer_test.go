@@ -64,7 +64,7 @@ func TestFanoutRegistrySlowSubscriberAndClose(t *testing.T) {
 		t.Fatal("expected fast subscriber to receive a line")
 	}
 	registry.Close("sandbox-1")
-	_, _ = <-slow
+	<-slow
 	_, ok := <-slow
 	if ok {
 		t.Fatal("expected close to terminate subscriber channel")

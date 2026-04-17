@@ -6,6 +6,7 @@ import (
 
 	sandboxv1 "github.com/andrea-mucci/musematic/services/sandbox-manager/api/grpc/v1"
 	"github.com/andrea-mucci/musematic/services/sandbox-manager/internal/templates"
+	"google.golang.org/protobuf/proto"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -100,10 +101,9 @@ func mergeResourceLimits(base *sandboxv1.ResourceLimits, override *sandboxv1.Res
 		base = &sandboxv1.ResourceLimits{}
 	}
 	if override == nil {
-		copy := *base
-		return &copy
+		return proto.Clone(base).(*sandboxv1.ResourceLimits)
 	}
-	out := *base
+	out := proto.Clone(base).(*sandboxv1.ResourceLimits)
 	if override.CpuRequest != "" {
 		out.CpuRequest = override.CpuRequest
 	}
@@ -116,7 +116,7 @@ func mergeResourceLimits(base *sandboxv1.ResourceLimits, override *sandboxv1.Res
 	if override.MemoryLimit != "" {
 		out.MemoryLimit = override.MemoryLimit
 	}
-	return &out
+	return out
 }
 
 func buildResources(limits *sandboxv1.ResourceLimits) (v1.ResourceRequirements, error) {

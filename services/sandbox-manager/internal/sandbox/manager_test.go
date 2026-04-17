@@ -3,6 +3,7 @@ package sandbox
 import (
 	"context"
 	"encoding/json"
+	"sync"
 	"testing"
 	"time"
 
@@ -48,33 +49,55 @@ func (f *fakePodController) DeletePod(_ context.Context, name string, _ int64) e
 }
 
 type fakeStore struct {
+	mu       sync.Mutex
 	inserted []state.SandboxRecord
 	updated  []string
 	events   []state.SandboxEventRecord
 }
 
 func (f *fakeStore) InsertSandbox(_ context.Context, record state.SandboxRecord) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.inserted = append(f.inserted, record)
 	return nil
 }
 
 func (f *fakeStore) UpdateSandboxState(_ context.Context, sandboxID string, stateValue string, _ string, _ int32, _ *int64) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.updated = append(f.updated, sandboxID+":"+stateValue)
 	return nil
 }
 
 func (f *fakeStore) InsertSandboxEvent(_ context.Context, record state.SandboxEventRecord) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.events = append(f.events, record)
 	return nil
 }
 
+func (f *fakeStore) snapshotCounts() (inserted int, events int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.inserted), len(f.events)
+}
+
 type fakeEmitter struct {
+	mu     sync.Mutex
 	events []*sandboxv1.SandboxEvent
 }
 
 func (f *fakeEmitter) Emit(_ context.Context, event *sandboxv1.SandboxEvent, _ events.Envelope) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	f.events = append(f.events, event)
 	return nil
+}
+
+func (f *fakeEmitter) eventCount() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.events)
 }
 
 func TestManagerCreateAndConcurrentLimit(t *testing.T) {
@@ -116,7 +139,8 @@ func TestManagerCreateAndConcurrentLimit(t *testing.T) {
 	if current.State != sandboxv1.SandboxState_SANDBOX_STATE_READY {
 		t.Fatalf("expected ready state, got %s", current.State.String())
 	}
-	if len(store.inserted) != 1 || len(store.events) == 0 || len(emitter.events) == 0 {
+	inserted, persistedEvents := store.snapshotCounts()
+	if inserted != 1 || persistedEvents == 0 || emitter.eventCount() == 0 {
 		t.Fatal("expected persistence and event emission")
 	}
 	if _, err := manager.Create(context.Background(), req); err != ErrConcurrentLimit {
