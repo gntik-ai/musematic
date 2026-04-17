@@ -2,12 +2,19 @@
 
 from __future__ import annotations
 
+import builtins
 import json
 from pathlib import Path
 from uuid import uuid4
 
 from platform_cli.config import DeploymentMode
-from platform_cli.models import BackupArtifact, BackupManifest, BackupStatus, utc_now_iso
+from platform_cli.models import (
+    CURRENT_SCHEMA_VERSION,
+    BackupArtifact,
+    BackupManifest,
+    BackupStatus,
+    utc_now_iso,
+)
 
 
 class BackupManifestManager:
@@ -22,7 +29,7 @@ class BackupManifestManager:
         self,
         deployment_mode: DeploymentMode,
         tag: str | None,
-        artifacts: list[BackupArtifact],
+        artifacts: builtins.list[BackupArtifact],
         status: BackupStatus,
     ) -> BackupManifest:
         """Create and persist a new manifest."""
@@ -40,6 +47,8 @@ class BackupManifestManager:
             artifacts=artifacts,
             total_size_bytes=sum(item.size_bytes for item in artifacts),
             storage_location=str(self.storage_root / backup_id),
+            schema_version=CURRENT_SCHEMA_VERSION,
+            total_duration_seconds=sum(item.duration_seconds for item in artifacts),
         )
         self._write(manifest)
         return manifest
@@ -54,16 +63,38 @@ class BackupManifestManager:
         """Load one manifest by backup ID."""
 
         path = self.manifest_dir / f"{backup_id}.json"
-        return BackupManifest.model_validate_json(path.read_text(encoding="utf-8"))
+        if path.exists():
+            return BackupManifest.model_validate_json(path.read_text(encoding="utf-8"))
 
-    def list(self, limit: int = 20) -> list[BackupManifest]:
+        matches = [
+            manifest
+            for manifest in self._load_all()
+            if manifest.backup_id == backup_id
+            or manifest.tag == backup_id
+            or (manifest.tag is not None and manifest.tag.startswith(backup_id))
+        ]
+        if not matches:
+            raise FileNotFoundError(f"Backup manifest not found: {backup_id}")
+        if len(matches) > 1:
+            raise RuntimeError(
+                f"Backup reference '{backup_id}' is ambiguous; "
+                f"matches {[item.backup_id for item in matches]}"
+            )
+        return matches[0]
+
+    def list(self, limit: int = 20) -> builtins.list[BackupManifest]:
         """List manifests newest-first by sequence number."""
 
-        manifests = [
-            BackupManifest.model_validate_json(path.read_text(encoding="utf-8"))
-            for path in self.manifest_dir.glob("*.json")
-        ]
-        return sorted(manifests, key=lambda item: item.sequence_number, reverse=True)[:limit]
+        return sorted(
+            self._load_all(),
+            key=lambda item: item.sequence_number,
+            reverse=True,
+        )[:limit]
+
+    def delete(self, backup_id: str) -> None:
+        """Delete one manifest file by backup ID."""
+
+        (self.manifest_dir / f"{backup_id}.json").unlink(missing_ok=True)
 
     def _write(self, manifest: BackupManifest) -> None:
         path = self.manifest_dir / f"{manifest.backup_id}.json"
@@ -71,3 +102,9 @@ class BackupManifestManager:
             json.dumps(manifest.model_dump(mode="json"), indent=2, sort_keys=True),
             encoding="utf-8",
         )
+
+    def _load_all(self) -> builtins.list[BackupManifest]:
+        return [
+            BackupManifest.model_validate_json(path.read_text(encoding="utf-8"))
+            for path in self.manifest_dir.glob("*.json")
+        ]

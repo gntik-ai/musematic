@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from time import monotonic
 
 import httpx
 
@@ -19,6 +20,7 @@ class QdrantBackup:
 
     async def backup(self, output_dir: Path) -> BackupArtifact:
         output_dir.mkdir(parents=True, exist_ok=True)
+        started = monotonic()
         async with httpx.AsyncClient(timeout=20.0) as client:
             response = await client.post(f"{self.url}/collections/{self.collection_name}/snapshots")
             response.raise_for_status()
@@ -30,7 +32,11 @@ class QdrantBackup:
         path = output_dir / snapshot_name
         path.write_bytes(download.content)
         return build_artifact(
-            store="qdrant", display_name="Qdrant", path=path, format_name="snapshot"
+            store="qdrant",
+            display_name="Qdrant",
+            path=path,
+            format_name="snapshot",
+            duration_seconds=monotonic() - started,
         )
 
     async def restore(self, artifact_path: Path) -> bool:

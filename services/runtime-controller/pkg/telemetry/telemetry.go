@@ -11,7 +11,7 @@ import (
 	sdkresource "go.opentelemetry.io/otel/sdk/resource"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
+	semconv "go.opentelemetry.io/otel/semconv/v1.37.0"
 )
 
 type Shutdown func(context.Context) error
@@ -100,4 +100,3 @@ func normaliseEndpoint(endpoint string) string {
 	trimmed = strings.TrimPrefix(trimmed, "https://")
 	return trimmed
 }
-

@@ -1,0 +1,50 @@
+services:
+  clickhouse:
+    deploy:
+      replicas: 1
+    image: ghcr.io/musematic/clickhouse:latest
+  control-plane:
+    deploy:
+      replicas: 1
+    image: ghcr.io/musematic/control-plane:latest
+  kafka:
+    deploy:
+      replicas: 1
+    image: ghcr.io/musematic/kafka:latest
+  minio:
+    deploy:
+      replicas: 1
+    image: ghcr.io/musematic/minio:latest
+  neo4j:
+    deploy:
+      replicas: 1
+    image: ghcr.io/musematic/neo4j:latest
+  opensearch:
+    deploy:
+      replicas: 1
+    image: ghcr.io/musematic/opensearch:latest
+  postgresql:
+    deploy:
+      replicas: 1
+    image: ghcr.io/musematic/postgresql:latest
+  qdrant:
+    deploy:
+      replicas: 1
+    image: ghcr.io/musematic/qdrant:latest
+  reasoning-engine:
+    deploy:
+      replicas: 1
+    image: ghcr.io/musematic/reasoning-engine:latest
+  redis:
+    deploy:
+      replicas: 1
+    image: ghcr.io/musematic/redis:latest
+  runtime-controller:
+    deploy:
+      replicas: 1
+    image: ghcr.io/musematic/runtime-controller:latest
+  simulation-controller:
+    deploy:
+      replicas: 1
+    image: ghcr.io/musematic/simulation-controller:latest
+version: '3.9'

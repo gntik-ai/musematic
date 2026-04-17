@@ -8,7 +8,7 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any, TextIO
 
-_stream: TextIO = sys.stdout
+_stream: TextIO | None = None
 
 
 def set_output_stream(stream: TextIO) -> None:
@@ -21,7 +21,8 @@ def set_output_stream(stream: TextIO) -> None:
 def reset_output_stream() -> None:
     """Reset the output stream back to stdout."""
 
-    set_output_stream(sys.stdout)
+    global _stream
+    _stream = None
 
 
 def emit(
@@ -33,6 +34,7 @@ def emit(
 ) -> None:
     """Emit a single NDJSON event."""
 
+    stream = _stream or sys.stdout
     payload = {
         "timestamp": datetime.now(UTC).isoformat(),
         "level": "error" if status in {"failed", "error", "unhealthy"} else "info",
@@ -42,6 +44,6 @@ def emit(
         "message": message,
         "details": dict(details or {}),
     }
-    _stream.write(json.dumps(payload, sort_keys=True))
-    _stream.write("\n")
-    _stream.flush()
+    stream.write(json.dumps(payload, sort_keys=True))
+    stream.write("\n")
+    stream.flush()

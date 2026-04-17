@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from time import monotonic
 
 from platform_cli.backup.stores.common import build_artifact
 from platform_cli.models import BackupArtifact
@@ -25,11 +26,16 @@ class MinIOBackup:
     async def backup(self, output_dir: Path) -> BackupArtifact:
         output_dir.mkdir(parents=True, exist_ok=True)
         destination = output_dir / self.bucket
+        started = monotonic()
         _run(["mc", "mirror", f"{self.source_alias}/{self.bucket}", str(destination)])
         manifest = output_dir / "minio.mirror"
         manifest.write_text(str(destination), encoding="utf-8")
         return build_artifact(
-            store="minio", display_name="MinIO", path=manifest, format_name="mirror"
+            store="minio",
+            display_name="MinIO",
+            path=manifest,
+            format_name="mirror",
+            duration_seconds=monotonic() - started,
         )
 
     async def restore(self, artifact_path: Path) -> bool:

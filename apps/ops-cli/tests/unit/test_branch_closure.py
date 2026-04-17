@@ -324,55 +324,69 @@ def test_backup_command_branches(monkeypatch: pytest.MonkeyPatch, tmp_path: Path
         status=BackupStatus.COMPLETED,
         created_at="2026-01-01T00:00:00+00:00",
         completed_at="2026-01-01T00:00:05+00:00",
-        artifacts=[],
-        total_size_bytes=0,
+        artifacts=[
+            BackupArtifact(
+                store="redis",
+                display_name="Redis",
+                path=str(tmp_path / "redis.rdb"),
+                size_bytes=1,
+                checksum_sha256="a" * 64,
+                format="rdb",
+                created_at="2026-01-01T00:00:00+00:00",
+                duration_seconds=1.0,
+            ),
+            BackupArtifact(
+                store="kafka",
+                display_name="Kafka",
+                path=str(tmp_path / "kafka-offsets.json"),
+                size_bytes=1,
+                checksum_sha256="b" * 64,
+                format="json",
+                created_at="2026-01-01T00:00:00+00:00",
+                duration_seconds=1.0,
+            ),
+        ],
+        total_size_bytes=2,
         storage_location=str(tmp_path),
     )
 
-    async def create_ok(
-        tag: str | None,
-        stores_filter: set[str] | None = None,
-        *,
-        force: bool = False,
-    ) -> BackupManifest:
-        assert tag == "nightly"
-        assert stores_filter == {"redis"}
-        assert force is True
-        return manifest
-
     restore_calls: list[tuple[str, set[str] | None, bool]] = []
 
-    async def restore_ok(
-        backup_id: str,
-        stores_filter: set[str] | None = None,
-        *,
-        verify_only: bool = False,
-    ) -> bool:
-        restore_calls.append((backup_id, stores_filter, verify_only))
-        return True
+    class FakeOrchestrator:
+        RESTORE_ORDER = BackupOrchestrator.RESTORE_ORDER
 
-    monkeypatch.setattr(
-        backup_commands.BackupOrchestrator,
-        "create",
-        lambda self, tag, stores_filter=None, force=False: create_ok(
-            tag, stores_filter, force=force
-        ),
-    )
-    monkeypatch.setattr(
-        backup_commands.BackupOrchestrator,
-        "restore",
-        lambda self, backup_id, stores_filter=None, verify_only=False: restore_ok(
-            backup_id, stores_filter, verify_only=verify_only
-        ),
-    )
+        def __init__(self, config: InstallerConfig) -> None:
+            self.manifests = SimpleNamespace(load=lambda backup_id: manifest)
 
-    create_result = runner.invoke(
-        app,
-        ["backup", "create", "--tag", "nightly", "--stores", "redis", "--force"],
-    )
+        async def create(
+            self,
+            tag: str | None,
+            *,
+            force: bool = False,
+            headless: bool = False,
+        ) -> BackupManifest:
+            assert tag == "nightly"
+            assert force is True
+            assert headless is False
+            return manifest
+
+        async def restore(
+            self,
+            backup_id: str,
+            stores_filter: set[str] | None = None,
+            *,
+            verify_only: bool = False,
+            headless: bool = False,
+        ) -> bool:
+            assert headless is False
+            restore_calls.append((backup_id, stores_filter, verify_only))
+            return True
+
+    monkeypatch.setattr(backup_commands, "BackupOrchestrator", FakeOrchestrator)
+
+    create_result = runner.invoke(app, ["backup", "create", "--tag", "nightly", "--force"])
     restore_result = runner.invoke(
-        app,
-        ["backup", "restore", "bkp-1", "--stores", "redis,kafka"],
+        app, ["backup", "restore", "bkp-1", "--stores", "redis,kafka", "--yes"]
     )
 
     async def create_boom(*args: object, **kwargs: object) -> BackupManifest:
@@ -381,16 +395,32 @@ def test_backup_command_branches(monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     async def restore_boom(*args: object, **kwargs: object) -> bool:
         raise RuntimeError("restore failed")
 
-    monkeypatch.setattr(
-        backup_commands.BackupOrchestrator,
-        "create",
-        lambda self, tag, stores_filter=None, force=False: create_boom(),
-    )
-    monkeypatch.setattr(
-        backup_commands.BackupOrchestrator,
-        "restore",
-        lambda self, backup_id, stores_filter=None, verify_only=False: restore_boom(),
-    )
+    class BoomOrchestrator:
+        RESTORE_ORDER = BackupOrchestrator.RESTORE_ORDER
+
+        def __init__(self, config: InstallerConfig) -> None:
+            self.manifests = SimpleNamespace(load=lambda backup_id: manifest)
+
+        async def create(
+            self,
+            tag: str | None,
+            *,
+            force: bool = False,
+            headless: bool = False,
+        ) -> BackupManifest:
+            return await create_boom()
+
+        async def restore(
+            self,
+            backup_id: str,
+            stores_filter: set[str] | None = None,
+            *,
+            verify_only: bool = False,
+            headless: bool = False,
+        ) -> bool:
+            return await restore_boom()
+
+    monkeypatch.setattr(backup_commands, "BackupOrchestrator", BoomOrchestrator)
 
     create_error = runner.invoke(app, ["backup", "create"])
     restore_error = runner.invoke(app, ["backup", "restore", "bkp-1"])
@@ -1249,7 +1279,10 @@ async def test_backup_orchestrator_partial_failed_and_restore_paths(
     monkeypatch.setattr(
         orchestrator,
         "_stores",
-        lambda: {"good": GoodStore("good", restored), "bad": BadStore()},
+        lambda: {
+            "postgresql": GoodStore("postgresql", restored),
+            "qdrant": BadStore(),
+        },
     )
     partial_manifest = await orchestrator.create("partial", force=True)
     assert partial_manifest.status == BackupStatus.PARTIAL
@@ -1259,14 +1292,14 @@ async def test_backup_orchestrator_partial_failed_and_restore_paths(
         storage_root=tmp_path / "failed",
     )
     monkeypatch.setattr(failed_orchestrator, "_has_active_executions", idle)
-    monkeypatch.setattr(failed_orchestrator, "_stores", lambda: {"bad": BadStore()})
+    monkeypatch.setattr(failed_orchestrator, "_stores", lambda: {"postgresql": BadStore()})
     failed_manifest = await failed_orchestrator.create("failed", force=True)
     assert failed_manifest.status == BackupStatus.FAILED
 
     corrupted_path = Path(partial_manifest.artifacts[0].path)
     corrupted_path.write_text("corrupted", encoding="utf-8")
     with pytest.raises(RuntimeError, match="checksum mismatch"):
-        await orchestrator.restore(partial_manifest.backup_id, stores_filter={"good"})
+        await orchestrator.restore(partial_manifest.backup_id, stores_filter={"postgresql"})
 
     restored.clear()
     success_orchestrator = BackupOrchestrator(
@@ -1278,16 +1311,16 @@ async def test_backup_orchestrator_partial_failed_and_restore_paths(
         success_orchestrator,
         "_stores",
         lambda: {
-            "good": GoodStore("good", restored),
-            "ignored": GoodStore("ignored", restored),
+            "redis": GoodStore("redis", restored),
+            "postgresql": GoodStore("postgresql", restored),
         },
     )
     success_manifest = await success_orchestrator.create(
-        "success", stores_filter={"good"}, force=True
+        "success", stores_filter={"redis"}, force=True
     )
-    assert [artifact.store for artifact in success_manifest.artifacts] == ["good"]
+    assert [artifact.store for artifact in success_manifest.artifacts] == ["redis"]
     assert (
-        await success_orchestrator.restore(success_manifest.backup_id, stores_filter={"good"})
+        await success_orchestrator.restore(success_manifest.backup_id, stores_filter={"redis"})
         is True
     )
     assert restored == [Path(success_manifest.artifacts[0].path)]

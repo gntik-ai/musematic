@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from time import monotonic
 
 from platform_cli.backup.stores.common import build_artifact
 from platform_cli.models import BackupArtifact
@@ -25,6 +26,7 @@ class ClickHouseBackup:
 
     async def backup(self, output_dir: Path) -> BackupArtifact:
         output_dir.mkdir(parents=True, exist_ok=True)
+        started = monotonic()
         _run(["clickhouse-backup", "create", self.backup_name])
         path = output_dir / f"{self.backup_name}.clickhouse"
         path.write_text(self.backup_name, encoding="utf-8")
@@ -33,6 +35,7 @@ class ClickHouseBackup:
             display_name="ClickHouse",
             path=path,
             format_name="clickhouse-backup",
+            duration_seconds=monotonic() - started,
         )
 
     async def restore(self, artifact_path: Path) -> bool:
