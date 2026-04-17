@@ -69,6 +69,41 @@ func TestSetupWithEndpointConfiguresTelemetry(t *testing.T) {
 	}
 }
 
+func TestSetupWithHTTPSEndpointKeepsExportersSecure(t *testing.T) {
+	originalTrace := newTraceExporter
+	originalMetric := newMetricReader
+	originalMerge := mergeTelemetryResource
+	t.Cleanup(func() {
+		newTraceExporter = originalTrace
+		newMetricReader = originalMetric
+		mergeTelemetryResource = originalMerge
+	})
+
+	var traceInsecure bool
+	var metricInsecure bool
+
+	newTraceExporter = func(_ context.Context, endpoint string, insecure bool) (sdktrace.SpanExporter, error) {
+		traceInsecure = insecure
+		return fakeSpanExporter{}, nil
+	}
+	newMetricReader = func(_ context.Context, endpoint string, insecure bool) (sdkmetric.Reader, error) {
+		metricInsecure = insecure
+		return sdkmetric.NewManualReader(), nil
+	}
+	mergeTelemetryResource = sdkresource.Merge
+
+	shutdown, err := Setup(context.Background(), "simulation-controller", "https://otel-collector:4317")
+	if err != nil {
+		t.Fatalf("Setup() error = %v", err)
+	}
+	if traceInsecure || metricInsecure {
+		t.Fatalf("expected secure exporters, got trace=%v metric=%v", traceInsecure, metricInsecure)
+	}
+	if err := shutdown(context.Background()); err != nil {
+		t.Fatalf("shutdown() error = %v", err)
+	}
+}
+
 func TestSetupPropagatesExporterErrors(t *testing.T) {
 	originalTrace := newTraceExporter
 	originalMetric := newMetricReader

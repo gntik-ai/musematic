@@ -15,6 +15,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/musematic/simulation-controller/pkg/persistence"
+	"github.com/musematic/simulation-controller/pkg/telemetry"
 	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
@@ -316,4 +317,140 @@ users:
 	require.NoError(t, err)
 	require.NotNil(t, clientset)
 	require.Equal(t, "https://127.0.0.1:6443", cfg.Host)
+}
+
+func TestNewKubernetesClientFallsBackToDefaultHomeConfig(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("HOME", dir)
+	kubeDir := filepath.Join(dir, ".kube")
+	require.NoError(t, os.MkdirAll(kubeDir, 0o755))
+	kubeconfig := filepath.Join(kubeDir, "config")
+	require.NoError(t, os.WriteFile(kubeconfig, []byte(`
+apiVersion: v1
+kind: Config
+clusters:
+- name: local
+  cluster:
+    server: https://127.0.0.1:6443
+contexts:
+- name: local
+  context:
+    cluster: local
+    user: local
+current-context: local
+users:
+- name: local
+  user:
+    token: token
+`), 0o600))
+
+	clientset, cfg, err := newKubernetesClient("")
+	require.NoError(t, err)
+	require.NotNil(t, clientset)
+	require.Equal(t, "https://127.0.0.1:6443", cfg.Host)
+}
+
+func TestRunReturnsTelemetrySetupError(t *testing.T) {
+	originalTelemetry := setupTelemetryFn
+	t.Cleanup(func() {
+		setupTelemetryFn = originalTelemetry
+	})
+
+	expectedErr := errors.New("telemetry bootstrap failed")
+	setupTelemetryFn = func(context.Context, string, string) (telemetry.Shutdown, error) {
+		return nil, expectedErr
+	}
+
+	t.Setenv("POSTGRES_DSN", "postgres://test")
+	t.Setenv("KAFKA_BROKERS", "localhost:9092")
+	t.Setenv("MINIO_ENDPOINT", "localhost:9000")
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "otel-collector:4317")
+
+	err := run()
+	require.ErrorIs(t, err, expectedErr)
+}
+
+func TestRunInitializesTelemetryAndClosesComponents(t *testing.T) {
+	originalTelemetry := setupTelemetryFn
+	originalPool := newPostgresPoolFunc
+	originalStore := newPostgresStoreFunc
+	originalClosePool := closePostgresPoolFunc
+	originalProducer := newRuntimeProducerFunc
+	originalUploader := newRuntimeUploaderFunc
+	originalKubernetes := newKubernetesClientFunc
+	originalListen := listenTCPFunc
+	t.Cleanup(func() {
+		setupTelemetryFn = originalTelemetry
+		newPostgresPoolFunc = originalPool
+		newPostgresStoreFunc = originalStore
+		closePostgresPoolFunc = originalClosePool
+		newRuntimeProducerFunc = originalProducer
+		newRuntimeUploaderFunc = originalUploader
+		newKubernetesClientFunc = originalKubernetes
+		listenTCPFunc = originalListen
+	})
+
+	var gotService string
+	var gotEndpoint string
+	shutdownCalled := false
+	setupTelemetryFn = func(_ context.Context, serviceName string, endpoint string) (telemetry.Shutdown, error) {
+		gotService = serviceName
+		gotEndpoint = endpoint
+		return func(context.Context) error {
+			shutdownCalled = true
+			return nil
+		}, nil
+	}
+
+	newPostgresPoolFunc = func(string) *pgxpool.Pool {
+		return &pgxpool.Pool{}
+	}
+	newPostgresStoreFunc = func(*pgxpool.Pool) runtimeStore {
+		return fakeRuntimeStore{}
+	}
+	poolClosed := false
+	closePostgresPoolFunc = func(*pgxpool.Pool) {
+		poolClosed = true
+	}
+	producer := &fakeRuntimeProducer{}
+	newRuntimeProducerFunc = func(string) persistence.Producer {
+		return producer
+	}
+	newRuntimeUploaderFunc = func(string, string) runtimeUploader {
+		return fakeRuntimeUploader{}
+	}
+	newKubernetesClientFunc = func(string) (kubernetes.Interface, *rest.Config, error) {
+		return fake.NewSimpleClientset(), &rest.Config{Host: "https://127.0.0.1:6443"}, nil
+	}
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	require.NoError(t, listener.Close())
+	listenTCPFunc = func(string, string) (net.Listener, error) {
+		return listener, nil
+	}
+
+	t.Setenv("POSTGRES_DSN", "postgres://test")
+	t.Setenv("KAFKA_BROKERS", "localhost:9092")
+	t.Setenv("MINIO_ENDPOINT", "localhost:9000")
+	t.Setenv("SIMULATION_BUCKET", "bucket")
+	t.Setenv("SIMULATION_NAMESPACE", "platform-simulation")
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-collector:4317")
+	t.Setenv("OTEL_SERVICE_NAME", "sim-controller-test")
+	t.Setenv("ORPHAN_SCAN_INTERVAL_SECONDS", "3600")
+
+	err = run()
+	require.Error(t, err)
+	require.True(
+		t,
+		strings.Contains(err.Error(), "use of closed network connection") ||
+			strings.Contains(err.Error(), "grpc: the server has been stopped"),
+		"unexpected listener shutdown error: %v",
+		err,
+	)
+	require.Equal(t, "sim-controller-test", gotService)
+	require.Equal(t, "http://otel-collector:4317", gotEndpoint)
+	require.True(t, shutdownCalled)
+	require.True(t, poolClosed)
+	require.True(t, producer.closed)
 }
