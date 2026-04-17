@@ -1,0 +1,12 @@
+dependencies:
+- name: opentelemetry-collector
+  repository: https://open-telemetry.github.io/opentelemetry-helm-charts
+  version: 0.108.1
+- name: kube-prometheus-stack
+  repository: https://prometheus-community.github.io/helm-charts
+  version: 65.8.1
+- name: jaeger
+  repository: https://jaegertracing.github.io/helm-charts
+  version: 3.4.1
+digest: sha256:64b6f29c807b0522ce4bf764ae4a5765e2eb712ebee8c686964a554108200040
+generated: "2026-04-17T21:18:09.213840359+02:00"

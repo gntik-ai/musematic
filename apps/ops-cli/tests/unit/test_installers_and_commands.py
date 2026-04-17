@@ -122,15 +122,24 @@ async def test_local_installer_run_and_stop(
         "platform_cli.installers.local.store_secrets_local",
         lambda bundle, data_dir: data_dir / "generated-secrets.json",
     )
-    monkeypatch.setattr("platform_cli.installers.local.shutil.which", lambda binary: None)
+    next_pid = 120
+
+    def fake_which(binary: str) -> str | None:
+        if binary == "docker":
+            return "/usr/bin/docker"
+        return None
 
     class FakeProcess:
-        pid = 123
+        def __init__(self) -> None:
+            nonlocal next_pid
+            self.pid = next_pid
+            next_pid += 1
 
     monkeypatch.setattr(
         "subprocess.Popen",
         lambda *args, **kwargs: FakeProcess(),
     )
+    monkeypatch.setattr("platform_cli.installers.local.shutil.which", fake_which)
 
     class FakeAsyncClient:
         def __init__(self, *args: object, **kwargs: object) -> None:
@@ -146,6 +155,7 @@ async def test_local_installer_run_and_stop(
             return SimpleNamespace(status_code=200)
 
     monkeypatch.setattr("platform_cli.installers.local.httpx.AsyncClient", FakeAsyncClient)
+    monkeypatch.setattr(installer, "wait_for_jaeger", lambda timeout_seconds=30: asyncio.sleep(0))
     monkeypatch.setattr(installer.migration_runner, "run_alembic", lambda url: None)
     monkeypatch.setattr(
         installer.migration_runner,
@@ -169,11 +179,16 @@ async def test_local_installer_run_and_stop(
     monkeypatch.setattr(os, "kill", lambda pid, sig: killed.append(pid))
 
     result = await installer.run()
+    assert installer.jaeger_pid_path.exists()
     stopped = LocalInstaller.stop(tmp_path)
 
     assert result.admin_email == config.admin.email
     assert stopped is True
-    assert killed == [123]
+    assert installer.build_local_env()["OTEL_EXPORTER_ENDPOINT"] == "http://127.0.0.1:4318"
+    assert installer.checkpoint_manager.checkpoint is not None
+    assert installer.checkpoint_manager.checkpoint.metadata["jaeger_runtime"] == "docker"
+    assert installer.jaeger_pid_path.exists() is False
+    assert killed == [121, 120]
 
 
 def test_container_installers_render_files(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -191,6 +206,23 @@ def test_container_installers_render_files(monkeypatch: pytest.MonkeyPatch, tmp_
     assert (tmp_path / "docker-compose.yml").exists()
     assert (tmp_path / "platform.stack.yml").exists()
     assert (tmp_path / "platform.incus.yml").exists()
+
+
+def test_local_installer_steps_include_jaeger(tmp_path: Path) -> None:
+    installer = LocalInstaller(InstallerConfig(data_dir=tmp_path))
+
+    assert [step.name for step in installer.build_steps()] == [
+        "preflight",
+        "directories",
+        "database",
+        "qdrant",
+        "jaeger",
+        "secrets",
+        "control-plane",
+        "migrate",
+        "admin",
+        "verify",
+    ]
 
 
 def test_cli_commands_use_runtime_helpers(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

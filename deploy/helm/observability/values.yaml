@@ -1,0 +1,175 @@
+opentelemetry-collector:
+  fullnameOverride: otel-collector
+  mode: deployment
+  replicaCount: 2
+  image:
+    repository: otel/opentelemetry-collector-contrib
+  command:
+    name: otelcol-contrib
+  serviceMonitor:
+    enabled: false
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 512Mi
+  ports:
+    otlp:
+      enabled: true
+      containerPort: 4317
+      servicePort: 4317
+      protocol: TCP
+      appProtocol: grpc
+    otlp-http:
+      enabled: true
+      containerPort: 4318
+      servicePort: 4318
+      protocol: TCP
+    jaeger-compact:
+      enabled: false
+    jaeger-thrift:
+      enabled: false
+    jaeger-grpc:
+      enabled: false
+    zipkin:
+      enabled: false
+    metrics:
+      enabled: true
+      containerPort: 8889
+      servicePort: 8889
+      protocol: TCP
+  alternateConfig:
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    processors:
+      memory_limiter:
+        check_interval: 5s
+        limit_percentage: 80
+        spike_limit_percentage: 25
+      batch: {}
+      transform/correlation:
+        error_mode: ignore
+        trace_statements:
+          - context: span
+            statements:
+              - set(resource.attributes["correlation_id"], attributes["correlation_id"]) where attributes["correlation_id"] != nil
+    exporters:
+      prometheus:
+        endpoint: 0.0.0.0:8889
+      otlp/jaeger:
+        endpoint: musematic-observability-jaeger-collector:4317
+        tls:
+          insecure: true
+    service:
+      extensions:
+        - health_check
+      pipelines:
+        traces:
+          receivers:
+            - otlp
+          processors:
+            - memory_limiter
+            - transform/correlation
+            - batch
+          exporters:
+            - otlp/jaeger
+        metrics:
+          receivers:
+            - otlp
+          processors:
+            - memory_limiter
+            - batch
+          exporters:
+            - prometheus
+
+kube-prometheus-stack:
+  cleanPrometheusOperatorObjectNames: true
+  grafana:
+    adminPassword: admin
+    sidecar:
+      dashboards:
+        enabled: true
+        label: grafana_dashboard
+        labelValue: "1"
+        searchNamespace: platform-observability
+    additionalDataSources:
+      - name: Jaeger
+        type: jaeger
+        access: proxy
+        editable: false
+        url: http://musematic-observability-jaeger-query:16686
+  alertmanager:
+    alertmanagerSpec:
+      storage:
+        volumeClaimTemplate:
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 5Gi
+  prometheus:
+    prometheusSpec:
+      scrapeInterval: 15s
+      retention: 15d
+      ruleSelector:
+        matchLabels:
+          prometheus: musematic
+      serviceMonitorSelector:
+        matchLabels:
+          prometheus: musematic
+      podMonitorSelector:
+        matchLabels:
+          prometheus: musematic
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: 20Gi
+
+jaeger:
+  provisionDataStore:
+    cassandra: false
+    elasticsearch: false
+    kafka: false
+  agent:
+    enabled: false
+  collector:
+    enabled: false
+  query:
+    enabled: false
+  allInOne:
+    enabled: true
+    args:
+      - --collector.otlp.enabled=true
+    service:
+      headless: false
+      collector:
+        otlp:
+          grpc:
+            name: otlp-grpc
+          http:
+            name: otlp-http
+  storage:
+    type: badger
+    badger:
+      ephemeral: false
+      persistence:
+        mountPath: /mnt/data
+        useExistingPvcName: jaeger-badger
+  persistence:
+    enabled: true
+    size: 5Gi

@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-data-stores
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.dashboardLabels" . | indent 4 }}
+data:
+  data-stores.json: |
+    {
+      "__inputs": [],
+      "__requires": [],
+      "annotations": { "list": [] },
+      "description": "Health, latency, and pool pressure across data stores.",
+      "editable": true,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "id": 1,
+          "type": "stat",
+          "title": "Stores Up",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+          "targets": [{ "expr": "sum({__name__=~\"pg_up|redis_up|qdrant_up|kafka_broker_up\",job=~\"$store\"})", "refId": "A" }],
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "Query Latency",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 16, "x": 8, "y": 0 },
+          "targets": [{ "expr": "sum by (__name__) (rate({__name__=~\"pg_query_duration_seconds_sum|redis_command_duration_seconds_sum|qdrant_request_duration_seconds_sum\"}[5m]))", "refId": "A" }]
+        },
+        {
+          "id": 3,
+          "type": "gauge",
+          "title": "Connection Pool Pressure",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+          "targets": [{ "expr": "sum({__name__=~\"pgxpool_acquired_conns|redis_connected_clients|qdrant_active_connections\"})", "refId": "A" }],
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "tags": ["musematic", "data"],
+      "templating": {
+        "list": [
+          { "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" }, "hide": 0, "includeAll": false, "label": "Datasource", "multi": false, "name": "datasource", "options": [], "query": "prometheus", "refresh": 1, "regex": "", "type": "datasource" },
+          { "current": { "selected": true, "text": ".*", "value": ".*" }, "datasource": { "type": "prometheus", "uid": "$datasource" }, "hide": 0, "includeAll": true, "label": "Store", "multi": false, "name": "store", "options": [], "query": "label_values(up, job)", "refresh": 1, "regex": ".*(postgres|redis|qdrant|kafka).*", "type": "query" }
+        ]
+      },
+      "time": { "from": "now-1h", "to": "now" },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Data Stores",
+      "uid": "data-stores",
+      "version": 1
+    }
+

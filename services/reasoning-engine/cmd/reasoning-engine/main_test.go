@@ -10,6 +10,7 @@ import (
 
 	reasoningv1 "github.com/musematic/reasoning-engine/api/grpc/v1"
 	"github.com/musematic/reasoning-engine/pkg/metrics"
+	"github.com/musematic/reasoning-engine/pkg/telemetry"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 )
@@ -58,6 +59,7 @@ func TestEnvHelpersAndLoadConfig(t *testing.T) {
 	t.Setenv("TRACE_BUFFER_SIZE", "200")
 	t.Setenv("TRACE_PAYLOAD_THRESHOLD", "1234")
 	t.Setenv("BUDGET_DEFAULT_TTL_SECONDS", "99")
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "otel-collector:4317")
 
 	cfg, err := loadConfig()
 	if err != nil {
@@ -65,6 +67,9 @@ func TestEnvHelpersAndLoadConfig(t *testing.T) {
 	}
 	if cfg.grpcPort != 60000 || cfg.minioBucket != "custom-bucket" || cfg.maxToTConcurrency != 12 {
 		t.Fatalf("unexpected config: %+v", cfg)
+	}
+	if cfg.otlpExporterEndpoint != "otel-collector:4317" {
+		t.Fatalf("unexpected otlp endpoint: %q", cfg.otlpExporterEndpoint)
 	}
 	if envString("MISSING_STRING", "fallback") != "fallback" {
 		t.Fatal("envString() did not return fallback")
@@ -173,12 +178,14 @@ func TestRunServesAndStopsWithInjectedDeps(t *testing.T) {
 	originalNewGRPC := newGRPCServerFn
 	originalListen := listenFn
 	originalAfter := afterFn
+	originalSetupTelemetry := setupTelemetryFn
 	defer func() {
 		buildRuntimeDeps = originalBuild
 		notifyContextFn = originalNotify
 		newGRPCServerFn = originalNewGRPC
 		listenFn = originalListen
 		afterFn = originalAfter
+		setupTelemetryFn = originalSetupTelemetry
 	}()
 
 	cleaned := false
@@ -212,6 +219,9 @@ func TestRunServesAndStopsWithInjectedDeps(t *testing.T) {
 	newGRPCServerFn = func(...grpc.ServerOption) grpcServer { return server }
 	listenFn = func(string, string) (net.Listener, error) { return fakeListener{}, nil }
 	afterFn = func(time.Duration) <-chan time.Time { return make(chan time.Time) }
+	setupTelemetryFn = func(context.Context, string, string) (telemetry.Shutdown, error) {
+		return func(context.Context) error { return nil }, nil
+	}
 
 	if err := run(); err != nil {
 		t.Fatalf("run() error = %v", err)

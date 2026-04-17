@@ -159,6 +159,7 @@ func (t *RedisTracker) Decrement(ctx context.Context, execID, stepID, dimension 
 		if err := t.store.HSetFields(ctx, key, "status", "EXHAUSTED"); err == nil && t.registry != nil {
 			t.registry.PublishExceeded(Key(execID, stepID), status, "time")
 		}
+		t.metrics.RecordBudgetExhaustion(ctx, "time")
 		return 0, ErrBudgetExceeded
 	}
 
@@ -184,6 +185,7 @@ func (t *RedisTracker) Decrement(ctx context.Context, execID, stepID, dimension 
 			return 0, err
 		}
 		status.Status = "EXHAUSTED"
+		t.metrics.RecordBudgetExhaustion(ctx, dimension)
 		if t.registry != nil {
 			t.registry.PublishExceeded(Key(execID, stepID), status, dimension)
 		}

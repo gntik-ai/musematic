@@ -27,6 +27,9 @@ env:
   SIMULATION_NAMESPACE: platform-simulation
   ORPHAN_SCAN_INTERVAL_SECONDS: "60"
   DEFAULT_MAX_DURATION_SECONDS: "3600"
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.platform-observability.svc.cluster.local:4317
+  OTEL_SERVICE_NAME: simulation-controller
+  OTEL_RESOURCE_ATTRIBUTES: deployment.environment=production
 
 secrets:
   POSTGRES_DSN: ""

@@ -1,0 +1,33 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-service-alerts
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.ruleLabels" . | indent 4 }}
+spec:
+  groups:
+    - name: platform.services
+      interval: 1m
+      rules:
+        - alert: ServiceDown
+          expr: up{job=~".*musematic.*"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            team: platform
+          annotations:
+            summary: Platform service is down
+            description: A Musematic service has not exposed a healthy scrape target for five minutes.
+            dashboard_url: http://musematic-observability-grafana/d/platform-overview
+        - alert: HighErrorRate
+          expr: rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m]) / rate(http_server_request_duration_seconds_count[5m]) > 0.05
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: Elevated 5xx rate detected
+            description: HTTP requests are returning 5xx responses above the configured threshold.
+            dashboard_url: http://musematic-observability-grafana/d/platform-overview
+

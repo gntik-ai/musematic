@@ -24,13 +24,12 @@ import (
 	"github.com/andrea-mucci/musematic/services/runtime-controller/pkg/health"
 	k8spkg "github.com/andrea-mucci/musematic/services/runtime-controller/pkg/k8s"
 	runtimemetrics "github.com/andrea-mucci/musematic/services/runtime-controller/pkg/metrics"
+	"github.com/andrea-mucci/musematic/services/runtime-controller/pkg/telemetry"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/redis/go-redis/v9"
-	"go.opentelemetry.io/otel"
-	tracesdk "go.opentelemetry.io/otel/sdk/trace"
 	"google.golang.org/grpc"
 )
 
@@ -55,9 +54,15 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	tracerProvider := tracesdk.NewTracerProvider()
-	otel.SetTracerProvider(tracerProvider)
-	defer func() { _ = tracerProvider.Shutdown(context.Background()) }()
+	serviceName := os.Getenv("OTEL_SERVICE_NAME")
+	if serviceName == "" {
+		serviceName = "runtime-controller"
+	}
+	telemetryShutdown, err := telemetry.Setup(context.Background(), serviceName, cfg.OTLPExporterEndpoint)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = telemetryShutdown(context.Background()) }()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()

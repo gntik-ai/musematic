@@ -20,6 +20,9 @@ config:
   traceBufferSize: "10000"
   tracePayloadThreshold: "65536"
   budgetDefaultTTLSeconds: "3600"
+  otelExporterOtlpEndpoint: http://otel-collector.platform-observability.svc.cluster.local:4317
+  otelServiceName: reasoning-engine
+  otelResourceAttributes: deployment.environment=production
 
 configSecretRef: reasoning-engine-config
 

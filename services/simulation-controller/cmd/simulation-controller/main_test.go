@@ -70,12 +70,14 @@ func TestLoadConfigUsesEnvOverrides(t *testing.T) {
 	t.Setenv("SIMULATION_NAMESPACE", "custom-namespace")
 	t.Setenv("ORPHAN_SCAN_INTERVAL_SECONDS", "10")
 	t.Setenv("DEFAULT_MAX_DURATION_SECONDS", "90")
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "otel-collector:4317")
 
 	cfg := loadConfig()
 	require.Equal(t, 50099, cfg.grpcPort)
 	require.Equal(t, "custom-bucket", cfg.simulationBucket)
 	require.Equal(t, "custom-namespace", cfg.simulationNamespace)
 	require.EqualValues(t, 90, cfg.defaultMaxDuration)
+	require.Equal(t, "otel-collector:4317", cfg.otlpExporterEndpoint)
 }
 
 func TestHelperFunctionsCoverFallbackPaths(t *testing.T) {

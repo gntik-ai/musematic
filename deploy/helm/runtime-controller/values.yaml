@@ -27,6 +27,9 @@ config:
   warmPoolReplenishInterval: 30s
   stopGracePeriod: 30s
   agentPackagePresignTTL: 2h
+  otelExporterOtlpEndpoint: http://otel-collector.platform-observability.svc.cluster.local:4317
+  otelServiceName: runtime-controller
+  otelResourceAttributes: deployment.environment=production
 
 networkPolicy:
   enabled: true

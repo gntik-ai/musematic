@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{ include "musematic-observability.namespace" . }}
+  labels:
+    kubernetes.io/metadata.name: {{ include "musematic-observability.namespace" . }}
+{{ include "musematic-observability.labels" . | indent 4 }}
+

@@ -6,6 +6,7 @@ from platform.common.config import settings as default_settings
 from platform.common.events.envelope import CorrelationContext, EventEnvelope
 from platform.common.events.registry import event_registry
 from platform.common.exceptions import KafkaProducerError, ValidationError
+from platform.common.kafka_tracing import inject_trace_context
 from typing import Any
 
 
@@ -59,10 +60,12 @@ class EventProducer:
         )
         try:
             producer = await self._ensure_producer()
+            headers = list(inject_trace_context({}).items())
             await producer.send_and_wait(
                 topic,
                 envelope.model_dump_json().encode("utf-8"),
                 key=key.encode("utf-8"),
+                headers=headers,
             )
         except Exception as exc:
             raise KafkaProducerError(str(exc)) from exc

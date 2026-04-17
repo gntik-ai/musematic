@@ -1,0 +1,75 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-workflow-execution
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.dashboardLabels" . | indent 4 }}
+data:
+  workflow-execution.json: |
+    {
+      "__inputs": [],
+      "__requires": [],
+      "annotations": { "list": [] },
+      "description": "Execution throughput, failure rate, and latency.",
+      "editable": true,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "id": 1,
+          "type": "stat",
+          "title": "Active Executions",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 },
+          "targets": [{ "expr": "sum(execution_active_total{workspace_id=~\"$workspace\"})", "refId": "A" }],
+          "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "Step p95 Latency",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 18, "x": 6, "y": 0 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le, step_id) (rate(execution_step_duration_seconds_bucket{workspace_id=~\"$workspace\"}[5m])))",
+              "legendFormat": "{{ `{{step_id}}` }}",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "Failure Rate",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "targets": [{ "expr": "rate(execution_failures_total{workspace_id=~\"$workspace\"}[5m])", "refId": "A" }]
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "Throughput",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "targets": [{ "expr": "rate(execution_completed_total{workspace_id=~\"$workspace\"}[5m])", "refId": "A" }]
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "tags": ["musematic", "workflow"],
+      "templating": {
+        "list": [
+          { "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" }, "hide": 0, "includeAll": false, "label": "Datasource", "multi": false, "name": "datasource", "options": [], "query": "prometheus", "refresh": 1, "regex": "", "type": "datasource" },
+          { "current": { "selected": true, "text": [" .* "], "value": [" .* "] }, "datasource": { "type": "prometheus", "uid": "$datasource" }, "hide": 0, "includeAll": true, "label": "Workspace", "multi": true, "name": "workspace", "options": [], "query": "label_values(execution_active_total, workspace_id)", "refresh": 1, "regex": "", "type": "query" }
+        ]
+      },
+      "time": { "from": "now-1h", "to": "now" },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Workflow Execution",
+      "uid": "workflow-execution",
+      "version": 1
+    }

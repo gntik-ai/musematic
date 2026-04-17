@@ -12,3 +12,6 @@ data:
   WARM_POOL_REPLENISH_INTERVAL: {{ .Values.config.warmPoolReplenishInterval | quote }}
   STOP_GRACE_PERIOD: {{ .Values.config.stopGracePeriod | quote }}
   AGENT_PACKAGE_PRESIGN_TTL: {{ .Values.config.agentPackagePresignTTL | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.otelExporterOtlpEndpoint | quote }}
+  OTEL_SERVICE_NAME: {{ .Values.config.otelServiceName | quote }}
+  OTEL_RESOURCE_ATTRIBUTES: {{ .Values.config.otelResourceAttributes | quote }}

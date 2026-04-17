@@ -1,0 +1,33 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-kafka-alerts
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.ruleLabels" . | indent 4 }}
+spec:
+  groups:
+    - name: platform.kafka
+      interval: 1m
+      rules:
+        - alert: KafkaConsumerLagHigh
+          expr: kafka_consumer_group_lag_sum > 1000
+          for: 10m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: Kafka consumer lag is elevated
+            description: Kafka consumer lag has remained above 1,000 messages for ten minutes.
+            dashboard_url: http://musematic-observability-grafana/d/data-stores
+        - alert: KafkaConsumerLagCritical
+          expr: kafka_consumer_group_lag_sum > 10000
+          for: 5m
+          labels:
+            severity: critical
+            team: platform
+          annotations:
+            summary: Kafka consumer lag is critical
+            description: Kafka consumer lag has remained above 10,000 messages for five minutes.
+            dashboard_url: http://musematic-observability-grafana/d/data-stores
+

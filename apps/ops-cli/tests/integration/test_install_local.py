@@ -62,8 +62,12 @@ async def test_local_installer_start_stop_lifecycle(
     launched: list[subprocess.Popen[str]] = []
 
     def fake_popen(*args: object, **kwargs: object) -> subprocess.Popen[str]:
+        command = list(args[0]) if args else []
+        target_port = port
+        if command and command[0] == "docker":
+            target_port = 16686
         process = real_popen(
-            [sys.executable, str(server_script), str(port)],
+            [sys.executable, str(server_script), str(target_port)],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             text=True,
@@ -71,7 +75,12 @@ async def test_local_installer_start_stop_lifecycle(
         launched.append(process)
         return process
 
-    monkeypatch.setattr("platform_cli.installers.local.shutil.which", lambda binary: None)
+    def fake_which(binary: str) -> str | None:
+        if binary == "docker":
+            return "docker"
+        return None
+
+    monkeypatch.setattr("platform_cli.installers.local.shutil.which", fake_which)
     monkeypatch.setattr("platform_cli.installers.local.subprocess.Popen", fake_popen)
     monkeypatch.setattr(installer.migration_runner, "run_alembic", lambda database_url: None)
 
@@ -94,13 +103,19 @@ async def test_local_installer_start_stop_lifecycle(
         result = await installer.run()
         assert installer.sqlite_path.exists()
         assert installer.pid_path.exists()
+        assert installer.jaeger_pid_path.exists()
         assert result.admin_email == config.admin.email
         assert result.admin_password is not None
         assert launched
+        assert installer.checkpoint_manager.checkpoint is not None
+        assert installer.checkpoint_manager.checkpoint.metadata["jaeger_runtime"] == "docker"
+        assert installer.build_local_env()["OTEL_EXPORTER_ENDPOINT"] == "http://127.0.0.1:4318"
 
         assert LocalInstaller.stop(config.data_dir) is True
-        launched[0].wait(timeout=5)
+        for process in launched:
+            process.wait(timeout=5)
         assert installer.pid_path.exists() is False
+        assert installer.jaeger_pid_path.exists() is False
     finally:
         for process in launched:
             if process.poll() is None:

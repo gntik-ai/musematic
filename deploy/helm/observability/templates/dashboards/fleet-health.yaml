@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-fleet-health
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.dashboardLabels" . | indent 4 }}
+data:
+  fleet-health.json: |
+    {
+      "__inputs": [],
+      "__requires": [],
+      "annotations": { "list": [] },
+      "description": "Fleet status, member health, and degraded operations.",
+      "editable": true,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "id": 1,
+          "type": "piechart",
+          "title": "Fleet Status Distribution",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+          "targets": [{ "expr": "sum by (status) (fleet_status{fleet_id=~\"$fleet_id\"})", "legendFormat": "{{ `{{status}}` }}", "refId": "A" }]
+        },
+        {
+          "id": 2,
+          "type": "barchart",
+          "title": "Member Health",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 16, "x": 8, "y": 0 },
+          "targets": [{ "expr": "sum by (health_status) (fleet_member_health_count{fleet_id=~\"$fleet_id\"})", "legendFormat": "{{ `{{health_status}}` }}", "refId": "A" }]
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "Degraded Operations",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+          "targets": [{ "expr": "rate(degraded_operations_total{fleet_id=~\"$fleet_id\"}[5m])", "refId": "A" }]
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "tags": ["musematic", "fleet"],
+      "templating": {
+        "list": [
+          { "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" }, "hide": 0, "includeAll": false, "label": "Datasource", "multi": false, "name": "datasource", "options": [], "query": "prometheus", "refresh": 1, "regex": "", "type": "datasource" },
+          { "current": { "selected": true, "text": ".*", "value": ".*" }, "datasource": { "type": "prometheus", "uid": "$datasource" }, "hide": 0, "includeAll": true, "label": "Fleet", "multi": false, "name": "fleet_id", "options": [], "query": "label_values(fleet_status, fleet_id)", "refresh": 1, "regex": "", "type": "query" }
+        ]
+      },
+      "time": { "from": "now-1h", "to": "now" },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Fleet Health",
+      "uid": "fleet-health",
+      "version": 1
+    }

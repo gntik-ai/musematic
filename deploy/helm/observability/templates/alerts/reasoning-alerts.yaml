@@ -1,0 +1,33 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-reasoning-alerts
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.ruleLabels" . | indent 4 }}
+spec:
+  groups:
+    - name: platform.reasoning
+      interval: 1m
+      rules:
+        - alert: BudgetExhaustionSpike
+          expr: increase(budget_exhaustion_total[5m]) > 5
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: Budget exhaustion events are spiking
+            description: Budget exhaustion has happened more than five times in five minutes.
+            dashboard_url: http://musematic-observability-grafana/d/reasoning-engine
+        - alert: SelfCorrectionNonConvergence
+          expr: rate(correction_nonconvergence_total[5m]) > 0.1
+          for: 15m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: Self-correction loops are not converging
+            description: Non-converging self-correction iterations are above the configured threshold.
+            dashboard_url: http://musematic-observability-grafana/d/self-correction
+
