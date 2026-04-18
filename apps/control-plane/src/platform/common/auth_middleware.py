@@ -45,7 +45,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
         public_invitation_endpoint = path.startswith("/api/v1/accounts/invitations/") and (
             request.method == "GET" or (request.method == "POST" and path.endswith("/accept"))
         )
-        if path in EXEMPT_PATHS or public_invitation_endpoint:
+        public_oauth_endpoint = path == "/api/v1/auth/oauth/providers" or (
+            path.startswith("/api/v1/auth/oauth/")
+            and request.method == "GET"
+            and path.endswith(("/authorize", "/callback"))
+        )
+        if path in EXEMPT_PATHS or public_invitation_endpoint or public_oauth_endpoint:
             return await call_next(request)
 
         api_key = request.headers.get("X-API-Key", "").strip()

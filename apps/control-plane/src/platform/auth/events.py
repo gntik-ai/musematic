@@ -56,6 +56,43 @@ class IBORSyncCompletedPayload(BaseModel):
     counts: dict[str, int]
 
 
+
+class OAuthSignInSucceededPayload(BaseModel):
+    user_id: UUID
+    provider_type: str
+    external_id: str
+
+
+class OAuthSignInFailedPayload(BaseModel):
+    provider_type: str
+    failure_reason: str
+    external_id: str | None = None
+
+
+class OAuthUserProvisionedPayload(BaseModel):
+    user_id: UUID
+    provider_type: str
+    external_id: str
+    email: str
+
+
+class OAuthAccountLinkedPayload(BaseModel):
+    user_id: UUID
+    provider_type: str
+    external_id: str
+
+
+class OAuthAccountUnlinkedPayload(BaseModel):
+    user_id: UUID
+    provider_type: str
+
+
+class OAuthProviderConfiguredPayload(BaseModel):
+    actor_id: UUID
+    provider_type: str
+    enabled: bool
+
+
 AUTH_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     "auth.user.authenticated": UserAuthenticatedPayload,
     "auth.user.locked": UserLockedPayload,
@@ -64,6 +101,12 @@ AUTH_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     "auth.permission.denied": PermissionDeniedPayload,
     "auth.apikey.rotated": ApiKeyRotatedPayload,
     "ibor_sync_completed": IBORSyncCompletedPayload,
+    "auth.oauth.sign_in_succeeded": OAuthSignInSucceededPayload,
+    "auth.oauth.sign_in_failed": OAuthSignInFailedPayload,
+    "auth.oauth.user_provisioned": OAuthUserProvisionedPayload,
+    "auth.oauth.account_linked": OAuthAccountLinkedPayload,
+    "auth.oauth.account_unlinked": OAuthAccountUnlinkedPayload,
+    "auth.oauth.provider_configured": OAuthProviderConfiguredPayload,
 }
 
 

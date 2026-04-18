@@ -187,3 +187,95 @@ class IBORSyncTriggerResponse(BaseModel):
     connector_id: UUID
     status: IBORSyncRunStatus
     started_at: datetime
+
+
+
+class OAuthProviderType(StrEnum):
+    GOOGLE = "google"
+    GITHUB = "github"
+
+
+class OAuthProviderCreate(BaseModel):
+    display_name: str = Field(min_length=1, max_length=128)
+    enabled: bool = False
+    client_id: str = Field(min_length=1, max_length=256)
+    client_secret_ref: str = Field(min_length=1, max_length=256)
+    redirect_uri: str = Field(min_length=1, max_length=512)
+    scopes: list[str] = Field(default_factory=list)
+    domain_restrictions: list[str] = Field(default_factory=list)
+    org_restrictions: list[str] = Field(default_factory=list)
+    group_role_mapping: dict[str, str] = Field(default_factory=dict)
+    default_role: str = Field(default="member", min_length=1, max_length=64)
+    require_mfa: bool = False
+
+
+class OAuthProviderUpdate(OAuthProviderCreate):
+    pass
+
+
+class OAuthProviderPublic(BaseModel):
+    provider_type: OAuthProviderType
+    display_name: str
+
+
+class OAuthProviderPublicListResponse(BaseModel):
+    providers: list[OAuthProviderPublic]
+
+
+class OAuthProviderAdminResponse(BaseModel):
+    id: UUID
+    provider_type: OAuthProviderType
+    display_name: str
+    enabled: bool
+    client_id: str
+    client_secret_ref: str
+    redirect_uri: str
+    scopes: list[str] = Field(default_factory=list)
+    domain_restrictions: list[str] = Field(default_factory=list)
+    org_restrictions: list[str] = Field(default_factory=list)
+    group_role_mapping: dict[str, str] = Field(default_factory=dict)
+    default_role: str
+    require_mfa: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class OAuthProviderAdminListResponse(BaseModel):
+    providers: list[OAuthProviderAdminResponse]
+
+
+class OAuthLinkResponse(BaseModel):
+    provider_type: OAuthProviderType
+    display_name: str
+    linked_at: datetime
+    last_login_at: datetime | None = None
+    external_email: str | None = None
+    external_name: str | None = None
+    external_avatar_url: str | None = None
+
+
+class OAuthLinkListResponse(BaseModel):
+    items: list[OAuthLinkResponse]
+
+
+class OAuthAuthorizeResponse(BaseModel):
+    redirect_url: str
+
+
+class OAuthAuditEntryResponse(BaseModel):
+    id: UUID
+    provider_type: OAuthProviderType | None = None
+    user_id: UUID | None = None
+    external_id: str | None = None
+    action: str
+    outcome: str
+    failure_reason: str | None = None
+    source_ip: str | None = None
+    user_agent: str | None = None
+    actor_id: UUID | None = None
+    changed_fields: dict[str, object] | None = None
+    created_at: datetime
+
+
+class OAuthAuditEntryListResponse(BaseModel):
+    items: list[OAuthAuditEntryResponse]

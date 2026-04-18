@@ -367,6 +367,47 @@ class AuthService:
         )
         return MfaConfirmResponse()
 
+    async def create_session(
+        self,
+        *,
+        user_id: UUID,
+        email: str,
+        ip: str,
+        device: str,
+        roles: list[dict[str, Any]] | None = None,
+        correlation_id: UUID | None = None,
+    ) -> TokenPair:
+        resolved_roles = roles if roles is not None else await self._serialize_roles(user_id, None)
+        return await self._issue_token_pair(
+            user_id=user_id,
+            email=email,
+            roles=resolved_roles,
+            ip=ip,
+            device=device,
+            session_id=uuid4(),
+            correlation_id=correlation_id or uuid4(),
+        )
+
+    async def create_pending_mfa_challenge(
+        self,
+        *,
+        user_id: UUID,
+        email: str,
+        ip: str,
+        device: str,
+        roles: list[dict[str, Any]] | None = None,
+    ) -> MfaChallengeResponse:
+        resolved_roles = roles if roles is not None else await self._serialize_roles(user_id, None)
+        token = await self._create_pending_mfa_token(
+            user_id=user_id,
+            email=email,
+            roles=resolved_roles,
+            ip=ip,
+            device=device,
+            session_id=uuid4(),
+        )
+        return MfaChallengeResponse(mfa_token=token)
+
     async def check_permission(
         self,
         user_id: UUID,

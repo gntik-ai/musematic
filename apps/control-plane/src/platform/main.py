@@ -28,6 +28,7 @@ from platform.auth.events import register_auth_event_types
 from platform.auth.ibor_sync import IBORSyncService
 from platform.auth.repository import AuthRepository
 from platform.auth.router import router as auth_router
+from platform.auth.router_oauth import oauth_router
 from platform.common import database
 from platform.common.auth_middleware import AuthMiddleware
 from platform.common.clients.clickhouse import AsyncClickHouseClient
@@ -745,6 +746,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     if resolved.profile in {"api", "agentops", "composition", "discovery", "simulation"}:
         app.include_router(api_router)
         app.include_router(auth_router)
+        app.include_router(oauth_router)
         app.include_router(accounts_router)
         app.include_router(workspaces_router)
         app.include_router(analytics_router)
