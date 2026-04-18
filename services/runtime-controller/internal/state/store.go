@@ -54,6 +54,24 @@ type WarmPoolPod struct {
 	DispatchedAt *time.Time
 }
 
+type WarmPoolTarget struct {
+	ID          uuid.UUID
+	WorkspaceID string
+	AgentType   string
+	TargetSize  int
+	UpdatedAt   time.Time
+}
+
+type WarmPoolStatusRecord struct {
+	WorkspaceID     string
+	AgentType       string
+	TargetSize      int
+	AvailableCount  int
+	DispatchedCount int
+	WarmingCount    int
+	LastDispatchAt  *time.Time
+}
+
 type TaskPlanRecord struct {
 	RecordID            uuid.UUID
 	ExecutionID         string

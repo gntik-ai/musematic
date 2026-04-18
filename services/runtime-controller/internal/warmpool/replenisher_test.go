@@ -12,11 +12,16 @@ import (
 
 type fakeWarmPoolInserter struct {
 	inserted []state.WarmPoolPod
+	targets  []state.WarmPoolTarget
 }
 
 func (f *fakeWarmPoolInserter) InsertWarmPoolPod(_ context.Context, pod state.WarmPoolPod) error {
 	f.inserted = append(f.inserted, pod)
 	return nil
+}
+
+func (f *fakeWarmPoolInserter) ListWarmPoolTargets(context.Context) ([]state.WarmPoolTarget, error) {
+	return append([]state.WarmPoolTarget(nil), f.targets...), nil
 }
 
 type fakeWarmPoolPods struct {

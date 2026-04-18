@@ -29,8 +29,12 @@ def _get_redis(request: Request) -> AsyncRedisClient:
     return cast(AsyncRedisClient, request.app.state.clients["redis"])
 
 
-def _get_runtime_controller(request: Request) -> RuntimeControllerClient:
+def get_runtime_controller_client(request: Request) -> RuntimeControllerClient:
     return cast(RuntimeControllerClient, request.app.state.clients["runtime_controller"])
+
+
+def _get_runtime_controller(request: Request) -> RuntimeControllerClient:
+    return get_runtime_controller_client(request)
 
 
 def _get_reasoning_engine(request: Request) -> ReasoningEngineClient:
@@ -115,7 +119,7 @@ async def get_execution_service(
         producer=_get_producer(request),
         redis_client=_get_redis(request),
         object_storage=_get_object_storage(request),
-        runtime_controller=_get_runtime_controller(request),
+        runtime_controller=get_runtime_controller_client(request),
         reasoning_engine=_get_reasoning_engine(request),
         context_engineering_service=getattr(request.app.state, "context_engineering_service", None),
     )
@@ -132,7 +136,7 @@ async def get_scheduler_service(
         producer=_get_producer(request),
         redis_client=_get_redis(request),
         object_storage=_get_object_storage(request),
-        runtime_controller=_get_runtime_controller(request),
+        runtime_controller=get_runtime_controller_client(request),
         reasoning_engine=_get_reasoning_engine(request),
         context_engineering_service=getattr(request.app.state, "context_engineering_service", None),
         interactions_service=getattr(request.app.state, "interactions_service", None),

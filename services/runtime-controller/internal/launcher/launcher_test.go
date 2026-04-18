@@ -200,14 +200,18 @@ func TestLaunchWarmPoolErrors(t *testing.T) {
 		Pods:      &fakePodManager{},
 		WarmPool:  fakeWarmPoolDispatcher{err: errors.New("dispatch failed")},
 	}
-	if _, _, err := service.Launch(context.Background(), &runtimev1.RuntimeContract{
+	info, warmStart, err := service.Launch(context.Background(), &runtimev1.RuntimeContract{
 		AgentRevision: "agent-v1",
 		CorrelationContext: &runtimev1.CorrelationContext{
 			ExecutionId: "exec-1",
 			WorkspaceId: "ws-1",
 		},
-	}); err == nil {
-		t.Fatalf("expected warm pool dispatch error")
+	})
+	if err != nil {
+		t.Fatalf("expected cold-start fallback, got error: %v", err)
+	}
+	if warmStart || info == nil {
+		t.Fatalf("expected cold-start fallback response, got warm=%v info=%+v", warmStart, info)
 	}
 
 	service.WarmPool = fakeWarmPoolDispatcher{podName: "warm-pod-1", ok: true}

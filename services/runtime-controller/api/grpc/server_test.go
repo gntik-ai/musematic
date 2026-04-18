@@ -71,16 +71,24 @@ func (f *fakeLaunchStore) InsertRuntimeEvent(_ context.Context, event state.Runt
 }
 
 type fakeServerStore struct {
-	record      state.RuntimeRecord
-	getErr      error
-	eventsSince []state.RuntimeEventRecord
-	eventsErr   error
-	updateErr   error
-	insertErr   error
-	updates     []struct {
+	record        state.RuntimeRecord
+	getErr        error
+	eventsSince   []state.RuntimeEventRecord
+	eventsErr     error
+	updateErr     error
+	insertErr     error
+	warmStatus    []state.WarmPoolStatusRecord
+	warmStatusErr error
+	upsertErr     error
+	updates       []struct {
 		executionID string
 		stateValue  string
 		reason      string
+	}
+	upserts []struct {
+		workspaceID string
+		agentType   string
+		targetSize  int
 	}
 	insertedEvents []state.RuntimeEventRecord
 }
@@ -110,6 +118,22 @@ func (f *fakeServerStore) InsertRuntimeEvent(_ context.Context, event state.Runt
 		return f.insertErr
 	}
 	f.insertedEvents = append(f.insertedEvents, event)
+	return nil
+}
+
+func (f *fakeServerStore) ListWarmPoolStatus(context.Context, string, string) ([]state.WarmPoolStatusRecord, error) {
+	return f.warmStatus, f.warmStatusErr
+}
+
+func (f *fakeServerStore) UpsertWarmPoolTarget(_ context.Context, workspaceID string, agentType string, targetSize int) error {
+	if f.upsertErr != nil {
+		return f.upsertErr
+	}
+	f.upserts = append(f.upserts, struct {
+		workspaceID string
+		agentType   string
+		targetSize  int
+	}{workspaceID: workspaceID, agentType: agentType, targetSize: targetSize})
 	return nil
 }
 
@@ -184,6 +208,22 @@ type fakeRuntimeLookupError struct{ err error }
 
 func (f fakeRuntimeLookupError) GetRuntimeByExecutionID(context.Context, string) (state.RuntimeRecord, error) {
 	return state.RuntimeRecord{}, f.err
+}
+
+func (fakeRuntimeLookupError) UpdateRuntimeState(context.Context, string, string, string) error {
+	return nil
+}
+func (fakeRuntimeLookupError) GetRuntimeEventsSince(context.Context, string, time.Time) ([]state.RuntimeEventRecord, error) {
+	return nil, nil
+}
+func (fakeRuntimeLookupError) InsertRuntimeEvent(context.Context, state.RuntimeEventRecord) error {
+	return nil
+}
+func (fakeRuntimeLookupError) ListWarmPoolStatus(context.Context, string, string) ([]state.WarmPoolStatusRecord, error) {
+	return nil, nil
+}
+func (fakeRuntimeLookupError) UpsertWarmPoolTarget(context.Context, string, string, int) error {
+	return nil
 }
 
 type fakePresigner struct{}
@@ -277,6 +317,52 @@ func TestLaunchRuntimeSuccessAndAlreadyExists(t *testing.T) {
 	})
 	if status.Code(err) != codes.Internal {
 		t.Fatalf("expected Internal, got %v", err)
+	}
+}
+
+func TestWarmPoolStatusAndConfig(t *testing.T) {
+	now := time.Now().UTC()
+	store := &fakeServerStore{warmStatus: []state.WarmPoolStatusRecord{{
+		WorkspaceID:     "ws-1",
+		AgentType:       "python-3.12",
+		TargetSize:      5,
+		AvailableCount:  3,
+		DispatchedCount: 2,
+		WarmingCount:    1,
+		LastDispatchAt:  &now,
+	}}}
+	metrics := runtimemetrics.NewRegistry()
+	service := &RuntimeControlServiceServer{Store: store, Metrics: metrics}
+
+	statusResponse, err := service.WarmPoolStatus(context.Background(), &runtimev1.WarmPoolStatusRequest{})
+	if err != nil {
+		t.Fatalf("WarmPoolStatus returned error: %v", err)
+	}
+	if len(statusResponse.Keys) != 1 || statusResponse.Keys[0].AvailableCount != 3 {
+		t.Fatalf("unexpected warm pool status response: %+v", statusResponse)
+	}
+	snapshot := metrics.Snapshot()
+	if snapshot.WarmPoolTarget["ws-1/python-3.12"] != 5 || snapshot.WarmPoolAvailable["ws-1/python-3.12"] != 3 {
+		t.Fatalf("warm pool metrics were not updated from status response: %+v", snapshot)
+	}
+
+	configResponse, err := service.WarmPoolConfig(context.Background(), &runtimev1.WarmPoolConfigRequest{
+		WorkspaceId: "ws-1",
+		AgentType:   "python-3.12",
+		TargetSize:  7,
+	})
+	if err != nil {
+		t.Fatalf("WarmPoolConfig returned error: %v", err)
+	}
+	if !configResponse.Accepted || len(store.upserts) != 1 || store.upserts[0].targetSize != 7 {
+		t.Fatalf("unexpected warm pool config result: %+v upserts=%+v", configResponse, store.upserts)
+	}
+
+	if _, err := service.WarmPoolConfig(context.Background(), &runtimev1.WarmPoolConfigRequest{TargetSize: 1}); status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("expected InvalidArgument for missing identifiers, got %v", err)
+	}
+	if _, err := service.WarmPoolConfig(context.Background(), &runtimev1.WarmPoolConfigRequest{WorkspaceId: "ws-1", AgentType: "python-3.12", TargetSize: -1}); status.Code(err) != codes.InvalidArgument {
+		t.Fatalf("expected InvalidArgument for negative target size, got %v", err)
 	}
 }
 

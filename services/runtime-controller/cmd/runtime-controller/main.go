@@ -75,6 +75,15 @@ func run() error {
 	if err := state.RunMigrations(ctx, store.Pool()); err != nil {
 		return err
 	}
+	for targetKey, targetSize := range cfg.WarmPoolTargets {
+		workspaceID, agentType := splitTargetKey(targetKey)
+		if workspaceID == "" || agentType == "" {
+			continue
+		}
+		if err := store.EnsureWarmPoolTarget(ctx, workspaceID, agentType, targetSize); err != nil {
+			return err
+		}
+	}
 	awsCfg, err := awsconfig.LoadDefaultConfig(ctx)
 	if err != nil {
 		return err
@@ -214,4 +223,13 @@ func run() error {
 
 func toPort(port int) string {
 	return strconv.Itoa(port)
+}
+
+func splitTargetKey(value string) (string, string) {
+	for i := 0; i < len(value); i++ {
+		if value[i] == '/' {
+			return value[:i], value[i+1:]
+		}
+	}
+	return value, ""
 }

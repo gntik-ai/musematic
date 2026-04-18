@@ -3,6 +3,9 @@ from __future__ import annotations
 import json
 import logging
 from datetime import UTC, datetime, timedelta
+from platform.common.events.envelope import CorrelationContext
+from platform.common.exceptions import PolicySecretLeakError
+from platform.execution.events import PromptSecretDetectedEvent, publish_prompt_secret_detected
 from platform.execution.models import (
     ApprovalDecision,
     ApprovalTimeoutAction,
@@ -18,15 +21,19 @@ from platform.execution.projector import ExecutionProjector
 from platform.execution.repository import ExecutionRepository
 from platform.execution.schemas import ExecutionStateResponse
 from platform.execution.service import ExecutionService
+from platform.policies.models import EnforcementComponent, PolicyBlockedActionRecord
+from platform.policies.repository import PolicyRepository
+from platform.policies.sanitizer import OutputSanitizer
 from platform.workflows.ir import StepIR, WorkflowIR
 from typing import Any, TypedDict
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 LOGGER = logging.getLogger(__name__)
 
 
 class PriorityChange(TypedDict):
     """Represent the priority change."""
+
     step_id: str
     old_priority: float
     new_priority: float
@@ -34,6 +41,7 @@ class PriorityChange(TypedDict):
 
 class PriorityScorer:
     """Represent the priority scorer."""
+
     def compute(self, step: StepIR, execution_context: dict[str, Any]) -> float:
         """Handle compute."""
         now = execution_context["now"]
@@ -61,6 +69,7 @@ class PriorityScorer:
 
 class SchedulerService:
     """Provide scheduler operations."""
+
     def __init__(
         self,
         *,
@@ -256,7 +265,37 @@ class SchedulerService:
                 continue
             if not await self._acquire_lease(execution.id, step.step_id):
                 continue
-            await self._persist_task_plan(execution, step)
+            try:
+                await self._persist_task_plan(execution, step)
+            except PolicySecretLeakError as exc:
+                LOGGER.warning(
+                    "Prompt preflight blocked runtime dispatch",
+                    extra={
+                        "execution_id": str(execution.id),
+                        "step_id": step.step_id,
+                        "secret_type": exc.secret_type,
+                    },
+                )
+                lease = await self.repository.get_active_dispatch_lease(execution.id, step.step_id)
+                if lease is not None:
+                    await self.repository.release_dispatch_lease(
+                        lease,
+                        released_at=datetime.now(UTC),
+                        expired=False,
+                    )
+                await self.repository.update_execution_status(
+                    execution,
+                    ExecutionStatus.failed,
+                    completed_at=datetime.now(UTC),
+                )
+                await self.execution_service.record_runtime_event(
+                    execution.id,
+                    step_id=step.step_id,
+                    event_type=ExecutionEventType.failed,
+                    payload={"step_type": step.step_type, "secret_type": exc.secret_type},
+                    status=ExecutionStatus.failed,
+                )
+                return
             await self.repository.update_execution_status(
                 execution,
                 ExecutionStatus.running,
@@ -362,6 +401,7 @@ class SchedulerService:
                 else:
                     payload = result
                 if isinstance(payload, dict):
+                    await self._prompt_secret_preflight(payload, execution=execution, step=step)
                     return payload
         parameter_sources = []
         parameters = {}
@@ -369,7 +409,7 @@ class SchedulerService:
             provenance = "prev_step_output" if value.startswith("$.steps.") else "user_input"
             parameter_sources.append(provenance)
             parameters[key] = {"value": value, "provenance": provenance}
-        return {
+        payload = {
             "execution_id": str(execution.id),
             "step_id": step.step_id,
             "selected_agent_fqn": step.agent_fqn,
@@ -387,6 +427,8 @@ class SchedulerService:
             "parameter_sources": list(dict.fromkeys(parameter_sources)),
             "rejected_alternatives": [],
         }
+        await self._prompt_secret_preflight(payload, execution=execution, step=step)
+        return payload
 
     async def _acquire_lease(self, execution_id: Any, step_id: str) -> bool:
         client = await self.redis_client._get_client()
@@ -419,13 +461,75 @@ class SchedulerService:
             "tool_fqn": step.tool_fqn,
             "input_bindings": dict(step.input_bindings or {}),
         }
-        target = getattr(self.runtime_controller, "dispatch", None)
-        if not callable(target) and getattr(self.runtime_controller, "stub", None) is not None:
-            target = getattr(self.runtime_controller.stub, "dispatch", None)
-        if callable(target):
-            result = target(payload)
+        launch = getattr(self.runtime_controller, "launch_runtime", None)
+        fallback = getattr(self.runtime_controller, "dispatch", None)
+        if not callable(fallback) and getattr(self.runtime_controller, "stub", None) is not None:
+            fallback = getattr(self.runtime_controller.stub, "dispatch", None)
+        if callable(launch):
+            try:
+                result = launch(payload, prefer_warm=True)
+                if hasattr(result, "__await__"):
+                    await result
+                return
+            except Exception:
+                if not callable(fallback):
+                    raise
+        if callable(fallback):
+            result = fallback(payload)
             if hasattr(result, "__await__"):
                 await result
+
+    async def _prompt_secret_preflight(
+        self,
+        payload: dict[str, Any],
+        *,
+        execution: Execution,
+        step: StepIR,
+    ) -> None:
+        prompt_payload = json.dumps(payload, sort_keys=True)
+        for secret_type, pattern in OutputSanitizer.SECRET_PATTERNS.items():
+            if pattern.search(prompt_payload) is None:
+                continue
+            agent_fqn = step.agent_fqn or "unknown-agent"
+            agent_id = uuid5(NAMESPACE_URL, agent_fqn)
+            repository = PolicyRepository(self.repository.session)
+            await repository.create_blocked_action_record(
+                PolicyBlockedActionRecord(
+                    agent_id=agent_id,
+                    agent_fqn=agent_fqn,
+                    enforcement_component=EnforcementComponent.sanitizer,
+                    action_type="prompt_preflight_block",
+                    target=secret_type,
+                    block_reason=f"prompt_secret_detected:{secret_type}",
+                    policy_rule_ref={"step_id": step.step_id},
+                    execution_id=execution.id,
+                    workspace_id=execution.workspace_id,
+                )
+            )
+            await publish_prompt_secret_detected(
+                self.producer,
+                PromptSecretDetectedEvent(
+                    execution_id=execution.id,
+                    workspace_id=execution.workspace_id,
+                    agent_fqn=agent_fqn,
+                    step_id=step.step_id,
+                    secret_type=secret_type,
+                ),
+                self._correlation_context(execution, step),
+            )
+            raise PolicySecretLeakError(secret_type)
+
+    def _correlation_context(self, execution: Execution, step: StepIR) -> CorrelationContext:
+        return CorrelationContext(
+            correlation_id=uuid4(),
+            workspace_id=execution.workspace_id,
+            execution_id=execution.id,
+            conversation_id=execution.correlation_conversation_id,
+            interaction_id=execution.correlation_interaction_id,
+            fleet_id=execution.correlation_fleet_id,
+            goal_id=execution.correlation_goal_id,
+            agent_fqn=step.agent_fqn,
+        )
 
     async def _maybe_checkpoint(self, execution_id: Any) -> None:
         event_count = await self.repository.count_events(execution_id)
