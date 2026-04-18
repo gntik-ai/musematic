@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ShieldCheck, Users, UserPlus2, Gauge, PlugZap, Mail, Lock } from "lucide-react";
+import { ShieldCheck, Users, UserPlus2, Gauge, PlugZap, Mail, Lock, KeyRound } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { UsersTab } from "@/components/features/admin/tabs/UsersTab";
@@ -11,6 +11,7 @@ import { QuotasTab } from "@/components/features/admin/tabs/QuotasTab";
 import { ConnectorsTab } from "@/components/features/admin/tabs/ConnectorsTab";
 import { EmailTab } from "@/components/features/admin/tabs/EmailTab";
 import { SecurityTab } from "@/components/features/admin/tabs/SecurityTab";
+import { OAuthProviderAdminPanel } from "@/components/features/auth/OAuthProviderAdminPanel";
 
 const tabs = [
   { value: "users", label: "Users", icon: Users, component: UsersTab },
@@ -28,6 +29,12 @@ const tabs = [
     component: ConnectorsTab,
   },
   { value: "email", label: "Email", icon: Mail, component: EmailTab },
+  {
+    value: "oauth",
+    label: "OAuth Providers",
+    icon: KeyRound,
+    component: OAuthProviderAdminPanel,
+  },
   { value: "security", label: "Security", icon: Lock, component: SecurityTab },
 ] as const;
 

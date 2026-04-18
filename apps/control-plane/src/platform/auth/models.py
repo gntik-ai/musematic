@@ -20,7 +20,7 @@ from sqlalchemy import (
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
 class IBORSourceType(StrEnum):
@@ -217,3 +217,97 @@ class IBORSyncRun(Base, UUIDMixin):
         default=list,
     )
     triggered_by: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+
+
+
+class OAuthProvider(Base, UUIDMixin, TimestampMixin):
+    __tablename__ = "oauth_providers"
+
+    provider_type: Mapped[str] = mapped_column(String(length=32), unique=True, nullable=False)
+    display_name: Mapped[str] = mapped_column(String(length=128), nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    client_id: Mapped[str] = mapped_column(String(length=256), nullable=False)
+    client_secret_ref: Mapped[str] = mapped_column(String(length=256), nullable=False)
+    redirect_uri: Mapped[str] = mapped_column(String(length=512), nullable=False)
+    scopes: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    domain_restrictions: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    org_restrictions: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    group_role_mapping: Mapped[dict[str, str]] = mapped_column(JSONB, nullable=False, default=dict)
+    default_role: Mapped[str] = mapped_column(String(length=64), nullable=False, default="member")
+    require_mfa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    links: Mapped[list[OAuthLink]] = relationship(
+        "OAuthLink",
+        back_populates="provider",
+        lazy="selectin",
+    )
+
+
+class OAuthLink(Base, UUIDMixin):
+    __tablename__ = "oauth_links"
+    __table_args__ = (
+        UniqueConstraint("provider_id", "external_id", name="uq_oauth_links_provider_ext"),
+        UniqueConstraint("user_id", "provider_id", name="uq_oauth_links_user_provider"),
+        Index("idx_oauth_links_user", "user_id"),
+    )
+
+    user_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    provider_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("oauth_providers.id"),
+        nullable=False,
+    )
+    external_id: Mapped[str] = mapped_column(String(length=256), nullable=False)
+    external_email: Mapped[str | None] = mapped_column(String(length=256), nullable=True)
+    external_name: Mapped[str | None] = mapped_column(String(length=256), nullable=True)
+    external_avatar_url: Mapped[str | None] = mapped_column(String(length=512), nullable=True)
+    external_groups: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    linked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    provider: Mapped[OAuthProvider] = relationship(
+        "OAuthProvider",
+        back_populates="links",
+        lazy="selectin",
+    )
+
+
+class OAuthAuditEntry(Base, UUIDMixin):
+    __tablename__ = "oauth_audit_entries"
+    __table_args__ = (
+        Index("idx_oauth_audit_user", "user_id", "created_at"),
+        Index("idx_oauth_audit_provider", "provider_id", "created_at"),
+    )
+
+    provider_type: Mapped[str | None] = mapped_column(String(length=32), nullable=True)
+    provider_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("oauth_providers.id"),
+        nullable=True,
+    )
+    user_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id"),
+        nullable=True,
+    )
+    external_id: Mapped[str | None] = mapped_column(String(length=256), nullable=True)
+    action: Mapped[str] = mapped_column(String(length=64), nullable=False)
+    outcome: Mapped[str] = mapped_column(String(length=32), nullable=False)
+    failure_reason: Mapped[str | None] = mapped_column(String(length=256), nullable=True)
+    source_ip: Mapped[str | None] = mapped_column(String(length=64), nullable=True)
+    user_agent: Mapped[str | None] = mapped_column(Text, nullable=True)
+    actor_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+    changed_fields: Mapped[dict[str, object] | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )

@@ -34,6 +34,7 @@ describe("AdminSettingsPanel", () => {
     expect(screen.getByText("Quotas")).toBeInTheDocument();
     expect(screen.getByText("Connectors")).toBeInTheDocument();
     expect(screen.getByText("Email")).toBeInTheDocument();
+    expect(screen.getByText("OAuth Providers")).toBeInTheDocument();
     expect(screen.getByText("Security")).toBeInTheDocument();
     expect(await screen.findByText("Signup policy")).toBeInTheDocument();
   });

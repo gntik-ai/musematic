@@ -100,6 +100,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-18
 - PostgreSQL — 1 new table `runtime_warm_pool_targets` (additive; no columns added to existing tables) (055-runtime-warm-pool)
 - Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, Alembic, aiokafka 0.11+ (events), redis-py 5.x async (sync-lock), APScheduler 3.x (periodic sync), `ldap3` 2.9+ (LDAP adapter — NEW dependency), httpx 0.27+ (OIDC/SCIM adapters), pytest + pytest-asyncio 8.x (056-ibor-integration-and)
 - PostgreSQL — 2 new tables (`ibor_connectors`, `ibor_sync_runs`), 4 new columns across existing tables, 1 new enum value on `registry_lifecycle_status`; no new data stores (056-ibor-integration-and)
+- Python 3.12+ (control plane), TypeScript 5.x (frontend) + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, Alembic 1.13+, aiokafka 0.11+, redis-py 5.x, httpx 0.27+, PyJWT 2.x, cryptography (JWKS RSA key parsing) — all already in requirements.txt (056-ibor-integration-and)
+- PostgreSQL (3 new tables), Redis (3 new key patterns for state + JWKS cache + rate limit) (056-ibor-integration-and)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -119,9 +121,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 056-ibor-integration-and: Added Python 3.12+ (control plane), TypeScript 5.x (frontend) + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, Alembic 1.13+, aiokafka 0.11+, redis-py 5.x, httpx 0.27+, PyJWT 2.x, cryptography (JWKS RSA key parsing) — all already in requirements.txt
 - 056-ibor-integration-and: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
-- 056-ibor-integration-and: Added Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, Alembic, aiokafka 0.11+ (events), redis-py 5.x async (sync-lock), APScheduler 3.x (periodic sync), `ldap3` 2.9+ (LDAP adapter — NEW dependency), httpx 0.27+ (OIDC/SCIM adapters), pytest + pytest-asyncio 8.x
-- 055-runtime-warm-pool: Added Go 1.22+ (runtime-controller satellite), Python 3.12+ (control plane) + `prometheus/promauto` (Go metrics), `google.golang.org/grpc 1.67+` (gRPC), `pgx/v5` (Go PostgreSQL), FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, grpcio 1.65+, pytest + pytest-asyncio 8.x
+- 056-ibor-integration-and: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
 
 
 <!-- MANUAL ADDITIONS START -->

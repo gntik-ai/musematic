@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import secrets
 from typing import Any, Literal
 
 from pydantic import AliasChoices, Field, model_validator
@@ -128,6 +129,11 @@ class AuthSettings(BaseSettings):
     mfa_enrollment_ttl: int = 600
     session_ttl: int = 604800
     password_reset_ttl: int = 3600
+    oauth_state_secret: str = Field(default_factory=lambda: secrets.token_hex(32))
+    oauth_state_ttl: int = 600
+    oauth_jwks_cache_ttl: int = 3600
+    oauth_rate_limit_max: int = 10
+    oauth_rate_limit_window: int = 60
 
     @property
     def signing_key(self) -> str:
@@ -455,6 +461,11 @@ class PlatformSettings(BaseSettings):
             "AUTH_SESSION_TTL": ("auth", "session_ttl"),
             "AUTH_SESSION_TTL_SECONDS": ("auth", "session_ttl"),
             "AUTH_PASSWORD_RESET_TTL": ("auth", "password_reset_ttl"),
+            "AUTH_OAUTH_STATE_SECRET": ("auth", "oauth_state_secret"),
+            "AUTH_OAUTH_STATE_TTL": ("auth", "oauth_state_ttl"),
+            "AUTH_OAUTH_JWKS_CACHE_TTL": ("auth", "oauth_jwks_cache_ttl"),
+            "AUTH_OAUTH_RATE_LIMIT_MAX": ("auth", "oauth_rate_limit_max"),
+            "AUTH_OAUTH_RATE_LIMIT_WINDOW": ("auth", "oauth_rate_limit_window"),
             "OTEL_EXPORTER_ENDPOINT": ("otel", "exporter_endpoint"),
             "OTEL_SERVICE_NAME": ("otel", "service_name"),
             "ACCOUNTS_SIGNUP_MODE": ("accounts", "signup_mode"),
@@ -945,6 +956,26 @@ class PlatformSettings(BaseSettings):
     @property
     def AUTH_PASSWORD_RESET_TTL(self) -> int:
         return self.auth.password_reset_ttl
+
+    @property
+    def AUTH_OAUTH_STATE_SECRET(self) -> str:
+        return self.auth.oauth_state_secret
+
+    @property
+    def AUTH_OAUTH_STATE_TTL(self) -> int:
+        return self.auth.oauth_state_ttl
+
+    @property
+    def AUTH_OAUTH_JWKS_CACHE_TTL(self) -> int:
+        return self.auth.oauth_jwks_cache_ttl
+
+    @property
+    def AUTH_OAUTH_RATE_LIMIT_MAX(self) -> int:
+        return self.auth.oauth_rate_limit_max
+
+    @property
+    def AUTH_OAUTH_RATE_LIMIT_WINDOW(self) -> int:
+        return self.auth.oauth_rate_limit_window
 
     @property
     def OTEL_EXPORTER_ENDPOINT(self) -> str:
