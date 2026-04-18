@@ -8,7 +8,7 @@ from platform.fleets.models import (
     FleetStatus,
     FleetTopologyType,
 )
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -202,10 +202,11 @@ class FleetGovernanceChainResponse(BaseModel):
                 normalized["verdict_to_action_mapping"] = {}
                 return normalized
             return data
-        mapping = getattr(data, "verdict_to_action_mapping", {})
+        candidate = cast(Any, data)
+        mapping = getattr(candidate, "verdict_to_action_mapping", {})
         if mapping is None:
-            setattr(data, "verdict_to_action_mapping", {})
-        return data
+            candidate.verdict_to_action_mapping = {}
+        return candidate
 
 
 class FleetGovernanceChainListResponse(BaseModel):
