@@ -51,6 +51,23 @@ func (r *EventRegistry) Subscribe(key string) chan BudgetEvent {
 	return ch
 }
 
+func (r *EventRegistry) SubscribeIfActive(key string) (chan BudgetEvent, bool) {
+	ch := make(chan BudgetEvent, 32)
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if _, ok := r.activeKeys[key]; !ok {
+		return nil, false
+	}
+	r.streams[key] = append(r.streams[key], ch)
+	return ch, true
+}
+
+func (r *EventRegistry) SubscriberCount(key string) int {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return len(r.streams[key])
+}
+
 func (r *EventRegistry) Unsubscribe(key string, ch chan BudgetEvent) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

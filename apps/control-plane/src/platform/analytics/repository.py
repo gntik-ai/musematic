@@ -16,6 +16,7 @@ USAGE_EVENT_COLUMNS = [
     "event_id",
     "execution_id",
     "workspace_id",
+    "goal_id",
     "agent_fqn",
     "model_id",
     "provider",
@@ -333,7 +334,7 @@ class AnalyticsRepository:
 
 def _rollup_target(granularity: Granularity) -> tuple[str, str]:
     if granularity == Granularity.HOURLY:
-        return "analytics_usage_hourly", "hour"
+        return "analytics_usage_hourly_v2", "hour"
     if granularity == Granularity.MONTHLY:
         return "analytics_usage_monthly", "month"
     return "analytics_usage_daily", "day"

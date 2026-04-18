@@ -19,4 +19,4 @@ CREATE TABLE IF NOT EXISTS usage_events (
 ENGINE = MergeTree()
 PARTITION BY toYYYYMM(event_time)
 ORDER BY (workspace_id, event_time, agent_id)
-TTL event_time + INTERVAL 365 DAY
+TTL toDateTime(event_time) + INTERVAL 365 DAY

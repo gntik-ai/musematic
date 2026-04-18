@@ -84,6 +84,7 @@ async def test_repository_inserts_and_queries_usage_rollups() -> None:
 
     assert client.insert_calls[0][0] == "analytics_usage_events"
     assert client.insert_calls[1][0] == "analytics_quality_events"
+    assert client.insert_calls[0][2][3] == "goal_id"
     assert "analytics_usage_monthly" in client.query_calls[0][0]
     assert "agent_fqn = {agent_fqn:String}" in client.query_calls[0][0]
     assert rows[0]["workspace_id"] == workspace_id
@@ -145,7 +146,7 @@ async def test_repository_translates_clickhouse_failures() -> None:
 def test_repository_helpers_resolve_views_and_utc_conversion() -> None:
     naive = datetime(2026, 1, 1, 10, 0, 0, tzinfo=UTC).replace(tzinfo=None)
 
-    assert _rollup_target(Granularity.HOURLY) == ("analytics_usage_hourly", "hour")
+    assert _rollup_target(Granularity.HOURLY) == ("analytics_usage_hourly_v2", "hour")
     assert _rollup_target(Granularity.MONTHLY) == ("analytics_usage_monthly", "month")
     assert _quality_period_expr(Granularity.DAILY) == "toStartOfDay(timestamp)"
     assert _utc(naive).tzinfo is UTC

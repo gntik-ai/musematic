@@ -13,11 +13,13 @@ async def test_run_setup_reuses_existing_client() -> None:
 
     assert client.connected is False
     assert client.closed is False
-    assert len(client.command_calls) == 5
+    assert len(client.command_calls) == 7
     assert (
         "avgState(execution_duration_ms) AS avg_duration_ms_state"
         in clickhouse_setup.USAGE_MONTHLY_DDL
     )
+    assert "goal_id Nullable(UUID)" in clickhouse_setup.USAGE_EVENTS_DDL
+    assert "analytics_usage_hourly_v2" in clickhouse_setup.USAGE_HOURLY_MV_DDL
 
 
 async def test_run_setup_creates_and_closes_client_when_needed(monkeypatch) -> None:

@@ -25,7 +25,7 @@ data:
     ) ENGINE = MergeTree()
     PARTITION BY toYYYYMM(event_time)
     ORDER BY (workspace_id, event_time, agent_id)
-    TTL event_time + INTERVAL 365 DAY;
+    TTL toDateTime(event_time) + INTERVAL 365 DAY;
   002-behavioral-drift.sql: |
     CREATE TABLE IF NOT EXISTS behavioral_drift (
         agent_id UUID,
@@ -38,7 +38,7 @@ data:
     ) ENGINE = MergeTree()
     PARTITION BY toYYYYMM(measured_at)
     ORDER BY (agent_id, metric_name, measured_at)
-    TTL measured_at + INTERVAL 180 DAY;
+    TTL toDateTime(measured_at) + INTERVAL 180 DAY;
   003-fleet-performance.sql: |
     CREATE TABLE IF NOT EXISTS fleet_performance (
         fleet_id UUID,
@@ -95,3 +95,42 @@ data:
         avg(context_quality_score) AS avg_context_quality
     FROM usage_events
     GROUP BY workspace_id, agent_id, provider, model, hour;
+  007-add-goal-id.sql: |
+    ALTER TABLE usage_events ADD COLUMN IF NOT EXISTS goal_id Nullable(UUID);
+
+    CREATE TABLE IF NOT EXISTS usage_hourly_v2 (
+        workspace_id UUID,
+        goal_id Nullable(UUID),
+        agent_id UUID,
+        provider String,
+        model String,
+        hour DateTime,
+        total_input_tokens UInt64,
+        total_output_tokens UInt64,
+        total_reasoning_tokens UInt64,
+        total_cost Decimal128(6),
+        event_count UInt64,
+        avg_context_quality Float64
+    ) ENGINE = SummingMergeTree()
+    PARTITION BY toYYYYMM(hour)
+    ORDER BY (workspace_id, goal_id, agent_id, provider, model, hour)
+    SETTINGS allow_nullable_key = 1;
+
+    DROP VIEW IF EXISTS usage_hourly_mv;
+
+    CREATE MATERIALIZED VIEW IF NOT EXISTS usage_hourly_mv TO usage_hourly_v2 AS
+    SELECT
+        workspace_id,
+        goal_id,
+        agent_id,
+        provider,
+        model,
+        toStartOfHour(event_time) AS hour,
+        sum(input_tokens) AS total_input_tokens,
+        sum(output_tokens) AS total_output_tokens,
+        sum(reasoning_tokens) AS total_reasoning_tokens,
+        sum(estimated_cost) AS total_cost,
+        count() AS event_count,
+        avg(context_quality_score) AS avg_context_quality
+    FROM usage_events
+    GROUP BY workspace_id, goal_id, agent_id, provider, model, hour;

@@ -59,6 +59,7 @@ def build_envelope(
     event_type: str = "workflow.runtime.completed",
     workspace_id: UUID | None = None,
     execution_id: UUID | None = None,
+    goal_id: UUID | None = None,
     payload: dict[str, Any] | None = None,
 ) -> EventEnvelope:
     return EventEnvelope(
@@ -68,6 +69,7 @@ def build_envelope(
             correlation_id=uuid4(),
             workspace_id=workspace_id,
             execution_id=execution_id,
+            goal_id=goal_id,
         ),
         payload=payload or {},
     )

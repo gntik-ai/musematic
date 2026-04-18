@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS analytics_usage_events
     event_id UUID,
     execution_id UUID,
     workspace_id UUID,
+    goal_id Nullable(UUID),
     agent_fqn String,
     model_id String,
     provider String,
@@ -29,8 +30,14 @@ CREATE TABLE IF NOT EXISTS analytics_usage_events
 ENGINE = MergeTree()
 ORDER BY (toYYYYMM(timestamp), workspace_id, agent_fqn)
 PARTITION BY toYYYYMM(timestamp)
-TTL timestamp + INTERVAL 2 YEAR
+TTL toDateTime(timestamp) + INTERVAL 2 YEAR
 SETTINGS index_granularity = 8192
+"""
+
+USAGE_EVENTS_GOAL_ID_DDL: Final[str] = """
+ALTER TABLE analytics_usage_events
+ADD COLUMN IF NOT EXISTS goal_id Nullable(UUID)
+AFTER workspace_id
 """
 
 QUALITY_EVENTS_DDL: Final[str] = """
@@ -49,18 +56,39 @@ CREATE TABLE IF NOT EXISTS analytics_quality_events
 ENGINE = MergeTree()
 ORDER BY (toYYYYMM(timestamp), workspace_id, agent_fqn)
 PARTITION BY toYYYYMM(timestamp)
-TTL timestamp + INTERVAL 2 YEAR
+TTL toDateTime(timestamp) + INTERVAL 2 YEAR
 SETTINGS index_granularity = 8192
 """
 
 USAGE_HOURLY_DDL: Final[str] = """
-CREATE MATERIALIZED VIEW IF NOT EXISTS analytics_usage_hourly
+CREATE TABLE IF NOT EXISTS analytics_usage_hourly_v2
+(
+    hour DateTime,
+    workspace_id UUID,
+    goal_id Nullable(UUID),
+    agent_fqn String,
+    model_id String,
+    provider String,
+    execution_count_state AggregateFunction(count),
+    input_tokens_state AggregateFunction(sum, UInt64),
+    output_tokens_state AggregateFunction(sum, UInt64),
+    cost_usd_state AggregateFunction(sum, Decimal(18, 10)),
+    avg_duration_ms_state AggregateFunction(avg, UInt64),
+    self_correction_loops_state AggregateFunction(sum, UInt32),
+    reasoning_tokens_state AggregateFunction(sum, UInt64)
+)
 ENGINE = AggregatingMergeTree()
-ORDER BY (hour, workspace_id, agent_fqn, model_id)
-POPULATE AS
+ORDER BY (hour, workspace_id, goal_id, agent_fqn, model_id)
+SETTINGS allow_nullable_key = 1
+"""
+
+USAGE_HOURLY_MV_DDL: Final[str] = """
+CREATE MATERIALIZED VIEW IF NOT EXISTS analytics_usage_hourly_mv
+TO analytics_usage_hourly_v2 AS
 SELECT
     toStartOfHour(timestamp) AS hour,
     workspace_id,
+    goal_id,
     agent_fqn,
     model_id,
     provider,
@@ -72,7 +100,7 @@ SELECT
     sumState(self_correction_loops) AS self_correction_loops_state,
     sumState(reasoning_tokens) AS reasoning_tokens_state
 FROM analytics_usage_events
-GROUP BY hour, workspace_id, agent_fqn, model_id, provider
+GROUP BY hour, workspace_id, goal_id, agent_fqn, model_id, provider
 """
 
 USAGE_DAILY_DDL: Final[str] = """
@@ -130,8 +158,10 @@ async def run_setup(
     try:
         for statement in (
             USAGE_EVENTS_DDL,
+            USAGE_EVENTS_GOAL_ID_DDL,
             QUALITY_EVENTS_DDL,
             USAGE_HOURLY_DDL,
+            USAGE_HOURLY_MV_DDL,
             USAGE_DAILY_DDL,
             USAGE_MONTHLY_DDL,
         ):
