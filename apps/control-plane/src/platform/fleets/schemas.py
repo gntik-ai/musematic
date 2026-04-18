@@ -170,6 +170,7 @@ class FleetGovernanceChainUpdate(BaseModel):
     judge_fqns: list[str]
     enforcer_fqns: list[str]
     policy_binding_ids: list[UUID] = Field(default_factory=list)
+    verdict_to_action_mapping: dict[str, str] = Field(default_factory=dict)
 
     @field_validator("observer_fqns", "judge_fqns", "enforcer_fqns")
     @classmethod
@@ -187,6 +188,7 @@ class FleetGovernanceChainResponse(BaseModel):
     judge_fqns: list[str]
     enforcer_fqns: list[str]
     policy_binding_ids: list[UUID]
+    verdict_to_action_mapping: dict[str, str]
     is_current: bool
     is_default: bool
     created_at: datetime

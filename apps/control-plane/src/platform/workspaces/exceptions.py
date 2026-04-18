@@ -74,6 +74,16 @@ class MemberNotFoundError(WorkspacesError):
         super().__init__("MEMBER_NOT_FOUND", "Workspace member not found")
 
 
+class WorkspaceGovernanceNotFoundError(WorkspacesError):
+    status_code = 404
+
+    def __init__(self) -> None:
+        super().__init__(
+            "WORKSPACE_GOVERNANCE_NOT_FOUND",
+            "Workspace governance chain not configured",
+        )
+
+
 class InvalidGoalTransitionError(WorkspacesError):
     status_code = 409
 

@@ -5,9 +5,11 @@ from platform.common.config import PlatformSettings
 from platform.main import (
     _build_clients,
     _build_goal_auto_completion_scheduler,
+    _build_governance_retention_gc_scheduler,
     _build_ibor_sync_scheduler,
     _lifespan,
     _refresh_ibor_sync_scheduler,
+    _run_governance_retention_gc,
     create_app,
 )
 from types import SimpleNamespace
@@ -214,3 +216,60 @@ def test_build_goal_auto_completion_scheduler_registers_job_when_enabled() -> No
 
     job_ids = {job.id for job in scheduler.get_jobs()}
     assert "goal-auto-completion" in job_ids
+
+
+def test_build_governance_retention_gc_scheduler_registers_job() -> None:
+    app = SimpleNamespace(
+        state=SimpleNamespace(
+            settings=PlatformSettings(),
+            clients={"kafka": None},
+        )
+    )
+    scheduler = _build_governance_retention_gc_scheduler(app)
+
+    if scheduler is None:
+        pytest.skip("apscheduler is not installed in this environment")
+
+    job_ids = {job.id for job in scheduler.get_jobs()}
+    assert "governance-retention-gc" in job_ids
+
+
+@pytest.mark.asyncio
+async def test_run_governance_retention_gc_deletes_and_commits(monkeypatch) -> None:
+    calls: list[int] = []
+
+    class RepoStub:
+        def __init__(self, session) -> None:
+            self.session = session
+
+        async def delete_expired_verdicts(self, retention_days: int) -> int:
+            calls.append(retention_days)
+            return 3
+
+    class SessionStub:
+        committed = False
+        rolled_back = False
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        async def commit(self) -> None:
+            self.committed = True
+
+        async def rollback(self) -> None:
+            self.rolled_back = True
+
+    session_stub = SessionStub()
+    app = SimpleNamespace(state=SimpleNamespace(settings=PlatformSettings()))
+
+    monkeypatch.setattr(main_module.database, "AsyncSessionLocal", lambda: session_stub)
+    monkeypatch.setattr(main_module, "GovernanceRepository", RepoStub)
+
+    await _run_governance_retention_gc(app)
+
+    assert calls == [PlatformSettings().governance.retention_days]
+    assert session_stub.committed is True
+    assert session_stub.rolled_back is False

@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 from platform.common.dependencies import get_current_user
-from platform.workspaces.dependencies import get_workspaces_service
+from platform.workspaces.dependencies import (
+    get_workspace_governance_service,
+    get_workspaces_service,
+)
+from platform.workspaces.governance import WorkspaceGovernanceChainService
 from platform.workspaces.models import GoalStatus, WorkspaceStatus
 from platform.workspaces.schemas import (
     AddMemberRequest,
@@ -19,6 +23,9 @@ from platform.workspaces.schemas import (
     UpdateWorkspaceRequest,
     VisibilityGrantResponse,
     WorkspaceDeletedResponse,
+    WorkspaceGovernanceChainListResponse,
+    WorkspaceGovernanceChainResponse,
+    WorkspaceGovernanceChainUpdate,
     WorkspaceListResponse,
     WorkspaceResponse,
 )
@@ -244,6 +251,44 @@ async def update_settings(
         workspace_id,
         _requester_id(current_user),
         payload,
+    )
+
+
+@router.get("/{workspace_id}/governance-chain", response_model=WorkspaceGovernanceChainResponse)
+async def get_governance_chain(
+    workspace_id: UUID,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    governance_service: WorkspaceGovernanceChainService = Depends(get_workspace_governance_service),
+) -> WorkspaceGovernanceChainResponse:
+    return await governance_service.get_chain(workspace_id, _requester_id(current_user))
+
+
+@router.put("/{workspace_id}/governance-chain", response_model=WorkspaceGovernanceChainResponse)
+async def update_governance_chain(
+    workspace_id: UUID,
+    payload: WorkspaceGovernanceChainUpdate,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    governance_service: WorkspaceGovernanceChainService = Depends(get_workspace_governance_service),
+) -> WorkspaceGovernanceChainResponse:
+    return await governance_service.update_chain(
+        workspace_id,
+        _requester_id(current_user),
+        payload,
+    )
+
+
+@router.get(
+    "/{workspace_id}/governance-chain/history",
+    response_model=WorkspaceGovernanceChainListResponse,
+)
+async def get_governance_chain_history(
+    workspace_id: UUID,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    governance_service: WorkspaceGovernanceChainService = Depends(get_workspace_governance_service),
+) -> WorkspaceGovernanceChainListResponse:
+    return await governance_service.get_chain_history(
+        workspace_id,
+        _requester_id(current_user),
     )
 
 

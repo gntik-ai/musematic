@@ -19,8 +19,6 @@ from platform.fleets.repository import (
 from platform.fleets.service import FleetOrchestrationModifierService, FleetService
 from platform.registry.dependencies import get_registry_service
 from platform.registry.service import RegistryService
-from platform.trust.dependencies import get_oje_service
-from platform.trust.oje_pipeline import OJEPipelineService
 from typing import cast
 
 from fastapi import Depends, Request
@@ -86,25 +84,44 @@ def build_governance_service(
     *,
     session: AsyncSession,
     producer: EventProducer | None,
-    oje_service: OJEPipelineService | None = None,
+    oje_service: object | None = None,
+    pipeline_config: object | None = None,
 ) -> FleetGovernanceChainService:
     return FleetGovernanceChainService(
         fleet_repo=FleetRepository(session),
         governance_repo=FleetGovernanceChainRepository(session),
         producer=producer,
         oje_service=oje_service,
+        pipeline_config=pipeline_config,
     )
 
 
 async def get_governance_service(
     request: Request,
     session: AsyncSession = Depends(get_db),
-    oje_service: OJEPipelineService = Depends(get_oje_service),
+    registry_service: RegistryService = Depends(get_registry_service),
 ) -> FleetGovernanceChainService:
+    from platform.governance.dependencies import (
+        build_judge_service,
+        build_pipeline_config_service,
+    )
+
+    settings = _get_settings(request)
+    producer = _get_producer(request)
     return build_governance_service(
         session=session,
-        producer=_get_producer(request),
-        oje_service=oje_service,
+        producer=producer,
+        oje_service=build_judge_service(
+            session=session,
+            settings=settings,
+            producer=producer,
+            redis_client=_get_redis(request),
+            registry_service=registry_service,
+        ),
+        pipeline_config=build_pipeline_config_service(
+            session=session,
+            registry_service=registry_service,
+        ),
     )
 
 

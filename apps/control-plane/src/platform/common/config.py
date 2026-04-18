@@ -273,6 +273,15 @@ class NotificationsSettings(BaseSettings):
     gc_interval_hours: int = 24
 
 
+class GovernanceSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="GOVERNANCE_", extra="ignore")
+
+    rate_limit_per_observer_per_minute: int = 100
+    retention_days: int = 90
+    gc_interval_hours: int = 24
+    judge_timeout_seconds: int = 30
+
+
 class ConnectorsSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="CONNECTOR_",
@@ -395,6 +404,7 @@ class PlatformSettings(BaseSettings):
     memory: MemorySettings = Field(default_factory=MemorySettings)
     interactions: InteractionsSettings = Field(default_factory=InteractionsSettings)
     notifications: NotificationsSettings = Field(default_factory=NotificationsSettings)
+    governance: GovernanceSettings = Field(default_factory=GovernanceSettings)
     connectors: ConnectorsSettings = Field(default_factory=ConnectorsSettings)
     trust: TrustSettings = Field(default_factory=TrustSettings)
     agentops: AgentOpsSettings = Field(default_factory=AgentOpsSettings)
@@ -601,6 +611,22 @@ class PlatformSettings(BaseSettings):
             "NOTIFICATIONS_GC_INTERVAL_HOURS": (
                 "notifications",
                 "gc_interval_hours",
+            ),
+            "GOVERNANCE_RATE_LIMIT_PER_OBSERVER_PER_MINUTE": (
+                "governance",
+                "rate_limit_per_observer_per_minute",
+            ),
+            "GOVERNANCE_RETENTION_DAYS": (
+                "governance",
+                "retention_days",
+            ),
+            "GOVERNANCE_GC_INTERVAL_HOURS": (
+                "governance",
+                "gc_interval_hours",
+            ),
+            "GOVERNANCE_JUDGE_TIMEOUT_SECONDS": (
+                "governance",
+                "judge_timeout_seconds",
             ),
             "CONNECTOR_INGRESS_TOPIC": ("connectors", "ingress_topic"),
             "CONNECTOR_DELIVERY_TOPIC": ("connectors", "delivery_topic"),
