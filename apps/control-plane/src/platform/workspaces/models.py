@@ -3,7 +3,13 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 from platform.common.models.base import Base
-from platform.common.models.mixins import AuditMixin, SoftDeleteMixin, TimestampMixin, UUIDMixin
+from platform.common.models.mixins import (
+    AuditMixin,
+    SoftDeleteMixin,
+    TimestampMixin,
+    UUIDMixin,
+    WorkspaceScopedMixin,
+)
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -260,3 +266,61 @@ class WorkspaceVisibilityGrant(Base, UUIDMixin, TimestampMixin):
         "platform.workspaces.models.Workspace",
         back_populates="visibility_grant",
     )
+
+
+class WorkspaceGovernanceChain(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+    __tablename__ = "workspace_governance_chains"
+    __table_args__ = (
+        Index("ix_workspace_governance_chains_workspace_id", "workspace_id"),
+        Index(
+            "uq_workspace_governance_chains_version",
+            "workspace_id",
+            "version",
+            unique=True,
+        ),
+        Index(
+            "uq_workspace_governance_chains_current",
+            "workspace_id",
+            unique=True,
+            postgresql_where=text("is_current = true"),
+        ),
+    )
+
+    workspace_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("workspaces_workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    observer_fqns: Mapped[list[str]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=list,
+        server_default=text("'[]'::jsonb"),
+    )
+    judge_fqns: Mapped[list[str]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=list,
+        server_default=text("'[]'::jsonb"),
+    )
+    enforcer_fqns: Mapped[list[str]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=list,
+        server_default=text("'[]'::jsonb"),
+    )
+    policy_binding_ids: Mapped[list[str]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=list,
+        server_default=text("'[]'::jsonb"),
+    )
+    verdict_to_action_mapping: Mapped[dict[str, str]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
+    is_current: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

@@ -9,7 +9,7 @@ from platform.workspaces.models import (
 )
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 def _normalize_optional_text(value: str | None) -> str | None:
@@ -212,3 +212,39 @@ class SettingsResponse(BaseModel):
 class WorkspaceDeletedResponse(BaseModel):
     workspace_id: UUID
     deletion_scheduled: bool = True
+
+
+class WorkspaceGovernanceChainUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    observer_fqns: list[str]
+    judge_fqns: list[str]
+    enforcer_fqns: list[str]
+    policy_binding_ids: list[UUID] = Field(default_factory=list)
+    verdict_to_action_mapping: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("observer_fqns", "judge_fqns", "enforcer_fqns")
+    @classmethod
+    def normalize_fqn_lists(cls, value: list[str]) -> list[str]:
+        return [item.strip() for item in value if item.strip()]
+
+
+class WorkspaceGovernanceChainResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    workspace_id: UUID
+    version: int
+    observer_fqns: list[str]
+    judge_fqns: list[str]
+    enforcer_fqns: list[str]
+    policy_binding_ids: list[UUID]
+    verdict_to_action_mapping: dict[str, str]
+    is_current: bool
+    is_default: bool
+    created_at: datetime
+
+
+class WorkspaceGovernanceChainListResponse(BaseModel):
+    items: list[WorkspaceGovernanceChainResponse]
+    total: int

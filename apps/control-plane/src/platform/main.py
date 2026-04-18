@@ -86,6 +86,10 @@ from platform.fleets.events import register_fleet_event_types
 from platform.fleets.repository import FleetMemberRepository
 from platform.fleets.router import router as fleets_router
 from platform.fleets.service import route_execution_event_to_observers
+from platform.governance.consumers import ObserverSignalConsumer, VerdictConsumer
+from platform.governance.events import register_governance_event_types
+from platform.governance.repository import GovernanceRepository
+from platform.governance.router import router as governance_router
 from platform.interactions.dependencies import build_interactions_service
 from platform.interactions.events import register_interactions_event_types
 from platform.interactions.goal_lifecycle import GoalAutoCompletionScanner
@@ -200,6 +204,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_composition_event_types()
     register_discovery_event_types()
     register_simulation_event_types()
+    register_governance_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -340,6 +345,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         "notifications_retention_gc_scheduler",
         None,
     )
+    governance_retention_gc_scheduler = getattr(
+        app.state,
+        "governance_retention_gc_scheduler",
+        None,
+    )
     ibor_sync_scheduler = getattr(app.state, "ibor_sync_scheduler", None)
     connectors_worker_scheduler = getattr(app.state, "connectors_worker_scheduler", None)
     workflow_execution_scheduler = getattr(app.state, "workflow_execution_scheduler", None)
@@ -393,6 +403,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["notifications_retention_gc_scheduler"] = str(exc)
             LOGGER.warning("Failed to start notifications retention GC scheduler: %s", exc)
+    if governance_retention_gc_scheduler is not None:
+        try:
+            governance_retention_gc_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["governance_retention_gc_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start governance retention GC scheduler: %s", exc)
     if connectors_worker_scheduler is not None:
         try:
             connectors_worker_scheduler.start()
@@ -563,6 +580,14 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                     "Failed to stop notifications retention GC scheduler cleanly: %s",
                     exc,
                 )
+        if governance_retention_gc_scheduler is not None:
+            try:
+                governance_retention_gc_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning(
+                    "Failed to stop governance retention GC scheduler cleanly: %s",
+                    exc,
+                )
         if context_engineering_scheduler is not None:
             try:
                 context_engineering_scheduler.shutdown(wait=False)
@@ -637,6 +662,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.simulation_prediction_scheduler = None
     app.state.robustness_orchestrator_scheduler = None
     app.state.trust_certifier_scheduler = None
+    app.state.governance_retention_gc_scheduler = None
     if resolved.profile == "api":
         app.state.ibor_sync_scheduler = _build_ibor_sync_scheduler(app)
         app.state.refresh_ibor_sync_scheduler = lambda: _refresh_ibor_sync_scheduler(app)
@@ -667,6 +693,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.marketplace_scheduler = _build_marketplace_scheduler(app)
         app.state.fleet_learning_scheduler = _build_fleet_learning_scheduler(app)
         app.state.goal_auto_completion_scheduler = _build_goal_auto_completion_scheduler(app)
+        app.state.governance_retention_gc_scheduler = _build_governance_retention_gc_scheduler(app)
     if resolved.profile == "agentops":
         app.state.agentops_lifecycle_scheduler = _build_agentops_lifecycle_scheduler(app)
     if resolved.profile == "agentops-testing":
@@ -682,6 +709,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.context_engineering_drift_scheduler = _build_context_engineering_scheduler(app)
     if resolved.profile == "scheduler":
         app.state.goal_auto_completion_scheduler = _build_goal_auto_completion_scheduler(app)
+        app.state.governance_retention_gc_scheduler = _build_governance_retention_gc_scheduler(app)
     exception_handler = cast(
         Callable[[Request, Exception], Response | Awaitable[Response]],
         platform_exception_handler,
@@ -710,6 +738,18 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
                 settings=resolved,
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            ).register(consumer_manager)
+        if resolved.profile == "worker":
+            ObserverSignalConsumer(
+                settings=resolved,
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                registry_service=None,
+            ).register(consumer_manager)
+            VerdictConsumer(
+                settings=resolved,
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                registry_service=None,
             ).register(consumer_manager)
         if resolved.profile == "agentops":
             consumer_manager.subscribe(
@@ -843,6 +883,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(marketplace_router)
         app.include_router(interactions_router)
         app.include_router(notifications_router, prefix="/api/v1")
+        app.include_router(governance_router, prefix="/api/v1")
         app.include_router(connectors_router)
         app.include_router(policies_router)
         app.include_router(testing_router)
@@ -1040,6 +1081,40 @@ def _build_notifications_retention_gc_scheduler(app: FastAPI) -> Any | None:
         "interval",
         hours=app.state.settings.notifications.gc_interval_hours,
         id="notifications-retention-gc",
+    )
+    return scheduler
+
+
+async def _run_governance_retention_gc(app: FastAPI) -> None:
+    async with database.AsyncSessionLocal() as session:
+        repository = GovernanceRepository(session)
+        try:
+            await repository.delete_expired_verdicts(app.state.settings.governance.retention_days)
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+def _build_governance_retention_gc_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run() -> None:
+        await _run_governance_retention_gc(app)
+
+    scheduler.add_job(
+        _run,
+        "interval",
+        hours=app.state.settings.governance.gc_interval_hours,
+        id="governance-retention-gc",
     )
     return scheduler
 

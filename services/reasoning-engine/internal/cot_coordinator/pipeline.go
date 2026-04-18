@@ -174,10 +174,17 @@ func (p *Pipeline) ProcessStream(ctx context.Context, stream TraceStream) (*Trac
 		select {
 		case queue <- item:
 		default:
-			<-queue
+			// A worker may drain the queue between hitting the default branch and
+			// attempting to evict the oldest buffered item. Re-check with a
+			// non-blocking receive so overflow handling never hangs waiting on an
+			// already-drained channel.
+			select {
+			case <-queue:
+				dropped++
+				p.metrics.RecordTraceDropped(ctx)
+			default:
+			}
 			queue <- item
-			dropped++
-			p.metrics.RecordTraceDropped(ctx)
 		}
 	}
 

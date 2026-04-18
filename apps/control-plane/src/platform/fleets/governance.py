@@ -30,11 +30,13 @@ class FleetGovernanceChainService:
         governance_repo: FleetGovernanceChainRepository,
         producer: Any | None,
         oje_service: Any | None = None,
+        pipeline_config: Any | None = None,
     ) -> None:
         self.fleet_repo = fleet_repo
         self.governance_repo = governance_repo
         self.producer = producer
         self.oje_service = oje_service
+        self.pipeline_config = pipeline_config
 
     async def get_chain(self, fleet_id: UUID, workspace_id: UUID) -> FleetGovernanceChainResponse:
         await self._require_fleet(fleet_id, workspace_id)
@@ -52,6 +54,13 @@ class FleetGovernanceChainService:
         request: FleetGovernanceChainUpdate,
     ) -> FleetGovernanceChainResponse:
         await self._require_fleet(fleet_id, workspace_id)
+        if self.pipeline_config is not None:
+            await self.pipeline_config.validate_chain_update(
+                request.observer_fqns,
+                request.judge_fqns,
+                request.enforcer_fqns,
+                workspace_id=workspace_id,
+            )
         current = await self.governance_repo.get_current(fleet_id)
         version_number = 1 if current is None else current.version + 1
         chain = await self.governance_repo.create_version(
@@ -63,6 +72,7 @@ class FleetGovernanceChainService:
                 judge_fqns=request.judge_fqns,
                 enforcer_fqns=request.enforcer_fqns,
                 policy_binding_ids=[str(item) for item in request.policy_binding_ids],
+                verdict_to_action_mapping=request.verdict_to_action_mapping,
                 is_current=True,
                 is_default=False,
             )
@@ -104,6 +114,7 @@ class FleetGovernanceChainService:
                 judge_fqns=["platform:default-judge"],
                 enforcer_fqns=["platform:default-enforcer"],
                 policy_binding_ids=[],
+                verdict_to_action_mapping={},
                 is_current=True,
                 is_default=True,
             )

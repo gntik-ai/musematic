@@ -121,9 +121,10 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 061-judge-enforcer-governance: Python 3.12+ + FastAPI 0.115+, aiokafka 0.11+, SQLAlchemy 2.x async, Alembic 1.13+, redis-py 5.x async (observer rate limiting), APScheduler 3.x (retention GC), pytest + pytest-asyncio 8.x — all existing deps
+- 061-judge-enforcer-governance: PostgreSQL (2 new tables: governance_verdicts, enforcement_actions; 1 new workspace_governance_chains table; 1 additive column verdict_to_action_mapping on fleet_governance_chains; migration 048); Kafka (governance.verdict.issued, governance.enforcement.executed — already in constitution; consumes monitor.alerts)
 - 060-attention-user-alerts: Added Python 3.12+ + FastAPI 0.115+, aiokafka 0.11+, redis-py 5.x async (sliding-window rate limit), aiosmtplib 3.0+ (email delivery), httpx 0.27+ (webhook), APScheduler 3.x (retry + GC), SQLAlchemy 2.x async, Alembic 1.13+, pytest + pytest-asyncio 8.x (060-attention-user-alerts)
 - 060-attention-user-alerts: Added PostgreSQL (3 new tables: user_alert_settings, user_alerts, alert_delivery_outcomes; migration 047); Kafka (2 new consumer groups: notifications-attention, notifications-state-change; 1 new topic: notifications.alerts); no new stores (060-attention-user-alerts)
-- 056-ibor-integration-and: Added Python 3.12+ (control plane), TypeScript 5.x (frontend) + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, Alembic 1.13+, aiokafka 0.11+, redis-py 5.x, httpx 0.27+, PyJWT 2.x, cryptography (JWKS RSA key parsing) — all already in requirements.txt
 
 
 <!-- MANUAL ADDITIONS START -->

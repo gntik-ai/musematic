@@ -220,6 +220,12 @@ class FleetGovernanceChain(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin
     )
     is_current: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    verdict_to_action_mapping: Mapped[dict[str, str]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
 
 
 class FleetOrchestrationRules(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
