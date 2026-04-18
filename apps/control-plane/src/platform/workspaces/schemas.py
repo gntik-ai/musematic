@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime
-from platform.workspaces.models import GoalStatus, WorkspaceRole, WorkspaceStatus
+from platform.workspaces.models import (
+    GoalStatus,
+    WorkspaceGoalState,
+    WorkspaceRole,
+    WorkspaceStatus,
+)
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -113,6 +118,7 @@ class MemberListResponse(BaseModel):
 class CreateGoalRequest(BaseModel):
     title: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)
+    auto_complete_timeout_seconds: int | None = Field(default=None, ge=1)
 
     @field_validator("title")
     @classmethod
@@ -136,6 +142,8 @@ class GoalResponse(BaseModel):
     title: str
     description: str | None
     status: GoalStatus
+    state: WorkspaceGoalState = WorkspaceGoalState.ready
+    auto_complete_timeout_seconds: int | None = None
     created_by: UUID
     created_at: datetime
     updated_at: datetime

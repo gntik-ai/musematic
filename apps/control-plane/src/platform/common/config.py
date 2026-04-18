@@ -260,6 +260,7 @@ class InteractionsSettings(BaseSettings):
 
     max_messages_per_conversation: int = 10000
     default_page_size: int = 20
+    goal_auto_complete_scan_interval_seconds: int = 60
 
 
 class ConnectorsSettings(BaseSettings):
@@ -358,6 +359,8 @@ class SimulationSettings(BaseSettings):
 
 class PlatformSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="PLATFORM_", extra="ignore")
+
+    FEATURE_GOAL_AUTO_COMPLETE: bool = False
 
     db: DatabaseSettings = Field(default_factory=DatabaseSettings)
     redis: RedisSettings = Field(default_factory=RedisSettings)
@@ -474,6 +477,7 @@ class PlatformSettings(BaseSettings):
             "ACCOUNTS_RESEND_RATE_LIMIT": ("accounts", "resend_rate_limit"),
             "WORKSPACES_DEFAULT_NAME_TEMPLATE": ("workspaces", "default_name_template"),
             "WORKSPACES_DEFAULT_LIMIT": ("workspaces", "default_limit"),
+            "FEATURE_GOAL_AUTO_COMPLETE": ("FEATURE_GOAL_AUTO_COMPLETE",),
             "ANALYTICS_BUDGET_THRESHOLD_USD": ("analytics", "budget_threshold_usd"),
             "VISIBILITY_ZERO_TRUST_ENABLED": ("visibility", "zero_trust_enabled"),
             "REGISTRY_PACKAGE_BUCKET": ("registry", "package_bucket"),
@@ -488,6 +492,10 @@ class PlatformSettings(BaseSettings):
             "REGISTRY_REINDEX_POLL_INTERVAL_SECONDS": (
                 "registry",
                 "reindex_poll_interval_seconds",
+            ),
+            "INTERACTIONS_GOAL_AUTO_COMPLETE_SCAN_INTERVAL_SECONDS": (
+                "interactions",
+                "goal_auto_complete_scan_interval_seconds",
             ),
             "CONTEXT_ENGINEERING_BUNDLE_BUCKET": (
                 "context_engineering",

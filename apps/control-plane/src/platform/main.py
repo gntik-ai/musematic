@@ -88,6 +88,7 @@ from platform.fleets.router import router as fleets_router
 from platform.fleets.service import route_execution_event_to_observers
 from platform.interactions.dependencies import build_interactions_service
 from platform.interactions.events import register_interactions_event_types
+from platform.interactions.goal_lifecycle import GoalAutoCompletionScanner
 from platform.interactions.router import router as interactions_router
 from platform.marketplace.dependencies import (
     build_quality_service as build_marketplace_quality_service,
@@ -322,6 +323,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             startup_errors["context_engineering_drift_scheduler"] = str(exc)
             LOGGER.warning("Failed to start context engineering scheduler: %s", exc)
     memory_scheduler = getattr(app.state, "memory_scheduler", None)
+    goal_auto_completion_scheduler = getattr(app.state, "goal_auto_completion_scheduler", None)
     ibor_sync_scheduler = getattr(app.state, "ibor_sync_scheduler", None)
     connectors_worker_scheduler = getattr(app.state, "connectors_worker_scheduler", None)
     workflow_execution_scheduler = getattr(app.state, "workflow_execution_scheduler", None)
@@ -354,6 +356,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["memory_scheduler"] = str(exc)
             LOGGER.warning("Failed to start memory scheduler: %s", exc)
+    if goal_auto_completion_scheduler is not None:
+        try:
+            goal_auto_completion_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["goal_auto_completion_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start goal auto-completion scheduler: %s", exc)
     if connectors_worker_scheduler is not None:
         try:
             connectors_worker_scheduler.start()
@@ -500,6 +509,14 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                 memory_scheduler.shutdown(wait=False)
             except Exception as exc:
                 LOGGER.warning("Failed to stop memory scheduler cleanly: %s", exc)
+        if goal_auto_completion_scheduler is not None:
+            try:
+                goal_auto_completion_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning(
+                    "Failed to stop goal auto-completion scheduler cleanly: %s",
+                    exc,
+                )
         if context_engineering_scheduler is not None:
             try:
                 context_engineering_scheduler.shutdown(wait=False)
@@ -558,6 +575,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.registry_index_worker = None
     app.state.context_engineering_drift_scheduler = None
     app.state.memory_scheduler = None
+    app.state.goal_auto_completion_scheduler = None
     app.state.ibor_sync_scheduler = None
     app.state.refresh_ibor_sync_scheduler = None
     app.state.connectors_worker_scheduler = None
@@ -594,6 +612,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.workflow_scheduler = app.state.workflow_execution_scheduler
         app.state.marketplace_scheduler = _build_marketplace_scheduler(app)
         app.state.fleet_learning_scheduler = _build_fleet_learning_scheduler(app)
+        app.state.goal_auto_completion_scheduler = _build_goal_auto_completion_scheduler(app)
     if resolved.profile == "agentops":
         app.state.agentops_lifecycle_scheduler = _build_agentops_lifecycle_scheduler(app)
     if resolved.profile == "agentops-testing":
@@ -607,6 +626,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.simulation_prediction_scheduler = _build_simulation_prediction_scheduler(app)
     if resolved.profile in {"scheduler", "context-engineering"}:
         app.state.context_engineering_drift_scheduler = _build_context_engineering_scheduler(app)
+    if resolved.profile == "scheduler":
+        app.state.goal_auto_completion_scheduler = _build_goal_auto_completion_scheduler(app)
     exception_handler = cast(
         Callable[[Request, Exception], Response | Awaitable[Response]],
         platform_exception_handler,
@@ -871,6 +892,40 @@ def _build_analytics_budget_scheduler(app: FastAPI) -> Any | None:
     return scheduler
 
 
+def _build_goal_auto_completion_scheduler(app: FastAPI) -> Any | None:
+    if not app.state.settings.FEATURE_GOAL_AUTO_COMPLETE:
+        return None
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run_goal_auto_completion() -> None:
+        async with database.AsyncSessionLocal() as session:
+            try:
+                scanner = GoalAutoCompletionScanner(
+                    producer=cast(EventProducer | None, app.state.clients.get("kafka"))
+                )
+                await scanner.scan_and_complete_idle_goals(session)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+
+    scheduler.add_job(
+        _run_goal_auto_completion,
+        "interval",
+        seconds=app.state.settings.interactions.goal_auto_complete_scan_interval_seconds,
+        id="goal-auto-completion",
+    )
+    return scheduler
+
+
 def _build_context_engineering_scheduler(app: FastAPI) -> Any | None:
     try:
         scheduler_module = __import__(
@@ -920,6 +975,7 @@ def _build_context_engineering_scheduler(app: FastAPI) -> Any | None:
                 session=session,
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                qdrant=cast(AsyncQdrantClient | None, app.state.clients.get("qdrant")),
                 workspaces_service=workspaces_service,
                 registry_service=registry_service,
             )

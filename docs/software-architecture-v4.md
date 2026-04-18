@@ -1,4 +1,4 @@
-# Product Software Architecture (v3 — Agentic Design Patterns + Agentic Mesh Alignment)
+# Product Software Architecture (v4 — Post-Audit Completeness Pass)
 
 Version: 2.0
 Scope baseline: 391 functional requirements + 375 technical requirements = 766 total requirements covered
@@ -151,6 +151,12 @@ repo/
         communication/             # NEW: broadcast/multicast, conversation branching, negotiation
         governance/                # NEW: Judge/Enforcer roles, governance pipeline
         a2a_gateway/               # NEW: A2A protocol server/client, Agent Card generation
+        privacy_compliance/        # NEW (v4): DSR handler, RTBF cascade, DLP, PIA, residency
+        security_compliance/       # NEW (v4): SBOM, vuln scanning, pen test tracking, secret rotation, JIT, audit chain
+        cost_governance/           # NEW (v4): cost attribution, chargeback, budgets, forecasting
+        multi_region_ops/          # NEW (v4): region config, replication monitoring, failover, maintenance mode
+        model_catalog/             # NEW (v4): approved models, model cards, fallback policies
+        localization/              # NEW (v4): locale files, i18n workflow, user locale preferences
         common/
       migrations/
       entrypoints/
@@ -821,7 +827,11 @@ Like reasoning, the **core self-correction loop logic** (convergence detection, 
 - `policies` (enforcement on outbound A2A calls)
 - `interactions` (map A2A tasks to internal interactions)
 
-## 7.37 `notifications` bounded context (UPDATED)
+## 7.37 `notifications` bounded context (UPDATED again)
+
+> **Update (v4):** Extended from 3 channels to 6 channels: in-app WebSocket, email (SMTP), webhook (HMAC-signed), Slack (incoming webhook or app), Microsoft Teams, SMS (Twilio or equivalent). Added outbound callback registration for external systems. Added webhook signing and delivery guarantees (at-least-once, idempotency keys, exponential backoff, dead-letter queue).
+
+
 
 > **Update (v3):** Expanded from basic alerting to full user alert management. Added configurable alert settings per user (state transitions, delivery methods). Added per-interaction alert overrides. Added attention request consumption. Added WebSocket push for real-time alerts.
 
@@ -835,6 +845,116 @@ Like reasoning, the **core self-correction loop logic** (convergence detection, 
 ### Owns
 - `user_alert_settings` table
 - `user_alerts` table
+
+## 7.38 `privacy_compliance` bounded context (NEW)
+
+### Responsibilities
+- Data subject rights handler (GDPR/CCPA): access, rectification, erasure, portability, restriction, objection
+- Right-to-be-forgotten cascade engine across PostgreSQL, Qdrant, Neo4j, ClickHouse, OpenSearch, S3
+- Tombstone audit records with cryptographic proof of deletion completion
+- Data residency enforcement (per-workspace region, query-time cross-region transfer blocks)
+- DLP pipeline integration (scans outbound responses, tool payloads, logs, artifacts)
+- Privacy Impact Assessment (PIA) workflow with privacy officer approval
+- Consent and disclosure tracking
+
+### Owns
+`DataSubjectRequest`, `DeletionTombstone`, `DataResidencyConfig`, `DlpRule`, `DlpEvent`, `PrivacyImpactAssessment`, `ConsentRecord`
+
+### Publishes events
+`privacy.dsr.received`, `privacy.dsr.completed`, `privacy.deletion.cascaded`, `privacy.dlp.event`, `privacy.pia.approved`
+
+### Depends on
+All bounded contexts owning PII (auth, accounts, workspaces, interactions, memory, audit)
+
+## 7.39 `security_compliance` bounded context (NEW)
+
+### Responsibilities
+- SBOM generation per release (SPDX + CycloneDX)
+- Vulnerability scan result ingestion and release gating
+- Penetration test tracking (schedules, findings, remediation status, attestation)
+- Secret rotation scheduling with dual-credential windows
+- JIT credential issuance and revocation for privileged operations
+- Cryptographic audit chain (hash-chain integrity verification, export with signatures)
+- Compliance evidence substrate for SOC2/ISO27001/HIPAA/PCI-DSS
+
+### Owns
+`SoftwareBillOfMaterials`, `VulnerabilityScanResult`, `PenetrationTest`, `PenTestFinding`, `SecretRotationSchedule`, `JitCredentialGrant`, `AuditChainEntry`, `ComplianceControl`, `ComplianceEvidence`
+
+### Publishes events
+`security.sbom.published`, `security.scan.completed`, `security.pentest.finding.raised`, `security.secret.rotated`, `security.jit.issued`, `security.jit.revoked`, `security.audit.chain.verified`
+
+### Depends on
+`auth`, `audit`, `trust`, all contexts with secrets
+
+## 7.40 `cost_governance` bounded context (NEW)
+
+### Responsibilities
+- Cost attribution per execution (model tokens × price, compute seconds × rate, storage bytes × rate × duration, platform overhead)
+- Chargeback and showback aggregation by workspace, agent, fleet, model, user, workflow
+- Budget enforcement (soft alerts at thresholds, hard caps with admin override)
+- End-of-period forecasting
+- Cost intelligence dashboard data feed (anomaly detection, cost-per-quality metrics)
+
+### Owns
+`CostAttribution`, `WorkspaceBudget`, `BudgetAlert`, `CostForecast`, `CostAnomaly`
+
+### Publishes events
+`cost.execution.attributed`, `cost.budget.threshold.reached`, `cost.budget.exceeded`, `cost.anomaly.detected`, `cost.forecast.updated`
+
+### Depends on
+`execution`, `analytics`, `workspaces`, `registry`
+
+## 7.41 `multi_region_ops` bounded context (NEW)
+
+### Responsibilities
+- Region configuration management (primary, secondary, data residency rules)
+- Cross-region replication monitoring (PostgreSQL lag, Kafka MirrorMaker lag, S3 replication status)
+- RPO/RTO tracking and alerting on drift
+- Failover orchestration and runbook execution
+- Maintenance mode management (schedule, enable, disable, drain in-flight work)
+
+### Owns
+`RegionConfig`, `ReplicationStatus`, `FailoverPlan`, `MaintenanceWindow`
+
+### Publishes events
+`region.replication.lag`, `region.failover.initiated`, `region.failover.completed`, `maintenance.mode.enabled`, `maintenance.mode.disabled`
+
+### Depends on
+All stateful services (read-only monitoring)
+
+## 7.42 `model_catalog` bounded context (NEW)
+
+### Responsibilities
+- Approved model catalog management (add/update/approve/deprecate models)
+- Model card storage (capabilities, training cutoff, limitations, safety evals, bias assessments)
+- Model fallback policy configuration
+- Per-agent / per-step / per-workspace model binding validation
+- Model provider credential management (rotation via security_compliance)
+- Model usage tracking for cost attribution
+
+### Owns
+`ModelCatalogEntry`, `ModelCard`, `ModelFallbackPolicy`, `ModelProviderCredential` (reference only; secret stored in vault)
+
+### Publishes events
+`model.catalog.updated`, `model.card.published`, `model.fallback.triggered`, `model.deprecated`
+
+### Depends on
+`trust` (for certification), `security_compliance` (for credential rotation)
+
+## 7.43 `localization` bounded context (NEW)
+
+### Responsibilities
+- Locale file management (translations for all user-facing strings)
+- Translation workflow integration (pull to translation vendor, merge back)
+- Per-user locale preferences
+- Number, date, currency formatting helpers
+- Content locale detection for agent responses (optional)
+
+### Owns
+`LocaleFile`, `TranslationKey`, `UserLocalePreference`
+
+### Depends on
+`accounts` (user preferences), frontend UI build pipeline
 
 ## 8. Satellite services outside the monolith
 

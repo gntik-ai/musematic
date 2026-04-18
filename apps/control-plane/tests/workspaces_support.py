@@ -6,6 +6,7 @@ from platform.workspaces.models import (
     Membership,
     Workspace,
     WorkspaceGoal,
+    WorkspaceGoalState,
     WorkspaceRole,
     WorkspaceSettings,
     WorkspaceStatus,
@@ -66,6 +67,9 @@ def build_goal(
     title: str = "Goal",
     description: str | None = "Goal description",
     status: GoalStatus = GoalStatus.open,
+    state: WorkspaceGoalState = WorkspaceGoalState.ready,
+    auto_complete_timeout_seconds: int | None = None,
+    last_message_at: datetime | None = None,
     gid: UUID | None = None,
 ) -> WorkspaceGoal:
     now = datetime.now(UTC)
@@ -76,6 +80,9 @@ def build_goal(
         title=title,
         description=description,
         status=status,
+        state=state,
+        auto_complete_timeout_seconds=auto_complete_timeout_seconds,
+        last_message_at=last_message_at,
         gid=gid or uuid4(),
     )
     goal.created_at = now
@@ -283,10 +290,20 @@ class WorkspacesRepoStub:
         return user_id in self.existing_users
 
     async def create_goal(
-        self, *, workspace_id: UUID, title: str, description: str | None, created_by: UUID
+        self,
+        *,
+        workspace_id: UUID,
+        title: str,
+        description: str | None,
+        created_by: UUID,
+        auto_complete_timeout_seconds: int | None = None,
     ) -> WorkspaceGoal:
         goal = build_goal(
-            workspace_id=workspace_id, title=title, description=description, created_by=created_by
+            workspace_id=workspace_id,
+            title=title,
+            description=description,
+            created_by=created_by,
+            auto_complete_timeout_seconds=auto_complete_timeout_seconds,
         )
         self.goals[(workspace_id, goal.id)] = goal
         return goal

@@ -4,6 +4,7 @@ import platform.main as main_module
 from platform.common.config import PlatformSettings
 from platform.main import (
     _build_clients,
+    _build_goal_auto_completion_scheduler,
     _build_ibor_sync_scheduler,
     _lifespan,
     _refresh_ibor_sync_scheduler,
@@ -34,18 +35,28 @@ class FakeClient:
         return True
 
 
-def test_build_clients_returns_expected_keys() -> None:
+@pytest.mark.asyncio
+async def test_build_clients_returns_expected_keys() -> None:
     clients = _build_clients(PlatformSettings())
 
-    assert set(clients) >= {
-        "redis",
-        "kafka",
-        "kafka_consumer",
-        "qdrant",
-        "runtime_controller",
-        "simulation_controller",
-        "object_storage",
-    }
+    try:
+        assert set(clients) >= {
+            "redis",
+            "kafka",
+            "kafka_consumer",
+            "qdrant",
+            "runtime_controller",
+            "simulation_controller",
+            "object_storage",
+        }
+    finally:
+        for client in reversed(list(clients.values())):
+            close = getattr(client, "close", None)
+            if close is None:
+                continue
+            result = close()
+            if hasattr(result, "__await__"):
+                await result
 
 
 @pytest.mark.asyncio
@@ -176,3 +187,30 @@ def test_build_ibor_sync_scheduler_registers_loader_job() -> None:
 
 async def _return(value):
     return value
+
+
+def test_build_goal_auto_completion_scheduler_respects_feature_flag() -> None:
+    app = SimpleNamespace(
+        state=SimpleNamespace(
+            settings=PlatformSettings().model_copy(update={"FEATURE_GOAL_AUTO_COMPLETE": False}),
+            clients={"kafka": None},
+        )
+    )
+
+    assert _build_goal_auto_completion_scheduler(app) is None
+
+
+def test_build_goal_auto_completion_scheduler_registers_job_when_enabled() -> None:
+    app = SimpleNamespace(
+        state=SimpleNamespace(
+            settings=PlatformSettings().model_copy(update={"FEATURE_GOAL_AUTO_COMPLETE": True}),
+            clients={"kafka": None},
+        )
+    )
+    scheduler = _build_goal_auto_completion_scheduler(app)
+
+    if scheduler is None:
+        pytest.skip("apscheduler is not installed in this environment")
+
+    job_ids = {job.id for job in scheduler.get_jobs()}
+    assert "goal-auto-completion" in job_ids
