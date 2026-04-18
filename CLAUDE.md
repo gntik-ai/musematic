@@ -1,6 +1,6 @@
 # musematic Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-17
+Auto-generated from all feature plans. Last updated: 2026-04-18
 
 ## Active Technologies
 - Python 3.12+ (control plane client), Go 1.22+ (reasoning engine client) + `redis-py 5.x` (Python async), `go-redis/redis/v9` (Go), Bitnami `redis-cluster` Helm chart (002-redis-cache-hot-state)
@@ -87,6 +87,7 @@ Auto-generated from all feature plans. Last updated: 2026-04-17
 - BadgerDB PVC (5 GiB, Jaeger traces 7d), Prometheus PVC (20 GiB, metrics 15d) (047-observability-stack)
 - Python 3.12+ + Typer 0.12+, Rich, Pydantic v2, APScheduler 3.x, aiokafka 0.11+, aioboto3 (optional, for S3 upload), pytest + pytest-asyncio 8.x (048-backup-restore)
 - JSON manifests on local filesystem or MinIO bucket (no database tables) (048-backup-restore)
+- N/A (frontend only — all data from backend REST APIs) (049-analytics-cost-dashboard)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -106,9 +107,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 049-analytics-cost-dashboard: Added TypeScript 5.x, React 18+, Next.js 14+ App Router + shadcn/ui, Tailwind CSS 3.4+, TanStack Query v5, Zustand 5.x, Recharts 2.x, date-fns 4.x
 - 048-backup-restore: Added Python 3.12+ + Typer 0.12+, Rich, Pydantic v2, APScheduler 3.x, aiokafka 0.11+, aioboto3 (optional, for S3 upload), pytest + pytest-asyncio 8.x
 - 047-observability-stack: Added YAML (Helm chart templates) + Python 3.12 (kafka_tracing.py) + Go 1.22 (main.go OTLP init) + JSON (Grafana dashboard model) + opentelemetry-collector chart (open-telemetry/opentelemetry-helm-charts), kube-prometheus-stack (prometheus-community), jaeger chart (jaegertracing/jaeger), opentelemetry Python SDK (already in control-plane), go.opentelemetry.io/otel (already in Go services)
-- 046-cicd-pipeline: Added YAML (GitHub Actions workflow syntax) + Python 3.12, Go 1.22, TypeScript 5.x, Dockerfile + GitHub Actions built-in + dorny/paths-filter@v3, golangci/golangci-lint-action@v6, bufbuild/buf-action@v1, gitleaks/gitleaks-action@v2, aquasecurity/trivy-action, anchore/sbom-action@v0, softprops/action-gh-release@v2, docker/build-push-action@v6
 
 
 <!-- MANUAL ADDITIONS START -->

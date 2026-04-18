@@ -1,11 +1,13 @@
 FROM node:20.20.0-alpine3.23 AS deps
 
+ARG PNPM_VERSION=9.12.3
+
 ENV PNPM_HOME=/pnpm
 ENV PATH="${PNPM_HOME}:${PATH}"
 
 WORKDIR /workspace
 
-RUN corepack enable
+RUN corepack enable && corepack prepare "pnpm@${PNPM_VERSION}" --activate
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/package.json
@@ -14,12 +16,14 @@ RUN pnpm install --frozen-lockfile --filter @musematic/web...
 
 FROM node:20.20.0-alpine3.23 AS builder
 
+ARG PNPM_VERSION=9.12.3
+
 ENV PNPM_HOME=/pnpm
 ENV PATH="${PNPM_HOME}:${PATH}"
 
 WORKDIR /workspace
 
-RUN corepack enable
+RUN corepack enable && corepack prepare "pnpm@${PNPM_VERSION}" --activate
 
 COPY --from=deps /pnpm /pnpm
 COPY --from=deps /workspace/node_modules ./node_modules
