@@ -115,6 +115,26 @@ class AgentPatch(BaseModel):
         return self
 
 
+class AgentDecommissionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str = Field(min_length=10, max_length=2000)
+
+    @field_validator("reason")
+    @classmethod
+    def normalize_reason(cls, value: str) -> str:
+        return value.strip()
+
+
+class AgentDecommissionResponse(BaseModel):
+    agent_id: UUID
+    agent_fqn: str
+    decommissioned_at: datetime
+    decommission_reason: str
+    decommissioned_by: UUID
+    active_instances_stopped: int
+
+
 class LifecycleTransitionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from platform.common.dependencies import get_current_user
 from platform.common.exceptions import ValidationError
+from platform.execution.dependencies import get_runtime_controller_client
 from platform.registry.dependencies import get_registry_service
 from platform.registry.models import LifecycleStatus
 from platform.registry.schemas import (
+    AgentDecommissionRequest,
+    AgentDecommissionResponse,
     AgentDiscoveryParams,
     AgentListResponse,
     AgentPatch,
@@ -47,6 +50,19 @@ def _actor_id(current_user: dict[str, Any]) -> UUID | None:
 def _requesting_agent_id(current_user: dict[str, Any]) -> UUID | None:
     agent_id = current_user.get("agent_profile_id") or current_user.get("agent_id")
     return UUID(str(agent_id)) if agent_id is not None else None
+
+
+def _role_names(current_user: dict[str, Any]) -> set[str]:
+    roles = current_user.get("roles", [])
+    if not isinstance(roles, list):
+        return set()
+    names: set[str] = set()
+    for item in roles:
+        if isinstance(item, dict) and item.get("role") is not None:
+            names.add(str(item["role"]))
+        elif isinstance(item, str):
+            names.add(item)
+    return names
 
 
 @router.post("/namespaces", response_model=NamespaceResponse, status_code=201)
@@ -257,3 +273,29 @@ async def list_lifecycle_audit(
     if actor_id is None:
         raise ValidationError("USER_ID_REQUIRED", "Lifecycle audit requires a human user")
     return await registry_service.list_lifecycle_audit(_workspace_id(request), agent_id, actor_id)
+
+
+@router.post(
+    "/registry/{workspace_id}/agents/{agent_id}/decommission",
+    response_model=AgentDecommissionResponse,
+)
+async def decommission_agent(
+    workspace_id: UUID,
+    agent_id: UUID,
+    payload: AgentDecommissionRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    registry_service: RegistryService = Depends(get_registry_service),
+    runtime_controller: Any = Depends(get_runtime_controller_client),
+) -> AgentDecommissionResponse:
+    actor_id = _actor_id(current_user)
+    if actor_id is None:
+        raise ValidationError("USER_ID_REQUIRED", "Agent decommission requires a human user")
+    role_names = _role_names(current_user)
+    return await registry_service.decommission_agent(
+        workspace_id,
+        agent_id,
+        payload.reason,
+        actor_id,
+        runtime_controller,
+        actor_is_platform_admin=bool({"platform_admin", "superadmin"} & role_names),
+    )

@@ -56,6 +56,26 @@ class RuntimeControllerClient:
         response = await self._invoke("LaunchRuntime", request)
         return self._normalize_response(response)
 
+    async def list_active_instances(self, agent_fqn: str) -> list[str]:
+        target = getattr(self.stub, "ListActiveInstances", None)
+        if callable(target):
+            response = await self._invoke("ListActiveInstances", {"agent_fqn": agent_fqn})
+            instances = response.get("execution_ids") if isinstance(response, dict) else None
+            return [str(item) for item in (instances or [])]
+        return []
+
+    async def stop_runtime(
+        self,
+        execution_id: str,
+        *,
+        grace_period_seconds: int = 30,
+    ) -> dict[str, Any]:
+        response = await self._invoke(
+            "StopRuntime",
+            {"execution_id": execution_id, "grace_period_seconds": grace_period_seconds},
+        )
+        return self._normalize_response(response)
+
     async def warm_pool_status(
         self,
         workspace_id: str = "",

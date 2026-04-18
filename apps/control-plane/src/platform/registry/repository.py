@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import re
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from platform.common.clients.opensearch import AsyncOpenSearchClient
+from platform.registry.exceptions import DecommissionImmutableError
 from platform.registry.models import (
     AgentMaturityRecord,
     AgentNamespace,
@@ -16,7 +18,7 @@ from platform.registry.models import (
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import false, func, or_, select
+from sqlalchemy import false, func, or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import Select
@@ -146,6 +148,15 @@ class RegistryRepository:
         return existing, False
 
     async def update_agent_profile(self, profile: AgentProfile, **fields: Any) -> AgentProfile:
+        immutable_fields = [
+            key
+            for key in ("decommissioned_at", "decommission_reason", "decommissioned_by")
+            if key in fields
+            and getattr(profile, key) is not None
+            and fields[key] != getattr(profile, key)
+        ]
+        if immutable_fields:
+            raise DecommissionImmutableError(immutable_fields)
         for key, value in fields.items():
             setattr(profile, key, value)
         await self.session.flush()
@@ -166,17 +177,28 @@ class RegistryRepository:
         )
         return result.scalar_one_or_none()
 
-    async def get_agent_by_fqn(self, workspace_id: UUID, fqn: str) -> AgentProfile | None:
+    async def get_agent_by_fqn(
+        self,
+        workspace_id: UUID,
+        fqn: str,
+        *,
+        include_decommissioned: bool = False,
+    ) -> AgentProfile | None:
+        filters = [
+            AgentProfile.workspace_id == workspace_id,
+            AgentProfile.fqn == fqn,
+        ]
+        if not include_decommissioned:
+            filters.append(AgentProfile.status != LifecycleStatus.decommissioned)
         result = await self.session.execute(
-            self._profile_query().where(
-                AgentProfile.workspace_id == workspace_id,
-                AgentProfile.fqn == fqn,
-            )
+            self._profile_query()
+            .where(*filters)
+            .order_by(AgentProfile.created_at.desc(), AgentProfile.id.desc())
         )
-        return result.scalar_one_or_none()
+        return result.scalars().first()
 
     async def get_by_fqn(self, workspace_id: UUID, fqn: str) -> AgentProfile | None:
-        return await self.get_agent_by_fqn(workspace_id, fqn)
+        return await self.get_agent_by_fqn(workspace_id, fqn, include_decommissioned=True)
 
     async def list_agents_by_workspace(
         self,
@@ -187,11 +209,15 @@ class RegistryRepository:
         limit: int,
         offset: int,
         visibility_filter: Any | None = None,
+        include_decommissioned: bool = False,
     ) -> tuple[list[AgentProfile], int]:
         filters = [
             AgentProfile.workspace_id == workspace_id,
             AgentProfile.maturity_level >= maturity_min,
+            AgentProfile.status != LifecycleStatus.archived,
         ]
+        if not include_decommissioned:
+            filters.append(AgentProfile.status != LifecycleStatus.decommissioned)
         if status is not None:
             filters.append(AgentProfile.status == status)
         filters.append(self._visibility_predicate(visibility_filter))
@@ -301,6 +327,22 @@ class RegistryRepository:
         await self.session.flush()
         return record
 
+    async def persist_decommission(
+        self,
+        profile: AgentProfile,
+        *,
+        reason: str,
+        actor_id: UUID,
+    ) -> AgentProfile:
+        if profile.status is LifecycleStatus.decommissioned:
+            return profile
+        profile.status = LifecycleStatus.decommissioned
+        profile.decommissioned_at = datetime.now(UTC)
+        profile.decommission_reason = reason
+        profile.decommissioned_by = actor_id
+        await self.session.flush()
+        return profile
+
     async def insert_lifecycle_audit(
         self,
         *,
@@ -375,6 +417,10 @@ class RegistryRepository:
         filters: list[dict[str, Any]] = [{"term": {"workspace_id": str(workspace_id)}}]
         if status is not None:
             filters.append({"term": {"status": status.value}})
+        else:
+            filters.append(
+                {"bool": {"must_not": [{"terms": {"status": ["archived", "decommissioned"]}}]}}
+            )
         filters.append({"range": {"maturity_level": {"gte": maturity_min}}})
         response = await raw_client.search(
             index=index_name,
@@ -420,6 +466,8 @@ class RegistryRepository:
 
     def _visibility_predicate(self, visibility_filter: Any | None) -> Any:
         patterns = list(getattr(visibility_filter, "agent_patterns", []) or [])
+        if visibility_filter is None:
+            return true()
         if not patterns:
             return false()
 

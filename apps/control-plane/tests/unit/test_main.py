@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+import platform.main as main_module
+from platform.common.config import PlatformSettings
+from platform.main import (
+    _build_clients,
+    _build_ibor_sync_scheduler,
+    _lifespan,
+    _refresh_ibor_sync_scheduler,
+    create_app,
+)
 from types import SimpleNamespace
 
 import httpx
 import pytest
-
-from platform.common.config import PlatformSettings
-import platform.main as main_module
-from platform.main import _build_clients, _lifespan, create_app
 
 
 class FakeClient:
@@ -106,3 +111,67 @@ async def _async_none() -> None:
 async def _async_none_with_app(app) -> None:
     del app
     return None
+
+
+class FakeScheduler:
+    def __init__(self) -> None:
+        self.jobs = [SimpleNamespace(id="ibor-sync-old"), SimpleNamespace(id="other-job")]
+        self.removed: list[str] = []
+        self.added: list[dict[str, object]] = []
+
+    def get_jobs(self):
+        return list(self.jobs)
+
+    def remove_job(self, job_id: str) -> None:
+        self.removed.append(job_id)
+        self.jobs = [job for job in self.jobs if job.id != job_id]
+
+    def add_job(self, func, trigger, **kwargs):
+        self.added.append({"func": func, "trigger": trigger, **kwargs})
+
+
+@pytest.mark.asyncio
+async def test_refresh_ibor_sync_scheduler_reloads_enabled_connectors(monkeypatch) -> None:
+    scheduler = FakeScheduler()
+    connectors = [
+        SimpleNamespace(id="11111111-1111-1111-1111-111111111111", cadence_seconds=300),
+        SimpleNamespace(id="22222222-2222-2222-2222-222222222222", cadence_seconds=600),
+    ]
+
+    class SessionCtx:
+        async def __aenter__(self):
+            return object()
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+    app = SimpleNamespace(state=SimpleNamespace(ibor_sync_scheduler=scheduler))
+    monkeypatch.setattr(main_module.database, "AsyncSessionLocal", lambda: SessionCtx())
+    monkeypatch.setattr(
+        main_module,
+        "AuthRepository",
+        lambda session: SimpleNamespace(list_enabled_connectors=lambda: _return(connectors)),
+    )
+
+    await _refresh_ibor_sync_scheduler(app)
+
+    assert scheduler.removed == ["ibor-sync-old"]
+    assert [item["id"] for item in scheduler.added] == [
+        "ibor-sync-11111111-1111-1111-1111-111111111111",
+        "ibor-sync-22222222-2222-2222-2222-222222222222",
+    ]
+
+
+def test_build_ibor_sync_scheduler_registers_loader_job() -> None:
+    app = SimpleNamespace(state=SimpleNamespace())
+    scheduler = _build_ibor_sync_scheduler(app)
+
+    if scheduler is None:
+        pytest.skip("apscheduler is not installed in this environment")
+
+    job_ids = {job.id for job in scheduler.get_jobs()}
+    assert "ibor-sync-loader" in job_ids
+
+
+async def _return(value):
+    return value

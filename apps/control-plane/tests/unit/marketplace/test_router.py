@@ -91,6 +91,14 @@ class SearchStub:
             raise ComparisonRangeError(1)
         return self.listing
 
+    async def get_listing_by_fqn(
+        self, namespace, name, workspace_id, *, actor_id=None, requesting_agent_id=None
+    ):
+        del workspace_id, actor_id, requesting_agent_id
+        if f"{namespace}:{name}" != self.listing.fqn:
+            raise ComparisonRangeError(1)
+        return self.listing
+
     @property
     def repository(self):
         class _Repo:
@@ -219,9 +227,7 @@ class RatingStub:
             common_failure_patterns=[
                 FailurePatternEntry(error_type="timeout", count=1, percentage=1.0)
             ],
-            invocation_trend=[
-                InvocationTrendPoint(date=datetime.now(UTC).date(), count=2)
-            ],
+            invocation_trend=[InvocationTrendPoint(date=datetime.now(UTC).date(), count=2)],
         )
 
 

@@ -350,10 +350,7 @@ class AuthService:
         if (
             enrollment is None
             or enrollment.status != MfaStatus.PENDING.value
-            or (
-                enrollment.expires_at is not None
-                and enrollment.expires_at < datetime.now(UTC)
-            )
+            or (enrollment.expires_at is not None and enrollment.expires_at < datetime.now(UTC))
         ):
             raise NoPendingEnrollmentError()
 

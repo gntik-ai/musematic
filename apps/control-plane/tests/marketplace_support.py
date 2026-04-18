@@ -74,6 +74,7 @@ def build_agent_document(
     certification_status: str = "compliant",
     cost_tier: str = "metered",
     invocation_count_30d: int = 100,
+    status: str = "published",
 ) -> dict[str, Any]:
     resolved_agent_id = agent_id or uuid4()
     return {
@@ -92,6 +93,7 @@ def build_agent_document(
         "certification_status": certification_status,
         "cost_tier": cost_tier,
         "invocation_count_30d": invocation_count_30d,
+        "status": status,
     }
 
 
@@ -581,7 +583,7 @@ def build_search_service(
     resolved_repository = repository or InMemoryMarketplaceRepository()
     resolved_opensearch = opensearch or OpenSearchClientStub(documents or [])
     resolved_qdrant = qdrant or QdrantClientStub(search_results=qdrant_results or [])
-    resolved_workspaces = WorkspacesServiceStub(visibility_by_workspace or {})
+    resolved_workspaces = WorkspacesServiceStub(visibility_by_workspace=visibility_by_workspace or {})
     resolved_registry = registry_service or RegistryServiceStub()
     service = MarketplaceSearchService(
         repository=resolved_repository,
@@ -834,14 +836,29 @@ def _matches_filter(document: dict[str, Any], filter_item: dict[str, Any]) -> bo
             return False
         return True
     if "bool" in filter_item:
-        should = filter_item["bool"].get("should", [])
-        minimum = int(filter_item["bool"].get("minimum_should_match") or 1)
+        payload = filter_item["bool"]
+        must_not = payload.get("must_not", [])
+        for item in must_not:
+            terms = item.get("terms")
+            if terms is None:
+                continue
+            field, values = next(iter(terms.items()))
+            value = document.get(field)
+            if isinstance(value, list):
+                if set(value).intersection(set(values)):
+                    return False
+            elif value in set(values):
+                return False
+        should = payload.get("should", [])
+        if not should:
+            return True
+        minimum = int(payload.get("minimum_should_match") or 1)
         matches = 0
         for item in should:
             wildcard = item.get("wildcard", {})
-            field, payload = next(iter(wildcard.items()))
+            field, pattern_payload = next(iter(wildcard.items()))
             value = str(document.get(field) or "")
-            pattern = str(payload.get("value") or "")
+            pattern = str(pattern_payload.get("value") or "")
             if fnmatch(value, pattern):
                 matches += 1
         return matches >= minimum

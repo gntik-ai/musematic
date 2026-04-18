@@ -110,9 +110,60 @@ class MarketplaceSearchService:
         document = await self._fetch_document(agent_id)
         if document is None:
             raise AgentNotFoundError(agent_id)
+        if not self._is_operational_status(document.get("status")):
+            raise AgentNotFoundError(agent_id)
         if not self._is_visible(document.get("fqn"), visibility_patterns):
             raise VisibilityDeniedError(agent_id)
         listing = await self._assemble_listing(document)
+        return listing
+
+    async def get_listing_by_fqn(
+        self,
+        namespace: str,
+        name: str,
+        workspace_id: UUID,
+        *,
+        actor_id: UUID | None = None,
+        requesting_agent_id: UUID | None = None,
+    ) -> AgentListingProjection:
+        fqn = f"{namespace}:{name}"
+        profile = None
+        if self.registry_service is not None and hasattr(self.registry_service, "resolve_fqn"):
+            try:
+                profile = await self.registry_service.resolve_fqn(
+                    fqn,
+                    workspace_id=workspace_id,
+                    actor_id=actor_id,
+                    requesting_agent_id=requesting_agent_id,
+                )
+            except Exception:
+                profile = None
+        if profile is None:
+            raise AgentNotFoundError(fqn)
+
+        document = await self._fetch_document(profile.id)
+        if document is None:
+            document = {
+                "agent_profile_id": str(profile.id),
+                "fqn": profile.fqn,
+                "display_name": profile.display_name,
+                "name": profile.display_name or profile.fqn,
+                "description": profile.purpose,
+                "purpose": profile.purpose,
+                "capabilities": list(profile.role_types),
+                "role_types": list(profile.role_types),
+                "tags": list(profile.tags),
+                "maturity_level": int(profile.maturity_level),
+                "certification_status": "uncertified",
+                "cost_tier": "free",
+                "status": profile.status.value,
+            }
+        else:
+            document = dict(document)
+            document.setdefault("status", profile.status.value)
+        listing = await self._assemble_listing(document)
+        if profile.status.value == "decommissioned":
+            listing = listing.model_copy(update={"status": "decommissioned", "invocable": False})
         return listing
 
     async def compare(
@@ -230,6 +281,9 @@ class MarketplaceSearchService:
         else:
             must.append({"match_all": {}})
         filters.extend(self._facet_filters(request))
+        filters.append(
+            {"bool": {"must_not": [{"terms": {"status": ["archived", "decommissioned"]}}]}}
+        )
         if visibility_patterns and visibility_patterns != ["*"]:
             filters.append(
                 {
@@ -264,6 +318,8 @@ class MarketplaceSearchService:
             agent_id = source.get("agent_profile_id") or source.get("agent_id") or hit.get("_id")
             if agent_id is None:
                 continue
+            if not self._is_operational_status(source.get("status")):
+                continue
             if not self._is_visible(source.get("fqn"), visibility_patterns):
                 continue
             results.append(
@@ -291,7 +347,8 @@ class MarketplaceSearchService:
         filtered = [
             item
             for item in results
-            if self._is_visible(item.get("payload", {}).get("fqn"), visibility_patterns)
+            if self._is_operational_status(item.get("payload", {}).get("status"))
+            and self._is_visible(item.get("payload", {}).get("fqn"), visibility_patterns)
             and self._matches_facets(item.get("payload", {}), request)
         ]
         ranked: list[dict[str, Any]] = []
@@ -327,7 +384,8 @@ class MarketplaceSearchService:
         visible_docs = [
             dict(hit.get("_source", {}), _id=hit.get("_id"))
             for hit in hits
-            if self._is_visible(hit.get("_source", {}).get("fqn"), visibility_patterns)
+            if self._is_operational_status(hit.get("_source", {}).get("status"))
+            and self._is_visible(hit.get("_source", {}).get("fqn"), visibility_patterns)
         ]
         total = len(visible_docs)
         page_docs = visible_docs[
@@ -398,16 +456,13 @@ class MarketplaceSearchService:
             or str(agent_id)
         )
         description = document.get("description") or document.get("purpose") or ""
+        status = str(document.get("status") or "published")
         return AgentListingProjection(
             agent_id=agent_id,
             fqn=str(document.get("fqn") or ""),
             name=str(name),
             description=str(description),
-            capabilities=list(
-                document.get("capabilities")
-                or document.get("role_types")
-                or []
-            ),
+            capabilities=list(document.get("capabilities") or document.get("role_types") or []),
             tags=list(document.get("tags") or []),
             maturity_level=int(document.get("maturity_level") or 0),
             trust_tier=str(document.get("trust_tier") or "unverified"),
@@ -416,6 +471,8 @@ class MarketplaceSearchService:
                 or (quality.certification_status if quality is not None else "uncertified")
             ),
             cost_tier=str(document.get("cost_tier") or "free"),
+            status=status,
+            invocable=status != "decommissioned",
             quality_profile=quality_profile,
             aggregate_rating=aggregate_rating,
             relevance_score=_as_float(document.get("_relevance_score")),
@@ -432,11 +489,7 @@ class MarketplaceSearchService:
         response = await client.search(
             index=self.settings.registry.search_index,
             body={
-                "query": {
-                    "terms": {
-                        "agent_profile_id": [str(agent_id) for agent_id in agent_ids]
-                    }
-                },
+                "query": {"terms": {"agent_profile_id": [str(agent_id) for agent_id in agent_ids]}},
                 "size": len(agent_ids),
             },
         )
@@ -571,6 +624,10 @@ class MarketplaceSearchService:
             return "|".join(sorted(str(item) for item in value))
         return str(value)
 
+    @staticmethod
+    def _is_operational_status(status: Any) -> bool:
+        return str(status or "published") not in {"archived", "decommissioned"}
+
     def _is_visible(self, fqn: Any, visibility_patterns: list[str]) -> bool:
         if not isinstance(fqn, str):
             return False
@@ -580,9 +637,7 @@ class MarketplaceSearchService:
 
     def _extract_agent_id(self, document: dict[str, Any]) -> UUID:
         candidate = (
-            document.get("agent_profile_id")
-            or document.get("agent_id")
-            or document.get("_id")
+            document.get("agent_profile_id") or document.get("agent_id") or document.get("_id")
         )
         return UUID(str(candidate))
 

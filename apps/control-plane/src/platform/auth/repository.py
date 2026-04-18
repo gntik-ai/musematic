@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 from datetime import UTC, datetime
 from platform.auth.models import (
     AuthAttempt,
+    IBORConnector,
+    IBORSyncRun,
     MfaEnrollment,
     PasswordResetToken,
     RolePermission,
@@ -12,9 +15,10 @@ from platform.auth.models import (
     UserRole,
 )
 from platform.common.models.user import User as PlatformUser
+from typing import Any
 from uuid import UUID
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import and_, delete, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -31,6 +35,28 @@ class AuthRepository:
     async def get_platform_user(self, user_id: UUID) -> PlatformUser | None:
         result = await self.db.execute(select(PlatformUser).where(PlatformUser.id == user_id))
         return result.scalar_one_or_none()
+
+    async def get_platform_user_by_email(self, email: str) -> PlatformUser | None:
+        result = await self.db.execute(
+            select(PlatformUser).where(PlatformUser.email == email.lower())
+        )
+        return result.scalar_one_or_none()
+
+    async def create_platform_user(
+        self,
+        user_id: UUID,
+        email: str,
+        display_name: str,
+    ) -> PlatformUser:
+        platform_user = PlatformUser(
+            id=user_id,
+            email=email.lower(),
+            display_name=display_name,
+            status="active",
+        )
+        self.db.add(platform_user)
+        await self.db.flush()
+        return platform_user
 
     async def create_credential(
         self,
@@ -83,10 +109,42 @@ class AuthRepository:
         result = await self.db.execute(query.order_by(UserRole.created_at.asc()))
         return list(result.scalars().all())
 
-    async def get_role_permissions(self, role: str) -> list[RolePermission]:
+    async def list_user_roles(
+        self,
+        *,
+        user_id: UUID | None = None,
+        user_email: str | None = None,
+    ) -> list[UserRole]:
+        query = select(UserRole)
+        if user_id is not None:
+            query = query.where(UserRole.user_id == user_id)
+        elif user_email is not None:
+            user = await self.get_platform_user_by_email(user_email)
+            if user is None:
+                return []
+            query = query.where(UserRole.user_id == user.id)
+        else:
+            raise ValueError("user_id or user_email is required")
+        result = await self.db.execute(query.order_by(UserRole.created_at.asc()))
+        return list(result.scalars().all())
+
+    async def get_user_roles_by_source_connector(
+        self,
+        user_id: UUID,
+        source_connector_id: UUID,
+    ) -> list[UserRole]:
         result = await self.db.execute(
-            select(RolePermission).where(RolePermission.role == role)
+            select(UserRole)
+            .where(
+                UserRole.user_id == user_id,
+                UserRole.source_connector_id == source_connector_id,
+            )
+            .order_by(UserRole.created_at.asc())
         )
+        return list(result.scalars().all())
+
+    async def get_role_permissions(self, role: str) -> list[RolePermission]:
+        result = await self.db.execute(select(RolePermission).where(RolePermission.role == role))
         return list(result.scalars().all())
 
     async def get_all_role_permissions(self) -> list[RolePermission]:
@@ -98,14 +156,51 @@ class AuthRepository:
         user_id: UUID,
         role: str,
         workspace_id: UUID | None,
+        source_connector_id: UUID | None = None,
     ) -> UserRole:
-        assignment = UserRole(user_id=user_id, role=role, workspace_id=workspace_id)
+        workspace_clause = (
+            UserRole.workspace_id.is_(None)
+            if workspace_id is None
+            else UserRole.workspace_id == workspace_id
+        )
+        existing = await self.db.execute(
+            select(UserRole).where(
+                UserRole.user_id == user_id,
+                UserRole.role == role,
+                workspace_clause,
+            )
+        )
+        assignment = existing.scalar_one_or_none()
+        if assignment is not None:
+            if assignment.source_connector_id is None:
+                return assignment
+            if source_connector_id is None:
+                assignment.source_connector_id = None
+            elif assignment.source_connector_id != source_connector_id:
+                assignment.source_connector_id = source_connector_id
+            await self.db.flush()
+            return assignment
+
+        assignment = UserRole(
+            user_id=user_id,
+            role=role,
+            workspace_id=workspace_id,
+            source_connector_id=source_connector_id,
+        )
         self.db.add(assignment)
         await self.db.flush()
         return assignment
 
     async def revoke_user_role(self, user_role_id: UUID) -> None:
         await self.db.execute(delete(UserRole).where(UserRole.id == user_role_id))
+
+    async def list_user_roles_by_connector(self, connector_id: UUID) -> list[UserRole]:
+        result = await self.db.execute(
+            select(UserRole)
+            .where(UserRole.source_connector_id == connector_id)
+            .order_by(UserRole.created_at.asc())
+        )
+        return list(result.scalars().all())
 
     async def record_auth_attempt(
         self,
@@ -184,9 +279,7 @@ class AuthRepository:
 
     async def get_active_service_accounts(self) -> list[ServiceAccountCredential]:
         result = await self.db.execute(
-            select(ServiceAccountCredential).where(
-                ServiceAccountCredential.status == "active"
-            )
+            select(ServiceAccountCredential).where(ServiceAccountCredential.status == "active")
         )
         return list(result.scalars().all())
 
@@ -236,3 +329,168 @@ class AuthRepository:
             .where(ServiceAccountCredential.service_account_id == sa_id)
             .values(status="revoked")
         )
+
+    async def get_connector_by_name(self, name: str) -> IBORConnector | None:
+        result = await self.db.execute(select(IBORConnector).where(IBORConnector.name == name))
+        return result.scalar_one_or_none()
+
+    async def create_connector(
+        self,
+        *,
+        name: str,
+        source_type: Any,
+        sync_mode: Any,
+        cadence_seconds: int,
+        credential_ref: str,
+        role_mapping_policy: list[dict[str, Any]],
+        enabled: bool,
+        created_by: UUID,
+    ) -> IBORConnector:
+        connector = IBORConnector(
+            name=name,
+            source_type=source_type,
+            sync_mode=sync_mode,
+            cadence_seconds=cadence_seconds,
+            credential_ref=credential_ref,
+            role_mapping_policy=role_mapping_policy,
+            enabled=enabled,
+            created_by=created_by,
+        )
+        self.db.add(connector)
+        await self.db.flush()
+        return connector
+
+    async def list_connectors(self) -> list[IBORConnector]:
+        result = await self.db.execute(
+            select(IBORConnector).order_by(IBORConnector.name.asc(), IBORConnector.id.asc())
+        )
+        return list(result.scalars().all())
+
+    async def list_enabled_connectors(self) -> list[IBORConnector]:
+        result = await self.db.execute(
+            select(IBORConnector)
+            .where(IBORConnector.enabled.is_(True))
+            .order_by(IBORConnector.name.asc(), IBORConnector.id.asc())
+        )
+        return list(result.scalars().all())
+
+    async def get_connector(self, connector_id: UUID) -> IBORConnector | None:
+        result = await self.db.execute(
+            select(IBORConnector).where(IBORConnector.id == connector_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def update_connector(self, connector: IBORConnector, **fields: Any) -> IBORConnector:
+        for key, value in fields.items():
+            setattr(connector, key, value)
+        await self.db.flush()
+        return connector
+
+    async def soft_delete_connector(self, connector: IBORConnector) -> IBORConnector:
+        connector.enabled = False
+        await self.db.flush()
+        return connector
+
+    async def create_sync_run(
+        self,
+        *,
+        connector_id: UUID,
+        mode: Any,
+        status: Any,
+        counts: dict[str, int] | None = None,
+        error_details: list[dict[str, Any]] | None = None,
+        triggered_by: UUID | None,
+    ) -> IBORSyncRun:
+        run = IBORSyncRun(
+            connector_id=connector_id,
+            mode=mode,
+            status=status,
+            counts=counts or {},
+            error_details=error_details or [],
+            triggered_by=triggered_by,
+        )
+        self.db.add(run)
+        await self.db.flush()
+        return run
+
+    async def get_sync_run(self, run_id: UUID) -> IBORSyncRun | None:
+        result = await self.db.execute(select(IBORSyncRun).where(IBORSyncRun.id == run_id))
+        return result.scalar_one_or_none()
+
+    async def get_running_sync_run(self, connector_id: UUID) -> IBORSyncRun | None:
+        result = await self.db.execute(
+            select(IBORSyncRun)
+            .where(
+                IBORSyncRun.connector_id == connector_id,
+                IBORSyncRun.status == "running",
+            )
+            .order_by(IBORSyncRun.started_at.desc())
+        )
+        return result.scalars().first()
+
+    async def update_sync_run(
+        self,
+        run: IBORSyncRun,
+        *,
+        status: Any,
+        counts: dict[str, int],
+        error_details: list[dict[str, Any]],
+        finished_at: datetime | None = None,
+    ) -> IBORSyncRun:
+        run.status = status
+        run.counts = counts
+        run.error_details = error_details
+        run.finished_at = finished_at or datetime.now(UTC)
+        await self.db.flush()
+        return run
+
+    async def touch_connector_run(
+        self,
+        connector: IBORConnector,
+        *,
+        status: str,
+        last_run_at: datetime | None = None,
+    ) -> None:
+        connector.last_run_status = status
+        connector.last_run_at = last_run_at or datetime.now(UTC)
+        await self.db.flush()
+
+    async def list_sync_runs(
+        self,
+        connector_id: UUID,
+        *,
+        limit: int,
+        cursor: str | None = None,
+    ) -> tuple[list[IBORSyncRun], str | None]:
+        query = select(IBORSyncRun).where(IBORSyncRun.connector_id == connector_id)
+        if cursor:
+            started_at, run_id = self._decode_run_cursor(cursor)
+            query = query.where(
+                or_(
+                    IBORSyncRun.started_at < started_at,
+                    and_(IBORSyncRun.started_at == started_at, IBORSyncRun.id < run_id),
+                )
+            )
+        query = query.order_by(
+            IBORSyncRun.started_at.desc(),
+            IBORSyncRun.id.desc(),
+        ).limit(limit + 1)
+        result = await self.db.execute(query)
+        rows = list(result.scalars().all())
+        next_cursor = None
+        if len(rows) > limit:
+            rows = rows[:limit]
+            cursor_row = rows[-1]
+            next_cursor = self._encode_run_cursor(cursor_row.started_at, cursor_row.id)
+        return rows, next_cursor
+
+    @staticmethod
+    def _encode_run_cursor(started_at: datetime, run_id: UUID) -> str:
+        raw = f"{started_at.isoformat()}|{run_id}"
+        return base64.urlsafe_b64encode(raw.encode("utf-8")).decode("ascii")
+
+    @staticmethod
+    def _decode_run_cursor(cursor: str) -> tuple[datetime, UUID]:
+        raw = base64.urlsafe_b64decode(cursor.encode("ascii")).decode("utf-8")
+        started_at_raw, run_id_raw = raw.split("|", 1)
+        return datetime.fromisoformat(started_at_raw), UUID(run_id_raw)

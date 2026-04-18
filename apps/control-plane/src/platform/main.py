@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from fnmatch import fnmatch
 from platform.accounts.events import register_accounts_event_types
+from platform.accounts.repository import AccountsRepository
 from platform.accounts.router import router as accounts_router
 from platform.agentops.dependencies import build_agentops_service
 from platform.agentops.events import register_agentops_event_types
@@ -24,6 +25,8 @@ from platform.api.evaluations import router as evaluations_router
 from platform.api.health import router as health_router
 from platform.api.testing import router as testing_router
 from platform.auth.events import register_auth_event_types
+from platform.auth.ibor_sync import IBORSyncService
+from platform.auth.repository import AuthRepository
 from platform.auth.router import router as auth_router
 from platform.common import database
 from platform.common.auth_middleware import AuthMiddleware
@@ -318,6 +321,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             startup_errors["context_engineering_drift_scheduler"] = str(exc)
             LOGGER.warning("Failed to start context engineering scheduler: %s", exc)
     memory_scheduler = getattr(app.state, "memory_scheduler", None)
+    ibor_sync_scheduler = getattr(app.state, "ibor_sync_scheduler", None)
     connectors_worker_scheduler = getattr(app.state, "connectors_worker_scheduler", None)
     workflow_execution_scheduler = getattr(app.state, "workflow_execution_scheduler", None)
     marketplace_scheduler = getattr(app.state, "marketplace_scheduler", None)
@@ -335,6 +339,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         "robustness_orchestrator_scheduler",
         None,
     )
+    if ibor_sync_scheduler is not None:
+        try:
+            ibor_sync_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["ibor_sync_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start IBOR sync scheduler: %s", exc)
     if memory_scheduler is not None:
         try:
             memory_scheduler.start()
@@ -427,6 +438,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                 simulation_prediction_scheduler.shutdown(wait=False)
             except Exception as exc:
                 LOGGER.warning("Failed to stop simulation prediction scheduler cleanly: %s", exc)
+        if ibor_sync_scheduler is not None:
+            try:
+                ibor_sync_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop IBOR sync scheduler cleanly: %s", exc)
         if robustness_orchestrator_scheduler is not None:
             try:
                 robustness_orchestrator_scheduler.shutdown(wait=False)
@@ -541,6 +557,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.registry_index_worker = None
     app.state.context_engineering_drift_scheduler = None
     app.state.memory_scheduler = None
+    app.state.ibor_sync_scheduler = None
+    app.state.refresh_ibor_sync_scheduler = None
     app.state.connectors_worker_scheduler = None
     app.state.workflow_execution_scheduler = None
     app.state.workflow_scheduler = None
@@ -552,6 +570,9 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.simulation_prediction_scheduler = None
     app.state.robustness_orchestrator_scheduler = None
     app.state.trust_certifier_scheduler = None
+    if resolved.profile == "api":
+        app.state.ibor_sync_scheduler = _build_ibor_sync_scheduler(app)
+        app.state.refresh_ibor_sync_scheduler = lambda: _refresh_ibor_sync_scheduler(app)
     if resolved.profile == "worker":
         app.state.analytics_consumer = AnalyticsPipelineConsumer(
             settings=resolved,
@@ -754,6 +775,70 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         engine=database.engine,
     )
     return app
+
+
+async def _refresh_ibor_sync_scheduler(app: FastAPI) -> None:
+    scheduler = getattr(app.state, "ibor_sync_scheduler", None)
+    if scheduler is None:
+        return
+
+    for job in scheduler.get_jobs():
+        job_id = str(getattr(job, "id", ""))
+        if job_id.startswith("ibor-sync-"):
+            scheduler.remove_job(job.id)
+
+    async with database.AsyncSessionLocal() as session:
+        connectors = await AuthRepository(session).list_enabled_connectors()
+
+    for connector in connectors:
+        scheduler.add_job(
+            _build_ibor_sync_job(app, connector.id),
+            "interval",
+            seconds=connector.cadence_seconds,
+            id=f"ibor-sync-{connector.id}",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+
+
+def _build_ibor_sync_job(app: FastAPI, connector_id: UUID) -> Callable[[], Awaitable[None]]:
+    async def _run() -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = IBORSyncService(
+                repository=AuthRepository(session),
+                accounts_repository=AccountsRepository(session),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                session_factory=database.AsyncSessionLocal,
+            )
+            try:
+                await service.run_sync(connector_id, triggered_by=None)
+                await session.commit()
+            except Exception as exc:
+                await session.rollback()
+                LOGGER.warning("IBOR sync job failed for connector %s: %s", connector_id, exc)
+
+    return _run
+
+
+def _build_ibor_sync_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except ModuleNotFoundError:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _load_jobs() -> None:
+        await _refresh_ibor_sync_scheduler(app)
+
+    scheduler.add_job(_load_jobs, "date", id="ibor-sync-loader")
+    return scheduler
 
 
 def _build_analytics_budget_scheduler(app: FastAPI) -> Any | None:

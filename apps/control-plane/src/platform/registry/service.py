@@ -15,9 +15,11 @@ from platform.common.events.producer import EventProducer
 from platform.common.exceptions import BucketNotFoundError, ObjectStorageError
 from platform.registry.events import (
     AgentCreatedPayload,
+    AgentDecommissionedPayload,
     AgentDeprecatedPayload,
     AgentPublishedPayload,
     publish_agent_created,
+    publish_agent_decommissioned,
     publish_agent_deprecated,
     publish_agent_published,
 )
@@ -45,6 +47,7 @@ from platform.registry.models import (
 from platform.registry.package_validator import PackageValidator
 from platform.registry.repository import RegistryRepository
 from platform.registry.schemas import (
+    AgentDecommissionResponse,
     AgentDiscoveryParams,
     AgentListResponse,
     AgentPatch,
@@ -391,6 +394,7 @@ class RegistryService:
                 limit=fetch_limit,
                 offset=0,
                 visibility_filter=visibility_filter,
+                include_decommissioned=False,
             )
             del total
 
@@ -452,6 +456,12 @@ class RegistryService:
     ) -> AgentProfileResponse:
         await self._assert_workspace_access(workspace_id, actor_id)
         profile = await self._get_agent_or_raise(workspace_id, agent_id)
+        if profile.status is LifecycleStatus.decommissioned:
+            raise InvalidTransitionError(
+                profile.status.value,
+                request.target_status.value,
+                sorted(status.value for status in get_valid_transitions(profile.status)),
+            )
         if not is_valid_transition(profile.status, request.target_status):
             raise InvalidTransitionError(
                 profile.status.value,
@@ -497,6 +507,84 @@ class RegistryService:
                     correlation,
                 )
         return await self._build_profile_response(profile)
+
+    async def decommission_agent(
+        self,
+        workspace_id: UUID,
+        agent_id: UUID,
+        reason: str,
+        actor_id: UUID,
+        runtime_controller: Any | None,
+        *,
+        actor_is_platform_admin: bool = False,
+    ) -> AgentDecommissionResponse:
+        await self._assert_workspace_access(workspace_id, actor_id)
+        await self._assert_decommission_permission(
+            workspace_id,
+            actor_id,
+            actor_is_platform_admin=actor_is_platform_admin,
+        )
+        normalized_reason = reason.strip()
+        if len(normalized_reason) < 10 or len(normalized_reason) > 2000:
+            raise RegistryError(
+                "REGISTRY_DECOMMISSION_REASON_INVALID",
+                "Decommission reason must be between 10 and 2000 characters",
+                {"min_length": 10, "max_length": 2000},
+            )
+        profile = await self._get_agent_or_raise(workspace_id, agent_id)
+        if profile.status is LifecycleStatus.decommissioned:
+            return AgentDecommissionResponse(
+                agent_id=profile.id,
+                agent_fqn=profile.fqn,
+                decommissioned_at=profile.decommissioned_at or profile.updated_at,
+                decommission_reason=profile.decommission_reason or normalized_reason,
+                decommissioned_by=profile.decommissioned_by or actor_id,
+                active_instances_stopped=0,
+            )
+
+        active_instances = await self._list_active_instances(runtime_controller, profile.fqn)
+        await asyncio.gather(
+            *(
+                self._stop_runtime(runtime_controller, execution_id)
+                for execution_id in active_instances
+            )
+        )
+        previous_status = profile.status
+        profile = await self.repository.persist_decommission(
+            profile,
+            reason=normalized_reason,
+            actor_id=actor_id,
+        )
+        await self.repository.insert_lifecycle_audit(
+            workspace_id=workspace_id,
+            agent_profile_id=profile.id,
+            previous_status=previous_status,
+            new_status=LifecycleStatus.decommissioned,
+            actor_id=actor_id,
+            reason=normalized_reason,
+        )
+        await self._commit()
+        await self._index_or_flag(profile.id)
+        await publish_agent_decommissioned(
+            self.event_producer,
+            AgentDecommissionedPayload(
+                agent_profile_id=str(profile.id),
+                fqn=profile.fqn,
+                decommissioned_by=str(actor_id),
+                decommissioned_at=(profile.decommissioned_at or profile.updated_at).isoformat(),
+                reason=normalized_reason,
+                active_instance_count_at_decommission=len(active_instances),
+            ),
+            self._correlation(workspace_id, profile.fqn),
+        )
+        return AgentDecommissionResponse(
+            agent_id=profile.id,
+            agent_fqn=profile.fqn,
+            decommissioned_at=profile.decommissioned_at or profile.updated_at,
+            decommission_reason=profile.decommission_reason or normalized_reason,
+            decommissioned_by=profile.decommissioned_by or actor_id,
+            active_instances_stopped=len(active_instances),
+        )
 
     async def list_lifecycle_audit(
         self,
@@ -645,6 +733,52 @@ class RegistryService:
             reason=entry.reason,
             created_at=entry.created_at,
         )
+
+    async def _assert_decommission_permission(
+        self,
+        workspace_id: UUID,
+        actor_id: UUID,
+        *,
+        actor_is_platform_admin: bool = False,
+    ) -> None:
+        if actor_is_platform_admin:
+            return
+        membership = None
+        repo = getattr(self.workspaces_service, "repo", None)
+        repo_get_membership = getattr(repo, "get_membership", None)
+        service_get_membership = getattr(self.workspaces_service, "get_membership", None)
+        if callable(repo_get_membership):
+            membership = await repo_get_membership(workspace_id, actor_id)
+        elif callable(service_get_membership):
+            membership = await service_get_membership(workspace_id, actor_id)
+        role = getattr(membership, "role", None)
+        if str(role) not in {"owner", "WorkspaceRole.owner"}:
+            raise WorkspaceAuthorizationError(workspace_id)
+
+    async def _list_active_instances(
+        self,
+        runtime_controller: Any | None,
+        agent_fqn: str,
+    ) -> list[str]:
+        if runtime_controller is None:
+            return []
+        getter = getattr(runtime_controller, "list_active_instances", None)
+        if getter is None:
+            return []
+        result = getter(agent_fqn)
+        if hasattr(result, "__await__"):
+            result = await result
+        return [str(item) for item in (result or [])]
+
+    async def _stop_runtime(self, runtime_controller: Any | None, execution_id: str) -> None:
+        if runtime_controller is None:
+            return
+        stopper = getattr(runtime_controller, "stop_runtime", None)
+        if stopper is None:
+            return
+        result = stopper(execution_id)
+        if hasattr(result, "__await__"):
+            await result
 
     async def _assert_workspace_access(self, workspace_id: UUID, actor_id: UUID) -> None:
         if self.workspaces_service is None:

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from platform.accounts.repository import AccountsRepository
+from platform.auth.ibor_service import IBORConnectorService
+from platform.auth.ibor_sync import IBORSyncService
 from platform.auth.repository import AuthRepository
 from platform.auth.service import AuthService
 from platform.common import database
@@ -38,11 +41,41 @@ def build_auth_service(request: Request, db: AsyncSession) -> AuthService:
     )
 
 
+def build_ibor_service(request: Request, db: AsyncSession) -> IBORConnectorService:
+    del request
+    return IBORConnectorService(repository=AuthRepository(db))
+
+
+def build_ibor_sync_service(request: Request, db: AsyncSession) -> IBORSyncService:
+    return IBORSyncService(
+        repository=AuthRepository(db),
+        accounts_repository=AccountsRepository(db),
+        redis_client=_get_redis_client(request),
+        settings=_get_settings(request),
+        producer=_get_producer(request),
+        session_factory=database.AsyncSessionLocal,
+    )
+
+
 async def get_auth_service(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> AuthService:
     return build_auth_service(request, db)
+
+
+async def get_ibor_service(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> IBORConnectorService:
+    return build_ibor_service(request, db)
+
+
+async def get_ibor_sync_service(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> IBORSyncService:
+    return build_ibor_sync_service(request, db)
 
 
 async def resolve_api_key_identity(
@@ -70,9 +103,7 @@ async def resolve_api_key_identity(
             ],
             "identity_type": "service_account",
             "workspace_id": (
-                str(credential.workspace_id)
-                if credential.workspace_id is not None
-                else None
+                str(credential.workspace_id) if credential.workspace_id is not None else None
             ),
         }
 
