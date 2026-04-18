@@ -54,7 +54,7 @@ def build_search_service(
     opensearch: AsyncOpenSearchClient,
     qdrant: AsyncQdrantClient,
     workspaces_service: WorkspacesService | None,
-    registry_service: RegistryService | None,
+    registry_service: RegistryService | None = None,
 ) -> MarketplaceSearchService:
     return MarketplaceSearchService(
         repository=MarketplaceRepository(session),

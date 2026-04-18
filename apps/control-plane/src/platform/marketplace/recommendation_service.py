@@ -43,6 +43,27 @@ class MarketplaceRecommendationService:
         self.search_service = search_service
         self.workspaces_service = workspaces_service
 
+    @staticmethod
+    def _recommended_entry_kwargs(
+        *,
+        agent_id: UUID,
+        workspace_id: UUID,
+        score: float,
+        reasoning: str | None,
+        recommendation_type: str,
+        requesting_agent_id: UUID | None = None,
+    ) -> dict[str, Any]:
+        kwargs: dict[str, Any] = {
+            "agent_id": agent_id,
+            "workspace_id": workspace_id,
+            "score": score,
+            "reasoning": reasoning,
+            "recommendation_type": recommendation_type,
+        }
+        if requesting_agent_id is not None:
+            kwargs["requesting_agent_id"] = requesting_agent_id
+        return kwargs
+
     async def get_recommendations(
         self,
         user_id: UUID,
@@ -60,12 +81,14 @@ class MarketplaceRecommendationService:
         entries: list[RecommendedAgentEntry] = []
         for row in collaborative[:limit]:
             entry = await self._build_recommended_entry(
-                agent_id=row.agent_id,
-                workspace_id=workspace_id,
-                score=float(row.score),
-                reasoning=row.reasoning,
-                recommendation_type=row.recommendation_type,
-                requesting_agent_id=requesting_agent_id,
+                **self._recommended_entry_kwargs(
+                    agent_id=row.agent_id,
+                    workspace_id=workspace_id,
+                    score=float(row.score),
+                    reasoning=row.reasoning,
+                    recommendation_type=row.recommendation_type,
+                    requesting_agent_id=requesting_agent_id,
+                )
             )
             if entry is not None:
                 entries.append(entry)
@@ -78,12 +101,14 @@ class MarketplaceRecommendationService:
             )
             for content_row in content_rows:
                 entry = await self._build_recommended_entry(
-                    agent_id=content_row["agent_id"],
-                    workspace_id=workspace_id,
-                    score=content_row["score"],
-                    reasoning=content_row.get("reasoning"),
-                    recommendation_type=RecommendationType.content_based.value,
-                    requesting_agent_id=requesting_agent_id,
+                    **self._recommended_entry_kwargs(
+                        agent_id=content_row["agent_id"],
+                        workspace_id=workspace_id,
+                        score=content_row["score"],
+                        reasoning=content_row.get("reasoning"),
+                        recommendation_type=RecommendationType.content_based.value,
+                        requesting_agent_id=requesting_agent_id,
+                    )
                 )
                 if entry is not None:
                     entries.append(entry)
@@ -105,12 +130,14 @@ class MarketplaceRecommendationService:
                 ):
                     continue
                 entry = await self._build_recommended_entry(
-                    agent_id=agent_id,
-                    workspace_id=workspace_id,
-                    score=float(doc.get("invocation_count_30d") or 0.0),
-                    reasoning="Popular in your workspace visibility scope.",
-                    recommendation_type=RecommendationType.popularity_fallback.value,
-                    requesting_agent_id=requesting_agent_id,
+                    **self._recommended_entry_kwargs(
+                        agent_id=agent_id,
+                        workspace_id=workspace_id,
+                        score=float(doc.get("invocation_count_30d") or 0.0),
+                        reasoning="Popular in your workspace visibility scope.",
+                        recommendation_type=RecommendationType.popularity_fallback.value,
+                        requesting_agent_id=requesting_agent_id,
+                    )
                 )
                 if entry is not None:
                     entries.append(entry)
