@@ -236,7 +236,7 @@ func defaultBuildRuntimeDeps(ctx context.Context, logger *slog.Logger, cfg confi
 	fanout := logs.NewFanoutRegistry(100)
 	streamer := &logs.Streamer{Client: podClient, Fanout: fanout}
 	archiveStreamer := artifacts.NewExecArchiveStreamer(restCfg)
-	uploader := artifacts.NewMinIOUploader(cfg.MinIOEndpoint, cfg.MinIOBucket)
+	uploader := artifacts.NewS3Uploader(cfg.S3EndpointURL, cfg.S3Bucket)
 	manager := sandbox.NewManager(sandbox.ManagerConfig{
 		Namespace:      cfg.K8sNamespace,
 		DefaultTimeout: cfg.DefaultTimeout,
@@ -250,7 +250,7 @@ func defaultBuildRuntimeDeps(ctx context.Context, logger *slog.Logger, cfg confi
 		},
 	})
 	execSvc := executor.New(manager, podClient, restCfg, cfg.MaxOutputSize)
-	collector := artifacts.NewCollector(manager, archiveStreamer, uploader, cfg.MinIOBucket)
+	collector := artifacts.NewCollector(manager, archiveStreamer, uploader, cfg.S3Bucket)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", health.LivezHandler)

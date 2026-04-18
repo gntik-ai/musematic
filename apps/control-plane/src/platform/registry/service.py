@@ -236,7 +236,7 @@ class RegistryService:
                 content_type="application/gzip",
             )
         except (BucketNotFoundError, ObjectStorageError) as exc:
-            raise RegistryStoreUnavailableError("minio", str(exc)) from exc
+            raise RegistryStoreUnavailableError("object_storage", str(exc)) from exc
 
         try:
             profile, created = await self.repository.upsert_agent_profile(

@@ -173,13 +173,13 @@ func TestKafkaProducerCloseIsIdempotent(t *testing.T) {
 	require.Equal(t, 1, client.closed)
 }
 
-func TestMinIOClientPresignURLUsesBucketAndKey(t *testing.T) {
+func TestS3ClientPresignURLUsesBucketAndKey(t *testing.T) {
 	t.Parallel()
-	client := NewMinIOClient("minio.local:9000", "simulation-artifacts")
+	client := NewS3Client("minio.local:9000", "simulation-artifacts")
 	require.Equal(t, "http://minio.local:9000/simulation-artifacts/sim-1/output.tar.gz", client.PresignGetURL("sim-1/output.tar.gz"))
 }
 
-func TestMinIOClientUploadSetsMetadataAndFailsOnBadStatus(t *testing.T) {
+func TestS3ClientUploadSetsMetadataAndFailsOnBadStatus(t *testing.T) {
 	t.Parallel()
 
 	var gotPath string
@@ -191,7 +191,7 @@ func TestMinIOClientUploadSetsMetadataAndFailsOnBadStatus(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := NewMinIOClient(server.URL, "simulation-artifacts")
+	client := NewS3Client(server.URL, "simulation-artifacts")
 	require.NoError(t, client.Upload(context.Background(), "sim-1/output.tar.gz", []byte("archive"), map[string]string{
 		"x-amz-meta-simulation-id": "sim-1",
 	}))
@@ -203,18 +203,18 @@ func TestMinIOClientUploadSetsMetadataAndFailsOnBadStatus(t *testing.T) {
 	}))
 	defer errorServer.Close()
 
-	client = NewMinIOClient(errorServer.URL, "simulation-artifacts")
+	client = NewS3Client(errorServer.URL, "simulation-artifacts")
 	err := client.Upload(context.Background(), "sim-1/output.tar.gz", []byte("archive"), nil)
-	require.EqualError(t, err, "minio upload failed: 502 Bad Gateway")
+	require.EqualError(t, err, "s3 upload failed: 502 Bad Gateway")
 }
 
-func TestMinIOHelpersHandleNilAndSchemes(t *testing.T) {
+func TestS3HelpersHandleNilAndSchemes(t *testing.T) {
 	t.Parallel()
 
-	var client *MinIOClient
+	var client *S3Client
 	require.NoError(t, client.Upload(context.Background(), "ignored", nil, nil))
 	require.Equal(t, "", client.PresignGetURL("ignored"))
-	require.Nil(t, NewMinIOClient("", "bucket"))
+	require.Nil(t, NewS3Client("", "bucket"))
 	require.Equal(t, "https://minio.local:9000", normaliseEndpoint("https://minio.local:9000/"))
 }
 

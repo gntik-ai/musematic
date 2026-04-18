@@ -133,7 +133,7 @@ async def test_trust_dependency_getters_resolve_from_request_state() -> None:
                 clients={
                     "kafka": bundle.producer,
                     "redis": bundle.redis,
-                    "minio": bundle.object_storage,
+                    "object_storage": bundle.object_storage,
                     "runtime_controller": bundle.runtime_controller,
                     "simulation_controller": bundle.simulation_controller,
                 },

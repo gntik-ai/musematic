@@ -158,7 +158,7 @@ def _build_clients(settings: PlatformSettings) -> dict[str, Any]:
         "neo4j": AsyncNeo4jClient.from_settings(settings),
         "clickhouse": AsyncClickHouseClient.from_settings(settings),
         "opensearch": AsyncOpenSearchClient.from_settings(settings),
-        "minio": AsyncObjectStorageClient.from_settings(settings),
+        "object_storage": AsyncObjectStorageClient.from_settings(settings),
         "runtime_controller": RuntimeControllerClient.from_settings(settings),
         "reasoning_engine": ReasoningEngineClient.from_settings(settings),
         "sandbox_manager": SandboxManagerClient.from_settings(settings),
@@ -231,7 +231,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["testing_clickhouse_setup"] = str(exc)
             LOGGER.warning("Failed to run testing ClickHouse setup: %s", exc)
-    object_storage_client = app.state.clients.get("minio")
+    object_storage_client = app.state.clients.get("object_storage")
     if isinstance(object_storage_client, AsyncObjectStorageClient):
         for bucket_name in ("evaluation-ate-evidence", "evaluation-generated-suites"):
             try:
@@ -898,7 +898,7 @@ def _build_context_engineering_scheduler(app: FastAPI) -> Any | None:
             registry_service = build_registry_service(
                 session=session,
                 settings=cast(PlatformSettings, app.state.settings),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 opensearch=cast(AsyncOpenSearchClient, app.state.clients["opensearch"]),
                 qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
                 workspaces_service=workspaces_service,
@@ -925,7 +925,7 @@ def _build_context_engineering_scheduler(app: FastAPI) -> Any | None:
                 session=session,
                 settings=cast(PlatformSettings, app.state.settings),
                 clickhouse_client=cast(AsyncClickHouseClient, app.state.clients["clickhouse"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 workspaces_service=workspaces_service,
                 registry_service=registry_service,
@@ -1048,7 +1048,7 @@ def _build_memory_scheduler(app: FastAPI) -> Any | None:
             registry_service = build_registry_service(
                 session=session,
                 settings=cast(PlatformSettings, app.state.settings),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 opensearch=cast(AsyncOpenSearchClient, app.state.clients["opensearch"]),
                 qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
                 workspaces_service=workspaces_service,
@@ -1081,7 +1081,7 @@ def _build_memory_scheduler(app: FastAPI) -> Any | None:
             registry_service = build_registry_service(
                 session=session,
                 settings=cast(PlatformSettings, app.state.settings),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 opensearch=cast(AsyncOpenSearchClient, app.state.clients["opensearch"]),
                 qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
                 workspaces_service=workspaces_service,
@@ -1115,7 +1115,7 @@ def _build_memory_scheduler(app: FastAPI) -> Any | None:
             registry_service = build_registry_service(
                 session=session,
                 settings=cast(PlatformSettings, app.state.settings),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 opensearch=cast(AsyncOpenSearchClient, app.state.clients["opensearch"]),
                 qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
                 workspaces_service=workspaces_service,
@@ -1187,7 +1187,7 @@ def _build_workflow_execution_scheduler(app: FastAPI) -> Any | None:
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 runtime_controller=cast(
                     RuntimeControllerClient | None,
                     app.state.clients.get("runtime_controller"),
@@ -1255,7 +1255,7 @@ def _build_workflow_execution_scheduler(app: FastAPI) -> Any | None:
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 runtime_controller=cast(
                     RuntimeControllerClient | None,
                     app.state.clients.get("runtime_controller"),
@@ -1281,7 +1281,7 @@ def _build_workflow_execution_scheduler(app: FastAPI) -> Any | None:
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 runtime_controller=cast(
                     RuntimeControllerClient | None,
                     app.state.clients.get("runtime_controller"),
@@ -1324,7 +1324,7 @@ def _build_workflow_runtime_handler(app: FastAPI) -> Callable[[Any], Awaitable[N
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 runtime_controller=cast(
                     RuntimeControllerClient | None,
                     app.state.clients.get("runtime_controller"),
@@ -1415,7 +1415,7 @@ def _build_reprioritization_handler(
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 runtime_controller=cast(
                     RuntimeControllerClient | None,
                     app.state.clients.get("runtime_controller"),
@@ -1462,7 +1462,7 @@ def _build_workspace_goal_handler(app: FastAPI) -> Callable[[Any], Awaitable[Non
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 runtime_controller=cast(
                     RuntimeControllerClient | None,
                     app.state.clients.get("runtime_controller"),
@@ -1521,7 +1521,7 @@ def _build_event_bus_handler(app: FastAPI) -> Callable[[Any], Awaitable[None]]:
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 runtime_controller=cast(
                     RuntimeControllerClient | None,
                     app.state.clients.get("runtime_controller"),
@@ -1559,7 +1559,7 @@ def _build_connector_delivery_handler(
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
             )
             try:
                 await service.execute_delivery(UUID(str(delivery_id)))
@@ -1588,7 +1588,7 @@ def _build_policy_bundle_invalidator(
             registry_service = build_registry_service(
                 session=session,
                 settings=cast(PlatformSettings, app.state.settings),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 opensearch=cast(AsyncOpenSearchClient, app.state.clients["opensearch"]),
                 qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
                 workspaces_service=workspaces_service,
@@ -1914,7 +1914,7 @@ def _build_robustness_orchestrator_scheduler(app: FastAPI) -> Any | None:
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 runtime_controller=cast(
                     RuntimeControllerClient | None,
                     app.state.clients.get("runtime_controller"),
@@ -2000,7 +2000,7 @@ async def _load_trust_runtime_assets(app: FastAPI) -> None:
             settings=cast(PlatformSettings, app.state.settings),
             producer=cast(EventProducer | None, app.state.clients.get("kafka")),
             redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-            object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+            object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
         )
         await prescreener_service.load_active_rules()
         circuit_breaker_service = build_circuit_breaker_service(
@@ -2065,7 +2065,7 @@ def _build_trust_certifier_scheduler(app: FastAPI) -> Any | None:
             service = build_ate_service(
                 session=session,
                 settings=cast(PlatformSettings, app.state.settings),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 simulation_controller=cast(
                     SimulationControllerClient | None,
                     app.state.clients.get("simulation_controller"),
@@ -2231,7 +2231,7 @@ def _build_trust_simulation_handler(app: FastAPI) -> Callable[[Any], Awaitable[N
             service = build_ate_service(
                 session=session,
                 settings=cast(PlatformSettings, app.state.settings),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 simulation_controller=cast(
                     SimulationControllerClient | None,
                     app.state.clients.get("simulation_controller"),
@@ -2277,7 +2277,7 @@ def _build_trust_prescreener_handler(app: FastAPI) -> Callable[[Any], Awaitable[
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
             )
             try:
                 await service.handle_rule_set_activated(payload)
@@ -2406,7 +2406,7 @@ def _build_connectors_worker_scheduler(app: FastAPI) -> Any | None:
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
             )
             try:
                 await RetryScanner(service).run()
@@ -2422,7 +2422,7 @@ def _build_connectors_worker_scheduler(app: FastAPI) -> Any | None:
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
             )
             try:
                 await EmailPollingJob(service.poll_email_connectors).run()

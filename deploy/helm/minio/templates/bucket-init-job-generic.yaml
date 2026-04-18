@@ -1,0 +1,54 @@
+{{- if not .Values.minio.enabled }}
+{{- $name := include "musematic.minio.fullname" . -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ $name }}-bucket-init
+  namespace: {{ include "musematic.minio.namespace" . }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "10"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  template:
+    metadata:
+      labels:
+        job: {{ $name }}-bucket-init
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: aws
+          image: amazon/aws-cli:2.17.57
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              endpoint_args=""
+              if [ -n "${S3_ENDPOINT_URL:-}" ]; then
+                endpoint_args="--endpoint-url ${S3_ENDPOINT_URL}"
+              fi
+              for bucket in agent-packages execution-artifacts reasoning-traces sandbox-outputs evidence-bundles simulation-artifacts backups forensic-exports; do
+                aws s3 mb "s3://${S3_BUCKET_PREFIX}-${bucket}" ${endpoint_args} || true
+              done
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: minio-platform-credentials
+                  key: S3_ACCESS_KEY
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: minio-platform-credentials
+                  key: S3_SECRET_KEY
+            - name: AWS_DEFAULT_REGION
+              value: {{ .Values.s3.region | quote }}
+            - name: S3_ENDPOINT_URL
+              valueFrom:
+                secretKeyRef:
+                  name: minio-platform-credentials
+                  key: S3_ENDPOINT_URL
+            - name: S3_BUCKET_PREFIX
+              value: {{ .Values.s3.bucketPrefix | quote }}
+{{- end }}

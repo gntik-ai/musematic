@@ -89,7 +89,7 @@ async def _generate_suite_background(
             session=session,
             settings=settings,
             producer=cast(EventProducer | None, app.state.clients.get("kafka")),
-            object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+            object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
             registry_service=None,
         )
         try:

@@ -44,6 +44,7 @@ def test_build_clients_returns_expected_keys() -> None:
         "qdrant",
         "runtime_controller",
         "simulation_controller",
+        "object_storage",
     }
 
 
@@ -92,7 +93,7 @@ def _fake_clients() -> dict[str, FakeClient]:
         "neo4j": FakeClient(),
         "clickhouse": FakeClient(),
         "opensearch": FakeClient(),
-        "minio": FakeClient(),
+        "object_storage": FakeClient(),
         "runtime_controller": FakeClient(),
         "reasoning_engine": FakeClient(),
         "sandbox_manager": FakeClient(),

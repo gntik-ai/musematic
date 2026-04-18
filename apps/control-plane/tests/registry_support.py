@@ -359,7 +359,12 @@ class ExecuteResultStub:
         return self.one
 
     def scalars(self) -> SimpleNamespace:
-        return SimpleNamespace(all=lambda: list(self.many))
+        values = list(self.many)
+        first_value = values[0] if values else self.one
+        return SimpleNamespace(
+            all=lambda: values,
+            first=lambda: first_value,
+        )
 
 
 @dataclass
@@ -653,7 +658,9 @@ class RegistryRepoStub:
         immutable_fields = [
             key
             for key in ("decommissioned_at", "decommission_reason", "decommissioned_by")
-            if key in fields and getattr(profile, key) is not None and fields[key] != getattr(profile, key)
+            if key in fields
+            and getattr(profile, key) is not None
+            and fields[key] != getattr(profile, key)
         ]
         if immutable_fields:
             raise DecommissionImmutableError(immutable_fields)

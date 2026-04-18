@@ -974,7 +974,7 @@ def build_trust_app(
     app.state.clients = {
         "redis": resolved_bundle.redis,
         "kafka": resolved_bundle.producer,
-        "minio": resolved_bundle.object_storage,
+        "object_storage": resolved_bundle.object_storage,
         "runtime_controller": resolved_bundle.runtime_controller,
         "simulation_controller": resolved_bundle.simulation_controller,
     }

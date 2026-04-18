@@ -14,8 +14,12 @@ type Config struct {
 	PostgresDSN               string
 	RedisAddr                 string
 	KafkaBrokers              []string
-	MinIOEndpoint             string
-	MinIOBucket               string
+	S3EndpointURL             string
+	S3Bucket                  string
+	S3AccessKey               string
+	S3SecretKey               string
+	S3Region                  string
+	S3UsePathStyle            bool
 	K8sNamespace              string
 	ReconcileInterval         time.Duration
 	HeartbeatTimeout          time.Duration
@@ -36,8 +40,12 @@ func Load() (Config, error) {
 		PostgresDSN:               strings.TrimSpace(os.Getenv("POSTGRES_DSN")),
 		RedisAddr:                 strings.TrimSpace(os.Getenv("REDIS_ADDR")),
 		KafkaBrokers:              readList("KAFKA_BROKERS", "localhost:9092"),
-		MinIOEndpoint:             readString("MINIO_ENDPOINT", "http://musematic-minio.platform-data:9000"),
-		MinIOBucket:               readString("MINIO_BUCKET", "musematic-artifacts"),
+		S3EndpointURL:             readString("S3_ENDPOINT_URL", readString("MINIO_ENDPOINT", "http://musematic-minio.platform-data:9000")),
+		S3Bucket:                  readString("S3_BUCKET", readString("MINIO_BUCKET", "musematic-artifacts")),
+		S3AccessKey:               readString("S3_ACCESS_KEY", readString("MINIO_ACCESS_KEY", "")),
+		S3SecretKey:               readString("S3_SECRET_KEY", readString("MINIO_SECRET_KEY", "")),
+		S3Region:                  readString("S3_REGION", "us-east-1"),
+		S3UsePathStyle:            readBool("S3_USE_PATH_STYLE", true),
 		K8sNamespace:              readString("K8S_NAMESPACE", "platform-execution"),
 		ReconcileInterval:         readDuration("RECONCILE_INTERVAL", 30*time.Second),
 		HeartbeatTimeout:          readDuration("HEARTBEAT_TIMEOUT", 60*time.Second),

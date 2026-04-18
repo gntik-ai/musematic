@@ -45,7 +45,7 @@ async def test_get_context_engineering_service_reads_state_and_optional_services
                 settings=PlatformSettings(),
                 clients={
                     "clickhouse": ClickHouseClientStub(),
-                    "minio": ObjectStorageStub(),
+                    "object_storage": ObjectStorageStub(),
                     "kafka": None,
                     "opensearch": AsyncOpenSearchStub(),
                     "qdrant": AsyncQdrantStub(),

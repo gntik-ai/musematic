@@ -542,7 +542,7 @@ async def test_evaluation_dependency_builders_and_getters(monkeypatch: pytest.Mo
             "kafka": None,
             "qdrant": SimpleNamespace(),
             "redis": SimpleNamespace(),
-            "minio": ObjectStorageStub(),
+            "object_storage": ObjectStorageStub(),
             "runtime_controller": None,
             "reasoning_engine": None,
             "simulation_controller": None,
@@ -639,7 +639,7 @@ async def test_evaluation_router_helpers_and_background_jobs_cover_remaining_bra
     app.state.clients = {
         "kafka": None,
         "redis": SimpleNamespace(),
-        "minio": ObjectStorageStub(),
+        "object_storage": ObjectStorageStub(),
         "runtime_controller": RuntimeControllerStub(),
         "reasoning_engine": SimpleNamespace(),
         "simulation_controller": SimulationControllerStub(),

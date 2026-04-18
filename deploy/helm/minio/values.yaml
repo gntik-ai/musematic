@@ -1,3 +1,13 @@
+minio:
+  enabled: true
+
+s3:
+  endpointUrl: ""
+  accessKey: ""
+  secretKey: ""
+  region: us-east-1
+  bucketPrefix: platform
+
 clusterName: musematic-minio
 namespace: platform-data
 standalone: false

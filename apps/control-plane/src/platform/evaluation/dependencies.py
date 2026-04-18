@@ -45,7 +45,7 @@ def _get_reasoning_engine(request: Request) -> ReasoningEngineClient | None:
 
 
 def _get_object_storage(request: Request) -> AsyncObjectStorageClient:
-    return cast(AsyncObjectStorageClient, request.app.state.clients["minio"])
+    return cast(AsyncObjectStorageClient, request.app.state.clients["object_storage"])
 
 
 def build_scorer_registry(

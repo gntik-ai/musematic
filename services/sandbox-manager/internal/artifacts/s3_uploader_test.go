@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestMinIOUploaderUpload(t *testing.T) {
+func TestS3UploaderUpload(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -33,13 +33,13 @@ func TestMinIOUploaderUpload(t *testing.T) {
 	}))
 	defer server.Close()
 
-	uploader := NewMinIOUploader(server.URL, "musematic-artifacts")
+	uploader := NewS3Uploader(server.URL, "musematic-artifacts")
 	if err := uploader.Upload(context.Background(), "sandbox-artifacts/exec-1/sandbox-1/result.txt", bytes.NewBufferString("ok"), "text/plain"); err != nil {
 		t.Fatalf("Upload() error = %v", err)
 	}
 }
 
-func TestMinIOUploaderReturnsServerErrors(t *testing.T) {
+func TestS3UploaderReturnsServerErrors(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -47,7 +47,7 @@ func TestMinIOUploaderReturnsServerErrors(t *testing.T) {
 	}))
 	defer server.Close()
 
-	uploader := NewMinIOUploader(server.URL, "musematic-artifacts")
+	uploader := NewS3Uploader(server.URL, "musematic-artifacts")
 	if err := uploader.Upload(context.Background(), "sandbox-artifacts/result.txt", bytes.NewBufferString("ok"), "text/plain"); err == nil {
 		t.Fatal("expected upload error")
 	}
@@ -67,16 +67,16 @@ func (fn roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error)
 	return fn(request)
 }
 
-func TestMinIOUploaderHelpersAndErrors(t *testing.T) {
+func TestS3UploaderHelpersAndErrors(t *testing.T) {
 	t.Parallel()
 
-	if NewMinIOUploader("", "bucket") != nil {
+	if NewS3Uploader("", "bucket") != nil {
 		t.Fatal("expected empty endpoint to return nil uploader")
 	}
-	if NewMinIOUploader("http://minio:9000", "") != nil {
+	if NewS3Uploader("http://minio:9000", "") != nil {
 		t.Fatal("expected empty bucket to return nil uploader")
 	}
-	if err := (*MinIOUploader)(nil).Upload(context.Background(), "key", bytes.NewBufferString("ok"), "text/plain"); err != nil {
+	if err := (*S3Uploader)(nil).Upload(context.Background(), "key", bytes.NewBufferString("ok"), "text/plain"); err != nil {
 		t.Fatalf("nil Upload() error = %v", err)
 	}
 
@@ -88,13 +88,13 @@ func TestMinIOUploaderHelpersAndErrors(t *testing.T) {
 	}))
 	defer server.Close()
 
-	uploader := NewMinIOUploader(server.URL, "musematic-artifacts")
+	uploader := NewS3Uploader(server.URL, "musematic-artifacts")
 	if err := uploader.Upload(context.Background(), "sandbox-artifacts/result.txt", bytes.NewBufferString("ok"), ""); err != nil {
 		t.Fatalf("Upload() default content type error = %v", err)
 	}
 
 	expectedErr := errors.New("transport boom")
-	uploader = &MinIOUploader{
+	uploader = &S3Uploader{
 		bucket:   "musematic-artifacts",
 		endpoint: server.URL,
 		client: &http.Client{

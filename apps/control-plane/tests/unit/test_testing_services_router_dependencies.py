@@ -390,7 +390,7 @@ async def test_testing_dependency_builders_and_getters(monkeypatch: pytest.Monke
     request = make_request(
         clients={
             "kafka": None,
-            "minio": ObjectStorageStub(),
+            "object_storage": ObjectStorageStub(),
             "clickhouse": ClickHouseStub(),
             "redis": SimpleNamespace(),
             "runtime_controller": None,
@@ -711,7 +711,7 @@ async def test_adversarial_helpers_and_suite_background_cover_remaining_branches
 
     app = FastAPI()
     app.state.settings = make_settings()
-    app.state.clients = {"kafka": None, "minio": ObjectStorageStub()}
+    app.state.clients = {"kafka": None, "object_storage": ObjectStorageStub()}
 
     success_session = SessionStub()
     monkeypatch.setattr(

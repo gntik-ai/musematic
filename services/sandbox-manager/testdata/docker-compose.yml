@@ -1,3 +1,13 @@
+version: "3.9"
+
+x-platform-s3-env: &platform-s3-env
+  S3_ENDPOINT_URL: http://minio:9000
+  S3_ACCESS_KEY: minioadmin
+  S3_SECRET_KEY: minioadmin123
+  S3_REGION: us-east-1
+  S3_BUCKET_PREFIX: platform
+  S3_USE_PATH_STYLE: "true"
+
 services:
   postgres:
     image: postgres:16
@@ -22,3 +32,18 @@ services:
       ALLOW_PLAINTEXT_LISTENER: "yes"
     ports:
       - "9092:9092"
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 20

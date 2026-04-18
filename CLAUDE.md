@@ -119,9 +119,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 056-ibor-integration-and: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
 - 056-ibor-integration-and: Added Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, Alembic, aiokafka 0.11+ (events), redis-py 5.x async (sync-lock), APScheduler 3.x (periodic sync), `ldap3` 2.9+ (LDAP adapter — NEW dependency), httpx 0.27+ (OIDC/SCIM adapters), pytest + pytest-asyncio 8.x
 - 055-runtime-warm-pool: Added Go 1.22+ (runtime-controller satellite), Python 3.12+ (control plane) + `prometheus/promauto` (Go metrics), `google.golang.org/grpc 1.67+` (gRPC), `pgx/v5` (Go PostgreSQL), FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, grpcio 1.65+, pytest + pytest-asyncio 8.x
-- 054-safety-prescreener-sanitization: Added Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, aiokafka 0.11+, opentelemetry-sdk 1.27+, PyYAML 6.x (already present), pytest + pytest-asyncio 8.x
 
 
 <!-- MANUAL ADDITIONS START -->

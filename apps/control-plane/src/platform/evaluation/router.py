@@ -114,7 +114,7 @@ def _build_execution_query(app: FastAPI, session: Any) -> Any:
         settings=cast(PlatformSettings, app.state.settings),
         producer=cast(EventProducer | None, app.state.clients.get("kafka")),
         redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-        object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+        object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
         runtime_controller=cast(
             RuntimeControllerClient | None,
             app.state.clients.get("runtime_controller"),
@@ -176,7 +176,7 @@ async def _run_ate_background(app: FastAPI, ate_run_id: UUID) -> None:
             session=session,
             settings=cast(PlatformSettings, app.state.settings),
             producer=cast(EventProducer | None, app.state.clients.get("kafka")),
-            object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+            object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
             simulation_controller=cast(
                 Any,
                 app.state.clients.get("simulation_controller"),
