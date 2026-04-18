@@ -21,23 +21,49 @@ type Replenisher struct {
 	Logger   *slog.Logger
 	Store    interface {
 		InsertWarmPoolPod(context.Context, state.WarmPoolPod) error
+		ListWarmPoolTargets(context.Context) ([]state.WarmPoolTarget, error)
 	}
-	Manager   *Manager
-	Pods      PodCreator
-	Namespace string
+	Manager          *Manager
+	Pods             PodCreator
+	Namespace        string
+	BootstrapTargets map[string]int
 }
 
 func (r *Replenisher) Run(ctx context.Context, targets map[string]int) error {
+	if len(targets) > 0 {
+		r.BootstrapTargets = targets
+	}
 	ticker := time.NewTicker(r.Interval)
 	defer ticker.Stop()
 	for {
-		r.ReconcileOnce(ctx, targets)
+		r.ReconcileOnce(ctx, r.currentTargets(ctx))
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
 		}
 	}
+}
+
+func (r *Replenisher) currentTargets(ctx context.Context) map[string]int {
+	resolved := map[string]int{}
+	for key, value := range r.BootstrapTargets {
+		resolved[key] = value
+	}
+	if r.Store == nil {
+		return resolved
+	}
+	targets, err := r.Store.ListWarmPoolTargets(ctx)
+	if err != nil {
+		if r.Logger != nil {
+			r.Logger.Error("list warm pool targets", "error", err)
+		}
+		return resolved
+	}
+	for _, target := range targets {
+		resolved[key(target.WorkspaceID, target.AgentType)] = target.TargetSize
+	}
+	return resolved
 }
 
 func (r *Replenisher) ReconcileOnce(ctx context.Context, targets map[string]int) {

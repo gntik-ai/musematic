@@ -32,6 +32,18 @@ class PolicyViolationError(PlatformError):
     status_code = 403
 
 
+class PolicySecretLeakError(PlatformError):
+    status_code = 403
+
+    def __init__(self, secret_type: str) -> None:
+        super().__init__(
+            "PROMPT_SECRET_DETECTED",
+            f"Prompt preflight blocked secret pattern: {secret_type}",
+            {"secret_type": secret_type},
+        )
+        self.secret_type = secret_type
+
+
 class BudgetExceededError(PlatformError):
     status_code = 429
 

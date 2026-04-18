@@ -62,7 +62,12 @@ func (f secretResolverFunc) Resolve(ctx context.Context, refs []string) ([]v1.Vo
 	return f(ctx, refs)
 }
 
-func (l *Launcher) Launch(ctx context.Context, contract *runtimev1.RuntimeContract) (*runtimev1.RuntimeInfo, bool, error) {
+func (l *Launcher) Launch(ctx context.Context, contract *runtimev1.RuntimeContract, preferWarmOverride ...bool) (*runtimev1.RuntimeInfo, bool, error) {
+	preferWarm := true
+	if len(preferWarmOverride) > 0 {
+		preferWarm = preferWarmOverride[0]
+	}
+
 	if contract == nil || contract.CorrelationContext == nil || contract.CorrelationContext.ExecutionId == "" || contract.CorrelationContext.WorkspaceId == "" {
 		return nil, false, ErrInvalidContract
 	}
@@ -101,10 +106,8 @@ func (l *Launcher) Launch(ctx context.Context, contract *runtimev1.RuntimeContra
 		}
 	}
 
-	if l.WarmPool != nil {
-		if podName, ok, err := l.WarmPool.Dispatch(ctx, contract.CorrelationContext.WorkspaceId, contract.AgentRevision, runtimeID); err != nil {
-			return nil, false, err
-		} else if ok {
+	if preferWarm && l.WarmPool != nil {
+		if podName, ok, err := l.WarmPool.Dispatch(ctx, contract.CorrelationContext.WorkspaceId, contract.AgentRevision, runtimeID); err == nil && ok {
 			if err := l.Pods.PrepareWarmPod(ctx, podName, contract); err != nil {
 				return nil, false, err
 			}

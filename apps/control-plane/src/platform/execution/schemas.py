@@ -180,3 +180,34 @@ class HotChangeApplyResponse(BaseModel):
     """Represent the hot change apply response payload."""
     result: HotChangeCompatibilityResult
     execution: ExecutionResponse
+
+
+class WarmPoolKeyStatus(BaseModel):
+    """Represent the warm pool key status payload."""
+    workspace_id: UUID
+    agent_type: str
+    target_size: int
+    available_count: int
+    dispatched_count: int
+    warming_count: int
+    last_dispatch_at: datetime | None = None
+
+
+class WarmPoolStatusResponse(BaseModel):
+    """Represent the warm pool status response payload."""
+    keys: list[WarmPoolKeyStatus] = Field(default_factory=list)
+
+
+class WarmPoolConfigRequest(BaseModel):
+    """Represent the warm pool config request payload."""
+    model_config = ConfigDict(extra="forbid")
+
+    workspace_id: UUID
+    agent_type: str = Field(min_length=1, max_length=255)
+    target_size: int = Field(ge=0)
+
+
+class WarmPoolConfigResponse(BaseModel):
+    """Represent the warm pool config response payload."""
+    accepted: bool
+    message: str = ""

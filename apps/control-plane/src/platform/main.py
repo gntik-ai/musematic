@@ -73,6 +73,7 @@ from platform.execution.events import (
 )
 from platform.execution.models import ExecutionEventType, ExecutionStatus
 from platform.execution.router import router as execution_router
+from platform.execution.router import runtime_router as execution_runtime_router
 from platform.execution.schemas import ExecutionCreate
 from platform.fleet_learning.dependencies import build_adaptation_service, build_performance_service
 from platform.fleet_learning.router import router as fleet_learning_router
@@ -737,6 +738,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(testing_router)
         app.include_router(workflows_router)
         app.include_router(execution_router)
+        app.include_router(execution_runtime_router)
         app.include_router(trust_router, prefix="/api/v1/trust")
         app.include_router(fleets_router)
         app.include_router(fleet_learning_router)

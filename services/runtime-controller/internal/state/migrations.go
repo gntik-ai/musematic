@@ -48,6 +48,16 @@ CREATE TABLE IF NOT EXISTS warm_pool_pods (
 )`,
 	`CREATE INDEX IF NOT EXISTS idx_warm_pool_ready ON warm_pool_pods (workspace_id, agent_type, status)`,
 	`
+CREATE TABLE IF NOT EXISTS runtime_warm_pool_targets (
+    id UUID PRIMARY KEY,
+    workspace_id TEXT NOT NULL,
+    agent_type TEXT NOT NULL,
+    target_size INTEGER NOT NULL DEFAULT 0,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_runtime_warm_pool_target_key UNIQUE (workspace_id, agent_type)
+)`,
+	`CREATE INDEX IF NOT EXISTS idx_runtime_warm_pool_targets_lookup ON runtime_warm_pool_targets (workspace_id, agent_type)`,
+	`
 CREATE TABLE IF NOT EXISTS task_plan_records (
     record_id UUID PRIMARY KEY,
     execution_id TEXT NOT NULL,

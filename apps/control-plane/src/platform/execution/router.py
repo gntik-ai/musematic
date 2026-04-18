@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from datetime import datetime
+from platform.auth.router import _require_platform_admin
+from platform.common.clients.runtime_controller import RuntimeControllerClient
 from platform.common.dependencies import get_current_user
-from platform.execution.dependencies import get_execution_service
+from platform.execution.dependencies import get_execution_service, get_runtime_controller_client
 from platform.execution.models import ExecutionEventType, ExecutionStatus
 from platform.execution.schemas import (
     ApprovalDecisionRequest,
@@ -17,6 +19,9 @@ from platform.execution.schemas import (
     HotChangeRequest,
     TaskPlanFullResponse,
     TaskPlanRecordResponse,
+    WarmPoolConfigRequest,
+    WarmPoolConfigResponse,
+    WarmPoolStatusResponse,
 )
 from platform.execution.service import ExecutionService
 from platform.workflows.models import TriggerType
@@ -26,6 +31,7 @@ from uuid import UUID
 from fastapi import APIRouter, Body, Depends, Query, Response, status
 
 router = APIRouter(prefix="/api/v1/executions", tags=["execution"])
+runtime_router = APIRouter(prefix="/api/v1/runtime", tags=["execution"])
 
 
 def _actor_id(current_user: dict[str, Any]) -> UUID:
@@ -254,3 +260,33 @@ async def trigger_compensation(
         triggered_by=str(_actor_id(current_user)),
     )
     return Response(status_code=status.HTTP_202_ACCEPTED)
+
+
+@runtime_router.get("/warm-pool/status", response_model=WarmPoolStatusResponse)
+async def warm_pool_status(
+    workspace_id: str = Query(default=""),
+    agent_type: str = Query(default=""),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    runtime_controller: RuntimeControllerClient = Depends(get_runtime_controller_client),
+) -> WarmPoolStatusResponse:
+    _require_platform_admin(current_user)
+    result = await runtime_controller.warm_pool_status(
+        workspace_id=workspace_id,
+        agent_type=agent_type,
+    )
+    return WarmPoolStatusResponse(**result)
+
+
+@runtime_router.put("/warm-pool/config", response_model=WarmPoolConfigResponse)
+async def warm_pool_config(
+    payload: WarmPoolConfigRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    runtime_controller: RuntimeControllerClient = Depends(get_runtime_controller_client),
+) -> WarmPoolConfigResponse:
+    _require_platform_admin(current_user)
+    result = await runtime_controller.warm_pool_config(
+        str(payload.workspace_id),
+        payload.agent_type,
+        payload.target_size,
+    )
+    return WarmPoolConfigResponse(**result)

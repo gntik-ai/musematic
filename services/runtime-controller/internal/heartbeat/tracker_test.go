@@ -68,3 +68,12 @@ func TestHeartbeatKey(t *testing.T) {
 		t.Fatalf("unexpected heartbeat key: %s", got)
 	}
 }
+
+func TestReceiveHeartbeatPropagatesStoreError(t *testing.T) {
+	store := &fakeHeartbeatStore{err: errors.New("store down")}
+	tracker := &HeartbeatTracker{Redis: &fakeRedisSetter{}, Store: store, Timeout: time.Minute}
+
+	if err := tracker.ReceiveHeartbeat(context.Background(), "exec-1"); err == nil {
+		t.Fatalf("expected store error")
+	}
+}

@@ -144,6 +144,83 @@ FROM warm_pool_pods WHERE status=$1`, status)
 	return pods, rows.Err()
 }
 
+func (s *Store) EnsureWarmPoolTarget(ctx context.Context, workspaceID string, agentType string, targetSize int) error {
+	_, err := s.pool.Exec(ctx, `
+INSERT INTO runtime_warm_pool_targets (id, workspace_id, agent_type, target_size, updated_at)
+VALUES ($1,$2,$3,$4,NOW())
+ON CONFLICT (workspace_id, agent_type) DO NOTHING`, uuid.New(), workspaceID, agentType, targetSize)
+	return err
+}
+
+func (s *Store) UpsertWarmPoolTarget(ctx context.Context, workspaceID string, agentType string, targetSize int) error {
+	_, err := s.pool.Exec(ctx, `
+INSERT INTO runtime_warm_pool_targets (id, workspace_id, agent_type, target_size, updated_at)
+VALUES ($1,$2,$3,$4,NOW())
+ON CONFLICT (workspace_id, agent_type) DO UPDATE
+SET target_size = EXCLUDED.target_size,
+    updated_at = NOW()`, uuid.New(), workspaceID, agentType, targetSize)
+	return err
+}
+
+func (s *Store) ListWarmPoolTargets(ctx context.Context) ([]WarmPoolTarget, error) {
+	rows, err := s.pool.Query(ctx, `
+SELECT id, workspace_id, agent_type, target_size, updated_at
+FROM runtime_warm_pool_targets
+ORDER BY workspace_id ASC, agent_type ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var targets []WarmPoolTarget
+	for rows.Next() {
+		var target WarmPoolTarget
+		if err := rows.Scan(&target.ID, &target.WorkspaceID, &target.AgentType, &target.TargetSize, &target.UpdatedAt); err != nil {
+			return nil, err
+		}
+		targets = append(targets, target)
+	}
+	return targets, rows.Err()
+}
+
+func (s *Store) ListWarmPoolStatus(ctx context.Context, workspaceID string, agentType string) ([]WarmPoolStatusRecord, error) {
+	rows, err := s.pool.Query(ctx, `
+SELECT t.workspace_id,
+       t.agent_type,
+       t.target_size,
+       COUNT(*) FILTER (WHERE p.status = 'ready')::INT AS available_count,
+       COUNT(*) FILTER (WHERE p.status = 'dispatched')::INT AS dispatched_count,
+       COUNT(*) FILTER (WHERE p.status = 'warming')::INT AS warming_count,
+       MAX(p.dispatched_at) AS last_dispatch_at
+FROM runtime_warm_pool_targets AS t
+LEFT JOIN warm_pool_pods AS p
+  ON p.workspace_id = t.workspace_id AND p.agent_type = t.agent_type
+WHERE ($1 = '' OR t.workspace_id = $1)
+  AND ($2 = '' OR t.agent_type = $2)
+GROUP BY t.workspace_id, t.agent_type, t.target_size
+ORDER BY t.workspace_id ASC, t.agent_type ASC`, workspaceID, agentType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var records []WarmPoolStatusRecord
+	for rows.Next() {
+		var record WarmPoolStatusRecord
+		if err := rows.Scan(
+			&record.WorkspaceID,
+			&record.AgentType,
+			&record.TargetSize,
+			&record.AvailableCount,
+			&record.DispatchedCount,
+			&record.WarmingCount,
+			&record.LastDispatchAt,
+		); err != nil {
+			return nil, err
+		}
+		records = append(records, record)
+	}
+	return records, rows.Err()
+}
+
 func (s *Store) InsertTaskPlanRecord(ctx context.Context, record TaskPlanRecord) error {
 	if record.RecordID == uuid.Nil {
 		record.RecordID = uuid.New()

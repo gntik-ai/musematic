@@ -1,0 +1,2 @@
+# False positive: synthetic JWT fixture introduced in an earlier PR commit
+263dfa3357543a80d1327f43fb6c114f945d1ca7:apps/control-plane/tests/unit/policies/test_sanitize_output_endpoint.py:jwt:105
