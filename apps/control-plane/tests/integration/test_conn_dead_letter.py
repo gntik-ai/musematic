@@ -43,9 +43,9 @@ async def test_connector_dead_letter_management_end_to_end(
         database_url=migrated_database_url,
         redis_url=redis_client._url or "redis://localhost:6379",
         vault_file=vault_file,
-        minio_endpoint=object_storage_settings.MINIO_ENDPOINT,
-        minio_access_key=object_storage_settings.MINIO_ACCESS_KEY,
-        minio_secret_key=object_storage_settings.MINIO_SECRET_KEY,
+        minio_endpoint=object_storage_settings.S3_ENDPOINT_URL,
+        minio_access_key=object_storage_settings.S3_ACCESS_KEY,
+        minio_secret_key=object_storage_settings.S3_SECRET_KEY,
     )
     async with session_factory() as session:
         await seed_connector_types(session)

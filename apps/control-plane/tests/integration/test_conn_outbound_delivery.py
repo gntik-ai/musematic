@@ -122,7 +122,7 @@ async def test_connector_outbound_delivery_retries_and_dead_letters(
                 settings=settings,
                 producer=producer,
                 redis_client=redis_client,
-                object_storage=app.state.clients["minio"],
+                object_storage=app.state.clients["object_storage"],
             )
             response = await service.execute_delivery(UUID(delivery_id))
             await session.commit()

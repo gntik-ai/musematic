@@ -50,9 +50,10 @@ def test_get_valid_transitions_matches_transition_map(status: LifecycleStatus) -
     assert get_valid_transitions(status) == VALID_REGISTRY_TRANSITIONS[status]
 
 
-def test_archived_has_no_valid_transitions_and_event_transitions_are_expected() -> None:
-    assert get_valid_transitions(LifecycleStatus.archived) == set()
+def test_archived_can_decommission_and_event_transitions_are_expected() -> None:
+    assert get_valid_transitions(LifecycleStatus.archived) == {LifecycleStatus.decommissioned}
     assert EVENT_TRANSITIONS == {
         LifecycleStatus.published,
         LifecycleStatus.deprecated,
+        LifecycleStatus.decommissioned,
     }

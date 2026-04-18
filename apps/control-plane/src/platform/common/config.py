@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import Field, model_validator
+from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -82,14 +82,26 @@ class OpenSearchSettings(BaseSettings):
     timeout: int = 30
 
 
-class MinIOSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="MINIO_", extra="ignore")
+class ObjectStorageSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="S3_", extra="ignore", populate_by_name=True)
 
-    endpoint: str = "http://localhost:9000"
-    access_key: str = "minioadmin"
-    secret_key: str = "minioadmin"
-    default_bucket: str = "platform-artifacts"
-    use_ssl: bool = False
+    endpoint_url: str = Field(
+        default="", validation_alias=AliasChoices("S3_ENDPOINT_URL", "MINIO_ENDPOINT")
+    )
+    access_key: str = Field(
+        default="minioadmin",
+        validation_alias=AliasChoices("S3_ACCESS_KEY", "MINIO_ACCESS_KEY"),
+    )
+    secret_key: str = Field(
+        default="minioadmin",
+        validation_alias=AliasChoices("S3_SECRET_KEY", "MINIO_SECRET_KEY"),
+    )
+    region: str = Field(default="us-east-1", validation_alias="S3_REGION")
+    bucket_prefix: str = Field(default="platform", validation_alias="S3_BUCKET_PREFIX")
+    use_path_style: bool = Field(
+        default=True, validation_alias="S3_USE_PATH_STYLE"
+    )
+    provider: str = Field(default="generic", validation_alias="S3_PROVIDER")
 
 
 class GRPCSettings(BaseSettings):
@@ -245,11 +257,22 @@ class InteractionsSettings(BaseSettings):
 
 
 class ConnectorsSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="CONNECTOR_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="CONNECTOR_",
+        extra="ignore",
+        populate_by_name=True,
+    )
 
     ingress_topic: str = "connector.ingress"
     delivery_topic: str = "connector.delivery"
-    dead_letter_bucket: str = "connector-dead-letters"
+    dead_letter_bucket: str = Field(
+        default="connector-dead-letters",
+        validation_alias=AliasChoices(
+            "CONNECTOR_DEAD_LETTER_BUCKET",
+            "S3_BUCKET_DEAD_LETTERS",
+            "MINIO_BUCKET_DEAD_LETTERS",
+        ),
+    )
     delivery_consumer_group: str = "connector-delivery-worker"
     retry_scan_interval_seconds: int = 30
     route_cache_ttl_seconds: int = 60
@@ -337,7 +360,7 @@ class PlatformSettings(BaseSettings):
     neo4j: Neo4jSettings = Field(default_factory=Neo4jSettings)
     clickhouse: ClickHouseSettings = Field(default_factory=ClickHouseSettings)
     opensearch: OpenSearchSettings = Field(default_factory=OpenSearchSettings)
-    minio: MinIOSettings = Field(default_factory=MinIOSettings)
+    s3: ObjectStorageSettings = Field(default_factory=ObjectStorageSettings)
     grpc: GRPCSettings = Field(default_factory=GRPCSettings)
     auth: AuthSettings = Field(default_factory=AuthSettings)
     otel: OTelSettings = Field(default_factory=OTelSettings)
@@ -405,11 +428,16 @@ class PlatformSettings(BaseSettings):
             "OPENSEARCH_VERIFY_CERTS": ("opensearch", "verify_certs"),
             "OPENSEARCH_CA_CERTS": ("opensearch", "ca_certs"),
             "OPENSEARCH_TIMEOUT": ("opensearch", "timeout"),
-            "MINIO_ENDPOINT": ("minio", "endpoint"),
-            "MINIO_ACCESS_KEY": ("minio", "access_key"),
-            "MINIO_SECRET_KEY": ("minio", "secret_key"),
-            "MINIO_DEFAULT_BUCKET": ("minio", "default_bucket"),
-            "MINIO_USE_SSL": ("minio", "use_ssl"),
+            "S3_ENDPOINT_URL": ("s3", "endpoint_url"),
+            "S3_ACCESS_KEY": ("s3", "access_key"),
+            "S3_SECRET_KEY": ("s3", "secret_key"),
+            "S3_REGION": ("s3", "region"),
+            "S3_BUCKET_PREFIX": ("s3", "bucket_prefix"),
+            "S3_USE_PATH_STYLE": ("s3", "use_path_style"),
+            "S3_PROVIDER": ("s3", "provider"),
+            "MINIO_ENDPOINT": ("s3", "endpoint_url"),
+            "MINIO_ACCESS_KEY": ("s3", "access_key"),
+            "MINIO_SECRET_KEY": ("s3", "secret_key"),
             "GRPC_RUNTIME_CONTROLLER": ("grpc", "runtime_controller"),
             "GRPC_REASONING_ENGINE": ("grpc", "reasoning_engine"),
             "GRPC_SANDBOX_MANAGER": ("grpc", "sandbox_manager"),
@@ -526,6 +554,7 @@ class PlatformSettings(BaseSettings):
             "INTERACTIONS_DEFAULT_PAGE_SIZE": ("interactions", "default_page_size"),
             "CONNECTOR_INGRESS_TOPIC": ("connectors", "ingress_topic"),
             "CONNECTOR_DELIVERY_TOPIC": ("connectors", "delivery_topic"),
+            "S3_BUCKET_DEAD_LETTERS": ("connectors", "dead_letter_bucket"),
             "MINIO_BUCKET_DEAD_LETTERS": ("connectors", "dead_letter_bucket"),
             "CONNECTOR_DELIVERY_CONSUMER_GROUP": (
                 "connectors",
@@ -822,24 +851,32 @@ class PlatformSettings(BaseSettings):
         return self.opensearch.timeout
 
     @property
-    def MINIO_ENDPOINT(self) -> str:
-        return self.minio.endpoint
+    def S3_ENDPOINT_URL(self) -> str:
+        return self.s3.endpoint_url
 
     @property
-    def MINIO_ACCESS_KEY(self) -> str:
-        return self.minio.access_key
+    def S3_ACCESS_KEY(self) -> str:
+        return self.s3.access_key
 
     @property
-    def MINIO_SECRET_KEY(self) -> str:
-        return self.minio.secret_key
+    def S3_SECRET_KEY(self) -> str:
+        return self.s3.secret_key
 
     @property
-    def MINIO_DEFAULT_BUCKET(self) -> str:
-        return self.minio.default_bucket
+    def S3_REGION(self) -> str:
+        return self.s3.region
 
     @property
-    def MINIO_USE_SSL(self) -> bool:
-        return self.minio.use_ssl
+    def S3_BUCKET_PREFIX(self) -> str:
+        return self.s3.bucket_prefix
+
+    @property
+    def S3_USE_PATH_STYLE(self) -> bool:
+        return self.s3.use_path_style
+
+    @property
+    def S3_PROVIDER(self) -> str:
+        return self.s3.provider
 
     @property
     def GRPC_RUNTIME_CONTROLLER(self) -> str:
@@ -1094,7 +1131,7 @@ class PlatformSettings(BaseSettings):
         return self.connectors.delivery_topic
 
     @property
-    def MINIO_BUCKET_DEAD_LETTERS(self) -> str:
+    def S3_BUCKET_DEAD_LETTERS(self) -> str:
         return self.connectors.dead_letter_bucket
 
     @property

@@ -43,3 +43,34 @@ def test_platform_settings_accepts_flat_instantiation() -> None:
     assert settings.clickhouse.host == "clickhouse"
     assert settings.clickhouse.port == 8124
     assert settings.profile == "worker"
+
+
+def test_platform_settings_s3_aliases_and_precedence(monkeypatch) -> None:
+    monkeypatch.setenv("MINIO_ENDPOINT", "http://legacy-minio:9000")
+    monkeypatch.setenv("MINIO_ACCESS_KEY", "legacy-access")
+    monkeypatch.setenv("MINIO_SECRET_KEY", "legacy-secret")
+
+    legacy = PlatformSettings()
+
+    monkeypatch.setenv("S3_ENDPOINT_URL", "https://new-endpoint.example.com")
+    monkeypatch.setenv("S3_ACCESS_KEY", "new-access")
+    monkeypatch.setenv("S3_SECRET_KEY", "new-secret")
+    monkeypatch.setenv("S3_REGION", "eu-central-1")
+    monkeypatch.setenv("S3_BUCKET_PREFIX", "custom")
+    monkeypatch.setenv("S3_USE_PATH_STYLE", "false")
+    monkeypatch.setenv("S3_PROVIDER", "hetzner")
+
+    settings = PlatformSettings()
+
+    assert legacy.s3.endpoint_url == "http://legacy-minio:9000"
+    assert legacy.s3.access_key == "legacy-access"
+    assert legacy.s3.secret_key == "legacy-secret"
+    assert settings.s3.endpoint_url == "https://new-endpoint.example.com"
+    assert settings.s3.access_key == "new-access"
+    assert settings.s3.secret_key == "new-secret"
+    assert settings.s3.region == "eu-central-1"
+    assert settings.s3.bucket_prefix == "custom"
+    assert settings.s3.use_path_style is False
+    assert settings.s3.provider == "hetzner"
+    assert settings.S3_ENDPOINT_URL == "https://new-endpoint.example.com"
+    assert settings.S3_BUCKET_DEAD_LETTERS == settings.connectors.dead_letter_bucket

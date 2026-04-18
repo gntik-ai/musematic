@@ -118,3 +118,14 @@ class RevisionConflictError(RegistryError):
             "Agent revision already exists",
             {"version": version},
         )
+
+
+class DecommissionImmutableError(RegistryError):
+    status_code = 409
+
+    def __init__(self, field_names: list[str]) -> None:
+        super().__init__(
+            "REGISTRY_DECOMMISSION_IMMUTABLE",
+            "Decommission metadata is immutable once set",
+            {"fields": field_names},
+        )

@@ -28,4 +28,3 @@ def needs_rehash(hashed: str) -> bool:
         return bool(_PASSWORD_HASHER.check_needs_rehash(hashed))
     except InvalidHashError:
         return True
-

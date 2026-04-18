@@ -2,10 +2,14 @@ from __future__ import annotations
 
 from platform.auth.dependencies import (
     build_auth_service,
+    build_ibor_service,
+    build_ibor_sync_service,
     get_auth_service,
     require_permission,
     resolve_api_key_identity,
 )
+from platform.auth.ibor_service import IBORConnectorService
+from platform.auth.ibor_sync import IBORSyncService
 from platform.auth.repository import AuthRepository
 from platform.auth.schemas import PermissionCheckResponse
 from platform.auth.service import AuthService
@@ -184,3 +188,26 @@ async def test_require_permission_rejects_missing_subject(auth_settings) -> None
             current_user={"identity_type": "user"},
             auth_service=FakeService(),
         )
+
+
+def auth_settings_fixture():
+    from platform.common.config import PlatformSettings
+
+    return PlatformSettings(AUTH_JWT_SECRET_KEY="test-secret", AUTH_JWT_ALGORITHM="HS256")
+
+
+def test_build_ibor_service_returns_connector_service() -> None:
+    request = _request(auth_settings_fixture())
+    service = build_ibor_service(request, object())
+
+    assert isinstance(service, IBORConnectorService)
+
+
+def test_build_ibor_sync_service_returns_sync_service() -> None:
+    request = _request(auth_settings_fixture())
+
+    service = build_ibor_sync_service(request, object())
+
+    assert isinstance(service, IBORSyncService)
+    assert service.redis_client is request.app.state.clients["redis"]
+    assert service.producer is request.app.state.clients["kafka"]

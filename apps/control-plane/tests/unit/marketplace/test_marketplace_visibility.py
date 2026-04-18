@@ -43,10 +43,13 @@ async def test_marketplace_visibility_patterns_default_to_empty_when_agent_has_n
         registry_service=RegistryServiceStub(),
     )[0]
 
-    assert await service._get_visibility_patterns(
-        workspace_id,
-        requesting_agent_id=requester_id,
-    ) == []
+    assert (
+        await service._get_visibility_patterns(
+            workspace_id,
+            requesting_agent_id=requester_id,
+        )
+        == []
+    )
     assert service._is_visible("finance-ops:visible", []) is False
 
 

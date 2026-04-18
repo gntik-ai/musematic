@@ -96,7 +96,7 @@ async def get_composition_service(
         settings=_get_settings(request),
         producer=_get_producer(request),
         redis_client=cast(AsyncRedisClient, request.app.state.clients["redis"]),
-        object_storage=cast(AsyncObjectStorageClient, request.app.state.clients["minio"]),
+        object_storage=cast(AsyncObjectStorageClient, request.app.state.clients["object_storage"]),
         opensearch=cast(AsyncOpenSearchClient, request.app.state.clients["opensearch"]),
         qdrant=cast(AsyncQdrantClient, request.app.state.clients["qdrant"]),
         reasoning_client=cast(

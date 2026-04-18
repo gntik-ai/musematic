@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import httpx
-import pytest
-
+from platform.api import health as health_module
 from platform.common.config import PlatformSettings
 from platform.main import create_app
-from platform.api import health as health_module
+
+import httpx
+import pytest
 
 
 class FakeClient:
@@ -25,7 +25,12 @@ class FakeClient:
         return self.healthy
 
 
-def _clients(*, redis: bool = True, postgres: bool = True, fail_connect: str | None = None) -> dict[str, FakeClient]:
+def _clients(
+    *,
+    redis: bool = True,
+    postgres: bool = True,
+    fail_connect: str | None = None,
+) -> dict[str, FakeClient]:
     names = [
         "redis",
         "kafka",
@@ -34,7 +39,7 @@ def _clients(*, redis: bool = True, postgres: bool = True, fail_connect: str | N
         "neo4j",
         "clickhouse",
         "opensearch",
-        "minio",
+        "object_storage",
         "runtime_controller",
         "reasoning_engine",
         "sandbox_manager",
@@ -99,7 +104,10 @@ async def test_health_endpoint_reports_degraded_and_unhealthy(monkeypatch) -> No
 
 @pytest.mark.asyncio
 async def test_lifespan_marks_degraded_when_startup_connect_fails(monkeypatch) -> None:
-    monkeypatch.setattr("platform.main._build_clients", lambda settings: _clients(fail_connect="redis"))
+    monkeypatch.setattr(
+        "platform.main._build_clients",
+        lambda settings: _clients(fail_connect="redis"),
+    )
     monkeypatch.setattr("platform.api.health.database_health_check", lambda: _async_bool(True))
     app = create_app(settings=PlatformSettings())
 

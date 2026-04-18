@@ -129,4 +129,3 @@ async def _publish(
         correlation_ctx=correlation_ctx or CorrelationContext(correlation_id=uuid4()),
         source="platform.marketplace",
     )
-

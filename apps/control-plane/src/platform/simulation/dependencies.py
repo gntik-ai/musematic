@@ -147,7 +147,7 @@ def _build_registry(
         return build_registry_service(
             session=session,
             settings=settings,
-            object_storage=request.app.state.clients["minio"],
+            object_storage=request.app.state.clients["object_storage"],
             opensearch=request.app.state.clients["opensearch"],
             qdrant=request.app.state.clients["qdrant"],
             workspaces_service=workspaces_service,

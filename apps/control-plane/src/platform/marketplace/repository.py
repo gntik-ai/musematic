@@ -197,13 +197,12 @@ class MarketplaceRepository:
         if score_filter is not None:
             filters.append(MarketplaceAgentRating.score == score_filter)
         total = await self.session.scalar(
-            select(func.count())
-            .select_from(MarketplaceAgentRating)
-            .where(*filters)
+            select(func.count()).select_from(MarketplaceAgentRating).where(*filters)
         )
         avg_score = await self.session.scalar(
-            select(func.avg(MarketplaceAgentRating.score))
-            .where(MarketplaceAgentRating.agent_id == agent_id)
+            select(func.avg(MarketplaceAgentRating.score)).where(
+                MarketplaceAgentRating.agent_id == agent_id
+            )
         )
         query = select(MarketplaceAgentRating).where(*filters)
         if sort == "highest":
@@ -218,9 +217,7 @@ class MarketplaceRepository:
             )
         else:
             query = query.order_by(MarketplaceAgentRating.updated_at.desc())
-        result = await self.session.execute(
-            query.offset((page - 1) * page_size).limit(page_size)
-        )
+        result = await self.session.execute(query.offset((page - 1) * page_size).limit(page_size))
         return list(result.scalars().all()), int(total or 0), _maybe_float(avg_score)
 
     async def get_rating_summary(self, agent_id: UUID) -> dict[str, float | int | None]:

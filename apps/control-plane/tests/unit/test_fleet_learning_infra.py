@@ -217,7 +217,7 @@ async def test_fleet_learning_dependencies_events_and_aggregate_service() -> Non
     app.state.settings = build_fleet_service_stack()[0].settings
     app.state.clients = {
         "clickhouse": clickhouse,
-        "minio": object_storage,
+        "object_storage": object_storage,
         "kafka": producer,
     }
     request = _request_with_state(app)

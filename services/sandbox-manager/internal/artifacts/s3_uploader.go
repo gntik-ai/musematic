@@ -9,25 +9,25 @@ import (
 	"strings"
 )
 
-type MinIOUploader struct {
+type S3Uploader struct {
 	bucket   string
 	endpoint string
 	client   *http.Client
 }
 
-func NewMinIOUploader(endpoint string, bucket string) *MinIOUploader {
+func NewS3Uploader(endpoint string, bucket string) *S3Uploader {
 	if strings.TrimSpace(endpoint) == "" || strings.TrimSpace(bucket) == "" {
 		return nil
 	}
 
-	return &MinIOUploader{
+	return &S3Uploader{
 		bucket:   strings.TrimSpace(bucket),
 		endpoint: normaliseObjectStorageEndpoint(endpoint),
 		client:   http.DefaultClient,
 	}
 }
 
-func (u *MinIOUploader) Upload(ctx context.Context, key string, body io.Reader, contentType string) error {
+func (u *S3Uploader) Upload(ctx context.Context, key string, body io.Reader, contentType string) error {
 	if u == nil {
 		return nil
 	}
@@ -50,7 +50,7 @@ func (u *MinIOUploader) Upload(ctx context.Context, key string, body io.Reader, 
 	}()
 
 	if resp.StatusCode >= http.StatusBadRequest {
-		return fmt.Errorf("minio upload failed: %s", resp.Status)
+		return fmt.Errorf("s3 upload failed: %s", resp.Status)
 	}
 	return nil
 }
@@ -63,7 +63,7 @@ func normaliseObjectStorageEndpoint(endpoint string) string {
 	return "http://" + trimmed
 }
 
-func (u *MinIOUploader) objectURL(key string) string {
+func (u *S3Uploader) objectURL(key string) string {
 	trimmed := strings.TrimLeft(key, "/")
 	return fmt.Sprintf("%s/%s/%s", u.endpoint, url.PathEscape(u.bucket), trimmed)
 }

@@ -38,13 +38,20 @@ class AsyncObjectStorageClient:
         self.settings = settings or default_settings
         self._session: Any | None = None
         self._client_kwargs = {
-            "endpoint_url": self.settings.MINIO_ENDPOINT,
-            "aws_access_key_id": self.settings.MINIO_ACCESS_KEY,
-            "aws_secret_access_key": self.settings.MINIO_SECRET_KEY,
-            "region_name": "us-east-1",
-            "use_ssl": self.settings.MINIO_USE_SSL,
-            "config": Config(signature_version="s3v4", s3={"addressing_style": "path"}),
+            "aws_access_key_id": self.settings.s3.access_key,
+            "aws_secret_access_key": self.settings.s3.secret_key,
+            "region_name": self.settings.s3.region,
+            "config": Config(
+                signature_version="s3v4",
+                s3={
+                    "addressing_style": (
+                        "path" if self.settings.s3.use_path_style else "virtual"
+                    )
+                },
+            ),
         }
+        if self.settings.s3.endpoint_url:
+            self._client_kwargs["endpoint_url"] = self.settings.s3.endpoint_url
 
     @classmethod
     def from_settings(cls, settings: Settings) -> AsyncObjectStorageClient:
@@ -286,14 +293,23 @@ class AsyncObjectStorageClient:
         ]
 
     async def health_check(self) -> dict[str, Any]:
+        probe_bucket = f"{self.settings.s3.bucket_prefix}-agent-packages"
+        endpoint = self.settings.s3.endpoint_url or "aws-default"
         try:
             async with self._client() as s3:
-                response = await s3.list_buckets()
-            buckets = response.get("Buckets", [])
-            # The platform expects 8 provisioned buckets; diagnose tooling should flag drift.
-            return {"status": "ok", "bucket_count": len(buckets)}
+                await s3.head_bucket(Bucket=probe_bucket)
+            return {
+                "status": "ok",
+                "provider": self.settings.s3.provider,
+                "endpoint": endpoint,
+            }
         except Exception as exc:
-            return {"status": "error", "error": str(exc)}
+            return {
+                "status": "error",
+                "provider": self.settings.s3.provider,
+                "endpoint": endpoint,
+                "error": str(exc),
+            }
 
     async def __aenter__(self) -> AsyncObjectStorageClient:
         return self

@@ -40,6 +40,8 @@ class AgentListingProjection(_StrictModel):
     trust_tier: str = "unverified"
     certification_status: str = "uncertified"
     cost_tier: str = "free"
+    status: str = "published"
+    invocable: bool = True
     quality_profile: QualityProfileSchema | None = None
     aggregate_rating: AggregateRatingSchema | None = None
     relevance_score: float | None = None
@@ -200,4 +202,3 @@ class TrendingAgentsResponse(_StrictModel):
     agents: list[TrendingAgentEntry]
     snapshot_date: date | None = None
     total: int
-

@@ -113,7 +113,10 @@ async def get_coordination_test_service_interface(
             settings=_resolve_settings(request),
             producer=cast(EventProducer | None, request.app.state.clients.get("kafka")),
             redis_client=cast(AsyncRedisClient, request.app.state.clients["redis"]),
-            object_storage=cast(AsyncObjectStorageClient, request.app.state.clients["minio"]),
+            object_storage=cast(
+                AsyncObjectStorageClient,
+                request.app.state.clients["object_storage"],
+            ),
             runtime_controller=cast(
                 RuntimeControllerClient | None,
                 request.app.state.clients.get("runtime_controller"),

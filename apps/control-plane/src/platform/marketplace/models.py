@@ -152,4 +152,3 @@ class MarketplaceTrendingSnapshot(Base, UUIDMixin, TimestampMixin):
         nullable=True,
     )
     rank: Mapped[int] = mapped_column(Integer, nullable=False)
-

@@ -1,5 +1,13 @@
 version: "3.9"
 
+x-platform-s3-env: &platform-s3-env
+  S3_ENDPOINT_URL: http://minio:9000
+  S3_ACCESS_KEY: minioadmin
+  S3_SECRET_KEY: minioadmin123
+  S3_REGION: us-east-1
+  S3_BUCKET_PREFIX: platform
+  S3_USE_PATH_STYLE: "true"
+
 services:
   postgres:
     image: postgres:16

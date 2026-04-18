@@ -36,7 +36,7 @@ type config struct {
 	grpcPort             int
 	postgresDSN          string
 	kafkaBrokers         string
-	minioEndpoint        string
+	s3EndpointURL        string
 	simulationBucket     string
 	simulationNamespace  string
 	orphanScanInterval   time.Duration
@@ -87,7 +87,7 @@ var (
 		return producer
 	}
 	newRuntimeUploaderFunc = func(endpoint, bucket string) runtimeUploader {
-		uploader := persistence.NewMinIOClient(endpoint, bucket)
+		uploader := persistence.NewS3Client(endpoint, bucket)
 		if uploader == nil {
 			return nil
 		}
@@ -133,8 +133,8 @@ func run() error {
 }
 
 func buildRuntimeComponents(ctx context.Context, cfg config) (runtimeComponents, error) {
-	if cfg.postgresDSN == "" || cfg.kafkaBrokers == "" || cfg.minioEndpoint == "" {
-		return runtimeComponents{}, fmt.Errorf("POSTGRES_DSN, KAFKA_BROKERS, and MINIO_ENDPOINT are required")
+	if cfg.postgresDSN == "" || cfg.kafkaBrokers == "" || cfg.s3EndpointURL == "" {
+		return runtimeComponents{}, fmt.Errorf("POSTGRES_DSN, KAFKA_BROKERS, and S3_ENDPOINT_URL are required")
 	}
 
 	pool := newPostgresPoolFunc(cfg.postgresDSN)
@@ -149,11 +149,11 @@ func buildRuntimeComponents(ctx context.Context, cfg config) (runtimeComponents,
 		return runtimeComponents{}, fmt.Errorf("KAFKA_BROKERS is required")
 	}
 
-	minio := newRuntimeUploaderFunc(cfg.minioEndpoint, cfg.simulationBucket)
-	if minio == nil {
+	s3Client := newRuntimeUploaderFunc(cfg.s3EndpointURL, cfg.simulationBucket)
+	if s3Client == nil {
 		closePostgresPoolFunc(pool)
 		producer.Close()
-		return runtimeComponents{}, fmt.Errorf("MINIO_ENDPOINT is required")
+		return runtimeComponents{}, fmt.Errorf("S3_ENDPOINT_URL is required")
 	}
 
 	clientset, restCfg, err := newKubernetesClientFunc(cfg.kubeconfig)
@@ -173,7 +173,7 @@ func buildRuntimeComponents(ctx context.Context, cfg config) (runtimeComponents,
 	return runtimeComponents{
 		store:     store,
 		producer:  producer,
-		uploader:  minio,
+		uploader:  s3Client,
 		clientset: clientset,
 		restCfg:   restCfg,
 		listener:  listener,
@@ -286,7 +286,7 @@ func loadConfig() config {
 		grpcPort:             envInt("GRPC_PORT", 50055),
 		postgresDSN:          os.Getenv("POSTGRES_DSN"),
 		kafkaBrokers:         os.Getenv("KAFKA_BROKERS"),
-		minioEndpoint:        os.Getenv("MINIO_ENDPOINT"),
+		s3EndpointURL:        envString("S3_ENDPOINT_URL", os.Getenv("MINIO_ENDPOINT")),
 		simulationBucket:     envString("SIMULATION_BUCKET", sim_manager.DefaultBucket),
 		simulationNamespace:  envString("SIMULATION_NAMESPACE", sim_manager.DefaultNamespace),
 		orphanScanInterval:   time.Duration(envInt("ORPHAN_SCAN_INTERVAL_SECONDS", 60)) * time.Second,

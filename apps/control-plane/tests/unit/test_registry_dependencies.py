@@ -38,7 +38,7 @@ async def test_get_registry_service_reads_from_request_state() -> None:
             state=SimpleNamespace(
                 settings=PlatformSettings(),
                 clients={
-                    "minio": ObjectStorageStub(),
+                    "object_storage": ObjectStorageStub(),
                     "opensearch": AsyncOpenSearchStub(),
                     "qdrant": AsyncQdrantStub(),
                     "kafka": None,

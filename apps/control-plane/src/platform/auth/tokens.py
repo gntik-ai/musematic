@@ -34,9 +34,7 @@ def _normalize_roles(roles: list[dict[str, Any]]) -> list[dict[str, Any]]:
             {
                 "role": str(role["role"]),
                 "workspace_id": (
-                    str(role["workspace_id"])
-                    if role.get("workspace_id") is not None
-                    else None
+                    str(role["workspace_id"]) if role.get("workspace_id") is not None else None
                 ),
             }
         )
@@ -112,4 +110,3 @@ def decode_token(token: str, settings: AuthSettings) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise InvalidRefreshTokenError()
     return payload
-

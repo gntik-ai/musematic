@@ -13,6 +13,7 @@ class RegistryEventType(StrEnum):
     agent_created = "registry.agent.created"
     agent_published = "registry.agent.published"
     agent_deprecated = "registry.agent.deprecated"
+    agent_decommissioned = "registry.agent.decommissioned"
 
 
 class AgentCreatedPayload(BaseModel):
@@ -41,10 +42,20 @@ class AgentDeprecatedPayload(BaseModel):
     reason: str | None = None
 
 
+class AgentDecommissionedPayload(BaseModel):
+    agent_profile_id: str
+    fqn: str
+    decommissioned_by: str
+    decommissioned_at: str
+    reason: str
+    active_instance_count_at_decommission: int
+
+
 REGISTRY_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     RegistryEventType.agent_created.value: AgentCreatedPayload,
     RegistryEventType.agent_published.value: AgentPublishedPayload,
     RegistryEventType.agent_deprecated.value: AgentDeprecatedPayload,
+    RegistryEventType.agent_decommissioned.value: AgentDecommissionedPayload,
 }
 
 
@@ -110,6 +121,19 @@ async def publish_agent_deprecated(
     await publish_registry_event(
         producer,
         RegistryEventType.agent_deprecated,
+        payload,
+        correlation,
+    )
+
+
+async def publish_agent_decommissioned(
+    producer: EventProducer | None,
+    payload: AgentDecommissionedPayload,
+    correlation: CorrelationContext,
+) -> None:
+    await publish_registry_event(
+        producer,
+        RegistryEventType.agent_decommissioned,
         payload,
         correlation,
     )

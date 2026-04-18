@@ -175,9 +175,7 @@ class MarketplaceRatingService:
                 FailurePatternEntry(
                     error_type=str(row.get("error_type") or "unknown"),
                     count=int(row.get("failure_count") or 0),
-                    percentage=(
-                        int(row.get("failure_count") or 0) / max(failure_total, 1)
-                    ),
+                    percentage=(int(row.get("failure_count") or 0) / max(failure_total, 1)),
                 )
                 for row in failure_rows
             ],
@@ -211,4 +209,3 @@ class MarketplaceRatingService:
             created_at=rating.created_at,
             updated_at=rating.updated_at,
         )
-

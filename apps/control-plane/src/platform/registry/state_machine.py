@@ -3,17 +3,23 @@ from __future__ import annotations
 from platform.registry.models import LifecycleStatus
 
 VALID_REGISTRY_TRANSITIONS: dict[LifecycleStatus, set[LifecycleStatus]] = {
-    LifecycleStatus.draft: {LifecycleStatus.validated},
-    LifecycleStatus.validated: {LifecycleStatus.published},
-    LifecycleStatus.published: {LifecycleStatus.disabled, LifecycleStatus.deprecated},
-    LifecycleStatus.disabled: {LifecycleStatus.published},
-    LifecycleStatus.deprecated: {LifecycleStatus.archived},
-    LifecycleStatus.archived: set(),
+    LifecycleStatus.draft: {LifecycleStatus.validated, LifecycleStatus.decommissioned},
+    LifecycleStatus.validated: {LifecycleStatus.published, LifecycleStatus.decommissioned},
+    LifecycleStatus.published: {
+        LifecycleStatus.disabled,
+        LifecycleStatus.deprecated,
+        LifecycleStatus.decommissioned,
+    },
+    LifecycleStatus.disabled: {LifecycleStatus.published, LifecycleStatus.decommissioned},
+    LifecycleStatus.deprecated: {LifecycleStatus.archived, LifecycleStatus.decommissioned},
+    LifecycleStatus.archived: {LifecycleStatus.decommissioned},
+    LifecycleStatus.decommissioned: set(),
 }
 
 EVENT_TRANSITIONS: set[LifecycleStatus] = {
     LifecycleStatus.published,
     LifecycleStatus.deprecated,
+    LifecycleStatus.decommissioned,
 }
 
 

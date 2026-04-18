@@ -94,7 +94,7 @@ func TestHelperFunctionsCoverFallbackPaths(t *testing.T) {
 func TestRunReturnsErrorWhenRequiredEnvironmentMissing(t *testing.T) {
 	t.Setenv("POSTGRES_DSN", "")
 	t.Setenv("KAFKA_BROKERS", "")
-	t.Setenv("MINIO_ENDPOINT", "")
+	t.Setenv("S3_ENDPOINT_URL", "")
 
 	err := run()
 	require.Error(t, err)
@@ -106,7 +106,7 @@ func TestBuildRuntimeComponentsPanicsOnInvalidPostgresDSN(t *testing.T) {
 		_, _ = buildRuntimeComponents(context.Background(), config{
 			postgresDSN:      "://bad-dsn",
 			kafkaBrokers:     "localhost:9092",
-			minioEndpoint:    "localhost:9000",
+			s3EndpointURL:    "localhost:9000",
 			simulationBucket: "bucket",
 		})
 	})
@@ -157,7 +157,7 @@ func TestBuildRuntimeComponentsUsesFactories(t *testing.T) {
 		grpcPort:            0,
 		postgresDSN:         "postgres://test",
 		kafkaBrokers:        "localhost:9092",
-		minioEndpoint:       "localhost:9000",
+		s3EndpointURL:       "localhost:9000",
 		simulationBucket:    "bucket",
 		simulationNamespace: "platform-simulation",
 	})
@@ -174,7 +174,7 @@ func TestBuildRuntimeComponentsUsesFactories(t *testing.T) {
 		grpcPort:            0,
 		postgresDSN:         "postgres://test",
 		kafkaBrokers:        "localhost:9092",
-		minioEndpoint:       "localhost:9000",
+		s3EndpointURL:       "localhost:9000",
 		simulationBucket:    "bucket",
 		simulationNamespace: "platform-simulation",
 	})
@@ -190,7 +190,7 @@ func TestBuildRuntimeComponentsUsesFactories(t *testing.T) {
 		grpcPort:            0,
 		postgresDSN:         "postgres://test",
 		kafkaBrokers:        "localhost:9092",
-		minioEndpoint:       "localhost:9000",
+		s3EndpointURL:       "localhost:9000",
 		simulationBucket:    "bucket",
 		simulationNamespace: "platform-simulation",
 	})
@@ -206,11 +206,11 @@ func TestBuildRuntimeComponentsUsesFactories(t *testing.T) {
 		grpcPort:            0,
 		postgresDSN:         "postgres://test",
 		kafkaBrokers:        "localhost:9092",
-		minioEndpoint:       "localhost:9000",
+		s3EndpointURL:       "localhost:9000",
 		simulationBucket:    "bucket",
 		simulationNamespace: "platform-simulation",
 	})
-	require.ErrorContains(t, err, "MINIO_ENDPOINT")
+	require.ErrorContains(t, err, "S3_ENDPOINT_URL")
 
 	kubernetesErr := errors.New("kubernetes failed")
 	newRuntimeUploaderFunc = func(string, string) runtimeUploader {
@@ -223,7 +223,7 @@ func TestBuildRuntimeComponentsUsesFactories(t *testing.T) {
 		grpcPort:            0,
 		postgresDSN:         "postgres://test",
 		kafkaBrokers:        "localhost:9092",
-		minioEndpoint:       "localhost:9000",
+		s3EndpointURL:       "localhost:9000",
 		simulationBucket:    "bucket",
 		simulationNamespace: "platform-simulation",
 	})
@@ -240,7 +240,7 @@ func TestBuildRuntimeComponentsUsesFactories(t *testing.T) {
 		grpcPort:            0,
 		postgresDSN:         "postgres://test",
 		kafkaBrokers:        "localhost:9092",
-		minioEndpoint:       "localhost:9000",
+		s3EndpointURL:       "localhost:9000",
 		simulationBucket:    "bucket",
 		simulationNamespace: "platform-simulation",
 	})
@@ -363,7 +363,7 @@ func TestRunReturnsTelemetrySetupError(t *testing.T) {
 
 	t.Setenv("POSTGRES_DSN", "postgres://test")
 	t.Setenv("KAFKA_BROKERS", "localhost:9092")
-	t.Setenv("MINIO_ENDPOINT", "localhost:9000")
+	t.Setenv("S3_ENDPOINT_URL", "localhost:9000")
 	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "otel-collector:4317")
 
 	err := run()
@@ -432,7 +432,7 @@ func TestRunInitializesTelemetryAndClosesComponents(t *testing.T) {
 
 	t.Setenv("POSTGRES_DSN", "postgres://test")
 	t.Setenv("KAFKA_BROKERS", "localhost:9092")
-	t.Setenv("MINIO_ENDPOINT", "localhost:9000")
+	t.Setenv("S3_ENDPOINT_URL", "localhost:9000")
 	t.Setenv("SIMULATION_BUCKET", "bucket")
 	t.Setenv("SIMULATION_NAMESPACE", "platform-simulation")
 	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-collector:4317")

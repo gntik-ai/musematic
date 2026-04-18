@@ -45,7 +45,7 @@ def build_registry_settings(
             "redis": auth_settings.redis.model_copy(
                 update={"url": redis_url(redis_client), "test_mode": "standalone"}
             ),
-            "minio": object_storage_settings.minio,
+            "s3": object_storage_settings.s3.model_copy(),
             "opensearch": opensearch_settings.opensearch,
             "qdrant": qdrant_settings.qdrant,
             "registry": auth_settings.registry.model_copy(
@@ -87,7 +87,7 @@ def build_registry_clients(
         "neo4j": noop,
         "clickhouse": noop,
         "opensearch": backends.opensearch,
-        "minio": backends.object_storage,
+        "object_storage": backends.object_storage,
         "runtime_controller": noop,
         "reasoning_engine": noop,
         "sandbox_manager": noop,

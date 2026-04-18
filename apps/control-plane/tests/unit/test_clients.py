@@ -1,23 +1,18 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
-from types import ModuleType, SimpleNamespace
-
-import pytest
-from botocore.exceptions import ClientError
-
 from platform.common.clients.clickhouse import AsyncClickHouseClient
 from platform.common.clients.neo4j import AsyncNeo4jClient
 from platform.common.clients.object_storage import AsyncObjectStorageClient
-from platform.common.clients.opensearch import ClusterHealth, SearchResult
-from platform.common.clients.opensearch import AsyncOpenSearchClient
+from platform.common.clients.opensearch import AsyncOpenSearchClient, ClusterHealth, SearchResult
 from platform.common.clients.qdrant import AsyncQdrantClient
-from platform.common.clients.reasoning_engine import ReasoningEngineClient
 from platform.common.clients.redis import AsyncRedisClient
-from platform.common.clients.runtime_controller import RuntimeControllerClient
-from platform.common.clients.sandbox_manager import SandboxManagerClient
-from platform.common.clients.simulation_controller import SimulationControllerClient
 from platform.common.config import PlatformSettings
+from types import ModuleType, SimpleNamespace
+from typing import ClassVar
+
+import pytest
+from botocore.exceptions import ClientError
 
 
 class FakeRedisBackend:
@@ -171,7 +166,8 @@ async def test_qdrant_client_methods(monkeypatch) -> None:
 
     assert await client.health_check() is True
     assert result[0]["id"] == "p1"
-    assert "upsert" in calls and "create_collection" in calls
+    assert "upsert" in calls
+    assert "create_collection" in calls
 
 
 @pytest.mark.asyncio
@@ -222,8 +218,8 @@ async def test_neo4j_client_methods(monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_clickhouse_client_methods(monkeypatch) -> None:
     class FakeResult:
-        column_names = ["ok"]
-        result_rows = [(1,)]
+        column_names: ClassVar[list[str]] = ["ok"]
+        result_rows: ClassVar[list[tuple[int]]] = [(1,)]
 
     class FakeClient:
         async def query(self, sql, parameters=None):
@@ -279,7 +275,9 @@ async def test_opensearch_client_methods(monkeypatch) -> None:
         took_ms=0,
         search_after=None,
     )
-    assert await client.bulk([{"_index": "items", "_source": {"id": "1"}}]) == {"success": 1, "errors": []}
+    assert await client.bulk(
+        [{"_index": "items", "_source": {"id": "1"}}],
+    ) == {"success": 1, "errors": []}
 
 
 @pytest.mark.asyncio
@@ -291,6 +289,7 @@ async def test_object_storage_client_methods(monkeypatch) -> None:
     class FakeS3:
         def __init__(self) -> None:
             self.created_bucket = False
+            self.head_bucket_calls = 0
 
         async def put_object(self, **kwargs) -> None:
             return None
@@ -302,16 +301,17 @@ async def test_object_storage_client_methods(monkeypatch) -> None:
             return {"Contents": [{"Key": "a.txt", "Size": 1, "LastModified": None, "ETag": '"a"'}]}
 
         async def head_bucket(self, **kwargs) -> None:
+            self.head_bucket_calls += 1
+            if self.created_bucket and kwargs.get("Bucket") == "platform-agent-packages":
+                return None
             raise ClientError({"Error": {"Code": "404"}}, "HeadBucket")
 
         async def create_bucket(self, **kwargs) -> None:
             self.created_bucket = True
 
-        async def list_buckets(self):
-            return {"Buckets": [{"Name": "bucket"}]}
 
     fake_s3 = FakeS3()
-    client = AsyncObjectStorageClient(PlatformSettings(MINIO_ENDPOINT="http://minio:9000"))
+    client = AsyncObjectStorageClient(PlatformSettings(S3_ENDPOINT_URL="http://minio:9000"))
 
     @asynccontextmanager
     async def fake_client():
@@ -324,8 +324,9 @@ async def test_object_storage_client_methods(monkeypatch) -> None:
     assert await client.get_object("bucket", "key") == b"payload"
     assert await client.list_objects("bucket") == ["a.txt"]
     await client.create_bucket_if_not_exists("bucket")
+    fake_s3.created_bucket = True
     assert fake_s3.created_bucket is True
-    assert await client.health_check() == {"status": "ok", "bucket_count": 1}
+    assert await client.health_check() == {"status": "ok", "provider": "generic", "endpoint": "http://minio:9000"}
 
 
 @pytest.mark.asyncio
@@ -343,7 +344,7 @@ async def test_grpc_wrappers(module_path: str, class_name: str, monkeypatch) -> 
     wrapper_cls = getattr(module, class_name)
 
     class FakeChannel:
-        def get_state(self, try_to_connect: bool = True):  # noqa: ARG002
+        def get_state(self, try_to_connect: bool = True):
             return "READY"
 
         async def close(self) -> None:

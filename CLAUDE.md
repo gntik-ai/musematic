@@ -98,6 +98,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-18
 - PostgreSQL (enum value addition via Alembic migration 042; no new tables or columns); MinIO (existing bucket unchanged) (054-safety-prescreener-sanitization)
 - Go 1.22+ (runtime-controller satellite), Python 3.12+ (control plane) + `prometheus/promauto` (Go metrics), `google.golang.org/grpc 1.67+` (gRPC), `pgx/v5` (Go PostgreSQL), FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, grpcio 1.65+, pytest + pytest-asyncio 8.x (055-runtime-warm-pool)
 - PostgreSQL — 1 new table `runtime_warm_pool_targets` (additive; no columns added to existing tables) (055-runtime-warm-pool)
+- Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, Alembic, aiokafka 0.11+ (events), redis-py 5.x async (sync-lock), APScheduler 3.x (periodic sync), `ldap3` 2.9+ (LDAP adapter — NEW dependency), httpx 0.27+ (OIDC/SCIM adapters), pytest + pytest-asyncio 8.x (056-ibor-integration-and)
+- PostgreSQL — 2 new tables (`ibor_connectors`, `ibor_sync_runs`), 4 new columns across existing tables, 1 new enum value on `registry_lifecycle_status`; no new data stores (056-ibor-integration-and)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -117,9 +119,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 056-ibor-integration-and: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
+- 056-ibor-integration-and: Added Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, Alembic, aiokafka 0.11+ (events), redis-py 5.x async (sync-lock), APScheduler 3.x (periodic sync), `ldap3` 2.9+ (LDAP adapter — NEW dependency), httpx 0.27+ (OIDC/SCIM adapters), pytest + pytest-asyncio 8.x
 - 055-runtime-warm-pool: Added Go 1.22+ (runtime-controller satellite), Python 3.12+ (control plane) + `prometheus/promauto` (Go metrics), `google.golang.org/grpc 1.67+` (gRPC), `pgx/v5` (Go PostgreSQL), FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, grpcio 1.65+, pytest + pytest-asyncio 8.x
-- 054-safety-prescreener-sanitization: Added Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, aiokafka 0.11+, opentelemetry-sdk 1.27+, PyYAML 6.x (already present), pytest + pytest-asyncio 8.x
-- 053-zero-trust-visibility: Added Python 3.12+ + FastAPI 0.115+, Pydantic v2 / pydantic-settings (feature flag), SQLAlchemy 2.x async, aiokafka 0.11+ (audit events), pytest + pytest-asyncio 8.x
 
 
 <!-- MANUAL ADDITIONS START -->

@@ -60,7 +60,7 @@ async def get_health(request: Request) -> HealthResponse:
         "neo4j": clients["neo4j"].health_check,
         "clickhouse": clients["clickhouse"].health_check,
         "opensearch": clients["opensearch"].health_check,
-        "minio": clients["minio"].health_check,
+        "object_storage": clients["object_storage"].health_check,
         "runtime_controller": clients["runtime_controller"].health_check,
         "reasoning_engine": clients["reasoning_engine"].health_check,
         "sandbox_manager": clients["sandbox_manager"].health_check,
