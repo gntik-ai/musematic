@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from platform.common.dependencies import get_current_user
 from platform.common.exceptions import AuthorizationError, ValidationError
@@ -64,7 +65,8 @@ from platform.trust.trust_tier import TrustTierService
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, Query, Response, status
+import yaml
+from fastapi import APIRouter, Body, Depends, Query, Request, Response, status
 
 router = APIRouter(tags=["trust"])
 
@@ -287,11 +289,24 @@ async def list_prescreener_rule_sets(
     status_code=status.HTTP_201_CREATED,
 )
 async def create_prescreener_rule_set(
-    payload: PreScreenerRuleSetCreate,
+    request: Request,
     current_user: dict[str, Any] = Depends(get_current_user),
     prescreener_service: SafetyPreScreenerService = Depends(get_prescreener_service),
 ) -> PreScreenerRuleSetResponse:
     _require_roles(current_user, {"platform_admin", "superadmin"})
+    content_type = request.headers.get("content-type", "application/json").split(";")[0].strip()
+    raw = await request.body()
+    if content_type == "application/yaml":
+        try:
+            data = yaml.safe_load(raw.decode("utf-8"))
+        except yaml.YAMLError as exc:
+            raise ValidationError("YAML_PARSE_ERROR", str(exc)) from exc
+    else:
+        try:
+            data = json.loads(raw.decode("utf-8"))
+        except json.JSONDecodeError as exc:
+            raise ValidationError("JSON_PARSE_ERROR", str(exc)) from exc
+    payload = PreScreenerRuleSetCreate.model_validate(data)
     return await prescreener_service.create_rule_set(payload)
 
 

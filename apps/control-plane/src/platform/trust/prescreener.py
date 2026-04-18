@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import time
 from platform.trust.events import (
     PreScreenerRuleSetActivatedPayload,
     TrustEventPublisher,
@@ -37,17 +38,26 @@ class SafetyPreScreenerService:
         self.object_storage = object_storage
         self.events = TrustEventPublisher(producer)
         self._compiled_patterns: dict[str, re.Pattern[str]] = {}
+        self._active_version: str | None = None
 
     async def screen(self, content: str, context_type: str) -> PreScreenResponse:
         del context_type
+        started = time.perf_counter()
         for name, pattern in self._compiled_patterns.items():
             if pattern.search(content):
                 return PreScreenResponse(
                     blocked=True,
                     matched_rule=name,
                     passed_to_full_pipeline=False,
+                    latency_ms=(time.perf_counter() - started) * 1000,
+                    rule_set_version=self._active_version,
                 )
-        return PreScreenResponse(blocked=False, passed_to_full_pipeline=True)
+        return PreScreenResponse(
+            blocked=False,
+            passed_to_full_pipeline=True,
+            latency_ms=(time.perf_counter() - started) * 1000,
+            rule_set_version=self._active_version,
+        )
 
     async def load_active_rules(self) -> None:
         version_bytes = await self.redis_client.get("trust:prescreener:active_version")
@@ -62,6 +72,7 @@ class SafetyPreScreenerService:
             rule_set = await self.repository.get_active_prescreener_rule_set()
         if rule_set is None:
             self._compiled_patterns = {}
+            self._active_version = None
             return
         bucket = self._bucket_name
         rules_raw = await self.object_storage.download_object(bucket, rule_set.rules_ref)
@@ -76,6 +87,7 @@ class SafetyPreScreenerService:
                 continue
             compiled[name] = re.compile(pattern, re.IGNORECASE)
         self._compiled_patterns = compiled
+        self._active_version = str(rule_set.version)
 
     async def list_rule_sets(self) -> PreScreenerRuleSetListResponse:
         items = await self.repository.list_rule_sets()

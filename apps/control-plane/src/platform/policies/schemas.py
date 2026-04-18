@@ -304,6 +304,17 @@ class GateResult(BaseModel):
     check_latency_ms: float | None = None
 
 
+class SanitizeToolOutputRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    output: str
+    agent_id: UUID
+    agent_fqn: str = Field(min_length=1, max_length=512)
+    tool_fqn: str = Field(min_length=1, max_length=512)
+    execution_id: UUID | None = None
+    workspace_id: UUID | None = None
+
+
 class SanitizationResult(BaseModel):
     output: str
     redaction_count: int

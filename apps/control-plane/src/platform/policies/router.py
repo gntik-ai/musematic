@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime
-from platform.common.dependencies import get_current_user
-from platform.policies.dependencies import get_policy_service
+from platform.common.dependencies import get_current_user, get_db
+from platform.policies.dependencies import get_policy_service, get_tool_gateway_service
+from platform.policies.gateway import ToolGatewayService
 from platform.policies.models import EnforcementComponent, PolicyScopeType, PolicyStatus
 from platform.policies.schemas import (
     EffectivePolicyResponse,
@@ -20,12 +21,15 @@ from platform.policies.schemas import (
     PolicyVersionListResponse,
     PolicyVersionResponse,
     PolicyWithVersionResponse,
+    SanitizationResult,
+    SanitizeToolOutputRequest,
 )
 from platform.policies.service import PolicyService
 from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/v1/policies", tags=["policies"])
 
@@ -61,6 +65,23 @@ async def invalidate_enforcement_bundle(
 ) -> Response:
     await policy_service.invalidate_bundle(agent_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/gate/sanitize-output", response_model=SanitizationResult)
+async def sanitize_tool_output_endpoint(
+    payload: SanitizeToolOutputRequest,
+    session: AsyncSession = Depends(get_db),
+    gateway: ToolGatewayService = Depends(get_tool_gateway_service),
+) -> SanitizationResult:
+    return await gateway.sanitize_tool_output(
+        payload.output,
+        agent_id=payload.agent_id,
+        agent_fqn=payload.agent_fqn,
+        tool_fqn=payload.tool_fqn,
+        execution_id=payload.execution_id,
+        workspace_id=payload.workspace_id,
+        session=session,
+    )
 
 
 @router.get("/blocked-actions", response_model=PolicyBlockedActionListResponse)

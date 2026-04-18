@@ -170,6 +170,8 @@ class PreScreenResponse(BaseModel):
     blocked: bool
     matched_rule: str | None = None
     passed_to_full_pipeline: bool
+    latency_ms: float | None = None
+    rule_set_version: str | None = None
 
 
 class RecertificationTriggerResponse(BaseModel):

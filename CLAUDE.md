@@ -94,6 +94,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-18
 - ClickHouse (`usage_events`, `usage_hourly_v2`), OpenSearch (`audit-events`, `connector-payloads` index templates). PostgreSQL unaffected. (052-gid-correlation-envelope)
 - Python 3.12+ + FastAPI 0.115+, Pydantic v2 / pydantic-settings (feature flag), SQLAlchemy 2.x async, aiokafka 0.11+ (audit events), pytest + pytest-asyncio 8.x (053-zero-trust-visibility)
 - PostgreSQL (no new DDL; existing `workspaces_visibility_grants` + `registry_agent_profiles`); no ClickHouse or OpenSearch changes (053-zero-trust-visibility)
+- Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, aiokafka 0.11+, opentelemetry-sdk 1.27+, PyYAML 6.x (already present), pytest + pytest-asyncio 8.x (054-safety-prescreener-sanitization)
+- PostgreSQL (enum value addition via Alembic migration 042; no new tables or columns); MinIO (existing bucket unchanged) (054-safety-prescreener-sanitization)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -113,9 +115,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 054-safety-prescreener-sanitization: Added Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, aiokafka 0.11+, opentelemetry-sdk 1.27+, PyYAML 6.x (already present), pytest + pytest-asyncio 8.x
 - 053-zero-trust-visibility: Added Python 3.12+ + FastAPI 0.115+, Pydantic v2 / pydantic-settings (feature flag), SQLAlchemy 2.x async, aiokafka 0.11+ (audit events), pytest + pytest-asyncio 8.x
 - 052-gid-correlation-envelope: Added Python 3.12+ + FastAPI 0.115+, Starlette middleware, Pydantic v2, aiokafka 0.11+, clickhouse-connect 0.8+, opensearch-py 2.x
-- 051-fqn-namespace-agent-identity: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
 
 
 <!-- MANUAL ADDITIONS START -->
