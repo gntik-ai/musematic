@@ -32,19 +32,19 @@ def test_agent_manifest_validation_and_normalization() -> None:
         {
             "local_name": "BadSlug",
             "version": "1.2.3",
-            "purpose": "Valid purpose long enough to pass validation.",
+            "purpose": "A" * 60,
             "role_types": ["executor"],
         },
         {
             "local_name": "good-slug",
             "version": "1.2",
-            "purpose": "Valid purpose long enough to pass validation.",
+            "purpose": "A" * 60,
             "role_types": ["executor"],
         },
         {
             "local_name": "good-slug",
             "version": "1.2.3",
-            "purpose": "Valid purpose long enough to pass validation.",
+            "purpose": "A" * 60,
             "role_types": ["custom"],
         },
     ],

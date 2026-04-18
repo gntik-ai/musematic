@@ -29,7 +29,7 @@ class AgentManifest(BaseModel):
 
     local_name: str = Field(pattern=SLUG_PATTERN)
     version: str = Field(pattern=SEMVER_PATTERN)
-    purpose: str = Field(min_length=10)
+    purpose: str = Field(min_length=50)
     role_types: list[AgentRoleType] = Field(min_length=1)
     approach: str | None = None
     maturity_level: MaturityLevel = MaturityLevel.unverified

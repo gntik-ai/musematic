@@ -109,9 +109,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 051-fqn-namespace-agent-identity: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
 - 050-evaluation-testing-ui: Added TypeScript 5.x, React 18+, Next.js 14+ App Router + shadcn/ui, Tailwind CSS 3.4+, TanStack Query v5, React Hook Form 7.x + Zod 3.x, Recharts 2.x, date-fns 4.x
 - 049-analytics-cost-dashboard: Added TypeScript 5.x, React 18+, Next.js 14+ App Router + shadcn/ui, Tailwind CSS 3.4+, TanStack Query v5, Zustand 5.x, Recharts 2.x, date-fns 4.x
-- 048-backup-restore: Added Python 3.12+ + Typer 0.12+, Rich, Pydantic v2, APScheduler 3.x, aiokafka 0.11+, aioboto3 (optional, for S3 upload), pytest + pytest-asyncio 8.x
 
 
 <!-- MANUAL ADDITIONS START -->

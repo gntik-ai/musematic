@@ -149,6 +149,7 @@ async def test_upload_agent_creates_profile_revision_indexes_and_publishes(monke
     assert [event["event_type"] for event in service.event_producer.events] == [
         "registry.agent.created"
     ]
+    assert service.event_producer.events[0]["correlation_ctx"].agent_fqn == "finance:kyc-verifier"
 
 
 @pytest.mark.asyncio
@@ -179,7 +180,10 @@ async def test_upload_agent_updates_existing_profile_and_cleans_up_on_conflict(
             manifest_payload={
                 "local_name": "kyc-verifier",
                 "version": "1.0.1",
-                "purpose": "Valid purpose for second upload.",
+                "purpose": (
+                    "Valid purpose for second upload that still satisfies the "
+                    "new fifty-character minimum validation rule."
+                ),
                 "role_types": ["executor"],
                 "tags": ["kyc"],
             }
@@ -491,8 +495,9 @@ async def test_build_search_document_and_internal_helpers() -> None:
     assert document["fqn"] == profile.fqn
     assert document["current_version"] == revision.version
     assert service._dedupe(["a", "b", "a"]) == ["a", "b"]
-    correlation = service._correlation(profile.workspace_id)
+    correlation = service._correlation(profile.workspace_id, profile.fqn)
     assert correlation.workspace_id == profile.workspace_id
+    assert correlation.agent_fqn == profile.fqn
 
 
 @pytest.mark.asyncio

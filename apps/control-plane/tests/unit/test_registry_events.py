@@ -30,7 +30,7 @@ def test_register_registry_event_types_populates_registry() -> None:
 @pytest.mark.asyncio
 async def test_publish_registry_events_emit_expected_payloads() -> None:
     producer = build_recording_producer()
-    correlation = build_correlation(uuid4())
+    correlation = build_correlation(uuid4(), agent_fqn="finance:planner")
 
     await publish_agent_created(
         producer,
@@ -88,3 +88,4 @@ async def test_publish_registry_events_emit_expected_payloads() -> None:
         "registry.agent.published",
         "registry.agent.deprecated",
     ]
+    assert all(event["correlation_ctx"].agent_fqn == "finance:planner" for event in producer.events)
