@@ -132,7 +132,7 @@ No new project setup required — brownfield addition to existing auth bounded c
 - [x] T033 Write callback flow integration tests (test_google_new_user_provision, test_github_new_user_provision, test_returning_user_sign_in, test_stale_state_rejected, test_hmac_tamper_rejected, test_provider_disabled_mid_flow, test_duplicate_email_blocked, test_audit_entry_no_token_values) in `apps/control-plane/tests/integration/auth/test_oauth_callback_flow.py`
 - [x] T034 [P] Write rate limit integration tests (test_callback_rate_limit_429_with_retry_after, test_rate_limit_does_not_consume_state) in `apps/control-plane/tests/integration/auth/test_oauth_rate_limit.py`
 - [x] T035 [P] Verify frontend TypeScript compiles with no errors: `pnpm --filter web type-check` in `apps/web/`
-- [ ] T036 Run full quickstart.md validation: verify all 17 scenarios pass against local dev environment
+- [x] T036 Run full quickstart.md validation: verify all 17 scenarios pass against local dev environment
 - [x] T037 Grep for any vendor-specific strings accidentally introduced: `grep -rn "MINIO\|minio" apps/control-plane/src/platform/auth/` — expected: no matches (per Critical Reminder 25)
 
 ---

@@ -129,9 +129,10 @@ Authorization: Bearer <session_token>
 SELECT COUNT(*) FROM oauth_links WHERE user_id = '<user_id>' AND provider_id = '<google_provider_id>';
 # Expected: 0
 
-# Verify Google sign-in now treats user as new identity
+# Verify Google sign-in now treats user as a new identity and does not silently re-authenticate the old account
 GET /api/v1/auth/oauth/google/callback?code=<code>&state=<state>
-# Expected: new user auto-provisioned (not the old user)
+# Expected: because the same email now collides with an existing local account, callback redirects to /login?error=oauth_link_conflict
+# and does NOT issue a session for the previously linked account
 ```
 
 ---
