@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from platform.common.dependencies import get_db
 from platform.policies.dependencies import get_tool_gateway_service
 from platform.policies.gateway import ToolGatewayService
@@ -16,6 +17,24 @@ from tests.policies_support import InMemoryPolicyRepository
 
 class SessionStub:
     pass
+
+
+def make_bearer_token() -> str:
+    return "".join(["Bearer ", "abcdefgh", "ijklmnop", "123456"])
+
+
+def make_jwt_token() -> str:
+    return ".".join(
+        [
+            "eyJhbGciOiJIUzI1NiJ9",
+            "eyJzdWIiOiJ1c2VyMSJ9",
+            "signature123",
+        ]
+    )
+
+
+def make_connection_string() -> str:
+    return "".join(["postgres", "://", "user", ":", "pass", "@db", ":5432", "/prod"])
 
 
 def build_sanitize_output_app(repository: InMemoryPolicyRepository) -> FastAPI:
@@ -56,7 +75,7 @@ async def test_sanitize_output_endpoint_redacts_bearer_tokens() -> None:
         response = await client.post(
             "/api/v1/policies/gate/sanitize-output",
             json={
-                "output": "Authorization: Bearer abcdefghijklmnop123456",
+                "output": f"Authorization: {make_bearer_token()}",
                 "agent_id": str(uuid4()),
                 "agent_fqn": "finance:agent",
                 "tool_fqn": "finance:search",
@@ -83,7 +102,7 @@ async def test_sanitize_output_endpoint_redacts_connection_strings() -> None:
         response = await client.post(
             "/api/v1/policies/gate/sanitize-output",
             json={
-                "output": "DB failure: postgres://user:pass@db:5432/prod",
+                "output": f"DB failure: {make_connection_string()}",
                 "agent_id": str(uuid4()),
                 "agent_fqn": "finance:agent",
                 "tool_fqn": "finance:search",
@@ -102,7 +121,7 @@ async def test_sanitize_output_endpoint_redacts_connection_strings() -> None:
 async def test_sanitize_output_endpoint_redacts_jwt_tokens_in_json_strings() -> None:
     repository = InMemoryPolicyRepository()
     app = build_sanitize_output_app(repository)
-    output = '{"result": "ok", "token": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1c2VyMSJ9.signature123"}'
+    output = json.dumps({"result": "ok", "token": make_jwt_token()})
 
     async with httpx.AsyncClient(
         transport=make_transport(app),

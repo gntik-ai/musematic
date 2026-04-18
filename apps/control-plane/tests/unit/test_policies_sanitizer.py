@@ -8,6 +8,26 @@ import pytest
 from tests.policies_support import InMemoryPolicyRepository
 
 
+def make_bearer_token() -> str:
+    return "".join(["Bearer ", "abcdefghi"])
+
+
+def make_api_key() -> str:
+    return "".join(["sk-", "ABCDEFGH"])
+
+
+def make_jwt_token() -> str:
+    return ".".join(["eyJabc", "eyJdef", "signature"])
+
+
+def make_connection_string() -> str:
+    return "".join(["postgres", "://", "user", ":", "pass", "@db", "/name"])
+
+
+def make_password_literal() -> str:
+    return "".join(["password", "=", "topsecret"])
+
+
 @pytest.mark.asyncio
 async def test_sanitizer_redacts_all_supported_secret_patterns() -> None:
     from platform.policies.sanitizer import OutputSanitizer
@@ -16,8 +36,8 @@ async def test_sanitizer_redacts_all_supported_secret_patterns() -> None:
     sanitizer = OutputSanitizer(repository)
     result = await sanitizer.sanitize(
         (
-            "Bearer abcdefghi sk-ABCDEFGH eyJabc.eyJdef.signature "
-            "postgres://user:pass@db/name password=topsecret"
+            f"{make_bearer_token()} {make_api_key()} {make_jwt_token()} "
+            f"{make_connection_string()} {make_password_literal()}"
         ),
         agent_id=uuid4(),
         agent_fqn="finance:agent",

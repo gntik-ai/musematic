@@ -1,4 +1,4 @@
-"""Add pre_screener value to guardraillayer enum."""
+"""Add pre_screener value to trust_guardrail_layer enum."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute("ALTER TYPE guardraillayer ADD VALUE IF NOT EXISTS 'pre_screener'")
+    op.execute("ALTER TYPE trust_guardrail_layer ADD VALUE IF NOT EXISTS 'pre_screener'")
 
 
 def downgrade() -> None:
