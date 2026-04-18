@@ -27,6 +27,7 @@ from typing import Any, ClassVar
 from uuid import UUID
 
 import httpx
+from opentelemetry import metrics as otel_metrics
 
 _INPUT_SANITIZATION_PATTERNS = [
     re.compile(r"<script", re.IGNORECASE),
@@ -46,8 +47,16 @@ _OUTPUT_MODERATION_PATTERNS = [
 ]
 
 
+def _emit_prescreener_latency(latency_ms: float, version: str | None) -> None:
+    otel_metrics.get_meter(__name__).create_histogram("prescreener.latency_ms").record(
+        latency_ms,
+        {"rule_set_version": version or "none"},
+    )
+
+
 class GuardrailPipelineService:
     LAYER_ORDER: ClassVar[list[GuardrailLayer]] = [
+        GuardrailLayer.pre_screener,
         GuardrailLayer.input_sanitization,
         GuardrailLayer.prompt_injection,
         GuardrailLayer.output_moderation,
@@ -63,11 +72,13 @@ class GuardrailPipelineService:
         settings: Any,
         producer: Any | None,
         policy_engine: Any | None,
+        pre_screener: Any | None = None,
     ) -> None:
         self.repository = repository
         self.settings = settings
         self.events = TrustEventPublisher(producer)
         self.policy_engine = policy_engine
+        self.pre_screener = pre_screener
 
     async def evaluate_full_pipeline(
         self,
@@ -99,7 +110,9 @@ class GuardrailPipelineService:
         context: dict[str, Any],
     ) -> GuardrailEvaluationResponse:
         try:
-            if layer == GuardrailLayer.input_sanitization:
+            if layer == GuardrailLayer.pre_screener:
+                basis = await self._evaluate_pre_screener(payload, context)
+            elif layer == GuardrailLayer.input_sanitization:
                 basis = self._match_patterns(
                     payload, _INPUT_SANITIZATION_PATTERNS, "input_sanitization"
                 )
@@ -253,6 +266,29 @@ class GuardrailPipelineService:
             if pattern.search(text):
                 return f"{prefix}:pattern_{index}"
         return None
+
+    async def _evaluate_pre_screener(
+        self,
+        payload: dict[str, Any],
+        context: dict[str, Any],
+    ) -> str | None:
+        if self.pre_screener is None:
+            return None
+        response = await self.pre_screener.screen(
+            json.dumps(payload, sort_keys=True, default=str),
+            str(context.get("context_type", "input")),
+        )
+        if response.latency_ms is not None:
+            _emit_prescreener_latency(response.latency_ms, response.rule_set_version)
+        if not response.blocked:
+            return None
+        context["policy_basis_detail"] = json.dumps(
+            {
+                "matched_rule": response.matched_rule,
+                "rule_set_version": response.rule_set_version,
+            }
+        )
+        return f"pre_screener:{response.matched_rule}"
 
     async def _moderate_output(self, payload: dict[str, Any]) -> str | None:
         matched = self._match_patterns(payload, _OUTPUT_MODERATION_PATTERNS, "output_moderation")

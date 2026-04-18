@@ -897,18 +897,19 @@ def build_trust_bundle(**settings_overrides: Any) -> TrustServiceBundle:
         settings=settings,
         producer=producer,
     )
-    guardrail_service = GuardrailPipelineService(
-        repository=repository,
-        settings=settings,
-        producer=producer,
-        policy_engine=policy_engine,
-    )
     prescreener_service = SafetyPreScreenerService(
         repository=repository,
         settings=settings,
         redis_client=redis,
         object_storage=object_storage,
         producer=producer,
+    )
+    guardrail_service = GuardrailPipelineService(
+        repository=repository,
+        settings=settings,
+        producer=producer,
+        policy_engine=policy_engine,
+        pre_screener=prescreener_service,
     )
     oje_service = OJEPipelineService(
         repository=repository,

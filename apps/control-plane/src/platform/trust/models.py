@@ -52,6 +52,7 @@ class RecertificationTriggerStatus(StrEnum):
 
 
 class GuardrailLayer(StrEnum):
+    pre_screener = "pre_screener"
     input_sanitization = "input_sanitization"
     prompt_injection = "prompt_injection"
     output_moderation = "output_moderation"

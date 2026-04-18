@@ -110,12 +110,14 @@ def build_guardrail_pipeline_service(
     settings: PlatformSettings,
     producer: EventProducer | None,
     policy_engine: PolicyService | None,
+    pre_screener: SafetyPreScreenerService | None = None,
 ) -> GuardrailPipelineService:
     return GuardrailPipelineService(
         repository=TrustRepository(session),
         settings=settings,
         producer=producer,
         policy_engine=policy_engine,
+        pre_screener=pre_screener,
     )
 
 
@@ -124,11 +126,13 @@ async def get_guardrail_pipeline_service(
     session: AsyncSession = Depends(get_db),
     policy_service: PolicyService = Depends(get_policy_service),
 ) -> GuardrailPipelineService:
+    prescreener_service = await get_prescreener_service(request=request, session=session)
     return build_guardrail_pipeline_service(
         session=session,
         settings=_get_settings(request),
         producer=_get_producer(request),
         policy_engine=policy_service,
+        pre_screener=prescreener_service,
     )
 
 
