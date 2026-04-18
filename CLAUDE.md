@@ -88,6 +88,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-18
 - Python 3.12+ + Typer 0.12+, Rich, Pydantic v2, APScheduler 3.x, aiokafka 0.11+, aioboto3 (optional, for S3 upload), pytest + pytest-asyncio 8.x (048-backup-restore)
 - JSON manifests on local filesystem or MinIO bucket (no database tables) (048-backup-restore)
 - N/A (frontend only — all data from backend REST APIs) (049-analytics-cost-dashboard)
+- TypeScript 5.x, React 18+, Next.js 14+ App Router + shadcn/ui, Tailwind CSS 3.4+, TanStack Query v5, React Hook Form 7.x + Zod 3.x, Recharts 2.x, date-fns 4.x (050-evaluation-testing-ui)
+- N/A (frontend only) (050-evaluation-testing-ui)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -107,9 +109,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 050-evaluation-testing-ui: Added TypeScript 5.x, React 18+, Next.js 14+ App Router + shadcn/ui, Tailwind CSS 3.4+, TanStack Query v5, React Hook Form 7.x + Zod 3.x, Recharts 2.x, date-fns 4.x
 - 049-analytics-cost-dashboard: Added TypeScript 5.x, React 18+, Next.js 14+ App Router + shadcn/ui, Tailwind CSS 3.4+, TanStack Query v5, Zustand 5.x, Recharts 2.x, date-fns 4.x
 - 048-backup-restore: Added Python 3.12+ + Typer 0.12+, Rich, Pydantic v2, APScheduler 3.x, aiokafka 0.11+, aioboto3 (optional, for S3 upload), pytest + pytest-asyncio 8.x
-- 047-observability-stack: Added YAML (Helm chart templates) + Python 3.12 (kafka_tracing.py) + Go 1.22 (main.go OTLP init) + JSON (Grafana dashboard model) + opentelemetry-collector chart (open-telemetry/opentelemetry-helm-charts), kube-prometheus-stack (prometheus-community), jaeger chart (jaegertracing/jaeger), opentelemetry Python SDK (already in control-plane), go.opentelemetry.io/otel (already in Go services)
 
 
 <!-- MANUAL ADDITIONS START -->
