@@ -340,9 +340,22 @@ class WorkspacesServiceStub:
 @dataclass
 class RegistryServiceStub:
     owners_by_agent: dict[UUID, UUID] = field(default_factory=dict)
+    visibility_by_agent: dict[UUID, tuple[list[str], list[str]]] = field(default_factory=dict)
 
     async def get_agent_namespace_owner(self, agent_id: UUID) -> UUID | None:
         return self.owners_by_agent.get(agent_id)
+
+    async def resolve_effective_visibility(
+        self,
+        agent_id: UUID,
+        workspace_id: UUID,
+    ) -> SimpleNamespace:
+        del workspace_id
+        agent_patterns, tool_patterns = self.visibility_by_agent.get(agent_id, ([], []))
+        return SimpleNamespace(
+            agent_patterns=list(agent_patterns),
+            tool_patterns=list(tool_patterns),
+        )
 
 
 @dataclass
@@ -557,6 +570,7 @@ def build_search_service(
     settings: PlatformSettings | None = None,
     opensearch: OpenSearchClientStub | None = None,
     qdrant: QdrantClientStub | None = None,
+    registry_service: RegistryServiceStub | None = None,
 ) -> tuple[
     MarketplaceSearchService,
     InMemoryMarketplaceRepository,
@@ -568,12 +582,14 @@ def build_search_service(
     resolved_opensearch = opensearch or OpenSearchClientStub(documents or [])
     resolved_qdrant = qdrant or QdrantClientStub(search_results=qdrant_results or [])
     resolved_workspaces = WorkspacesServiceStub(visibility_by_workspace or {})
+    resolved_registry = registry_service or RegistryServiceStub()
     service = MarketplaceSearchService(
         repository=resolved_repository,
         settings=settings or build_marketplace_settings(),
         opensearch=resolved_opensearch,
         qdrant=resolved_qdrant,
         workspaces_service=resolved_workspaces,
+        registry_service=resolved_registry,
     )
     return (
         service,

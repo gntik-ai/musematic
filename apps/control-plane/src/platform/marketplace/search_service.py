@@ -36,12 +36,14 @@ class MarketplaceSearchService:
         opensearch: AsyncOpenSearchClient,
         qdrant: AsyncQdrantClient,
         workspaces_service: Any | None,
+        registry_service: Any | None = None,
     ) -> None:
         self.repository = repository
         self.settings = settings
         self.opensearch = opensearch
         self.qdrant = qdrant
         self.workspaces_service = workspaces_service
+        self.registry_service = registry_service
         self.rrf_k = settings.memory.rrf_k
 
     async def search(
@@ -49,9 +51,13 @@ class MarketplaceSearchService:
         request: MarketplaceSearchRequest,
         workspace_id: UUID,
         user_id: UUID,
+        requesting_agent_id: UUID | None = None,
     ) -> MarketplaceSearchResponse:
         del user_id
-        visibility_patterns = await self._get_visibility_patterns(workspace_id)
+        visibility_patterns = await self._get_visibility_patterns(
+            workspace_id,
+            requesting_agent_id=requesting_agent_id,
+        )
         if not request.query:
             documents, total = await self._browse_documents(request, visibility_patterns)
             listings = await self._assemble_listings(documents)
@@ -95,8 +101,12 @@ class MarketplaceSearchService:
         self,
         agent_id: UUID,
         workspace_id: UUID,
+        requesting_agent_id: UUID | None = None,
     ) -> AgentListingProjection:
-        visibility_patterns = await self._get_visibility_patterns(workspace_id)
+        visibility_patterns = await self._get_visibility_patterns(
+            workspace_id,
+            requesting_agent_id=requesting_agent_id,
+        )
         document = await self._fetch_document(agent_id)
         if document is None:
             raise AgentNotFoundError(agent_id)
@@ -109,11 +119,19 @@ class MarketplaceSearchService:
         self,
         agent_ids: list[UUID],
         workspace_id: UUID,
+        requesting_agent_id: UUID | None = None,
     ) -> AgentComparisonResponse:
         if not 2 <= len(agent_ids) <= 4:
             raise ComparisonRangeError(len(agent_ids))
         listings = await asyncio.gather(
-            *(self.get_listing(agent_id, workspace_id) for agent_id in agent_ids)
+            *(
+                self.get_listing(
+                    agent_id,
+                    workspace_id,
+                    requesting_agent_id=requesting_agent_id,
+                )
+                for agent_id in agent_ids
+            )
         )
         compared_rows: list[AgentComparisonRow] = []
         attributes: tuple[tuple[str, str], ...] = (
@@ -429,7 +447,22 @@ class MarketplaceSearchService:
             docs[self._extract_agent_id(source)] = source
         return docs
 
-    async def _get_visibility_patterns(self, workspace_id: UUID) -> list[str]:
+    async def _get_visibility_patterns(
+        self,
+        workspace_id: UUID,
+        requesting_agent_id: UUID | None = None,
+    ) -> list[str]:
+        if self.settings.visibility.zero_trust_enabled and requesting_agent_id is not None:
+            if self.registry_service is None or not hasattr(
+                self.registry_service,
+                "resolve_effective_visibility",
+            ):
+                return []
+            effective = await self.registry_service.resolve_effective_visibility(
+                requesting_agent_id,
+                workspace_id,
+            )
+            return list(getattr(effective, "agent_patterns", []))
         if self.workspaces_service is None:
             return ["*"]
         getter = getattr(self.workspaces_service, "get_visibility_config", None)

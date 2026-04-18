@@ -71,6 +71,7 @@ from platform.interactions.schemas import (
     ParticipantResponse,
 )
 from platform.interactions.state_machine import validate_transition
+from platform.registry.service import fqn_matches
 from platform.workspaces.models import GoalStatus
 from typing import Any
 from uuid import UUID, uuid4
@@ -373,8 +374,24 @@ class InteractionsService:
         interaction_id: UUID,
         participant: ParticipantAdd,
         workspace_id: UUID,
+        requesting_agent_id: UUID | None = None,
     ) -> ParticipantResponse:
         await self._require_interaction(interaction_id, workspace_id)
+        if (
+            self.settings.visibility.zero_trust_enabled
+            and requesting_agent_id is not None
+            and self.registry_service is not None
+            and hasattr(self.registry_service, "resolve_effective_visibility")
+        ):
+            effective_visibility = await self.registry_service.resolve_effective_visibility(
+                requesting_agent_id,
+                workspace_id,
+            )
+            if not any(
+                fqn_matches(pattern, participant.identity)
+                for pattern in getattr(effective_visibility, "agent_patterns", [])
+            ):
+                raise InteractionNotFoundError(interaction_id)
         created = await self.repository.add_participant(
             interaction_id=interaction_id,
             identity=participant.identity,

@@ -178,6 +178,12 @@ class AnalyticsSettings(BaseSettings):
     budget_threshold_usd: float = 0.0
 
 
+class VisibilitySettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="VISIBILITY_", extra="ignore")
+
+    zero_trust_enabled: bool = False
+
+
 class RegistrySettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="REGISTRY_", extra="ignore")
 
@@ -339,6 +345,7 @@ class PlatformSettings(BaseSettings):
     workspaces: WorkspacesSettings = Field(default_factory=WorkspacesSettings)
     ws_hub: WsHubSettings = Field(default_factory=WsHubSettings)
     analytics: AnalyticsSettings = Field(default_factory=AnalyticsSettings)
+    visibility: VisibilitySettings = Field(default_factory=VisibilitySettings)
     registry: RegistrySettings = Field(default_factory=RegistrySettings)
     context_engineering: ContextEngineeringSettings = Field(
         default_factory=ContextEngineeringSettings
@@ -429,6 +436,7 @@ class PlatformSettings(BaseSettings):
             "WORKSPACES_DEFAULT_NAME_TEMPLATE": ("workspaces", "default_name_template"),
             "WORKSPACES_DEFAULT_LIMIT": ("workspaces", "default_limit"),
             "ANALYTICS_BUDGET_THRESHOLD_USD": ("analytics", "budget_threshold_usd"),
+            "VISIBILITY_ZERO_TRUST_ENABLED": ("visibility", "zero_trust_enabled"),
             "REGISTRY_PACKAGE_BUCKET": ("registry", "package_bucket"),
             "REGISTRY_PACKAGE_SIZE_LIMIT_MB": ("registry", "package_size_limit_mb"),
             "REGISTRY_MAX_FILE_COUNT": ("registry", "max_file_count"),

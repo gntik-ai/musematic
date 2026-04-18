@@ -40,6 +40,11 @@ def _actor_id(current_user: dict[str, Any]) -> UUID:
     return UUID(str(current_user["sub"]))
 
 
+def _requesting_agent_id(current_user: dict[str, Any]) -> UUID | None:
+    agent_id = current_user.get("agent_profile_id") or current_user.get("agent_id")
+    return UUID(str(agent_id)) if agent_id is not None else None
+
+
 def _workspace_id(request: Request, current_user: dict[str, Any]) -> UUID:
     header_value = request.headers.get("X-Workspace-ID")
     if header_value:
@@ -56,7 +61,12 @@ async def search_marketplace(
     search_service: MarketplaceSearchService = Depends(get_search_service),
 ) -> MarketplaceSearchResponse:
     workspace_id = _workspace_id(request, current_user)
-    return await search_service.search(payload, workspace_id, _actor_id(current_user))
+    return await search_service.search(
+        payload,
+        workspace_id,
+        _actor_id(current_user),
+        requesting_agent_id=_requesting_agent_id(current_user),
+    )
 
 
 @router.get("/compare", response_model=AgentComparisonResponse)
@@ -67,7 +77,11 @@ async def compare_agents(
     search_service: MarketplaceSearchService = Depends(get_search_service),
 ) -> AgentComparisonResponse:
     ids = [UUID(item.strip()) for item in agent_ids.split(",") if item.strip()]
-    return await search_service.compare(ids, _workspace_id(request, current_user))
+    return await search_service.compare(
+        ids,
+        _workspace_id(request, current_user),
+        requesting_agent_id=_requesting_agent_id(current_user),
+    )
 
 
 @router.get("/recommendations", response_model=RecommendationResponse)
@@ -82,6 +96,7 @@ async def get_recommendations(
         _actor_id(current_user),
         workspace_id,
         limit=limit,
+        requesting_agent_id=_requesting_agent_id(current_user),
     )
 
 
@@ -96,6 +111,7 @@ async def get_contextual_suggestions(
         payload,
         workspace_id=_workspace_id(request, current_user),
         user_id=_actor_id(current_user),
+        requesting_agent_id=_requesting_agent_id(current_user),
     )
 
 
@@ -119,7 +135,11 @@ async def get_agent_listing(
     current_user: dict[str, Any] = Depends(get_current_user),
     search_service: MarketplaceSearchService = Depends(get_search_service),
 ) -> AgentListingProjection:
-    return await search_service.get_listing(agent_id, _workspace_id(request, current_user))
+    return await search_service.get_listing(
+        agent_id,
+        _workspace_id(request, current_user),
+        requesting_agent_id=_requesting_agent_id(current_user),
+    )
 
 
 @router.get("/agents/{agent_id}/quality", response_model=QualityProfileSchema)
@@ -131,7 +151,11 @@ async def get_quality_profile(
     quality_service: MarketplaceQualityAggregateService = Depends(get_quality_service),
 ) -> QualityProfileSchema:
     del quality_service
-    await search_service.get_listing(agent_id, _workspace_id(request, current_user))
+    await search_service.get_listing(
+        agent_id,
+        _workspace_id(request, current_user),
+        requesting_agent_id=_requesting_agent_id(current_user),
+    )
     aggregate = await search_service.repository.get_or_create_quality_aggregate(agent_id)
     return QualityProfileSchema(
         agent_id=agent_id,

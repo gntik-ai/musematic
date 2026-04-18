@@ -54,6 +54,7 @@ def build_search_service(
     opensearch: AsyncOpenSearchClient,
     qdrant: AsyncQdrantClient,
     workspaces_service: WorkspacesService | None,
+    registry_service: RegistryService | None = None,
 ) -> MarketplaceSearchService:
     return MarketplaceSearchService(
         repository=MarketplaceRepository(session),
@@ -61,6 +62,7 @@ def build_search_service(
         opensearch=opensearch,
         qdrant=qdrant,
         workspaces_service=workspaces_service,
+        registry_service=registry_service,
     )
 
 
@@ -68,6 +70,7 @@ async def get_search_service(
     request: Request,
     session: AsyncSession = Depends(get_db),
     workspaces_service: WorkspacesService = Depends(get_workspaces_service),
+    registry_service: RegistryService = Depends(get_registry_service),
 ) -> MarketplaceSearchService:
     return build_search_service(
         session=session,
@@ -75,6 +78,7 @@ async def get_search_service(
         opensearch=_get_opensearch(request),
         qdrant=_get_qdrant(request),
         workspaces_service=workspaces_service,
+        registry_service=registry_service,
     )
 
 
@@ -136,6 +140,7 @@ async def get_rating_service(
         opensearch=_get_opensearch(request),
         qdrant=_get_qdrant(request),
         workspaces_service=workspaces_service,
+        registry_service=registry_service,
     )
     quality_service = build_quality_service(
         session=session,
@@ -178,6 +183,7 @@ async def get_recommendation_service(
     request: Request,
     session: AsyncSession = Depends(get_db),
     workspaces_service: WorkspacesService = Depends(get_workspaces_service),
+    registry_service: RegistryService = Depends(get_registry_service),
 ) -> MarketplaceRecommendationService:
     search_service = build_search_service(
         session=session,
@@ -185,6 +191,7 @@ async def get_recommendation_service(
         opensearch=_get_opensearch(request),
         qdrant=_get_qdrant(request),
         workspaces_service=workspaces_service,
+        registry_service=registry_service,
     )
     return build_recommendation_service(
         session=session,
@@ -214,6 +221,7 @@ async def get_trending_service(
     request: Request,
     session: AsyncSession = Depends(get_db),
     workspaces_service: WorkspacesService = Depends(get_workspaces_service),
+    registry_service: RegistryService = Depends(get_registry_service),
 ) -> MarketplaceTrendingService:
     search_service = build_search_service(
         session=session,
@@ -221,6 +229,7 @@ async def get_trending_service(
         opensearch=_get_opensearch(request),
         qdrant=_get_qdrant(request),
         workspaces_service=workspaces_service,
+        registry_service=registry_service,
     )
     return build_trending_service(
         session=session,

@@ -255,6 +255,7 @@ async def test_get_resolve_and_list_agents_apply_visibility() -> None:
         },
     )
     service, _repo, _storage, _opensearch, _qdrant = _service(repo, workspaces_service=workspaces)
+    service.settings.visibility.zero_trust_enabled = True
 
     fetched = await service.get_agent(
         workspace_id,

@@ -43,12 +43,34 @@ class MarketplaceRecommendationService:
         self.search_service = search_service
         self.workspaces_service = workspaces_service
 
+    @staticmethod
+    def _recommended_entry_kwargs(
+        *,
+        agent_id: UUID,
+        workspace_id: UUID,
+        score: float,
+        reasoning: str | None,
+        recommendation_type: str,
+        requesting_agent_id: UUID | None = None,
+    ) -> dict[str, Any]:
+        kwargs: dict[str, Any] = {
+            "agent_id": agent_id,
+            "workspace_id": workspace_id,
+            "score": score,
+            "reasoning": reasoning,
+            "recommendation_type": recommendation_type,
+        }
+        if requesting_agent_id is not None:
+            kwargs["requesting_agent_id"] = requesting_agent_id
+        return kwargs
+
     async def get_recommendations(
         self,
         user_id: UUID,
         workspace_id: UUID,
         *,
         limit: int = 10,
+        requesting_agent_id: UUID | None = None,
     ) -> RecommendationResponse:
         used_agent_ids = await self._get_used_agent_ids(user_id)
         collaborative = [
@@ -59,11 +81,14 @@ class MarketplaceRecommendationService:
         entries: list[RecommendedAgentEntry] = []
         for row in collaborative[:limit]:
             entry = await self._build_recommended_entry(
-                agent_id=row.agent_id,
-                workspace_id=workspace_id,
-                score=float(row.score),
-                reasoning=row.reasoning,
-                recommendation_type=row.recommendation_type,
+                **self._recommended_entry_kwargs(
+                    agent_id=row.agent_id,
+                    workspace_id=workspace_id,
+                    score=float(row.score),
+                    reasoning=row.reasoning,
+                    recommendation_type=row.recommendation_type,
+                    requesting_agent_id=requesting_agent_id,
+                )
             )
             if entry is not None:
                 entries.append(entry)
@@ -72,14 +97,18 @@ class MarketplaceRecommendationService:
                 user_id=user_id,
                 workspace_id=workspace_id,
                 exclude_agent_ids={*used_agent_ids, *(entry.agent.agent_id for entry in entries)},
+                requesting_agent_id=requesting_agent_id,
             )
             for content_row in content_rows:
                 entry = await self._build_recommended_entry(
-                    agent_id=content_row["agent_id"],
-                    workspace_id=workspace_id,
-                    score=content_row["score"],
-                    reasoning=content_row.get("reasoning"),
-                    recommendation_type=RecommendationType.content_based.value,
+                    **self._recommended_entry_kwargs(
+                        agent_id=content_row["agent_id"],
+                        workspace_id=workspace_id,
+                        score=content_row["score"],
+                        reasoning=content_row.get("reasoning"),
+                        recommendation_type=RecommendationType.content_based.value,
+                        requesting_agent_id=requesting_agent_id,
+                    )
                 )
                 if entry is not None:
                     entries.append(entry)
@@ -89,7 +118,10 @@ class MarketplaceRecommendationService:
         if len(entries) < min(limit, 2):
             fallback_docs, _ = await self.search_service._browse_documents(
                 self.search_service_request(),
-                await self.search_service._get_visibility_patterns(workspace_id),
+                await self.search_service._get_visibility_patterns(
+                    workspace_id,
+                    requesting_agent_id=requesting_agent_id,
+                ),
             )
             for doc in fallback_docs:
                 agent_id = self.search_service._extract_agent_id(doc)
@@ -98,11 +130,14 @@ class MarketplaceRecommendationService:
                 ):
                     continue
                 entry = await self._build_recommended_entry(
-                    agent_id=agent_id,
-                    workspace_id=workspace_id,
-                    score=float(doc.get("invocation_count_30d") or 0.0),
-                    reasoning="Popular in your workspace visibility scope.",
-                    recommendation_type=RecommendationType.popularity_fallback.value,
+                    **self._recommended_entry_kwargs(
+                        agent_id=agent_id,
+                        workspace_id=workspace_id,
+                        score=float(doc.get("invocation_count_30d") or 0.0),
+                        reasoning="Popular in your workspace visibility scope.",
+                        recommendation_type=RecommendationType.popularity_fallback.value,
+                        requesting_agent_id=requesting_agent_id,
+                    )
                 )
                 if entry is not None:
                     entries.append(entry)
@@ -120,6 +155,7 @@ class MarketplaceRecommendationService:
         *,
         workspace_id: UUID,
         user_id: UUID,
+        requesting_agent_id: UUID | None = None,
     ) -> ContextualSuggestionResponse:
         del user_id
         if request.context_type not in {"workflow_step", "conversation", "fleet_config"}:
@@ -129,7 +165,10 @@ class MarketplaceRecommendationService:
                 {"context_type": request.context_type},
             )
         vector = await self._embed_text(request.context_text)
-        visibility_patterns = await self.search_service._get_visibility_patterns(workspace_id)
+        visibility_patterns = await self.search_service._get_visibility_patterns(
+            workspace_id,
+            requesting_agent_id=requesting_agent_id,
+        )
         rows = await self.qdrant.search_vectors(
             self.settings.registry.embeddings_collection,
             query_vector=vector,
@@ -144,7 +183,9 @@ class MarketplaceRecommendationService:
             document = await self.search_service._fetch_document(UUID(str(row["id"])))
             if document is None:
                 continue
-            suggestions.append(await self.search_service._assemble_listing(document))
+            suggestions.append(
+                await self.search_service._assemble_listing(document)
+            )
         return ContextualSuggestionResponse(
             suggestions=suggestions,
             has_results=bool(suggestions),
@@ -157,6 +198,7 @@ class MarketplaceRecommendationService:
         user_id: UUID,
         workspace_id: UUID,
         exclude_agent_ids: set[UUID],
+        requesting_agent_id: UUID | None = None,
     ) -> list[dict[str, Any]]:
         cache_key = f"rec:content:{user_id}"
         cached = await self.redis_client.get(cache_key)
@@ -196,7 +238,10 @@ class MarketplaceRecommendationService:
         if not vectors:
             return []
         centroid = [fmean(values) for values in zip(*vectors, strict=False)]
-        visibility_patterns = await self.search_service._get_visibility_patterns(workspace_id)
+        visibility_patterns = await self.search_service._get_visibility_patterns(
+            workspace_id,
+            requesting_agent_id=requesting_agent_id,
+        )
         results = await self.qdrant.search_vectors(
             self.settings.registry.embeddings_collection,
             query_vector=centroid,
@@ -271,9 +316,14 @@ class MarketplaceRecommendationService:
         score: float,
         reasoning: str | None,
         recommendation_type: str,
+        requesting_agent_id: UUID | None = None,
     ) -> RecommendedAgentEntry | None:
         try:
-            listing = await self.search_service.get_listing(agent_id, workspace_id)
+            listing = await self.search_service.get_listing(
+                agent_id,
+                workspace_id,
+                requesting_agent_id=requesting_agent_id,
+            )
         except Exception:
             return None
         return RecommendedAgentEntry(
