@@ -10,4 +10,4 @@ CREATE TABLE IF NOT EXISTS behavioral_drift (
 ENGINE = MergeTree()
 PARTITION BY toYYYYMM(measured_at)
 ORDER BY (agent_id, metric_name, measured_at)
-TTL measured_at + INTERVAL 180 DAY
+TTL toDateTime(measured_at) + INTERVAL 180 DAY

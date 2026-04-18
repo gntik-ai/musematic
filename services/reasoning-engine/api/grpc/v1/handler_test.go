@@ -233,7 +233,7 @@ func TestHandlerUnaryAndStreamingRPCs(t *testing.T) {
 	}
 
 	go func() {
-		time.Sleep(10 * time.Millisecond)
+		waitForBudgetSubscriber(registry, budget_tracker.Key("exec-1", "step-1"))
 		registry.Close(budget_tracker.Key("exec-1", "step-1"), budget_tracker.BudgetEvent{
 			ExecutionID: "exec-1",
 			StepID:      "step-1",
@@ -241,7 +241,9 @@ func TestHandlerUnaryAndStreamingRPCs(t *testing.T) {
 			OccurredAt:  time.Now().UTC(),
 		})
 	}()
-	budgetStream, err := client.StreamBudgetEvents(context.Background(), &StreamBudgetEventsRequest{ExecutionId: "exec-1", StepId: "step-1"})
+	streamCtx, cancelStream := context.WithTimeout(context.Background(), time.Second)
+	defer cancelStream()
+	budgetStream, err := client.StreamBudgetEvents(streamCtx, &StreamBudgetEventsRequest{ExecutionId: "exec-1", StepId: "step-1"})
 	if err != nil {
 		t.Fatalf("StreamBudgetEvents() error = %v", err)
 	}
@@ -251,13 +253,18 @@ func TestHandlerUnaryAndStreamingRPCs(t *testing.T) {
 	}
 
 	registry.Register(budget_tracker.Key("exec-1", "step-1"))
-	directStream := &fakeBudgetEventStream{ctx: context.Background()}
-	go registry.Close(budget_tracker.Key("exec-1", "step-1"), budget_tracker.BudgetEvent{
-		ExecutionID: "exec-1",
-		StepID:      "step-1",
-		EventType:   "COMPLETED",
-		OccurredAt:  time.Now().UTC(),
-	})
+	directCtx, cancelDirect := context.WithTimeout(context.Background(), time.Second)
+	defer cancelDirect()
+	directStream := &fakeBudgetEventStream{ctx: directCtx}
+	go func() {
+		waitForBudgetSubscriber(registry, budget_tracker.Key("exec-1", "step-1"))
+		registry.Close(budget_tracker.Key("exec-1", "step-1"), budget_tracker.BudgetEvent{
+			ExecutionID: "exec-1",
+			StepID:      "step-1",
+			EventType:   "COMPLETED",
+			OccurredAt:  time.Now().UTC(),
+		})
+	}()
 	if err := handler.StreamBudgetEvents(&StreamBudgetEventsRequest{ExecutionId: "exec-1", StepId: "step-1"}, directStream); err != nil {
 		t.Fatalf("direct StreamBudgetEvents() error = %v", err)
 	}
@@ -361,16 +368,21 @@ func TestHandlerRPCsWithInterceptors(t *testing.T) {
 		t.Fatalf("GetReasoningBudgetStatus handler error = %v", err)
 	}
 
+	interceptorCtx, cancelInterceptorStream := context.WithTimeout(context.Background(), time.Second)
+	defer cancelInterceptorStream()
 	stream := &generatedBudgetEventServerStream{
-		ctx: context.Background(),
+		ctx: interceptorCtx,
 		req: &StreamBudgetEventsRequest{ExecutionId: "exec-2", StepId: "step-1"},
 	}
-	go registry.Close(budget_tracker.Key("exec-2", "step-1"), budget_tracker.BudgetEvent{
-		ExecutionID: "exec-2",
-		StepID:      "step-1",
-		EventType:   "COMPLETED",
-		OccurredAt:  time.Now().UTC(),
-	})
+	go func() {
+		waitForBudgetSubscriber(registry, budget_tracker.Key("exec-2", "step-1"))
+		registry.Close(budget_tracker.Key("exec-2", "step-1"), budget_tracker.BudgetEvent{
+			ExecutionID: "exec-2",
+			StepID:      "step-1",
+			EventType:   "COMPLETED",
+			OccurredAt:  time.Now().UTC(),
+		})
+	}()
 	if err := _ReasoningEngineService_StreamBudgetEvents_Handler(handler, stream); err != nil {
 		t.Fatalf("StreamBudgetEvents handler error = %v", err)
 	}
@@ -789,5 +801,15 @@ func decodeMessage[T any](message *T) func(any) error {
 		}
 		*typed = *message
 		return nil
+	}
+}
+
+func waitForBudgetSubscriber(registry *budget_tracker.EventRegistry, key string) {
+	deadline := time.Now().Add(time.Second)
+	for time.Now().Before(deadline) {
+		if registry.SubscriberCount(key) > 0 {
+			return
+		}
+		time.Sleep(time.Millisecond)
 	}
 }

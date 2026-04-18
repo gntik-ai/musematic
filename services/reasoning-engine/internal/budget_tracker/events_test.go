@@ -254,6 +254,25 @@ func TestEventRegistryCloseClosesSubscribers(t *testing.T) {
 	}
 }
 
+func TestEventRegistrySubscribeIfActive(t *testing.T) {
+	registry := NewEventRegistry()
+	key := Key("exec-4b", "step-1")
+
+	if ch, ok := registry.SubscribeIfActive(key); ok || ch != nil {
+		t.Fatal("expected SubscribeIfActive() to reject inactive keys")
+	}
+
+	registry.Register(key)
+	ch, ok := registry.SubscribeIfActive(key)
+	if !ok || ch == nil {
+		t.Fatal("expected SubscribeIfActive() to accept active keys")
+	}
+	if registry.SubscriberCount(key) != 1 {
+		t.Fatalf("subscriber count = %d, want 1", registry.SubscriberCount(key))
+	}
+	registry.Unsubscribe(key, ch)
+}
+
 func TestTrackerHelperBranches(t *testing.T) {
 	registry := NewEventRegistry()
 	tracker := &RedisTracker{

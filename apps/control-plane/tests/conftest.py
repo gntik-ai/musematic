@@ -486,7 +486,14 @@ async def clickhouse_client(clickhouse_settings: Settings) -> AsyncIterator[Asyn
     client = AsyncClickHouseClient(clickhouse_settings)
     await _apply_clickhouse_init(client)
     for table in (
+        "analytics_usage_hourly_mv",
+        "analytics_usage_hourly_v2",
+        "analytics_usage_monthly",
+        "analytics_usage_daily",
+        "analytics_quality_events",
+        "analytics_usage_events",
         "usage_hourly_mv",
+        "usage_hourly_v2",
         "usage_hourly",
         "usage_events",
         "behavioral_drift",
@@ -496,7 +503,14 @@ async def clickhouse_client(clickhouse_settings: Settings) -> AsyncIterator[Asyn
         await client.execute_command(f"TRUNCATE TABLE IF EXISTS {table}")
     yield client
     for table in (
+        "analytics_usage_hourly_mv",
+        "analytics_usage_hourly_v2",
+        "analytics_usage_monthly",
+        "analytics_usage_daily",
+        "analytics_quality_events",
+        "analytics_usage_events",
         "usage_hourly_mv",
+        "usage_hourly_v2",
         "usage_hourly",
         "usage_events",
         "behavioral_drift",

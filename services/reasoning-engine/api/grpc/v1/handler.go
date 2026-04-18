@@ -144,11 +144,10 @@ func (h *Handler) StreamBudgetEvents(req *StreamBudgetEventsRequest, stream Reas
 	}
 
 	key := budget_tracker.Key(req.GetExecutionId(), req.GetStepId())
-	if !h.eventRegistry.Exists(key) {
+	ch, ok := h.eventRegistry.SubscribeIfActive(key)
+	if !ok {
 		return status.Error(codes.NotFound, "budget not found")
 	}
-
-	ch := h.eventRegistry.Subscribe(key)
 	defer h.eventRegistry.Unsubscribe(key, ch)
 
 	for {

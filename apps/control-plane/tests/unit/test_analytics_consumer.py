@@ -246,6 +246,59 @@ async def test_flush_buffers_writes_usage_and_quality_batches() -> None:
     assert consumer._quality_buffer == []
 
 
+def test_extract_usage_event_carries_goal_id() -> None:
+    consumer = _consumer()
+    goal_id = uuid4()
+
+    row = consumer._extract_usage_event(
+        build_envelope(
+            workspace_id=uuid4(),
+            execution_id=uuid4(),
+            goal_id=goal_id,
+            payload={"agent_fqn": "planner:daily", "model_id": "gpt-4o"},
+        )
+    )
+
+    assert row is not None
+    assert row["goal_id"] == goal_id
+
+
+def test_extract_usage_event_without_goal_id_preserves_none() -> None:
+    consumer = _consumer()
+
+    row = consumer._extract_usage_event(
+        build_envelope(
+            workspace_id=uuid4(),
+            execution_id=uuid4(),
+            payload={"agent_fqn": "planner:daily", "model_id": "gpt-4o"},
+        )
+    )
+
+    assert row is not None
+    assert row["goal_id"] is None
+
+
+def test_extract_quality_event_carries_goal_id() -> None:
+    consumer = _consumer()
+    goal_id = uuid4()
+
+    row = consumer._extract_quality_event(
+        build_envelope(
+            workspace_id=uuid4(),
+            execution_id=uuid4(),
+            goal_id=goal_id,
+            payload={
+                "agent_fqn": "planner:daily",
+                "model_id": "gpt-4o",
+                "quality_score": 0.9,
+            },
+        )
+    )
+
+    assert row is not None
+    assert row["goal_id"] == goal_id
+
+
 @pytest.mark.asyncio
 async def test_consume_and_flush_loops_process_messages(monkeypatch) -> None:
     consumer = _consumer()

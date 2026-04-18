@@ -90,6 +90,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-18
 - N/A (frontend only — all data from backend REST APIs) (049-analytics-cost-dashboard)
 - TypeScript 5.x, React 18+, Next.js 14+ App Router + shadcn/ui, Tailwind CSS 3.4+, TanStack Query v5, React Hook Form 7.x + Zod 3.x, Recharts 2.x, date-fns 4.x (050-evaluation-testing-ui)
 - N/A (frontend only) (050-evaluation-testing-ui)
+- Python 3.12+ + FastAPI 0.115+, Starlette middleware, Pydantic v2, aiokafka 0.11+, clickhouse-connect 0.8+, opensearch-py 2.x (052-gid-correlation-envelope)
+- ClickHouse (`usage_events`, `usage_hourly_v2`), OpenSearch (`audit-events`, `connector-payloads` index templates). PostgreSQL unaffected. (052-gid-correlation-envelope)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -109,9 +111,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 052-gid-correlation-envelope: Added Python 3.12+ + FastAPI 0.115+, Starlette middleware, Pydantic v2, aiokafka 0.11+, clickhouse-connect 0.8+, opensearch-py 2.x
 - 051-fqn-namespace-agent-identity: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
 - 050-evaluation-testing-ui: Added TypeScript 5.x, React 18+, Next.js 14+ App Router + shadcn/ui, Tailwind CSS 3.4+, TanStack Query v5, React Hook Form 7.x + Zod 3.x, Recharts 2.x, date-fns 4.x
-- 049-analytics-cost-dashboard: Added TypeScript 5.x, React 18+, Next.js 14+ App Router + shadcn/ui, Tailwind CSS 3.4+, TanStack Query v5, Zustand 5.x, Recharts 2.x, date-fns 4.x
 
 
 <!-- MANUAL ADDITIONS START -->
