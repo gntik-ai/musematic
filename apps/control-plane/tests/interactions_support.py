@@ -817,6 +817,7 @@ def build_service(
     workspaces_service: WorkspacesServiceStub | None = None,
     producer: RecordingProducer | None = None,
     settings: PlatformSettings | None = None,
+    registry_service: Any | None = None,
 ) -> tuple[InteractionsService, InMemoryInteractionsRepo, WorkspacesServiceStub, RecordingProducer]:
     repository = repo or InMemoryInteractionsRepo()
     workspaces = workspaces_service or WorkspacesServiceStub()
@@ -826,7 +827,7 @@ def build_service(
         settings=settings or PlatformSettings(),
         producer=event_producer,  # type: ignore[arg-type]
         workspaces_service=workspaces,  # type: ignore[arg-type]
-        registry_service=None,
+        registry_service=registry_service,
     )
     return service, repository, workspaces, event_producer
 

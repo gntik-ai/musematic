@@ -52,6 +52,11 @@ def _workspace_id(request: Request, current_user: dict[str, Any]) -> UUID:
     raise ValidationError("WORKSPACE_REQUIRED", "workspace_id is required")
 
 
+def _requesting_agent_id(current_user: dict[str, Any]) -> UUID | None:
+    agent_id = current_user.get("agent_profile_id") or current_user.get("agent_id")
+    return UUID(str(agent_id)) if agent_id is not None else None
+
+
 def _identity(current_user: dict[str, Any], request: Request) -> str:
     header_agent = request.headers.get("X-Agent-FQN")
     if header_agent:
@@ -271,6 +276,7 @@ async def add_participant(
         interaction_id,
         payload,
         _workspace_id(request, current_user),
+        requesting_agent_id=_requesting_agent_id(current_user),
     )
 
 

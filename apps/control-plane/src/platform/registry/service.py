@@ -357,7 +357,7 @@ class RegistryService:
         fetch_limit = max(params.limit + params.offset, 200)
         if params.keyword:
             visibility_filter = None
-            if requesting_agent_id is not None:
+            if requesting_agent_id is not None and self.settings.visibility.zero_trust_enabled:
                 visibility_filter = await self.resolve_effective_visibility(
                     requesting_agent_id,
                     workspace_id,
@@ -379,7 +379,7 @@ class RegistryService:
             visible_profiles = profiles
         else:
             visibility_filter = None
-            if requesting_agent_id is not None:
+            if requesting_agent_id is not None and self.settings.visibility.zero_trust_enabled:
                 visibility_filter = await self.resolve_effective_visibility(
                     requesting_agent_id,
                     workspace_id,
@@ -665,16 +665,46 @@ class RegistryService:
         workspace_id: UUID,
         requesting_agent_id: UUID | None,
     ) -> None:
-        if requesting_agent_id is None:
+        if requesting_agent_id is None or not self.settings.visibility.zero_trust_enabled:
             return
         effective_visibility = await self.resolve_effective_visibility(
             requesting_agent_id,
             workspace_id,
         )
-        if not any(
+        if any(
             fqn_matches(pattern, profile.fqn) for pattern in effective_visibility.agent_patterns
         ):
-            raise AgentNotFoundError(profile.id)
+            return
+        await self._publish_visibility_denied(
+            profile=profile,
+            workspace_id=workspace_id,
+            requesting_agent_id=requesting_agent_id,
+        )
+        raise AgentNotFoundError(profile.id)
+
+    async def _publish_visibility_denied(
+        self,
+        *,
+        profile: AgentProfile,
+        workspace_id: UUID,
+        requesting_agent_id: UUID,
+    ) -> None:
+        if self.event_producer is None:
+            return
+        await self.event_producer.publish(
+            topic="registry.events",
+            key=str(profile.id),
+            event_type="registry.agent.visibility_denied",
+            payload={
+                "agent_profile_id": str(profile.id),
+                "fqn": profile.fqn,
+                "workspace_id": str(profile.workspace_id),
+                "requesting_agent_id": str(requesting_agent_id),
+                "block_reason": "visibility_denied",
+            },
+            correlation_ctx=self._correlation(workspace_id, profile.fqn),
+            source="platform.registry",
+        )
 
     def _validate_patterns(self, patterns: list[str]) -> None:
         for pattern in patterns:

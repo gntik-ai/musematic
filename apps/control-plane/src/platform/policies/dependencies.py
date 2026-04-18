@@ -98,6 +98,7 @@ def build_tool_gateway_service(
         sanitizer=sanitizer,
         reasoning_client=reasoning_client,
         registry_service=registry_service,
+        settings=settings,
     )
 
 

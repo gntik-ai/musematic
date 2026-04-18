@@ -4,6 +4,7 @@ import re
 import time
 from datetime import UTC, datetime
 from fnmatch import fnmatch
+from platform.common.config import PlatformSettings
 from platform.policies.models import EnforcementComponent
 from platform.policies.sanitizer import OutputSanitizer
 from platform.policies.schemas import GateResult, SanitizationResult
@@ -20,11 +21,13 @@ class ToolGatewayService:
         sanitizer: OutputSanitizer,
         reasoning_client: Any | None,
         registry_service: Any | None,
+        settings: PlatformSettings | None = None,
     ) -> None:
         self.policy_service = policy_service
         self.sanitizer = sanitizer
         self.reasoning_client = reasoning_client
         self.registry_service = registry_service
+        self.settings = settings
 
     async def validate_tool_invocation(
         self,
@@ -39,6 +42,31 @@ class ToolGatewayService:
         del session
         started = time.perf_counter()
         try:
+            if (
+                self.settings is not None
+                and self.settings.visibility.zero_trust_enabled
+                and self.registry_service is not None
+                and hasattr(self.registry_service, "resolve_effective_visibility")
+            ):
+                effective_visibility = await self.registry_service.resolve_effective_visibility(
+                    agent_id,
+                    workspace_id,
+                )
+                if not any(
+                    fnmatch(tool_fqn, pattern) or tool_fqn == pattern
+                    for pattern in getattr(effective_visibility, "tool_patterns", [])
+                ):
+                    return await self._blocked(
+                        agent_id=agent_id,
+                        agent_fqn=agent_fqn,
+                        target=tool_fqn,
+                        workspace_id=workspace_id,
+                        execution_id=execution_id,
+                        block_reason="visibility_denied",
+                        policy_rule_ref={"tool_fqn": tool_fqn},
+                        started=started,
+                    )
+
             bundle = await self.policy_service.get_enforcement_bundle(
                 agent_id,
                 workspace_id,

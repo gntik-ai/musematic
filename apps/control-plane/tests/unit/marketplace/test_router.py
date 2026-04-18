@@ -51,8 +51,8 @@ class SearchStub:
     def __init__(self, listing: AgentListingProjection) -> None:
         self.listing = listing
 
-    async def search(self, payload, workspace_id, user_id):
-        del payload, workspace_id, user_id
+    async def search(self, payload, workspace_id, user_id, requesting_agent_id=None):
+        del payload, workspace_id, user_id, requesting_agent_id
         return MarketplaceSearchResponse(
             results=[self.listing],
             total=1,
@@ -62,8 +62,8 @@ class SearchStub:
             has_results=True,
         )
 
-    async def compare(self, ids, workspace_id):
-        del workspace_id
+    async def compare(self, ids, workspace_id, requesting_agent_id=None):
+        del workspace_id, requesting_agent_id
         if len(ids) == 1:
             raise ComparisonRangeError(1)
         return AgentComparisonResponse(
@@ -85,8 +85,8 @@ class SearchStub:
             compared_count=len(ids),
         )
 
-    async def get_listing(self, agent_id, workspace_id):
-        del workspace_id
+    async def get_listing(self, agent_id, workspace_id, requesting_agent_id=None):
+        del workspace_id, requesting_agent_id
         if agent_id != self.listing.agent_id:
             raise ComparisonRangeError(1)
         return self.listing
@@ -115,8 +115,8 @@ class RecommendationStub:
     def __init__(self, listing: AgentListingProjection) -> None:
         self.listing = listing
 
-    async def get_recommendations(self, user_id, workspace_id, *, limit):
-        del user_id, workspace_id, limit
+    async def get_recommendations(self, user_id, workspace_id, *, limit, requesting_agent_id=None):
+        del user_id, workspace_id, limit, requesting_agent_id
         return RecommendationResponse(
             recommendations=[
                 RecommendedAgentEntry(
@@ -129,8 +129,15 @@ class RecommendationStub:
             recommendation_type="fallback",
         )
 
-    async def get_contextual_suggestions(self, payload, *, workspace_id, user_id):
-        del payload, workspace_id, user_id
+    async def get_contextual_suggestions(
+        self,
+        payload,
+        *,
+        workspace_id,
+        user_id,
+        requesting_agent_id=None,
+    ):
+        del payload, workspace_id, user_id, requesting_agent_id
         return ContextualSuggestionResponse(
             suggestions=[self.listing],
             has_results=True,

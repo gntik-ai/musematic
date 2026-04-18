@@ -1554,6 +1554,7 @@ def _build_marketplace_scheduler(app: FastAPI) -> Any | None:
                 opensearch=cast(AsyncOpenSearchClient, app.state.clients["opensearch"]),
                 qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
                 workspaces_service=workspaces_service,
+                registry_service=None,
             )
             recommendation_service = build_marketplace_recommendation_service(
                 session=session,
