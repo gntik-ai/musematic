@@ -275,6 +275,9 @@ class KafkaFanout:
         elif topic == "monitor.alerts":
             if target_id := self._as_resource_id(payload.get("target_id")):
                 matches.append((ChannelType.ALERTS, target_id))
+        elif topic == "notifications.alerts":
+            if user_id := self._as_resource_id(payload.get("user_id")):
+                matches.append((ChannelType.ALERTS, user_id))
         elif topic == "interaction.attention":
             if target_id := self._as_resource_id(payload.get("target_id")):
                 matches.append((ChannelType.ATTENTION, target_id))

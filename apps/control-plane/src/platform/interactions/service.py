@@ -13,6 +13,7 @@ from platform.interactions.events import (
     InteractionCompletedPayload,
     InteractionFailedPayload,
     InteractionStartedPayload,
+    InteractionStateChangedPayload,
     MessageReceivedPayload,
     publish_attention_requested,
     publish_branch_merged,
@@ -21,6 +22,7 @@ from platform.interactions.events import (
     publish_interaction_completed,
     publish_interaction_failed,
     publish_interaction_started,
+    publish_interaction_state_changed,
     publish_message_received,
 )
 from platform.interactions.exceptions import (
@@ -263,6 +265,17 @@ class InteractionsService:
             conversation_id=updated.conversation_id,
             interaction_id=updated.id,
             goal_id=updated.goal_id,
+        )
+        await publish_interaction_state_changed(
+            self.producer,
+            InteractionStateChangedPayload(
+                interaction_id=updated.id,
+                workspace_id=updated.workspace_id,
+                from_state=interaction.state.value,
+                to_state=updated.state.value,
+                occurred_at=now,
+            ),
+            correlation,
         )
         initiator = await self.repository.get_initiator_identity(updated.id) or "unknown"
         if transition.trigger == "start":
@@ -816,6 +829,7 @@ class InteractionsService:
                 urgency=created.urgency,
                 related_interaction_id=created.related_interaction_id,
                 related_goal_id=created.related_goal_id,
+                context_summary=created.context_summary,
             ),
             self._correlation(
                 workspace_id=workspace_id,

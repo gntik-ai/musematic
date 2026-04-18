@@ -263,6 +263,16 @@ class InteractionsSettings(BaseSettings):
     goal_auto_complete_scan_interval_seconds: int = 60
 
 
+class NotificationsSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="NOTIFICATIONS_", extra="ignore")
+
+    rate_limit_per_source_per_minute: int = 20
+    alert_retention_days: int = 90
+    webhook_max_retries: int = 5
+    retry_scan_interval_seconds: int = 30
+    gc_interval_hours: int = 24
+
+
 class ConnectorsSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="CONNECTOR_",
@@ -384,6 +394,7 @@ class PlatformSettings(BaseSettings):
     )
     memory: MemorySettings = Field(default_factory=MemorySettings)
     interactions: InteractionsSettings = Field(default_factory=InteractionsSettings)
+    notifications: NotificationsSettings = Field(default_factory=NotificationsSettings)
     connectors: ConnectorsSettings = Field(default_factory=ConnectorsSettings)
     trust: TrustSettings = Field(default_factory=TrustSettings)
     agentops: AgentOpsSettings = Field(default_factory=AgentOpsSettings)
@@ -571,6 +582,26 @@ class PlatformSettings(BaseSettings):
                 "max_messages_per_conversation",
             ),
             "INTERACTIONS_DEFAULT_PAGE_SIZE": ("interactions", "default_page_size"),
+            "NOTIFICATIONS_RATE_LIMIT_PER_SOURCE_PER_MINUTE": (
+                "notifications",
+                "rate_limit_per_source_per_minute",
+            ),
+            "NOTIFICATIONS_ALERT_RETENTION_DAYS": (
+                "notifications",
+                "alert_retention_days",
+            ),
+            "NOTIFICATIONS_WEBHOOK_MAX_RETRIES": (
+                "notifications",
+                "webhook_max_retries",
+            ),
+            "NOTIFICATIONS_RETRY_SCAN_INTERVAL_SECONDS": (
+                "notifications",
+                "retry_scan_interval_seconds",
+            ),
+            "NOTIFICATIONS_GC_INTERVAL_HOURS": (
+                "notifications",
+                "gc_interval_hours",
+            ),
             "CONNECTOR_INGRESS_TOPIC": ("connectors", "ingress_topic"),
             "CONNECTOR_DELIVERY_TOPIC": ("connectors", "delivery_topic"),
             "S3_BUCKET_DEAD_LETTERS": ("connectors", "dead_letter_bucket"),

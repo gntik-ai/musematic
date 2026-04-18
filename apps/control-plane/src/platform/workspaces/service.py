@@ -305,6 +305,9 @@ class WorkspacesService:
         )
         return self._membership_response(membership)
 
+    async def list_member_ids(self, workspace_id: UUID) -> list[UUID]:
+        return await self.repo.list_member_ids(workspace_id)
+
     async def list_members(
         self,
         workspace_id: UUID,
