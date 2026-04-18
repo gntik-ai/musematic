@@ -364,6 +364,21 @@ func TestWarmPoolStatusAndConfig(t *testing.T) {
 	if _, err := service.WarmPoolConfig(context.Background(), &runtimev1.WarmPoolConfigRequest{WorkspaceId: "ws-1", AgentType: "python-3.12", TargetSize: -1}); status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("expected InvalidArgument for negative target size, got %v", err)
 	}
+
+	store.warmStatusErr = errors.New("status failed")
+	if _, err := service.WarmPoolStatus(context.Background(), &runtimev1.WarmPoolStatusRequest{}); status.Code(err) != codes.Internal {
+		t.Fatalf("expected Internal for status lookup error, got %v", err)
+	}
+
+	store.warmStatusErr = nil
+	store.upsertErr = errors.New("upsert failed")
+	if _, err := service.WarmPoolConfig(context.Background(), &runtimev1.WarmPoolConfigRequest{WorkspaceId: "ws-1", AgentType: "python-3.12", TargetSize: 7}); status.Code(err) != codes.Internal {
+		t.Fatalf("expected Internal for upsert error, got %v", err)
+	}
+
+	if timestampOrNil(nil) != nil {
+		t.Fatalf("expected nil timestamp for nil time pointer")
+	}
 }
 
 func TestGetRuntimeMapsRecordAndNotFound(t *testing.T) {

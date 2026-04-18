@@ -9,15 +9,20 @@ import (
 )
 
 type fakeWarmPoolStore struct {
-	pods    []state.WarmPoolPod
-	updated []string
+	pods      []state.WarmPoolPod
+	updated   []string
+	listErr   error
+	updateErr error
 }
 
 func (f fakeWarmPoolStore) ListWarmPoolPodsByStatus(context.Context, string) ([]state.WarmPoolPod, error) {
-	return f.pods, nil
+	return f.pods, f.listErr
 }
 
 func (f *fakeWarmPoolStore) UpdateWarmPoolPodStatus(_ context.Context, podName string, _ string, _ *uuid.UUID) error {
+	if f.updateErr != nil {
+		return f.updateErr
+	}
 	f.updated = append(f.updated, podName)
 	return nil
 }
@@ -73,5 +78,25 @@ func TestManagerDispatchUpdatesStoreAndRemoveReadyPod(t *testing.T) {
 	}
 	if count := manager.Count("ws-1", "agent-a"); count != 0 {
 		t.Fatalf("expected empty queue, got %d", count)
+	}
+}
+
+func TestManagerLoadAndDispatchErrorBranches(t *testing.T) {
+	store := &fakeWarmPoolStore{listErr: context.Canceled}
+	manager := NewManager(store)
+	if err := manager.LoadFromDB(context.Background(), store); err == nil {
+		t.Fatalf("expected load error")
+	}
+
+	store = &fakeWarmPoolStore{updateErr: context.DeadlineExceeded}
+	manager = NewManager(store)
+	manager.RegisterReadyPod("ws-1", "agent-a", "pod-1")
+	if _, _, err := manager.Dispatch(context.Background(), "ws-1", "agent-a", uuid.New()); err == nil {
+		t.Fatalf("expected dispatch update error")
+	}
+
+	manager.RemoveReadyPod("ws-1", "agent-a", "missing-pod")
+	if count := manager.Count("ws-1", "agent-a"); count != 0 {
+		t.Fatalf("expected queue to be empty after failed dispatch, got %d", count)
 	}
 }

@@ -13,6 +13,7 @@ import (
 type fakeWarmPoolInserter struct {
 	inserted []state.WarmPoolPod
 	targets  []state.WarmPoolTarget
+	listErr  error
 }
 
 func (f *fakeWarmPoolInserter) InsertWarmPoolPod(_ context.Context, pod state.WarmPoolPod) error {
@@ -21,6 +22,9 @@ func (f *fakeWarmPoolInserter) InsertWarmPoolPod(_ context.Context, pod state.Wa
 }
 
 func (f *fakeWarmPoolInserter) ListWarmPoolTargets(context.Context) ([]state.WarmPoolTarget, error) {
+	if f.listErr != nil {
+		return nil, f.listErr
+	}
 	return append([]state.WarmPoolTarget(nil), f.targets...), nil
 }
 
@@ -136,5 +140,33 @@ func TestReplenisherRunStopsOnContextCancellation(t *testing.T) {
 
 	if err := replenisher.Run(ctx, map[string]int{}); err == nil {
 		t.Fatalf("expected canceled context error")
+	}
+}
+
+func TestCurrentTargetsMergesBootstrapAndPersistedTargets(t *testing.T) {
+	store := &fakeWarmPoolInserter{targets: []state.WarmPoolTarget{{WorkspaceID: "ws-1", AgentType: "agent-a", TargetSize: 3}, {WorkspaceID: "ws-2", AgentType: "agent-b", TargetSize: 1}}}
+	replenisher := &Replenisher{
+		Store:            store,
+		BootstrapTargets: map[string]int{"ws-1/agent-a": 2, "ws-3/agent-c": 4},
+	}
+
+	targets := replenisher.currentTargets(context.Background())
+	if targets["ws-1/agent-a"] != 3 {
+		t.Fatalf("expected persisted target to override bootstrap, got %+v", targets)
+	}
+	if targets["ws-2/agent-b"] != 1 || targets["ws-3/agent-c"] != 4 {
+		t.Fatalf("unexpected merged targets: %+v", targets)
+	}
+
+	replenisher.Store = &fakeWarmPoolInserter{listErr: errors.New("boom")}
+	targets = replenisher.currentTargets(context.Background())
+	if targets["ws-1/agent-a"] != 2 || targets["ws-3/agent-c"] != 4 {
+		t.Fatalf("expected bootstrap targets on list error, got %+v", targets)
+	}
+
+	replenisher.Store = nil
+	targets = replenisher.currentTargets(context.Background())
+	if len(targets) != 2 {
+		t.Fatalf("expected bootstrap-only targets with nil store, got %+v", targets)
 	}
 }

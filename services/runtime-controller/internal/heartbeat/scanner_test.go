@@ -30,6 +30,7 @@ type fakeScannerStore struct {
 	runtimes  []state.RuntimeRecord
 	listErr   error
 	updateErr error
+	eventErr  error
 	updates   []struct {
 		executionID string
 		stateValue  string
@@ -55,6 +56,9 @@ func (f *fakeScannerStore) UpdateRuntimeState(_ context.Context, executionID str
 }
 
 func (f *fakeScannerStore) InsertRuntimeEvent(_ context.Context, event state.RuntimeEventRecord) error {
+	if f.eventErr != nil {
+		return f.eventErr
+	}
 	f.events = append(f.events, event)
 	return nil
 }
@@ -141,5 +145,33 @@ func TestScannerRunStopsOnContextCancellation(t *testing.T) {
 	cancel()
 	if err := scanner.Run(ctx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context cancellation, got %v", err)
+	}
+}
+
+func TestScanOnceContinuesWhenEventPersistenceFails(t *testing.T) {
+	record := state.RuntimeRecord{RuntimeID: uuid.New(), ExecutionID: "exec-1", WorkspaceID: "ws-1"}
+	store := &fakeScannerStore{
+		runtimes: []state.RuntimeRecord{record},
+		eventErr: errors.New("persist failed"),
+	}
+	fanout := events.NewFanoutRegistry()
+	ch, unsubscribe := fanout.Subscribe("exec-1")
+	defer unsubscribe()
+	scanner := &Scanner{
+		Redis:  &fakeRedisExists{values: map[string]int64{"heartbeat:exec-1": 0}},
+		Store:  store,
+		Fanout: fanout,
+	}
+
+	if err := scanner.ScanOnce(context.Background()); err != nil {
+		t.Fatalf("ScanOnce returned error: %v", err)
+	}
+	if len(store.updates) != 1 {
+		t.Fatalf("expected runtime update even when persistence fails")
+	}
+	select {
+	case <-ch:
+	default:
+		t.Fatalf("expected fanout event despite persistence error")
 	}
 }
