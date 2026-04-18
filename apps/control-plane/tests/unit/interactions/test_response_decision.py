@@ -381,3 +381,105 @@ async def test_best_match_with_all_errors_skips_every_candidate() -> None:
 
     assert all(item.decision == "skip" for item in results)
     assert all(item.error == "down" for item in results)
+
+
+
+@pytest.mark.asyncio
+async def test_response_decision_helpers_and_non_best_match_paths() -> None:
+    engine = ResponseDecisionEngine(settings=_settings(), qdrant=None)
+    session = _SessionStub()
+
+    empty = await engine.evaluate_for_message(
+        message_id=uuid4(),
+        goal_id=uuid4(),
+        workspace_id=uuid4(),
+        message_content="hello",
+        goal_context="Goal context",
+        subscriptions=[],
+        session=session,
+    )
+
+    async def _persist_records(session_obj: _SessionStub, records: list[dict[str, object]]) -> None:
+        session_obj.persisted = _materialize(records)
+
+    engine._persist_records = _persist_records  # type: ignore[method-assign]
+
+    single = await engine.evaluate_for_message(
+        message_id=uuid4(),
+        goal_id=uuid4(),
+        workspace_id=uuid4(),
+        message_content="hello",
+        goal_context="Goal context",
+        subscriptions=[
+            build_agent_decision_config(
+                agent_fqn="ops:unknown",
+                response_decision_strategy="unknown_strategy",
+                response_decision_config={},
+            )
+        ],
+        session=session,
+    )
+
+    assert empty == []
+    assert len(single) == 1
+    assert single[0].strategy_name == "unknown_strategy"
+    assert single[0].decision == "skip"
+    assert single[0].error == "Unknown strategy: 'unknown_strategy'"
+
+    qdrant_missing = EmbeddingSimilarityDecision(_settings(), None)
+    missing = await qdrant_missing.decide("deploy", "Goal context", {"threshold": 0.5})
+    assert missing.decision == "skip"
+    assert missing.error == "qdrant client is unavailable"
+
+    wrapped = await decision_module.BestMatchDecision(engine).decide("msg", "goal", {})
+    assert wrapped.strategy_name == "best_match"
+    assert wrapped.decision == "skip"
+
+    assert decision_module._extract_score({"choices": [{"message": {"content": '{"score": 0.77}'}}]}) == pytest.approx(0.77)
+    with pytest.raises(ValueError):
+        decision_module._extract_score({"choices": []})
+    assert decision_module._extract_embedding({"embedding": [1, 2, 3]}) == [1.0, 2.0, 3.0]
+    with pytest.raises(ValueError):
+        decision_module._extract_embedding({"embedding": None})
+
+
+@pytest.mark.asyncio
+async def test_response_decision_persist_records_handles_empty_and_execute_paths() -> None:
+    engine = ResponseDecisionEngine(settings=_settings())
+
+    class PersistSession:
+        def __init__(self) -> None:
+            self.executed: list[object] = []
+            self.flush_count = 0
+
+        async def execute(self, statement: object):
+            self.executed.append(statement)
+            return None
+
+        async def flush(self) -> None:
+            self.flush_count += 1
+
+    session = PersistSession()
+    await engine._persist_records(session, [])
+    assert session.executed == []
+    assert session.flush_count == 0
+
+    await engine._persist_records(
+        session,
+        [
+            {
+                "workspace_id": uuid4(),
+                "goal_id": uuid4(),
+                "message_id": uuid4(),
+                "agent_fqn": "ops:alpha",
+                "strategy_name": "keyword",
+                "decision": "respond",
+                "score": 1.0,
+                "matched_terms": ["deploy"],
+                "rationale": "matched",
+                "error": None,
+            }
+        ],
+    )
+    assert len(session.executed) == 1
+    assert session.flush_count == 1

@@ -109,6 +109,11 @@ from platform.memory.embedding_worker import EmbeddingWorker
 from platform.memory.events import register_memory_event_types
 from platform.memory.memory_setup import setup_memory_collections
 from platform.memory.router import router as memory_router
+from platform.notifications.consumers.attention_consumer import AttentionConsumer
+from platform.notifications.consumers.state_change_consumer import StateChangeConsumer
+from platform.notifications.dependencies import build_notifications_service
+from platform.notifications.events import register_notifications_event_types
+from platform.notifications.router import router as notifications_router
 from platform.policies.dependencies import build_policy_service
 from platform.policies.events import PolicyEventConsumer, register_policies_event_types
 from platform.policies.router import router as policies_router
@@ -181,6 +186,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_context_engineering_event_types()
     register_memory_event_types()
     register_interactions_event_types()
+    register_notifications_event_types()
     register_connectors_event_types()
     register_evaluation_event_types()
     register_policies_event_types()
@@ -324,6 +330,16 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             LOGGER.warning("Failed to start context engineering scheduler: %s", exc)
     memory_scheduler = getattr(app.state, "memory_scheduler", None)
     goal_auto_completion_scheduler = getattr(app.state, "goal_auto_completion_scheduler", None)
+    notifications_webhook_retry_scheduler = getattr(
+        app.state,
+        "notifications_webhook_retry_scheduler",
+        None,
+    )
+    notifications_retention_gc_scheduler = getattr(
+        app.state,
+        "notifications_retention_gc_scheduler",
+        None,
+    )
     ibor_sync_scheduler = getattr(app.state, "ibor_sync_scheduler", None)
     connectors_worker_scheduler = getattr(app.state, "connectors_worker_scheduler", None)
     workflow_execution_scheduler = getattr(app.state, "workflow_execution_scheduler", None)
@@ -363,6 +379,20 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["goal_auto_completion_scheduler"] = str(exc)
             LOGGER.warning("Failed to start goal auto-completion scheduler: %s", exc)
+    if notifications_webhook_retry_scheduler is not None:
+        try:
+            notifications_webhook_retry_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["notifications_webhook_retry_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start notifications webhook retry scheduler: %s", exc)
+    if notifications_retention_gc_scheduler is not None:
+        try:
+            notifications_retention_gc_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["notifications_retention_gc_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start notifications retention GC scheduler: %s", exc)
     if connectors_worker_scheduler is not None:
         try:
             connectors_worker_scheduler.start()
@@ -517,6 +547,22 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                     "Failed to stop goal auto-completion scheduler cleanly: %s",
                     exc,
                 )
+        if notifications_webhook_retry_scheduler is not None:
+            try:
+                notifications_webhook_retry_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning(
+                    "Failed to stop notifications webhook retry scheduler cleanly: %s",
+                    exc,
+                )
+        if notifications_retention_gc_scheduler is not None:
+            try:
+                notifications_retention_gc_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning(
+                    "Failed to stop notifications retention GC scheduler cleanly: %s",
+                    exc,
+                )
         if context_engineering_scheduler is not None:
             try:
                 context_engineering_scheduler.shutdown(wait=False)
@@ -576,6 +622,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.context_engineering_drift_scheduler = None
     app.state.memory_scheduler = None
     app.state.goal_auto_completion_scheduler = None
+    app.state.notifications_webhook_retry_scheduler = None
+    app.state.notifications_retention_gc_scheduler = None
     app.state.ibor_sync_scheduler = None
     app.state.refresh_ibor_sync_scheduler = None
     app.state.connectors_worker_scheduler = None
@@ -592,6 +640,12 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     if resolved.profile == "api":
         app.state.ibor_sync_scheduler = _build_ibor_sync_scheduler(app)
         app.state.refresh_ibor_sync_scheduler = lambda: _refresh_ibor_sync_scheduler(app)
+        app.state.notifications_webhook_retry_scheduler = (
+            _build_notifications_webhook_retry_scheduler(app)
+        )
+        app.state.notifications_retention_gc_scheduler = (
+            _build_notifications_retention_gc_scheduler(app)
+        )
     if resolved.profile == "worker":
         app.state.analytics_consumer = AnalyticsPipelineConsumer(
             settings=resolved,
@@ -646,6 +700,17 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         PolicyEventConsumer(
             invalidate_bundle_by_revision=_build_policy_bundle_invalidator(app),
         ).register(consumer_manager)
+        if resolved.profile == "api":
+            AttentionConsumer(
+                settings=resolved,
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            ).register(consumer_manager)
+            StateChangeConsumer(
+                settings=resolved,
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            ).register(consumer_manager)
         if resolved.profile == "agentops":
             consumer_manager.subscribe(
                 "evaluation.events",
@@ -777,6 +842,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(memory_router)
         app.include_router(marketplace_router)
         app.include_router(interactions_router)
+        app.include_router(notifications_router, prefix="/api/v1")
         app.include_router(connectors_router)
         app.include_router(policies_router)
         app.include_router(testing_router)
@@ -889,6 +955,92 @@ def _build_analytics_budget_scheduler(app: FastAPI) -> Any | None:
             await service.check_budget_thresholds()
 
     scheduler.add_job(_run_threshold_check, "interval", days=1, id="analytics-budget-threshold")
+    return scheduler
+
+
+async def _run_notifications_webhook_retry_scan(app: FastAPI) -> None:
+    async with database.AsyncSessionLocal() as session:
+        workspaces_service = build_workspaces_service(
+            session=session,
+            settings=cast(PlatformSettings, app.state.settings),
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            accounts_service=None,
+        )
+        service = build_notifications_service(
+            session=session,
+            settings=cast(PlatformSettings, app.state.settings),
+            redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            workspaces_service=workspaces_service,
+        )
+        try:
+            await service.run_webhook_retry_scan()
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+async def _run_notifications_retention_gc(app: FastAPI) -> None:
+    async with database.AsyncSessionLocal() as session:
+        service = build_notifications_service(
+            session=session,
+            settings=cast(PlatformSettings, app.state.settings),
+            redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            workspaces_service=None,
+        )
+        try:
+            await service.run_retention_gc()
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+def _build_notifications_webhook_retry_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run() -> None:
+        await _run_notifications_webhook_retry_scan(app)
+
+    scheduler.add_job(
+        _run,
+        "interval",
+        seconds=app.state.settings.notifications.retry_scan_interval_seconds,
+        id="notifications-webhook-retry",
+    )
+    return scheduler
+
+
+def _build_notifications_retention_gc_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run() -> None:
+        await _run_notifications_retention_gc(app)
+
+    scheduler.add_job(
+        _run,
+        "interval",
+        hours=app.state.settings.notifications.gc_interval_hours,
+        id="notifications-retention-gc",
+    )
     return scheduler
 
 

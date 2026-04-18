@@ -107,13 +107,17 @@ async def test_interactions_transition_service_emits_lifecycle_events() -> None:
     assert completed.state == InteractionState.completed
     assert failed.state == InteractionState.failed
     assert canceled.state == InteractionState.canceled
-    assert [event["event_type"] for event in producer.events] == [
+    event_types = [event["event_type"] for event in producer.events]
+    assert [
+        event_type for event_type in event_types if event_type != "interaction.state_changed"
+    ] == [
         "interaction.started",
         "interaction.completed",
         "interaction.started",
         "interaction.failed",
         "interaction.canceled",
     ]
+    assert event_types.count("interaction.state_changed") == 8
 
 
 @pytest.mark.asyncio
@@ -149,4 +153,8 @@ async def test_interactions_concurrent_transition_only_one_wins() -> None:
     errors = [item for item in results if isinstance(item, Exception)]
     assert len(errors) == 1
     assert isinstance(errors[0], InvalidStateTransitionError)
-    assert [event["event_type"] for event in producer.events] == ["interaction.started"]
+    event_types = [event["event_type"] for event in producer.events]
+    assert [
+        event_type for event_type in event_types if event_type != "interaction.state_changed"
+    ] == ["interaction.started"]
+    assert event_types.count("interaction.state_changed") == 2

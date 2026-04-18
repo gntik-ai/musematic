@@ -47,7 +47,7 @@ def test_subscription_registry_unsubscribe_all_and_workspace_scope_detection() -
 
     released = registry.unsubscribe_all("conn-1")
 
-    assert set(released) == {"workspaces.events", "monitor.alerts"}
+    assert set(released) == {"workspaces.events", "monitor.alerts", "notifications.alerts"}
     assert registry.has_workspace_scoped_subscriptions() is False
     assert registry.get_active_topics() == set()
     assert (

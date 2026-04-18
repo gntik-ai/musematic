@@ -9,7 +9,7 @@ from uuid import UUID
 import httpx
 import jwt
 import pytest
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 
 
 class FakeClient:
@@ -41,8 +41,14 @@ def _fake_clients() -> dict[str, FakeClient]:
 
 
 def _app(monkeypatch, settings: PlatformSettings):
-    monkeypatch.setattr("platform.main._build_clients", lambda resolved: _fake_clients())
-    monkeypatch.setattr("platform.api.health.database_health_check", lambda: _async_bool(True))
+    if monkeypatch is not None:
+        monkeypatch.setattr("platform.main._build_clients", lambda resolved: _fake_clients())
+        monkeypatch.setattr("platform.api.health.database_health_check", lambda: _async_bool(True))
+    else:
+        import platform.main as main_module
+        main_module._build_clients = lambda resolved: _fake_clients()
+        import platform.api.health as health_module
+        health_module.database_health_check = lambda: _async_bool(True)
     return create_app(settings=settings)
 
 
@@ -187,3 +193,75 @@ async def test_public_oauth_routes_are_auth_exempt_but_link_remains_protected() 
     assert callback.status_code == 200
     assert link.status_code == 401
     assert link.json()["error"]["code"] == "UNAUTHORIZED"
+
+
+
+@pytest.mark.asyncio
+async def test_api_key_and_invitation_paths_in_auth_middleware(monkeypatch) -> None:
+    settings = PlatformSettings(AUTH_JWT_SECRET_KEY="secret", AUTH_JWT_ALGORITHM="HS256")
+    app = FastAPI()
+    app.state.settings = settings
+    app.add_middleware(AuthMiddleware)
+
+    @app.get("/api/v1/accounts/invitations/{token}")
+    async def invitation_get(token: str) -> dict[str, str]:
+        return {"token": token}
+
+    @app.post("/api/v1/accounts/invitations/{token}/accept")
+    async def invitation_accept(token: str) -> dict[str, str]:
+        return {"token": token}
+
+    @app.get("/api/v1/protected")
+    async def protected(request: Request):
+        return {"user": request.state.user}
+
+    async def _valid_identity(request, api_key: str):
+        del request, api_key
+        return {"sub": "api-key-user"}
+
+    async def _invalid_identity(request, api_key: str):
+        del request, api_key
+        return None
+
+    monkeypatch.setattr("platform.common.auth_middleware.resolve_api_key_identity", _valid_identity)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://testserver",
+    ) as client:
+        invitation = await client.get("/api/v1/accounts/invitations/demo-token")
+        accepted = await client.post("/api/v1/accounts/invitations/demo-token/accept")
+        api_key_ok = await client.get("/api/v1/protected", headers={"X-API-Key": "valid"})
+
+    monkeypatch.setattr("platform.common.auth_middleware.resolve_api_key_identity", _invalid_identity)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://testserver",
+    ) as client:
+        api_key_bad = await client.get("/api/v1/protected", headers={"X-API-Key": "bad"})
+
+    assert invitation.status_code == 200
+    assert accepted.status_code == 200
+    assert api_key_ok.status_code == 200
+    assert api_key_ok.json()["user"]["sub"] == "api-key-user"
+    assert api_key_bad.status_code == 401
+    assert api_key_bad.json()["error"]["code"] == "INVALID_API_KEY"
+
+
+@pytest.mark.asyncio
+async def test_refresh_token_type_is_rejected_by_auth_middleware() -> None:
+    secret = "a" * 32
+    settings = PlatformSettings(AUTH_JWT_SECRET_KEY=secret, AUTH_JWT_ALGORITHM="HS256")
+    app = _app(None, settings)
+    refresh_token = jwt.encode({"sub": "user-1", "type": "refresh"}, secret, algorithm="HS256")
+
+    async with app.router.lifespan_context(app):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app),
+            base_url="http://testserver",
+        ) as client:
+            response = await client.get(
+                "/api/v1/protected", headers={"Authorization": f"Bearer {refresh_token}"}
+            )
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "UNAUTHORIZED"

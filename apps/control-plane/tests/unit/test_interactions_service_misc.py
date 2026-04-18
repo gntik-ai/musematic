@@ -441,3 +441,90 @@ async def test_interactions_service_goal_branch_attention_and_subscription_edges
         )
         is False
     )
+
+
+
+@pytest.mark.asyncio
+async def test_interactions_service_attention_success_paths_and_goal_message_views() -> None:
+    service, repo, workspaces, _producer = build_service()
+    workspace_id = uuid4()
+    member_id = uuid4()
+    workspaces.add_member(workspace_id, member_id)
+    goal_id = uuid4()
+    workspaces.add_goal(workspace_id, goal_id, status=GoalStatus.open)
+
+    await service.post_goal_message(
+        goal_id,
+        GoalMessageCreate(content="first"),
+        str(member_id),
+        workspace_id,
+    )
+    await service.post_goal_message(
+        goal_id,
+        GoalMessageCreate(content="second"),
+        str(member_id),
+        workspace_id,
+    )
+
+    goal_page = await service.list_goal_messages(goal_id, workspace_id, 1, 10)
+    goal_context = await service.get_goal_messages(workspace_id, goal_id, limit=10)
+
+    pending = await service.create_attention_request(
+        AttentionRequestCreate(
+            target_identity=str(member_id),
+            urgency=AttentionUrgency.high,
+            context_summary="Needs action",
+        ),
+        "ops:agent",
+        workspace_id,
+    )
+    resolved = await service.create_attention_request(
+        AttentionRequestCreate(
+            target_identity=str(member_id),
+            urgency=AttentionUrgency.medium,
+            context_summary="Resolve this",
+        ),
+        "ops:agent",
+        workspace_id,
+    )
+    dismissed = await service.create_attention_request(
+        AttentionRequestCreate(
+            target_identity=str(member_id),
+            urgency=AttentionUrgency.low,
+            context_summary="Dismiss this",
+        ),
+        "ops:agent",
+        workspace_id,
+    )
+
+    listed = await service.list_attention_requests(str(member_id), workspace_id, None, 1, 10)
+    acknowledged = await service.resolve_attention_request(
+        pending.id,
+        AttentionResolve(action="acknowledge"),
+        workspace_id,
+        requester_identity=str(member_id),
+    )
+    resolved_item = await service.resolve_attention_request(
+        resolved.id,
+        AttentionResolve(action="resolve"),
+        workspace_id,
+        requester_identity=str(member_id),
+    )
+    dismissed_item = await service.resolve_attention_request(
+        dismissed.id,
+        AttentionResolve(action="dismiss"),
+        workspace_id,
+        requester_identity=str(member_id),
+    )
+
+    assert goal_page.total == 2
+    assert len(goal_page.items) == 2
+    assert [item.content for item in goal_context] == ["first", "second"]
+    assert listed.total == 3
+    assert acknowledged.status == AttentionStatus.acknowledged
+    assert acknowledged.acknowledged_at is not None
+    assert resolved_item.status == AttentionStatus.resolved
+    assert resolved_item.acknowledged_at is not None
+    assert resolved_item.resolved_at is not None
+    assert dismissed_item.status == AttentionStatus.dismissed
+    assert dismissed_item.resolved_at is not None
