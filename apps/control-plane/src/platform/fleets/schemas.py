@@ -11,7 +11,7 @@ from platform.fleets.models import (
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 def _strip_text(value: str) -> str:
@@ -192,6 +192,20 @@ class FleetGovernanceChainResponse(BaseModel):
     is_current: bool
     is_default: bool
     created_at: datetime
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_mapping(cls, data: object) -> object:
+        if isinstance(data, dict):
+            if data.get("verdict_to_action_mapping") is None:
+                normalized = dict(data)
+                normalized["verdict_to_action_mapping"] = {}
+                return normalized
+            return data
+        mapping = getattr(data, "verdict_to_action_mapping", {})
+        if mapping is None:
+            setattr(data, "verdict_to_action_mapping", {})
+        return data
 
 
 class FleetGovernanceChainListResponse(BaseModel):

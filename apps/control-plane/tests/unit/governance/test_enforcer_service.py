@@ -159,3 +159,65 @@ async def test_process_verdict_records_missing_target() -> None:
 
     assert action.action_type is ActionType.block
     assert repo.created[0].outcome == {"error": "target_not_found", "target_agent_fqn": None}
+
+
+@pytest.mark.asyncio
+async def test_process_verdict_handles_invalid_mapping_and_quarantine() -> None:
+    invalid_repo = RepoStub()
+    invalid_service = EnforcerService(
+        repository=invalid_repo,
+        producer=None,
+        certification_service=None,
+    )
+    invalid_action = await invalid_service.process_verdict(
+        _verdict(),
+        ChainConfig(
+            observer_fqns=[],
+            judge_fqns=[],
+            enforcer_fqns=[],
+            policy_binding_ids=[],
+            verdict_to_action_mapping={"VIOLATION": "unknown"},
+            scope="fleet",
+        ),
+    )
+
+    quarantine_repo = RepoStub()
+    quarantine_service = EnforcerService(
+        repository=quarantine_repo,
+        producer=None,
+        certification_service=None,
+    )
+    quarantine_action = await quarantine_service.process_verdict(
+        _verdict(),
+        _chain({"VIOLATION": "quarantine"}),
+    )
+
+    assert invalid_action.action_type is ActionType.log_and_continue
+    assert invalid_action.enforcer_agent_fqn == "platform:default-enforcer"
+    assert invalid_repo.created[0].outcome["logged"] is True
+    assert quarantine_action.action_type is ActionType.quarantine
+    assert quarantine_repo.created[0].outcome["quarantined"] is True
+
+
+@pytest.mark.asyncio
+async def test_process_verdict_handles_missing_cert_context_and_helper_parsers() -> None:
+    repo = RepoStub()
+    service = EnforcerService(repository=repo, producer=None, certification_service=None)
+    verdict = _verdict()
+    verdict.evidence = {"agent_fqn": "  finance:agent  ", "certification_id": "invalid"}
+
+    action = await service.process_verdict(
+        verdict,
+        _chain({"VIOLATION": "revoke_cert"}),
+    )
+
+    assert action.action_type is ActionType.revoke_cert
+    assert repo.created[0].target_agent_fqn == "finance:agent"
+    assert repo.created[0].outcome == {
+        "revoked": False,
+        "target_agent_fqn": "finance:agent",
+        "reason": "missing_certification_context",
+    }
+    assert EnforcerService._uuid_or_none(None) is None
+    assert EnforcerService._uuid_or_none("not-a-uuid") is None
+    assert EnforcerService._uuid_or_none(verdict.id) == verdict.id

@@ -100,6 +100,8 @@ async def get_governance_service(
     request: Request,
     session: AsyncSession = Depends(get_db),
     registry_service: RegistryService = Depends(get_registry_service),
+    oje_service: object | None = None,
+    pipeline_config: object | None = None,
 ) -> FleetGovernanceChainService:
     from platform.governance.dependencies import (
         build_judge_service,
@@ -108,20 +110,24 @@ async def get_governance_service(
 
     settings = _get_settings(request)
     producer = _get_producer(request)
-    return build_governance_service(
-        session=session,
-        producer=producer,
-        oje_service=build_judge_service(
+    if oje_service is None:
+        oje_service = build_judge_service(
             session=session,
             settings=settings,
             producer=producer,
             redis_client=_get_redis(request),
             registry_service=registry_service,
-        ),
-        pipeline_config=build_pipeline_config_service(
+        )
+    if pipeline_config is None:
+        pipeline_config = build_pipeline_config_service(
             session=session,
             registry_service=registry_service,
-        ),
+        )
+    return build_governance_service(
+        session=session,
+        producer=producer,
+        oje_service=oje_service,
+        pipeline_config=pipeline_config,
     )
 
 

@@ -159,6 +159,7 @@ class FleetService:
                 judge_fqns=["platform:default-judge"],
                 enforcer_fqns=["platform:default-enforcer"],
                 policy_binding_ids=[],
+                verdict_to_action_mapping={},
                 is_current=True,
                 is_default=True,
             )

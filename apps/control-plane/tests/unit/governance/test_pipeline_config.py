@@ -165,3 +165,43 @@ async def test_validate_chain_update_rejects_self_referential_agent() -> None:
             ["platform:enforcer"],
             workspace_id=workspace_id,
         )
+
+
+@pytest.mark.asyncio
+async def test_resolve_chain_falls_back_to_fleet_and_returns_none_without_config() -> None:
+    workspace_id = uuid4()
+    fleet_id = uuid4()
+    fleet_chain = build_governance_chain(fleet_id=fleet_id, workspace_id=workspace_id)
+    service = PipelineConfigService(
+        fleet_governance_repo=FleetRepoStub(fleet_chain),
+        workspace_governance_repo=WorkspaceRepoStub(None),
+        registry_service=None,
+    )
+
+    resolved = await service.resolve_chain(fleet_id, workspace_id)
+    missing = await service.resolve_chain(None, None)
+
+    assert resolved is not None
+    assert resolved.scope == "fleet"
+    assert resolved.observer_fqns == fleet_chain.observer_fqns
+    assert missing is None
+
+
+@pytest.mark.asyncio
+async def test_validate_chain_update_requires_workspace_and_registry() -> None:
+    service = PipelineConfigService(
+        fleet_governance_repo=FleetRepoStub(),
+        workspace_governance_repo=WorkspaceRepoStub(),
+        registry_service=None,
+    )
+
+    with pytest.raises(ChainConfigError, match="workspace_id is required"):
+        await service.validate_chain_update(["observer"], ["judge"], ["enforcer"])
+
+    with pytest.raises(ChainConfigError, match="Registry service is required"):
+        await service.validate_chain_update(
+            ["observer:one"],
+            [],
+            [],
+            workspace_id=uuid4(),
+        )
