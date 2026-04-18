@@ -17,16 +17,21 @@ from platform.interactions.models import (
     InteractionState,
     MessageType,
     ParticipantRole,
+    WorkspaceGoalDecisionRationale,
     WorkspaceGoalMessage,
 )
 from platform.interactions.repository import InteractionsRepository
 from platform.interactions.service import InteractionsService
-from platform.workspaces.models import GoalStatus
+from platform.workspaces.models import (
+    GoalStatus,
+    WorkspaceAgentDecisionConfig,
+    WorkspaceGoalState,
+)
 from typing import Any
 from uuid import UUID, uuid4
 
 from tests.auth_support import RecordingProducer
-from tests.workspaces_support import build_goal
+from tests.workspaces_support import build_goal, build_settings
 
 
 def _now() -> datetime:
@@ -149,6 +154,62 @@ def build_goal_message(
     return item
 
 
+def build_agent_decision_config(
+    *,
+    config_id: UUID | None = None,
+    workspace_id: UUID | None = None,
+    agent_fqn: str = "ops:agent",
+    response_decision_strategy: str = "llm_relevance",
+    response_decision_config: dict[str, Any] | None = None,
+    subscribed_at: datetime | None = None,
+) -> WorkspaceAgentDecisionConfig:
+    subscribed = subscribed_at or _now()
+    item = WorkspaceAgentDecisionConfig(
+        id=config_id or uuid4(),
+        workspace_id=workspace_id or uuid4(),
+        agent_fqn=agent_fqn,
+        response_decision_strategy=response_decision_strategy,
+        response_decision_config=response_decision_config or {},
+        subscribed_at=subscribed,
+    )
+    item.created_at = subscribed
+    item.updated_at = subscribed
+    return item
+
+
+def build_decision_rationale(
+    *,
+    rationale_id: UUID | None = None,
+    workspace_id: UUID | None = None,
+    goal_id: UUID | None = None,
+    message_id: UUID | None = None,
+    agent_fqn: str = "ops:agent",
+    strategy_name: str = "keyword",
+    decision: str = "respond",
+    score: float | None = None,
+    matched_terms: list[str] | None = None,
+    rationale: str = "matched",
+    error: str | None = None,
+    created_at: datetime | None = None,
+) -> WorkspaceGoalDecisionRationale:
+    created = created_at or _now()
+    item = WorkspaceGoalDecisionRationale(
+        id=rationale_id or uuid4(),
+        workspace_id=workspace_id or uuid4(),
+        goal_id=goal_id or uuid4(),
+        message_id=message_id or uuid4(),
+        agent_fqn=agent_fqn,
+        strategy_name=strategy_name,
+        decision=decision,
+        score=score,
+        matched_terms=matched_terms or [],
+        rationale=rationale,
+        error=error,
+    )
+    item.created_at = created
+    return item
+
+
 def build_branch(
     *,
     branch_id: UUID | None = None,
@@ -235,10 +296,19 @@ class WorkspacesServiceStub:
     def __init__(self) -> None:
         self.workspace_memberships: dict[UUID, set[UUID]] = {}
         self.goals: dict[tuple[UUID, UUID], Any] = {}
+        self.settings_by_workspace: dict[UUID, Any] = {}
         self.repo = WorkspacesRepoShim(self.goals)
 
     def add_member(self, workspace_id: UUID, user_id: UUID) -> None:
         self.workspace_memberships.setdefault(workspace_id, set()).add(user_id)
+
+    def set_subscribed_agents(self, workspace_id: UUID, subscribed_agents: list[str]) -> Any:
+        settings = build_settings(
+            workspace_id=workspace_id,
+            subscribed_agents=subscribed_agents,
+        )
+        self.settings_by_workspace[workspace_id] = settings
+        return settings
 
     def add_goal(
         self,
@@ -246,8 +316,16 @@ class WorkspacesServiceStub:
         goal_id: UUID,
         *,
         status: GoalStatus = GoalStatus.open,
+        state: WorkspaceGoalState = WorkspaceGoalState.ready,
+        auto_complete_timeout_seconds: int | None = None,
     ) -> Any:
-        goal = build_goal(workspace_id=workspace_id, goal_id=goal_id, status=status)
+        goal = build_goal(
+            workspace_id=workspace_id,
+            goal_id=goal_id,
+            status=status,
+            state=state,
+            auto_complete_timeout_seconds=auto_complete_timeout_seconds,
+        )
         self.goals[(workspace_id, goal_id)] = goal
         return goal
 
@@ -258,6 +336,14 @@ class WorkspacesServiceStub:
         if goal is None:
             raise LookupError("goal missing")
         return goal
+
+    async def get_settings(self, workspace_id: UUID, requester_id: UUID) -> Any:
+        if requester_id not in self.workspace_memberships.get(workspace_id, set()):
+            raise LookupError("not a member")
+        return self.settings_by_workspace.setdefault(
+            workspace_id,
+            build_settings(workspace_id=workspace_id, subscribed_agents=[]),
+        )
 
     async def get_user_workspace_ids(self, user_id: UUID) -> list[UUID]:
         return [
@@ -274,6 +360,8 @@ class InMemoryInteractionsRepo:
         self.messages: dict[UUID, InteractionMessage] = {}
         self.participants: dict[tuple[UUID, str], InteractionParticipant] = {}
         self.goal_messages: dict[UUID, WorkspaceGoalMessage] = {}
+        self.decision_configs: dict[tuple[UUID, str], WorkspaceAgentDecisionConfig] = {}
+        self.decision_rationales: dict[UUID, WorkspaceGoalDecisionRationale] = {}
         self.branches: dict[UUID, ConversationBranch] = {}
         self.merge_records: dict[UUID, BranchMergeRecord] = {}
         self.attention_requests: dict[UUID, AttentionRequest] = {}
@@ -594,6 +682,116 @@ class InMemoryInteractionsRepo:
         items.sort(key=lambda item: (item.created_at, item.id))
         return items[-limit:]
 
+    async def get_goal_message(
+        self,
+        *,
+        workspace_id: UUID,
+        goal_id: UUID,
+        message_id: UUID,
+    ) -> WorkspaceGoalMessage | None:
+        message = self.goal_messages.get(message_id)
+        if message is None:
+            return None
+        if message.workspace_id != workspace_id or message.goal_id != goal_id:
+            return None
+        return message
+
+    async def list_workspace_agent_decision_configs(
+        self,
+        *,
+        workspace_id: UUID,
+    ) -> list[WorkspaceAgentDecisionConfig]:
+        items = [
+            item
+            for (candidate_workspace_id, _), item in self.decision_configs.items()
+            if candidate_workspace_id == workspace_id
+        ]
+        items.sort(key=lambda item: (item.subscribed_at, item.agent_fqn))
+        return items
+
+    async def upsert_workspace_agent_decision_config(
+        self,
+        *,
+        workspace_id: UUID,
+        agent_fqn: str,
+        response_decision_strategy: str,
+        response_decision_config: dict[str, Any],
+    ) -> tuple[WorkspaceAgentDecisionConfig, bool]:
+        existing = self.decision_configs.get((workspace_id, agent_fqn))
+        created = existing is None
+        if existing is None:
+            existing = build_agent_decision_config(
+                workspace_id=workspace_id,
+                agent_fqn=agent_fqn,
+                response_decision_strategy=response_decision_strategy,
+                response_decision_config=response_decision_config,
+            )
+            self.decision_configs[(workspace_id, agent_fqn)] = existing
+        else:
+            existing.response_decision_strategy = response_decision_strategy
+            existing.response_decision_config = dict(response_decision_config)
+            existing.updated_at = _now()
+        return existing, created
+
+    async def insert_decision_rationale_records(self, records: list[dict[str, Any]]) -> None:
+        for record in records:
+            duplicate = any(
+                item.message_id == record["message_id"] and item.agent_fqn == record["agent_fqn"]
+                for item in self.decision_rationales.values()
+            )
+            if duplicate:
+                continue
+            item = build_decision_rationale(
+                workspace_id=record["workspace_id"],
+                goal_id=record["goal_id"],
+                message_id=record["message_id"],
+                agent_fqn=record["agent_fqn"],
+                strategy_name=record["strategy_name"],
+                decision=record["decision"],
+                score=record.get("score"),
+                matched_terms=list(record.get("matched_terms") or []),
+                rationale=str(record.get("rationale") or ""),
+                error=record.get("error"),
+            )
+            self.decision_rationales[item.id] = item
+
+    async def list_decision_rationales_for_message(
+        self,
+        *,
+        workspace_id: UUID,
+        message_id: UUID,
+    ) -> list[WorkspaceGoalDecisionRationale]:
+        items = [
+            item
+            for item in self.decision_rationales.values()
+            if item.workspace_id == workspace_id and item.message_id == message_id
+        ]
+        items.sort(key=lambda item: (item.created_at, item.agent_fqn))
+        return items
+
+    async def list_decision_rationales_for_goal(
+        self,
+        *,
+        workspace_id: UUID,
+        goal_id: UUID,
+        page: int,
+        page_size: int,
+        agent_fqn: str | None = None,
+        decision: str | None = None,
+    ) -> tuple[list[WorkspaceGoalDecisionRationale], int]:
+        items = [
+            item
+            for item in self.decision_rationales.values()
+            if item.workspace_id == workspace_id and item.goal_id == goal_id
+        ]
+        if agent_fqn is not None:
+            items = [item for item in items if item.agent_fqn == agent_fqn]
+        if decision is not None:
+            items = [item for item in items if item.decision == decision]
+        items.sort(key=lambda item: (item.created_at, item.id), reverse=True)
+        start = (page - 1) * page_size
+        return items[start : start + page_size], len(items)
+
     async def create_branch(
         self,
         *,
@@ -826,6 +1024,7 @@ def build_service(
         repository=repository,  # type: ignore[arg-type]
         settings=settings or PlatformSettings(),
         producer=event_producer,  # type: ignore[arg-type]
+        qdrant=None,
         workspaces_service=workspaces,  # type: ignore[arg-type]
         registry_service=registry_service,
     )

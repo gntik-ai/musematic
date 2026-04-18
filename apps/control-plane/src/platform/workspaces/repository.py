@@ -7,6 +7,7 @@ from platform.workspaces.models import (
     Membership,
     Workspace,
     WorkspaceGoal,
+    WorkspaceGoalState,
     WorkspaceRole,
     WorkspaceSettings,
     WorkspaceStatus,
@@ -241,12 +242,15 @@ class WorkspacesRepository:
         title: str,
         description: str | None,
         created_by: UUID,
+        auto_complete_timeout_seconds: int | None = None,
     ) -> WorkspaceGoal:
         goal = WorkspaceGoal(
             workspace_id=workspace_id,
             title=title,
             description=description,
             status=GoalStatus.open,
+            state=WorkspaceGoalState.ready,
+            auto_complete_timeout_seconds=auto_complete_timeout_seconds,
             created_by=created_by,
         )
         self.session.add(goal)

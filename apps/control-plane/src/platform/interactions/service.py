@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime
+from platform.common.clients.qdrant import AsyncQdrantClient
 from platform.common.events.envelope import CorrelationContext
-from platform.common.exceptions import AuthorizationError, ValidationError
+from platform.common.exceptions import AuthorizationError, NotFoundError, ValidationError
 from platform.interactions.events import (
     AttentionRequestedPayload,
     BranchMergedPayload,
@@ -31,6 +33,7 @@ from platform.interactions.exceptions import (
     InvalidStateTransitionError,
     MessageLimitReachedError,
 )
+from platform.interactions.goal_lifecycle import GoalLifecycleService
 from platform.interactions.models import (
     AttentionStatus,
     BranchStatus,
@@ -43,7 +46,11 @@ from platform.interactions.models import (
     ParticipantRole,
 )
 from platform.interactions.repository import InteractionsRepository
+from platform.interactions.response_decision import ResponseDecisionEngine
 from platform.interactions.schemas import (
+    AgentDecisionConfigListResponse,
+    AgentDecisionConfigResponse,
+    AgentDecisionConfigUpsert,
     AttentionRequestCreate,
     AttentionRequestListResponse,
     AttentionRequestResponse,
@@ -55,9 +62,14 @@ from platform.interactions.schemas import (
     ConversationListResponse,
     ConversationResponse,
     ConversationUpdate,
+    DecisionRationaleListResponse,
+    DecisionRationaleMessageListResponse,
+    DecisionRationaleResponse,
     GoalMessageCreate,
     GoalMessageListResponse,
     GoalMessageResponse,
+    GoalStateTransitionRequest,
+    GoalStateTransitionResponse,
     InteractionCreate,
     InteractionListResponse,
     InteractionResponse,
@@ -72,9 +84,18 @@ from platform.interactions.schemas import (
 )
 from platform.interactions.state_machine import validate_transition
 from platform.registry.service import fqn_matches
-from platform.workspaces.models import GoalStatus
-from typing import Any
+from platform.workspaces.exceptions import GoalNotFoundError
+from platform.workspaces.models import (
+    GoalStatus,
+    WorkspaceAgentDecisionConfig,
+    WorkspaceGoalState,
+)
+from typing import Any, cast
 from uuid import UUID, uuid4
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+LOGGER = logging.getLogger(__name__)
 
 
 class InteractionsService:
@@ -84,14 +105,18 @@ class InteractionsService:
         repository: InteractionsRepository,
         settings: Any,
         producer: Any | None,
+        qdrant: AsyncQdrantClient | None = None,
         workspaces_service: Any | None,
         registry_service: Any | None,
     ) -> None:
         self.repository = repository
         self.settings = settings
         self.producer = producer
+        self.qdrant = qdrant
         self.workspaces_service = workspaces_service
         self.registry_service = registry_service
+        self.goal_lifecycle = GoalLifecycleService(producer)
+        self.decision_engine = ResponseDecisionEngine(settings=settings, qdrant=qdrant)
 
     async def create_conversation(
         self,
@@ -427,7 +452,12 @@ class InteractionsService:
         participant: str,
         workspace_id: UUID,
     ) -> GoalMessageResponse:
-        await self._require_goal_accepting_messages(goal_id, participant, workspace_id)
+        goal = await self._require_goal_accepting_messages(goal_id, participant, workspace_id)
+        if getattr(goal, "state", WorkspaceGoalState.ready) == WorkspaceGoalState.ready:
+            await self.goal_lifecycle.transition_ready_to_working(
+                goal,
+                self._goal_lifecycle_session(),
+            )
         created = await self.repository.create_goal_message(
             workspace_id=workspace_id,
             goal_id=goal_id,
@@ -436,6 +466,42 @@ class InteractionsService:
             interaction_id=message.interaction_id,
             metadata=message.metadata,
         )
+        self.goal_lifecycle.update_last_message_at(goal, datetime.now(UTC))
+        await self._flush_repository_session()
+
+        subscriptions = await self._list_workspace_agent_decision_configs(workspace_id)
+        if subscriptions:
+            try:
+                session = self._repository_session()
+                if session is not None:
+                    goal_context = "\n".join(
+                        part for part in [goal.title, goal.description or ""] if part
+                    )
+                    await self.decision_engine.evaluate_for_message(
+                        message_id=created.id,
+                        goal_id=goal_id,
+                        workspace_id=workspace_id,
+                        message_content=message.content,
+                        goal_context=goal_context,
+                        subscriptions=subscriptions,
+                        session=session,
+                    )
+                else:
+                    LOGGER.warning(
+                        (
+                            "Skipping response decision evaluation for goal %s: "
+                            "repository session unavailable"
+                        ),
+                        goal_id,
+                    )
+            except Exception as exc:
+                LOGGER.warning(
+                    "Response decision evaluation failed for goal %s message %s: %s",
+                    goal_id,
+                    created.id,
+                    exc,
+                )
+
         await publish_goal_message_posted(
             self.producer,
             GoalMessagePostedPayload(
@@ -448,6 +514,122 @@ class InteractionsService:
             self._correlation(workspace_id=workspace_id, goal_id=goal_id),
         )
         return self._goal_message_response(created)
+
+    async def transition_goal_state(
+        self,
+        goal_id: UUID,
+        request: GoalStateTransitionRequest,
+        workspace_id: UUID,
+    ) -> GoalStateTransitionResponse:
+        goal = await self._load_goal(workspace_id, goal_id, for_update=True)
+        if goal is None:
+            raise GoalNotFoundError()
+        previous_state = getattr(goal.state, "value", str(goal.state))
+        await self.goal_lifecycle.transition_working_to_complete(
+            goal,
+            self._goal_lifecycle_session(),
+            automatic=False,
+            reason=request.reason,
+        )
+        await self._flush_repository_session()
+        transitioned_at = datetime.now(UTC)
+        return GoalStateTransitionResponse(
+            goal_id=goal.id,
+            previous_state=previous_state,
+            new_state=goal.state.value,
+            automatic=False,
+            transitioned_at=transitioned_at,
+        )
+
+    async def upsert_agent_decision_config(
+        self,
+        workspace_id: UUID,
+        agent_fqn: str,
+        request: AgentDecisionConfigUpsert,
+        actor_id: UUID | None,
+    ) -> tuple[AgentDecisionConfigResponse, bool]:
+        if not self.decision_engine.is_known_strategy(request.response_decision_strategy):
+            raise ValidationError(
+                "UNKNOWN_RESPONSE_DECISION_STRATEGY",
+                f"Unknown response decision strategy '{request.response_decision_strategy}'",
+            )
+        subscribed_patterns = await self._get_subscribed_agent_patterns(workspace_id, actor_id)
+        if not any(fqn_matches(pattern, agent_fqn) for pattern in subscribed_patterns):
+            raise NotFoundError(
+                "WORKSPACE_AGENT_NOT_SUBSCRIBED",
+                f"Agent '{agent_fqn}' is not subscribed to workspace '{workspace_id}'",
+            )
+        item, created = await self.repository.upsert_workspace_agent_decision_config(
+            workspace_id=workspace_id,
+            agent_fqn=agent_fqn,
+            response_decision_strategy=request.response_decision_strategy,
+            response_decision_config=request.response_decision_config,
+        )
+        return self._agent_decision_config_response(item), created
+
+    async def list_agent_decision_configs(
+        self,
+        workspace_id: UUID,
+        actor_id: UUID | None,
+    ) -> AgentDecisionConfigListResponse:
+        await self._get_subscribed_agent_patterns(workspace_id, actor_id)
+        items = await self.repository.list_workspace_agent_decision_configs(
+            workspace_id=workspace_id,
+        )
+        return AgentDecisionConfigListResponse(
+            items=[self._agent_decision_config_response(item) for item in items],
+            total=len(items),
+        )
+
+    async def list_rationale_for_message(
+        self,
+        goal_id: UUID,
+        message_id: UUID,
+        workspace_id: UUID,
+    ) -> DecisionRationaleMessageListResponse:
+        message = await self.repository.get_goal_message(
+            workspace_id=workspace_id,
+            goal_id=goal_id,
+            message_id=message_id,
+        )
+        if message is None:
+            raise NotFoundError(
+                "GOAL_MESSAGE_NOT_FOUND",
+                f"Goal message '{message_id}' was not found",
+            )
+        items = await self.repository.list_decision_rationales_for_message(
+            workspace_id=workspace_id,
+            message_id=message_id,
+        )
+        return DecisionRationaleMessageListResponse(
+            items=[self._decision_rationale_response(item) for item in items],
+            total=len(items),
+        )
+
+    async def list_rationale_for_goal(
+        self,
+        goal_id: UUID,
+        workspace_id: UUID,
+        page: int,
+        page_size: int,
+        agent_fqn: str | None = None,
+        decision: str | None = None,
+    ) -> DecisionRationaleListResponse:
+        goal = await self._load_goal(workspace_id, goal_id, for_update=False)
+        if goal is None:
+            raise GoalNotFoundError()
+        items, total = await self.repository.list_decision_rationales_for_goal(
+            workspace_id=workspace_id,
+            goal_id=goal_id,
+            page=page,
+            page_size=page_size,
+            agent_fqn=agent_fqn,
+            decision=decision,
+        )
+        return DecisionRationaleListResponse(
+            items=[self._decision_rationale_response(item) for item in items],
+            **self._page_meta(total, page, page_size),
+        )
 
     async def list_goal_messages(
         self,
@@ -768,26 +950,99 @@ class InteractionsService:
         participant: str,
         workspace_id: UUID,
     ) -> Any:
-        if self.workspaces_service is None:
-            raise GoalNotAcceptingMessagesError(goal_id, "unknown")
-        goal: Any | None = None
-        try:
-            requester_id = UUID(str(participant))
-        except ValueError:
-            requester_id = None
-        if requester_id is not None and hasattr(self.workspaces_service, "get_goal"):
-            goal = await self.workspaces_service.get_goal(workspace_id, requester_id, goal_id)
-        else:
-            repo = getattr(self.workspaces_service, "repo", None)
-            if repo is not None and hasattr(repo, "get_goal"):
-                goal = await repo.get_goal(workspace_id, goal_id)
+        goal = await self._load_goal(
+            workspace_id,
+            goal_id,
+            participant=participant,
+            for_update=True,
+            require_membership=True,
+        )
         if goal is None:
             raise GoalNotAcceptingMessagesError(goal_id, "missing")
         status = getattr(goal, "status", None)
         status_value = getattr(status, "value", status)
         if status_value in {GoalStatus.completed.value, GoalStatus.cancelled.value, "abandoned"}:
             raise GoalNotAcceptingMessagesError(goal_id, str(status_value))
+        self.goal_lifecycle.assert_accepts_messages(goal)
         return goal
+
+    async def _load_goal(
+        self,
+        workspace_id: UUID,
+        goal_id: UUID,
+        *,
+        participant: str | None = None,
+        requester_id: UUID | None = None,
+        for_update: bool,
+        require_membership: bool = False,
+    ) -> Any | None:
+        resolved_requester = requester_id
+        if resolved_requester is None and participant is not None:
+            try:
+                resolved_requester = UUID(str(participant))
+            except ValueError:
+                resolved_requester = None
+        if (
+            require_membership
+            and resolved_requester is not None
+            and self.workspaces_service is not None
+        ):
+            getter = getattr(self.workspaces_service, "get_goal", None)
+            if callable(getter):
+                try:
+                    await getter(workspace_id, resolved_requester, goal_id)
+                except (LookupError, NotFoundError, ValidationError, AuthorizationError):
+                    return None
+        goal: Any | None = None
+        getter_name = "get_goal_for_update" if for_update else None
+        if getter_name is not None:
+            repository_getter = getattr(self.repository, getter_name, None)
+            if callable(repository_getter):
+                goal = await repository_getter(workspace_id=workspace_id, goal_id=goal_id)
+        if goal is None:
+            workspace_repo = (
+                getattr(self.workspaces_service, "repo", None)
+                if self.workspaces_service is not None
+                else None
+            )
+            workspace_getter = getattr(workspace_repo, "get_goal", None)
+            if callable(workspace_getter):
+                goal = await workspace_getter(workspace_id, goal_id)
+        return goal
+
+    def _repository_session(self) -> Any | None:
+        return getattr(self.repository, "session", None)
+
+    def _goal_lifecycle_session(self) -> AsyncSession | None:
+        return cast(AsyncSession | None, self._repository_session())
+
+    async def _flush_repository_session(self) -> None:
+        session = self._repository_session()
+        if session is not None and hasattr(session, "flush"):
+            await session.flush()
+
+    async def _get_subscribed_agent_patterns(
+        self,
+        workspace_id: UUID,
+        actor_id: UUID | None,
+    ) -> list[str]:
+        if self.workspaces_service is None or actor_id is None:
+            return []
+        getter = getattr(self.workspaces_service, "get_settings", None)
+        if getter is None:
+            return []
+        settings = await getter(workspace_id, actor_id)
+        return list(getattr(settings, "subscribed_agents", []))
+
+    async def _list_workspace_agent_decision_configs(
+        self,
+        workspace_id: UUID,
+    ) -> list[WorkspaceAgentDecisionConfig]:
+        list_configs = getattr(self.repository, "list_workspace_agent_decision_configs", None)
+        if callable(list_configs):
+            result = await list_configs(workspace_id=workspace_id)
+            return cast(list[WorkspaceAgentDecisionConfig], result)
+        return []
 
     @staticmethod
     def _duration_seconds(interaction: Interaction) -> float:
@@ -858,6 +1113,35 @@ class InteractionsService:
             interaction_id=message.interaction_id,
             metadata=dict(getattr(message, "metadata_json", {})),
             created_at=message.created_at,
+        )
+
+    @staticmethod
+    def _agent_decision_config_response(item: Any) -> AgentDecisionConfigResponse:
+        return AgentDecisionConfigResponse(
+            id=item.id,
+            workspace_id=item.workspace_id,
+            agent_fqn=item.agent_fqn,
+            response_decision_strategy=item.response_decision_strategy,
+            response_decision_config=dict(item.response_decision_config or {}),
+            subscribed_at=item.subscribed_at,
+            created_at=item.created_at,
+            updated_at=item.updated_at,
+        )
+
+    @staticmethod
+    def _decision_rationale_response(item: Any) -> DecisionRationaleResponse:
+        return DecisionRationaleResponse(
+            id=item.id,
+            goal_id=item.goal_id,
+            message_id=item.message_id,
+            agent_fqn=item.agent_fqn,
+            strategy_name=item.strategy_name,
+            decision=item.decision,
+            score=item.score,
+            matched_terms=list(item.matched_terms or []),
+            rationale=item.rationale,
+            error=item.error,
+            created_at=item.created_at,
         )
 
     @staticmethod

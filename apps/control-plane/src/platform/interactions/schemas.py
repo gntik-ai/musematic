@@ -115,6 +115,74 @@ class GoalMessageCreate(BaseModel):
         return _normalize_text(value)
 
 
+class GoalStateTransitionRequest(BaseModel):
+    target_state: Literal["complete"]
+    reason: str | None = Field(default=None, max_length=2000)
+
+    @field_validator("reason")
+    @classmethod
+    def normalize_reason(cls, value: str | None) -> str | None:
+        return _normalize_optional_text(value)
+
+
+class GoalStateTransitionResponse(BaseModel):
+    goal_id: UUID
+    previous_state: str
+    new_state: str
+    automatic: bool
+    transitioned_at: datetime
+
+
+class AgentDecisionConfigUpsert(BaseModel):
+    response_decision_strategy: str = Field(min_length=1, max_length=64)
+    response_decision_config: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("response_decision_strategy")
+    @classmethod
+    def normalize_strategy(cls, value: str) -> str:
+        return _normalize_text(value)
+
+
+class AgentDecisionConfigResponse(BaseModel):
+    id: UUID
+    workspace_id: UUID
+    agent_fqn: str
+    response_decision_strategy: str
+    response_decision_config: dict[str, Any]
+    subscribed_at: datetime
+    created_at: datetime
+    updated_at: datetime
+
+
+class AgentDecisionConfigListResponse(BaseModel):
+    items: list[AgentDecisionConfigResponse]
+    total: int
+
+
+class DecisionRationaleResponse(BaseModel):
+    id: UUID
+    goal_id: UUID
+    message_id: UUID
+    agent_fqn: str
+    strategy_name: str
+    decision: str
+    score: float | None
+    matched_terms: list[str]
+    rationale: str
+    error: str | None
+    created_at: datetime
+
+
+class DecisionRationaleMessageListResponse(BaseModel):
+    items: list[DecisionRationaleResponse]
+    total: int
+
+
+class DecisionRationaleListResponse(OffsetPage[DecisionRationaleResponse]):
+    has_next: bool
+    has_prev: bool
+
+
 class BranchCreate(BaseModel):
     parent_interaction_id: UUID
     branch_point_message_id: UUID

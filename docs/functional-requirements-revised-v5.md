@@ -1,4 +1,4 @@
-# Functional Requirements Specification v4 (Revised with Agentic Design Patterns + Agentic Mesh Deep Analysis)
+# Functional Requirements Specification v5 (v4 + Post-Audit Completeness Pass)
 
 ## 0. Revision Intent, Scope Discipline, and Superseding Clarifications
 
@@ -2626,6 +2626,169 @@ Journey tests shall produce human-readable narrative output describing each step
 
 ### FR-465 Journey Test OAuth Flow Coverage
 Journey tests shall exercise the full OAuth2 social login flow with mock identity providers. The Creator journey shall authenticate via GitHub OAuth, the Consumer journey via Google OAuth, and the Admin journey via local auth with MFA. Mock OAuth providers shall simulate the authorization code flow with PKCE, token exchange, and ID token validation without hitting real Google or GitHub servers.
+
+## 95. Data Protection and Privacy Regulation Compliance
+
+### FR-466 Data Subject Rights (GDPR / CCPA)
+The platform shall provide mechanisms to fulfill data subject rights under GDPR, CCPA, and equivalent regulations. Supported rights shall include: access (export all personal data about a subject), rectification (correct inaccurate data), erasure (right to be forgotten — hard-delete user data and cascade to all derived artifacts), restriction of processing (suspend automated processing), portability (export in machine-readable format), and objection to automated decision-making. All rights shall be exposable via admin API and UI.
+
+### FR-467 User Data Deletion and Cascade
+When a user's data is deleted via a right-to-be-forgotten request, the platform shall cascade the deletion to: user profile and credentials; sessions and OAuth links; authored conversations (anonymized or deleted per policy); authored agents' attribution (anonymized); evaluation reviewer comments (anonymized); audit trail entries that contain PII (anonymized, preserving audit integrity via tombstone records). The deletion shall be logged as a tombstone record with a cryptographic hash proving completion. Referenced artifacts outside the platform (external A2A calls, MCP invocations) shall be flagged for manual follow-up.
+
+### FR-468 Data Residency and Regional Deployment
+The platform shall support data residency constraints. Administrators shall be able to configure: the deployment region for each data store (PostgreSQL, Qdrant, Neo4j, ClickHouse, OpenSearch, S3 storage); per-workspace region restrictions (all data for a workspace resides in its configured region); cross-region transfer blocks (reject A2A calls or MCP invocations that would move data across restricted boundaries). Region configuration shall be auditable and enforced at query-time, not just at installation.
+
+### FR-469 Sensitive Data Classification and DLP
+The platform shall support classification of data as sensitive (PII, PHI, financial, confidential) via metadata tags. A Data Loss Prevention (DLP) stage shall scan: outbound agent responses, tool invocation payloads, log events, artifact persistence, and marketplace publications. DLP rules shall be configurable per organization. Detected sensitive data shall be redacted, blocked, or flagged for review based on policy. DLP events shall be logged and visible on the operator dashboard.
+
+### FR-470 Privacy Impact Assessment Workflow
+The platform shall support formal Privacy Impact Assessments (PIAs) for agents, workspaces, and workflows that process sensitive data. PIA workflow shall include: identification of data categories processed, legal basis for processing, retention policy, third-party transfers, risks and mitigations, and approval by designated privacy officer. PIAs shall be linked to agents and reviewable in the trust workbench.
+
+## 96. Security Compliance and Supply Chain
+
+### FR-471 Software Bill of Materials (SBOM)
+The platform shall generate and publish a Software Bill of Materials (SBOM) for every release in SPDX and CycloneDX formats. The SBOM shall include: all direct and transitive dependencies (Python, Go, npm, container images), their versions, licenses, and known CVE references at build time. SBOMs shall be published as release artifacts and retained for the lifetime of the release.
+
+### FR-472 Vulnerability Scanning and Patch Management
+The platform build pipeline shall include vulnerability scanning of: container images (Trivy, Grype), dependencies (npm audit, pip-audit, govulncheck), static code analysis (Bandit, gosec, ESLint security rules), and Helm chart configurations. Scan results shall be published per build. CVEs above a configured severity threshold shall block the release. A patch management workflow shall track CVEs affecting deployed versions and provide remediation guidance with severity-based SLAs.
+
+### FR-473 Penetration Testing and Red Team Exercises
+The platform shall support scheduled penetration testing and red team exercises. The trust subsystem shall track: pen test schedules, findings, remediation status, and attestation reports. Critical findings shall trigger immediate certification review. Red team reports shall be available to auditors under appropriate RBAC controls.
+
+### FR-474 Secret and Credential Rotation
+The platform shall support automated secret rotation for: database credentials, Kafka credentials, S3 credentials, OAuth provider client secrets, model provider API keys, and internal service mTLS certificates. Rotation frequency shall be configurable per secret type with safe defaults (90 days maximum for long-lived secrets). Rotation shall be zero-downtime via dual-credential windows.
+
+### FR-475 Just-in-Time Credentials for Privileged Operations
+Privileged operations (HostOps broker actions, cross-tenant admin tasks, emergency production access) shall use Just-in-Time (JIT) credentials that are: issued on approval, scoped to a specific operation, time-bounded (maximum 1 hour by default), and automatically revoked. JIT issuance, use, and revocation shall be audited in detail.
+
+### FR-476 Audit Log Immutability
+Audit log entries shall be written to append-only storage with cryptographic chain-of-custody (each entry hashed and linked to the previous entry's hash). Tampering with historical entries shall be detectable via hash chain verification. The platform shall support export of audit logs with verifiable signatures for regulatory submission. Audit log retention shall be configurable with a minimum of 7 years for certified workspaces.
+
+### FR-477 Compliance Certifications Pre-Work
+The platform shall support the operational requirements needed for common compliance certifications (SOC2 Type II, ISO 27001, HIPAA, PCI-DSS): evidence collection workflows, automated control mapping, access review workflows, change management tracking, and compliance dashboard. The platform does not itself issue certifications but provides the evidence substrate for auditor review.
+
+## 97. Multi-Region and High-Availability Deployment
+
+### FR-478 Multi-Region Active-Passive Deployment
+The platform shall support active-passive multi-region deployment for disaster recovery. Configuration shall include: primary region (active), secondary region(s) (passive, continuously replicated), RPO target (default <15min), RTO target (default <1h), and failover procedure. Data replication shall cover PostgreSQL (streaming replication), object storage (cross-region replication), Kafka (MirrorMaker 2), and ClickHouse (replicated tables).
+
+### FR-479 Multi-Region Active-Active Considerations
+The platform documentation shall explicitly describe which subsystems can run active-active (stateless services: API, workflow engine, runtime controller) and which cannot without additional conflict resolution (PostgreSQL as primary, global registry of FQN namespaces). Active-active deployments shall require a documented conflict resolution strategy and shall not be enabled by default.
+
+### FR-480 Zero-Downtime Platform Upgrades
+Platform upgrades shall be performable without downtime: rolling upgrades for stateless services (API, workflow engine, satellite services), schema migrations with backward-compatible steps (additive columns before writes, rename via dual-write, drop only after verification), and agent runtime versioning that allows new and old runtimes to coexist during the upgrade window. Upgrade procedures shall be documented with rollback steps.
+
+### FR-481 Maintenance Mode
+The platform shall support a maintenance mode that: blocks new executions and conversations, allows in-flight work to complete, returns a clear maintenance message to UI and API callers, and can be scheduled with a maintenance window visible to users. Maintenance mode shall not affect read-only operations (marketplace browsing, audit log access).
+
+### FR-482 Capacity Planning and Forecasting
+The platform shall provide capacity planning signals: historical usage trends, projected usage based on growth curves, resource utilization alerts ahead of saturation, and cost forecasts. The operator dashboard shall surface capacity alerts with recommended actions (scale up, throttle, restrict new workspace creation).
+
+## 98. Model Provider Resilience and Governance
+
+### FR-483 Multi-Model Provider Support
+The platform shall support multiple LLM providers concurrently (OpenAI, Anthropic, Google, Azure OpenAI, AWS Bedrock, Cohere, Mistral, self-hosted models via vLLM or TGI). Provider selection shall be configurable per agent, per step, and per workspace. Provider credentials shall be managed per workspace and rotatable (FR-474).
+
+### FR-484 Model Fallback on Provider Failure
+When a model provider returns an error (timeout, rate limit, 5xx, content policy block that is retryable), the platform shall support configurable fallback to an alternative provider or model. Fallback policies shall specify: retry count, backoff strategy, alternative providers in priority order, and acceptable quality degradation. Fallback events shall be logged and visible in execution traces.
+
+### FR-485 Approved Model Catalog
+Administrators shall be able to maintain an **approved model catalog** listing models permitted for use in production. Each catalog entry shall include: provider, model identifier, approved use cases, prohibited use cases, context window limits, cost per token, quality tier, and approval metadata (who approved, when, expiry). Agents shall be blocked from using models not in the catalog.
+
+### FR-486 Model Card and Capability Declaration
+Each approved model shall have a **model card** declaring its capabilities, training data cutoff, known limitations, safety evaluations, and bias assessments. Model cards shall be consultable by trust reviewers during agent certification and by consumers via agent profiles.
+
+### FR-487 Prompt Injection Model-Level Defense
+For models that support it, the platform shall use provider-level safety features (system prompts with isolation markers, tool-use scoping, input classifiers) in addition to the platform's SafetyPreScreener. Multiple layers of defense shall not be bypassable by a single compromised layer.
+
+## 99. User Experience and Accessibility
+
+### FR-488 WCAG 2.1 AA Accessibility Compliance
+The web UI shall conform to WCAG 2.1 Level AA accessibility standards: keyboard navigation for all interactive elements, screen reader support with ARIA labels, sufficient color contrast ratios, text resizability up to 200% without loss of functionality, focus indicators, no reliance on color alone to convey information, and accessible form validation messages.
+
+### FR-489 Internationalization and Localization
+The web UI shall support internationalization (i18n) of all user-facing strings. Initial supported languages shall include English (primary), Spanish, French, German, Japanese, and Chinese (Simplified). Translation pipeline shall support professional translation workflows. Locale-specific formatting (dates, numbers, currencies) shall follow browser locale preferences with per-user override. Right-to-left (RTL) language support (Arabic, Hebrew) shall be planned but not required for v1.
+
+### FR-490 Dark Mode and Theme Support
+The web UI shall support light mode (default), dark mode, and system-preference-follow. Theme choice shall persist per user. High-contrast theme variants shall be available for accessibility.
+
+### FR-491 Keyboard Shortcuts and Command Palette
+The web UI shall provide a command palette (Cmd/Ctrl+K) for rapid navigation and action execution, and configurable keyboard shortcuts for common operations (new conversation, search marketplace, open workspace, toggle theme). Shortcuts shall be discoverable via help overlay (press `?`).
+
+### FR-492 Mobile and Responsive Design
+The web UI shall be responsive and usable on tablets and mobile phones for read-mostly use cases (view executions, respond to approval requests, review alerts). Full creator and operator workflows require a desktop viewport. A progressive web app (PWA) manifest shall be published.
+
+### FR-493 User Preferences and Settings
+Each user shall be able to configure personal preferences persisted in the database: default workspace, notification preferences (FR-433 extended to cover channels and quiet hours), UI theme, language, time zone, and data export download format.
+
+## 100. Notification Channels and Outbound Integration
+
+### FR-494 Multi-Channel Notification Delivery
+User alerts and attention requests shall support delivery via multiple channels: in-app WebSocket (default), email (SMTP), webhook (user-configurable URL with signing secret), Slack (via incoming webhook or app), Microsoft Teams, SMS (via Twilio or equivalent, optional). Each user shall be able to configure channel preferences per alert type.
+
+### FR-495 Webhook Signing and Delivery Guarantees
+Outbound webhooks shall be signed with HMAC-SHA256 using a per-webhook secret. Delivery shall include: at-least-once semantics with idempotency keys, retry with exponential backoff on 5xx or timeout (max 3 retries over 24h), dead-letter queue for undeliverable events, and delivery status visible to the configuring user.
+
+### FR-496 Outbound Callback Registration
+The platform shall provide APIs for external systems to register callback URLs for platform events. Registration shall require: URL, events of interest, signing secret, active/paused state, retry policy override (within system limits). Callbacks shall be scoped per workspace.
+
+## 101. API Governance and Developer Experience
+
+### FR-497 OpenAPI Specification and Generated SDKs
+The platform shall publish an OpenAPI 3.1 specification covering all public REST endpoints. The specification shall be served at `/api/openapi.json` and rendered via an embedded Swagger UI or Redoc at `/api/docs`. Generated SDKs for Python, Go, TypeScript, and Rust shall be published to their respective package registries on each release.
+
+### FR-498 API Versioning Policy
+Public APIs shall be versioned via URL path (`/api/v1/`, `/api/v2/`). Breaking changes require a new major version. Old versions shall be supported for at least 12 months after a new version is released. Deprecation shall be announced via changelog, API response headers (`Sunset`, `Deprecation`), and email to API consumers.
+
+### FR-499 Rate Limiting per API Consumer
+API rate limiting shall apply per authenticated principal (user, service account, external A2A client). Limits shall be configurable per subscription tier with sensible defaults. Rate limit responses shall include `X-RateLimit-*` headers and a Retry-After hint.
+
+### FR-500 API Request and Response Logging for Debugging
+Administrators shall be able to enable per-user or per-workspace detailed API request/response logging for debugging. Logging shall be time-bounded (maximum 4 hours), require justification, and be fully audited. Logged payloads shall be redacted for secrets and PII.
+
+## 102. Cost Governance and Chargeback
+
+### FR-501 Cost Attribution at Every Execution
+Every agent execution shall record detailed cost attribution: model provider cost (tokens × price), infrastructure cost (compute seconds × rate), storage cost (bytes × rate × duration), allocated overhead (platform per-execution surcharge). Attribution shall be stored in ClickHouse for aggregation.
+
+### FR-502 Chargeback and Showback
+The platform shall support workspace-level chargeback (billed to workspace owner) and showback (reported but not billed). Reports shall be exportable per period (daily, weekly, monthly) with cost breakdown by agent, fleet, model provider, user, and workflow.
+
+### FR-503 Budget Alerts and Hard Caps
+Each workspace shall support configurable cost budgets with: soft alerts at configurable thresholds (50%, 80%, 100%), hard caps that block further executions when exceeded (with admin override), and forecasted end-of-period spend visible on the operator dashboard.
+
+### FR-504 Cost Tracking Dashboard
+The platform shall provide a cost tracking dashboard showing: real-time spend, historical spend trends, cost per agent / fleet / user, cost anomalies (sudden increases), and cost-effectiveness metrics (quality per dollar). Administrators shall be able to drill down to individual executions.
+
+## 103. Operational Runbooks and Incident Response
+
+### FR-505 Incident Response Integration
+The platform shall integrate with common incident response systems (PagerDuty, OpsGenie, VictorOps). Configurable alert rules shall trigger incidents for: sustained error rate spike, SLA breach, certification failure, security event (unauthorized access attempt, credential misuse), chaos scenario triggering unexpected behavior.
+
+### FR-506 Runbook Integration
+Common operational scenarios shall have runbooks accessible from the operator dashboard: pod failure, database connection issue, Kafka lag, model provider outage, certificate expiry, S3 quota breach, governance verdict storm. Runbooks shall include: symptom identification, diagnostic commands, remediation steps, escalation path.
+
+### FR-507 Incident Post-Mortem Templates
+The platform shall provide post-mortem templates aligned with blameless post-mortem practices: timeline reconstruction from audit log + execution journal + Kafka events, impact assessment, root cause analysis, action items, and distribution list. Post-mortems shall be linkable to affected executions and certifications for historical context.
+
+## 104. Content Safety and Fairness
+
+### FR-508 Output Content Moderation
+The platform shall integrate content moderation for agent outputs: toxicity classification, hate speech detection, violence/self-harm detection, sexually explicit content detection, PII leakage detection. Moderation policies shall be configurable per workspace. Moderation events shall be logged.
+
+### FR-509 Bias and Fairness Evaluation
+The evaluation framework shall support bias and fairness metrics for agents: demographic parity, equal opportunity, calibration across groups (where applicable). Fairness evaluations shall be runnable on-demand and as part of certification workflows.
+
+### FR-510 Consent and Disclosure
+When users interact with agents, the platform shall disclose: that they are interacting with an AI agent (not a human), what data is being collected, how outputs may be used (training, evaluation), and the agent's certification status. Disclosure shall be clear and non-dismissible for first-time interactions.
+
+## 105. Tags, Labels, and Organization
+
+### FR-511 Tagging and Labeling Across Entities
+Workspaces, agents, fleets, workflows, policies, certifications, and evaluation suites shall support tags (free-form) and labels (key-value pairs). Tags shall be searchable across entity types. Labels shall be usable in policy expressions and filtering.
+
+### FR-512 Saved Views and Filters
+Users shall be able to save frequently-used filter combinations as named views (e.g., "Production agents in finance-ops with active certifications"). Saved views shall be personal or shared per workspace.
 
 ## 71. Final Comprehensive Acceptance Criteria
 

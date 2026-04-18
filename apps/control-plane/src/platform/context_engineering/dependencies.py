@@ -131,6 +131,7 @@ async def get_context_engineering_service(
             session=session,
             settings=settings,
             producer=_get_producer(request),
+            qdrant=_get_qdrant(request),
             workspaces_service=workspaces_service,
             registry_service=registry_service,
         )

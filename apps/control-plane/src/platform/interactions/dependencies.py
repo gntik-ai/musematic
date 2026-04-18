@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from platform.common.clients.qdrant import AsyncQdrantClient
 from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_db
 from platform.common.events.producer import EventProducer
@@ -23,18 +24,24 @@ def _get_producer(request: Request) -> EventProducer | None:
     return cast(EventProducer | None, request.app.state.clients.get("kafka"))
 
 
+def _get_qdrant(request: Request) -> AsyncQdrantClient | None:
+    return cast(AsyncQdrantClient | None, request.app.state.clients.get("qdrant"))
+
+
 def build_interactions_service(
     *,
     session: AsyncSession,
     settings: PlatformSettings,
     producer: EventProducer | None,
-    workspaces_service: WorkspacesService,
+    qdrant: AsyncQdrantClient | None = None,
+    workspaces_service: WorkspacesService | None = None,
     registry_service: RegistryService | None = None,
 ) -> InteractionsService:
     return InteractionsService(
         repository=InteractionsRepository(session),
         settings=settings,
         producer=producer,
+        qdrant=qdrant,
         workspaces_service=workspaces_service,
         registry_service=registry_service,
     )
@@ -50,6 +57,7 @@ async def get_interactions_service(
         session=session,
         settings=_get_settings(request),
         producer=_get_producer(request),
+        qdrant=_get_qdrant(request),
         workspaces_service=workspaces_service,
         registry_service=registry_service,
     )

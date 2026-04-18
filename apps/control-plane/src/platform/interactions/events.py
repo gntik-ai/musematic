@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from enum import StrEnum
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
@@ -20,6 +21,7 @@ class InteractionsEventType(StrEnum):
     branch_merged = "branch.merged"
     goal_message_posted = "goal.message.posted"
     goal_status_changed = "goal.status.changed"
+    goal_state_changed = "workspace.goal.state_changed"
     attention_requested = "attention.requested"
 
 
@@ -84,6 +86,16 @@ class GoalStatusChangedPayload(BaseModel):
     status: str
 
 
+class GoalStateChangedPayload(BaseModel):
+    goal_id: UUID
+    workspace_id: UUID
+    previous_state: str
+    new_state: str
+    automatic: bool
+    reason: str | None
+    transitioned_at: datetime
+
+
 class AttentionRequestedPayload(BaseModel):
     request_id: UUID
     workspace_id: UUID
@@ -103,6 +115,7 @@ INTERACTIONS_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     InteractionsEventType.branch_merged.value: BranchMergedPayload,
     InteractionsEventType.goal_message_posted.value: GoalMessagePostedPayload,
     InteractionsEventType.goal_status_changed.value: GoalStatusChangedPayload,
+    InteractionsEventType.goal_state_changed.value: GoalStateChangedPayload,
     InteractionsEventType.attention_requested.value: AttentionRequestedPayload,
 }
 
@@ -248,6 +261,21 @@ async def publish_goal_status_changed(
         producer=producer,
         topic="workspace.goal",
         event_type=InteractionsEventType.goal_status_changed,
+        key=str(payload.workspace_id),
+        payload=payload,
+        correlation_ctx=correlation_ctx,
+    )
+
+
+async def publish_goal_state_changed(
+    producer: EventProducer | None,
+    payload: GoalStateChangedPayload,
+    correlation_ctx: CorrelationContext,
+) -> None:
+    await _publish(
+        producer=producer,
+        topic="workspace.goal",
+        event_type=InteractionsEventType.goal_state_changed,
         key=str(payload.workspace_id),
         payload=payload,
         correlation_ctx=correlation_ctx,

@@ -1,4 +1,4 @@
-# Product System Architecture (v3 — Agentic Design Patterns + Agentic Mesh Alignment)
+# Product System Architecture (v4 — Post-Audit Completeness Pass)
 
 Version: 2.0
 Scope baseline: 391 functional requirements + 375 technical requirements = 766 total requirements covered
@@ -1730,9 +1730,25 @@ The privacy architecture includes:
 - data minimization enforcer for context assembly and cross-scope transfers;
 - anonymization pipeline for cross-tenant telemetry;
 - privacy impact assessment hooks for context assemblies and memory operations;
-- privacy-preserving agent collaboration patterns (contribute without exposing individual data).
+- privacy-preserving agent collaboration patterns (contribute without exposing individual data);
+- **data subject rights handler** (GDPR/CCPA access, rectification, erasure, portability, restriction);
+- **right-to-be-forgotten cascade engine** (cascades deletion across PostgreSQL, Qdrant, Neo4j, ClickHouse, OpenSearch, S3, with tombstone audit records and cryptographic proof of completion);
+- **data residency enforcement** (per-workspace region configuration, query-time enforcement of cross-region transfer blocks);
+- **Data Loss Prevention (DLP) pipeline** (scans outbound agent responses, tool payloads, logs, artifacts, marketplace publications for PII/PHI/financial/confidential patterns with configurable redaction or blocking);
+- **Privacy Impact Assessment (PIA) workflow** (formal review linked to agents and workspaces processing sensitive data, with privacy officer approval).
 
-## 12.8 Proof and evidence
+## 12.8 Security compliance and supply chain (NEW)
+
+The security compliance architecture covers:
+- **SBOM generation** (SPDX + CycloneDX format, published per release with direct and transitive dependencies, licenses, CVE references);
+- **vulnerability scanning pipeline** (Trivy and Grype for container images, pip-audit and govulncheck and npm audit for dependencies, Bandit/gosec/ESLint security for static analysis, with severity-based release gating);
+- **penetration test tracking** (schedules, findings, remediation status, attestation reports visible in trust workbench);
+- **secret rotation scheduler** (automated rotation with dual-credential windows for zero-downtime: database, Kafka, S3, OAuth client secrets, model provider API keys, mTLS certificates);
+- **Just-in-Time (JIT) credential issuer** (scoped, time-bounded credentials for privileged operations with full audit);
+- **cryptographic audit chain** (append-only audit log with hash-chain integrity verification, exportable with verifiable signatures for regulatory submission);
+- **compliance evidence substrate** (control mapping, access review workflows, change management tracking, compliance dashboard for SOC2/ISO27001/HIPAA/PCI-DSS).
+
+## 12.9 Proof and evidence
 
 For high-assurance modes:
 - proof chains / integrity anchors;
@@ -1871,7 +1887,129 @@ Dynamic model switching, context pruning, and learned allocation policies contin
 
 ---
 
-## 16. Portability beyond Kubernetes
+## 16. Multi-region and high-availability architecture
+
+### 17.1 Active-passive deployment
+The platform supports active-passive multi-region deployment for disaster recovery:
+- **Primary region**: active, serves all traffic
+- **Secondary region(s)**: passive, continuously replicated, ready for failover
+- **RPO target**: <15 minutes (data loss tolerance)
+- **RTO target**: <1 hour (recovery time)
+
+Replication strategy per data store:
+- **PostgreSQL**: streaming replication with synchronous commit to at least one standby in the secondary region
+- **Object storage**: cross-region replication (S3-compatible native feature) for all buckets
+- **Kafka**: MirrorMaker 2 for topic replication with offset translation
+- **ClickHouse**: replicated MergeTree tables across regions with ZooKeeper coordination
+- **Qdrant**: backup-based replication (periodic snapshots to S3, restorable in secondary)
+- **Neo4j**: periodic backup with point-in-time recovery via WAL
+- **OpenSearch**: cross-cluster replication for critical indices
+
+Failover procedure is documented and includes: DNS switching, credential rotation for secondary region access, consistency verification on failover, runbook for failback.
+
+### 17.2 Active-active considerations
+Certain subsystems can run active-active:
+- **Stateless services**: API, workflow engine, runtime controller, reasoning engine, sandbox manager can run simultaneously in multiple regions behind geo-routing
+- **Read replicas**: PostgreSQL read replicas can serve read traffic from any region
+
+Certain subsystems cannot trivially run active-active without conflict resolution:
+- **PostgreSQL writes**: must have a single primary; active-active requires CRDTs or application-level conflict resolution (not supported in v1)
+- **FQN namespace registry**: must have global consistency (can use global PostgreSQL primary or a global consensus service)
+- **Workspace goal messages**: must be strictly ordered per goal (partition by goal_id)
+
+Active-active deployments require a documented conflict resolution strategy and are not enabled by default.
+
+### 17.3 Zero-downtime upgrades
+Platform upgrades follow these patterns:
+- **Stateless services**: rolling upgrade via Kubernetes Deployment rolling update
+- **Schema migrations**: expand-migrate-contract pattern (additive columns first, dual-write, verify, drop old)
+- **Agent runtimes**: version pinning per revision allows old and new runtimes to coexist during upgrade
+- **Kafka topic schemas**: backward-compatible changes only (add optional fields, never remove required fields)
+- **API contracts**: versioned via URL path (/api/v1/ → /api/v2/), old versions supported for 12 months minimum
+
+### 17.4 Maintenance mode
+Platform operators can enable maintenance mode that:
+- Blocks new executions and conversations at the API edge
+- Allows in-flight work to complete gracefully
+- Returns a clear maintenance message to UI and API callers
+- Can be scheduled with a visible maintenance window in the UI
+- Does not affect read-only operations (marketplace browsing, audit log inspection)
+
+## 17. Model provider abstraction and resilience
+
+### 17.1 Multi-provider support
+The platform supports multiple LLM providers concurrently:
+- **Commercial**: OpenAI, Anthropic, Google (Vertex AI), Azure OpenAI, AWS Bedrock, Cohere, Mistral
+- **Self-hosted**: via vLLM, TGI, Ollama, or custom endpoints compatible with OpenAI API
+
+Provider selection is configurable per agent, per step, and per workspace. Credentials are managed per workspace and rotatable via the secret rotation scheduler.
+
+### 17.2 Approved model catalog
+The platform maintains an **approved model catalog** with entries for each permitted model:
+- Provider and model identifier (e.g., `openai:gpt-4-turbo`, `anthropic:claude-3-opus`)
+- Approved and prohibited use cases
+- Context window limits and cost per token
+- Quality tier and approval metadata (approver, date, expiry)
+- Model card (capabilities, training cutoff, known limitations, safety evaluations, bias assessments)
+
+Agents are blocked from using models not in the catalog. Trust reviewers consult model cards during agent certification.
+
+### 17.3 Model fallback on provider failure
+On model provider failure (timeout, rate limit, 5xx, retryable content policy block), the platform supports configurable fallback:
+- Retry count and exponential backoff per provider
+- Alternative providers or models in priority order
+- Acceptable quality degradation (e.g., fallback from `gpt-4` to `gpt-3.5` for tier-2 tasks)
+- Fallback events logged and visible in execution traces
+
+### 17.4 Multi-layer prompt injection defense
+Prompt injection defense is layered:
+1. **SafetyPreScreener** (platform-level, pattern-based, <10ms)
+2. **Platform guardrail pipeline** (LLM-based, context-aware)
+3. **Model provider safety features** where available (system prompt isolation, tool scoping, input classifiers)
+
+Multiple layers ensure that bypassing one layer does not compromise defense.
+
+## 18. Cost governance architecture
+
+The cost governance plane provides end-to-end cost tracking and control:
+- **Cost attribution engine**: records per-execution cost breakdown (model tokens × price, compute seconds × rate, storage bytes × rate × duration, platform overhead) in ClickHouse
+- **Chargeback and showback engine**: aggregates by workspace, agent, fleet, model, user, workflow with exportable periodic reports
+- **Budget enforcement engine**: per-workspace cost budgets with soft alerts (50%, 80%, 100%), hard caps (admin-overridable), end-of-period forecasting
+- **Cost intelligence dashboard**: real-time spend, historical trends, anomaly detection, cost-effectiveness metrics (quality per dollar), drill-down to individual executions
+
+## 19. User experience architecture
+
+### 19.1 Accessibility (WCAG 2.1 AA)
+The web UI conforms to WCAG 2.1 Level AA:
+- Keyboard navigation for all interactive elements
+- Screen reader support with semantic ARIA labels
+- Color contrast ratios meeting AA thresholds
+- Text resizability up to 200% without loss of functionality
+- Focus indicators on all interactive elements
+- No reliance on color alone to convey information
+- Accessible form validation messages
+
+### 19.2 Internationalization
+The UI is built with i18n from day one:
+- All user-facing strings externalized to locale files
+- Initial supported languages: English, Spanish, French, German, Japanese, Chinese (Simplified)
+- Locale-specific formatting for dates, numbers, currencies
+- Professional translation workflow integration
+- RTL language support planned for later phases
+
+### 19.3 Theme and personalization
+- Light mode (default), dark mode, system-preference-follow
+- High-contrast theme variants for accessibility
+- Per-user theme persistence
+- Command palette (Cmd/Ctrl+K) for rapid navigation
+- Configurable keyboard shortcuts with discoverable help overlay
+
+### 19.4 Responsive design
+- Primary workflows optimized for desktop (1280px+)
+- Read-mostly flows (view executions, approve requests, review alerts) responsive for tablet (768px+) and mobile (375px+)
+- Progressive Web App (PWA) manifest published
+
+## 20. Portability beyond Kubernetes
 
 ### 16.1 Local mode
 
@@ -1918,7 +2056,7 @@ Lifecycle: `make e2e-up` creates the cluster and installs the platform (<10 min 
 
 ---
 
-## 17. Requirement coverage map by domain
+## 21. Requirement coverage map by domain
 
 | Requirement domain | Requirement coverage | Primary architectural realization |
 |---|---:|---|
@@ -1974,50 +2112,50 @@ This map covers the entire current requirement surface of **391 functional + 375
 
 ---
 
-## 18. Main architectural risks and mitigation strategy
+## 22. Main architectural risks and mitigation strategy
 
-### 18.1 Risk: Kafka complexity in a modular monolith
+### 22.1 Risk: Kafka complexity in a modular monolith
 **Mitigation:** Restrict event topics to governed schemas, use projections, keep transactional truth in PostgreSQL.
 
-### 18.2 Risk: WebSocket fan-out overload
+### 22.2 Risk: WebSocket fan-out overload
 **Mitigation:** Scale dedicated hubs, restrict subscription granularity, compress events.
 
-### 18.3 Risk: Shared-mode privileged operations
+### 22.3 Risk: Shared-mode privileged operations
 **Mitigation:** HostOps broker, approval gates, trust tiers, dedicated node pools, complete audit.
 
-### 18.4 Risk: Too much logic in the monolith
+### 22.4 Risk: Too much logic in the monolith
 **Mitigation:** Enforce bounded contexts, stable internal contracts, separate process profiles, extraction triggers.
 
-### 18.5 Risk: Runtime-state drift
+### 22.5 Risk: Runtime-state drift
 **Mitigation:** Heartbeat model, reconciliation loops, durable correlation identifiers.
 
-### 18.6 Risk: Trust model becomes ceremonial
+### 22.6 Risk: Trust model becomes ceremonial
 **Mitigation:** Certification feeds discovery, access rules, runtime enforcement, and publication gates.
 
-### 18.7 Risk: Context engineering becomes a bottleneck
+### 22.7 Risk: Context engineering becomes a bottleneck
 **Mitigation:** Context assembly is designed as a stateless computation. Quality scoring and provenance persist asynchronously. Budget enforcement is fast-path. Compaction strategies have configurable complexity.
 
-### 18.8 Risk: Self-correction loops become unbounded cost sinks
+### 22.8 Risk: Self-correction loops become unbounded cost sinks
 **Mitigation:** Convergence detection, iteration limits, cost caps, and human escalation are mandatory policy parameters. Unbounded loops are structurally impossible.
 
-### 18.9 Risk: Reasoning budget management adds latency
+### 22.9 Risk: Reasoning budget management adds latency
 **Mitigation:** Reasoning budget allocation is a fast-path scheduler decision, not a heavyweight computation. Budget tracking is event-driven and non-blocking.
 
-### 18.10 Risk: Operational complexity from multiple data stores
+### 22.10 Risk: Operational complexity from multiple data stores
 **Mitigation:** Each store is justified by distinct workload characteristics and provides value from day 1 — not premature optimization. Installer and Helm charts manage deployment complexity. Local mode provides graceful fallbacks. Backup strategy covers all stores. Monitoring is unified through OpenTelemetry. The alternative (overloading PostgreSQL with vector, graph, OLAP, and full-text workloads) would create worse operational problems at scale.
 
-### 18.11 Risk: Simulation environments leak into production
+### 22.11 Risk: Simulation environments leak into production
 **Mitigation:** Simulation runs in dedicated namespace with network policies preventing production access. Simulation artifacts carry explicit isolation tags. No shared storage with production execution plane.
 
-### 18.12 Risk: Agent-builds-agent generates unsafe agents
+### 22.12 Risk: Agent-builds-agent generates unsafe agents
 **Mitigation:** All AI-generated compositions pass through identical validation, policy checking, and certification pipelines as manually created agents. No bypass path exists.
 
-### 18.13 Risk: Privacy-preserving mechanisms reduce utility
+### 22.13 Risk: Privacy-preserving mechanisms reduce utility
 **Mitigation:** Differential privacy budgets are configurable per deployment. Data minimization is policy-driven, not blanket. Privacy impact assessment provides feedback before enforcement.
 
 ---
 
-## 19. Recommended technology stack summary
+## 23. Recommended technology stack summary
 
 | Layer | Technology | Notes |
 |---|---|---|
@@ -2043,7 +2181,7 @@ This map covers the entire current requirement surface of **391 functional + 375
 
 ---
 
-## 20. Final confirmation
+## 24. Final confirmation
 
 This system architecture intentionally covers the full revised product shape including all 15 new requirement domains, encompassing:
 - the original OpenClaw-inspired package/runtime/workflow goals;

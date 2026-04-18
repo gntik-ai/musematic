@@ -14,12 +14,15 @@ from platform.interactions.models import (
     InteractionParticipant,
     InteractionState,
     ParticipantRole,
+    WorkspaceGoalDecisionRationale,
     WorkspaceGoalMessage,
 )
+from platform.workspaces.models import WorkspaceAgentDecisionConfig, WorkspaceGoal
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy import func, select, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -426,6 +429,143 @@ class InteractionsRepository:
         self.session.add(message)
         await self.session.flush()
         return message
+
+    async def get_goal_for_update(
+        self,
+        *,
+        workspace_id: UUID,
+        goal_id: UUID,
+    ) -> WorkspaceGoal | None:
+        result = await self.session.execute(
+            select(WorkspaceGoal)
+            .where(
+                WorkspaceGoal.workspace_id == workspace_id,
+                WorkspaceGoal.id == goal_id,
+            )
+            .with_for_update()
+        )
+        return result.scalar_one_or_none()
+
+    async def get_goal_message(
+        self,
+        *,
+        workspace_id: UUID,
+        goal_id: UUID,
+        message_id: UUID,
+    ) -> WorkspaceGoalMessage | None:
+        result = await self.session.execute(
+            select(WorkspaceGoalMessage).where(
+                WorkspaceGoalMessage.workspace_id == workspace_id,
+                WorkspaceGoalMessage.goal_id == goal_id,
+                WorkspaceGoalMessage.id == message_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def list_workspace_agent_decision_configs(
+        self,
+        *,
+        workspace_id: UUID,
+    ) -> list[WorkspaceAgentDecisionConfig]:
+        result = await self.session.execute(
+            select(WorkspaceAgentDecisionConfig)
+            .where(WorkspaceAgentDecisionConfig.workspace_id == workspace_id)
+            .order_by(
+                WorkspaceAgentDecisionConfig.subscribed_at.asc(),
+                WorkspaceAgentDecisionConfig.agent_fqn.asc(),
+            )
+        )
+        return list(result.scalars().all())
+
+    async def upsert_workspace_agent_decision_config(
+        self,
+        *,
+        workspace_id: UUID,
+        agent_fqn: str,
+        response_decision_strategy: str,
+        response_decision_config: dict[str, Any],
+    ) -> tuple[WorkspaceAgentDecisionConfig, bool]:
+        result = await self.session.execute(
+            select(WorkspaceAgentDecisionConfig).where(
+                WorkspaceAgentDecisionConfig.workspace_id == workspace_id,
+                WorkspaceAgentDecisionConfig.agent_fqn == agent_fqn,
+            )
+        )
+        existing = result.scalar_one_or_none()
+        created = existing is None
+        if existing is None:
+            existing = WorkspaceAgentDecisionConfig(
+                workspace_id=workspace_id,
+                agent_fqn=agent_fqn,
+                response_decision_strategy=response_decision_strategy,
+                response_decision_config=dict(response_decision_config),
+            )
+            self.session.add(existing)
+        else:
+            existing.response_decision_strategy = response_decision_strategy
+            existing.response_decision_config = dict(response_decision_config)
+        await self.session.flush()
+        return existing, created
+
+    async def insert_decision_rationale_records(self, records: list[dict[str, Any]]) -> None:
+        if not records:
+            return
+        stmt = pg_insert(WorkspaceGoalDecisionRationale).values(records)
+        stmt = stmt.on_conflict_do_nothing(index_elements=["message_id", "agent_fqn"])
+        await self.session.execute(stmt)
+        await self.session.flush()
+
+    async def list_decision_rationales_for_message(
+        self,
+        *,
+        workspace_id: UUID,
+        message_id: UUID,
+    ) -> list[WorkspaceGoalDecisionRationale]:
+        result = await self.session.execute(
+            select(WorkspaceGoalDecisionRationale)
+            .where(
+                WorkspaceGoalDecisionRationale.workspace_id == workspace_id,
+                WorkspaceGoalDecisionRationale.message_id == message_id,
+            )
+            .order_by(
+                WorkspaceGoalDecisionRationale.created_at.asc(),
+                WorkspaceGoalDecisionRationale.agent_fqn.asc(),
+            )
+        )
+        return list(result.scalars().all())
+
+    async def list_decision_rationales_for_goal(
+        self,
+        *,
+        workspace_id: UUID,
+        goal_id: UUID,
+        page: int,
+        page_size: int,
+        agent_fqn: str | None = None,
+        decision: str | None = None,
+    ) -> tuple[list[WorkspaceGoalDecisionRationale], int]:
+        filters = [
+            WorkspaceGoalDecisionRationale.workspace_id == workspace_id,
+            WorkspaceGoalDecisionRationale.goal_id == goal_id,
+        ]
+        if agent_fqn is not None:
+            filters.append(WorkspaceGoalDecisionRationale.agent_fqn == agent_fqn)
+        if decision is not None:
+            filters.append(WorkspaceGoalDecisionRationale.decision == decision)
+        total = await self.session.scalar(
+            select(func.count()).select_from(WorkspaceGoalDecisionRationale).where(*filters)
+        )
+        result = await self.session.execute(
+            select(WorkspaceGoalDecisionRationale)
+            .where(*filters)
+            .order_by(
+                WorkspaceGoalDecisionRationale.created_at.desc(),
+                WorkspaceGoalDecisionRationale.id.desc(),
+            )
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        return list(result.scalars().all()), int(total or 0)
 
     async def list_goal_messages(
         self,
