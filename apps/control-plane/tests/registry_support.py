@@ -981,10 +981,15 @@ def build_recording_producer() -> RecordingProducer:
     return RecordingProducer()
 
 
-def build_correlation(workspace_id: UUID | None = None) -> CorrelationContext:
+def build_correlation(
+    workspace_id: UUID | None = None,
+    *,
+    agent_fqn: str | None = None,
+) -> CorrelationContext:
     return CorrelationContext(
         correlation_id=uuid4(),
         workspace_id=workspace_id,
+        agent_fqn=agent_fqn,
     )
 
 

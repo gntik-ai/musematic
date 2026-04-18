@@ -290,7 +290,7 @@ class RegistryService:
                 maturity_level=profile.maturity_level,
                 role_types=list(profile.role_types),
             ),
-            self._correlation(workspace_id),
+            self._correlation(workspace_id, profile.fqn),
         )
 
         return AgentUploadResponse(
@@ -471,7 +471,7 @@ class RegistryService:
         await self._commit()
         await self._index_or_flag(profile.id)
 
-        correlation = self._correlation(workspace_id)
+        correlation = self._correlation(workspace_id, profile.fqn)
         if request.target_status in EVENT_TRANSITIONS:
             if request.target_status is LifecycleStatus.published:
                 await publish_agent_published(
@@ -767,10 +767,11 @@ class RegistryService:
         if hasattr(self.repository.session, "rollback"):
             await self.repository.session.rollback()
 
-    def _correlation(self, workspace_id: UUID) -> CorrelationContext:
+    def _correlation(self, workspace_id: UUID, agent_fqn: str | None = None) -> CorrelationContext:
         return CorrelationContext(
             correlation_id=uuid4(),
             workspace_id=workspace_id,
+            agent_fqn=agent_fqn,
         )
 
     @staticmethod

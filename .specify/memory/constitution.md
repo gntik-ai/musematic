@@ -1,28 +1,28 @@
 <!--
   Sync Impact Report
   ==================
-  Version change: 0.0.0 (template) → 1.0.0
-  Modified principles: N/A (initial ratification)
+  Version change: 1.0.0 → 1.1.0
+  Bump rationale: MINOR — new Principle XVI, new Brownfield Rules
+    section, 3 new critical reminders, 2 new Kafka topics.
+  Modified principles:
+    - None renamed or removed
+    - XVI added: Generic S3 Storage, MinIO Optional
   Added sections:
-    - Project Identity
-    - 15 Core Principles (Architecture Decisions)
-    - Tech Stack (Python, Go, Frontend, Data Stores, Infrastructure)
-    - Repository Structure
-    - Coding Conventions (Python, Go, Frontend)
-    - Kafka Topics Registry
-    - gRPC Service Registry
-    - Kubernetes Namespaces
-    - Local Mode Fallbacks
-    - Environment Variables
-    - Quality Gates
-    - Critical Reminders for AI Agents
-    - Document References
-    - Governance
+    - Brownfield Rules (8 rules for update-pass governance)
   Removed sections: None
+  Enhanced items:
+    - Reminder 15: added "Resolved by Runtime Controller" context
+    - Reminder 21: added "Internal coordination stays on Kafka + gRPC"
+    - Reminder 22: added "Same policy, visibility, sanitization"
+    - Reminder 23: added "TrajectoryScorer" context
+  New reminders: 24 (zero-trust feature flag), 25 (no MinIO in app
+    code), 26 (E2E on kind)
+  New Kafka topics: governance.verdict.issued,
+    governance.enforcement.executed
   Templates requiring updates:
-    - .specify/templates/plan-template.md ✅ compatible (Constitution Check section aligns)
-    - .specify/templates/spec-template.md ✅ compatible (no constitution-specific gates)
-    - .specify/templates/tasks-template.md ✅ compatible (task phases unchanged)
+    - .specify/templates/plan-template.md ✅ compatible
+    - .specify/templates/spec-template.md ✅ compatible
+    - .specify/templates/tasks-template.md ✅ compatible
   Follow-up TODOs: None
 -->
 
@@ -45,6 +45,36 @@
   satellite services + React frontend
 - **Deployment target:** Kubernetes (primary), Docker, Docker Swarm,
   Incus, local native
+
+## Brownfield Rules
+
+> These rules govern the UPDATE pass aligning the platform with
+> "Agentic Design Patterns" (Gulli, Springer 2025) and "Agentic Mesh"
+> (Broda & Broda, O'Reilly 2026). The original codebase is already
+> implemented from the initial backlog (52 features, Waves 1-12).
+
+1. **Never rewrite existing code.** Extend, add, or modify — never
+   replace a file wholesale.
+2. **Every change is an Alembic migration.** No raw DDL. Every new
+   column, table, index, or enum value goes through a numbered
+   migration.
+3. **Preserve all existing tests.** New code MUST include tests.
+   Existing tests MUST keep passing.
+4. **Use existing patterns.** Follow the conventions already
+   established in the codebase: service layer classes, Pydantic
+   schemas, FastAPI router structure, SQLAlchemy model mixins, Kafka
+   event envelope format.
+5. **Reference existing files.** Every spec and plan MUST cite the
+   exact files and functions being modified.
+6. **Additive enum values.** When adding enum values (e.g.,
+   agent_status, role_type), add to the existing enum — never
+   recreate it.
+7. **Backward-compatible APIs.** New fields are optional with
+   defaults. Existing endpoints keep working without changes from
+   callers.
+8. **Feature flags.** New behaviors that change defaults (e.g.,
+   zero-trust visibility) MUST be behind a feature flag for gradual
+   rollout.
 
 ## Core Principles
 
@@ -188,6 +218,16 @@ play tool interoperability. All MCP tool invocations go through the
 tool gateway with the same policy validation, visibility checks, and
 output sanitization as native tools.
 
+### XVI. Generic S3 Storage, MinIO Optional
+
+Object storage access MUST use the generic S3 protocol via
+boto3/aws-sdk-go-v2 with provider-agnostic configuration
+(`S3_ENDPOINT_URL`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`,
+`S3_BUCKET_PREFIX`). Any S3-compatible provider (Hetzner, AWS, R2,
+Wasabi) works. MinIO is a dev/self-hosted option only — never a hard
+dependency. Application code MUST NOT reference MinIO directly.
+MinIO appears only in optional Helm charts and docker-compose.dev.
+
 ## Tech Stack — Authoritative Reference
 
 ### Python Control Plane
@@ -265,7 +305,7 @@ output sanitization as native tools.
 | Cache/hot state | Redis 7+ Cluster | Sessions, budgets | 6379 |
 | Full-text search | OpenSearch 2.x | Marketplace | 9200 |
 | Event backbone | Apache Kafka | Durable streaming | 9092 |
-| Object storage | MinIO (S3) | Artifacts, traces | 9000 |
+| Object storage | S3-compatible | Artifacts, traces | 9000 |
 
 ### Infrastructure
 
@@ -419,6 +459,8 @@ Subtypes: `NotFoundError` → 404, `AuthorizationError` → 403,
 | `testing.results` | — | testing engine | evaluation, agentops |
 | `communication.broadcast` | fleet_id | communication service | fleet members |
 | `interaction.attention` | target_id | any agent | notifications, WS |
+| `governance.verdict.issued` | — | judge agents | enforcer agents, audit |
+| `governance.enforcement.executed` | — | enforcer agents | audit, operator |
 
 ## gRPC Service Registry
 
@@ -452,7 +494,7 @@ Subtypes: `NotFoundError` → 404, `AuthorizationError` → 403,
 | Redis | In-process dict or embedded Redis |
 | OpenSearch | SQLite FTS5 |
 | Kafka | In-process asyncio queue |
-| MinIO | Local filesystem |
+| S3-compatible | Local filesystem |
 | Go reasoning engine | Local subprocess or in-process mock |
 
 ## Quality Gates
@@ -461,9 +503,9 @@ Subtypes: `NotFoundError` → 404, `AuthorizationError` → 403,
 
 - ruff lint passes (Python)
 - mypy --strict passes (Python)
-- pytest passes with ≥95% line coverage (Python)
+- pytest passes with >=95% line coverage (Python)
 - golangci-lint passes (Go)
-- go test -race passes with ≥95% coverage (Go)
+- go test -race passes with >=95% coverage (Go)
 - ESLint passes (Frontend)
 - TypeScript compilation passes (Frontend)
 - helm lint passes for all modified charts
@@ -483,7 +525,7 @@ Subtypes: `NotFoundError` → 404, `AuthorizationError` → 403,
 
 - All PR merge requirements pass
 - Integration tests pass
-- E2E scenario tests pass
+- E2E scenario tests pass (on kind, same Helm charts as production)
 - Helm chart validation passes (kubeconform)
 - Docker images build and scan clean
 - SBOM generated
@@ -504,15 +546,29 @@ Subtypes: `NotFoundError` → 404, `AuthorizationError` → 403,
 12. Correlation IDs everywhere.
 13. Provenance on everything.
 14. Budget tracking is real-time (Go + Redis, not Python batch).
-15. Secrets never touch the LLM.
+15. Secrets never touch the LLM. Resolved by Runtime Controller,
+    injected via env vars to tool code.
 16. Agent visibility is zero-trust by default.
 17. Use FQN for agent addressing.
 18. Goal IDs (GID) are mandatory for workspace goals.
 19. Persist task plans, not just reasoning traces.
 20. Judge and Enforcer are distinct from Observer.
-21. A2A is for external interoperability only.
-22. MCP tools go through the tool gateway.
-23. Evaluate trajectories, not just outputs.
+21. A2A is for external interoperability only. Internal agent
+    coordination stays on Kafka + gRPC.
+22. MCP tools go through the tool gateway. Same policy, visibility,
+    sanitization as native tools.
+23. Evaluate trajectories, not just outputs. TrajectoryScorer assesses
+    the full action path.
+24. Zero-trust visibility is a feature flag. Default OFF for existing
+    deployments, ON for new deployments. Gradual rollout.
+25. No MinIO in application code. All object storage access uses
+    generic S3 config (`S3_ENDPOINT_URL`, `S3_ACCESS_KEY`, etc.).
+    MinIO is only in optional Helm chart and docker-compose.dev.
+26. E2E tests run on kind, not docker-compose. The E2E environment
+    uses the same Helm charts as production — no test-only bypass
+    paths. Dev-only seeding/chaos endpoints live under
+    `/api/v1/_e2e/*` gated by `FEATURE_E2E_MODE` and return 404 in
+    production.
 
 ## Document References
 
@@ -543,4 +599,4 @@ Subtypes: `NotFoundError` → 404, `AuthorizationError` → 403,
   redefinition, MINOR for new principle or material expansion, PATCH
   for clarifications and wording fixes.
 
-**Version**: 1.0.0 | **Ratified**: 2026-04-09 | **Last Amended**: 2026-04-09
+**Version**: 1.1.0 | **Ratified**: 2026-04-09 | **Last Amended**: 2026-04-18

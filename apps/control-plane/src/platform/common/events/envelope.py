@@ -14,6 +14,7 @@ class CorrelationContext(BaseModel):
     execution_id: UUID | None = None
     fleet_id: UUID | None = None
     goal_id: UUID | None = None
+    agent_fqn: str | None = None
     correlation_id: UUID
 
 
@@ -32,10 +33,22 @@ def make_envelope(
     source: str,
     payload: dict[str, Any],
     correlation_context: CorrelationContext | None = None,
+    *,
+    agent_fqn: str | None = None,
 ) -> EventEnvelope:
+    if correlation_context is None:
+        resolved_correlation = CorrelationContext(
+            correlation_id=uuid4(),
+            agent_fqn=agent_fqn,
+        )
+    elif agent_fqn is None:
+        resolved_correlation = correlation_context
+    else:
+        resolved_correlation = correlation_context.model_copy(update={"agent_fqn": agent_fqn})
+
     return EventEnvelope(
         event_type=event_type,
         source=source,
-        correlation_context=correlation_context or CorrelationContext(correlation_id=uuid4()),
+        correlation_context=resolved_correlation,
         payload=payload,
     )
