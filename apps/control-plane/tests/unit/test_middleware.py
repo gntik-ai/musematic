@@ -46,8 +46,10 @@ def _app(monkeypatch, settings: PlatformSettings):
         monkeypatch.setattr("platform.api.health.database_health_check", lambda: _async_bool(True))
     else:
         import platform.main as main_module
+
         main_module._build_clients = lambda resolved: _fake_clients()
         import platform.api.health as health_module
+
         health_module.database_health_check = lambda: _async_bool(True)
     return create_app(settings=settings)
 
@@ -195,7 +197,6 @@ async def test_public_oauth_routes_are_auth_exempt_but_link_remains_protected() 
     assert link.json()["error"]["code"] == "UNAUTHORIZED"
 
 
-
 @pytest.mark.asyncio
 async def test_api_key_and_invitation_paths_in_auth_middleware(monkeypatch) -> None:
     settings = PlatformSettings(AUTH_JWT_SECRET_KEY="secret", AUTH_JWT_ALGORITHM="HS256")
@@ -232,7 +233,10 @@ async def test_api_key_and_invitation_paths_in_auth_middleware(monkeypatch) -> N
         accepted = await client.post("/api/v1/accounts/invitations/demo-token/accept")
         api_key_ok = await client.get("/api/v1/protected", headers={"X-API-Key": "valid"})
 
-    monkeypatch.setattr("platform.common.auth_middleware.resolve_api_key_identity", _invalid_identity)
+    monkeypatch.setattr(
+        "platform.common.auth_middleware.resolve_api_key_identity",
+        _invalid_identity,
+    )
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app),
         base_url="http://testserver",
@@ -265,3 +269,35 @@ async def test_refresh_token_type_is_rejected_by_auth_middleware() -> None:
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "UNAUTHORIZED"
+
+
+@pytest.mark.asyncio
+async def test_a2a_paths_are_auth_exempt_in_middleware() -> None:
+    settings = PlatformSettings(AUTH_JWT_SECRET_KEY="secret", AUTH_JWT_ALGORITHM="HS256")
+    app = FastAPI()
+    app.state.settings = settings
+    app.add_middleware(AuthMiddleware)
+
+    @app.get("/.well-known/agent.json")
+    async def agent_card() -> dict[str, bool]:
+        return {"ok": True}
+
+    @app.post("/api/v1/a2a/tasks")
+    async def create_task() -> dict[str, bool]:
+        return {"ok": True}
+
+    @app.get("/api/v1/a2a/tasks/demo/stream")
+    async def stream_task() -> dict[str, bool]:
+        return {"ok": True}
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://testserver",
+    ) as client:
+        card = await client.get("/.well-known/agent.json")
+        task = await client.post("/api/v1/a2a/tasks")
+        stream = await client.get("/api/v1/a2a/tasks/demo/stream")
+
+    assert card.status_code == 200
+    assert task.status_code == 200
+    assert stream.status_code == 200

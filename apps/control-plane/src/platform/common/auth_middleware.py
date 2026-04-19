@@ -50,7 +50,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
             and request.method == "GET"
             and path.endswith(("/authorize", "/callback"))
         )
-        if path in EXEMPT_PATHS or public_invitation_endpoint or public_oauth_endpoint:
+        public_a2a_endpoint = path == "/.well-known/agent.json" or path.startswith("/api/v1/a2a/")
+        if (
+            path in EXEMPT_PATHS
+            or public_invitation_endpoint
+            or public_oauth_endpoint
+            or public_a2a_endpoint
+        ):
             return await call_next(request)
 
         api_key = request.headers.get("X-API-Key", "").strip()

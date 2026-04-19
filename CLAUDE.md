@@ -127,9 +127,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 056-ibor-integration-and: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
 - 056-ibor-integration-and: Added Go 1.22+ (reasoning engine), Python 3.12+ (control plane)
 - 056-ibor-integration-and: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
-- 056-ibor-integration-and: Added Python 3.12+ + FastAPI 0.115+, SQLAlchemy 2.x async, Pydantic v2, aiokafka 0.11+, APScheduler 3.x (GC job)
 
 
 <!-- MANUAL ADDITIONS START -->

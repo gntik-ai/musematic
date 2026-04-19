@@ -74,3 +74,21 @@ def test_platform_settings_s3_aliases_and_precedence(monkeypatch) -> None:
     assert settings.s3.provider == "hetzner"
     assert settings.S3_ENDPOINT_URL == "https://new-endpoint.example.com"
     assert settings.S3_BUCKET_DEAD_LETTERS == settings.connectors.dead_letter_bucket
+
+
+def test_platform_settings_support_a2a_flat_keys_and_single_field_overrides() -> None:
+    settings = PlatformSettings(
+        A2A_PROTOCOL_VERSION="1.1",
+        A2A_MAX_PAYLOAD_BYTES=2048,
+        A2A_TASK_IDLE_TIMEOUT_MINUTES=45,
+        A2A_DEFAULT_CARD_TTL_SECONDS=120,
+        A2A_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE=5,
+        FEATURE_GOAL_AUTO_COMPLETE=False,
+    )
+
+    assert settings.A2A_PROTOCOL_VERSION == "1.1"
+    assert settings.A2A_MAX_PAYLOAD_BYTES == 2048
+    assert settings.A2A_TASK_IDLE_TIMEOUT_MINUTES == 45
+    assert settings.A2A_DEFAULT_CARD_TTL_SECONDS == 120
+    assert settings.A2A_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE == 5
+    assert settings.FEATURE_GOAL_AUTO_COMPLETE is False
