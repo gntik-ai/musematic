@@ -93,15 +93,7 @@ func cloneAnyMap(payload map[string]any) map[string]any {
 }
 
 func TestDebateRPCsReachConsensusAndPersistTrace(t *testing.T) {
-	uploader := &capturingTraceUploader{}
-	traceStore := &capturingTraceStore{}
-	events := &capturingReasoningEvents{debateDone: make(chan map[string]any, 1)}
-	handler := NewHandler(HandlerDependencies{
-		DebateService:   debate.NewService(debate.NewConsensusDetector(nil, 0.05), uploader, traceStore, events),
-		TraceStore:      traceStore,
-		TraceUploader:   uploader,
-		ReasoningEvents: events,
-	})
+	handler, uploader, traceStore, events := newDebateHandlerFixture()
 
 	started, err := handler.StartDebateSession(context.Background(), &StartDebateSessionRequest{
 		ExecutionId:      "exec-debate-1",
@@ -113,12 +105,37 @@ func TestDebateRPCsReachConsensusAndPersistTrace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("StartDebateSession() error = %v", err)
 	}
-	if started.GetStatus() != "RUNNING" || started.GetCurrentRound() != 1 {
-		t.Fatalf("unexpected session handle: %+v", started)
-	}
+	assertDebateHandle(t, started, "RUNNING", 1)
 
+	round := submitConsensusDebateTurns(t, handler, "debate-1")
+	assertDebateRoundResult(t, round, "consensus", true, false)
+	assertDebateEvent(t, events, "consensus")
+
+	final, err := handler.FinalizeDebateSession(context.Background(), &FinalizeDebateSessionRequest{DebateId: "debate-1"})
+	if err != nil {
+		t.Fatalf("FinalizeDebateSession() error = %v", err)
+	}
+	assertFinalDebateResult(t, final, "CONSENSUS", true)
+	assertPersistedDebateArtifacts(t, uploader, traceStore)
+}
+
+func newDebateHandlerFixture() (*Handler, *capturingTraceUploader, *capturingTraceStore, *capturingReasoningEvents) {
+	uploader := &capturingTraceUploader{}
+	traceStore := &capturingTraceStore{}
+	events := &capturingReasoningEvents{debateDone: make(chan map[string]any, 1)}
+	handler := NewHandler(HandlerDependencies{
+		DebateService:   debate.NewService(debate.NewConsensusDetector(nil, 0.05), uploader, traceStore, events),
+		TraceStore:      traceStore,
+		TraceUploader:   uploader,
+		ReasoningEvents: events,
+	})
+	return handler, uploader, traceStore, events
+}
+
+func submitConsensusDebateTurns(t *testing.T, handler *Handler, debateID string) *DebateRoundResult {
+	t.Helper()
 	if _, err := handler.SubmitDebateTurn(context.Background(), &SubmitDebateTurnRequest{
-		DebateId:   "debate-1",
+		DebateId:   debateID,
 		AgentFqn:   "agent.alpha",
 		StepType:   "synthesis",
 		Content:    "aligned answer for consensus",
@@ -127,9 +144,8 @@ func TestDebateRPCsReachConsensusAndPersistTrace(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("SubmitDebateTurn(first) error = %v", err)
 	}
-
 	round, err := handler.SubmitDebateTurn(context.Background(), &SubmitDebateTurnRequest{
-		DebateId:     "debate-1",
+		DebateId:     debateID,
 		AgentFqn:     "agent.beta",
 		StepType:     "synthesis",
 		Content:      "shared answer for consensus",
@@ -140,14 +156,38 @@ func TestDebateRPCsReachConsensusAndPersistTrace(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SubmitDebateTurn(second) error = %v", err)
 	}
-	if !round.GetDebateComplete() || round.GetConsensusStatus() != "consensus" || round.GetRoundNumber() != 1 {
+	return round
+}
+
+func assertDebateHandle(t *testing.T, handle *DebateSessionHandle, wantStatus string, wantRound int32) {
+	t.Helper()
+	if handle.GetStatus() != wantStatus || handle.GetCurrentRound() != wantRound {
+		t.Fatalf("unexpected session handle: %+v", handle)
+	}
+}
+
+func assertDebateRoundResult(
+	t *testing.T,
+	round *DebateRoundResult,
+	wantStatus string,
+	wantComplete bool,
+	wantBudgetExhausted bool,
+) {
+	t.Helper()
+	if round.GetConsensusStatus() != wantStatus || round.GetDebateComplete() != wantComplete {
 		t.Fatalf("unexpected round result: %+v", round)
 	}
+	if round.GetComputeBudgetExhausted() != wantBudgetExhausted || round.GetRoundNumber() != 1 {
+		t.Fatalf("unexpected round budget state: %+v", round)
+	}
+}
 
+func assertDebateEvent(t *testing.T, events *capturingReasoningEvents, expectedTermination string) {
+	t.Helper()
 	select {
 	case payload := <-events.debateDone:
-		if payload["terminated_by"] != "consensus" {
-			t.Fatalf("round event termination = %#v, want consensus", payload["terminated_by"])
+		if payload["terminated_by"] != expectedTermination {
+			t.Fatalf("round event termination = %#v, want %s", payload["terminated_by"], expectedTermination)
 		}
 		if payload["round_number"] != 1 {
 			t.Fatalf("round number = %#v, want 1", payload["round_number"])
@@ -155,14 +195,21 @@ func TestDebateRPCsReachConsensusAndPersistTrace(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("timed out waiting for debate round event")
 	}
+}
 
-	final, err := handler.FinalizeDebateSession(context.Background(), &FinalizeDebateSessionRequest{DebateId: "debate-1"})
-	if err != nil {
-		t.Fatalf("FinalizeDebateSession() error = %v", err)
+func assertFinalDebateResult(t *testing.T, result *DebateSessionResult, wantStatus string, wantConsensus bool) {
+	t.Helper()
+	if result.GetStatus() != wantStatus || result.GetConsensusReached() != wantConsensus || result.GetStorageKey() == "" {
+		t.Fatalf("unexpected final debate result: %+v", result)
 	}
-	if final.GetStatus() != "CONSENSUS" || !final.GetConsensusReached() || final.GetStorageKey() == "" {
-		t.Fatalf("unexpected final debate result: %+v", final)
-	}
+}
+
+func assertPersistedDebateArtifacts(
+	t *testing.T,
+	uploader *capturingTraceUploader,
+	traceStore *capturingTraceStore,
+) {
+	t.Helper()
 	if len(uploader.uploads) != 1 || len(uploader.uploads[0].Steps) != 2 {
 		t.Fatalf("unexpected uploaded trace: %+v", uploader.uploads)
 	}

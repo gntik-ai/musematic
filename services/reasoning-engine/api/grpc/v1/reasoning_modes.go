@@ -96,7 +96,7 @@ func (h *Handler) StartDebateSession(
 		ExecutionId:  session.ExecutionID,
 		DebateId:     session.DebateID,
 		Status:       string(session.Status),
-		CurrentRound: int32(session.CurrentRound),
+		CurrentRound: safeInt32(session.CurrentRound),
 	}, nil
 }
 
@@ -126,7 +126,7 @@ func (h *Handler) SubmitDebateTurn(
 	roundNumber, consensusStatus := latestDebateRound(session)
 	return &DebateRoundResult{
 		DebateId:               req.GetDebateId(),
-		RoundNumber:            int32(roundNumber),
+		RoundNumber:            safeInt32(roundNumber),
 		ConsensusStatus:        consensusStatus,
 		DebateComplete:         session.Status != debate.DebateRunning,
 		ComputeBudgetUsed:      session.BudgetUsed,
@@ -225,20 +225,53 @@ func (h *Handler) submitCorrectionIteration(
 	ctx context.Context,
 	req *CorrectionIterationEvent,
 ) (*ConvergenceResult, error) {
-	if h.correctionLoop == nil {
-		return nil, status.Error(codes.Unimplemented, "correction loop is not configured")
+	if err := validateCorrectionIterationRequest(h.correctionLoop, req); err != nil {
+		return nil, err
+	}
+	if _, err := h.requireSelfCorrectionSession(req.GetLoopId()); err != nil {
+		return nil, err
+	}
+
+	statusValue, iterationNum, delta, err := h.submitCorrectionIterationState(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ConvergenceResult{
+		Status:       convergenceToProto(statusValue),
+		IterationNum: safeInt32(iterationNum),
+		Delta:        delta,
+		LoopId:       req.GetLoopId(),
+	}, nil
+}
+
+func validateCorrectionIterationRequest(
+	loop correction_loop.CorrectionLoop,
+	req *CorrectionIterationEvent,
+) error {
+	if loop == nil {
+		return status.Error(codes.Unimplemented, "correction loop is not configured")
 	}
 	if req.GetLoopId() == "" {
-		return nil, status.Error(codes.InvalidArgument, "loop_id is required")
+		return status.Error(codes.InvalidArgument, "loop_id is required")
 	}
+	return nil
+}
 
+func (h *Handler) requireSelfCorrectionSession(loopID string) (*selfCorrectionSession, error) {
 	h.selfCorrectionMu.Lock()
-	session, ok := h.selfCorrectionSessions[req.GetLoopId()]
-	h.selfCorrectionMu.Unlock()
-	if !ok {
+	defer h.selfCorrectionMu.Unlock()
+	session := h.selfCorrectionSessions[loopID]
+	if session == nil {
 		return nil, status.Error(codes.NotFound, correction_loop.ErrLoopNotFound.Error())
 	}
+	return session, nil
+}
 
+func (h *Handler) submitCorrectionIterationState(
+	ctx context.Context,
+	req *CorrectionIterationEvent,
+) (correction_loop.Status, int, float64, error) {
 	statusValue, iterationNum, delta, err := h.correctionLoop.Submit(
 		ctx,
 		req.GetLoopId(),
@@ -247,28 +280,67 @@ func (h *Handler) submitCorrectionIteration(
 		req.GetDurationMs(),
 	)
 	if err != nil {
-		switch {
-		case errors.Is(err, correction_loop.ErrLoopNotFound):
-			return nil, status.Error(codes.NotFound, err.Error())
-		case errors.Is(err, correction_loop.ErrLoopNotRunning):
-			return nil, status.Error(codes.FailedPrecondition, err.Error())
-		default:
-			return nil, status.Error(codes.Internal, err.Error())
-		}
+		return "", 0, 0, mapCorrectionIterationError(err)
 	}
 	if req.GetIterationNum() > 0 {
 		iterationNum = int(req.GetIterationNum())
 	}
 
-	now := time.Now().UTC()
-	terminal := false
-	var snapshot *selfCorrectionSession
-	h.selfCorrectionMu.Lock()
-	session = h.selfCorrectionSessions[req.GetLoopId()]
-	if session == nil {
-		h.selfCorrectionMu.Unlock()
-		return nil, status.Error(codes.NotFound, correction_loop.ErrLoopNotFound.Error())
+	snapshot, terminal, statusValue, delta, err := h.updateSelfCorrectionSession(req, statusValue, iterationNum, delta)
+	if err != nil {
+		return "", 0, 0, err
 	}
+	if terminal {
+		if err := h.persistSelfCorrectionTrace(ctx, snapshot); err != nil {
+			return "", 0, 0, status.Error(codes.Internal, err.Error())
+		}
+	}
+	return statusValue, iterationNum, delta, nil
+}
+
+func mapCorrectionIterationError(err error) error {
+	switch {
+	case errors.Is(err, correction_loop.ErrLoopNotFound):
+		return status.Error(codes.NotFound, err.Error())
+	case errors.Is(err, correction_loop.ErrLoopNotRunning):
+		return status.Error(codes.FailedPrecondition, err.Error())
+	default:
+		return status.Error(codes.Internal, err.Error())
+	}
+}
+
+func (h *Handler) updateSelfCorrectionSession(
+	req *CorrectionIterationEvent,
+	statusValue correction_loop.Status,
+	iterationNum int,
+	delta float64,
+) (*selfCorrectionSession, bool, correction_loop.Status, float64, error) {
+	now := time.Now().UTC()
+	h.selfCorrectionMu.Lock()
+	defer h.selfCorrectionMu.Unlock()
+	session := h.selfCorrectionSessions[req.GetLoopId()]
+	if session == nil {
+		return nil, false, "", 0, status.Error(codes.NotFound, correction_loop.ErrLoopNotFound.Error())
+	}
+
+	recordCorrectionIteration(session, req, iterationNum, now)
+	statusValue, delta = applyCorrectionOutcome(session, req, statusValue, delta)
+	if statusValue == correction_loop.StatusContinue {
+		session.Status = "RUNNING"
+		return nil, false, statusValue, delta, nil
+	}
+	session.Status = string(statusValue)
+	snapshot := cloneSelfCorrectionSession(session)
+	delete(h.selfCorrectionSessions, req.GetLoopId())
+	return snapshot, true, statusValue, delta, nil
+}
+
+func recordCorrectionIteration(
+	session *selfCorrectionSession,
+	req *CorrectionIterationEvent,
+	iterationNum int,
+	now time.Time,
+) {
 	session.UpdatedAt = now
 	session.Iterations = append(session.Iterations, selfCorrectionIteration{
 		IterationNum:  iterationNum,
@@ -282,16 +354,27 @@ func (h *Handler) submitCorrectionIteration(
 	})
 	if req.GetQualityScore() > session.BestQuality {
 		session.BestQuality = req.GetQualityScore()
-		if req.GetRefinedAnswer() != "" {
-			session.BestAnswer = req.GetRefinedAnswer()
-		} else {
-			session.BestAnswer = req.GetPriorAnswer()
-		}
+		session.BestAnswer = bestCorrectionAnswer(req)
 	}
 	if session.MaxIterations > 0 {
 		session.ComputeBudgetUsed = float64(iterationNum) / float64(session.MaxIterations)
 	}
-	if session.DegradationThreshold > 0 && session.BestQuality >= 0 && req.GetQualityScore() < session.BestQuality-session.DegradationThreshold {
+}
+
+func bestCorrectionAnswer(req *CorrectionIterationEvent) string {
+	if req.GetRefinedAnswer() != "" {
+		return req.GetRefinedAnswer()
+	}
+	return req.GetPriorAnswer()
+}
+
+func applyCorrectionOutcome(
+	session *selfCorrectionSession,
+	req *CorrectionIterationEvent,
+	statusValue correction_loop.Status,
+	delta float64,
+) (correction_loop.Status, float64) {
+	if isCorrectionDegraded(session, req) {
 		session.DegradationDetected = true
 		if statusValue == correction_loop.StatusContinue {
 			statusValue = correction_loop.StatusConverged
@@ -307,28 +390,13 @@ func (h *Handler) submitCorrectionIteration(
 	if statusValue == correction_loop.StatusConverged && !session.DegradationDetected {
 		session.Stabilized = true
 	}
-	if statusValue == correction_loop.StatusContinue {
-		session.Status = "RUNNING"
-	} else {
-		session.Status = string(statusValue)
-		terminal = true
-		snapshot = cloneSelfCorrectionSession(session)
-		delete(h.selfCorrectionSessions, req.GetLoopId())
-	}
-	h.selfCorrectionMu.Unlock()
+	return statusValue, delta
+}
 
-	if terminal {
-		if err := h.persistSelfCorrectionTrace(ctx, snapshot); err != nil {
-			return nil, status.Error(codes.Internal, err.Error())
-		}
-	}
-
-	return &ConvergenceResult{
-		Status:       convergenceToProto(statusValue),
-		IterationNum: int32(iterationNum),
-		Delta:        delta,
-		LoopId:       req.GetLoopId(),
-	}, nil
+func isCorrectionDegraded(session *selfCorrectionSession, req *CorrectionIterationEvent) bool {
+	return session.DegradationThreshold > 0 &&
+		session.BestQuality >= 0 &&
+		req.GetQualityScore() < session.BestQuality-session.DegradationThreshold
 }
 
 func (h *Handler) persistSelfCorrectionTrace(ctx context.Context, session *selfCorrectionSession) error {

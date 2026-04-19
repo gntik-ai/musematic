@@ -223,3 +223,83 @@ func TestDebateServiceFinalizeErrors(t *testing.T) {
 		t.Fatalf("Finalize() error = %v", err)
 	}
 }
+
+func TestDebateServiceSubmitValidationAndDetectorErrors(t *testing.T) {
+	t.Run("start and submit validation", func(t *testing.T) {
+		service := NewService(detectorStub{}, nil, nil, nil)
+		if _, err := service.Start(context.Background(), DebateConfig{ExecutionID: "exec", Participants: []string{"agent:a", "agent:b"}, RoundLimit: 1}); err == nil {
+			t.Fatal("expected missing debate id validation error")
+		}
+		if _, err := service.Start(context.Background(), DebateConfig{ExecutionID: "exec", DebateID: "debate-validation", Participants: []string{"agent:a", "agent:b"}, RoundLimit: 1}); err != nil {
+			t.Fatalf("Start() error = %v", err)
+		}
+		if _, err := service.Start(context.Background(), DebateConfig{ExecutionID: "exec", DebateID: "debate-validation", Participants: []string{"agent:a", "agent:b"}, RoundLimit: 1}); err == nil {
+			t.Fatal("expected duplicate session error")
+		}
+		if _, err := service.SubmitTurn(context.Background(), "missing", "agent:a", fixedContribution("agent:a", false)); err == nil {
+			t.Fatal("expected missing session error")
+		}
+		if _, err := service.SubmitTurn(context.Background(), "debate-validation", "outsider", fixedContribution("outsider", false)); err == nil {
+			t.Fatal("expected outsider validation error")
+		}
+		if _, err := service.SubmitTurn(context.Background(), "debate-validation", "agent:a", fixedContribution("agent:a", false)); err != nil {
+			t.Fatalf("SubmitTurn(agent:a) error = %v", err)
+		}
+		if _, err := service.SubmitTurn(context.Background(), "debate-validation", "agent:b", fixedContribution("agent:b", false)); err != nil {
+			t.Fatalf("SubmitTurn(agent:b) error = %v", err)
+		}
+		if _, err := service.SubmitTurn(context.Background(), "debate-validation", "agent:a", fixedContribution("agent:a", false)); err == nil {
+			t.Fatal("expected not-running error after debate termination")
+		}
+	})
+
+	t.Run("detector errors propagate", func(t *testing.T) {
+		service := NewService(detectorStub{err: errors.New("detect failed")}, nil, nil, nil)
+		if _, err := service.Start(context.Background(), DebateConfig{ExecutionID: "exec", DebateID: "debate-detect", Participants: []string{"agent:a", "agent:b"}, RoundLimit: 1}); err != nil {
+			t.Fatalf("Start() error = %v", err)
+		}
+		if _, err := service.SubmitTurn(context.Background(), "debate-detect", "agent:a", fixedContribution("agent:a", false)); err != nil {
+			t.Fatalf("SubmitTurn(agent:a) error = %v", err)
+		}
+		if _, err := service.SubmitTurn(context.Background(), "debate-detect", "agent:b", fixedContribution("agent:b", false)); err == nil || err.Error() != "detect failed" {
+			t.Fatalf("SubmitTurn(agent:b) error = %v", err)
+		}
+	})
+}
+
+func TestDebateServiceFinalizeAdditionalPaths(t *testing.T) {
+	t.Run("running session at round limit finalizes as round limit", func(t *testing.T) {
+		service := NewService(detectorStub{}, nil, nil, nil)
+		if _, err := service.Start(context.Background(), DebateConfig{ExecutionID: "exec", DebateID: "debate-finalize-limit", Participants: []string{"agent:a", "agent:b"}, RoundLimit: 1}); err != nil {
+			t.Fatalf("Start() error = %v", err)
+		}
+		final, err := service.Finalize(context.Background(), "debate-finalize-limit")
+		if err != nil {
+			t.Fatalf("Finalize() error = %v", err)
+		}
+		if final.Status != DebateRoundLimit || final.StorageKey != "" {
+			t.Fatalf("final = %+v", final)
+		}
+	})
+
+	t.Run("trace store errors propagate", func(t *testing.T) {
+		uploader := &uploaderStub{}
+		store := &traceStoreStub{err: errors.New("insert failed")}
+		service := NewService(detectorStub{consensus: true}, uploader, store, nil)
+		if _, err := service.Start(context.Background(), DebateConfig{ExecutionID: "exec", DebateID: "debate-store-error", Participants: []string{"agent:a", "agent:b"}, RoundLimit: 1}); err != nil {
+			t.Fatalf("Start() error = %v", err)
+		}
+		if _, err := service.SubmitTurn(context.Background(), "debate-store-error", "agent:a", fixedContribution("agent:a", false)); err != nil {
+			t.Fatalf("SubmitTurn(agent:a) error = %v", err)
+		}
+		if _, err := service.SubmitTurn(context.Background(), "debate-store-error", "agent:b", fixedContribution("agent:b", false)); err != nil {
+			t.Fatalf("SubmitTurn(agent:b) error = %v", err)
+		}
+		if _, err := service.Finalize(context.Background(), "debate-store-error"); err == nil || err.Error() != "insert failed" {
+			t.Fatalf("Finalize() error = %v", err)
+		}
+		if uploader.calls != 1 {
+			t.Fatalf("uploader calls = %d, want 1", uploader.calls)
+		}
+	})
+}
