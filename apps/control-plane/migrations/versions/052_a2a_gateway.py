@@ -21,9 +21,15 @@ a2a_task_state = postgresql.ENUM(
     "cancelled",
     "cancellation_pending",
     name="a2a_task_state",
+    create_type=False,
 )
 
-a2a_direction = postgresql.ENUM("inbound", "outbound", name="a2a_direction")
+a2a_direction = postgresql.ENUM(
+    "inbound",
+    "outbound",
+    name="a2a_direction",
+    create_type=False,
+)
 
 
 def upgrade() -> None:
