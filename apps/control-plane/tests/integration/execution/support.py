@@ -5,9 +5,36 @@ from platform.execution.models import ExecutionEventType, ExecutionStatus
 from platform.execution.schemas import ExecutionCreate
 from platform.workflows.models import TriggerType
 from platform.workflows.schemas import WorkflowCreate
-from uuid import UUID
+from platform.workspaces.models import Membership, Workspace, WorkspaceRole, WorkspaceStatus
+from uuid import UUID, uuid4
 
 from tests.integration.conftest import WorkflowExecutionStack
+
+
+async def create_workspace(
+    stack: WorkflowExecutionStack,
+    *,
+    workspace_id: UUID | None = None,
+    name: str = "Execution Workspace",
+) -> UUID:
+    owner_id = UUID(stack.current_user["sub"])
+    workspace = Workspace(
+        id=workspace_id or uuid4(),
+        name=name,
+        description=None,
+        owner_id=owner_id,
+        is_default=False,
+        status=WorkspaceStatus.active,
+    )
+    membership = Membership(
+        workspace_id=workspace.id,
+        user_id=owner_id,
+        role=WorkspaceRole.owner,
+    )
+    stack.session.add(workspace)
+    stack.session.add(membership)
+    await stack.session.flush()
+    return workspace.id
 
 
 async def create_workflow(
@@ -16,12 +43,14 @@ async def create_workflow(
     workspace_id: UUID,
     name: str,
     yaml_source: str,
+    checkpoint_policy: dict[str, object] | None = None,
 ) -> UUID:
     workflow = await stack.workflow_service.create_workflow(
         WorkflowCreate(
             name=name,
             description=None,
             yaml_source=yaml_source.strip(),
+            checkpoint_policy=checkpoint_policy,
             tags=[],
             workspace_id=workspace_id,
         ),

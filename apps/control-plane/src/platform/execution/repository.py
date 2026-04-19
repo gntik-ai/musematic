@@ -10,8 +10,10 @@ from platform.execution.models import (
     ExecutionDispatchLease,
     ExecutionEvent,
     ExecutionEventType,
+    ExecutionRollbackAction,
     ExecutionStatus,
     ExecutionTaskPlanRecord,
+    ReprioritizationTrigger,
 )
 from platform.workflows.models import TriggerType
 from typing import Any
@@ -23,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 class ExecutionRepository:
     """Provide persistence helpers for execution."""
+
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
@@ -190,18 +193,183 @@ class ExecutionRepository:
         await self.session.flush()
         return checkpoint
 
-    async def get_latest_checkpoint(self, execution_id: UUID) -> ExecutionCheckpoint | None:
+    async def get_next_checkpoint_number(self, execution_id: UUID) -> int:
+        """Return next checkpoint number for an execution."""
+        total = await self.session.scalar(
+            select(func.max(ExecutionCheckpoint.checkpoint_number)).where(
+                ExecutionCheckpoint.execution_id == execution_id
+            )
+        )
+        return int(total or 0) + 1
+
+    async def list_checkpoints(
+        self,
+        execution_id: UUID,
+        *,
+        include_superseded: bool,
+        offset: int,
+        limit: int,
+    ) -> tuple[list[ExecutionCheckpoint], int]:
+        """List checkpoints for an execution."""
+        query = select(ExecutionCheckpoint).where(ExecutionCheckpoint.execution_id == execution_id)
+        count_query = (
+            select(func.count())
+            .select_from(ExecutionCheckpoint)
+            .where(ExecutionCheckpoint.execution_id == execution_id)
+        )
+        if not include_superseded:
+            query = query.where(ExecutionCheckpoint.superseded.is_(False))
+            count_query = count_query.where(ExecutionCheckpoint.superseded.is_(False))
+        total = await self.session.scalar(count_query)
+        result = await self.session.execute(
+            query.order_by(ExecutionCheckpoint.checkpoint_number.asc()).offset(offset).limit(limit)
+        )
+        return list(result.scalars().all()), int(total or 0)
+
+    async def get_checkpoint_by_number(
+        self,
+        execution_id: UUID,
+        checkpoint_number: int,
+        *,
+        include_superseded: bool = True,
+    ) -> ExecutionCheckpoint | None:
+        """Return a checkpoint by execution and checkpoint number."""
+        query = select(ExecutionCheckpoint).where(
+            ExecutionCheckpoint.execution_id == execution_id,
+            ExecutionCheckpoint.checkpoint_number == checkpoint_number,
+        )
+        if not include_superseded:
+            query = query.where(ExecutionCheckpoint.superseded.is_(False))
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def get_latest_checkpoint(
+        self,
+        execution_id: UUID,
+        *,
+        include_superseded: bool = False,
+    ) -> ExecutionCheckpoint | None:
         """Return latest checkpoint."""
+        query = select(ExecutionCheckpoint).where(ExecutionCheckpoint.execution_id == execution_id)
+        if not include_superseded:
+            query = query.where(ExecutionCheckpoint.superseded.is_(False))
+        result = await self.session.execute(
+            query.order_by(
+                ExecutionCheckpoint.checkpoint_number.desc(),
+                ExecutionCheckpoint.created_at.desc(),
+            ).limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def mark_superseded_after(
+        self,
+        execution_id: UUID,
+        checkpoint_number: int,
+    ) -> list[ExecutionCheckpoint]:
+        """Mark checkpoints after the target as superseded."""
         result = await self.session.execute(
             select(ExecutionCheckpoint)
             .where(ExecutionCheckpoint.execution_id == execution_id)
-            .order_by(
-                ExecutionCheckpoint.last_event_sequence.desc(),
-                ExecutionCheckpoint.created_at.desc(),
+            .order_by(ExecutionCheckpoint.checkpoint_number.asc())
+        )
+        items = list(result.scalars().all())
+        for item in items:
+            item.superseded = item.checkpoint_number > checkpoint_number
+        await self.session.flush()
+        return items
+
+    async def create_rollback_action(
+        self,
+        action: ExecutionRollbackAction,
+    ) -> ExecutionRollbackAction:
+        """Create rollback action."""
+        self.session.add(action)
+        await self.session.flush()
+        return action
+
+    async def list_enabled_reprioritization_triggers(
+        self,
+        workspace_id: UUID,
+    ) -> list[ReprioritizationTrigger]:
+        """List enabled reprioritization triggers for a workspace."""
+        result = await self.session.execute(
+            select(ReprioritizationTrigger)
+            .where(
+                ReprioritizationTrigger.workspace_id == workspace_id,
+                ReprioritizationTrigger.enabled.is_(True),
             )
-            .limit(1)
+            .order_by(
+                ReprioritizationTrigger.priority_rank.asc(),
+                ReprioritizationTrigger.created_at.asc(),
+            )
+        )
+        return list(result.scalars().all())
+
+    async def create_reprioritization_trigger(
+        self,
+        trigger: ReprioritizationTrigger,
+    ) -> ReprioritizationTrigger:
+        """Create reprioritization trigger."""
+        self.session.add(trigger)
+        await self.session.flush()
+        return trigger
+
+    async def list_reprioritization_triggers(
+        self,
+        *,
+        workspace_id: UUID,
+        enabled: bool | None,
+        offset: int,
+        limit: int,
+    ) -> tuple[list[ReprioritizationTrigger], int]:
+        """List reprioritization triggers for a workspace."""
+        query = select(ReprioritizationTrigger).where(
+            ReprioritizationTrigger.workspace_id == workspace_id
+        )
+        count_query = (
+            select(func.count())
+            .select_from(ReprioritizationTrigger)
+            .where(ReprioritizationTrigger.workspace_id == workspace_id)
+        )
+        if enabled is not None:
+            query = query.where(ReprioritizationTrigger.enabled.is_(enabled))
+            count_query = count_query.where(ReprioritizationTrigger.enabled.is_(enabled))
+        total = await self.session.scalar(count_query)
+        result = await self.session.execute(
+            query.order_by(
+                ReprioritizationTrigger.priority_rank.asc(),
+                ReprioritizationTrigger.created_at.asc(),
+            )
+            .offset(offset)
+            .limit(limit)
+        )
+        return list(result.scalars().all()), int(total or 0)
+
+    async def get_reprioritization_trigger(
+        self,
+        trigger_id: UUID,
+    ) -> ReprioritizationTrigger | None:
+        """Return reprioritization trigger."""
+        result = await self.session.execute(
+            select(ReprioritizationTrigger).where(ReprioritizationTrigger.id == trigger_id)
         )
         return result.scalar_one_or_none()
+
+    async def update_reprioritization_trigger(
+        self,
+        trigger: ReprioritizationTrigger,
+        **fields: Any,
+    ) -> ReprioritizationTrigger:
+        """Update reprioritization trigger."""
+        for key, value in fields.items():
+            setattr(trigger, key, value)
+        await self.session.flush()
+        return trigger
+
+    async def delete_reprioritization_trigger(self, trigger: ReprioritizationTrigger) -> None:
+        """Delete reprioritization trigger."""
+        await self.session.delete(trigger)
+        await self.session.flush()
 
     async def create_dispatch_lease(
         self,

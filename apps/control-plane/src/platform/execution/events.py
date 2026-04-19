@@ -35,6 +35,7 @@ class ExecutionDomainEventType(StrEnum):
     execution_created = "execution.created"
     execution_status_changed = "execution.status_changed"
     execution_reprioritized = "execution.reprioritized"
+    execution_rolled_back = "execution.rolled_back"
     prompt_secret_detected = "prompt_secret_detected"
 
 
@@ -58,6 +59,18 @@ class ExecutionReprioritizedEvent(BaseModel):
     execution_id: UUID
     trigger_reason: str
     steps_affected: list[str]
+    trigger_id: UUID | None = None
+    trigger_name: str | None = None
+    new_queue_order: list[dict[str, Any]] | None = None
+
+
+class ExecutionRolledBackEvent(BaseModel):
+    """Represent the execution rolled back event payload."""
+
+    execution_id: UUID
+    rollback_action_id: UUID
+    target_checkpoint_number: int
+    workspace_id: UUID
 
 
 class PromptSecretDetectedEvent(BaseModel):
@@ -73,6 +86,7 @@ EXECUTION_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     ExecutionDomainEventType.execution_created.value: ExecutionCreatedEvent,
     ExecutionDomainEventType.execution_status_changed.value: ExecutionStatusChangedEvent,
     ExecutionDomainEventType.execution_reprioritized.value: ExecutionReprioritizedEvent,
+    ExecutionDomainEventType.execution_rolled_back.value: ExecutionRolledBackEvent,
     ExecutionDomainEventType.prompt_secret_detected.value: PromptSecretDetectedEvent,
 }
 
@@ -131,6 +145,24 @@ async def publish_execution_reprioritized(
         topic="execution.events",
         key=str(event.execution_id),
         event_type=ExecutionDomainEventType.execution_reprioritized.value,
+        payload=event.model_dump(mode="json"),
+        correlation_ctx=correlation_ctx,
+        source="platform.execution",
+    )
+
+
+async def publish_execution_rolled_back(
+    producer: EventProducer | None,
+    event: ExecutionRolledBackEvent,
+    correlation_ctx: CorrelationContext,
+) -> None:
+    """Publish execution rollback."""
+    if producer is None:
+        return
+    await producer.publish(
+        topic="execution.events",
+        key=str(event.execution_id),
+        event_type=ExecutionDomainEventType.execution_rolled_back.value,
         payload=event.model_dump(mode="json"),
         correlation_ctx=correlation_ctx,
         source="platform.execution",

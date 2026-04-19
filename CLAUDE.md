@@ -104,6 +104,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-19
 - PostgreSQL (3 new tables), Redis (3 new key patterns for state + JWKS cache + rate limit) (056-ibor-integration-and)
 - Python 3.12+ (control plane) + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, Alembic 1.13+, aiokafka 0.11+, APScheduler 3.x, pytest + pytest-asyncio 8.x (056-ibor-integration-and)
 - PostgreSQL 16 (5 new tables + 4 altered tables); Kafka topics: `workflow.runtime`, `runtime.lifecycle`, `policy.events`, `trust.events` (056-ibor-integration-and)
+- Python 3.12+ + FastAPI 0.115+, SQLAlchemy 2.x async, Pydantic v2, aiokafka 0.11+, APScheduler 3.x (GC job) (056-ibor-integration-and)
+- PostgreSQL 16 (primary), Redis (existing dispatch lease coordination unchanged) (056-ibor-integration-and)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -123,9 +125,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 056-ibor-integration-and: Added Python 3.12+ + FastAPI 0.115+, SQLAlchemy 2.x async, Pydantic v2, aiokafka 0.11+, APScheduler 3.x (GC job)
 - 056-ibor-integration-and: Added Python 3.12+ (control plane) + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, Alembic 1.13+, aiokafka 0.11+, APScheduler 3.x, pytest + pytest-asyncio 8.x
 - 061-judge-enforcer-governance: Python 3.12+ + FastAPI 0.115+, aiokafka 0.11+, SQLAlchemy 2.x async, Alembic 1.13+, redis-py 5.x async (observer rate limiting), APScheduler 3.x (retention GC), pytest + pytest-asyncio 8.x — all existing deps
-- 061-judge-enforcer-governance: PostgreSQL (2 new tables: governance_verdicts, enforcement_actions; 1 new workspace_governance_chains table; 1 additive column verdict_to_action_mapping on fleet_governance_chains; migration 048); Kafka (governance.verdict.issued, governance.enforcement.executed — already in constitution; consumes monitor.alerts)
 
 
 <!-- MANUAL ADDITIONS START -->

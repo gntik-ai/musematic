@@ -9,7 +9,8 @@ from platform.common.clients.runtime_controller import RuntimeControllerClient
 from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
-from platform.common.exceptions import ObjectNotFoundError, ValidationError
+from platform.common.exceptions import AuthorizationError, ObjectNotFoundError, ValidationError
+from platform.execution.checkpoint_service import CheckpointService
 from platform.execution.events import (
     ExecutionCreatedEvent,
     ExecutionReprioritizedEvent,
@@ -35,6 +36,7 @@ from platform.execution.models import (
 from platform.execution.projector import ExecutionProjector
 from platform.execution.repository import ExecutionRepository
 from platform.execution.schemas import (
+    DEFAULT_CHECKPOINT_POLICY,
     ApprovalDecisionRequest,
     ApprovalWaitListResponse,
     ApprovalWaitResponse,
@@ -45,6 +47,7 @@ from platform.execution.schemas import (
     ExecutionResponse,
     ExecutionStateResponse,
     HotChangeCompatibilityResult,
+    RollbackResponse,
     TaskPlanFullResponse,
     TaskPlanRecordResponse,
 )
@@ -59,6 +62,7 @@ from uuid import UUID, uuid4
 
 class ExecutionService:
     """Provide execution operations."""
+
     def __init__(
         self,
         *,
@@ -72,6 +76,7 @@ class ExecutionService:
         context_engineering_service: Any | None,
         projector: ExecutionProjector,
         compiler: WorkflowCompiler | None = None,
+        checkpoint_service: CheckpointService | None = None,
     ) -> None:
         self.repository = repository
         self.settings = settings
@@ -83,6 +88,7 @@ class ExecutionService:
         self.context_engineering_service = context_engineering_service
         self.projector = projector
         self.compiler = compiler or WorkflowCompiler()
+        self.checkpoint_service = checkpoint_service
         self.workflow_repository = WorkflowRepository(repository.session)
         self.task_plan_bucket = "execution-task-plans"
 
@@ -135,6 +141,9 @@ class ExecutionService:
                 rerun_of_execution_id=rerun_of_execution_id,
                 sla_deadline=data.sla_deadline,
                 created_by=created_by,
+                checkpoint_policy_snapshot=dict(
+                    version.checkpoint_policy or DEFAULT_CHECKPOINT_POLICY
+                ),
             )
         )
         ir = WorkflowIR.from_dict(version.compiled_ir)
@@ -238,6 +247,7 @@ class ExecutionService:
         )
         state = self.projector.project_state(events, checkpoint)
         state.workflow_version_id = execution.workflow_version_id
+        state.status = execution.status
         await self.redis_client.set(
             cache_key,
             state.model_dump_json().encode("utf-8"),
@@ -270,6 +280,7 @@ class ExecutionService:
         events = await self.repository.get_events(execution_id)
         state = self.projector.project_state(events)
         state.workflow_version_id = execution.workflow_version_id
+        state.status = execution.status
         return state
 
     async def resume_execution(self, execution_id: UUID) -> ExecutionResponse:
@@ -341,6 +352,47 @@ class ExecutionService:
             ),
             created_by=execution.created_by,
             rerun_of_execution_id=execution.id,
+        )
+
+    async def pause_execution(self, execution_id: UUID) -> ExecutionResponse:
+        """Pause a queued or running execution."""
+        execution = await self._get_execution_or_raise(execution_id)
+        if execution.status not in {ExecutionStatus.queued, ExecutionStatus.running}:
+            raise ValidationError(
+                "EXECUTION_NOT_PAUSABLE",
+                "Only queued or running executions can be paused",
+            )
+        await self.repository.update_execution_status(execution, ExecutionStatus.paused)
+        await self._invalidate_state_cache(execution.id)
+        return ExecutionResponse.model_validate(execution)
+
+    async def rollback_execution(
+        self,
+        execution_id: UUID,
+        checkpoint_number: int,
+        *,
+        initiated_by: UUID | None,
+        reason: str | None = None,
+        authorized: bool = True,
+    ) -> RollbackResponse:
+        """Rollback an execution to a checkpoint."""
+        if not authorized:
+            raise AuthorizationError(
+                "PERMISSION_DENIED",
+                "Permission 'execution.rollback' required",
+            )
+        checkpoint_service = self.checkpoint_service or CheckpointService(
+            repository=self.repository,
+            settings=self.settings,
+            producer=self.producer,
+            projector=self.projector,
+        )
+        self.checkpoint_service = checkpoint_service
+        return await checkpoint_service.rollback(
+            execution_id,
+            checkpoint_number,
+            initiated_by=initiated_by,
+            reason=reason,
         )
 
     async def validate_hot_change(
@@ -598,6 +650,9 @@ class ExecutionService:
         *,
         trigger_reason: str,
         steps_affected: list[str],
+        trigger_id: UUID | None = None,
+        trigger_name: str | None = None,
+        new_queue_order: list[dict[str, Any]] | None = None,
     ) -> None:
         """Publish reprioritization."""
         await publish_execution_reprioritized(
@@ -606,6 +661,9 @@ class ExecutionService:
                 execution_id=execution.id,
                 trigger_reason=trigger_reason,
                 steps_affected=steps_affected,
+                trigger_id=trigger_id,
+                trigger_name=trigger_name,
+                new_queue_order=new_queue_order,
             ),
             self._correlation(execution),
         )
