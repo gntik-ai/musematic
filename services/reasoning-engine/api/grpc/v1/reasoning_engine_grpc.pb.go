@@ -26,8 +26,12 @@ const (
 	ReasoningEngineService_StreamReasoningTrace_FullMethodName      = "/musematic.reasoning.v1.ReasoningEngineService/StreamReasoningTrace"
 	ReasoningEngineService_CreateTreeBranch_FullMethodName          = "/musematic.reasoning.v1.ReasoningEngineService/CreateTreeBranch"
 	ReasoningEngineService_EvaluateTreeBranches_FullMethodName      = "/musematic.reasoning.v1.ReasoningEngineService/EvaluateTreeBranches"
+	ReasoningEngineService_StartDebateSession_FullMethodName        = "/musematic.reasoning.v1.ReasoningEngineService/StartDebateSession"
+	ReasoningEngineService_SubmitDebateTurn_FullMethodName          = "/musematic.reasoning.v1.ReasoningEngineService/SubmitDebateTurn"
+	ReasoningEngineService_FinalizeDebateSession_FullMethodName     = "/musematic.reasoning.v1.ReasoningEngineService/FinalizeDebateSession"
 	ReasoningEngineService_StartSelfCorrectionLoop_FullMethodName   = "/musematic.reasoning.v1.ReasoningEngineService/StartSelfCorrectionLoop"
 	ReasoningEngineService_SubmitCorrectionIteration_FullMethodName = "/musematic.reasoning.v1.ReasoningEngineService/SubmitCorrectionIteration"
+	ReasoningEngineService_GetReasoningTrace_FullMethodName         = "/musematic.reasoning.v1.ReasoningEngineService/GetReasoningTrace"
 )
 
 // ReasoningEngineServiceClient is the client API for ReasoningEngineService service.
@@ -41,8 +45,12 @@ type ReasoningEngineServiceClient interface {
 	StreamReasoningTrace(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[ReasoningTraceEvent, ReasoningTraceAck], error)
 	CreateTreeBranch(ctx context.Context, in *CreateTreeBranchRequest, opts ...grpc.CallOption) (*TreeBranchHandle, error)
 	EvaluateTreeBranches(ctx context.Context, in *EvaluateTreeBranchesRequest, opts ...grpc.CallOption) (*BranchSelectionResult, error)
+	StartDebateSession(ctx context.Context, in *StartDebateSessionRequest, opts ...grpc.CallOption) (*DebateSessionHandle, error)
+	SubmitDebateTurn(ctx context.Context, in *SubmitDebateTurnRequest, opts ...grpc.CallOption) (*DebateRoundResult, error)
+	FinalizeDebateSession(ctx context.Context, in *FinalizeDebateSessionRequest, opts ...grpc.CallOption) (*DebateSessionResult, error)
 	StartSelfCorrectionLoop(ctx context.Context, in *StartSelfCorrectionRequest, opts ...grpc.CallOption) (*SelfCorrectionHandle, error)
 	SubmitCorrectionIteration(ctx context.Context, in *CorrectionIterationEvent, opts ...grpc.CallOption) (*ConvergenceResult, error)
+	GetReasoningTrace(ctx context.Context, in *GetReasoningTraceRequest, opts ...grpc.CallOption) (*GetReasoningTraceResponse, error)
 }
 
 type reasoningEngineServiceClient struct {
@@ -135,6 +143,36 @@ func (c *reasoningEngineServiceClient) EvaluateTreeBranches(ctx context.Context,
 	return out, nil
 }
 
+func (c *reasoningEngineServiceClient) StartDebateSession(ctx context.Context, in *StartDebateSessionRequest, opts ...grpc.CallOption) (*DebateSessionHandle, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DebateSessionHandle)
+	err := c.cc.Invoke(ctx, ReasoningEngineService_StartDebateSession_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *reasoningEngineServiceClient) SubmitDebateTurn(ctx context.Context, in *SubmitDebateTurnRequest, opts ...grpc.CallOption) (*DebateRoundResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DebateRoundResult)
+	err := c.cc.Invoke(ctx, ReasoningEngineService_SubmitDebateTurn_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *reasoningEngineServiceClient) FinalizeDebateSession(ctx context.Context, in *FinalizeDebateSessionRequest, opts ...grpc.CallOption) (*DebateSessionResult, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DebateSessionResult)
+	err := c.cc.Invoke(ctx, ReasoningEngineService_FinalizeDebateSession_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *reasoningEngineServiceClient) StartSelfCorrectionLoop(ctx context.Context, in *StartSelfCorrectionRequest, opts ...grpc.CallOption) (*SelfCorrectionHandle, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(SelfCorrectionHandle)
@@ -155,6 +193,16 @@ func (c *reasoningEngineServiceClient) SubmitCorrectionIteration(ctx context.Con
 	return out, nil
 }
 
+func (c *reasoningEngineServiceClient) GetReasoningTrace(ctx context.Context, in *GetReasoningTraceRequest, opts ...grpc.CallOption) (*GetReasoningTraceResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetReasoningTraceResponse)
+	err := c.cc.Invoke(ctx, ReasoningEngineService_GetReasoningTrace_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ReasoningEngineServiceServer is the server API for ReasoningEngineService service.
 // All implementations should embed UnimplementedReasoningEngineServiceServer
 // for forward compatibility.
@@ -166,8 +214,12 @@ type ReasoningEngineServiceServer interface {
 	StreamReasoningTrace(grpc.ClientStreamingServer[ReasoningTraceEvent, ReasoningTraceAck]) error
 	CreateTreeBranch(context.Context, *CreateTreeBranchRequest) (*TreeBranchHandle, error)
 	EvaluateTreeBranches(context.Context, *EvaluateTreeBranchesRequest) (*BranchSelectionResult, error)
+	StartDebateSession(context.Context, *StartDebateSessionRequest) (*DebateSessionHandle, error)
+	SubmitDebateTurn(context.Context, *SubmitDebateTurnRequest) (*DebateRoundResult, error)
+	FinalizeDebateSession(context.Context, *FinalizeDebateSessionRequest) (*DebateSessionResult, error)
 	StartSelfCorrectionLoop(context.Context, *StartSelfCorrectionRequest) (*SelfCorrectionHandle, error)
 	SubmitCorrectionIteration(context.Context, *CorrectionIterationEvent) (*ConvergenceResult, error)
+	GetReasoningTrace(context.Context, *GetReasoningTraceRequest) (*GetReasoningTraceResponse, error)
 }
 
 // UnimplementedReasoningEngineServiceServer should be embedded to have
@@ -198,11 +250,23 @@ func (UnimplementedReasoningEngineServiceServer) CreateTreeBranch(context.Contex
 func (UnimplementedReasoningEngineServiceServer) EvaluateTreeBranches(context.Context, *EvaluateTreeBranchesRequest) (*BranchSelectionResult, error) {
 	return nil, status.Error(codes.Unimplemented, "method EvaluateTreeBranches not implemented")
 }
+func (UnimplementedReasoningEngineServiceServer) StartDebateSession(context.Context, *StartDebateSessionRequest) (*DebateSessionHandle, error) {
+	return nil, status.Error(codes.Unimplemented, "method StartDebateSession not implemented")
+}
+func (UnimplementedReasoningEngineServiceServer) SubmitDebateTurn(context.Context, *SubmitDebateTurnRequest) (*DebateRoundResult, error) {
+	return nil, status.Error(codes.Unimplemented, "method SubmitDebateTurn not implemented")
+}
+func (UnimplementedReasoningEngineServiceServer) FinalizeDebateSession(context.Context, *FinalizeDebateSessionRequest) (*DebateSessionResult, error) {
+	return nil, status.Error(codes.Unimplemented, "method FinalizeDebateSession not implemented")
+}
 func (UnimplementedReasoningEngineServiceServer) StartSelfCorrectionLoop(context.Context, *StartSelfCorrectionRequest) (*SelfCorrectionHandle, error) {
 	return nil, status.Error(codes.Unimplemented, "method StartSelfCorrectionLoop not implemented")
 }
 func (UnimplementedReasoningEngineServiceServer) SubmitCorrectionIteration(context.Context, *CorrectionIterationEvent) (*ConvergenceResult, error) {
 	return nil, status.Error(codes.Unimplemented, "method SubmitCorrectionIteration not implemented")
+}
+func (UnimplementedReasoningEngineServiceServer) GetReasoningTrace(context.Context, *GetReasoningTraceRequest) (*GetReasoningTraceResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetReasoningTrace not implemented")
 }
 func (UnimplementedReasoningEngineServiceServer) testEmbeddedByValue() {}
 
@@ -332,6 +396,60 @@ func _ReasoningEngineService_EvaluateTreeBranches_Handler(srv interface{}, ctx c
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ReasoningEngineService_StartDebateSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartDebateSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ReasoningEngineServiceServer).StartDebateSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ReasoningEngineService_StartDebateSession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ReasoningEngineServiceServer).StartDebateSession(ctx, req.(*StartDebateSessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ReasoningEngineService_SubmitDebateTurn_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SubmitDebateTurnRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ReasoningEngineServiceServer).SubmitDebateTurn(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ReasoningEngineService_SubmitDebateTurn_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ReasoningEngineServiceServer).SubmitDebateTurn(ctx, req.(*SubmitDebateTurnRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ReasoningEngineService_FinalizeDebateSession_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(FinalizeDebateSessionRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ReasoningEngineServiceServer).FinalizeDebateSession(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ReasoningEngineService_FinalizeDebateSession_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ReasoningEngineServiceServer).FinalizeDebateSession(ctx, req.(*FinalizeDebateSessionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ReasoningEngineService_StartSelfCorrectionLoop_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(StartSelfCorrectionRequest)
 	if err := dec(in); err != nil {
@@ -368,6 +486,24 @@ func _ReasoningEngineService_SubmitCorrectionIteration_Handler(srv interface{}, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ReasoningEngineService_GetReasoningTrace_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetReasoningTraceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ReasoningEngineServiceServer).GetReasoningTrace(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ReasoningEngineService_GetReasoningTrace_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ReasoningEngineServiceServer).GetReasoningTrace(ctx, req.(*GetReasoningTraceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ReasoningEngineService_ServiceDesc is the grpc.ServiceDesc for ReasoningEngineService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -396,12 +532,28 @@ var ReasoningEngineService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ReasoningEngineService_EvaluateTreeBranches_Handler,
 		},
 		{
+			MethodName: "StartDebateSession",
+			Handler:    _ReasoningEngineService_StartDebateSession_Handler,
+		},
+		{
+			MethodName: "SubmitDebateTurn",
+			Handler:    _ReasoningEngineService_SubmitDebateTurn_Handler,
+		},
+		{
+			MethodName: "FinalizeDebateSession",
+			Handler:    _ReasoningEngineService_FinalizeDebateSession_Handler,
+		},
+		{
 			MethodName: "StartSelfCorrectionLoop",
 			Handler:    _ReasoningEngineService_StartSelfCorrectionLoop_Handler,
 		},
 		{
 			MethodName: "SubmitCorrectionIteration",
 			Handler:    _ReasoningEngineService_SubmitCorrectionIteration_Handler,
+		},
+		{
+			MethodName: "GetReasoningTrace",
+			Handler:    _ReasoningEngineService_GetReasoningTrace_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

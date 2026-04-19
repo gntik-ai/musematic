@@ -125,3 +125,27 @@ class ReprioritizationTriggerNotFoundError(NotFoundError):
             "REPRIORITIZATION_TRIGGER_NOT_FOUND",
             f"Reprioritization trigger '{trigger_id}' was not found",
         )
+
+
+class TraceNotFoundError(NotFoundError):
+    """Raise when no reasoning trace exists for the requested execution."""
+
+    def __init__(self, execution_id: object, step_id: str | None = None) -> None:
+        detail = f" step '{step_id}'" if step_id else ""
+        super().__init__(
+            "TRACE_NOT_FOUND",
+            f"No reasoning trace exists for execution '{execution_id}'{detail}",
+        )
+
+
+class TraceNotAvailableError(PlatformError):
+    """Raise when a reasoning trace exists but its artifact is no longer available."""
+
+    status_code = 410
+
+    def __init__(self, execution_id: object, storage_key: str | None = None) -> None:
+        super().__init__(
+            "TRACE_NOT_AVAILABLE",
+            f"Reasoning trace for execution '{execution_id}' is not available",
+            {"execution_id": str(execution_id), "storage_key": storage_key},
+        )

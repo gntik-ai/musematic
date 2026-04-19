@@ -21,6 +21,10 @@ var debateKeywords = []string{
 	"debate", "argue both sides", "pros and cons",
 }
 
+var selfCorrectionKeywords = []string{
+	"self-correct", "refine iteratively", "improve this answer", "critique and revise",
+}
+
 func Score(brief string) int {
 	normalized := normalize(brief)
 	words := len(strings.Fields(normalized))
@@ -58,6 +62,12 @@ func DetectSpecialMode(brief string) string {
 	for _, keyword := range debateKeywords {
 		if strings.Contains(normalized, keyword) {
 			return "DEBATE"
+		}
+	}
+
+	for _, keyword := range selfCorrectionKeywords {
+		if strings.Contains(normalized, keyword) {
+			return "SELF_CORRECTION"
 		}
 	}
 

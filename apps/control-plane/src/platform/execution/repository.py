@@ -10,6 +10,7 @@ from platform.execution.models import (
     ExecutionDispatchLease,
     ExecutionEvent,
     ExecutionEventType,
+    ExecutionReasoningTraceRecord,
     ExecutionRollbackAction,
     ExecutionStatus,
     ExecutionTaskPlanRecord,
@@ -524,3 +525,45 @@ class ExecutionRepository:
         self.session.add(record)
         await self.session.flush()
         return record
+
+    async def upsert_reasoning_trace_record(
+        self,
+        record: ExecutionReasoningTraceRecord,
+    ) -> ExecutionReasoningTraceRecord:
+        """Create or update a reasoning trace record for an execution step."""
+        existing = await self.get_reasoning_trace_record(record.execution_id, record.step_id)
+        if existing is None:
+            self.session.add(record)
+            await self.session.flush()
+            return record
+        existing.technique = record.technique
+        existing.storage_key = record.storage_key
+        existing.step_count = record.step_count
+        existing.status = record.status
+        existing.compute_budget_used = record.compute_budget_used
+        existing.consensus_reached = record.consensus_reached
+        existing.stabilized = record.stabilized
+        existing.degradation_detected = record.degradation_detected
+        existing.compute_budget_exhausted = record.compute_budget_exhausted
+        existing.effective_budget_scope = record.effective_budget_scope
+        await self.session.flush()
+        return existing
+
+    async def get_reasoning_trace_record(
+        self,
+        execution_id: UUID,
+        step_id: str | None,
+    ) -> ExecutionReasoningTraceRecord | None:
+        """Return reasoning trace record for an execution."""
+        query = select(ExecutionReasoningTraceRecord).where(
+            ExecutionReasoningTraceRecord.execution_id == execution_id
+        )
+        if step_id is not None:
+            query = query.where(ExecutionReasoningTraceRecord.step_id == step_id)
+        else:
+            query = query.order_by(
+                ExecutionReasoningTraceRecord.created_at.asc(),
+                ExecutionReasoningTraceRecord.id.asc(),
+            ).limit(1)
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()

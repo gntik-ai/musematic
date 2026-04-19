@@ -387,3 +387,44 @@ class WarmPoolConfigResponse(BaseModel):
 
     accepted: bool
     message: str = ""
+
+
+class TraceStepResponse(BaseModel):
+    """Represent one step in a structured reasoning trace."""
+
+    step_number: int
+    type: str
+    agent_fqn: str | None = None
+    content: str
+    tool_call: dict[str, Any] | None = None
+    quality_score: float | None = None
+    tokens_used: int = 0
+    timestamp: datetime | None = None
+
+
+class TracePaginationResponse(BaseModel):
+    """Represent pagination metadata for trace steps."""
+
+    page: int
+    page_size: int
+    total_steps: int
+    has_more: bool
+
+
+class ReasoningTraceResponse(BaseModel):
+    """Represent a reasoning trace export response."""
+
+    execution_id: UUID
+    technique: str
+    schema_version: str = "1.0"
+    status: str
+    steps: list[TraceStepResponse] = Field(default_factory=list)
+    total_tokens: int = 0
+    compute_budget_used: float = 0.0
+    effective_budget_scope: str | None = None
+    compute_budget_exhausted: bool = False
+    consensus_reached: bool | None = None
+    stabilized: bool | None = None
+    degradation_detected: bool | None = None
+    last_updated_at: datetime | None = None
+    pagination: TracePaginationResponse

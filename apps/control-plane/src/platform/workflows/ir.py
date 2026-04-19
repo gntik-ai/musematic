@@ -66,6 +66,7 @@ class StepIR:
     compensation_handler: str | None = None
     approval_config: ApprovalConfigIR | None = None
     reasoning_mode: str | None = None
+    compute_budget: float | None = None
     context_budget_tokens: int | None = None
     parallel_group: str | None = None
     condition_expression: str | None = None
@@ -86,6 +87,7 @@ class StepIR:
                 self.approval_config.to_dict() if self.approval_config is not None else None
             ),
             "reasoning_mode": self.reasoning_mode,
+            "compute_budget": self.compute_budget,
             "context_budget_tokens": self.context_budget_tokens,
             "parallel_group": self.parallel_group,
             "condition_expression": self.condition_expression,
@@ -120,6 +122,11 @@ class StepIR:
                 else None
             ),
             reasoning_mode=payload.get("reasoning_mode"),
+            compute_budget=(
+                float(payload["compute_budget"])
+                if payload.get("compute_budget") is not None
+                else None
+            ),
             context_budget_tokens=(
                 int(payload["context_budget_tokens"])
                 if payload.get("context_budget_tokens") is not None

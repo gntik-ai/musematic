@@ -340,7 +340,7 @@ class SchedulerService:
                 payload={"step_type": step.step_type},
                 status=ExecutionStatus.running,
             )
-            await self._dispatch_to_runtime(execution, step)
+            await self._dispatch_to_runtime(execution, ir, step)
             await self._maybe_checkpoint(execution.id)
 
     async def _emit_queue_reprioritization(self, result: ReprioritizationResult) -> None:
@@ -560,8 +560,14 @@ class SchedulerService:
         )
         return True
 
-    async def _dispatch_to_runtime(self, execution: Execution, step: StepIR) -> None:
-        payload = {
+    async def _dispatch_to_runtime(
+        self,
+        execution: Execution,
+        ir: WorkflowIR,
+        step: StepIR,
+    ) -> None:
+        compute_budget, effective_budget_scope = self._resolve_effective_compute_budget(ir, step)
+        payload: dict[str, object] = {
             "execution_id": str(execution.id),
             "workflow_version_id": str(execution.workflow_version_id),
             "step_id": step.step_id,
@@ -570,6 +576,11 @@ class SchedulerService:
             "tool_fqn": step.tool_fqn,
             "input_bindings": dict(step.input_bindings or {}),
         }
+        if step.reasoning_mode is not None:
+            payload["reasoning_mode"] = step.reasoning_mode
+        if compute_budget is not None:
+            payload["compute_budget"] = compute_budget
+            payload["effective_budget_scope"] = effective_budget_scope
         launch = getattr(self.runtime_controller, "launch_runtime", None)
         fallback = getattr(self.runtime_controller, "dispatch", None)
         if not callable(fallback) and getattr(self.runtime_controller, "stub", None) is not None:
@@ -587,6 +598,39 @@ class SchedulerService:
             result = fallback(payload)
             if hasattr(result, "__await__"):
                 await result
+
+    def _resolve_effective_compute_budget(
+        self,
+        ir: WorkflowIR,
+        step: StepIR,
+    ) -> tuple[float | None, str | None]:
+        workflow_budget = (
+            ir.metadata.get("compute_budget") if isinstance(ir.metadata, dict) else None
+        )
+        step_budget = step.compute_budget
+        if not self._is_valid_compute_budget(step_budget):
+            step_budget = None
+        if not self._is_valid_compute_budget(workflow_budget):
+            workflow_budget = None
+        workflow_budget_value = float(workflow_budget) if workflow_budget is not None else None
+        step_budget_value = float(step_budget) if step_budget is not None else None
+        if step_budget_value is None and workflow_budget_value is None:
+            return None, None
+        if step_budget_value is None:
+            return workflow_budget_value, "workflow"
+        if workflow_budget_value is None:
+            return step_budget_value, "step"
+        if step_budget_value <= workflow_budget_value:
+            return step_budget_value, "step"
+        return workflow_budget_value, "workflow"
+
+    @staticmethod
+    def _is_valid_compute_budget(value: Any) -> bool:
+        return (
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and 0.0 < float(value) <= 1.0
+        )
 
     async def _prompt_secret_preflight(
         self,

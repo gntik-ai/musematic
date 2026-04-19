@@ -42,9 +42,9 @@ async def test_dispatch_uses_launch_runtime_with_prefer_warm() -> None:
     workflow_service, execution_service, scheduler, _ = _build_scheduler()
     runtime_controller = LaunchingRuntimeController()
     scheduler.runtime_controller = runtime_controller
-    execution, step = await _create_basic_execution(workflow_service, execution_service)
+    execution, ir, step = await _create_basic_execution(workflow_service, execution_service)
 
-    await scheduler._dispatch_to_runtime(execution, step)
+    await scheduler._dispatch_to_runtime(execution, ir, step)
 
     assert runtime_controller.launch_calls[0][1] is True
     assert runtime_controller.dispatch_calls == []
@@ -55,9 +55,9 @@ async def test_dispatch_falls_back_to_legacy_dispatch_when_launch_method_missing
     workflow_service, execution_service, scheduler, _ = _build_scheduler()
     runtime_controller = LegacyRuntimeController()
     scheduler.runtime_controller = runtime_controller
-    execution, step = await _create_basic_execution(workflow_service, execution_service)
+    execution, ir, step = await _create_basic_execution(workflow_service, execution_service)
 
-    await scheduler._dispatch_to_runtime(execution, step)
+    await scheduler._dispatch_to_runtime(execution, ir, step)
 
     assert runtime_controller.dispatch_calls[0]["step_id"] == "step_a"
 
@@ -67,9 +67,9 @@ async def test_dispatch_accepts_cold_start_launch_response_without_error() -> No
     workflow_service, execution_service, scheduler, _ = _build_scheduler()
     runtime_controller = LaunchingRuntimeController(warm_start=False)
     scheduler.runtime_controller = runtime_controller
-    execution, step = await _create_basic_execution(workflow_service, execution_service)
+    execution, ir, step = await _create_basic_execution(workflow_service, execution_service)
 
-    await scheduler._dispatch_to_runtime(execution, step)
+    await scheduler._dispatch_to_runtime(execution, ir, step)
 
     assert runtime_controller.launch_calls[0][1] is True
 
@@ -79,15 +79,76 @@ async def test_dispatch_uses_fallback_dispatch_when_launch_runtime_errors() -> N
     workflow_service, execution_service, scheduler, _ = _build_scheduler()
     runtime_controller = LaunchingRuntimeController(should_fail=True)
     scheduler.runtime_controller = runtime_controller
-    execution, step = await _create_basic_execution(workflow_service, execution_service)
+    execution, ir, step = await _create_basic_execution(workflow_service, execution_service)
 
-    await scheduler._dispatch_to_runtime(execution, step)
+    await scheduler._dispatch_to_runtime(execution, ir, step)
 
     assert runtime_controller.launch_calls[0][1] is True
     assert runtime_controller.dispatch_calls[0]["step_id"] == "step_a"
 
 
-async def _create_basic_execution(workflow_service, execution_service):
+@pytest.mark.asyncio
+async def test_dispatch_prefers_step_compute_budget_over_workflow_budget() -> None:
+    workflow_service, execution_service, scheduler, _ = _build_scheduler()
+    runtime_controller = LaunchingRuntimeController()
+    scheduler.runtime_controller = runtime_controller
+    execution, ir, step = await _create_basic_execution(
+        workflow_service,
+        execution_service,
+        yaml_source="""
+schema_version: 1
+metadata:
+  compute_budget: 0.8
+steps:
+  - id: step_a
+    step_type: agent_task
+    agent_fqn: ns:a
+    reasoning_mode: deep
+    compute_budget: 0.4
+        """.strip(),
+    )
+
+    await scheduler._dispatch_to_runtime(execution, ir, step)
+
+    payload = runtime_controller.launch_calls[0][0]
+    assert payload["reasoning_mode"] == "deep"
+    assert payload["compute_budget"] == 0.4
+    assert payload["effective_budget_scope"] == "step"
+
+
+@pytest.mark.asyncio
+async def test_dispatch_prefers_workflow_compute_budget_when_stricter() -> None:
+    workflow_service, execution_service, scheduler, _ = _build_scheduler()
+    runtime_controller = LaunchingRuntimeController()
+    scheduler.runtime_controller = runtime_controller
+    execution, ir, step = await _create_basic_execution(
+        workflow_service,
+        execution_service,
+        yaml_source="""
+schema_version: 1
+metadata:
+  compute_budget: 0.25
+steps:
+  - id: step_a
+    step_type: agent_task
+    agent_fqn: ns:a
+    compute_budget: 0.6
+        """.strip(),
+    )
+
+    await scheduler._dispatch_to_runtime(execution, ir, step)
+
+    payload = runtime_controller.launch_calls[0][0]
+    assert payload["compute_budget"] == 0.25
+    assert payload["effective_budget_scope"] == "workflow"
+
+
+async def _create_basic_execution(
+    workflow_service,
+    execution_service,
+    *,
+    yaml_source: str | None = None,
+):
     from platform.execution.schemas import ExecutionCreate
     from platform.workflows.schemas import WorkflowCreate
     from uuid import uuid4
@@ -98,13 +159,16 @@ async def _create_basic_execution(workflow_service, execution_service):
         WorkflowCreate(
             name="Dispatch Workflow",
             description=None,
-            yaml_source="""
+            yaml_source=(
+                yaml_source
+                or """
 schema_version: 1
 steps:
   - id: step_a
     step_type: agent_task
     agent_fqn: ns:a
-            """.strip(),
+                """.strip()
+            ),
             tags=[],
             workspace_id=workspace_id,
         ),
@@ -120,5 +184,6 @@ steps:
     execution = await execution_service.repository.get_execution_by_id(execution_response.id)
     assert execution is not None
     version = await execution_service._resolve_workflow_version(workflow.id, None)
-    step = WorkflowIR.from_dict(version.compiled_ir).steps[0]
-    return execution, step
+    ir = WorkflowIR.from_dict(version.compiled_ir)
+    step = ir.steps[0]
+    return execution, ir, step

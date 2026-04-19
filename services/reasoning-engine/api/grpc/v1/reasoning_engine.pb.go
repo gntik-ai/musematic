@@ -32,6 +32,7 @@ const (
 	ReasoningMode_REACT                      ReasoningMode = 4
 	ReasoningMode_CODE_AS_REASONING          ReasoningMode = 5
 	ReasoningMode_DEBATE                     ReasoningMode = 6
+	ReasoningMode_SELF_CORRECTION            ReasoningMode = 7
 )
 
 // Enum value maps for ReasoningMode.
@@ -44,6 +45,7 @@ var (
 		4: "REACT",
 		5: "CODE_AS_REASONING",
 		6: "DEBATE",
+		7: "SELF_CORRECTION",
 	}
 	ReasoningMode_value = map[string]int32{
 		"REASONING_MODE_UNSPECIFIED": 0,
@@ -53,6 +55,7 @@ var (
 		"REACT":                      4,
 		"CODE_AS_REASONING":          5,
 		"DEBATE":                     6,
+		"SELF_CORRECTION":            7,
 	}
 )
 
@@ -144,6 +147,7 @@ type SelectReasoningModeRequest struct {
 	TaskBrief         string                 `protobuf:"bytes,2,opt,name=task_brief,json=taskBrief,proto3" json:"task_brief,omitempty"`
 	ForcedMode        string                 `protobuf:"bytes,3,opt,name=forced_mode,json=forcedMode,proto3" json:"forced_mode,omitempty"`
 	BudgetConstraints *BudgetConstraints     `protobuf:"bytes,4,opt,name=budget_constraints,json=budgetConstraints,proto3" json:"budget_constraints,omitempty"`
+	ComputeBudget     *float64               `protobuf:"fixed64,7,opt,name=compute_budget,json=computeBudget,proto3,oneof" json:"compute_budget,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -204,6 +208,13 @@ func (x *SelectReasoningModeRequest) GetBudgetConstraints() *BudgetConstraints {
 		return x.BudgetConstraints
 	}
 	return nil
+}
+
+func (x *SelectReasoningModeRequest) GetComputeBudget() float64 {
+	if x != nil && x.ComputeBudget != nil {
+		return *x.ComputeBudget
+	}
+	return 0
 }
 
 type BudgetConstraints struct {
@@ -1326,6 +1337,478 @@ func (x *BranchSummary) GetScore() float64 {
 	return 0
 }
 
+type StartDebateSessionRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ExecutionId      string                 `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	DebateId         string                 `protobuf:"bytes,2,opt,name=debate_id,json=debateId,proto3" json:"debate_id,omitempty"`
+	ParticipantFqns  []string               `protobuf:"bytes,3,rep,name=participant_fqns,json=participantFqns,proto3" json:"participant_fqns,omitempty"`
+	RoundLimit       int32                  `protobuf:"varint,4,opt,name=round_limit,json=roundLimit,proto3" json:"round_limit,omitempty"`
+	PerTurnTimeoutMs int64                  `protobuf:"varint,5,opt,name=per_turn_timeout_ms,json=perTurnTimeoutMs,proto3" json:"per_turn_timeout_ms,omitempty"`
+	ComputeBudget    *float64               `protobuf:"fixed64,6,opt,name=compute_budget,json=computeBudget,proto3,oneof" json:"compute_budget,omitempty"`
+	ConsensusEpsilon float64                `protobuf:"fixed64,7,opt,name=consensus_epsilon,json=consensusEpsilon,proto3" json:"consensus_epsilon,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *StartDebateSessionRequest) Reset() {
+	*x = StartDebateSessionRequest{}
+	mi := &file_reasoning_engine_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StartDebateSessionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StartDebateSessionRequest) ProtoMessage() {}
+
+func (x *StartDebateSessionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_reasoning_engine_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StartDebateSessionRequest.ProtoReflect.Descriptor instead.
+func (*StartDebateSessionRequest) Descriptor() ([]byte, []int) {
+	return file_reasoning_engine_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *StartDebateSessionRequest) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *StartDebateSessionRequest) GetDebateId() string {
+	if x != nil {
+		return x.DebateId
+	}
+	return ""
+}
+
+func (x *StartDebateSessionRequest) GetParticipantFqns() []string {
+	if x != nil {
+		return x.ParticipantFqns
+	}
+	return nil
+}
+
+func (x *StartDebateSessionRequest) GetRoundLimit() int32 {
+	if x != nil {
+		return x.RoundLimit
+	}
+	return 0
+}
+
+func (x *StartDebateSessionRequest) GetPerTurnTimeoutMs() int64 {
+	if x != nil {
+		return x.PerTurnTimeoutMs
+	}
+	return 0
+}
+
+func (x *StartDebateSessionRequest) GetComputeBudget() float64 {
+	if x != nil && x.ComputeBudget != nil {
+		return *x.ComputeBudget
+	}
+	return 0
+}
+
+func (x *StartDebateSessionRequest) GetConsensusEpsilon() float64 {
+	if x != nil {
+		return x.ConsensusEpsilon
+	}
+	return 0
+}
+
+type SubmitDebateTurnRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DebateId      string                 `protobuf:"bytes,1,opt,name=debate_id,json=debateId,proto3" json:"debate_id,omitempty"`
+	AgentFqn      string                 `protobuf:"bytes,2,opt,name=agent_fqn,json=agentFqn,proto3" json:"agent_fqn,omitempty"`
+	StepType      string                 `protobuf:"bytes,3,opt,name=step_type,json=stepType,proto3" json:"step_type,omitempty"`
+	Content       string                 `protobuf:"bytes,4,opt,name=content,proto3" json:"content,omitempty"`
+	QualityScore  float64                `protobuf:"fixed64,5,opt,name=quality_score,json=qualityScore,proto3" json:"quality_score,omitempty"`
+	TokensUsed    int64                  `protobuf:"varint,6,opt,name=tokens_used,json=tokensUsed,proto3" json:"tokens_used,omitempty"`
+	OccurredAt    *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SubmitDebateTurnRequest) Reset() {
+	*x = SubmitDebateTurnRequest{}
+	mi := &file_reasoning_engine_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SubmitDebateTurnRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SubmitDebateTurnRequest) ProtoMessage() {}
+
+func (x *SubmitDebateTurnRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_reasoning_engine_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SubmitDebateTurnRequest.ProtoReflect.Descriptor instead.
+func (*SubmitDebateTurnRequest) Descriptor() ([]byte, []int) {
+	return file_reasoning_engine_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *SubmitDebateTurnRequest) GetDebateId() string {
+	if x != nil {
+		return x.DebateId
+	}
+	return ""
+}
+
+func (x *SubmitDebateTurnRequest) GetAgentFqn() string {
+	if x != nil {
+		return x.AgentFqn
+	}
+	return ""
+}
+
+func (x *SubmitDebateTurnRequest) GetStepType() string {
+	if x != nil {
+		return x.StepType
+	}
+	return ""
+}
+
+func (x *SubmitDebateTurnRequest) GetContent() string {
+	if x != nil {
+		return x.Content
+	}
+	return ""
+}
+
+func (x *SubmitDebateTurnRequest) GetQualityScore() float64 {
+	if x != nil {
+		return x.QualityScore
+	}
+	return 0
+}
+
+func (x *SubmitDebateTurnRequest) GetTokensUsed() int64 {
+	if x != nil {
+		return x.TokensUsed
+	}
+	return 0
+}
+
+func (x *SubmitDebateTurnRequest) GetOccurredAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.OccurredAt
+	}
+	return nil
+}
+
+type DebateSessionHandle struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ExecutionId   string                 `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	DebateId      string                 `protobuf:"bytes,2,opt,name=debate_id,json=debateId,proto3" json:"debate_id,omitempty"`
+	Status        string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	CurrentRound  int32                  `protobuf:"varint,4,opt,name=current_round,json=currentRound,proto3" json:"current_round,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DebateSessionHandle) Reset() {
+	*x = DebateSessionHandle{}
+	mi := &file_reasoning_engine_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DebateSessionHandle) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DebateSessionHandle) ProtoMessage() {}
+
+func (x *DebateSessionHandle) ProtoReflect() protoreflect.Message {
+	mi := &file_reasoning_engine_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DebateSessionHandle.ProtoReflect.Descriptor instead.
+func (*DebateSessionHandle) Descriptor() ([]byte, []int) {
+	return file_reasoning_engine_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *DebateSessionHandle) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *DebateSessionHandle) GetDebateId() string {
+	if x != nil {
+		return x.DebateId
+	}
+	return ""
+}
+
+func (x *DebateSessionHandle) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *DebateSessionHandle) GetCurrentRound() int32 {
+	if x != nil {
+		return x.CurrentRound
+	}
+	return 0
+}
+
+type DebateRoundResult struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	DebateId               string                 `protobuf:"bytes,1,opt,name=debate_id,json=debateId,proto3" json:"debate_id,omitempty"`
+	RoundNumber            int32                  `protobuf:"varint,2,opt,name=round_number,json=roundNumber,proto3" json:"round_number,omitempty"`
+	ConsensusStatus        string                 `protobuf:"bytes,3,opt,name=consensus_status,json=consensusStatus,proto3" json:"consensus_status,omitempty"`
+	DebateComplete         bool                   `protobuf:"varint,4,opt,name=debate_complete,json=debateComplete,proto3" json:"debate_complete,omitempty"`
+	ComputeBudgetUsed      float64                `protobuf:"fixed64,5,opt,name=compute_budget_used,json=computeBudgetUsed,proto3" json:"compute_budget_used,omitempty"`
+	ComputeBudgetExhausted bool                   `protobuf:"varint,6,opt,name=compute_budget_exhausted,json=computeBudgetExhausted,proto3" json:"compute_budget_exhausted,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *DebateRoundResult) Reset() {
+	*x = DebateRoundResult{}
+	mi := &file_reasoning_engine_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DebateRoundResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DebateRoundResult) ProtoMessage() {}
+
+func (x *DebateRoundResult) ProtoReflect() protoreflect.Message {
+	mi := &file_reasoning_engine_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DebateRoundResult.ProtoReflect.Descriptor instead.
+func (*DebateRoundResult) Descriptor() ([]byte, []int) {
+	return file_reasoning_engine_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *DebateRoundResult) GetDebateId() string {
+	if x != nil {
+		return x.DebateId
+	}
+	return ""
+}
+
+func (x *DebateRoundResult) GetRoundNumber() int32 {
+	if x != nil {
+		return x.RoundNumber
+	}
+	return 0
+}
+
+func (x *DebateRoundResult) GetConsensusStatus() string {
+	if x != nil {
+		return x.ConsensusStatus
+	}
+	return ""
+}
+
+func (x *DebateRoundResult) GetDebateComplete() bool {
+	if x != nil {
+		return x.DebateComplete
+	}
+	return false
+}
+
+func (x *DebateRoundResult) GetComputeBudgetUsed() float64 {
+	if x != nil {
+		return x.ComputeBudgetUsed
+	}
+	return 0
+}
+
+func (x *DebateRoundResult) GetComputeBudgetExhausted() bool {
+	if x != nil {
+		return x.ComputeBudgetExhausted
+	}
+	return false
+}
+
+type FinalizeDebateSessionRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DebateId      string                 `protobuf:"bytes,1,opt,name=debate_id,json=debateId,proto3" json:"debate_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FinalizeDebateSessionRequest) Reset() {
+	*x = FinalizeDebateSessionRequest{}
+	mi := &file_reasoning_engine_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FinalizeDebateSessionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FinalizeDebateSessionRequest) ProtoMessage() {}
+
+func (x *FinalizeDebateSessionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_reasoning_engine_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FinalizeDebateSessionRequest.ProtoReflect.Descriptor instead.
+func (*FinalizeDebateSessionRequest) Descriptor() ([]byte, []int) {
+	return file_reasoning_engine_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *FinalizeDebateSessionRequest) GetDebateId() string {
+	if x != nil {
+		return x.DebateId
+	}
+	return ""
+}
+
+type DebateSessionResult struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	ExecutionId            string                 `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	DebateId               string                 `protobuf:"bytes,2,opt,name=debate_id,json=debateId,proto3" json:"debate_id,omitempty"`
+	Status                 string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	ConsensusReached       bool                   `protobuf:"varint,4,opt,name=consensus_reached,json=consensusReached,proto3" json:"consensus_reached,omitempty"`
+	ComputeBudgetUsed      float64                `protobuf:"fixed64,5,opt,name=compute_budget_used,json=computeBudgetUsed,proto3" json:"compute_budget_used,omitempty"`
+	ComputeBudgetExhausted bool                   `protobuf:"varint,6,opt,name=compute_budget_exhausted,json=computeBudgetExhausted,proto3" json:"compute_budget_exhausted,omitempty"`
+	StorageKey             string                 `protobuf:"bytes,7,opt,name=storage_key,json=storageKey,proto3" json:"storage_key,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *DebateSessionResult) Reset() {
+	*x = DebateSessionResult{}
+	mi := &file_reasoning_engine_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DebateSessionResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DebateSessionResult) ProtoMessage() {}
+
+func (x *DebateSessionResult) ProtoReflect() protoreflect.Message {
+	mi := &file_reasoning_engine_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DebateSessionResult.ProtoReflect.Descriptor instead.
+func (*DebateSessionResult) Descriptor() ([]byte, []int) {
+	return file_reasoning_engine_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *DebateSessionResult) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *DebateSessionResult) GetDebateId() string {
+	if x != nil {
+		return x.DebateId
+	}
+	return ""
+}
+
+func (x *DebateSessionResult) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *DebateSessionResult) GetConsensusReached() bool {
+	if x != nil {
+		return x.ConsensusReached
+	}
+	return false
+}
+
+func (x *DebateSessionResult) GetComputeBudgetUsed() float64 {
+	if x != nil {
+		return x.ComputeBudgetUsed
+	}
+	return 0
+}
+
+func (x *DebateSessionResult) GetComputeBudgetExhausted() bool {
+	if x != nil {
+		return x.ComputeBudgetExhausted
+	}
+	return false
+}
+
+func (x *DebateSessionResult) GetStorageKey() string {
+	if x != nil {
+		return x.StorageKey
+	}
+	return ""
+}
+
 type StartSelfCorrectionRequest struct {
 	state                    protoimpl.MessageState `protogen:"open.v1"`
 	LoopId                   string                 `protobuf:"bytes,1,opt,name=loop_id,json=loopId,proto3" json:"loop_id,omitempty"`
@@ -1334,13 +1817,16 @@ type StartSelfCorrectionRequest struct {
 	CostCap                  float64                `protobuf:"fixed64,4,opt,name=cost_cap,json=costCap,proto3" json:"cost_cap,omitempty"`
 	Epsilon                  float64                `protobuf:"fixed64,5,opt,name=epsilon,proto3" json:"epsilon,omitempty"`
 	EscalateOnBudgetExceeded bool                   `protobuf:"varint,6,opt,name=escalate_on_budget_exceeded,json=escalateOnBudgetExceeded,proto3" json:"escalate_on_budget_exceeded,omitempty"`
+	StepId                   string                 `protobuf:"bytes,7,opt,name=step_id,json=stepId,proto3" json:"step_id,omitempty"`
+	ComputeBudget            *float64               `protobuf:"fixed64,8,opt,name=compute_budget,json=computeBudget,proto3,oneof" json:"compute_budget,omitempty"`
+	DegradationThreshold     float64                `protobuf:"fixed64,9,opt,name=degradation_threshold,json=degradationThreshold,proto3" json:"degradation_threshold,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
 
 func (x *StartSelfCorrectionRequest) Reset() {
 	*x = StartSelfCorrectionRequest{}
-	mi := &file_reasoning_engine_proto_msgTypes[17]
+	mi := &file_reasoning_engine_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1352,7 +1838,7 @@ func (x *StartSelfCorrectionRequest) String() string {
 func (*StartSelfCorrectionRequest) ProtoMessage() {}
 
 func (x *StartSelfCorrectionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_reasoning_engine_proto_msgTypes[17]
+	mi := &file_reasoning_engine_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1365,7 +1851,7 @@ func (x *StartSelfCorrectionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartSelfCorrectionRequest.ProtoReflect.Descriptor instead.
 func (*StartSelfCorrectionRequest) Descriptor() ([]byte, []int) {
-	return file_reasoning_engine_proto_rawDescGZIP(), []int{17}
+	return file_reasoning_engine_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *StartSelfCorrectionRequest) GetLoopId() string {
@@ -1410,6 +1896,27 @@ func (x *StartSelfCorrectionRequest) GetEscalateOnBudgetExceeded() bool {
 	return false
 }
 
+func (x *StartSelfCorrectionRequest) GetStepId() string {
+	if x != nil {
+		return x.StepId
+	}
+	return ""
+}
+
+func (x *StartSelfCorrectionRequest) GetComputeBudget() float64 {
+	if x != nil && x.ComputeBudget != nil {
+		return *x.ComputeBudget
+	}
+	return 0
+}
+
+func (x *StartSelfCorrectionRequest) GetDegradationThreshold() float64 {
+	if x != nil {
+		return x.DegradationThreshold
+	}
+	return 0
+}
+
 type SelfCorrectionHandle struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	LoopId        string                 `protobuf:"bytes,1,opt,name=loop_id,json=loopId,proto3" json:"loop_id,omitempty"`
@@ -1421,7 +1928,7 @@ type SelfCorrectionHandle struct {
 
 func (x *SelfCorrectionHandle) Reset() {
 	*x = SelfCorrectionHandle{}
-	mi := &file_reasoning_engine_proto_msgTypes[18]
+	mi := &file_reasoning_engine_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1433,7 +1940,7 @@ func (x *SelfCorrectionHandle) String() string {
 func (*SelfCorrectionHandle) ProtoMessage() {}
 
 func (x *SelfCorrectionHandle) ProtoReflect() protoreflect.Message {
-	mi := &file_reasoning_engine_proto_msgTypes[18]
+	mi := &file_reasoning_engine_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1446,7 +1953,7 @@ func (x *SelfCorrectionHandle) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SelfCorrectionHandle.ProtoReflect.Descriptor instead.
 func (*SelfCorrectionHandle) Descriptor() ([]byte, []int) {
-	return file_reasoning_engine_proto_rawDescGZIP(), []int{18}
+	return file_reasoning_engine_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *SelfCorrectionHandle) GetLoopId() string {
@@ -1476,13 +1983,17 @@ type CorrectionIterationEvent struct {
 	QualityScore  float64                `protobuf:"fixed64,2,opt,name=quality_score,json=qualityScore,proto3" json:"quality_score,omitempty"`
 	Cost          float64                `protobuf:"fixed64,3,opt,name=cost,proto3" json:"cost,omitempty"`
 	DurationMs    int64                  `protobuf:"varint,4,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	PriorAnswer   string                 `protobuf:"bytes,5,opt,name=prior_answer,json=priorAnswer,proto3" json:"prior_answer,omitempty"`
+	Critique      string                 `protobuf:"bytes,6,opt,name=critique,proto3" json:"critique,omitempty"`
+	RefinedAnswer string                 `protobuf:"bytes,7,opt,name=refined_answer,json=refinedAnswer,proto3" json:"refined_answer,omitempty"`
+	IterationNum  int32                  `protobuf:"varint,8,opt,name=iteration_num,json=iterationNum,proto3" json:"iteration_num,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CorrectionIterationEvent) Reset() {
 	*x = CorrectionIterationEvent{}
-	mi := &file_reasoning_engine_proto_msgTypes[19]
+	mi := &file_reasoning_engine_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1494,7 +2005,7 @@ func (x *CorrectionIterationEvent) String() string {
 func (*CorrectionIterationEvent) ProtoMessage() {}
 
 func (x *CorrectionIterationEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_reasoning_engine_proto_msgTypes[19]
+	mi := &file_reasoning_engine_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1507,7 +2018,7 @@ func (x *CorrectionIterationEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CorrectionIterationEvent.ProtoReflect.Descriptor instead.
 func (*CorrectionIterationEvent) Descriptor() ([]byte, []int) {
-	return file_reasoning_engine_proto_rawDescGZIP(), []int{19}
+	return file_reasoning_engine_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *CorrectionIterationEvent) GetLoopId() string {
@@ -1538,6 +2049,34 @@ func (x *CorrectionIterationEvent) GetDurationMs() int64 {
 	return 0
 }
 
+func (x *CorrectionIterationEvent) GetPriorAnswer() string {
+	if x != nil {
+		return x.PriorAnswer
+	}
+	return ""
+}
+
+func (x *CorrectionIterationEvent) GetCritique() string {
+	if x != nil {
+		return x.Critique
+	}
+	return ""
+}
+
+func (x *CorrectionIterationEvent) GetRefinedAnswer() string {
+	if x != nil {
+		return x.RefinedAnswer
+	}
+	return ""
+}
+
+func (x *CorrectionIterationEvent) GetIterationNum() int32 {
+	if x != nil {
+		return x.IterationNum
+	}
+	return 0
+}
+
 type ConvergenceResult struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Status        ConvergenceStatus      `protobuf:"varint,1,opt,name=status,proto3,enum=musematic.reasoning.v1.ConvergenceStatus" json:"status,omitempty"`
@@ -1550,7 +2089,7 @@ type ConvergenceResult struct {
 
 func (x *ConvergenceResult) Reset() {
 	*x = ConvergenceResult{}
-	mi := &file_reasoning_engine_proto_msgTypes[20]
+	mi := &file_reasoning_engine_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1562,7 +2101,7 @@ func (x *ConvergenceResult) String() string {
 func (*ConvergenceResult) ProtoMessage() {}
 
 func (x *ConvergenceResult) ProtoReflect() protoreflect.Message {
-	mi := &file_reasoning_engine_proto_msgTypes[20]
+	mi := &file_reasoning_engine_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1575,7 +2114,7 @@ func (x *ConvergenceResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ConvergenceResult.ProtoReflect.Descriptor instead.
 func (*ConvergenceResult) Descriptor() ([]byte, []int) {
-	return file_reasoning_engine_proto_rawDescGZIP(), []int{20}
+	return file_reasoning_engine_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ConvergenceResult) GetStatus() ConvergenceStatus {
@@ -1606,18 +2145,204 @@ func (x *ConvergenceResult) GetLoopId() string {
 	return ""
 }
 
+type GetReasoningTraceRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ExecutionId   string                 `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	StepId        string                 `protobuf:"bytes,2,opt,name=step_id,json=stepId,proto3" json:"step_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetReasoningTraceRequest) Reset() {
+	*x = GetReasoningTraceRequest{}
+	mi := &file_reasoning_engine_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetReasoningTraceRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetReasoningTraceRequest) ProtoMessage() {}
+
+func (x *GetReasoningTraceRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_reasoning_engine_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetReasoningTraceRequest.ProtoReflect.Descriptor instead.
+func (*GetReasoningTraceRequest) Descriptor() ([]byte, []int) {
+	return file_reasoning_engine_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *GetReasoningTraceRequest) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *GetReasoningTraceRequest) GetStepId() string {
+	if x != nil {
+		return x.StepId
+	}
+	return ""
+}
+
+type GetReasoningTraceResponse struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	ExecutionId            string                 `protobuf:"bytes,1,opt,name=execution_id,json=executionId,proto3" json:"execution_id,omitempty"`
+	Technique              string                 `protobuf:"bytes,2,opt,name=technique,proto3" json:"technique,omitempty"`
+	Status                 string                 `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	StorageKey             string                 `protobuf:"bytes,4,opt,name=storage_key,json=storageKey,proto3" json:"storage_key,omitempty"`
+	StepCount              int64                  `protobuf:"varint,5,opt,name=step_count,json=stepCount,proto3" json:"step_count,omitempty"`
+	ComputeBudgetUsed      float64                `protobuf:"fixed64,6,opt,name=compute_budget_used,json=computeBudgetUsed,proto3" json:"compute_budget_used,omitempty"`
+	ConsensusReached       bool                   `protobuf:"varint,7,opt,name=consensus_reached,json=consensusReached,proto3" json:"consensus_reached,omitempty"`
+	Stabilized             bool                   `protobuf:"varint,8,opt,name=stabilized,proto3" json:"stabilized,omitempty"`
+	DegradationDetected    bool                   `protobuf:"varint,9,opt,name=degradation_detected,json=degradationDetected,proto3" json:"degradation_detected,omitempty"`
+	ComputeBudgetExhausted bool                   `protobuf:"varint,10,opt,name=compute_budget_exhausted,json=computeBudgetExhausted,proto3" json:"compute_budget_exhausted,omitempty"`
+	LastUpdatedAt          string                 `protobuf:"bytes,11,opt,name=last_updated_at,json=lastUpdatedAt,proto3" json:"last_updated_at,omitempty"`
+	EffectiveBudgetScope   string                 `protobuf:"bytes,12,opt,name=effective_budget_scope,json=effectiveBudgetScope,proto3" json:"effective_budget_scope,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *GetReasoningTraceResponse) Reset() {
+	*x = GetReasoningTraceResponse{}
+	mi := &file_reasoning_engine_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetReasoningTraceResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetReasoningTraceResponse) ProtoMessage() {}
+
+func (x *GetReasoningTraceResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_reasoning_engine_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetReasoningTraceResponse.ProtoReflect.Descriptor instead.
+func (*GetReasoningTraceResponse) Descriptor() ([]byte, []int) {
+	return file_reasoning_engine_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *GetReasoningTraceResponse) GetExecutionId() string {
+	if x != nil {
+		return x.ExecutionId
+	}
+	return ""
+}
+
+func (x *GetReasoningTraceResponse) GetTechnique() string {
+	if x != nil {
+		return x.Technique
+	}
+	return ""
+}
+
+func (x *GetReasoningTraceResponse) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *GetReasoningTraceResponse) GetStorageKey() string {
+	if x != nil {
+		return x.StorageKey
+	}
+	return ""
+}
+
+func (x *GetReasoningTraceResponse) GetStepCount() int64 {
+	if x != nil {
+		return x.StepCount
+	}
+	return 0
+}
+
+func (x *GetReasoningTraceResponse) GetComputeBudgetUsed() float64 {
+	if x != nil {
+		return x.ComputeBudgetUsed
+	}
+	return 0
+}
+
+func (x *GetReasoningTraceResponse) GetConsensusReached() bool {
+	if x != nil {
+		return x.ConsensusReached
+	}
+	return false
+}
+
+func (x *GetReasoningTraceResponse) GetStabilized() bool {
+	if x != nil {
+		return x.Stabilized
+	}
+	return false
+}
+
+func (x *GetReasoningTraceResponse) GetDegradationDetected() bool {
+	if x != nil {
+		return x.DegradationDetected
+	}
+	return false
+}
+
+func (x *GetReasoningTraceResponse) GetComputeBudgetExhausted() bool {
+	if x != nil {
+		return x.ComputeBudgetExhausted
+	}
+	return false
+}
+
+func (x *GetReasoningTraceResponse) GetLastUpdatedAt() string {
+	if x != nil {
+		return x.LastUpdatedAt
+	}
+	return ""
+}
+
+func (x *GetReasoningTraceResponse) GetEffectiveBudgetScope() string {
+	if x != nil {
+		return x.EffectiveBudgetScope
+	}
+	return ""
+}
+
 var File_reasoning_engine_proto protoreflect.FileDescriptor
 
 const file_reasoning_engine_proto_rawDesc = "" +
 	"\n" +
-	"\x16reasoning_engine.proto\x12\x16musematic.reasoning.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd9\x01\n" +
+	"\x16reasoning_engine.proto\x12\x16musematic.reasoning.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x98\x02\n" +
 	"\x1aSelectReasoningModeRequest\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x1d\n" +
 	"\n" +
 	"task_brief\x18\x02 \x01(\tR\ttaskBrief\x12\x1f\n" +
 	"\vforced_mode\x18\x03 \x01(\tR\n" +
 	"forcedMode\x12X\n" +
-	"\x12budget_constraints\x18\x04 \x01(\v2).musematic.reasoning.v1.BudgetConstraintsR\x11budgetConstraints\"\x8c\x01\n" +
+	"\x12budget_constraints\x18\x04 \x01(\v2).musematic.reasoning.v1.BudgetConstraintsR\x11budgetConstraints\x12*\n" +
+	"\x0ecompute_budget\x18\a \x01(\x01H\x00R\rcomputeBudget\x88\x01\x01B\x11\n" +
+	"\x0f_compute_budget\"\x8c\x01\n" +
 	"\x11BudgetConstraints\x12\x1d\n" +
 	"\n" +
 	"max_tokens\x18\x01 \x01(\x03R\tmaxTokens\x12\x1d\n" +
@@ -1714,30 +2439,102 @@ const file_reasoning_engine_proto_rawDesc = "" +
 	"\n" +
 	"token_cost\x18\x04 \x01(\x03R\ttokenCost\x12\x16\n" +
 	"\x06status\x18\x05 \x01(\tR\x06status\x12\x14\n" +
-	"\x05score\x18\x06 \x01(\x01R\x05score\"\xf3\x01\n" +
+	"\x05score\x18\x06 \x01(\x01R\x05score\"\xc2\x02\n" +
+	"\x19StartDebateSessionRequest\x12!\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x1b\n" +
+	"\tdebate_id\x18\x02 \x01(\tR\bdebateId\x12)\n" +
+	"\x10participant_fqns\x18\x03 \x03(\tR\x0fparticipantFqns\x12\x1f\n" +
+	"\vround_limit\x18\x04 \x01(\x05R\n" +
+	"roundLimit\x12-\n" +
+	"\x13per_turn_timeout_ms\x18\x05 \x01(\x03R\x10perTurnTimeoutMs\x12*\n" +
+	"\x0ecompute_budget\x18\x06 \x01(\x01H\x00R\rcomputeBudget\x88\x01\x01\x12+\n" +
+	"\x11consensus_epsilon\x18\a \x01(\x01R\x10consensusEpsilonB\x11\n" +
+	"\x0f_compute_budget\"\x8d\x02\n" +
+	"\x17SubmitDebateTurnRequest\x12\x1b\n" +
+	"\tdebate_id\x18\x01 \x01(\tR\bdebateId\x12\x1b\n" +
+	"\tagent_fqn\x18\x02 \x01(\tR\bagentFqn\x12\x1b\n" +
+	"\tstep_type\x18\x03 \x01(\tR\bstepType\x12\x18\n" +
+	"\acontent\x18\x04 \x01(\tR\acontent\x12#\n" +
+	"\rquality_score\x18\x05 \x01(\x01R\fqualityScore\x12\x1f\n" +
+	"\vtokens_used\x18\x06 \x01(\x03R\n" +
+	"tokensUsed\x12;\n" +
+	"\voccurred_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"occurredAt\"\x92\x01\n" +
+	"\x13DebateSessionHandle\x12!\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x1b\n" +
+	"\tdebate_id\x18\x02 \x01(\tR\bdebateId\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12#\n" +
+	"\rcurrent_round\x18\x04 \x01(\x05R\fcurrentRound\"\x91\x02\n" +
+	"\x11DebateRoundResult\x12\x1b\n" +
+	"\tdebate_id\x18\x01 \x01(\tR\bdebateId\x12!\n" +
+	"\fround_number\x18\x02 \x01(\x05R\vroundNumber\x12)\n" +
+	"\x10consensus_status\x18\x03 \x01(\tR\x0fconsensusStatus\x12'\n" +
+	"\x0fdebate_complete\x18\x04 \x01(\bR\x0edebateComplete\x12.\n" +
+	"\x13compute_budget_used\x18\x05 \x01(\x01R\x11computeBudgetUsed\x128\n" +
+	"\x18compute_budget_exhausted\x18\x06 \x01(\bR\x16computeBudgetExhausted\";\n" +
+	"\x1cFinalizeDebateSessionRequest\x12\x1b\n" +
+	"\tdebate_id\x18\x01 \x01(\tR\bdebateId\"\xa5\x02\n" +
+	"\x13DebateSessionResult\x12!\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x1b\n" +
+	"\tdebate_id\x18\x02 \x01(\tR\bdebateId\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12+\n" +
+	"\x11consensus_reached\x18\x04 \x01(\bR\x10consensusReached\x12.\n" +
+	"\x13compute_budget_used\x18\x05 \x01(\x01R\x11computeBudgetUsed\x128\n" +
+	"\x18compute_budget_exhausted\x18\x06 \x01(\bR\x16computeBudgetExhausted\x12\x1f\n" +
+	"\vstorage_key\x18\a \x01(\tR\n" +
+	"storageKey\"\x80\x03\n" +
 	"\x1aStartSelfCorrectionRequest\x12\x17\n" +
 	"\aloop_id\x18\x01 \x01(\tR\x06loopId\x12!\n" +
 	"\fexecution_id\x18\x02 \x01(\tR\vexecutionId\x12%\n" +
 	"\x0emax_iterations\x18\x03 \x01(\x05R\rmaxIterations\x12\x19\n" +
 	"\bcost_cap\x18\x04 \x01(\x01R\acostCap\x12\x18\n" +
 	"\aepsilon\x18\x05 \x01(\x01R\aepsilon\x12=\n" +
-	"\x1bescalate_on_budget_exceeded\x18\x06 \x01(\bR\x18escalateOnBudgetExceeded\"\x82\x01\n" +
+	"\x1bescalate_on_budget_exceeded\x18\x06 \x01(\bR\x18escalateOnBudgetExceeded\x12\x17\n" +
+	"\astep_id\x18\a \x01(\tR\x06stepId\x12*\n" +
+	"\x0ecompute_budget\x18\b \x01(\x01H\x00R\rcomputeBudget\x88\x01\x01\x123\n" +
+	"\x15degradation_threshold\x18\t \x01(\x01R\x14degradationThresholdB\x11\n" +
+	"\x0f_compute_budget\"\x82\x01\n" +
 	"\x14SelfCorrectionHandle\x12\x17\n" +
 	"\aloop_id\x18\x01 \x01(\tR\x06loopId\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x129\n" +
 	"\n" +
-	"started_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\"\x8d\x01\n" +
+	"started_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\"\x98\x02\n" +
 	"\x18CorrectionIterationEvent\x12\x17\n" +
 	"\aloop_id\x18\x01 \x01(\tR\x06loopId\x12#\n" +
 	"\rquality_score\x18\x02 \x01(\x01R\fqualityScore\x12\x12\n" +
 	"\x04cost\x18\x03 \x01(\x01R\x04cost\x12\x1f\n" +
 	"\vduration_ms\x18\x04 \x01(\x03R\n" +
-	"durationMs\"\xaa\x01\n" +
+	"durationMs\x12!\n" +
+	"\fprior_answer\x18\x05 \x01(\tR\vpriorAnswer\x12\x1a\n" +
+	"\bcritique\x18\x06 \x01(\tR\bcritique\x12%\n" +
+	"\x0erefined_answer\x18\a \x01(\tR\rrefinedAnswer\x12#\n" +
+	"\riteration_num\x18\b \x01(\x05R\fiterationNum\"\xaa\x01\n" +
 	"\x11ConvergenceResult\x12A\n" +
 	"\x06status\x18\x01 \x01(\x0e2).musematic.reasoning.v1.ConvergenceStatusR\x06status\x12#\n" +
 	"\riteration_num\x18\x02 \x01(\x05R\fiterationNum\x12\x14\n" +
 	"\x05delta\x18\x03 \x01(\x01R\x05delta\x12\x17\n" +
-	"\aloop_id\x18\x04 \x01(\tR\x06loopId*\x94\x01\n" +
+	"\aloop_id\x18\x04 \x01(\tR\x06loopId\"V\n" +
+	"\x18GetReasoningTraceRequest\x12!\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x17\n" +
+	"\astep_id\x18\x02 \x01(\tR\x06stepId\"\xfc\x03\n" +
+	"\x19GetReasoningTraceResponse\x12!\n" +
+	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x1c\n" +
+	"\ttechnique\x18\x02 \x01(\tR\ttechnique\x12\x16\n" +
+	"\x06status\x18\x03 \x01(\tR\x06status\x12\x1f\n" +
+	"\vstorage_key\x18\x04 \x01(\tR\n" +
+	"storageKey\x12\x1d\n" +
+	"\n" +
+	"step_count\x18\x05 \x01(\x03R\tstepCount\x12.\n" +
+	"\x13compute_budget_used\x18\x06 \x01(\x01R\x11computeBudgetUsed\x12+\n" +
+	"\x11consensus_reached\x18\a \x01(\bR\x10consensusReached\x12\x1e\n" +
+	"\n" +
+	"stabilized\x18\b \x01(\bR\n" +
+	"stabilized\x121\n" +
+	"\x14degradation_detected\x18\t \x01(\bR\x13degradationDetected\x128\n" +
+	"\x18compute_budget_exhausted\x18\n" +
+	" \x01(\bR\x16computeBudgetExhausted\x12&\n" +
+	"\x0flast_updated_at\x18\v \x01(\tR\rlastUpdatedAt\x124\n" +
+	"\x16effective_budget_scope\x18\f \x01(\tR\x14effectiveBudgetScope*\xa9\x01\n" +
 	"\rReasoningMode\x12\x1e\n" +
 	"\x1aREASONING_MODE_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
@@ -1747,13 +2544,14 @@ const file_reasoning_engine_proto_rawDesc = "" +
 	"\x05REACT\x10\x04\x12\x15\n" +
 	"\x11CODE_AS_REASONING\x10\x05\x12\n" +
 	"\n" +
-	"\x06DEBATE\x10\x06*\x80\x01\n" +
+	"\x06DEBATE\x10\x06\x12\x13\n" +
+	"\x0fSELF_CORRECTION\x10\a*\x80\x01\n" +
 	"\x11ConvergenceStatus\x12\"\n" +
 	"\x1eCONVERGENCE_STATUS_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\bCONTINUE\x10\x01\x12\r\n" +
 	"\tCONVERGED\x10\x02\x12\x13\n" +
 	"\x0fBUDGET_EXCEEDED\x10\x03\x12\x15\n" +
-	"\x11ESCALATE_TO_HUMAN\x10\x042\xd3\b\n" +
+	"\x11ESCALATE_TO_HUMAN\x10\x042\xaf\f\n" +
 	"\x16ReasoningEngineService\x12v\n" +
 	"\x13SelectReasoningMode\x122.musematic.reasoning.v1.SelectReasoningModeRequest\x1a+.musematic.reasoning.v1.ReasoningModeConfig\x12\x82\x01\n" +
 	"\x17AllocateReasoningBudget\x126.musematic.reasoning.v1.AllocateReasoningBudgetRequest\x1a/.musematic.reasoning.v1.ReasoningBudgetEnvelope\x12x\n" +
@@ -1761,9 +2559,13 @@ const file_reasoning_engine_proto_rawDesc = "" +
 	"\x12StreamBudgetEvents\x121.musematic.reasoning.v1.StreamBudgetEventsRequest\x1a#.musematic.reasoning.v1.BudgetEvent0\x01\x12p\n" +
 	"\x14StreamReasoningTrace\x12+.musematic.reasoning.v1.ReasoningTraceEvent\x1a).musematic.reasoning.v1.ReasoningTraceAck(\x01\x12m\n" +
 	"\x10CreateTreeBranch\x12/.musematic.reasoning.v1.CreateTreeBranchRequest\x1a(.musematic.reasoning.v1.TreeBranchHandle\x12z\n" +
-	"\x14EvaluateTreeBranches\x123.musematic.reasoning.v1.EvaluateTreeBranchesRequest\x1a-.musematic.reasoning.v1.BranchSelectionResult\x12{\n" +
+	"\x14EvaluateTreeBranches\x123.musematic.reasoning.v1.EvaluateTreeBranchesRequest\x1a-.musematic.reasoning.v1.BranchSelectionResult\x12t\n" +
+	"\x12StartDebateSession\x121.musematic.reasoning.v1.StartDebateSessionRequest\x1a+.musematic.reasoning.v1.DebateSessionHandle\x12n\n" +
+	"\x10SubmitDebateTurn\x12/.musematic.reasoning.v1.SubmitDebateTurnRequest\x1a).musematic.reasoning.v1.DebateRoundResult\x12z\n" +
+	"\x15FinalizeDebateSession\x124.musematic.reasoning.v1.FinalizeDebateSessionRequest\x1a+.musematic.reasoning.v1.DebateSessionResult\x12{\n" +
 	"\x17StartSelfCorrectionLoop\x122.musematic.reasoning.v1.StartSelfCorrectionRequest\x1a,.musematic.reasoning.v1.SelfCorrectionHandle\x12x\n" +
-	"\x19SubmitCorrectionIteration\x120.musematic.reasoning.v1.CorrectionIterationEvent\x1a).musematic.reasoning.v1.ConvergenceResultB?Z=github.com/musematic/reasoning-engine/api/grpc/v1;reasoningv1b\x06proto3"
+	"\x19SubmitCorrectionIteration\x120.musematic.reasoning.v1.CorrectionIterationEvent\x1a).musematic.reasoning.v1.ConvergenceResult\x12x\n" +
+	"\x11GetReasoningTrace\x120.musematic.reasoning.v1.GetReasoningTraceRequest\x1a1.musematic.reasoning.v1.GetReasoningTraceResponseB?Z=github.com/musematic/reasoning-engine/api/grpc/v1;reasoningv1b\x06proto3"
 
 var (
 	file_reasoning_engine_proto_rawDescOnce sync.Once
@@ -1778,7 +2580,7 @@ func file_reasoning_engine_proto_rawDescGZIP() []byte {
 }
 
 var file_reasoning_engine_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_reasoning_engine_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_reasoning_engine_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_reasoning_engine_proto_goTypes = []any{
 	(ReasoningMode)(0),                     // 0: musematic.reasoning.v1.ReasoningMode
 	(ConvergenceStatus)(0),                 // 1: musematic.reasoning.v1.ConvergenceStatus
@@ -1799,11 +2601,19 @@ var file_reasoning_engine_proto_goTypes = []any{
 	(*EvaluateTreeBranchesRequest)(nil),    // 16: musematic.reasoning.v1.EvaluateTreeBranchesRequest
 	(*BranchSelectionResult)(nil),          // 17: musematic.reasoning.v1.BranchSelectionResult
 	(*BranchSummary)(nil),                  // 18: musematic.reasoning.v1.BranchSummary
-	(*StartSelfCorrectionRequest)(nil),     // 19: musematic.reasoning.v1.StartSelfCorrectionRequest
-	(*SelfCorrectionHandle)(nil),           // 20: musematic.reasoning.v1.SelfCorrectionHandle
-	(*CorrectionIterationEvent)(nil),       // 21: musematic.reasoning.v1.CorrectionIterationEvent
-	(*ConvergenceResult)(nil),              // 22: musematic.reasoning.v1.ConvergenceResult
-	(*timestamppb.Timestamp)(nil),          // 23: google.protobuf.Timestamp
+	(*StartDebateSessionRequest)(nil),      // 19: musematic.reasoning.v1.StartDebateSessionRequest
+	(*SubmitDebateTurnRequest)(nil),        // 20: musematic.reasoning.v1.SubmitDebateTurnRequest
+	(*DebateSessionHandle)(nil),            // 21: musematic.reasoning.v1.DebateSessionHandle
+	(*DebateRoundResult)(nil),              // 22: musematic.reasoning.v1.DebateRoundResult
+	(*FinalizeDebateSessionRequest)(nil),   // 23: musematic.reasoning.v1.FinalizeDebateSessionRequest
+	(*DebateSessionResult)(nil),            // 24: musematic.reasoning.v1.DebateSessionResult
+	(*StartSelfCorrectionRequest)(nil),     // 25: musematic.reasoning.v1.StartSelfCorrectionRequest
+	(*SelfCorrectionHandle)(nil),           // 26: musematic.reasoning.v1.SelfCorrectionHandle
+	(*CorrectionIterationEvent)(nil),       // 27: musematic.reasoning.v1.CorrectionIterationEvent
+	(*ConvergenceResult)(nil),              // 28: musematic.reasoning.v1.ConvergenceResult
+	(*GetReasoningTraceRequest)(nil),       // 29: musematic.reasoning.v1.GetReasoningTraceRequest
+	(*GetReasoningTraceResponse)(nil),      // 30: musematic.reasoning.v1.GetReasoningTraceResponse
+	(*timestamppb.Timestamp)(nil),          // 31: google.protobuf.Timestamp
 }
 var file_reasoning_engine_proto_depIdxs = []int32{
 	3,  // 0: musematic.reasoning.v1.SelectReasoningModeRequest.budget_constraints:type_name -> musematic.reasoning.v1.BudgetConstraints
@@ -1812,38 +2622,47 @@ var file_reasoning_engine_proto_depIdxs = []int32{
 	5,  // 3: musematic.reasoning.v1.AllocateReasoningBudgetRequest.limits:type_name -> musematic.reasoning.v1.BudgetAllocation
 	5,  // 4: musematic.reasoning.v1.ReasoningBudgetEnvelope.limits:type_name -> musematic.reasoning.v1.BudgetAllocation
 	5,  // 5: musematic.reasoning.v1.ReasoningBudgetEnvelope.used:type_name -> musematic.reasoning.v1.BudgetAllocation
-	23, // 6: musematic.reasoning.v1.ReasoningBudgetEnvelope.allocated_at:type_name -> google.protobuf.Timestamp
+	31, // 6: musematic.reasoning.v1.ReasoningBudgetEnvelope.allocated_at:type_name -> google.protobuf.Timestamp
 	7,  // 7: musematic.reasoning.v1.BudgetStatusResponse.envelope:type_name -> musematic.reasoning.v1.ReasoningBudgetEnvelope
-	23, // 8: musematic.reasoning.v1.BudgetEvent.occurred_at:type_name -> google.protobuf.Timestamp
-	23, // 9: musematic.reasoning.v1.ReasoningTraceEvent.occurred_at:type_name -> google.protobuf.Timestamp
+	31, // 8: musematic.reasoning.v1.BudgetEvent.occurred_at:type_name -> google.protobuf.Timestamp
+	31, // 9: musematic.reasoning.v1.ReasoningTraceEvent.occurred_at:type_name -> google.protobuf.Timestamp
 	5,  // 10: musematic.reasoning.v1.CreateTreeBranchRequest.branch_budget:type_name -> musematic.reasoning.v1.BudgetAllocation
-	23, // 11: musematic.reasoning.v1.TreeBranchHandle.created_at:type_name -> google.protobuf.Timestamp
+	31, // 11: musematic.reasoning.v1.TreeBranchHandle.created_at:type_name -> google.protobuf.Timestamp
 	18, // 12: musematic.reasoning.v1.BranchSelectionResult.all_branches:type_name -> musematic.reasoning.v1.BranchSummary
-	23, // 13: musematic.reasoning.v1.SelfCorrectionHandle.started_at:type_name -> google.protobuf.Timestamp
-	1,  // 14: musematic.reasoning.v1.ConvergenceResult.status:type_name -> musematic.reasoning.v1.ConvergenceStatus
-	2,  // 15: musematic.reasoning.v1.ReasoningEngineService.SelectReasoningMode:input_type -> musematic.reasoning.v1.SelectReasoningModeRequest
-	6,  // 16: musematic.reasoning.v1.ReasoningEngineService.AllocateReasoningBudget:input_type -> musematic.reasoning.v1.AllocateReasoningBudgetRequest
-	8,  // 17: musematic.reasoning.v1.ReasoningEngineService.GetReasoningBudgetStatus:input_type -> musematic.reasoning.v1.GetBudgetStatusRequest
-	10, // 18: musematic.reasoning.v1.ReasoningEngineService.StreamBudgetEvents:input_type -> musematic.reasoning.v1.StreamBudgetEventsRequest
-	12, // 19: musematic.reasoning.v1.ReasoningEngineService.StreamReasoningTrace:input_type -> musematic.reasoning.v1.ReasoningTraceEvent
-	14, // 20: musematic.reasoning.v1.ReasoningEngineService.CreateTreeBranch:input_type -> musematic.reasoning.v1.CreateTreeBranchRequest
-	16, // 21: musematic.reasoning.v1.ReasoningEngineService.EvaluateTreeBranches:input_type -> musematic.reasoning.v1.EvaluateTreeBranchesRequest
-	19, // 22: musematic.reasoning.v1.ReasoningEngineService.StartSelfCorrectionLoop:input_type -> musematic.reasoning.v1.StartSelfCorrectionRequest
-	21, // 23: musematic.reasoning.v1.ReasoningEngineService.SubmitCorrectionIteration:input_type -> musematic.reasoning.v1.CorrectionIterationEvent
-	4,  // 24: musematic.reasoning.v1.ReasoningEngineService.SelectReasoningMode:output_type -> musematic.reasoning.v1.ReasoningModeConfig
-	7,  // 25: musematic.reasoning.v1.ReasoningEngineService.AllocateReasoningBudget:output_type -> musematic.reasoning.v1.ReasoningBudgetEnvelope
-	9,  // 26: musematic.reasoning.v1.ReasoningEngineService.GetReasoningBudgetStatus:output_type -> musematic.reasoning.v1.BudgetStatusResponse
-	11, // 27: musematic.reasoning.v1.ReasoningEngineService.StreamBudgetEvents:output_type -> musematic.reasoning.v1.BudgetEvent
-	13, // 28: musematic.reasoning.v1.ReasoningEngineService.StreamReasoningTrace:output_type -> musematic.reasoning.v1.ReasoningTraceAck
-	15, // 29: musematic.reasoning.v1.ReasoningEngineService.CreateTreeBranch:output_type -> musematic.reasoning.v1.TreeBranchHandle
-	17, // 30: musematic.reasoning.v1.ReasoningEngineService.EvaluateTreeBranches:output_type -> musematic.reasoning.v1.BranchSelectionResult
-	20, // 31: musematic.reasoning.v1.ReasoningEngineService.StartSelfCorrectionLoop:output_type -> musematic.reasoning.v1.SelfCorrectionHandle
-	22, // 32: musematic.reasoning.v1.ReasoningEngineService.SubmitCorrectionIteration:output_type -> musematic.reasoning.v1.ConvergenceResult
-	24, // [24:33] is the sub-list for method output_type
-	15, // [15:24] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	31, // 13: musematic.reasoning.v1.SubmitDebateTurnRequest.occurred_at:type_name -> google.protobuf.Timestamp
+	31, // 14: musematic.reasoning.v1.SelfCorrectionHandle.started_at:type_name -> google.protobuf.Timestamp
+	1,  // 15: musematic.reasoning.v1.ConvergenceResult.status:type_name -> musematic.reasoning.v1.ConvergenceStatus
+	2,  // 16: musematic.reasoning.v1.ReasoningEngineService.SelectReasoningMode:input_type -> musematic.reasoning.v1.SelectReasoningModeRequest
+	6,  // 17: musematic.reasoning.v1.ReasoningEngineService.AllocateReasoningBudget:input_type -> musematic.reasoning.v1.AllocateReasoningBudgetRequest
+	8,  // 18: musematic.reasoning.v1.ReasoningEngineService.GetReasoningBudgetStatus:input_type -> musematic.reasoning.v1.GetBudgetStatusRequest
+	10, // 19: musematic.reasoning.v1.ReasoningEngineService.StreamBudgetEvents:input_type -> musematic.reasoning.v1.StreamBudgetEventsRequest
+	12, // 20: musematic.reasoning.v1.ReasoningEngineService.StreamReasoningTrace:input_type -> musematic.reasoning.v1.ReasoningTraceEvent
+	14, // 21: musematic.reasoning.v1.ReasoningEngineService.CreateTreeBranch:input_type -> musematic.reasoning.v1.CreateTreeBranchRequest
+	16, // 22: musematic.reasoning.v1.ReasoningEngineService.EvaluateTreeBranches:input_type -> musematic.reasoning.v1.EvaluateTreeBranchesRequest
+	19, // 23: musematic.reasoning.v1.ReasoningEngineService.StartDebateSession:input_type -> musematic.reasoning.v1.StartDebateSessionRequest
+	20, // 24: musematic.reasoning.v1.ReasoningEngineService.SubmitDebateTurn:input_type -> musematic.reasoning.v1.SubmitDebateTurnRequest
+	23, // 25: musematic.reasoning.v1.ReasoningEngineService.FinalizeDebateSession:input_type -> musematic.reasoning.v1.FinalizeDebateSessionRequest
+	25, // 26: musematic.reasoning.v1.ReasoningEngineService.StartSelfCorrectionLoop:input_type -> musematic.reasoning.v1.StartSelfCorrectionRequest
+	27, // 27: musematic.reasoning.v1.ReasoningEngineService.SubmitCorrectionIteration:input_type -> musematic.reasoning.v1.CorrectionIterationEvent
+	29, // 28: musematic.reasoning.v1.ReasoningEngineService.GetReasoningTrace:input_type -> musematic.reasoning.v1.GetReasoningTraceRequest
+	4,  // 29: musematic.reasoning.v1.ReasoningEngineService.SelectReasoningMode:output_type -> musematic.reasoning.v1.ReasoningModeConfig
+	7,  // 30: musematic.reasoning.v1.ReasoningEngineService.AllocateReasoningBudget:output_type -> musematic.reasoning.v1.ReasoningBudgetEnvelope
+	9,  // 31: musematic.reasoning.v1.ReasoningEngineService.GetReasoningBudgetStatus:output_type -> musematic.reasoning.v1.BudgetStatusResponse
+	11, // 32: musematic.reasoning.v1.ReasoningEngineService.StreamBudgetEvents:output_type -> musematic.reasoning.v1.BudgetEvent
+	13, // 33: musematic.reasoning.v1.ReasoningEngineService.StreamReasoningTrace:output_type -> musematic.reasoning.v1.ReasoningTraceAck
+	15, // 34: musematic.reasoning.v1.ReasoningEngineService.CreateTreeBranch:output_type -> musematic.reasoning.v1.TreeBranchHandle
+	17, // 35: musematic.reasoning.v1.ReasoningEngineService.EvaluateTreeBranches:output_type -> musematic.reasoning.v1.BranchSelectionResult
+	21, // 36: musematic.reasoning.v1.ReasoningEngineService.StartDebateSession:output_type -> musematic.reasoning.v1.DebateSessionHandle
+	22, // 37: musematic.reasoning.v1.ReasoningEngineService.SubmitDebateTurn:output_type -> musematic.reasoning.v1.DebateRoundResult
+	24, // 38: musematic.reasoning.v1.ReasoningEngineService.FinalizeDebateSession:output_type -> musematic.reasoning.v1.DebateSessionResult
+	26, // 39: musematic.reasoning.v1.ReasoningEngineService.StartSelfCorrectionLoop:output_type -> musematic.reasoning.v1.SelfCorrectionHandle
+	28, // 40: musematic.reasoning.v1.ReasoningEngineService.SubmitCorrectionIteration:output_type -> musematic.reasoning.v1.ConvergenceResult
+	30, // 41: musematic.reasoning.v1.ReasoningEngineService.GetReasoningTrace:output_type -> musematic.reasoning.v1.GetReasoningTraceResponse
+	29, // [29:42] is the sub-list for method output_type
+	16, // [16:29] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_reasoning_engine_proto_init() }
@@ -1851,13 +2670,16 @@ func file_reasoning_engine_proto_init() {
 	if File_reasoning_engine_proto != nil {
 		return
 	}
+	file_reasoning_engine_proto_msgTypes[0].OneofWrappers = []any{}
+	file_reasoning_engine_proto_msgTypes[17].OneofWrappers = []any{}
+	file_reasoning_engine_proto_msgTypes[23].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_reasoning_engine_proto_rawDesc), len(file_reasoning_engine_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   21,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -166,7 +166,7 @@ func TestDefaultBuildRuntimeDepsSuccessPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("defaultBuildRuntimeDeps() error = %v", err)
 	}
-	if deps.handler.ModeSelector == nil || deps.handler.BudgetTracker == nil || deps.handler.EventRegistry == nil || deps.handler.CoTCoordinator == nil || deps.handler.ToTManager == nil || deps.handler.CorrectionLoop == nil || deps.handler.Metrics == nil {
+	if deps.handler.ModeSelector == nil || deps.handler.BudgetTracker == nil || deps.handler.EventRegistry == nil || deps.handler.CoTCoordinator == nil || deps.handler.ToTManager == nil || deps.handler.DebateService == nil || deps.handler.CorrectionLoop == nil || deps.handler.TraceStore == nil || deps.handler.TraceUploader == nil || deps.handler.ReasoningEvents == nil || deps.handler.Metrics == nil {
 		t.Fatalf("unexpected handler deps: %+v", deps.handler)
 	}
 	deps.cleanup()
