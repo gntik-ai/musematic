@@ -61,9 +61,7 @@ class AbExperimentService:
         scores_b = await self.repository.get_run_score_array(experiment.run_b_id)
         p_value, effect_size, confidence_interval, winner = self._compare(scores_a, scores_b)
         diff = (
-            statistics.mean(scores_a) - statistics.mean(scores_b)
-            if scores_a and scores_b
-            else 0.0
+            statistics.mean(scores_a) - statistics.mean(scores_b) if scores_a and scores_b else 0.0
         )
         analysis_summary = self._build_summary(winner, p_value, effect_size, diff)
         await self.repository.update_ab_experiment(
@@ -119,10 +117,7 @@ class AbExperimentService:
         normal = statistics.NormalDist()
         p_value = 2 * (1 - normal.cdf(abs(z_score)))
         pooled = math.sqrt(
-            (
-                ((len(scores_a) - 1) * variance_a)
-                + ((len(scores_b) - 1) * variance_b)
-            )
+            (((len(scores_a) - 1) * variance_a) + ((len(scores_b) - 1) * variance_b))
             / max(1, len(scores_a) + len(scores_b) - 2)
         )
         effect_size = diff / pooled if pooled else 0.0

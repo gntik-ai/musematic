@@ -154,14 +154,14 @@ async def test_llm_judge_scorer_parses_provider_and_heuristic_results(
 ) -> None:
     scorer = LLMJudgeScorer(settings=make_settings(), api_url="http://judge.example")
 
-    async def _judge_once(**_kwargs: object) -> dict[str, object]:
+    async def _judge_with_retries(**_kwargs: object) -> dict[str, object]:
         return {
             "score": 4.0,
             "criteria_scores": {"factual_accuracy": 4.0, "completeness": 4.0},
             "rationale": "good",
         }
 
-    monkeypatch.setattr(scorer, "_judge_once", _judge_once)
+    monkeypatch.setattr(scorer, "_judge_with_retries", _judge_with_retries)
     result = await scorer.score(
         "actual",
         "expected",
@@ -545,11 +545,12 @@ async def test_scorer_registry_and_internal_scorer_helpers_cover_remaining_branc
         "platform.evaluation.scorers.llm_judge.httpx.AsyncClient",
         lambda timeout: _JudgeClient(),
     )
-    provider_result = await llm_judge._judge_once(
+    provider_result = await llm_judge._judge_once_provider(
         actual="actual",
         expected="expected",
         judge_model="demo",
         criteria=criteria,
+        endpoint="http://judge.example",
     )
 
     assert provider_result["score"] == 4.0
@@ -655,23 +656,22 @@ async def test_scorer_registry_and_internal_scorer_helpers_cover_remaining_branc
     assert await no_getter_trajectory._get_journal_events(uuid4()) == []
     assert await no_getter_trajectory._get_task_plan(uuid4()) == []
     assert await no_reasoning_getter._get_reasoning_traces(uuid4()) == []
-    assert await alternate_trajectory._get_journal_events(uuid4()) == [
-        {"agent_fqn": "tool.alpha"}
-    ]
-    assert await alternate_trajectory._get_task_plan(uuid4()) == [
-        {"selected_tool": "tool.alpha"}
-    ]
+    assert await alternate_trajectory._get_journal_events(uuid4()) == [{"agent_fqn": "tool.alpha"}]
+    assert await alternate_trajectory._get_task_plan(uuid4()) == [{"selected_tool": "tool.alpha"}]
     assert await alternate_trajectory._get_reasoning_traces(uuid4()) == [
         {"summary": "expected"},
         "ignored",
     ]
     assert TrajectoryScorer._score_tool_alignment([], []) == 1.0
     assert TrajectoryScorer._score_tool_alignment([{"selected_tool": ""}], []) == 1.0
+    assert TrajectoryScorer._score_tool_alignment([{"selected_tool": "tool.alpha"}], []) == 0.5
     assert (
-        TrajectoryScorer._score_tool_alignment([{"selected_tool": "tool.alpha"}], []) == 0.5
-    )
-    assert (
-        TrajectoryScorer._score_cost_effectiveness("expected", "expected", {"token_cost_ratio": 2})
+        TrajectoryScorer._score_cost_effectiveness(
+            "expected",
+            "expected",
+            {"token_cost_ratio": 2},
+            [],
+        )
         == 0.5
     )
     assert await alternate_trajectory._score_reasoning_coherence([], "close enough", "close") > 0

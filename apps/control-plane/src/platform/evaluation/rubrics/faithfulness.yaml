@@ -1,0 +1,19 @@
+name: faithfulness
+description: Evaluates consistency with a supplied source document. Requires source context at scoring time.
+criteria:
+  - name: source_consistency
+    description: Whether the output stays consistent with the provided source material.
+    scale_min: 1
+    scale_max: 5
+    examples:
+      "1": Contradicts the source document.
+      "3": Mostly consistent with minor drift.
+      "5": Fully consistent with the source.
+  - name: hallucination_absence
+    description: Whether the output avoids unsupported claims.
+    scale_min: 1
+    scale_max: 5
+    examples:
+      "1": Adds unsupported claims.
+      "3": Adds mild unsupported detail.
+      "5": Adds no unsupported content.

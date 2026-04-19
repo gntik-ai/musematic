@@ -1,0 +1,19 @@
+name: instruction_following
+description: Evaluates how well the output follows explicit instructions and constraints.
+criteria:
+  - name: instruction_compliance
+    description: Whether the output follows the requested task instructions.
+    scale_min: 1
+    scale_max: 5
+    examples:
+      "1": Ignores the core instruction.
+      "3": Follows part of the instruction.
+      "5": Fully follows the instruction.
+  - name: constraint_adherence
+    description: Whether the output respects stated limits, format, and constraints.
+    scale_min: 1
+    scale_max: 5
+    examples:
+      "1": Violates key constraints.
+      "3": Mostly follows constraints with minor misses.
+      "5": Fully respects all stated constraints.

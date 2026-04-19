@@ -6,17 +6,19 @@ from platform.evaluation.models import (
     ATEConfig,
     ATERun,
     BenchmarkCase,
+    CalibrationRun,
     EvalSet,
     EvaluationRun,
     HumanAiGrade,
     JudgeVerdict,
     RobustnessTestRun,
+    Rubric,
     RunStatus,
 )
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -247,6 +249,110 @@ class EvaluationRepository:
             )
         )
         return [float(value) for value in result.scalars().all() if value is not None]
+
+    async def create_rubric(self, rubric: Rubric) -> Rubric:
+        self.session.add(rubric)
+        await self.session.flush()
+        return rubric
+
+    async def get_rubric(
+        self,
+        rubric_id: UUID,
+        workspace_id: UUID | None = None,
+    ) -> Rubric | None:
+        query = select(Rubric).where(Rubric.id == rubric_id)
+        if workspace_id is not None:
+            query = query.where(
+                or_(Rubric.workspace_id == workspace_id, Rubric.is_builtin.is_(True))
+            )
+        result = await self.session.execute(query)
+        return result.scalar_one_or_none()
+
+    async def get_builtin_rubric_by_name(self, name: str) -> Rubric | None:
+        result = await self.session.execute(
+            select(Rubric).where(
+                Rubric.name == name,
+                Rubric.is_builtin.is_(True),
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_workspace_rubric_by_name(self, workspace_id: UUID, name: str) -> Rubric | None:
+        result = await self.session.execute(
+            select(Rubric).where(
+                Rubric.workspace_id == workspace_id,
+                Rubric.name == name,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def list_rubrics(
+        self,
+        workspace_id: UUID | None,
+        *,
+        status: Any | None,
+        include_builtins: bool,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[Rubric], int]:
+        filters: list[Any] = []
+        if workspace_id is None:
+            filters.append(Rubric.is_builtin.is_(True))
+        elif include_builtins:
+            filters.append(or_(Rubric.workspace_id == workspace_id, Rubric.is_builtin.is_(True)))
+        else:
+            filters.append(Rubric.workspace_id == workspace_id)
+        if status is not None:
+            filters.append(Rubric.status == status)
+        total = await self.session.scalar(select(func.count()).select_from(Rubric).where(*filters))
+        result = await self.session.execute(
+            select(Rubric)
+            .where(*filters)
+            .order_by(Rubric.is_builtin.desc(), Rubric.name.asc(), Rubric.created_at.asc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        return list(result.scalars().all()), int(total or 0)
+
+    async def update_rubric(self, rubric: Rubric, **fields: Any) -> Rubric:
+        for key, value in fields.items():
+            setattr(rubric, key, value)
+        await self.session.flush()
+        return rubric
+
+    async def soft_delete_rubric(self, rubric: Rubric) -> Rubric:
+        rubric.deleted_at = datetime.now(UTC)
+        await self.session.flush()
+        return rubric
+
+    async def count_in_flight_rubric_references(self, rubric_id: UUID) -> int:
+        total = await self.session.scalar(
+            select(func.count())
+            .select_from(EvaluationRun)
+            .join(EvalSet, EvalSet.id == EvaluationRun.eval_set_id)
+            .where(
+                EvaluationRun.status == RunStatus.running,
+                EvalSet.scorer_config.contains({"llm_judge": {"rubric_id": str(rubric_id)}}),
+            )
+        )
+        return int(total or 0)
+
+    async def create_calibration_run(self, run: CalibrationRun) -> CalibrationRun:
+        self.session.add(run)
+        await self.session.flush()
+        return run
+
+    async def get_calibration_run(self, run_id: UUID) -> CalibrationRun | None:
+        result = await self.session.execute(
+            select(CalibrationRun).where(CalibrationRun.id == run_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def update_calibration_run(self, run: CalibrationRun, **fields: Any) -> CalibrationRun:
+        for key, value in fields.items():
+            setattr(run, key, value)
+        await self.session.flush()
+        return run
 
     async def create_ab_experiment(self, experiment: AbExperiment) -> AbExperiment:
         self.session.add(experiment)

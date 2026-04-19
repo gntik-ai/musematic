@@ -1,32 +1,56 @@
 from __future__ import annotations
 
 import statistics
+import time
 from datetime import UTC, datetime
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import NotFoundError
 from platform.common.tracing import traced_async
 from platform.evaluation.events import (
+    AdHocJudgePayload,
+    CalibrationCompletedPayload,
+    CalibrationStartedPayload,
     EvaluationEventType,
+    RubricArchivedPayload,
+    RubricCreatedPayload,
+    RubricUpdatedPayload,
     RunCompletedPayload,
     RunFailedPayload,
     RunStartedPayload,
     VerdictScoredPayload,
     publish_evaluation_event,
 )
+from platform.evaluation.exceptions import (
+    CalibrationRunImmutableError,
+    JudgeUnavailableError,
+    RubricArchivedError,
+    RubricBuiltinProtectedError,
+    RubricInFlightError,
+    RubricNotFoundError,
+    RubricValidationError,
+)
 from platform.evaluation.models import (
     BenchmarkCase,
+    CalibrationRun,
+    CalibrationRunStatus,
     EvalSet,
     EvaluationRun,
     JudgeVerdict,
+    Rubric,
+    RubricStatus,
     RunStatus,
     VerdictStatus,
 )
 from platform.evaluation.repository import EvaluationRepository
 from platform.evaluation.schemas import (
+    AdHocJudgeRequest,
+    AdHocJudgeResponse,
     BenchmarkCaseCreate,
     BenchmarkCaseListResponse,
     BenchmarkCaseResponse,
+    CalibrationRunCreate,
+    CalibrationRunResponse,
     EvalRunSummaryDTO,
     EvalSetCreate,
     EvalSetListResponse,
@@ -37,11 +61,421 @@ from platform.evaluation.schemas import (
     EvaluationRunResponse,
     JudgeVerdictListResponse,
     JudgeVerdictResponse,
+    RubricCreate,
+    RubricListResponse,
+    RubricResponse,
+    RubricUpdate,
 )
 from platform.evaluation.scorers.base import ScoreResult
 from platform.evaluation.scorers.registry import ScorerRegistry
-from typing import Any
+from typing import Any, cast
 from uuid import UUID, uuid4
+
+
+class RubricService:
+    def __init__(
+        self,
+        *,
+        repository: EvaluationRepository,
+        settings: Any,
+        producer: EventProducer | None = None,
+    ) -> None:
+        self.repository = repository
+        self.settings = settings
+        self.producer = producer
+
+    async def create_rubric(
+        self,
+        payload: RubricCreate,
+        workspace_id: UUID,
+        actor_id: UUID,
+    ) -> RubricResponse:
+        await self._validate_rubric_payload(payload)
+        existing = await self.repository.get_workspace_rubric_by_name(workspace_id, payload.name)
+        if existing is not None:
+            raise RubricValidationError("Rubric name already exists in workspace")
+        rubric = await self.repository.create_rubric(
+            Rubric(
+                workspace_id=workspace_id,
+                name=payload.name,
+                description=payload.description,
+                criteria=[criterion.model_dump(mode="json") for criterion in payload.criteria],
+                version=1,
+                is_builtin=False,
+                status=RubricStatus.active,
+                created_by=actor_id,
+            )
+        )
+        await self._commit()
+        await publish_evaluation_event(
+            self.producer,
+            EvaluationEventType.rubric_created,
+            RubricCreatedPayload(
+                rubric_id=rubric.id,
+                workspace_id=rubric.workspace_id,
+                name=rubric.name,
+                version=rubric.version,
+            ),
+            self._correlation(workspace_id),
+        )
+        return RubricResponse.model_validate(rubric)
+
+    async def upsert_builtin_template(
+        self, template_name: str, payload: RubricCreate
+    ) -> RubricResponse:
+        await self._validate_rubric_payload(payload)
+        rubric = await self.repository.get_builtin_rubric_by_name(template_name)
+        criteria = [criterion.model_dump(mode="json") for criterion in payload.criteria]
+        if rubric is None:
+            rubric = await self.repository.create_rubric(
+                Rubric(
+                    workspace_id=None,
+                    name=template_name,
+                    description=payload.description,
+                    criteria=criteria,
+                    version=1,
+                    is_builtin=True,
+                    status=RubricStatus.active,
+                    created_by=None,
+                )
+            )
+        else:
+            next_version = (
+                rubric.version + 1
+                if rubric.criteria != criteria or rubric.description != payload.description
+                else rubric.version
+            )
+            await self.repository.update_rubric(
+                rubric,
+                description=payload.description,
+                criteria=criteria,
+                status=RubricStatus.active,
+                version=next_version,
+            )
+        await self._commit()
+        return RubricResponse.model_validate(rubric)
+
+    async def get_rubric(self, rubric_id: UUID, workspace_id: UUID | None = None) -> RubricResponse:
+        rubric = await self.repository.get_rubric(rubric_id, workspace_id)
+        if rubric is None:
+            raise RubricNotFoundError()
+        return RubricResponse.model_validate(rubric)
+
+    async def get_rubric_model(self, rubric_id: UUID, workspace_id: UUID | None = None) -> Rubric:
+        rubric = await self.repository.get_rubric(rubric_id, workspace_id)
+        if rubric is None:
+            raise RubricNotFoundError()
+        return rubric
+
+    async def list_rubrics(
+        self,
+        *,
+        workspace_id: UUID | None,
+        status: Any | None,
+        include_builtins: bool,
+        page: int,
+        page_size: int,
+    ) -> RubricListResponse:
+        items, total = await self.repository.list_rubrics(
+            workspace_id,
+            status=status,
+            include_builtins=include_builtins,
+            page=page,
+            page_size=page_size,
+        )
+        return RubricListResponse(
+            items=[RubricResponse.model_validate(item) for item in items],
+            total=total,
+            page=page,
+            page_size=page_size,
+        )
+
+    async def update_rubric(
+        self,
+        rubric_id: UUID,
+        payload: RubricUpdate,
+        workspace_id: UUID | None = None,
+        actor_id: UUID | None = None,
+    ) -> RubricResponse:
+        rubric = await self.get_rubric_model(rubric_id, workspace_id)
+        if rubric.is_builtin:
+            raise RubricBuiltinProtectedError()
+        update_fields = payload.model_dump(exclude_unset=True)
+        if not update_fields:
+            return RubricResponse.model_validate(rubric)
+        criteria_payload = update_fields.get("criteria")
+        if criteria_payload is not None:
+            criteria = [criterion.model_dump(mode="json") for criterion in criteria_payload]
+            await self._validate_rubric_payload(
+                RubricCreate(
+                    name=rubric.name, description=rubric.description, criteria=criteria_payload
+                )
+            )
+            if (
+                criteria != rubric.criteria
+                and await self.repository.count_in_flight_rubric_references(rubric.id)
+            ):
+                raise RubricInFlightError()
+            update_fields["criteria"] = criteria
+        if (
+            "name" in update_fields and update_fields["name"] != rubric.name
+        ) and rubric.workspace_id is not None:
+            existing = await self.repository.get_workspace_rubric_by_name(
+                rubric.workspace_id, update_fields["name"]
+            )
+            if existing is not None and existing.id != rubric.id:
+                raise RubricValidationError("Rubric name already exists in workspace")
+        old_version = rubric.version
+        if any(key in update_fields for key in {"name", "description", "criteria"}):
+            update_fields["version"] = rubric.version + 1
+        updated = await self.repository.update_rubric(rubric, **update_fields)
+        await self._commit()
+        if updated.version != old_version:
+            await publish_evaluation_event(
+                self.producer,
+                EvaluationEventType.rubric_updated,
+                RubricUpdatedPayload(
+                    rubric_id=updated.id,
+                    old_version=old_version,
+                    new_version=updated.version,
+                ),
+                self._correlation(updated.workspace_id),
+            )
+        return RubricResponse.model_validate(updated)
+
+    async def archive_rubric(
+        self,
+        rubric_id: UUID,
+        workspace_id: UUID | None = None,
+        actor_id: UUID | None = None,
+    ) -> None:
+        del actor_id
+        rubric = await self.get_rubric_model(rubric_id, workspace_id)
+        if rubric.is_builtin:
+            raise RubricBuiltinProtectedError()
+        if await self.repository.count_in_flight_rubric_references(rubric.id):
+            raise RubricInFlightError()
+        await self.repository.update_rubric(
+            rubric,
+            status=RubricStatus.archived,
+            deleted_at=datetime.now(UTC),
+        )
+        await self._commit()
+        await publish_evaluation_event(
+            self.producer,
+            EvaluationEventType.rubric_archived,
+            RubricArchivedPayload(rubric_id=rubric.id, workspace_id=rubric.workspace_id),
+            self._correlation(rubric.workspace_id),
+        )
+
+    async def get_builtin_by_name(self, name: str) -> RubricResponse:
+        rubric = await self.repository.get_builtin_rubric_by_name(name)
+        if rubric is None:
+            raise RubricNotFoundError()
+        return RubricResponse.model_validate(rubric)
+
+    async def _validate_rubric_payload(self, payload: RubricCreate) -> None:
+        normalized_names: set[str] = set()
+        for criterion in payload.criteria:
+            key = criterion.name.strip().lower()
+            if key in normalized_names:
+                raise RubricValidationError("Rubric criteria names must be unique")
+            normalized_names.add(key)
+            if len(criterion.examples) != len(set(criterion.examples)):
+                raise RubricValidationError("Rubric examples contain contradictory duplicates")
+
+    @staticmethod
+    def _correlation(workspace_id: UUID | None) -> CorrelationContext:
+        return CorrelationContext(correlation_id=uuid4(), workspace_id=workspace_id)
+
+    async def _commit(self) -> None:
+        await self.repository.session.commit()
+
+
+class CalibrationService:
+    def __init__(
+        self,
+        *,
+        repository: EvaluationRepository,
+        settings: Any,
+        producer: EventProducer | None = None,
+        scorer_registry: ScorerRegistry,
+        rubric_service: RubricService | None = None,
+    ) -> None:
+        self.repository = repository
+        self.settings = settings
+        self.producer = producer
+        self.scorer_registry = scorer_registry
+        self.rubric_service = rubric_service
+
+    async def start_calibration(
+        self,
+        rubric_id: UUID,
+        payload: CalibrationRunCreate,
+        actor_id: UUID,
+        workspace_id: UUID | None = None,
+    ) -> CalibrationRunResponse:
+        rubric = await self._get_rubric(rubric_id, workspace_id)
+        if rubric.status is RubricStatus.archived:
+            raise RubricArchivedError()
+        run = await self.repository.create_calibration_run(
+            CalibrationRun(
+                rubric_id=rubric.id,
+                rubric_version=rubric.version,
+                judge_model=payload.judge_model,
+                reference_set_id=payload.reference_set_id,
+                status=CalibrationRunStatus.pending,
+                created_by=actor_id,
+            )
+        )
+        await self._commit()
+        await publish_evaluation_event(
+            self.producer,
+            EvaluationEventType.calibration_started,
+            CalibrationStartedPayload(
+                run_id=run.id,
+                rubric_id=run.rubric_id,
+                rubric_version=run.rubric_version,
+            ),
+            CorrelationContext(correlation_id=uuid4(), workspace_id=workspace_id),
+        )
+        return CalibrationRunResponse.model_validate(run)
+
+    async def get_calibration_run(self, run_id: UUID) -> CalibrationRunResponse:
+        run = await self.repository.get_calibration_run(run_id)
+        if run is None:
+            raise NotFoundError("EVALUATION_CALIBRATION_RUN_NOT_FOUND", "Calibration run not found")
+        return CalibrationRunResponse.model_validate(run)
+
+    async def execute_calibration(self, run_id: UUID) -> CalibrationRunResponse:
+        run = await self.repository.get_calibration_run(run_id)
+        if run is None:
+            raise NotFoundError("EVALUATION_CALIBRATION_RUN_NOT_FOUND", "Calibration run not found")
+        if run.completed_at is not None:
+            raise CalibrationRunImmutableError()
+        rubric = await self._get_rubric(run.rubric_id, None)
+        await self.repository.update_calibration_run(
+            run,
+            status=CalibrationRunStatus.running,
+            started_at=datetime.now(UTC),
+        )
+        await self._commit()
+        cases = await self._load_reference_cases(run.reference_set_id)
+        scorer = self.scorer_registry.get("llm_judge")
+        overall_scores: list[float] = []
+        criterion_scores: dict[str, list[float]] = {}
+        for case in cases:
+            result = await scorer.score(
+                case.expected_output,
+                case.expected_output,
+                {
+                    "rubric_id": str(rubric.id),
+                    "judge_model": run.judge_model,
+                    "calibration_runs": 1,
+                },
+            )
+            if result.error:
+                await self.repository.update_calibration_run(
+                    run,
+                    status=CalibrationRunStatus.failed,
+                    completed_at=datetime.now(UTC),
+                    distribution={"error": result.error},
+                    calibrated=False,
+                    agreement_rate=0.0,
+                )
+                await self._commit()
+                return CalibrationRunResponse.model_validate(run)
+            if result.score is not None:
+                overall_scores.append(float(result.score))
+            for name, value in dict(result.extra.get("criteria_scores", {})).items():
+                criterion_scores.setdefault(name, []).append(float(value))
+        distribution = self._build_distribution(overall_scores, criterion_scores)
+        error_grade_finding = (
+            bool(overall_scores)
+            and len({round(score, 4) for score in overall_scores}) == 1
+            and len(overall_scores) > 1
+        )
+        low_confidence = bool(distribution.get("low_confidence"))
+        calibrated = not error_grade_finding and not low_confidence
+        agreement_rate = 0.0 if error_grade_finding else (1.0 if overall_scores else 0.0)
+        await self.repository.update_calibration_run(
+            run,
+            status=CalibrationRunStatus.completed,
+            distribution=distribution,
+            agreement_rate=agreement_rate,
+            calibrated=calibrated,
+            error_grade_finding=error_grade_finding,
+            completed_at=datetime.now(UTC),
+        )
+        await self._commit()
+        await publish_evaluation_event(
+            self.producer,
+            EvaluationEventType.calibration_completed,
+            CalibrationCompletedPayload(
+                run_id=run.id,
+                rubric_id=run.rubric_id,
+                calibrated=calibrated,
+                error_grade_finding=error_grade_finding,
+            ),
+            CorrelationContext(correlation_id=uuid4(), workspace_id=rubric.workspace_id),
+        )
+        return CalibrationRunResponse.model_validate(run)
+
+    async def _get_rubric(self, rubric_id: UUID, workspace_id: UUID | None) -> Rubric:
+        rubric = await self.repository.get_rubric(rubric_id, workspace_id)
+        if rubric is None:
+            raise RubricNotFoundError()
+        return rubric
+
+    async def _load_reference_cases(self, reference_set_id: str) -> list[BenchmarkCase]:
+        try:
+            reference_uuid = UUID(reference_set_id)
+        except ValueError:
+            return []
+        return await self.repository.list_all_benchmark_cases(reference_uuid)
+
+    def _build_distribution(
+        self,
+        overall_scores: list[float],
+        criterion_scores: dict[str, list[float]],
+    ) -> dict[str, Any]:
+        variance_limit = float(self.settings.evaluation.calibration_variance_envelope)
+        overall = self._summarize_series(overall_scores)
+        per_criterion = {
+            name: {
+                **self._summarize_series(values),
+                "low_discrimination": len({round(item, 4) for item in values}) <= 1
+                if values
+                else False,
+            }
+            for name, values in criterion_scores.items()
+        }
+        return {
+            "overall": overall,
+            "per_criterion": per_criterion,
+            "runs": overall_scores,
+            "low_confidence": float(overall.get("stddev", 0.0) or 0.0) > variance_limit,
+        }
+
+    @staticmethod
+    def _summarize_series(values: list[float]) -> dict[str, Any]:
+        if not values:
+            return {"min": 0.0, "max": 0.0, "mean": 0.0, "stddev": 0.0, "histogram": {}}
+        histogram: dict[str, int] = {}
+        for value in values:
+            bucket = str(round(value))
+            histogram[bucket] = histogram.get(bucket, 0) + 1
+        stddev = statistics.pstdev(values) if len(values) > 1 else 0.0
+        return {
+            "min": min(values),
+            "max": max(values),
+            "mean": statistics.mean(values),
+            "stddev": stddev,
+            "histogram": histogram,
+        }
+
+    async def _commit(self) -> None:
+        await self.repository.session.commit()
 
 
 class EvalSuiteService:
@@ -236,6 +670,7 @@ class EvalRunnerService:
         runtime_controller: Any | None = None,
         execution_query: Any | None = None,
         drift_service: Any | None = None,
+        rubric_service: RubricService | None = None,
     ) -> None:
         self.repository = repository
         self.settings = settings
@@ -244,6 +679,7 @@ class EvalRunnerService:
         self.runtime_controller = runtime_controller
         self.execution_query = execution_query
         self.drift_service = drift_service
+        self.rubric_service = rubric_service
 
     @traced_async("evaluation.eval_runner.start_run")
     async def start_run(
@@ -498,7 +934,14 @@ class EvalRunnerService:
                 scorer_kwargs["execution_id"] = input_data["execution_id"]
             try:
                 scorer = self.scorer_registry.get(scorer_name)
-                result = await scorer.score(actual_output, expected_output, scorer_kwargs)
+                if scorer_name == "trajectory" and scorer_kwargs.get("cooperation_mode"):
+                    cooperation_scorer = cast(Any, scorer)
+                    result = await cooperation_scorer.score_cooperation(
+                        scorer_kwargs.get("agent_execution_ids", []),
+                        scorer_kwargs,
+                    )
+                else:
+                    result = await scorer.score(actual_output, expected_output, scorer_kwargs)
             except Exception as exc:
                 result = ScoreResult(
                     score=None,
@@ -514,9 +957,7 @@ class EvalRunnerService:
                 normalized_scores.append(self._normalize_score(scorer_name, result))
         overall_score = statistics.mean(normalized_scores) if normalized_scores else None
         verdict_status = (
-            VerdictStatus.error
-            if errors and overall_score is None
-            else VerdictStatus.scored
+            VerdictStatus.error if errors and overall_score is None else VerdictStatus.scored
         )
         passed = overall_score >= pass_threshold if overall_score is not None else None
         error_detail = "; ".join(errors) if errors else None
@@ -620,8 +1061,70 @@ class EvalRunnerService:
             return max(0.0, min(1.0, float(result.score) / max(max_scale, 1.0)))
         return max(0.0, min(1.0, float(result.score)))
 
+    @traced_async("evaluation.eval_runner.judge_adhoc")
+    async def judge_adhoc(self, payload: AdHocJudgeRequest, actor_id: UUID) -> AdHocJudgeResponse:
+        started = time.perf_counter()
+        scorer = self.scorer_registry.get("llm_judge")
+        config: dict[str, Any] = {
+            "judge_model": payload.judge_model or self.settings.evaluation.llm_judge_model,
+            "calibration_runs": 1,
+            "principal_id": str(actor_id),
+        }
+        rubric_id: UUID | None = payload.rubric_id
+        rubric_version: int | None = None
+        if payload.rubric_id is not None:
+            config["rubric_id"] = str(payload.rubric_id)
+            if self.rubric_service is not None:
+                rubric = await self.rubric_service.get_rubric_model(payload.rubric_id, None)
+                if rubric.status is RubricStatus.archived:
+                    raise RubricArchivedError()
+                rubric_version = rubric.version
+                rubric_id = rubric.id
+        elif payload.rubric is not None:
+            config["rubric"] = {
+                "custom_criteria": [
+                    item.model_dump(mode="json") for item in payload.rubric.criteria
+                ]
+            }
+        result = await scorer.score(payload.output, payload.output, config)
+        if result.error in {"judge_failure_transient", "judge_failure_permanent"}:
+            raise JudgeUnavailableError()
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        await publish_evaluation_event(
+            self.producer,
+            EvaluationEventType.judge_adhoc,
+            AdHocJudgePayload(
+                rubric_id=rubric_id,
+                judge_model=str(config["judge_model"]),
+                principal_id=actor_id,
+                duration_ms=duration_ms,
+            ),
+            CorrelationContext(correlation_id=uuid4()),
+        )
+        return AdHocJudgeResponse(
+            rubric_id=rubric_id,
+            rubric_version=rubric_version or result.extra.get("rubric_version"),
+            judge_model=str(config["judge_model"]),
+            per_criterion_scores={
+                name: {
+                    "score": score,
+                    "rationale": None,
+                    "out_of_range": name in result.extra.get("out_of_range_clamped", {}),
+                }
+                for name, score in dict(result.extra.get("criteria_scores", {})).items()
+            },
+            overall_score=result.score,
+            rationale=result.rationale,
+            principal_id=actor_id,
+            timestamp=datetime.now(UTC),
+            duration_ms=duration_ms,
+        )
+
+    def list_scorer_types(self) -> list[str]:
+        return self.scorer_registry.registered_types()
+
     @staticmethod
-    def _correlation(workspace_id: UUID) -> CorrelationContext:
+    def _correlation(workspace_id: UUID | None) -> CorrelationContext:
         return CorrelationContext(correlation_id=uuid4(), workspace_id=workspace_id)
 
     @traced_async("evaluation.eval_runner.commit")
