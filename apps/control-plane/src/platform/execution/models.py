@@ -5,7 +5,7 @@ from enum import StrEnum
 from platform.common.models.base import Base
 from platform.common.models.mixins import TimestampMixin, UUIDMixin, WorkspaceScopedMixin
 from platform.workflows.models import TriggerType
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, func
@@ -138,6 +138,12 @@ class Execution(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     sla_deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_by: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+    contract_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("agent_contracts.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    contract_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     events: Mapped[list[ExecutionEvent]] = relationship(
         "platform.execution.models.ExecutionEvent",
@@ -150,6 +156,15 @@ class Execution(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
         back_populates="execution",
         cascade="all, delete-orphan",
     )
+
+
+cast(Any, Execution.__table__).append_constraint(
+    Index(
+        "ix_executions_contract_id",
+        Execution.__table__.c.contract_id,
+        postgresql_where=Execution.__table__.c.contract_id.is_not(None),
+    )
+)
 
 
 class ExecutionEvent(Base, UUIDMixin):

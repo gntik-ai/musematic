@@ -132,12 +132,14 @@ from platform.simulation.events import register_simulation_event_types
 from platform.simulation.router import router as simulation_router
 from platform.testing.dependencies import build_drift_service
 from platform.testing.events import register_testing_event_types
+from platform.trust.contract_monitor import ContractMonitorConsumer
 from platform.trust.dependencies import (
     build_ate_service,
     build_certification_service,
     build_circuit_breaker_service,
     build_prescreener_service,
     build_recertification_service,
+    build_surveillance_service,
     build_trust_tier_service,
 )
 from platform.trust.events import register_trust_event_types
@@ -785,7 +787,18 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
                 resolved.connectors.delivery_consumer_group,
                 _build_connector_delivery_handler(app),
             )
+        if resolved.profile == "trust-certifier":
+            build_surveillance_service(
+                session=database.AsyncSessionLocal(),
+                settings=resolved,
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            ).register(consumer_manager)
         if resolved.profile == "worker":
+            ContractMonitorConsumer(
+                settings=resolved,
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                session_factory=database.AsyncSessionLocal,
+            ).register(consumer_manager)
             register_execution_consumers(
                 consumer_manager,
                 group_id=f"{resolved.kafka.consumer_group}-workflow-execution",
@@ -2364,7 +2377,47 @@ def _build_trust_certifier_scheduler(app: FastAPI) -> Any | None:
                 await session.rollback()
                 LOGGER.exception("Trust ATE timeout scan failed")
 
+    async def _run_surveillance_cycle() -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = build_surveillance_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            try:
+                await service.run_surveillance_cycle()
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Trust surveillance cycle failed")
+
+    async def _run_grace_period_check() -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = build_surveillance_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            try:
+                await service.check_grace_period_expiry()
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Trust grace period expiry scan failed")
+
     scheduler.add_job(_run_expire_stale, "interval", hours=1, id="trust-expire-stale")
+    scheduler.add_job(
+        _run_surveillance_cycle,
+        "interval",
+        hours=1,
+        id="trust-surveillance-cycle",
+    )
+    scheduler.add_job(
+        _run_grace_period_check,
+        "interval",
+        hours=1,
+        id="trust-grace-period-check",
+    )
     scheduler.add_job(
         _run_expiry_approaching_scan,
         cron_trigger(hour=0, minute=5, timezone="UTC"),

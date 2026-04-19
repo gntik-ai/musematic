@@ -6,10 +6,32 @@ from platform.common.dependencies import get_current_user
 from platform.common.exceptions import AuthorizationError, ValidationError
 from platform.trust.ate_service import ATEService
 from platform.trust.circuit_breaker import CircuitBreakerService
+from platform.trust.contract_schemas import (
+    AgentContractCreate,
+    AgentContractListResponse,
+    AgentContractResponse,
+    AgentContractUpdate,
+    CertifierCreate,
+    CertifierListResponse,
+    CertifierResponse,
+    ComplianceRateQuery,
+    ComplianceRateResponse,
+    ContractAttachmentRequest,
+    ContractBreachEventListResponse,
+    DismissSuspensionRequest,
+    IssueWithCertifierRequest,
+    ReassessmentCreate,
+    ReassessmentListResponse,
+    ReassessmentResponse,
+    TrustRecertificationRequestListResponse,
+    TrustRecertificationRequestResponse,
+)
+from platform.trust.contract_service import ContractService
 from platform.trust.dependencies import (
     get_ate_service,
     get_certification_service,
     get_circuit_breaker_service,
+    get_contract_service,
     get_guardrail_pipeline_service,
     get_oje_service,
     get_prescreener_service,
@@ -90,6 +112,16 @@ def _require_service_account(current_user: dict[str, Any]) -> None:
     raise AuthorizationError("PERMISSION_DENIED", "Service account required")
 
 
+def _workspace_id(current_user: dict[str, Any]) -> UUID:
+    raw = current_user.get("workspace_id")
+    if raw in {None, ""}:
+        raise ValidationError("WORKSPACE_REQUIRED", "Authenticated workspace_id is required")
+    try:
+        return UUID(str(raw))
+    except ValueError as exc:
+        raise ValidationError("WORKSPACE_INVALID", "Authenticated workspace_id is invalid") from exc
+
+
 @router.post(
     "/certifications", response_model=CertificationResponse, status_code=status.HTTP_201_CREATED
 )
@@ -100,6 +132,216 @@ async def create_certification(
 ) -> CertificationResponse:
     _require_roles(current_user, {"platform_admin", "trust_certifier", "superadmin"})
     return await certification_service.create(payload, str(current_user["sub"]))
+
+
+@router.post(
+    "/contracts",
+    response_model=AgentContractResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_contract(
+    payload: AgentContractCreate,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    contract_service: ContractService = Depends(get_contract_service),
+) -> AgentContractResponse:
+    _require_roles(current_user, {"agent_owner", "platform_admin", "superadmin"})
+    return await contract_service.create_contract(
+        payload,
+        _workspace_id(current_user),
+        current_user.get("sub"),
+    )
+
+
+@router.get("/contracts", response_model=AgentContractListResponse)
+async def list_contracts(
+    agent_id: str | None = Query(default=None),
+    include_archived: bool = Query(default=False),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    contract_service: ContractService = Depends(get_contract_service),
+) -> AgentContractListResponse:
+    _require_roles(
+        current_user,
+        {
+            "workspace_member",
+            "workspace_admin",
+            "agent_owner",
+            "platform_admin",
+            "compliance_officer",
+            "superadmin",
+        },
+    )
+    return await contract_service.list_contracts(
+        _workspace_id(current_user),
+        agent_id=agent_id,
+        include_archived=include_archived,
+    )
+
+
+@router.get("/contracts/{contract_id}", response_model=AgentContractResponse)
+async def get_contract(
+    contract_id: UUID,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    contract_service: ContractService = Depends(get_contract_service),
+) -> AgentContractResponse:
+    return await contract_service.get_contract(
+        contract_id,
+        workspace_id=_workspace_id(current_user),
+    )
+
+
+@router.put("/contracts/{contract_id}", response_model=AgentContractResponse)
+async def update_contract(
+    contract_id: UUID,
+    payload: AgentContractUpdate,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    contract_service: ContractService = Depends(get_contract_service),
+) -> AgentContractResponse:
+    _require_roles(current_user, {"agent_owner", "platform_admin", "superadmin"})
+    return await contract_service.update_contract(
+        contract_id,
+        payload,
+        current_user.get("sub"),
+        workspace_id=_workspace_id(current_user),
+    )
+
+
+@router.delete("/contracts/{contract_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def archive_contract(
+    contract_id: UUID,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    contract_service: ContractService = Depends(get_contract_service),
+) -> Response:
+    _require_roles(current_user, {"agent_owner", "platform_admin", "superadmin"})
+    await contract_service.archive_contract(
+        contract_id,
+        current_user.get("sub"),
+        workspace_id=_workspace_id(current_user),
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/contracts/{contract_id}/attach-interaction", status_code=status.HTTP_204_NO_CONTENT)
+async def attach_contract_to_interaction(
+    contract_id: UUID,
+    payload: ContractAttachmentRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    contract_service: ContractService = Depends(get_contract_service),
+) -> Response:
+    _require_roles(current_user, {"agent_owner", "platform_admin", "superadmin"})
+    if payload.interaction_id is None:
+        raise ValidationError("INTERACTION_REQUIRED", "interaction_id is required")
+    await contract_service.attach_to_interaction(
+        payload.interaction_id,
+        contract_id,
+        workspace_id=_workspace_id(current_user),
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/contracts/{contract_id}/attach-execution", status_code=status.HTTP_204_NO_CONTENT)
+async def attach_contract_to_execution(
+    contract_id: UUID,
+    payload: ContractAttachmentRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    contract_service: ContractService = Depends(get_contract_service),
+) -> Response:
+    _require_roles(current_user, {"agent_owner", "platform_admin", "superadmin"})
+    if payload.execution_id is None:
+        raise ValidationError("EXECUTION_REQUIRED", "execution_id is required")
+    await contract_service.attach_to_execution(
+        payload.execution_id,
+        contract_id,
+        workspace_id=_workspace_id(current_user),
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/contracts/{contract_id}/breaches", response_model=ContractBreachEventListResponse)
+async def list_contract_breaches(
+    contract_id: UUID,
+    target_type: str | None = Query(default=None),
+    start: datetime | None = Query(default=None),
+    end: datetime | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=200),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    contract_service: ContractService = Depends(get_contract_service),
+) -> ContractBreachEventListResponse:
+    _require_roles(
+        current_user,
+        {"agent_owner", "platform_admin", "compliance_officer", "superadmin"},
+    )
+    return await contract_service.list_breach_events(
+        contract_id,
+        workspace_id=_workspace_id(current_user),
+        target_type=target_type,
+        start=start,
+        end=end,
+        offset=(page - 1) * page_size,
+        limit=page_size,
+    )
+
+
+@router.get("/compliance/rates", response_model=ComplianceRateResponse)
+async def get_compliance_rates(
+    scope: str = Query(),
+    scope_id: str = Query(),
+    start: datetime = Query(),
+    end: datetime = Query(),
+    bucket: str = Query(default="daily"),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    contract_service: ContractService = Depends(get_contract_service),
+) -> ComplianceRateResponse:
+    _require_roles(current_user, {"compliance_officer", "platform_admin", "superadmin"})
+    query = ComplianceRateQuery(
+        scope=scope,
+        scope_id=scope_id,
+        start=start,
+        end=end,
+        bucket=bucket,
+    )
+    return await contract_service.get_compliance_rates(query, _workspace_id(current_user))
+
+
+@router.post("/certifiers", response_model=CertifierResponse, status_code=status.HTTP_201_CREATED)
+async def create_certifier(
+    payload: CertifierCreate,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    certification_service: CertificationService = Depends(get_certification_service),
+) -> CertifierResponse:
+    _require_roles(current_user, {"platform_admin", "compliance_officer", "superadmin"})
+    return await certification_service.create_certifier(payload, str(current_user["sub"]))
+
+
+@router.get("/certifiers", response_model=CertifierListResponse)
+async def list_certifiers(
+    include_inactive: bool = Query(default=False),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    certification_service: CertificationService = Depends(get_certification_service),
+) -> CertifierListResponse:
+    del current_user
+    return await certification_service.list_certifiers(include_inactive=include_inactive)
+
+
+@router.get("/certifiers/{certifier_id}", response_model=CertifierResponse)
+async def get_certifier(
+    certifier_id: UUID,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    certification_service: CertificationService = Depends(get_certification_service),
+) -> CertifierResponse:
+    del current_user
+    return await certification_service.get_certifier(certifier_id)
+
+
+@router.delete("/certifiers/{certifier_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def deactivate_certifier(
+    certifier_id: UUID,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    certification_service: CertificationService = Depends(get_certification_service),
+) -> Response:
+    _require_roles(current_user, {"platform_admin", "superadmin"})
+    await certification_service.deactivate_certifier(certifier_id, str(current_user["sub"]))
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/certifications/{certification_id}", response_model=CertificationResponse)
@@ -155,6 +397,105 @@ async def add_certification_evidence(
 ) -> EvidenceRefResponse:
     _require_roles(current_user, {"trust_certifier", "platform_admin", "superadmin"})
     return await certification_service.add_evidence(certification_id, payload)
+
+
+@router.post(
+    "/certifications/{certification_id}/issue-with-certifier",
+    response_model=CertificationResponse,
+)
+async def issue_with_certifier(
+    certification_id: UUID,
+    payload: IssueWithCertifierRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    certification_service: CertificationService = Depends(get_certification_service),
+) -> CertificationResponse:
+    _require_roles(current_user, {"platform_admin", "compliance_officer", "superadmin"})
+    return await certification_service.issue_with_certifier(
+        certification_id,
+        payload.certifier_id,
+        payload.scope,
+        str(current_user["sub"]),
+    )
+
+
+@router.get(
+    "/certifications/{certification_id}/reassessments",
+    response_model=ReassessmentListResponse,
+)
+async def list_reassessments(
+    certification_id: UUID,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    certification_service: CertificationService = Depends(get_certification_service),
+) -> ReassessmentListResponse:
+    del current_user
+    return await certification_service.list_reassessments(certification_id)
+
+
+@router.post(
+    "/certifications/{certification_id}/reassessments",
+    response_model=ReassessmentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_reassessment(
+    certification_id: UUID,
+    payload: ReassessmentCreate,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    certification_service: CertificationService = Depends(get_certification_service),
+) -> ReassessmentResponse:
+    _require_roles(current_user, {"platform_admin", "compliance_officer", "superadmin"})
+    return await certification_service.record_reassessment(
+        certification_id,
+        payload,
+        str(current_user["sub"]),
+    )
+
+
+@router.post(
+    "/certifications/{certification_id}/dismiss-suspension",
+    response_model=CertificationResponse,
+)
+async def dismiss_suspension(
+    certification_id: UUID,
+    payload: DismissSuspensionRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    certification_service: CertificationService = Depends(get_certification_service),
+) -> CertificationResponse:
+    _require_roles(current_user, {"platform_admin", "superadmin"})
+    return await certification_service.dismiss_suspension(
+        certification_id,
+        payload.justification,
+        str(current_user["sub"]),
+    )
+
+
+@router.get(
+    "/recertification-requests",
+    response_model=TrustRecertificationRequestListResponse,
+)
+async def list_recertification_requests_v2(
+    certification_id: UUID | None = Query(default=None),
+    status: str | None = Query(default=None),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    certification_service: CertificationService = Depends(get_certification_service),
+) -> TrustRecertificationRequestListResponse:
+    _require_roles(current_user, {"platform_admin", "compliance_officer", "superadmin"})
+    return await certification_service.list_recertification_requests(
+        certification_id=certification_id,
+        status=status,
+    )
+
+
+@router.get(
+    "/recertification-requests/{request_id}",
+    response_model=TrustRecertificationRequestResponse,
+)
+async def get_recertification_request_v2(
+    request_id: UUID,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    certification_service: CertificationService = Depends(get_certification_service),
+) -> TrustRecertificationRequestResponse:
+    _require_roles(current_user, {"platform_admin", "compliance_officer", "superadmin"})
+    return await certification_service.get_recertification_request(request_id)
 
 
 @router.get("/agents/{agent_id}/tier", response_model=TrustTierResponse)

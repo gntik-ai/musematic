@@ -16,12 +16,17 @@ class TrustEventType(StrEnum):
     certification_activated = "certification.activated"
     certification_revoked = "certification.revoked"
     certification_expired = "certification.expired"
+    certification_updated = "trust.certification.updated"
+    certification_expiring = "trust.certification.expiring"
+    certification_suspended = "trust.certification.suspended"
     certification_superseded = "certification.superseded"
     trust_tier_updated = "trust_tier.updated"
     guardrail_blocked = "guardrail.blocked"
     circuit_breaker_activated = "circuit_breaker.activated"
     recertification_triggered = "recertification.triggered"
     prescreener_rule_set_activated = "prescreener.rule_set.activated"
+    contract_breach = "trust.contract.breach"
+    contract_enforcement = "trust.contract.enforcement"
 
 
 class CertificationEventPayload(BaseModel):
@@ -82,17 +87,44 @@ class PreScreenerRuleSetActivatedPayload(BaseModel):
     occurred_at: datetime
 
 
+class ContractBreachPayload(BaseModel):
+    breach_event_id: UUID
+    contract_id: UUID | None = None
+    agent_id: str | None = None
+    target_type: str
+    target_id: UUID
+    breached_term: str
+    enforcement_action: str
+    enforcement_outcome: str
+    occurred_at: datetime
+
+
+class ContractEnforcementPayload(BaseModel):
+    contract_id: UUID | None = None
+    breach_event_id: UUID | None = None
+    action: str
+    outcome: str
+    target_type: str
+    target_id: UUID
+    occurred_at: datetime
+
+
 TRUST_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     TrustEventType.certification_created.value: CertificationEventPayload,
     TrustEventType.certification_activated.value: CertificationEventPayload,
     TrustEventType.certification_revoked.value: CertificationEventPayload,
     TrustEventType.certification_expired.value: CertificationEventPayload,
+    TrustEventType.certification_updated.value: CertificationEventPayload,
+    TrustEventType.certification_expiring.value: CertificationEventPayload,
+    TrustEventType.certification_suspended.value: CertificationEventPayload,
     TrustEventType.certification_superseded.value: CertificationSupersededPayload,
     TrustEventType.trust_tier_updated.value: TrustTierUpdatedPayload,
     TrustEventType.guardrail_blocked.value: GuardrailBlockedPayload,
     TrustEventType.circuit_breaker_activated.value: CircuitBreakerActivatedPayload,
     TrustEventType.recertification_triggered.value: RecertificationTriggeredPayload,
     TrustEventType.prescreener_rule_set_activated.value: PreScreenerRuleSetActivatedPayload,
+    TrustEventType.contract_breach.value: ContractBreachPayload,
+    TrustEventType.contract_enforcement.value: ContractEnforcementPayload,
 }
 
 
@@ -148,6 +180,42 @@ class TrustEventPublisher:
     ) -> None:
         await self._publish(
             TrustEventType.certification_expired,
+            payload,
+            key=payload.agent_id,
+            correlation_ctx=correlation_ctx,
+        )
+
+    async def publish_certification_updated(
+        self,
+        payload: CertificationEventPayload,
+        correlation_ctx: CorrelationContext | None = None,
+    ) -> None:
+        await self._publish(
+            TrustEventType.certification_updated,
+            payload,
+            key=payload.agent_id,
+            correlation_ctx=correlation_ctx,
+        )
+
+    async def publish_certification_expiring(
+        self,
+        payload: CertificationEventPayload,
+        correlation_ctx: CorrelationContext | None = None,
+    ) -> None:
+        await self._publish(
+            TrustEventType.certification_expiring,
+            payload,
+            key=payload.agent_id,
+            correlation_ctx=correlation_ctx,
+        )
+
+    async def publish_certification_suspended(
+        self,
+        payload: CertificationEventPayload,
+        correlation_ctx: CorrelationContext | None = None,
+    ) -> None:
+        await self._publish(
+            TrustEventType.certification_suspended,
             payload,
             key=payload.agent_id,
             correlation_ctx=correlation_ctx,
@@ -222,6 +290,30 @@ class TrustEventPublisher:
             TrustEventType.prescreener_rule_set_activated,
             payload,
             key=str(payload.version),
+            correlation_ctx=correlation_ctx,
+        )
+
+    async def publish_contract_breach(
+        self,
+        payload: ContractBreachPayload,
+        correlation_ctx: CorrelationContext | None = None,
+    ) -> None:
+        await self._publish(
+            TrustEventType.contract_breach,
+            payload,
+            key=str(payload.contract_id or payload.target_id),
+            correlation_ctx=correlation_ctx,
+        )
+
+    async def publish_contract_enforcement(
+        self,
+        payload: ContractEnforcementPayload,
+        correlation_ctx: CorrelationContext | None = None,
+    ) -> None:
+        await self._publish(
+            TrustEventType.contract_enforcement,
+            payload,
+            key=str(payload.contract_id or payload.target_id),
             correlation_ctx=correlation_ctx,
         )
 

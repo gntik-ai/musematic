@@ -316,6 +316,8 @@ class TrustSettings(BaseSettings):
     evidence_bucket: str = "trust-evidence"
     output_moderation_url: str = ""
     recertification_expiry_threshold_days: int = 30
+    surveillance_warning_window_days: int = 7
+    recertification_grace_period_days: int = 14
     attention_target_identity: str = "platform_admin"
     default_workspace_id: str = "00000000-0000-0000-0000-000000000000"
 
@@ -665,6 +667,14 @@ class PlatformSettings(BaseSettings):
             "TRUST_RECERTIFICATION_EXPIRY_THRESHOLD_DAYS": (
                 "trust",
                 "recertification_expiry_threshold_days",
+            ),
+            "TRUST_SURVEILLANCE_WARNING_WINDOW_DAYS": (
+                "trust",
+                "surveillance_warning_window_days",
+            ),
+            "TRUST_RECERTIFICATION_GRACE_PERIOD_DAYS": (
+                "trust",
+                "recertification_grace_period_days",
             ),
             "TRUST_ATTENTION_TARGET_IDENTITY": ("trust", "attention_target_identity"),
             "TRUST_DEFAULT_WORKSPACE_ID": ("trust", "default_workspace_id"),
@@ -1293,6 +1303,14 @@ class PlatformSettings(BaseSettings):
     @property
     def TRUST_RECERTIFICATION_EXPIRY_THRESHOLD_DAYS(self) -> int:
         return self.trust.recertification_expiry_threshold_days
+
+    @property
+    def TRUST_SURVEILLANCE_WARNING_WINDOW_DAYS(self) -> int:
+        return self.trust.surveillance_warning_window_days
+
+    @property
+    def TRUST_RECERTIFICATION_GRACE_PERIOD_DAYS(self) -> int:
+        return self.trust.recertification_grace_period_days
 
     @property
     def TRUST_ATTENTION_TARGET_IDENTITY(self) -> str:
