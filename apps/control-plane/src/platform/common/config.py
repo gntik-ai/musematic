@@ -382,6 +382,11 @@ class PlatformSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="PLATFORM_", extra="ignore")
 
     FEATURE_GOAL_AUTO_COMPLETE: bool = False
+    A2A_PROTOCOL_VERSION: str = "1.0"
+    A2A_MAX_PAYLOAD_BYTES: int = 10_485_760
+    A2A_TASK_IDLE_TIMEOUT_MINUTES: int = 30
+    A2A_DEFAULT_CARD_TTL_SECONDS: int = 3600
+    A2A_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE: int = 60
 
     db: DatabaseSettings = Field(default_factory=DatabaseSettings)
     redis: RedisSettings = Field(default_factory=RedisSettings)
@@ -503,6 +508,13 @@ class PlatformSettings(BaseSettings):
             "WORKSPACES_DEFAULT_NAME_TEMPLATE": ("workspaces", "default_name_template"),
             "WORKSPACES_DEFAULT_LIMIT": ("workspaces", "default_limit"),
             "FEATURE_GOAL_AUTO_COMPLETE": ("FEATURE_GOAL_AUTO_COMPLETE",),
+            "A2A_PROTOCOL_VERSION": ("A2A_PROTOCOL_VERSION",),
+            "A2A_MAX_PAYLOAD_BYTES": ("A2A_MAX_PAYLOAD_BYTES",),
+            "A2A_TASK_IDLE_TIMEOUT_MINUTES": ("A2A_TASK_IDLE_TIMEOUT_MINUTES",),
+            "A2A_DEFAULT_CARD_TTL_SECONDS": ("A2A_DEFAULT_CARD_TTL_SECONDS",),
+            "A2A_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE": (
+                "A2A_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE",
+            ),
             "CHECKPOINT_RETENTION_DAYS": ("checkpoint_retention_days",),
             "CHECKPOINT_MAX_SIZE_BYTES": ("checkpoint_max_size_bytes",),
             "ANALYTICS_BUDGET_THRESHOLD_USD": ("analytics", "budget_threshold_usd"),
@@ -797,8 +809,11 @@ class PlatformSettings(BaseSettings):
         for key, target in mappings.items():
             if key not in values:
                 continue
-            section, field = target
             value = values.pop(key)
+            if len(target) == 1:
+                values[target[0]] = value
+                continue
+            section, field = target
             if section == "profile":
                 values["profile"] = value
                 continue

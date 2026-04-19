@@ -3,16 +3,19 @@ from __future__ import annotations
 import platform.main as main_module
 from platform.common.config import PlatformSettings
 from platform.main import (
+    _build_a2a_idle_timeout_scheduler,
     _build_clients,
     _build_goal_auto_completion_scheduler,
     _build_governance_retention_gc_scheduler,
     _build_ibor_sync_scheduler,
     _lifespan,
     _refresh_ibor_sync_scheduler,
+    _run_a2a_idle_timeout_scan,
     _run_governance_retention_gc,
     create_app,
 )
 from types import SimpleNamespace
+from uuid import uuid4
 
 import httpx
 import pytest
@@ -273,3 +276,88 @@ async def test_run_governance_retention_gc_deletes_and_commits(monkeypatch) -> N
     assert calls == [PlatformSettings().governance.retention_days]
     assert session_stub.committed is True
     assert session_stub.rolled_back is False
+
+
+def test_build_a2a_idle_timeout_scheduler_registers_job() -> None:
+    app = SimpleNamespace(
+        state=SimpleNamespace(settings=PlatformSettings(), clients={"kafka": None})
+    )
+    scheduler = _build_a2a_idle_timeout_scheduler(app)
+
+    if scheduler is None:
+        pytest.skip("apscheduler is not installed in this environment")
+
+    job_ids = {job.id for job in scheduler.get_jobs()}
+    assert "a2a-idle-timeout-scan" in job_ids
+
+
+@pytest.mark.asyncio
+async def test_run_a2a_idle_timeout_scan_cancels_tasks_and_commits(monkeypatch) -> None:
+    task = SimpleNamespace(
+        id="db-task",
+        task_id="a2a-task-1",
+        direction=SimpleNamespace(value="inbound"),
+        principal_id=uuid4(),
+        agent_fqn="finance:verifier",
+        workspace_id=uuid4(),
+        conversation_id=uuid4(),
+        interaction_id=uuid4(),
+        a2a_state=SimpleNamespace(value="cancelled"),
+    )
+    audit = SimpleNamespace(id="audit-1")
+    updates: list[dict[str, object]] = []
+    published: list[dict[str, object]] = []
+
+    class RepoStub:
+        def __init__(self, session) -> None:
+            self.session = session
+
+        async def list_tasks_idle_expired(self):
+            return [task]
+
+        async def update_task_state(self, model, **kwargs):
+            updates.append(kwargs)
+            for key, value in kwargs.items():
+                setattr(model, key, value)
+            return model
+
+        async def create_audit_record(self, record):
+            return audit
+
+    class PublisherStub:
+        def __init__(self, producer) -> None:
+            del producer
+
+        async def publish(self, **kwargs):
+            published.append(kwargs)
+
+    class SessionStub:
+        committed = False
+        rolled_back = False
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        async def commit(self) -> None:
+            self.committed = True
+
+        async def rollback(self) -> None:
+            self.rolled_back = True
+
+    session = SessionStub()
+    app = SimpleNamespace(state=SimpleNamespace(clients={"kafka": None}))
+    monkeypatch.setattr(main_module.database, "AsyncSessionLocal", lambda: session)
+    monkeypatch.setattr(main_module, "A2AGatewayRepository", RepoStub)
+    monkeypatch.setattr(main_module, "A2AEventPublisher", PublisherStub)
+
+    await _run_a2a_idle_timeout_scan(app)
+
+    assert len(updates) == 2
+    assert updates[0]["error_code"] == "idle_timeout"
+    assert updates[1]["last_event_id"] == "audit-1"
+    assert published[0]["event_type"].value == "a2a.task.cancelled"
+    assert session.committed is True
+    assert session.rolled_back is False

@@ -6,6 +6,15 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from fnmatch import fnmatch
+from platform.a2a_gateway.events import (
+    A2AEventPayload,
+    A2AEventPublisher,
+    A2AEventType,
+    register_a2a_event_types,
+)
+from platform.a2a_gateway.models import A2AAuditRecord, A2ATaskState
+from platform.a2a_gateway.repository import A2AGatewayRepository
+from platform.a2a_gateway.router import router as a2a_gateway_router
 from platform.accounts.events import register_accounts_event_types
 from platform.accounts.repository import AccountsRepository
 from platform.accounts.router import router as accounts_router
@@ -46,6 +55,7 @@ from platform.common.config import settings as default_settings
 from platform.common.correlation import CorrelationMiddleware
 from platform.common.dependencies import get_current_user
 from platform.common.events.consumer import EventConsumerManager
+from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import PlatformError, platform_exception_handler
 from platform.common.telemetry import setup_telemetry
@@ -158,7 +168,7 @@ from platform.workspaces.dependencies import build_workspaces_service
 from platform.workspaces.events import register_workspaces_event_types
 from platform.workspaces.router import router as workspaces_router
 from typing import Any, cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.responses import Response
@@ -212,6 +222,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_discovery_event_types()
     register_simulation_event_types()
     register_governance_event_types()
+    register_a2a_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -358,6 +369,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         None,
     )
     checkpoint_gc_scheduler = getattr(app.state, "checkpoint_gc_scheduler", None)
+    a2a_idle_timeout_scheduler = getattr(app.state, "a2a_idle_timeout_scheduler", None)
     ibor_sync_scheduler = getattr(app.state, "ibor_sync_scheduler", None)
     connectors_worker_scheduler = getattr(app.state, "connectors_worker_scheduler", None)
     workflow_execution_scheduler = getattr(app.state, "workflow_execution_scheduler", None)
@@ -425,6 +437,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["checkpoint_gc_scheduler"] = str(exc)
             LOGGER.warning("Failed to start checkpoint GC scheduler: %s", exc)
+    if a2a_idle_timeout_scheduler is not None:
+        try:
+            a2a_idle_timeout_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["a2a_idle_timeout_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start A2A idle-timeout scheduler: %s", exc)
     if connectors_worker_scheduler is not None:
         try:
             connectors_worker_scheduler.start()
@@ -515,6 +534,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                 checkpoint_gc_scheduler.shutdown(wait=False)
             except Exception as exc:
                 LOGGER.warning("Failed to stop checkpoint GC scheduler cleanly: %s", exc)
+        if a2a_idle_timeout_scheduler is not None:
+            try:
+                a2a_idle_timeout_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop A2A idle-timeout scheduler cleanly: %s", exc)
         if ibor_sync_scheduler is not None:
             try:
                 ibor_sync_scheduler.shutdown(wait=False)
@@ -684,6 +708,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.trust_certifier_scheduler = None
     app.state.governance_retention_gc_scheduler = None
     app.state.checkpoint_gc_scheduler = None
+    app.state.a2a_idle_timeout_scheduler = None
     if resolved.profile == "api":
         app.state.ibor_sync_scheduler = _build_ibor_sync_scheduler(app)
         app.state.refresh_ibor_sync_scheduler = lambda: _refresh_ibor_sync_scheduler(app)
@@ -716,6 +741,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.goal_auto_completion_scheduler = _build_goal_auto_completion_scheduler(app)
         app.state.governance_retention_gc_scheduler = _build_governance_retention_gc_scheduler(app)
         app.state.checkpoint_gc_scheduler = _build_checkpoint_gc_scheduler(app)
+        app.state.a2a_idle_timeout_scheduler = _build_a2a_idle_timeout_scheduler(app)
     if resolved.profile == "agentops":
         app.state.agentops_lifecycle_scheduler = _build_agentops_lifecycle_scheduler(app)
     if resolved.profile == "agentops-testing":
@@ -733,6 +759,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.goal_auto_completion_scheduler = _build_goal_auto_completion_scheduler(app)
         app.state.governance_retention_gc_scheduler = _build_governance_retention_gc_scheduler(app)
         app.state.checkpoint_gc_scheduler = _build_checkpoint_gc_scheduler(app)
+        app.state.a2a_idle_timeout_scheduler = _build_a2a_idle_timeout_scheduler(app)
     exception_handler = cast(
         Callable[[Request, Exception], Response | Awaitable[Response]],
         platform_exception_handler,
@@ -907,6 +934,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(api_router)
         app.include_router(auth_router)
         app.include_router(oauth_router)
+        app.include_router(a2a_gateway_router)
         app.include_router(accounts_router)
         app.include_router(workspaces_router)
         app.include_router(analytics_router)
@@ -1190,6 +1218,85 @@ def _build_checkpoint_gc_scheduler(app: FastAPI) -> Any | None:
         "interval",
         hours=24,
         id="execution-checkpoint-gc",
+    )
+    return scheduler
+
+
+async def _run_a2a_idle_timeout_scan(app: FastAPI) -> None:
+    async with database.AsyncSessionLocal() as session:
+        repository = A2AGatewayRepository(session)
+        publisher = A2AEventPublisher(cast(EventProducer | None, app.state.clients.get("kafka")))
+        try:
+            tasks = await repository.list_tasks_idle_expired()
+            for task in tasks:
+                await repository.update_task_state(
+                    task,
+                    a2a_state=A2ATaskState.cancelled,
+                    error_code="idle_timeout",
+                    error_message="Task was cancelled after waiting for follow-up input.",
+                    idle_timeout_at=None,
+                )
+                audit = await repository.create_audit_record(
+                    A2AAuditRecord(
+                        task_id=task.id,
+                        direction=task.direction,
+                        principal_id=task.principal_id,
+                        agent_fqn=task.agent_fqn,
+                        action="task_cancelled",
+                        result="success",
+                        workspace_id=task.workspace_id,
+                        error_code="idle_timeout",
+                    )
+                )
+                await repository.update_task_state(task, last_event_id=str(audit.id))
+                await publisher.publish(
+                    event_type=A2AEventType.task_cancelled,
+                    key=task.task_id,
+                    payload=A2AEventPayload(
+                        task_id=task.task_id,
+                        workspace_id=task.workspace_id,
+                        principal_id=task.principal_id,
+                        agent_fqn=task.agent_fqn,
+                        state=task.a2a_state.value,
+                        direction=task.direction.value,
+                        details={
+                            "action": "task_cancelled",
+                            "error_code": "idle_timeout",
+                        },
+                    ),
+                    correlation_ctx=CorrelationContext(
+                        workspace_id=task.workspace_id,
+                        conversation_id=task.conversation_id,
+                        interaction_id=task.interaction_id,
+                        agent_fqn=task.agent_fqn,
+                        correlation_id=uuid4(),
+                    ),
+                )
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+def _build_a2a_idle_timeout_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run() -> None:
+        await _run_a2a_idle_timeout_scan(app)
+
+    scheduler.add_job(
+        _run,
+        "interval",
+        minutes=5,
+        id="a2a-idle-timeout-scan",
     )
     return scheduler
 

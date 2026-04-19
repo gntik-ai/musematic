@@ -59,6 +59,7 @@ importlib.import_module("platform.agentops.models")
 importlib.import_module("platform.composition.models")
 importlib.import_module("platform.discovery.models")
 importlib.import_module("platform.simulation.models")
+importlib.import_module("platform.a2a_gateway.models")
 
 config = context.config
 
