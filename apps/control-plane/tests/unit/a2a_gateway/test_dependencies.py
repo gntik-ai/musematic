@@ -13,9 +13,11 @@ from platform.a2a_gateway.dependencies import (
     get_a2a_client_service,
     get_a2a_server_service,
     get_a2a_stream,
+    get_mcp_server_service,
 )
 from platform.a2a_gateway.events import A2AEventPublisher
 from platform.a2a_gateway.external_registry import ExternalAgentCardRegistry
+from platform.a2a_gateway.mcp_server import MCPServerService
 from platform.a2a_gateway.repository import A2AGatewayRepository
 from platform.a2a_gateway.server_service import A2AServerService
 
@@ -36,6 +38,7 @@ def _request() -> Request:
     app = FastAPI()
     app.state.settings = build_settings()
     app.state.clients = {"kafka": ProducerStub(), "redis": FakeRedisClient()}
+    app.state.mcp_tool_executor = object()
     return Request({"type": "http", "app": app, "headers": []})
 
 
@@ -71,8 +74,15 @@ async def test_dependency_resolvers_construct_services() -> None:
         session=session,
         tool_gateway=tool_gateway,
     )
+    mcp_server = await get_mcp_server_service(
+        request,
+        session=session,
+        tool_gateway=tool_gateway,
+    )
     stream = get_a2a_stream()
 
     assert isinstance(server, A2AServerService)
     assert isinstance(client, A2AGatewayClientService)
+    assert isinstance(mcp_server, MCPServerService)
+    assert mcp_server.tool_executor is request.app.state.mcp_tool_executor
     assert callable(stream.session_factory)

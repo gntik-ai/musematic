@@ -249,6 +249,7 @@ class RegistryService:
                 role_types=[role.value for role in manifest.role_types],
                 custom_role_description=manifest.custom_role_description,
                 tags=manifest.tags,
+                mcp_server_refs=list(manifest.mcp_servers),
                 maturity_level=int(manifest.maturity_level),
                 actor_id=actor_id,
             )
@@ -440,6 +441,8 @@ class RegistryService:
             updates["role_types"] = [role.value for role in patch.role_types]
         if "custom_role_description" in patch.model_fields_set:
             updates["custom_role_description"] = patch.custom_role_description
+        if "mcp_servers" in patch.model_fields_set and patch.mcp_servers is not None:
+            updates["mcp_server_refs"] = patch.mcp_servers
 
         if updates:
             await self.repository.update_agent_profile(profile, **updates)
@@ -691,6 +694,7 @@ class RegistryService:
             visibility_agents=list(profile.visibility_agents),
             visibility_tools=list(profile.visibility_tools),
             tags=list(profile.tags),
+            mcp_servers=list(profile.mcp_server_refs or []),
             status=profile.status,
             maturity_level=int(profile.maturity_level),
             embedding_status=profile.embedding_status,
