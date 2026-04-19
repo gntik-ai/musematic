@@ -95,6 +95,7 @@ def build_context_engineering_service(
         settings=settings,
         event_producer=producer,
         workspaces_service=workspaces_service,
+        registry_service=registry_service,
     )
 
 

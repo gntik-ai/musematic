@@ -16,11 +16,14 @@ import pytest
 
 
 class _ClickHouseStub:
-    def __init__(self, *, quality_rows, cost_rows, failure_rows, tool_rows) -> None:
+    def __init__(
+        self, *, quality_rows, cost_rows, failure_rows, tool_rows, convergence_rows=None
+    ) -> None:
         self.quality_rows = quality_rows
         self.cost_rows = cost_rows
         self.failure_rows = failure_rows
         self.tool_rows = tool_rows
+        self.convergence_rows = convergence_rows or []
 
     async def execute_query(self, sql: str, params: dict[str, object] | None = None):
         del params
@@ -33,6 +36,8 @@ class _ClickHouseStub:
             return self.failure_rows
         if "tool_utilization_rate" in normalized:
             return self.tool_rows
+        if "average_loops" in normalized or "self_correction_loops" in normalized:
+            return self.convergence_rows
         raise AssertionError(f"Unexpected query: {sql}")
 
 
@@ -146,6 +151,36 @@ async def test_analyzer_handles_missing_clickhouse_and_sparse_rows() -> None:
     assert await analyzer.analyze("finance:agent", workspace_id) == []
 
 
+@pytest.mark.asyncio
+async def test_analyzer_detects_convergence_regression_and_resets_degradation_state() -> None:
+    analyzer = BehavioralAnalyzer(
+        clickhouse_client=_ClickHouseStub(
+            quality_rows=[{"day_index": index, "average_quality": 0.9} for index in range(14)],
+            cost_rows=[{"agent_cost_quality_ratio": 1.0, "workspace_cost_quality_ratio": 1.0}],
+            failure_rows=[{"failure_rate": 0.05, "failure_count": 2, "total_count": 40}],
+            tool_rows=[{"tool_utilization_rate": 0.25, "tool_invocations": 25, "tool_slots": 100}],
+        )
+    )
+
+    async def _fetch_convergence(agent_fqn: str, workspace_id):
+        del agent_fqn, workspace_id
+        return [
+            {"average_loops": 2.0},
+            {"average_loops": 2.1},
+            {"average_loops": 5.2},
+            {"average_loops": 5.5},
+        ]
+
+    analyzer._fetch_convergence_regression = _fetch_convergence  # type: ignore[method-assign]
+
+    signals = await analyzer.analyze("finance:agent", uuid4())
+
+    convergence = next(item for item in signals if item.rule_type == "convergence_regression")
+    assert convergence.metrics["baseline_loops"] == pytest.approx(2.05)
+    assert convergence.metrics["recent_loops"] == pytest.approx(5.35)
+    assert analyzer.is_degraded is False
+
+
 def test_analyzer_helper_functions_cover_payload_coercion_and_linear_regression(
     monkeypatch,
 ) -> None:
@@ -158,9 +193,12 @@ def test_analyzer_helper_functions_cover_payload_coercion_and_linear_regression(
 
     assert signal.as_payload()["rule_type"] == "quality_trend"
     assert _quality_slope([{"average_quality": "bad"}, {"average_quality": None}]) is None
-    assert _quality_slope(
-        [{"average_quality": 0.9}, {"average_quality": 0.8}, {"average_quality": 0.7}]
-    ) < 0
+    assert (
+        _quality_slope(
+            [{"average_quality": 0.9}, {"average_quality": 0.8}, {"average_quality": 0.7}]
+        )
+        < 0
+    )
     assert _linear_regression_slope([1.0, 1.0, 1.0]) == 0.0
     assert _coerce_float("1.5") == 1.5
     assert _coerce_float(object()) is None

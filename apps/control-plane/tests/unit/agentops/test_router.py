@@ -31,6 +31,14 @@ async def test_router_direct_handlers_delegate_to_service_methods() -> None:
         list_canaries=AsyncMock(return_value="canaries"),
         get_retirement=AsyncMock(return_value="retirement"),
         get_regression_alert=AsyncMock(return_value="alert"),
+        get_proficiency=AsyncMock(return_value="proficiency"),
+        list_proficiency_history=AsyncMock(return_value="proficiency-history"),
+        query_proficiency_fleet=AsyncMock(return_value="proficiency-fleet"),
+        revoke_adaptation_approval=AsyncMock(return_value="revoked"),
+        apply_adaptation=AsyncMock(return_value="applied"),
+        rollback_adaptation=AsyncMock(return_value="rolled-back"),
+        get_adaptation_outcome=AsyncMock(return_value="outcome"),
+        get_adaptation_lineage=AsyncMock(return_value="lineage"),
     )
 
     assert await router.get_health_config(service, workspace_id=workspace_id) == "health-config"
@@ -57,6 +65,22 @@ async def test_router_direct_handlers_delegate_to_service_methods() -> None:
         )
         == "health-history"
     )
+    assert (
+        await router.get_proficiency_fleet(
+            service, level_at_or_below=None, level=None, workspace_id=workspace_id
+        )
+        == "proficiency-fleet"
+    )
+    assert (
+        await router.get_agent_proficiency("finance:agent", service, workspace_id=workspace_id)
+        == "proficiency"
+    )
+    assert (
+        await router.get_agent_proficiency_history(
+            "finance:agent", service, cursor=None, limit=20, workspace_id=workspace_id
+        )
+        == "proficiency-history"
+    )
     assert await router.get_canary(uuid4(), service) == "canary"
     assert (
         await router.promote_canary(
@@ -77,6 +101,35 @@ async def test_router_direct_handlers_delegate_to_service_methods() -> None:
         )
         == "canaries"
     )
+    assert (
+        await router.revoke_adaptation_approval(
+            uuid4(),
+            router.AdaptationRevokeRequest(reason="hold"),
+            service,
+            current_user={"sub": str(actor_id)},
+        )
+        == "revoked"
+    )
+    assert (
+        await router.apply_adaptation(
+            uuid4(),
+            router.AdaptationApplyRequest(reason="ship"),
+            service,
+            current_user={"sub": str(actor_id)},
+        )
+        == "applied"
+    )
+    assert (
+        await router.rollback_adaptation(
+            uuid4(),
+            router.AdaptationRollbackRequest(reason="undo"),
+            service,
+            current_user={"sub": str(actor_id)},
+        )
+        == "rolled-back"
+    )
+    assert await router.get_adaptation_outcome(uuid4(), service) == "outcome"
+    assert await router.get_adaptation_lineage(uuid4(), service) == "lineage"
     assert await router.get_retirement(uuid4(), service) == "retirement"
     assert await router.get_regression_alert(uuid4(), service) == "alert"
 

@@ -3,7 +3,10 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 from platform.agentops.models import (
+    AdaptationOutcome,
     AdaptationProposal,
+    AdaptationProposalStatus,
+    AdaptationSnapshot,
     AgentHealthConfig,
     AgentHealthScore,
     BehavioralBaseline,
@@ -11,6 +14,7 @@ from platform.agentops.models import (
     CanaryDeployment,
     CiCdGateResult,
     GovernanceEvent,
+    ProficiencyAssessment,
     RegressionAlertStatus,
     RetirementWorkflow,
     RetirementWorkflowStatus,
@@ -417,6 +421,29 @@ class AgentOpsRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_open_adaptation(
+        self,
+        agent_fqn: str,
+        workspace_id: UUID,
+    ) -> AdaptationProposal | None:
+        result = await self.session.execute(
+            select(AdaptationProposal)
+            .where(
+                AdaptationProposal.agent_fqn == agent_fqn,
+                AdaptationProposal.workspace_id == workspace_id,
+                AdaptationProposal.status.in_(
+                    [
+                        AdaptationProposalStatus.proposed.value,
+                        AdaptationProposalStatus.approved.value,
+                        AdaptationProposalStatus.applied.value,
+                    ]
+                ),
+            )
+            .order_by(AdaptationProposal.created_at.desc(), AdaptationProposal.id.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
     async def list_adaptations(
         self,
         agent_fqn: str,
@@ -437,6 +464,155 @@ class AgentOpsRepository:
     async def update_adaptation(self, proposal: AdaptationProposal) -> AdaptationProposal:
         await self.session.flush()
         return proposal
+
+    async def create_snapshot(self, snapshot: AdaptationSnapshot) -> AdaptationSnapshot:
+        self.session.add(snapshot)
+        await self.session.flush()
+        return snapshot
+
+    async def get_snapshot_by_proposal(self, proposal_id: UUID) -> AdaptationSnapshot | None:
+        result = await self.session.execute(
+            select(AdaptationSnapshot)
+            .where(AdaptationSnapshot.proposal_id == proposal_id)
+            .order_by(AdaptationSnapshot.created_at.asc(), AdaptationSnapshot.id.asc())
+        )
+        return result.scalars().first()
+
+    async def list_snapshots_by_proposal(self, proposal_id: UUID) -> list[AdaptationSnapshot]:
+        result = await self.session.execute(
+            select(AdaptationSnapshot)
+            .where(AdaptationSnapshot.proposal_id == proposal_id)
+            .order_by(AdaptationSnapshot.created_at.asc(), AdaptationSnapshot.id.asc())
+        )
+        return list(result.scalars().all())
+
+    async def create_outcome(self, outcome: AdaptationOutcome) -> AdaptationOutcome:
+        self.session.add(outcome)
+        await self.session.flush()
+        return outcome
+
+    async def get_outcome_by_proposal(self, proposal_id: UUID) -> AdaptationOutcome | None:
+        result = await self.session.execute(
+            select(AdaptationOutcome).where(AdaptationOutcome.proposal_id == proposal_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def list_proposals_past_ttl(self, now: datetime) -> list[AdaptationProposal]:
+        result = await self.session.execute(
+            select(AdaptationProposal).where(
+                AdaptationProposal.status == AdaptationProposalStatus.proposed.value,
+                AdaptationProposal.expires_at.is_not(None),
+                AdaptationProposal.expires_at < now,
+            )
+        )
+        return list(result.scalars().all())
+
+    async def list_orphaned_proposals(self) -> list[AdaptationProposal]:
+        result = await self.session.execute(
+            select(AdaptationProposal).where(
+                AdaptationProposal.status.in_(
+                    [
+                        AdaptationProposalStatus.proposed.value,
+                        AdaptationProposalStatus.approved.value,
+                        AdaptationProposalStatus.applied.value,
+                    ]
+                )
+            )
+        )
+        return list(result.scalars().all())
+
+    async def list_proposals_pending_outcome(self, before: datetime) -> list[AdaptationProposal]:
+        result = await self.session.execute(
+            select(AdaptationProposal)
+            .outerjoin(AdaptationOutcome, AdaptationOutcome.proposal_id == AdaptationProposal.id)
+            .where(
+                AdaptationProposal.status == AdaptationProposalStatus.applied.value,
+                AdaptationProposal.applied_at.is_not(None),
+                AdaptationProposal.applied_at < before,
+                AdaptationOutcome.id.is_(None),
+            )
+        )
+        return list(result.scalars().all())
+
+    async def list_snapshots_past_retention(self, now: datetime) -> list[AdaptationSnapshot]:
+        result = await self.session.execute(
+            select(AdaptationSnapshot).where(AdaptationSnapshot.retention_expires_at < now)
+        )
+        return list(result.scalars().all())
+
+    async def delete_snapshot(self, snapshot: AdaptationSnapshot) -> None:
+        await self.session.delete(snapshot)
+        await self.session.flush()
+
+    async def create_proficiency_assessment(
+        self,
+        assessment: ProficiencyAssessment,
+    ) -> ProficiencyAssessment:
+        self.session.add(assessment)
+        await self.session.flush()
+        return assessment
+
+    async def get_latest_proficiency_assessment(
+        self,
+        agent_fqn: str,
+        workspace_id: UUID,
+    ) -> ProficiencyAssessment | None:
+        result = await self.session.execute(
+            select(ProficiencyAssessment)
+            .where(
+                ProficiencyAssessment.agent_fqn == agent_fqn,
+                ProficiencyAssessment.workspace_id == workspace_id,
+            )
+            .order_by(ProficiencyAssessment.assessed_at.desc(), ProficiencyAssessment.id.desc())
+            .limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def list_proficiency_assessments(
+        self,
+        agent_fqn: str,
+        workspace_id: UUID,
+        *,
+        cursor: str | None = None,
+        limit: int = 20,
+    ) -> tuple[list[ProficiencyAssessment], str | None]:
+        query = select(ProficiencyAssessment).where(
+            ProficiencyAssessment.agent_fqn == agent_fqn,
+            ProficiencyAssessment.workspace_id == workspace_id,
+        )
+        return await self._paginate(query, limit=limit, cursor=cursor)
+
+    async def list_proficiency_fleet(
+        self,
+        workspace_id: UUID,
+        *,
+        levels: list[str] | None = None,
+    ) -> list[ProficiencyAssessment]:
+        latest_subquery = (
+            select(
+                ProficiencyAssessment.agent_fqn.label("agent_fqn"),
+                func.max(ProficiencyAssessment.assessed_at).label("max_assessed_at"),
+            )
+            .where(ProficiencyAssessment.workspace_id == workspace_id)
+            .group_by(ProficiencyAssessment.agent_fqn)
+            .subquery()
+        )
+        query = (
+            select(ProficiencyAssessment)
+            .join(
+                latest_subquery,
+                (ProficiencyAssessment.agent_fqn == latest_subquery.c.agent_fqn)
+                & (ProficiencyAssessment.assessed_at == latest_subquery.c.max_assessed_at),
+            )
+            .where(ProficiencyAssessment.workspace_id == workspace_id)
+        )
+        if levels is not None:
+            query = query.where(ProficiencyAssessment.level.in_(levels))
+        query = query.order_by(
+            ProficiencyAssessment.assessed_at.desc(), ProficiencyAssessment.id.desc()
+        )
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
 
     async def count_active_regression_alerts(
         self,

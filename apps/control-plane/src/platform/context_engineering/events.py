@@ -15,6 +15,8 @@ class ContextEngineeringEventType(StrEnum):
     assembly_completed = "context_engineering.assembly.completed"
     budget_exceeded_minimum = "context_engineering.budget.exceeded_minimum"
     drift_detected = "context_engineering.drift.detected"
+    correlation_computed = "context_engineering.correlation.computed"
+    correlation_strong_negative = "context_engineering.correlation.strong_negative"
 
 
 class AssemblyCompletedPayload(BaseModel):
@@ -50,10 +52,26 @@ class DriftDetectedPayload(BaseModel):
     degradation_delta: float
 
 
+class CorrelationComputedPayload(BaseModel):
+    result_id: UUID
+    workspace_id: UUID
+    agent_fqn: str
+    dimension: str
+    performance_metric: str
+    classification: str
+    data_point_count: int
+
+
+class CorrelationStrongNegativePayload(CorrelationComputedPayload):
+    coefficient: float | None = None
+
+
 CONTEXT_ENGINEERING_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     ContextEngineeringEventType.assembly_completed.value: AssemblyCompletedPayload,
     ContextEngineeringEventType.budget_exceeded_minimum.value: BudgetExceededMinimumPayload,
     ContextEngineeringEventType.drift_detected.value: DriftDetectedPayload,
+    ContextEngineeringEventType.correlation_computed.value: CorrelationComputedPayload,
+    ContextEngineeringEventType.correlation_strong_negative.value: CorrelationStrongNegativePayload,
 }
 
 

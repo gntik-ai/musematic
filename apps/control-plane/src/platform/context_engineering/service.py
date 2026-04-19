@@ -9,8 +9,11 @@ from platform.common.clients.object_storage import AsyncObjectStorageClient
 from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
+from platform.common.exceptions import NotFoundError
 from platform.context_engineering.adapters import ContextFetchRequest, ContextSourceAdapter
 from platform.context_engineering.compactor import ContextCompactor
+from platform.context_engineering.correlation_scheduler import CorrelationRecomputerTask
+from platform.context_engineering.correlation_service import CorrelationService
 from platform.context_engineering.events import (
     AssemblyCompletedPayload,
     BudgetExceededMinimumPayload,
@@ -51,6 +54,7 @@ from platform.context_engineering.schemas import (
     ContextBundle,
     ContextElement,
     ContextQualityScore,
+    CorrelationFleetResponse,
     DriftAlertListResponse,
     DriftAlertResponse,
     ProfileAssignmentCreate,
@@ -110,6 +114,7 @@ class ContextEngineeringService:
         settings: PlatformSettings,
         event_producer: EventProducer | None,
         workspaces_service: Any | None = None,
+        registry_service: Any | None = None,
     ) -> None:
         self.repository = repository
         self.adapters = adapters
@@ -121,6 +126,7 @@ class ContextEngineeringService:
         self.settings = settings
         self.event_producer = event_producer
         self.workspaces_service = workspaces_service
+        self.registry_service = registry_service
 
     async def create_profile(
         self,
@@ -650,6 +656,65 @@ class ContextEngineeringService:
             offset=offset,
         )
 
+    async def get_latest_correlation(
+        self,
+        workspace_id: UUID,
+        actor_id: UUID,
+        *,
+        agent_fqn: str,
+        window_days: int | None = None,
+        classification: str | None = None,
+    ) -> CorrelationFleetResponse:
+        await self._assert_workspace_access(workspace_id, actor_id)
+        response = await self._correlation_service().get_latest(
+            workspace_id,
+            agent_fqn,
+            window_days=window_days,
+            classification=classification,
+        )
+        if response.total == 0:
+            raise NotFoundError(
+                "CONTEXT_ENGINEERING_CORRELATION_NOT_FOUND",
+                "Correlation results not found",
+            )
+        return response
+
+    async def query_fleet_correlations(
+        self,
+        workspace_id: UUID,
+        actor_id: UUID,
+        *,
+        classification: str | None = None,
+    ) -> CorrelationFleetResponse:
+        await self._assert_workspace_access(workspace_id, actor_id)
+        return await self._correlation_service().query_fleet(
+            workspace_id,
+            classification=classification,
+        )
+
+    async def enqueue_correlation_recompute(
+        self,
+        workspace_id: UUID,
+        actor_id: UUID,
+        *,
+        agent_fqn: str | None = None,
+        window_days: int | None = None,
+    ) -> dict[str, object]:
+        await self._assert_workspace_access(workspace_id, actor_id)
+        await self._correlation_recomputer().enqueue_recompute(
+            workspace_id,
+            agent_fqn=agent_fqn,
+            window_days=window_days,
+        )
+        return {"enqueued": True, "estimated_completion_seconds": 30}
+
+    async def run_correlation_recompute(
+        self,
+        *,
+        workspace_id: UUID | None = None,
+    ) -> list[dict[str, object]]:
+        return await self._correlation_recomputer().run(workspace_id)
+
     async def run_drift_analysis(self) -> int:
         rows = await self.clickhouse_client.execute_query(
             """
@@ -741,6 +806,20 @@ class ContextEngineeringService:
             ab_test.variant_profile_id if group == "variant" else ab_test.control_profile_id
         )
         return AbTestSelection(test_id=ab_test.id, profile_id=profile_id, group=group)
+
+    def _correlation_service(self) -> CorrelationService:
+        return CorrelationService(
+            repository=self.repository,
+            event_producer=self.event_producer,
+            min_data_points=self.settings.context_engineering.correlation_min_data_points,
+        )
+
+    def _correlation_recomputer(self) -> CorrelationRecomputerTask:
+        return CorrelationRecomputerTask(
+            correlation_service=self._correlation_service(),
+            registry_service=self.registry_service,
+            default_window_days=self.settings.context_engineering.correlation_window_days,
+        )
 
     def _resolved_profile(self, profile: ContextEngineeringProfile) -> ResolvedProfile:
         source_config = [SourceConfig.model_validate(item) for item in profile.source_config]

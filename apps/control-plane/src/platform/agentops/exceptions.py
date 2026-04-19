@@ -85,3 +85,58 @@ class WeightSumError(AgentOpsError):
             "Health score weights must sum to 100.0",
             {"total": round(total, 4)},
         )
+
+
+class StaleProposalError(AgentOpsError):
+    status_code = 409
+
+    def __init__(self, proposal_id: UUID | str) -> None:
+        super().__init__(
+            "AGENTOPS_ADAPTATION_STALE",
+            f"Adaptation proposal '{proposal_id}' is stale",
+            {"proposal_id": str(proposal_id)},
+        )
+
+
+class RollbackWindowExpiredError(AgentOpsError):
+    status_code = 410
+
+    def __init__(self, proposal_id: UUID | str) -> None:
+        super().__init__(
+            "AGENTOPS_ROLLBACK_WINDOW_EXPIRED",
+            f"Rollback window expired for adaptation proposal '{proposal_id}'",
+            {"proposal_id": str(proposal_id)},
+        )
+
+
+class OutcomeImmutableError(AgentOpsError):
+    status_code = 409
+
+    def __init__(self, proposal_id: UUID | str) -> None:
+        super().__init__(
+            "AGENTOPS_OUTCOME_IMMUTABLE",
+            f"Outcome already exists for adaptation proposal '{proposal_id}'",
+            {"proposal_id": str(proposal_id)},
+        )
+
+
+class ApprovalRevokedError(AgentOpsError):
+    status_code = 409
+
+    def __init__(self, proposal_id: UUID | str) -> None:
+        super().__init__(
+            "AGENTOPS_APPROVAL_REVOKED",
+            f"Approval for adaptation proposal '{proposal_id}' has been revoked",
+            {"proposal_id": str(proposal_id)},
+        )
+
+
+class RollbackIntegrityError(AgentOpsError):
+    status_code = 409
+
+    def __init__(self, proposal_id: UUID | str) -> None:
+        super().__init__(
+            "AGENTOPS_ROLLBACK_INTEGRITY_ERROR",
+            f"Rollback integrity verification failed for adaptation proposal '{proposal_id}'",
+            {"proposal_id": str(proposal_id)},
+        )

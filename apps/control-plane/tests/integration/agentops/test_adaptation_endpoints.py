@@ -61,9 +61,9 @@ class _AdaptationRouterServiceStub:
         proposal.reviewed_by = actor
         proposal.reviewed_at = datetime.now(UTC)
         if payload.decision == "approved":
-            proposal.status = "testing"
-            proposal.candidate_revision_id = uuid4()
-            proposal.evaluation_run_id = uuid4()
+            proposal.status = "approved"
+            proposal.candidate_revision_id = None
+            proposal.evaluation_run_id = None
         else:
             proposal.status = "rejected"
         return proposal
@@ -122,7 +122,7 @@ async def test_post_adapt_creates_proposal() -> None:
 
 
 @pytest.mark.asyncio
-async def test_post_adaptation_review_approved_transitions_to_testing() -> None:
+async def test_post_adaptation_review_approved_transitions_to_approved() -> None:
     workspace_id = uuid4()
     actor_id = uuid4()
     service = _AdaptationRouterServiceStub(workspace_id)
@@ -143,7 +143,7 @@ async def test_post_adaptation_review_approved_transitions_to_testing() -> None:
         )
 
     assert response.status_code == 200
-    assert response.json()["status"] == "testing"
+    assert response.json()["status"] == "approved"
 
 
 @pytest.mark.asyncio

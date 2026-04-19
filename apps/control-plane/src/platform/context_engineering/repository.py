@@ -8,6 +8,8 @@ from platform.context_engineering.models import (
     ContextDriftAlert,
     ContextEngineeringProfile,
     ContextProfileAssignment,
+    CorrelationClassification,
+    CorrelationResult,
     ProfileAssignmentLevel,
 )
 from typing import Any
@@ -451,3 +453,68 @@ class ContextEngineeringRepository:
         if current_mean is None or current_count <= 0:
             return value
         return ((current_mean * current_count) + value) / (current_count + 1)
+
+
+    async def upsert_correlation_result(self, result: CorrelationResult) -> CorrelationResult:
+        existing = await self.session.execute(
+            select(CorrelationResult).where(
+                CorrelationResult.workspace_id == result.workspace_id,
+                CorrelationResult.agent_fqn == result.agent_fqn,
+                CorrelationResult.dimension == result.dimension,
+                CorrelationResult.performance_metric == result.performance_metric,
+                CorrelationResult.window_start == result.window_start,
+                CorrelationResult.window_end == result.window_end,
+            )
+        )
+        item = existing.scalar_one_or_none()
+        if item is None:
+            self.session.add(result)
+            await self.session.flush()
+            return result
+        item.coefficient = result.coefficient
+        item.classification = result.classification
+        item.data_point_count = result.data_point_count
+        item.computed_at = result.computed_at
+        await self.session.flush()
+        return item
+
+    async def get_latest_by_agent(
+        self,
+        workspace_id: UUID,
+        agent_fqn: str,
+        *,
+        window_days: int | None = None,
+    ) -> list[CorrelationResult]:
+        query = select(CorrelationResult).where(
+            CorrelationResult.workspace_id == workspace_id,
+            CorrelationResult.agent_fqn == agent_fqn,
+        )
+        if window_days is not None:
+            query = query.where(
+                func.date_part('day', CorrelationResult.window_end - CorrelationResult.window_start)
+                <= window_days
+            )
+        query = query.order_by(CorrelationResult.computed_at.desc(), CorrelationResult.id.desc())
+        result = await self.session.execute(query)
+        rows = list(result.scalars().all())
+        latest: dict[tuple[str, str], CorrelationResult] = {}
+        for row in rows:
+            latest.setdefault((row.dimension, row.performance_metric), row)
+        return list(latest.values())
+
+    async def list_fleet_by_classification(
+        self,
+        workspace_id: UUID,
+        *,
+        classification: CorrelationClassification | str | None = None,
+    ) -> list[CorrelationResult]:
+        query = select(CorrelationResult).where(CorrelationResult.workspace_id == workspace_id)
+        if classification is not None:
+            query = query.where(CorrelationResult.classification == classification)
+        query = query.order_by(CorrelationResult.computed_at.desc(), CorrelationResult.id.desc())
+        result = await self.session.execute(query)
+        rows = list(result.scalars().all())
+        latest: dict[tuple[str, str, str], CorrelationResult] = {}
+        for row in rows:
+            latest.setdefault((row.agent_fqn, row.dimension, row.performance_metric), row)
+        return list(latest.values())

@@ -7,6 +7,8 @@ from platform.agentops.models import (
     AdaptationProposalStatus,
     BaselineStatus,
     CanaryDeploymentStatus,
+    OutcomeClassification,
+    ProficiencyLevel,
     RegressionAlertStatus,
     RetirementWorkflowStatus,
 )
@@ -318,6 +320,73 @@ class AdaptationReviewRequest(_StrictModel):
         return value
 
 
+class AdaptationApplyRequest(_StrictModel):
+    reason: str | None = None
+
+
+class AdaptationRollbackRequest(_StrictModel):
+    reason: str = Field(min_length=1)
+
+
+class AdaptationRevokeRequest(_StrictModel):
+    reason: str = Field(min_length=1)
+
+
+class AdaptationOutcomeResponse(_OrmModel):
+    id: UUID
+    proposal_id: UUID
+    observation_window_start: datetime
+    observation_window_end: datetime
+    expected_delta: dict[str, Any]
+    observed_delta: dict[str, Any]
+    classification: OutcomeClassification | str
+    variance_annotation: dict[str, Any] | None
+    measured_at: datetime
+    created_at: datetime
+    updated_at: datetime
+
+
+class AdaptationLineageResponse(_StrictModel):
+    proposal: AdaptationProposalResponse
+    snapshot: dict[str, Any] | None = None
+    outcome: AdaptationOutcomeResponse | None = None
+
+
+class AdaptationApplyResponse(_StrictModel):
+    proposal: AdaptationProposalResponse
+    pre_apply_configuration_hash: str
+
+
+class AdaptationRollbackResponse(_StrictModel):
+    proposal: AdaptationProposalResponse
+    byte_identical_to_pre_apply: bool
+
+
+class AdaptationRevokeResponse(_StrictModel):
+    proposal: AdaptationProposalResponse
+
+
+class ProficiencyResponse(_StrictModel):
+    agent_fqn: str
+    workspace_id: UUID
+    level: ProficiencyLevel | str
+    dimension_values: dict[str, float] = Field(default_factory=dict)
+    observation_count: int = 0
+    trigger: str | None = None
+    assessed_at: datetime | None = None
+    missing_dimensions: list[str] = Field(default_factory=list)
+
+
+class ProficiencyHistoryResponse(BaseModel):
+    items: list[ProficiencyResponse]
+    next_cursor: str | None = None
+
+
+class ProficiencyFleetResponse(BaseModel):
+    items: list[ProficiencyResponse]
+    total: int
+
+
 class AdaptationProposalResponse(_OrmModel):
     id: UUID
     workspace_id: UUID
@@ -326,6 +395,18 @@ class AdaptationProposalResponse(_OrmModel):
     status: AdaptationProposalStatus | str
     proposal_details: dict[str, Any]
     signals: list[dict[str, Any]]
+    expected_improvement: dict[str, Any] | None = None
+    pre_apply_snapshot_key: str | None = None
+    applied_at: datetime | None = None
+    applied_by: UUID | None = None
+    rolled_back_at: datetime | None = None
+    rolled_back_by: UUID | None = None
+    rollback_reason: str | None = None
+    expires_at: datetime | None = None
+    revoked_at: datetime | None = None
+    revoked_by: UUID | None = None
+    revoke_reason: str | None = None
+    signal_source: str | None = None
     review_reason: str | None
     reviewed_by: UUID | None
     reviewed_at: datetime | None
@@ -370,3 +451,6 @@ class CiCdGateSummary(_StrictModel):
     requested_by: UUID
     overall_passed: bool
     summary: dict[str, Any] = Field(default_factory=dict)
+
+
+AdaptationLineageResponse.model_rebuild()
