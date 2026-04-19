@@ -75,9 +75,14 @@ from platform.context_engineering.events import register_context_engineering_eve
 from platform.context_engineering.router import router as context_engineering_router
 from platform.discovery.events import register_discovery_event_types
 from platform.discovery.router import router as discovery_router
-from platform.evaluation.dependencies import build_eval_runner_service, build_robustness_service
+from platform.evaluation.dependencies import (
+    build_eval_runner_service,
+    build_robustness_service,
+    build_rubric_service,
+)
 from platform.evaluation.events import register_evaluation_event_types
 from platform.evaluation.repository import EvaluationRepository
+from platform.evaluation.rubric_templates import RubricTemplateLoader
 from platform.evaluation.scorers.semantic import SemanticSimilarityScorer
 from platform.execution.dependencies import (
     build_checkpoint_service,
@@ -238,6 +243,20 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             LOGGER.warning("Failed to connect %s during startup: %s", name, exc)
 
     app.state.startup_errors = startup_errors
+    try:
+        async with database.AsyncSessionLocal() as session:
+            rubric_service = build_rubric_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            await RubricTemplateLoader().load_templates(rubric_service)
+            await session.commit()
+    except Exception as exc:
+        app.state.degraded = True
+        startup_errors["evaluation_rubric_templates"] = str(exc)
+        LOGGER.warning("Failed to load evaluation rubric templates: %s", exc)
+
     clickhouse_client = app.state.clients.get("clickhouse")
     if isinstance(clickhouse_client, AsyncClickHouseClient):
         try:

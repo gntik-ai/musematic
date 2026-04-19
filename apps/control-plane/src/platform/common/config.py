@@ -99,9 +99,7 @@ class ObjectStorageSettings(BaseSettings):
     )
     region: str = Field(default="us-east-1", validation_alias="S3_REGION")
     bucket_prefix: str = Field(default="platform", validation_alias="S3_BUCKET_PREFIX")
-    use_path_style: bool = Field(
-        default=True, validation_alias="S3_USE_PATH_STYLE"
-    )
+    use_path_style: bool = Field(default=True, validation_alias="S3_USE_PATH_STYLE")
     provider: str = Field(default="generic", validation_alias="S3_PROVIDER")
 
 
@@ -282,6 +280,17 @@ class GovernanceSettings(BaseSettings):
     judge_timeout_seconds: int = 30
 
 
+class EvaluationSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="EVALUATION_", extra="ignore")
+
+    llm_judge_api_url: str = ""
+    llm_judge_model: str = "gpt-4"
+    llm_judge_timeout_seconds: int = 30
+    llm_judge_max_retries: int = 2
+    trajectory_max_steps: int = 10000
+    calibration_variance_envelope: float = 0.2
+
+
 class ConnectorsSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="CONNECTOR_",
@@ -417,6 +426,7 @@ class PlatformSettings(BaseSettings):
     interactions: InteractionsSettings = Field(default_factory=InteractionsSettings)
     notifications: NotificationsSettings = Field(default_factory=NotificationsSettings)
     governance: GovernanceSettings = Field(default_factory=GovernanceSettings)
+    evaluation: EvaluationSettings = Field(default_factory=EvaluationSettings)
     connectors: ConnectorsSettings = Field(default_factory=ConnectorsSettings)
     trust: TrustSettings = Field(default_factory=TrustSettings)
     agentops: AgentOpsSettings = Field(default_factory=AgentOpsSettings)
@@ -517,15 +527,11 @@ class PlatformSettings(BaseSettings):
             "A2A_MAX_PAYLOAD_BYTES": ("A2A_MAX_PAYLOAD_BYTES",),
             "A2A_TASK_IDLE_TIMEOUT_MINUTES": ("A2A_TASK_IDLE_TIMEOUT_MINUTES",),
             "A2A_DEFAULT_CARD_TTL_SECONDS": ("A2A_DEFAULT_CARD_TTL_SECONDS",),
-            "A2A_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE": (
-                "A2A_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE",
-            ),
+            "A2A_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE": ("A2A_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE",),
             "MCP_CATALOG_TTL_SECONDS": ("MCP_CATALOG_TTL_SECONDS",),
             "MCP_MAX_PAYLOAD_BYTES": ("MCP_MAX_PAYLOAD_BYTES",),
             "MCP_INVOCATION_TIMEOUT_SECONDS": ("MCP_INVOCATION_TIMEOUT_SECONDS",),
-            "MCP_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE": (
-                "MCP_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE",
-            ),
+            "MCP_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE": ("MCP_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE",),
             "MCP_PROTOCOL_VERSION": ("MCP_PROTOCOL_VERSION",),
             "CHECKPOINT_RETENTION_DAYS": ("checkpoint_retention_days",),
             "CHECKPOINT_MAX_SIZE_BYTES": ("checkpoint_max_size_bytes",),
@@ -657,6 +663,24 @@ class PlatformSettings(BaseSettings):
             "GOVERNANCE_JUDGE_TIMEOUT_SECONDS": (
                 "governance",
                 "judge_timeout_seconds",
+            ),
+            "EVALUATION_LLM_JUDGE_API_URL": ("evaluation", "llm_judge_api_url"),
+            "EVALUATION_LLM_JUDGE_MODEL": ("evaluation", "llm_judge_model"),
+            "EVALUATION_LLM_JUDGE_TIMEOUT_SECONDS": (
+                "evaluation",
+                "llm_judge_timeout_seconds",
+            ),
+            "EVALUATION_LLM_JUDGE_MAX_RETRIES": (
+                "evaluation",
+                "llm_judge_max_retries",
+            ),
+            "EVALUATION_TRAJECTORY_MAX_STEPS": (
+                "evaluation",
+                "trajectory_max_steps",
+            ),
+            "EVALUATION_CALIBRATION_VARIANCE_ENVELOPE": (
+                "evaluation",
+                "calibration_variance_envelope",
             ),
             "CONNECTOR_INGRESS_TOPIC": ("connectors", "ingress_topic"),
             "CONNECTOR_DELIVERY_TOPIC": ("connectors", "delivery_topic"),

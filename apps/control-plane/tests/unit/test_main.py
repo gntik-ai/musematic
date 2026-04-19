@@ -77,6 +77,11 @@ async def test_lifespan_handles_clients_without_close_and_close_failures(monkeyp
     }
 
     monkeypatch.setattr(main_module, "_load_trust_runtime_assets", _async_none_with_app)
+    monkeypatch.setattr(
+        main_module.RubricTemplateLoader,
+        "load_templates",
+        _async_load_templates,
+    )
     async with _lifespan(app):
         assert app.state.degraded is False
         assert app.state.clients["redis"].connected is True
@@ -361,3 +366,7 @@ async def test_run_a2a_idle_timeout_scan_cancels_tasks_and_commits(monkeypatch) 
     assert published[0]["event_type"].value == "a2a.task.cancelled"
     assert session.committed is True
     assert session.rolled_back is False
+
+
+async def _async_load_templates(_self: object, _service: object) -> int:
+    return 0

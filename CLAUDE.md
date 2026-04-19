@@ -129,9 +129,11 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 056-ibor-integration-and: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
 - 056-ibor-integration-and: Added Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, aiokafka 0.11+, redis-py 5.x async, httpx 0.27+, APScheduler 3.x — all already in requirements.txt
 - 056-ibor-integration-and: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
-- 056-ibor-integration-and: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
+- 067-trajectory-judge-evaluation: Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, aiokafka 0.11+, httpx 0.27+, PyYAML 6.x (already in requirements.txt)
+- 067-trajectory-judge-evaluation: PostgreSQL 16 (2 new tables: evaluation_rubrics, evaluation_calibration_runs via Alembic 054)
 
 
 <!-- MANUAL ADDITIONS START -->

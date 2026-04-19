@@ -3,16 +3,18 @@ from __future__ import annotations
 from datetime import datetime
 from platform.evaluation.models import (
     ATERunStatus,
+    CalibrationRunStatus,
     EvalSetStatus,
     ExperimentStatus,
     ReviewDecision,
+    RubricStatus,
     RunStatus,
     VerdictStatus,
 )
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 def _clean_optional_text(value: str | None) -> str | None:
@@ -243,8 +245,32 @@ class RubricCriterion(BaseModel):
 
     name: str = Field(min_length=1)
     description: str = Field(min_length=1)
-    scale: int = Field(default=5, ge=1)
-    examples: list[str] = Field(default_factory=list)
+    scale: int | None = Field(default=None, ge=1)
+    scale_min: int = Field(default=1, ge=1)
+    scale_max: int | None = Field(default=None, ge=1)
+    examples: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("name", "description")
+    @classmethod
+    def normalize_required_text(cls, value: str) -> str:
+        return value.strip()
+
+    @model_validator(mode="after")
+    def validate_scale(self) -> RubricCriterion:
+        if self.scale is not None and self.scale_max is None:
+            self.scale_max = self.scale
+        if self.scale_max is None:
+            self.scale_max = 5
+        if self.scale_min >= self.scale_max:
+            raise ValueError("Rubric criterion scale_min must be lower than scale_max")
+        for raw_key in self.examples:
+            try:
+                numeric = int(raw_key)
+            except ValueError as exc:  # pragma: no cover - defensive
+                raise ValueError("Rubric example keys must be numeric") from exc
+            if numeric < self.scale_min or numeric > self.scale_max:
+                raise ValueError("Rubric example keys must fall within the criterion scale")
+        return self
 
 
 class RubricConfig(BaseModel):
@@ -258,8 +284,15 @@ class LLMJudgeConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     judge_model: str = Field(min_length=1)
-    rubric: RubricConfig
+    rubric: RubricConfig | None = None
+    rubric_id: UUID | None = None
     calibration_runs: int = Field(default=3, ge=1, le=20)
+
+    @model_validator(mode="after")
+    def validate_rubric_source(self) -> LLMJudgeConfig:
+        if self.rubric is None and self.rubric_id is None:
+            raise ValueError("Either rubric or rubric_id must be provided")
+        return self
 
 
 class CalibrationDistribution(BaseModel):
@@ -277,6 +310,160 @@ class TrajectoryScore(BaseModel):
     cost_effectiveness_score: float = Field(ge=0.0, le=1.0)
     overall_trajectory_score: float = Field(ge=0.0, le=1.0)
     llm_judge_holistic: dict[str, Any] | None = None
+
+
+class CooperationScoreResult(BaseModel):
+    per_agent_scores: dict[str, dict[str, Any]]
+    coordination_overhead: float = Field(ge=0.0, le=1.0)
+    handoff_timeliness: float = Field(ge=0.0, le=1.0)
+    redundancy: float = Field(ge=0.0, le=1.0)
+    joint_path_efficiency: float = Field(ge=0.0, le=1.0)
+    cycle_flags: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class RubricCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1)
+    description: str = ""
+    criteria: list[RubricCriterion] = Field(min_length=1)
+
+    @field_validator("name")
+    @classmethod
+    def normalize_rubric_name(cls, value: str) -> str:
+        return value.strip()
+
+    @field_validator("description")
+    @classmethod
+    def normalize_rubric_description(cls, value: str) -> str:
+        return value.strip()
+
+
+class RubricUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str | None = Field(default=None, min_length=1)
+    description: str | None = None
+    criteria: list[RubricCriterion] | None = None
+    status: RubricStatus | None = None
+
+    @field_validator("name")
+    @classmethod
+    def normalize_optional_name(cls, value: str | None) -> str | None:
+        return value.strip() if value is not None else None
+
+    @field_validator("description")
+    @classmethod
+    def normalize_optional_description(cls, value: str | None) -> str | None:
+        return value.strip() if value is not None else None
+
+
+class RubricResponse(BaseModel):
+    id: UUID
+    workspace_id: UUID | None
+    name: str
+    description: str
+    criteria: list[dict[str, Any]]
+    version: int
+    is_builtin: bool
+    status: RubricStatus
+    created_by: UUID | None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class RubricListResponse(BaseModel):
+    items: list[RubricResponse]
+    total: int
+    page: int = 1
+    page_size: int = 20
+
+
+class CalibrationRunCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    judge_model: str = Field(min_length=1)
+    reference_set_id: str = Field(min_length=1)
+
+    @field_validator("judge_model", "reference_set_id")
+    @classmethod
+    def normalize_calibration_text(cls, value: str) -> str:
+        return value.strip()
+
+
+class CalibrationRunResponse(BaseModel):
+    id: UUID
+    rubric_id: UUID
+    rubric_version: int
+    judge_model: str
+    reference_set_id: str
+    status: CalibrationRunStatus
+    distribution: dict[str, Any] | None
+    agreement_rate: float | None
+    calibrated: bool | None
+    error_grade_finding: bool
+    started_at: datetime
+    completed_at: datetime | None
+    created_by: UUID | None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AdHocJudgeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rubric_id: UUID | None = None
+    rubric: RubricCreate | None = None
+    output: str = Field(min_length=1)
+    judge_model: str | None = None
+
+    @field_validator("output")
+    @classmethod
+    def normalize_output(cls, value: str) -> str:
+        return value.strip()
+
+    @field_validator("judge_model")
+    @classmethod
+    def normalize_judge_model(cls, value: str | None) -> str | None:
+        return value.strip() if value is not None else None
+
+    @model_validator(mode="after")
+    def validate_rubric_selector(self) -> AdHocJudgeRequest:
+        if self.rubric_id is None and self.rubric is None:
+            raise ValueError("Either rubric_id or rubric must be provided")
+        return self
+
+
+class AdHocJudgeResponse(BaseModel):
+    rubric_id: UUID | None
+    rubric_version: int | None
+    judge_model: str
+    per_criterion_scores: dict[str, dict[str, Any]]
+    overall_score: float | None
+    aggregation_method: str = "arithmetic_mean"
+    rationale: str | None
+    principal_id: UUID
+    timestamp: datetime
+    duration_ms: int
+
+
+class ScorerTypeListResponse(BaseModel):
+    items: list[str]
+
+
+class RubricTemplateSummary(BaseModel):
+    name: str
+    description: str
+    criteria_count: int
+    rubric_id: UUID
+
+
+class RubricTemplateListResponse(BaseModel):
+    items: list[RubricTemplateSummary]
+    total: int
 
 
 class ATEConfigCreate(BaseModel):
