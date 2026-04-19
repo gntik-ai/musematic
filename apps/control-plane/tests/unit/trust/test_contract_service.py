@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from platform.common.exceptions import AuthorizationError, ValidationError
-from platform.trust.contract_schemas import ComplianceRateQuery
-from platform.trust.exceptions import ContractConflictError
+from platform.execution.exceptions import ExecutionNotFoundError
+from platform.interactions.exceptions import InteractionNotFoundError
+from platform.trust.contract_schemas import AgentContractUpdate, ComplianceRateQuery
+from platform.trust.exceptions import ContractConflictError, ContractNotFoundError
 from uuid import uuid4
 
 import pytest
@@ -172,3 +174,157 @@ async def test_contract_service_workspace_guard_rejects_cross_workspace_access()
 
     with pytest.raises(AuthorizationError):
         await service.get_contract(contract.id, workspace_id=uuid4())
+
+
+@pytest.mark.asyncio
+async def test_contract_service_update_listing_and_breach_queries() -> None:
+    bundle = build_trust_bundle()
+    service = bundle.contract_service
+    workspace_id = uuid4()
+    actor_id = uuid4()
+
+    first = await service.create_contract(build_contract_create(), workspace_id, actor_id)
+    second = await service.create_contract(
+        build_contract_create().model_copy(
+            update={"agent_id": "agent-2", "task_scope": "Review reconciliation outputs"}
+        ),
+        workspace_id,
+        actor_id,
+    )
+    await service.archive_contract(second.id, actor_id, workspace_id=workspace_id)
+
+    updated = await service.update_contract(
+        first.id,
+        AgentContractUpdate(
+            enforcement_policy="throttle",
+            task_scope="Process escalated reconciliation tasks",
+        ),
+        actor_id,
+        workspace_id=workspace_id,
+    )
+    active_only = await service.list_contracts(workspace_id, agent_id="agent-1")
+    include_archived = await service.list_contracts(workspace_id, include_archived=True)
+
+    stored_contract = await bundle.repository.get_contract(first.id)
+    assert stored_contract is not None
+    breach = await service.record_breach(
+        contract=stored_contract,
+        target_type="execution",
+        target_id=uuid4(),
+        breached_term="cost_limit",
+        observed_value={"token_count": 1501},
+        threshold_value={"cost_limit_tokens": 1000},
+        enforcement_action="throttle",
+        enforcement_outcome="success",
+    )
+    duplicate = await service.record_breach(
+        contract=stored_contract,
+        target_type="execution",
+        target_id=breach.target_id,
+        breached_term="cost_limit",
+        observed_value={"token_count": 1700},
+        threshold_value={"cost_limit_tokens": 1000},
+        enforcement_action="throttle",
+        enforcement_outcome="success",
+    )
+    await service.publish_enforcement(
+        contract=stored_contract,
+        breach_event_id=breach.id,
+        target_type="execution",
+        target_id=breach.target_id,
+        action="throttle",
+        outcome="success",
+    )
+    listed_breaches = await service.list_breach_events(
+        first.id,
+        workspace_id=workspace_id,
+        target_type="execution",
+    )
+
+    assert updated.enforcement_policy == "throttle"
+    assert active_only.total == 1
+    assert include_archived.total == 2
+    assert duplicate.id == breach.id
+    assert listed_breaches.total == 1
+    assert listed_breaches.items[0].id == breach.id
+    assert [event["event_type"] for event in bundle.producer.events[-2:]] == [
+        "trust.contract.breach",
+        "trust.contract.enforcement",
+    ]
+    assert service._to_uuid_or_none("invalid-uuid") is None
+
+    with pytest.raises(ContractNotFoundError):
+        await service.list_breach_events(uuid4(), workspace_id=workspace_id)
+
+
+@pytest.mark.asyncio
+async def test_contract_service_rejects_archived_and_missing_attachment_targets(
+    monkeypatch,
+) -> None:
+    bundle = build_trust_bundle()
+    service = bundle.contract_service
+    workspace_id = uuid4()
+    actor_id = uuid4()
+
+    archived = await service.create_contract(build_contract_create(), workspace_id, actor_id)
+    await service.archive_contract(archived.id, actor_id, workspace_id=workspace_id)
+    with pytest.raises(ValidationError):
+        await service.attach_to_interaction(uuid4(), archived.id, workspace_id=workspace_id)
+    with pytest.raises(ValidationError):
+        await service.attach_to_execution(uuid4(), archived.id, workspace_id=workspace_id)
+
+    active = await service.create_contract(
+        build_contract_create().model_copy(update={"task_scope": "Attachable"}),
+        workspace_id,
+        actor_id,
+    )
+
+    async def _missing_interaction(*args, **kwargs):
+        del args, kwargs
+        return None
+
+    async def _missing_execution(*args, **kwargs):
+        del args, kwargs
+        return None
+
+    monkeypatch.setattr(bundle.repository, "attach_contract_to_interaction", _missing_interaction)
+    with pytest.raises(InteractionNotFoundError):
+        await service.attach_to_interaction(uuid4(), active.id, workspace_id=workspace_id)
+
+    monkeypatch.setattr(bundle.repository, "attach_contract_to_execution", _missing_execution)
+    with pytest.raises(ExecutionNotFoundError):
+        await service.attach_to_execution(uuid4(), active.id, workspace_id=workspace_id)
+
+
+@pytest.mark.asyncio
+async def test_contract_service_handles_update_race_and_numeric_limit_strings(monkeypatch) -> None:
+    bundle = build_trust_bundle()
+    service = bundle.contract_service
+    workspace_id = uuid4()
+    actor_id = uuid4()
+    created = await service.create_contract(build_contract_create(), workspace_id, actor_id)
+    stored = await bundle.repository.get_contract(created.id)
+    assert stored is not None
+
+    async def _missing_update(contract_id, data):
+        del contract_id, data
+        return None
+
+    monkeypatch.setattr(bundle.repository, "update_contract", _missing_update)
+
+    assert service._to_uuid_or_none(None) is None
+    service._validate_contract_payload(
+        {
+            "enforcement_policy": "warn",
+            "cost_limit_tokens": "2",
+            "expected_outputs": None,
+        }
+    )
+
+    with pytest.raises(ContractNotFoundError):
+        await service.update_contract(
+            created.id,
+            AgentContractUpdate(task_scope="updated"),
+            actor_id,
+            workspace_id=workspace_id,
+        )

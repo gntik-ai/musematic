@@ -7,7 +7,7 @@ from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = "049_agent_contracts_and_certification"
+revision = "049_agent_contracts_and_certs"
 down_revision = "048_governance_pipeline"
 branch_labels = None
 depends_on = None
