@@ -27,6 +27,7 @@ from platform.execution.schemas import (
     ExecutionStateResponse,
     HotChangeApplyResponse,
     HotChangeRequest,
+    ReasoningTraceResponse,
     ReprioritizationTriggerCreate,
     ReprioritizationTriggerListResponse,
     ReprioritizationTriggerResponse,
@@ -58,6 +59,13 @@ def _actor_id(current_user: dict[str, Any]) -> UUID:
 def _role_names(current_user: dict[str, Any]) -> set[str]:
     roles = current_user.get("roles", [])
     return {str(item.get("role")) for item in roles if isinstance(item, dict)}
+
+
+def _requester_workspace_id(current_user: dict[str, Any]) -> UUID | None:
+    value = current_user.get("workspace_id") or current_user.get("workspace")
+    if value in {None, ""}:
+        return None
+    return UUID(str(value))
 
 
 def _require_workspace_admin(current_user: dict[str, Any]) -> None:
@@ -279,6 +287,25 @@ async def rollback_execution(
         checkpoint_number,
         initiated_by=_actor_id(current_user),
         reason=payload.reason,
+    )
+
+
+@router.get("/{execution_id}/reasoning-trace", response_model=ReasoningTraceResponse)
+async def get_reasoning_trace(
+    execution_id: UUID,
+    step_id: str | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=100, ge=1, le=500),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    execution_service: ExecutionService = Depends(get_execution_service),
+) -> ReasoningTraceResponse:
+    """Return the structured reasoning trace for an execution."""
+    return await execution_service.get_reasoning_trace(
+        execution_id,
+        step_id,
+        page=page,
+        page_size=page_size,
+        requester_workspace_id=_requester_workspace_id(current_user),
     )
 
 

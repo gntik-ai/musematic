@@ -97,9 +97,14 @@ func (u *fakeUploader) Upload(_ context.Context, key string, _ []byte) error {
 func (u *fakeUploader) GetURL(key string) string { return key }
 
 type fakeProducer struct {
-	mu     sync.Mutex
-	events int
-	err    error
+	mu            sync.Mutex
+	events        int
+	err           error
+	reactEvents   int
+	reactErr      error
+	reactPayloads []map[string]any
+	reactBlock    <-chan struct{}
+	reactDone     chan map[string]any
 }
 
 func (p *fakeProducer) Produce(context.Context, string, string, []byte) error {
@@ -109,6 +114,30 @@ func (p *fakeProducer) Produce(context.Context, string, string, []byte) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.events++
+	return nil
+}
+
+func (p *fakeProducer) ProduceReactCycleCompleted(_ context.Context, _ string, payload map[string]any) error {
+	if p.reactBlock != nil {
+		<-p.reactBlock
+	}
+	if p.reactErr != nil {
+		return p.reactErr
+	}
+	copyPayload := make(map[string]any, len(payload))
+	for key, value := range payload {
+		copyPayload[key] = value
+	}
+	p.mu.Lock()
+	p.reactEvents++
+	p.reactPayloads = append(p.reactPayloads, copyPayload)
+	p.mu.Unlock()
+	if p.reactDone != nil {
+		select {
+		case p.reactDone <- copyPayload:
+		default:
+		}
+	}
 	return nil
 }
 
@@ -431,5 +460,79 @@ func TestPGTraceRepositoryExecPaths(t *testing.T) { //nolint:gocyclo // This tes
 	}
 	if got := uuidFor("123e4567-e89b-12d3-a456-426614174000").String(); got != "123e4567-e89b-12d3-a456-426614174000" {
 		t.Fatalf("uuidFor(valid) = %s", got)
+	}
+}
+
+func TestPipelineEmitsReactCycleCompletedEvent(t *testing.T) {
+	repo := &fakeRepository{}
+	producer := &fakeProducer{reactDone: make(chan map[string]any, 1)}
+	pipeline := NewPipeline(repo, producer, nil, nil, 4, 64*1024)
+
+	ack, err := pipeline.ProcessStream(context.Background(), &fakeStream{events: []*TraceEvent{{
+		ExecutionID: "exec-react",
+		StepID:      "step-react",
+		EventID:     "event-react-1",
+		EventType:   "react_cycle_completed",
+		SequenceNum: 1,
+		Payload:     []byte(`{"cycle_number":2,"thought":"inspect","action":"call","observation":"ok"}`),
+		OccurredAt:  time.Now().UTC(),
+	}}})
+	if err != nil {
+		t.Fatalf("ProcessStream() error = %v", err)
+	}
+	if ack.TotalPersisted != 1 {
+		t.Fatalf("persisted = %d, want 1", ack.TotalPersisted)
+	}
+	select {
+	case payload := <-producer.reactDone:
+		if producer.reactEvents != 1 {
+			t.Fatalf("react events = %d, want 1", producer.reactEvents)
+		}
+		if payload["step_id"] != "step-react" || payload["event_id"] != "event-react-1" {
+			t.Fatalf("unexpected payload identifiers: %+v", payload)
+		}
+		if payload["cycle_number"] != float64(2) {
+			t.Fatalf("cycle_number = %#v, want 2", payload["cycle_number"])
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for react cycle event")
+	}
+}
+
+func TestPipelineReactCycleEmissionDoesNotBlockReasoning(t *testing.T) {
+	repo := &fakeRepository{}
+	block := make(chan struct{})
+	producer := &fakeProducer{reactBlock: block, reactDone: make(chan map[string]any, 1)}
+	pipeline := NewPipeline(repo, producer, nil, nil, 4, 64*1024)
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := pipeline.ProcessStream(context.Background(), &fakeStream{events: []*TraceEvent{{
+			ExecutionID: "exec-react",
+			StepID:      "step-react",
+			EventID:     "event-react-2",
+			EventType:   "react_cycle_completed",
+			SequenceNum: 2,
+			Payload:     []byte(`{"cycle_number":3}`),
+			OccurredAt:  time.Now().UTC(),
+		}}})
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("ProcessStream() error = %v", err)
+		}
+	case <-time.After(200 * time.Millisecond):
+		close(block)
+		t.Fatal("ProcessStream blocked on react event emission")
+	}
+
+	close(block)
+	select {
+	case <-producer.reactDone:
+	case <-time.After(time.Second):
+		t.Fatal("react cycle event was not delivered after unblocking producer")
 	}
 }

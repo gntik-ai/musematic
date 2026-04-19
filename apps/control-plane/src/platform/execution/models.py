@@ -11,6 +11,7 @@ from uuid import UUID
 from sqlalchemy import (
     Boolean,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -184,6 +185,12 @@ class Execution(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
         "platform.execution.models.ExecutionRollbackAction",
         back_populates="execution",
         cascade="all, delete-orphan",
+    )
+    reasoning_traces: Mapped[list[ExecutionReasoningTraceRecord]] = relationship(
+        "platform.execution.models.ExecutionReasoningTraceRecord",
+        back_populates="execution",
+        cascade="all, delete-orphan",
+        order_by="platform.execution.models.ExecutionReasoningTraceRecord.created_at.asc()",
     )
 
 
@@ -404,6 +411,48 @@ class ExecutionDispatchLease(Base, UUIDMixin, TimestampMixin):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     released_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     expired: Mapped[bool] = mapped_column(Boolean(), nullable=False, default=False)
+
+
+class ExecutionReasoningTraceRecord(Base, UUIDMixin, TimestampMixin):
+    """Represent a persisted reasoning trace artifact for an execution step."""
+
+    __tablename__ = "execution_reasoning_trace_records"
+    __table_args__ = (
+        Index("ix_execution_reasoning_trace_records_execution_id", "execution_id"),
+    )
+
+    execution_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("executions.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    step_id: Mapped[str | None] = mapped_column(String(length=255), nullable=True)
+    technique: Mapped[str] = mapped_column(String(length=50), nullable=False)
+    storage_key: Mapped[str] = mapped_column(String(length=1024), nullable=False)
+    step_count: Mapped[int | None] = mapped_column(Integer(), nullable=True)
+    status: Mapped[str] = mapped_column(String(length=20), nullable=False, default="complete")
+    compute_budget_used: Mapped[float | None] = mapped_column(Float(), nullable=True)
+    consensus_reached: Mapped[bool | None] = mapped_column(Boolean(), nullable=True)
+    stabilized: Mapped[bool | None] = mapped_column(Boolean(), nullable=True)
+    degradation_detected: Mapped[bool | None] = mapped_column(Boolean(), nullable=True)
+    compute_budget_exhausted: Mapped[bool] = mapped_column(Boolean(), nullable=False, default=False)
+    effective_budget_scope: Mapped[str | None] = mapped_column(String(length=16), nullable=True)
+
+    execution: Mapped[Execution] = relationship(
+        "platform.execution.models.Execution",
+        back_populates="reasoning_traces",
+    )
+
+
+cast(Any, ExecutionReasoningTraceRecord.__table__).append_constraint(
+    Index(
+        "uq_execution_reasoning_trace_records_execution_step",
+        ExecutionReasoningTraceRecord.__table__.c.execution_id,
+        ExecutionReasoningTraceRecord.__table__.c.step_id,
+        unique=True,
+        postgresql_where=ExecutionReasoningTraceRecord.__table__.c.step_id.is_not(None),
+    )
+)
 
 
 class ExecutionTaskPlanRecord(Base, UUIDMixin, TimestampMixin):

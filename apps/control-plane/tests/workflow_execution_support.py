@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import UTC, datetime
 from platform.common.config import PlatformSettings
+from platform.common.exceptions import ObjectNotFoundError
 from platform.execution.models import (
     Execution,
     ExecutionApprovalWait,
@@ -10,6 +11,7 @@ from platform.execution.models import (
     ExecutionCompensationRecord,
     ExecutionDispatchLease,
     ExecutionEvent,
+    ExecutionReasoningTraceRecord,
     ExecutionRollbackAction,
     ExecutionStatus,
     ExecutionTaskPlanRecord,
@@ -117,7 +119,10 @@ class FakeObjectStorage:
         self.objects[(bucket, key)] = data
 
     async def download_object(self, bucket: str, key: str) -> bytes:
-        return self.objects[(bucket, key)]
+        try:
+            return self.objects[(bucket, key)]
+        except KeyError as exc:
+            raise ObjectNotFoundError(f"{bucket}/{key}") from exc
 
 
 class FakeRuntimeController:
@@ -267,6 +272,9 @@ class FakeExecutionRepository:
         self.checkpoints: dict[UUID, list[ExecutionCheckpoint]] = defaultdict(list)
         self.leases: list[ExecutionDispatchLease] = []
         self.task_plan_records: dict[tuple[UUID, str], ExecutionTaskPlanRecord] = {}
+        self.reasoning_trace_records: dict[
+            tuple[UUID, str | None], ExecutionReasoningTraceRecord
+        ] = {}
         self.approval_waits: dict[tuple[UUID, str], ExecutionApprovalWait] = {}
         self.compensations: list[ExecutionCompensationRecord] = []
         self.rollback_actions: list[ExecutionRollbackAction] = []
@@ -573,6 +581,32 @@ class FakeExecutionRepository:
         step_id: str,
     ) -> ExecutionTaskPlanRecord | None:
         return self.task_plan_records.get((execution_id, step_id))
+
+    async def upsert_reasoning_trace_record(
+        self,
+        record: ExecutionReasoningTraceRecord,
+    ) -> ExecutionReasoningTraceRecord:
+        now = datetime.now(UTC)
+        record.id = getattr(record, 'id', None) or uuid4()
+        record.created_at = getattr(record, 'created_at', None) or now
+        record.updated_at = now
+        self.reasoning_trace_records[(record.execution_id, record.step_id)] = record
+        return record
+
+    async def get_reasoning_trace_record(
+        self,
+        execution_id: UUID,
+        step_id: str | None,
+    ) -> ExecutionReasoningTraceRecord | None:
+        if step_id is not None:
+            return self.reasoning_trace_records.get((execution_id, step_id))
+        candidates = [
+            item
+            for (stored_execution_id, _), item in self.reasoning_trace_records.items()
+            if stored_execution_id == execution_id
+        ]
+        candidates.sort(key=lambda item: (item.created_at, item.id))
+        return candidates[0] if candidates else None
 
     async def create_approval_wait(
         self,

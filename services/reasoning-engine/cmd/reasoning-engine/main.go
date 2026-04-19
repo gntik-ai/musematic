@@ -15,7 +15,9 @@ import (
 	"github.com/musematic/reasoning-engine/internal/budget_tracker"
 	"github.com/musematic/reasoning-engine/internal/correction_loop"
 	"github.com/musematic/reasoning-engine/internal/cot_coordinator"
+	"github.com/musematic/reasoning-engine/internal/debate"
 	"github.com/musematic/reasoning-engine/internal/escalation"
+	"github.com/musematic/reasoning-engine/internal/events"
 	"github.com/musematic/reasoning-engine/internal/mode_selector"
 	"github.com/musematic/reasoning-engine/internal/quality_evaluator"
 	"github.com/musematic/reasoning-engine/internal/tot_manager"
@@ -151,11 +153,14 @@ func defaultBuildRuntimeDeps(ctx context.Context, cfg config) (runtimeDeps, erro
 		return runtimeDeps{}, fmt.Errorf("POSTGRES_DSN is required")
 	}
 
-	kafkaProducer := persistence.NewKafkaProducer(cfg.kafkaBrokers)
-	if kafkaProducer == nil {
+	kafkaProducer, err := events.NewKafkaProducer(cfg.kafkaBrokers)
+	if err != nil {
 		pgPool.Close()
 		_ = redisClient.Close()
-		return runtimeDeps{}, fmt.Errorf("KAFKA_BROKERS is required")
+		if cfg.kafkaBrokers == "" {
+			return runtimeDeps{}, fmt.Errorf("KAFKA_BROKERS is required")
+		}
+		return runtimeDeps{}, err
 	}
 
 	minioClient := persistence.NewMinIOClient(cfg.minioEndpoint, cfg.minioBucket)
@@ -180,19 +185,30 @@ func defaultBuildRuntimeDeps(ctx context.Context, cfg config) (runtimeDeps, erro
 	budgetTracker := budget_tracker.NewRedisTracker(redisClient, scripts, eventRegistry, telemetry, cfg.budgetDefaultTTLSeconds)
 	traceRepository := cot_coordinator.NewPGTraceRepository(pgPool)
 	traceCoordinator := cot_coordinator.NewPipeline(traceRepository, kafkaProducer, minioClient, telemetry, cfg.traceBufferSize, cfg.tracePayloadThreshold)
+	traceStore := persistence.NewTraceRecordStore(pgPool)
 	escalationRouter := escalation.NewRouter(kafkaProducer)
 	correctionLoop := correction_loop.NewLoopService(redisClient, scripts, kafkaProducer, escalationRouter, pgPool)
 	totManager := tot_manager.NewManager(budgetTracker, quality_evaluator.StaticEvaluator{}, telemetry, cfg.maxToTConcurrency)
+	debateService := debate.NewService(
+		debate.NewConsensusDetector(quality_evaluator.StaticEvaluator{}, 0.05),
+		minioClient,
+		traceStore,
+		kafkaProducer,
+	)
 
 	return runtimeDeps{
 		handler: reasoningv1.HandlerDependencies{
-			ModeSelector:   modeSelector,
-			BudgetTracker:  budgetTracker,
-			EventRegistry:  eventRegistry,
-			CoTCoordinator: traceCoordinator,
-			ToTManager:     totManager,
-			CorrectionLoop: correctionLoop,
-			Metrics:        telemetry,
+			ModeSelector:    modeSelector,
+			BudgetTracker:   budgetTracker,
+			EventRegistry:   eventRegistry,
+			CoTCoordinator:  traceCoordinator,
+			ToTManager:      totManager,
+			DebateService:   debateService,
+			CorrectionLoop:  correctionLoop,
+			TraceStore:      traceStore,
+			TraceUploader:   minioClient,
+			ReasoningEvents: kafkaProducer,
+			Metrics:         telemetry,
 		},
 		cleanup: func() {
 			kafkaProducer.Close()

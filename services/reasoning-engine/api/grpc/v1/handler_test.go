@@ -521,7 +521,7 @@ func TestHandlerErrorMappings(t *testing.T) {
 		t.Fatalf("EvaluateTreeBranches() code = %s", status.Code(err))
 	}
 
-	_, err = handler.StartSelfCorrectionLoop(context.Background(), &StartSelfCorrectionRequest{})
+	_, err = handler.StartSelfCorrectionLoop(context.Background(), &StartSelfCorrectionRequest{LoopId: "loop-1", ExecutionId: "exec-1", MaxIterations: 3, CostCap: 1, Epsilon: 0.01})
 	if status.Code(err) != codes.AlreadyExists {
 		t.Fatalf("StartSelfCorrectionLoop() code = %s", status.Code(err))
 	}
@@ -529,6 +529,7 @@ func TestHandlerErrorMappings(t *testing.T) {
 	handler = NewHandler(HandlerDependencies{
 		CorrectionLoop: correctionLoopStub{submitErr: correction_loop.ErrLoopNotRunning},
 	})
+	handler.selfCorrectionSessions["loop-1"] = &selfCorrectionSession{LoopID: "loop-1", ExecutionID: "exec-1", StepID: "step-1", MaxIterations: 3, BestQuality: -1}
 	_, err = handler.SubmitCorrectionIteration(context.Background(), &CorrectionIterationEvent{LoopId: "loop-1"})
 	if status.Code(err) != codes.FailedPrecondition {
 		t.Fatalf("SubmitCorrectionIteration() code = %s", status.Code(err))

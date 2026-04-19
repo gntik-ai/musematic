@@ -599,3 +599,84 @@ steps:
     assert WorkflowCompiler._format_path(["steps", 0, "id"]) == "steps[0].id"
     assert WorkflowCompiler._optional_str("  value  ") == "value"
     assert WorkflowCompiler._optional_str("  ") is None
+
+
+def test_compile_accepts_root_and_step_compute_budget() -> None:
+    compiler = WorkflowCompiler()
+
+    ir = compiler.compile(
+        """
+schema_version: 1
+metadata:
+  compute_budget: 0.75
+steps:
+  - id: step_a
+    step_type: agent_task
+    agent_fqn: ns:a
+    compute_budget: 0.4
+        """.strip(),
+        1,
+    )
+
+    assert ir.metadata["compute_budget"] == 0.75
+    assert ir.steps[0].compute_budget == 0.4
+
+
+@pytest.mark.parametrize(
+    ("yaml_source", "path"),
+    [
+        (
+            """
+schema_version: 1
+metadata:
+  compute_budget: 0
+steps:
+  - id: step_a
+    step_type: agent_task
+    agent_fqn: ns:a
+            """.strip(),
+            "metadata.compute_budget",
+        ),
+        (
+            """
+schema_version: 1
+metadata:
+  compute_budget: 1.1
+steps:
+  - id: step_a
+    step_type: agent_task
+    agent_fqn: ns:a
+            """.strip(),
+            "metadata.compute_budget",
+        ),
+        (
+            """
+schema_version: 1
+steps:
+  - id: step_a
+    step_type: agent_task
+    agent_fqn: ns:a
+    compute_budget: -0.1
+            """.strip(),
+            "steps[0].compute_budget",
+        ),
+        (
+            """
+schema_version: 1
+steps:
+  - id: step_a
+    step_type: agent_task
+    agent_fqn: ns:a
+    compute_budget: 1.5
+            """.strip(),
+            "steps[0].compute_budget",
+        ),
+    ],
+)
+def test_compile_rejects_out_of_range_compute_budget(yaml_source: str, path: str) -> None:
+    compiler = WorkflowCompiler()
+
+    with pytest.raises(WorkflowCompilationError) as exc_info:
+        compiler.compile(yaml_source, 1)
+
+    assert exc_info.value.details["path"] == path

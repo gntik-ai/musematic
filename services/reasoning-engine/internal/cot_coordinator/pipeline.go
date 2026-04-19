@@ -26,6 +26,10 @@ type Pipeline struct {
 	now              func() time.Time
 }
 
+type reactCycleEventProducer interface {
+	ProduceReactCycleCompleted(ctx context.Context, executionID string, payload map[string]any) error
+}
+
 func NewPipeline(repository TraceRepository, producer EventProducer, uploader ObjectUploader, telemetry *metrics.Metrics, bufferSize, payloadThreshold int) *Pipeline {
 	if bufferSize <= 0 {
 		bufferSize = 1
@@ -132,6 +136,14 @@ func (p *Pipeline) ProcessStream(ctx context.Context, stream TraceStream) (*Trac
 				ack.FailedEventIDs = append(ack.FailedEventIDs, event.EventID)
 				mu.Unlock()
 				return
+			}
+			if event.EventType == "react_cycle_completed" {
+				if producer, ok := any(p.producer).(reactCycleEventProducer); ok {
+					reactPayload := buildReactCycleCompletedPayload(event, objectKey)
+					go func(payloadCopy map[string]any) {
+						_ = producer.ProduceReactCycleCompleted(ctx, event.ExecutionID, payloadCopy)
+					}(reactPayload)
+				}
 			}
 		}
 
@@ -251,6 +263,24 @@ VALUES ($1, $2, $3, $4, $5, $6)
 	}()
 	_, err := results.Exec()
 	return err
+}
+
+func buildReactCycleCompletedPayload(event *TraceEvent, objectKey string) map[string]any {
+	payload := map[string]any{
+		"step_id":      event.StepID,
+		"event_id":     event.EventID,
+		"event_type":   event.EventType,
+		"sequence_num": event.SequenceNum,
+		"payload_size": len(event.Payload),
+		"object_key":   objectKey,
+	}
+	var decoded map[string]any
+	if len(event.Payload) > 0 && json.Unmarshal(event.Payload, &decoded) == nil {
+		for key, value := range decoded {
+			payload[key] = value
+		}
+	}
+	return payload
 }
 
 func (r *PGTraceRepository) FinalizeTrace(ctx context.Context, executionID string, totalEvents, droppedEvents int32, completedAt time.Time, objectKey string) error {
