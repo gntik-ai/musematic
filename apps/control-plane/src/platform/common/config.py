@@ -413,6 +413,8 @@ class PlatformSettings(BaseSettings):
     composition: CompositionSettings = Field(default_factory=CompositionSettings)
     discovery: DiscoverySettings = Field(default_factory=DiscoverySettings)
     simulation: SimulationSettings = Field(default_factory=SimulationSettings)
+    checkpoint_retention_days: int = 30
+    checkpoint_max_size_bytes: int = 10_485_760
     profile: str = "api"
 
     @model_validator(mode="before")
@@ -501,6 +503,8 @@ class PlatformSettings(BaseSettings):
             "WORKSPACES_DEFAULT_NAME_TEMPLATE": ("workspaces", "default_name_template"),
             "WORKSPACES_DEFAULT_LIMIT": ("workspaces", "default_limit"),
             "FEATURE_GOAL_AUTO_COMPLETE": ("FEATURE_GOAL_AUTO_COMPLETE",),
+            "CHECKPOINT_RETENTION_DAYS": ("checkpoint_retention_days",),
+            "CHECKPOINT_MAX_SIZE_BYTES": ("checkpoint_max_size_bytes",),
             "ANALYTICS_BUDGET_THRESHOLD_USD": ("analytics", "budget_threshold_usd"),
             "VISIBILITY_ZERO_TRUST_ENABLED": ("visibility", "zero_trust_enabled"),
             "REGISTRY_PACKAGE_BUCKET": ("registry", "package_bucket"),

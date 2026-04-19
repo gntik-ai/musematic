@@ -1,11 +1,7 @@
 from __future__ import annotations
 
 import logging
-from platform.execution.models import (
-    ExecutionCheckpoint,
-    ExecutionEvent,
-    ExecutionStatus,
-)
+from platform.execution.models import ExecutionCheckpoint, ExecutionEvent, ExecutionStatus
 from platform.execution.schemas import ExecutionStateResponse
 from typing import Any
 
@@ -14,6 +10,7 @@ LOGGER = logging.getLogger(__name__)
 
 class ExecutionProjector:
     """Project execution state."""
+
     def project_state(
         self,
         events: list[ExecutionEvent],
@@ -176,6 +173,23 @@ class ExecutionProjector:
 
     def _apply_reprioritized(self, state: ExecutionStateResponse, event: ExecutionEvent) -> None:
         state.step_results.setdefault("_reprioritization", []).append(dict(event.payload))
+
+    def _apply_rolled_back(self, state: ExecutionStateResponse, event: ExecutionEvent) -> None:
+        payload = dict(event.payload)
+        state.completed_step_ids = self._dedupe(
+            [str(item) for item in payload.get("completed_step_ids", [])]
+        )
+        state.pending_step_ids = self._dedupe(
+            [str(item) for item in payload.get("pending_step_ids", [])]
+        )
+        state.active_step_ids = self._dedupe(
+            [str(item) for item in payload.get("active_step_ids", [])]
+        )
+        state.step_results = dict(payload.get("step_results", {}))
+        workflow_version_id = payload.get("workflow_version_id")
+        if workflow_version_id is not None:
+            state.workflow_version_id = workflow_version_id
+        state.status = ExecutionStatus.rolled_back
 
     @staticmethod
     def _dedupe(values: list[str]) -> list[str]:

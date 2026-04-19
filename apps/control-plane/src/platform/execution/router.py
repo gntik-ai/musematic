@@ -4,12 +4,22 @@ from datetime import datetime
 from platform.auth.router import _require_platform_admin
 from platform.common.clients.runtime_controller import RuntimeControllerClient
 from platform.common.dependencies import get_current_user
-from platform.execution.dependencies import get_execution_service, get_runtime_controller_client
+from platform.common.exceptions import AuthorizationError
+from platform.execution.checkpoint_service import CheckpointService
+from platform.execution.dependencies import (
+    get_checkpoint_service,
+    get_execution_service,
+    get_reprioritization_service,
+    get_runtime_controller_client,
+)
 from platform.execution.models import ExecutionEventType, ExecutionStatus
+from platform.execution.reprioritization import ReprioritizationService
 from platform.execution.schemas import (
     ApprovalDecisionRequest,
     ApprovalWaitListResponse,
     ApprovalWaitResponse,
+    CheckpointDetailResponse,
+    CheckpointListResponse,
     ExecutionCreate,
     ExecutionEventListResponse,
     ExecutionListResponse,
@@ -17,6 +27,12 @@ from platform.execution.schemas import (
     ExecutionStateResponse,
     HotChangeApplyResponse,
     HotChangeRequest,
+    ReprioritizationTriggerCreate,
+    ReprioritizationTriggerListResponse,
+    ReprioritizationTriggerResponse,
+    ReprioritizationTriggerUpdate,
+    RollbackRequest,
+    RollbackResponse,
     TaskPlanFullResponse,
     TaskPlanRecordResponse,
     WarmPoolConfigRequest,
@@ -31,11 +47,32 @@ from uuid import UUID
 from fastapi import APIRouter, Body, Depends, Query, Response, status
 
 router = APIRouter(prefix="/api/v1/executions", tags=["execution"])
+trigger_router = APIRouter(prefix="/api/v1/reprioritization-triggers", tags=["execution"])
 runtime_router = APIRouter(prefix="/api/v1/runtime", tags=["execution"])
 
 
 def _actor_id(current_user: dict[str, Any]) -> UUID:
     return UUID(str(current_user["sub"]))
+
+
+def _role_names(current_user: dict[str, Any]) -> set[str]:
+    roles = current_user.get("roles", [])
+    return {str(item.get("role")) for item in roles if isinstance(item, dict)}
+
+
+def _require_workspace_admin(current_user: dict[str, Any]) -> None:
+    if {"workspace_admin", "superadmin", "platform_admin"} & _role_names(current_user):
+        return
+    raise AuthorizationError("PERMISSION_DENIED", "Workspace admin role required")
+
+
+def _require_execution_rollback(current_user: dict[str, Any]) -> None:
+    permissions = {str(item) for item in current_user.get("permissions", [])}
+    if "execution.rollback" in permissions:
+        return
+    if {"superadmin", "platform_admin"} & _role_names(current_user):
+        return
+    raise AuthorizationError("PERMISSION_DENIED", "Permission 'execution.rollback' required")
 
 
 @router.post("", response_model=ExecutionResponse, status_code=status.HTTP_201_CREATED)
@@ -177,10 +214,7 @@ async def list_approvals(
     return await execution_service.list_approvals(execution_id)
 
 
-@router.post(
-    "/{execution_id}/approvals/{step_id}/decide",
-    response_model=ApprovalWaitResponse,
-)
+@router.post("/{execution_id}/approvals/{step_id}/decide", response_model=ApprovalWaitResponse)
 async def decide_approval(
     execution_id: UUID,
     step_id: str,
@@ -197,10 +231,58 @@ async def decide_approval(
     )
 
 
+@router.get("/{execution_id}/checkpoints", response_model=CheckpointListResponse)
+async def list_checkpoints(
+    execution_id: UUID,
+    include_superseded: bool = Query(default=False),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=100),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    checkpoint_service: CheckpointService = Depends(get_checkpoint_service),
+) -> CheckpointListResponse:
+    """List checkpoints for an execution."""
+    del current_user
+    return await checkpoint_service.list_checkpoints(
+        execution_id,
+        include_superseded=include_superseded,
+        page=page,
+        page_size=page_size,
+    )
+
+
 @router.get(
-    "/{execution_id}/task-plan",
-    response_model=list[TaskPlanRecordResponse],
+    "/{execution_id}/checkpoints/{checkpoint_number}", response_model=CheckpointDetailResponse
 )
+async def get_checkpoint(
+    execution_id: UUID,
+    checkpoint_number: int,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    checkpoint_service: CheckpointService = Depends(get_checkpoint_service),
+) -> CheckpointDetailResponse:
+    """Return a checkpoint."""
+    del current_user
+    return await checkpoint_service.get_checkpoint(execution_id, checkpoint_number)
+
+
+@router.post("/{execution_id}/rollback/{checkpoint_number}", response_model=RollbackResponse)
+async def rollback_execution(
+    execution_id: UUID,
+    checkpoint_number: int,
+    payload: RollbackRequest = Body(default_factory=RollbackRequest),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    execution_service: ExecutionService = Depends(get_execution_service),
+) -> RollbackResponse:
+    """Rollback an execution to a checkpoint."""
+    _require_execution_rollback(current_user)
+    return await execution_service.rollback_execution(
+        execution_id,
+        checkpoint_number,
+        initiated_by=_actor_id(current_user),
+        reason=payload.reason,
+    )
+
+
+@router.get("/{execution_id}/task-plan", response_model=list[TaskPlanRecordResponse])
 async def list_task_plans(
     execution_id: UUID,
     current_user: dict[str, Any] = Depends(get_current_user),
@@ -213,10 +295,7 @@ async def list_task_plans(
     return result
 
 
-@router.get(
-    "/{execution_id}/task-plan/{step_id}",
-    response_model=TaskPlanFullResponse,
-)
+@router.get("/{execution_id}/task-plan/{step_id}", response_model=TaskPlanFullResponse)
 async def get_task_plan(
     execution_id: UUID,
     step_id: str,
@@ -260,6 +339,84 @@ async def trigger_compensation(
         triggered_by=str(_actor_id(current_user)),
     )
     return Response(status_code=status.HTTP_202_ACCEPTED)
+
+
+@trigger_router.post(
+    "", response_model=ReprioritizationTriggerResponse, status_code=status.HTTP_201_CREATED
+)
+async def create_reprioritization_trigger(
+    payload: ReprioritizationTriggerCreate,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    reprioritization_service: ReprioritizationService = Depends(get_reprioritization_service),
+) -> ReprioritizationTriggerResponse:
+    """Create a reprioritization trigger."""
+    _require_workspace_admin(current_user)
+    trigger = await reprioritization_service.create_trigger(
+        payload, created_by=_actor_id(current_user)
+    )
+    return ReprioritizationTriggerResponse.model_validate(trigger)
+
+
+@trigger_router.get("", response_model=ReprioritizationTriggerListResponse)
+async def list_reprioritization_triggers(
+    workspace_id: UUID = Query(...),
+    enabled: bool | None = Query(default=None),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=100),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    reprioritization_service: ReprioritizationService = Depends(get_reprioritization_service),
+) -> ReprioritizationTriggerListResponse:
+    """List reprioritization triggers."""
+    del current_user
+    items, total = await reprioritization_service.list_triggers(
+        workspace_id,
+        enabled=enabled,
+        page=page,
+        page_size=page_size,
+    )
+    return ReprioritizationTriggerListResponse(
+        items=[ReprioritizationTriggerResponse.model_validate(item) for item in items],
+        total=total,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@trigger_router.get("/{trigger_id}", response_model=ReprioritizationTriggerResponse)
+async def get_reprioritization_trigger(
+    trigger_id: UUID,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    reprioritization_service: ReprioritizationService = Depends(get_reprioritization_service),
+) -> ReprioritizationTriggerResponse:
+    """Return a reprioritization trigger."""
+    del current_user
+    trigger = await reprioritization_service.get_trigger(trigger_id)
+    return ReprioritizationTriggerResponse.model_validate(trigger)
+
+
+@trigger_router.patch("/{trigger_id}", response_model=ReprioritizationTriggerResponse)
+async def update_reprioritization_trigger(
+    trigger_id: UUID,
+    payload: ReprioritizationTriggerUpdate,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    reprioritization_service: ReprioritizationService = Depends(get_reprioritization_service),
+) -> ReprioritizationTriggerResponse:
+    """Update a reprioritization trigger."""
+    _require_workspace_admin(current_user)
+    trigger = await reprioritization_service.update_trigger(trigger_id, payload)
+    return ReprioritizationTriggerResponse.model_validate(trigger)
+
+
+@trigger_router.delete("/{trigger_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_reprioritization_trigger(
+    trigger_id: UUID,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    reprioritization_service: ReprioritizationService = Depends(get_reprioritization_service),
+) -> Response:
+    """Delete a reprioritization trigger."""
+    _require_workspace_admin(current_user)
+    await reprioritization_service.delete_trigger(trigger_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @runtime_router.get("/warm-pool/status", response_model=WarmPoolStatusResponse)

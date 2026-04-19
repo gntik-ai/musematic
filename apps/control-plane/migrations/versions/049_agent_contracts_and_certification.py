@@ -374,6 +374,7 @@ def downgrade() -> None:
 
     op.execute("UPDATE trust_certifications SET status = 'active' WHERE status = 'expiring'")
     op.execute("UPDATE trust_certifications SET status = 'revoked' WHERE status = 'suspended'")
+    op.execute("ALTER TABLE trust_certifications ALTER COLUMN status DROP DEFAULT")
     op.execute("ALTER TYPE trust_certification_status RENAME TO trust_certification_status_old")
     old_status = postgresql.ENUM(
         "pending",
@@ -387,5 +388,8 @@ def downgrade() -> None:
     op.execute(
         "ALTER TABLE trust_certifications ALTER COLUMN status TYPE trust_certification_status "
         "USING status::text::trust_certification_status"
+    )
+    op.execute(
+        "ALTER TABLE trust_certifications ALTER COLUMN status SET DEFAULT 'pending'"
     )
     op.execute("DROP TYPE trust_certification_status_old")

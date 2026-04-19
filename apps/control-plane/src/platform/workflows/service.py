@@ -69,6 +69,7 @@ class WorkflowService:
                 f"Workflow '{data.name}' already exists in this workspace",
             )
         compiled_ir = self.validate_and_compile(data.yaml_source)
+        checkpoint_policy = self._validate_checkpoint_policy(compiled_ir, data.checkpoint_policy)
         definition = await self.repository.create_definition(
             WorkflowDefinition(
                 name=data.name,
@@ -89,6 +90,7 @@ class WorkflowService:
                 compiled_ir=compiled_ir.to_dict(),
                 schema_version=compiled_ir.schema_version,
                 change_summary=data.change_summary,
+                checkpoint_policy=checkpoint_policy,
                 created_by=created_by,
                 is_valid=True,
             )
@@ -118,6 +120,7 @@ class WorkflowService:
         """Update workflow."""
         definition = await self._get_definition_or_raise(workflow_id)
         compiled_ir = self.validate_and_compile(data.yaml_source)
+        checkpoint_policy = self._validate_checkpoint_policy(compiled_ir, data.checkpoint_policy)
         versions = await self.repository.list_versions(workflow_id)
         version = await self.repository.create_version(
             WorkflowVersion(
@@ -127,6 +130,7 @@ class WorkflowService:
                 compiled_ir=compiled_ir.to_dict(),
                 schema_version=compiled_ir.schema_version,
                 change_summary=data.change_summary,
+                checkpoint_policy=checkpoint_policy,
                 created_by=updated_by,
                 is_valid=True,
             )
@@ -148,6 +152,28 @@ class WorkflowService:
             self._correlation(definition.workspace_id),
         )
         return self._workflow_response(definition)
+
+    def _validate_checkpoint_policy(
+        self,
+        compiled_ir: WorkflowIR,
+        policy: Any | None,
+    ) -> dict[str, Any] | None:
+        if policy is None:
+            return None
+        payload = policy.model_dump() if hasattr(policy, "model_dump") else dict(policy)
+        if payload.get("type") == "named_steps":
+            known_steps = {step.step_id for step in compiled_ir.steps}
+            unknown = [
+                step_id
+                for step_id in payload.get("step_ids", [])
+                if step_id not in known_steps
+            ]
+            if unknown:
+                raise ValidationError(
+                    "CHECKPOINT_POLICY_UNKNOWN_STEP",
+                    f"Checkpoint policy references unknown step ids: {', '.join(unknown)}",
+                )
+        return payload
 
     async def archive_workflow(self, workflow_id: UUID, updated_by: UUID) -> WorkflowResponse:
         """Archive workflow."""

@@ -69,7 +69,11 @@ from platform.evaluation.dependencies import build_eval_runner_service, build_ro
 from platform.evaluation.events import register_evaluation_event_types
 from platform.evaluation.repository import EvaluationRepository
 from platform.evaluation.scorers.semantic import SemanticSimilarityScorer
-from platform.execution.dependencies import build_execution_service, build_scheduler_service
+from platform.execution.dependencies import (
+    build_checkpoint_service,
+    build_execution_service,
+    build_scheduler_service,
+)
 from platform.execution.events import (
     event_bus_consumer_handler,
     register_execution_consumers,
@@ -78,6 +82,7 @@ from platform.execution.events import (
 from platform.execution.models import ExecutionEventType, ExecutionStatus
 from platform.execution.router import router as execution_router
 from platform.execution.router import runtime_router as execution_runtime_router
+from platform.execution.router import trigger_router as execution_reprioritization_router
 from platform.execution.schemas import ExecutionCreate
 from platform.fleet_learning.dependencies import build_adaptation_service, build_performance_service
 from platform.fleet_learning.router import router as fleet_learning_router
@@ -352,6 +357,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         "governance_retention_gc_scheduler",
         None,
     )
+    checkpoint_gc_scheduler = getattr(app.state, "checkpoint_gc_scheduler", None)
     ibor_sync_scheduler = getattr(app.state, "ibor_sync_scheduler", None)
     connectors_worker_scheduler = getattr(app.state, "connectors_worker_scheduler", None)
     workflow_execution_scheduler = getattr(app.state, "workflow_execution_scheduler", None)
@@ -412,6 +418,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["governance_retention_gc_scheduler"] = str(exc)
             LOGGER.warning("Failed to start governance retention GC scheduler: %s", exc)
+    if checkpoint_gc_scheduler is not None:
+        try:
+            checkpoint_gc_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["checkpoint_gc_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start checkpoint GC scheduler: %s", exc)
     if connectors_worker_scheduler is not None:
         try:
             connectors_worker_scheduler.start()
@@ -497,6 +510,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                 simulation_prediction_scheduler.shutdown(wait=False)
             except Exception as exc:
                 LOGGER.warning("Failed to stop simulation prediction scheduler cleanly: %s", exc)
+        if checkpoint_gc_scheduler is not None:
+            try:
+                checkpoint_gc_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop checkpoint GC scheduler cleanly: %s", exc)
         if ibor_sync_scheduler is not None:
             try:
                 ibor_sync_scheduler.shutdown(wait=False)
@@ -665,6 +683,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.robustness_orchestrator_scheduler = None
     app.state.trust_certifier_scheduler = None
     app.state.governance_retention_gc_scheduler = None
+    app.state.checkpoint_gc_scheduler = None
     if resolved.profile == "api":
         app.state.ibor_sync_scheduler = _build_ibor_sync_scheduler(app)
         app.state.refresh_ibor_sync_scheduler = lambda: _refresh_ibor_sync_scheduler(app)
@@ -696,6 +715,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.fleet_learning_scheduler = _build_fleet_learning_scheduler(app)
         app.state.goal_auto_completion_scheduler = _build_goal_auto_completion_scheduler(app)
         app.state.governance_retention_gc_scheduler = _build_governance_retention_gc_scheduler(app)
+        app.state.checkpoint_gc_scheduler = _build_checkpoint_gc_scheduler(app)
     if resolved.profile == "agentops":
         app.state.agentops_lifecycle_scheduler = _build_agentops_lifecycle_scheduler(app)
     if resolved.profile == "agentops-testing":
@@ -712,6 +732,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     if resolved.profile == "scheduler":
         app.state.goal_auto_completion_scheduler = _build_goal_auto_completion_scheduler(app)
         app.state.governance_retention_gc_scheduler = _build_governance_retention_gc_scheduler(app)
+        app.state.checkpoint_gc_scheduler = _build_checkpoint_gc_scheduler(app)
     exception_handler = cast(
         Callable[[Request, Exception], Response | Awaitable[Response]],
         platform_exception_handler,
@@ -902,6 +923,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(testing_router)
         app.include_router(workflows_router)
         app.include_router(execution_router)
+        app.include_router(execution_reprioritization_router)
         app.include_router(execution_runtime_router)
         app.include_router(trust_router, prefix="/api/v1/trust")
         app.include_router(fleets_router)
@@ -1128,6 +1150,46 @@ def _build_governance_retention_gc_scheduler(app: FastAPI) -> Any | None:
         "interval",
         hours=app.state.settings.governance.gc_interval_hours,
         id="governance-retention-gc",
+    )
+    return scheduler
+
+
+async def _run_checkpoint_gc(app: FastAPI) -> None:
+    async with database.AsyncSessionLocal() as session:
+        checkpoint_service = build_checkpoint_service(
+            session=session,
+            settings=cast(PlatformSettings, app.state.settings),
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+        )
+        try:
+            await checkpoint_service.gc_expired(
+                app.state.settings.checkpoint_retention_days
+            )
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+def _build_checkpoint_gc_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run() -> None:
+        await _run_checkpoint_gc(app)
+
+    scheduler.add_job(
+        _run,
+        "interval",
+        hours=24,
+        id="execution-checkpoint-gc",
     )
     return scheduler
 

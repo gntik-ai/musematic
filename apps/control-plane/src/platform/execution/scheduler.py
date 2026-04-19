@@ -5,6 +5,7 @@ import logging
 from datetime import UTC, datetime, timedelta
 from platform.common.events.envelope import CorrelationContext
 from platform.common.exceptions import PolicySecretLeakError
+from platform.execution.checkpoint_service import CheckpointService
 from platform.execution.events import PromptSecretDetectedEvent, publish_prompt_secret_detected
 from platform.execution.models import (
     ApprovalDecision,
@@ -19,7 +20,8 @@ from platform.execution.models import (
 )
 from platform.execution.projector import ExecutionProjector
 from platform.execution.repository import ExecutionRepository
-from platform.execution.schemas import ExecutionStateResponse
+from platform.execution.reprioritization import ReprioritizationResult, ReprioritizationService
+from platform.execution.schemas import DEFAULT_CHECKPOINT_POLICY, ExecutionStateResponse
 from platform.execution.service import ExecutionService
 from platform.policies.models import EnforcementComponent, PolicyBlockedActionRecord
 from platform.policies.repository import PolicyRepository
@@ -85,6 +87,8 @@ class SchedulerService:
         context_engineering_service: Any | None,
         interactions_service: Any | None,
         priority_scorer: PriorityScorer | None = None,
+        reprioritization_service: ReprioritizationService | None = None,
+        checkpoint_service: CheckpointService | None = None,
     ) -> None:
         self.repository = repository
         self.execution_service = execution_service
@@ -98,6 +102,8 @@ class SchedulerService:
         self.context_engineering_service = context_engineering_service
         self.interactions_service = interactions_service
         self.priority_scorer = priority_scorer or PriorityScorer()
+        self.reprioritization_service = reprioritization_service
+        self.checkpoint_service = checkpoint_service
         self.worker_id = f"worker-{uuid4()}"
 
     async def tick(self) -> None:
@@ -105,8 +111,28 @@ class SchedulerService:
         executions = await self.repository.list_by_statuses(
             [ExecutionStatus.queued, ExecutionStatus.running]
         )
-        executions.sort(key=self._execution_priority_key)
-        for execution in executions:
+        queued = [item for item in executions if item.status == ExecutionStatus.queued]
+        running = [item for item in executions if item.status != ExecutionStatus.queued]
+        running.sort(key=self._execution_priority_key)
+
+        reordered_queued: list[Execution] = []
+        if queued and self.reprioritization_service is not None:
+            by_workspace: dict[Any, list[Execution]] = {}
+            for execution in queued:
+                by_workspace.setdefault(execution.workspace_id, []).append(execution)
+            for workspace_id, workspace_executions in by_workspace.items():
+                result = await self.reprioritization_service.evaluate_for_dispatch_cycle(
+                    workspace_executions,
+                    workspace_id,
+                    cycle_budget_ms=25,
+                )
+                reordered_queued.extend(result.ordered_executions)
+                if result.firings:
+                    await self._emit_queue_reprioritization(result)
+        else:
+            reordered_queued = sorted(queued, key=self._execution_priority_key)
+
+        for execution in [*running, *reordered_queued]:
             await self._process_execution(execution)
 
     async def handle_reprioritization_trigger(
@@ -260,6 +286,8 @@ class SchedulerService:
         )
 
         for step in scored:
+            if not await self._capture_pre_dispatch_checkpoint(execution, step, state):
+                return
             if step.step_type == "approval_gate":
                 await self._handle_approval_gate(execution, step)
                 continue
@@ -314,6 +342,87 @@ class SchedulerService:
             )
             await self._dispatch_to_runtime(execution, step)
             await self._maybe_checkpoint(execution.id)
+
+    async def _emit_queue_reprioritization(self, result: ReprioritizationResult) -> None:
+        queue_order = [
+            {"execution_id": str(item.id), "position": index + 1}
+            for index, item in enumerate(result.ordered_executions)
+        ]
+        for firing in result.firings:
+            execution = next(
+                item for item in result.ordered_executions if item.id == firing.execution_id
+            )
+            payload = {
+                "trigger_reason": firing.trigger.trigger_type,
+                "trigger_id": str(firing.trigger.id),
+                "trigger_name": firing.trigger.name,
+                "new_queue_order": queue_order,
+                "priority_changes": [
+                    {
+                        "execution_id": str(firing.execution_id),
+                        "old_position": firing.old_position,
+                        "new_position": firing.new_position,
+                    }
+                ],
+                "steps_affected": [],
+            }
+            await self.execution_service.record_runtime_event(
+                execution.id,
+                step_id=None,
+                event_type=ExecutionEventType.reprioritized,
+                payload=payload,
+            )
+            await self.execution_service.publish_reprioritization(
+                execution,
+                trigger_reason=firing.trigger.trigger_type,
+                steps_affected=[],
+                trigger_id=firing.trigger.id,
+                trigger_name=firing.trigger.name,
+                new_queue_order=queue_order,
+            )
+
+    async def _capture_pre_dispatch_checkpoint(
+        self,
+        execution: Execution,
+        step: StepIR,
+        state: ExecutionStateResponse,
+    ) -> bool:
+        if self.checkpoint_service is None:
+            return True
+        policy = dict(execution.checkpoint_policy_snapshot or DEFAULT_CHECKPOINT_POLICY)
+        if not self.checkpoint_service.should_capture(step, policy):
+            return True
+        try:
+            await self.checkpoint_service.capture(
+                execution=execution,
+                step_id=step.step_id,
+                state=state,
+                policy_snapshot=policy,
+            )
+        except Exception as exc:
+            LOGGER.warning(
+                "Checkpoint capture paused execution",
+                extra={
+                    "execution_id": str(execution.id),
+                    "step_id": step.step_id,
+                    "error": str(exc),
+                },
+            )
+            await self.repository.update_execution_status(execution, ExecutionStatus.paused)
+            await self.execution_service.record_runtime_event(
+                execution.id,
+                step_id=step.step_id,
+                event_type=ExecutionEventType.failed,
+                payload={
+                    "step_type": step.step_type,
+                    "failure_kind": "checkpoint_capture",
+                    "recoverable": True,
+                    "error": str(exc),
+                },
+                status=ExecutionStatus.paused,
+            )
+            return False
+        return True
 
     async def _handle_approval_gate(self, execution: Execution, step: StepIR) -> None:
         existing = await self.repository.get_approval_wait(execution.id, step.step_id)

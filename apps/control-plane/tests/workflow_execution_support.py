@@ -10,8 +10,10 @@ from platform.execution.models import (
     ExecutionCompensationRecord,
     ExecutionDispatchLease,
     ExecutionEvent,
+    ExecutionRollbackAction,
     ExecutionStatus,
     ExecutionTaskPlanRecord,
+    ReprioritizationTrigger,
 )
 from platform.workflows.models import (
     TriggerType,
@@ -73,7 +75,7 @@ class FakeRedisClient:
         del ex
         if nx and key in self.storage:
             return False
-        self.storage[key] = value.encode("utf-8")
+        self.storage[key] = value.encode('utf-8')
         return True
 
     async def set(
@@ -108,7 +110,7 @@ class FakeObjectStorage:
         bucket: str,
         key: str,
         data: bytes,
-        content_type: str = "application/octet-stream",
+        content_type: str = 'application/octet-stream',
         metadata: dict[str, str] | None = None,
     ) -> None:
         del content_type, metadata
@@ -134,7 +136,7 @@ class FakeWorkflowRepository:
         self.triggers: dict[UUID, WorkflowTriggerDefinition] = {}
 
     async def create_definition(self, definition: WorkflowDefinition) -> WorkflowDefinition:
-        definition.id = getattr(definition, "id", None) or uuid4()
+        definition.id = getattr(definition, 'id', None) or uuid4()
         definition.created_at = datetime.now(UTC)
         definition.updated_at = definition.created_at
         definition.status = definition.status or WorkflowStatus.active
@@ -176,7 +178,7 @@ class FakeWorkflowRepository:
         return items[offset : offset + limit], len(items)
 
     async def create_version(self, version: WorkflowVersion) -> WorkflowVersion:
-        version.id = getattr(version, "id", None) or uuid4()
+        version.id = getattr(version, 'id', None) or uuid4()
         version.created_at = datetime.now(UTC)
         version.updated_at = version.created_at
         self.versions[version.id] = version
@@ -216,7 +218,7 @@ class FakeWorkflowRepository:
         return definition
 
     async def create_trigger(self, trigger: WorkflowTriggerDefinition) -> WorkflowTriggerDefinition:
-        trigger.id = getattr(trigger, "id", None) or uuid4()
+        trigger.id = getattr(trigger, 'id', None) or uuid4()
         trigger.created_at = datetime.now(UTC)
         trigger.updated_at = trigger.created_at
         self.triggers[trigger.id] = trigger
@@ -267,9 +269,11 @@ class FakeExecutionRepository:
         self.task_plan_records: dict[tuple[UUID, str], ExecutionTaskPlanRecord] = {}
         self.approval_waits: dict[tuple[UUID, str], ExecutionApprovalWait] = {}
         self.compensations: list[ExecutionCompensationRecord] = []
+        self.rollback_actions: list[ExecutionRollbackAction] = []
+        self.reprioritization_triggers: dict[UUID, ReprioritizationTrigger] = {}
 
     async def create_execution(self, execution: Execution) -> Execution:
-        execution.id = getattr(execution, "id", None) or uuid4()
+        execution.id = getattr(execution, 'id', None) or uuid4()
         execution.created_at = datetime.now(UTC)
         execution.updated_at = execution.created_at
         self.executions[execution.id] = execution
@@ -310,8 +314,7 @@ class FakeExecutionRepository:
             1
             for item in self.executions.values()
             if item.trigger_id == trigger_id
-            and item.status
-            in {
+            and item.status in {
                 ExecutionStatus.queued,
                 ExecutionStatus.running,
                 ExecutionStatus.waiting_for_approval,
@@ -336,21 +339,21 @@ class FakeExecutionRepository:
         return execution
 
     async def append_event(self, **payload: Any) -> ExecutionEvent:
-        execution_id = payload["execution_id"]
+        execution_id = payload['execution_id']
         event = ExecutionEvent(
             id=uuid4(),
             execution_id=execution_id,
             sequence=len(self.events[execution_id]) + 1,
-            event_type=payload["event_type"],
-            step_id=payload.get("step_id"),
-            agent_fqn=payload.get("agent_fqn"),
-            payload=dict(payload.get("payload", {})),
-            correlation_workspace_id=payload["correlation_workspace_id"],
-            correlation_conversation_id=payload.get("correlation_conversation_id"),
-            correlation_interaction_id=payload.get("correlation_interaction_id"),
-            correlation_goal_id=payload.get("correlation_goal_id"),
-            correlation_fleet_id=payload.get("correlation_fleet_id"),
-            correlation_execution_id=payload["correlation_execution_id"],
+            event_type=payload['event_type'],
+            step_id=payload.get('step_id'),
+            agent_fqn=payload.get('agent_fqn'),
+            payload=dict(payload.get('payload', {})),
+            correlation_workspace_id=payload['correlation_workspace_id'],
+            correlation_conversation_id=payload.get('correlation_conversation_id'),
+            correlation_interaction_id=payload.get('correlation_interaction_id'),
+            correlation_goal_id=payload.get('correlation_goal_id'),
+            correlation_fleet_id=payload.get('correlation_fleet_id'),
+            correlation_execution_id=payload['correlation_execution_id'],
             created_at=datetime.now(UTC),
         )
         self.events[execution_id].append(event)
@@ -374,22 +377,149 @@ class FakeExecutionRepository:
         return len(self.events[execution_id])
 
     async def create_checkpoint(self, checkpoint: ExecutionCheckpoint) -> ExecutionCheckpoint:
-        checkpoint.id = getattr(checkpoint, "id", None) or uuid4()
+        checkpoint.id = getattr(checkpoint, 'id', None) or uuid4()
         checkpoint.created_at = datetime.now(UTC)
         checkpoint.updated_at = checkpoint.created_at
         self.checkpoints[checkpoint.execution_id].append(checkpoint)
         return checkpoint
 
-    async def get_latest_checkpoint(self, execution_id: UUID) -> ExecutionCheckpoint | None:
-        if not self.checkpoints[execution_id]:
-            return None
-        return self.checkpoints[execution_id][-1]
+    async def get_next_checkpoint_number(self, execution_id: UUID) -> int:
+        checkpoints = self.checkpoints[execution_id]
+        if not checkpoints:
+            return 1
+        return max(item.checkpoint_number for item in checkpoints) + 1
+
+    async def list_checkpoints(
+        self,
+        execution_id: UUID,
+        *,
+        include_superseded: bool,
+        offset: int,
+        limit: int,
+    ) -> tuple[list[ExecutionCheckpoint], int]:
+        items = sorted(
+            self.checkpoints[execution_id],
+            key=lambda item: item.checkpoint_number,
+        )
+        if not include_superseded:
+            items = [item for item in items if not item.superseded]
+        return items[offset : offset + limit], len(items)
+
+    async def get_checkpoint_by_number(
+        self,
+        execution_id: UUID,
+        checkpoint_number: int,
+        *,
+        include_superseded: bool,
+    ) -> ExecutionCheckpoint | None:
+        for item in self.checkpoints[execution_id]:
+            if item.checkpoint_number != checkpoint_number:
+                continue
+            if item.superseded and not include_superseded:
+                continue
+            return item
+        return None
+
+    async def get_latest_checkpoint(
+        self,
+        execution_id: UUID,
+        *,
+        include_superseded: bool = False,
+    ) -> ExecutionCheckpoint | None:
+        items = sorted(
+            self.checkpoints[execution_id],
+            key=lambda item: item.checkpoint_number,
+            reverse=True,
+        )
+        if not include_superseded:
+            items = [item for item in items if not item.superseded]
+        return items[0] if items else None
+
+    async def mark_superseded_after(
+        self,
+        execution_id: UUID,
+        checkpoint_number: int,
+    ) -> list[ExecutionCheckpoint]:
+        items: list[ExecutionCheckpoint] = []
+        for item in self.checkpoints[execution_id]:
+            item.superseded = item.checkpoint_number > checkpoint_number
+            item.updated_at = datetime.now(UTC)
+            items.append(item)
+        return items
+
+    async def create_rollback_action(
+        self,
+        action: ExecutionRollbackAction,
+    ) -> ExecutionRollbackAction:
+        action.id = getattr(action, 'id', None) or uuid4()
+        action.created_at = datetime.now(UTC)
+        action.updated_at = action.created_at
+        self.rollback_actions.append(action)
+        return action
+
+    async def list_enabled_reprioritization_triggers(
+        self,
+        workspace_id: UUID,
+    ) -> list[ReprioritizationTrigger]:
+        return sorted(
+            [
+                item
+                for item in self.reprioritization_triggers.values()
+                if item.workspace_id == workspace_id and item.enabled
+            ],
+            key=lambda item: (item.priority_rank, item.created_at),
+        )
+
+    async def create_reprioritization_trigger(
+        self,
+        trigger: ReprioritizationTrigger,
+    ) -> ReprioritizationTrigger:
+        trigger.id = getattr(trigger, 'id', None) or uuid4()
+        trigger.created_at = datetime.now(UTC)
+        trigger.updated_at = trigger.created_at
+        self.reprioritization_triggers[trigger.id] = trigger
+        return trigger
+
+    async def list_reprioritization_triggers(
+        self,
+        *,
+        workspace_id: UUID,
+        enabled: bool | None,
+        offset: int,
+        limit: int,
+    ) -> tuple[list[ReprioritizationTrigger], int]:
+        items = [
+            item
+            for item in self.reprioritization_triggers.values()
+            if item.workspace_id == workspace_id and (enabled is None or item.enabled is enabled)
+        ]
+        items.sort(key=lambda item: (item.priority_rank, item.created_at))
+        return items[offset : offset + limit], len(items)
+
+    async def get_reprioritization_trigger(
+        self,
+        trigger_id: UUID,
+    ) -> ReprioritizationTrigger | None:
+        return self.reprioritization_triggers.get(trigger_id)
+
+    async def update_reprioritization_trigger(
+        self,
+        trigger: ReprioritizationTrigger,
+        **fields: Any,
+    ) -> ReprioritizationTrigger:
+        for key, value in fields.items():
+            setattr(trigger, key, value)
+        trigger.updated_at = datetime.now(UTC)
+        return trigger
+
+    async def delete_reprioritization_trigger(self, trigger: ReprioritizationTrigger) -> None:
+        self.reprioritization_triggers.pop(trigger.id, None)
 
     async def create_dispatch_lease(
         self,
         lease: ExecutionDispatchLease,
     ) -> ExecutionDispatchLease:
-        lease.id = getattr(lease, "id", None) or uuid4()
+        lease.id = getattr(lease, 'id', None) or uuid4()
         lease.created_at = datetime.now(UTC)
         lease.updated_at = lease.created_at
         self.leases.append(lease)
@@ -424,7 +554,7 @@ class FakeExecutionRepository:
         self,
         record: ExecutionTaskPlanRecord,
     ) -> ExecutionTaskPlanRecord:
-        record.id = getattr(record, "id", None) or uuid4()
+        record.id = getattr(record, 'id', None) or uuid4()
         record.created_at = datetime.now(UTC)
         record.updated_at = record.created_at
         self.task_plan_records[(record.execution_id, record.step_id)] = record
@@ -448,7 +578,7 @@ class FakeExecutionRepository:
         self,
         approval_wait: ExecutionApprovalWait,
     ) -> ExecutionApprovalWait:
-        approval_wait.id = getattr(approval_wait, "id", None) or uuid4()
+        approval_wait.id = getattr(approval_wait, 'id', None) or uuid4()
         approval_wait.created_at = datetime.now(UTC)
         approval_wait.updated_at = approval_wait.created_at
         self.approval_waits[(approval_wait.execution_id, approval_wait.step_id)] = approval_wait
@@ -493,7 +623,7 @@ class FakeExecutionRepository:
         self,
         record: ExecutionCompensationRecord,
     ) -> ExecutionCompensationRecord:
-        record.id = getattr(record, "id", None) or uuid4()
+        record.id = getattr(record, 'id', None) or uuid4()
         record.created_at = datetime.now(UTC)
         record.updated_at = record.created_at
         self.compensations.append(record)
