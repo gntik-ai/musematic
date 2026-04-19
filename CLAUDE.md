@@ -1,6 +1,6 @@
 # musematic Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-18
+Auto-generated from all feature plans. Last updated: 2026-04-19
 
 ## Active Technologies
 - Python 3.12+ (control plane client), Go 1.22+ (reasoning engine client) + `redis-py 5.x` (Python async), `go-redis/redis/v9` (Go), Bitnami `redis-cluster` Helm chart (002-redis-cache-hot-state)
@@ -102,6 +102,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-18
 - PostgreSQL — 2 new tables (`ibor_connectors`, `ibor_sync_runs`), 4 new columns across existing tables, 1 new enum value on `registry_lifecycle_status`; no new data stores (056-ibor-integration-and)
 - Python 3.12+ (control plane), TypeScript 5.x (frontend) + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, Alembic 1.13+, aiokafka 0.11+, redis-py 5.x, httpx 0.27+, PyJWT 2.x, cryptography (JWKS RSA key parsing) — all already in requirements.txt (056-ibor-integration-and)
 - PostgreSQL (3 new tables), Redis (3 new key patterns for state + JWKS cache + rate limit) (056-ibor-integration-and)
+- Python 3.12+ (control plane) + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, Alembic 1.13+, aiokafka 0.11+, APScheduler 3.x, pytest + pytest-asyncio 8.x (056-ibor-integration-and)
+- PostgreSQL 16 (5 new tables + 4 altered tables); Kafka topics: `workflow.runtime`, `runtime.lifecycle`, `policy.events`, `trust.events` (056-ibor-integration-and)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -121,10 +123,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 056-ibor-integration-and: Added Python 3.12+ (control plane) + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, Alembic 1.13+, aiokafka 0.11+, APScheduler 3.x, pytest + pytest-asyncio 8.x
 - 061-judge-enforcer-governance: Python 3.12+ + FastAPI 0.115+, aiokafka 0.11+, SQLAlchemy 2.x async, Alembic 1.13+, redis-py 5.x async (observer rate limiting), APScheduler 3.x (retention GC), pytest + pytest-asyncio 8.x — all existing deps
 - 061-judge-enforcer-governance: PostgreSQL (2 new tables: governance_verdicts, enforcement_actions; 1 new workspace_governance_chains table; 1 additive column verdict_to_action_mapping on fleet_governance_chains; migration 048); Kafka (governance.verdict.issued, governance.enforcement.executed — already in constitution; consumes monitor.alerts)
-- 060-attention-user-alerts: Added Python 3.12+ + FastAPI 0.115+, aiokafka 0.11+, redis-py 5.x async (sliding-window rate limit), aiosmtplib 3.0+ (email delivery), httpx 0.27+ (webhook), APScheduler 3.x (retry + GC), SQLAlchemy 2.x async, Alembic 1.13+, pytest + pytest-asyncio 8.x (060-attention-user-alerts)
-- 060-attention-user-alerts: Added PostgreSQL (3 new tables: user_alert_settings, user_alerts, alert_delivery_outcomes; migration 047); Kafka (2 new consumer groups: notifications-attention, notifications-state-change; 1 new topic: notifications.alerts); no new stores (060-attention-user-alerts)
 
 
 <!-- MANUAL ADDITIONS START -->

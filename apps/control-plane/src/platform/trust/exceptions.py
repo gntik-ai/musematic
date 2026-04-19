@@ -26,6 +26,39 @@ class CertificationNotFoundError(TrustError):
         )
 
 
+class CertifierNotFoundError(TrustError):
+    status_code = 404
+
+    def __init__(self, certifier_id: object) -> None:
+        super().__init__(
+            "TRUST_CERTIFIER_NOT_FOUND",
+            "Certifier not found",
+            {"certifier_id": str(certifier_id)},
+        )
+
+
+class ContractNotFoundError(TrustError):
+    status_code = 404
+
+    def __init__(self, contract_id: object) -> None:
+        super().__init__(
+            "TRUST_CONTRACT_NOT_FOUND",
+            "Contract not found",
+            {"contract_id": str(contract_id)},
+        )
+
+
+class RecertificationRequestNotFoundError(TrustError):
+    status_code = 404
+
+    def __init__(self, request_id: object) -> None:
+        super().__init__(
+            "TRUST_RECERTIFICATION_REQUEST_NOT_FOUND",
+            "Recertification request not found",
+            {"request_id": str(request_id)},
+        )
+
+
 class CertificationStateError(TrustError):
     def __init__(self, message: str, *, certification_id: object | None = None) -> None:
         details: dict[str, object] | None = (
@@ -90,3 +123,10 @@ class PreScreenerError(TrustError):
             {"rule_set_id": str(rule_set_id)} if rule_set_id is not None else None
         )
         super().__init__("TRUST_PRESCREENER_ERROR", message, details)
+
+
+class ContractConflictError(TrustError):
+    status_code = 409
+
+    def __init__(self, code: str, message: str, details: dict[str, object] | None = None) -> None:
+        super().__init__(code, message, details)

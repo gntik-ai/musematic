@@ -54,3 +54,22 @@ async def test_circuit_breaker_status_reset_and_guard() -> None:
 
     await service.reset("agent-1")
     assert await service.is_tripped("agent-1") is False
+
+
+@pytest.mark.asyncio
+async def test_circuit_breaker_evalsha_fallback_and_uuid_helper() -> None:
+    class _FallbackRedis(type(build_trust_bundle().redis)):
+        async def evalsha(self, sha, numkeys, *args):
+            del sha, numkeys, args
+            raise RuntimeError("noscript")
+
+    bundle = build_trust_bundle()
+    bundle.circuit_breaker_service.redis_client = _FallbackRedis()
+    service = bundle.circuit_breaker_service
+    await service.upsert_config(build_circuit_breaker_config_create())
+
+    status = await service.record_failure("agent-fallback", WORKSPACE_ID)
+    await service.ensure_not_tripped("agent-fallback")
+
+    assert status.failure_count == 1
+    assert service._uuid_from_text(WORKSPACE_ID).hex

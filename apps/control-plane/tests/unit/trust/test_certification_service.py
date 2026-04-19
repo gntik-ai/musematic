@@ -1,19 +1,29 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from platform.common.exceptions import ValidationError
+from platform.trust.contract_schemas import ReassessmentCreate
 from platform.trust.exceptions import (
     CertificationNotFoundError,
     CertificationStateError,
+    CertifierNotFoundError,
+    ContractConflictError,
     InvalidStateTransitionError,
+    RecertificationRequestNotFoundError,
 )
-from platform.trust.models import CertificationStatus
+from platform.trust.models import CertificationStatus, TrustRecertificationRequest
 from platform.trust.schemas import EvidenceRefCreate
 from platform.trust.service import CertificationService, ensure_active_certification
 from uuid import uuid4
 
 import pytest
 
-from tests.trust_support import build_certification, build_certification_create, build_trust_bundle
+from tests.trust_support import (
+    build_certification,
+    build_certification_create,
+    build_certifier_create,
+    build_trust_bundle,
+)
 
 
 @pytest.mark.asyncio
@@ -148,3 +158,188 @@ async def test_certification_service_certified_checks_and_uuid_coercion() -> Non
 
 def test_ensure_active_certification_accepts_active_state() -> None:
     ensure_active_certification(build_certification(status=CertificationStatus.active))
+
+
+@pytest.mark.asyncio
+async def test_certification_service_certifier_management_and_scope_validation() -> None:
+    bundle = build_trust_bundle()
+    service = bundle.certification_service
+    actor_id = str(uuid4())
+    created = await service.create(build_certification_create(), actor_id)
+
+    certifier = await service.create_certifier(build_certifier_create(), actor_id)
+    fetched = await service.get_certifier(certifier.id)
+    listed = await service.list_certifiers()
+    issued = await service.issue_with_certifier(
+        created.id,
+        certifier.id,
+        "financial_calculations",
+        actor_id,
+    )
+
+    assert fetched.id == certifier.id
+    assert listed.total == 1
+    assert issued.external_certifier_id == certifier.id
+    assert bundle.producer.events[-1]["event_type"] == "trust.certification.updated"
+
+    scoped = await service.create_certifier(build_certifier_create(), actor_id)
+    with pytest.raises(ValidationError):
+        await service.issue_with_certifier(created.id, scoped.id, "other_scope", actor_id)
+
+    await service.deactivate_certifier(certifier.id, actor_id)
+    active_only = await service.list_certifiers()
+    include_inactive = await service.list_certifiers(include_inactive=True)
+
+    assert active_only.total == 1
+    assert include_inactive.total == 2
+    assert any(
+        item.id == certifier.id and item.is_active is False
+        for item in include_inactive.items
+    )
+
+    with pytest.raises(CertifierNotFoundError):
+        await service.get_certifier(uuid4())
+    with pytest.raises(CertifierNotFoundError):
+        await service.deactivate_certifier(uuid4(), actor_id)
+    with pytest.raises(CertificationNotFoundError):
+        await service.issue_with_certifier(uuid4(), scoped.id, "financial_calculations", actor_id)
+
+
+@pytest.mark.asyncio
+async def test_certification_service_reassessment_and_recertification_flows() -> None:
+    bundle = build_trust_bundle()
+    service = bundle.certification_service
+    actor_id = str(uuid4())
+
+    created = await service.create(build_certification_create(), actor_id)
+    await service.activate(created.id, actor_id)
+    failed = await service.record_reassessment(
+        created.id,
+        ReassessmentCreate(verdict="fail", notes="threshold breach"),
+        actor_id,
+    )
+    listed = await service.list_reassessments(created.id)
+
+    assert failed.verdict == "fail"
+    assert listed.total == 1
+    stored = await bundle.repository.get_certification(created.id)
+    assert stored is not None
+    assert stored.status == CertificationStatus.suspended
+    assert bundle.producer.events[-1]["event_type"] == "trust.certification.suspended"
+
+    request = await bundle.repository.create_recertification_request(
+        TrustRecertificationRequest(
+            certification_id=created.id,
+            trigger_type="signal",
+            trigger_reference="evt-1",
+            deadline=datetime.now(UTC) + timedelta(days=1),
+            resolution_status="pending",
+        )
+    )
+    dismissed = await service.dismiss_suspension(
+        created.id,
+        "Operator validated mitigation",
+        actor_id,
+    )
+    requests = await service.list_recertification_requests(status="dismissed")
+    fetched_request = await service.get_recertification_request(request.id)
+
+    assert dismissed.status == CertificationStatus.active
+    assert requests.total == 1
+    assert fetched_request.id == request.id
+    assert request.resolution_status == "dismissed"
+    assert bundle.repository.signals[-1].signal_type == "certification_suspension_dismissed"
+    assert bundle.producer.events[-1]["event_type"] == "trust.certification.updated"
+
+    pass_cert = await service.create(
+        build_certification_create().model_copy(
+            update={
+                "agent_id": "agent-pass",
+                "agent_fqn": "fleet:agent-pass",
+                "agent_revision_id": "rev-pass",
+            }
+        ),
+        actor_id,
+    )
+    await service.activate(pass_cert.id, actor_id)
+    pass_model = await bundle.repository.get_certification(pass_cert.id)
+    assert pass_model is not None
+    pass_model.status = CertificationStatus.suspended
+    passed = await service.record_reassessment(
+        pass_cert.id,
+        ReassessmentCreate(verdict="pass", notes="all good"),
+        actor_id,
+    )
+
+    action_cert = await service.create(
+        build_certification_create().model_copy(
+            update={
+                "agent_id": "agent-action",
+                "agent_fqn": "fleet:agent-action",
+                "agent_revision_id": "rev-action",
+            }
+        ),
+        actor_id,
+    )
+    await service.activate(action_cert.id, actor_id)
+    action_required = await service.record_reassessment(
+        action_cert.id,
+        ReassessmentCreate(verdict="action_required", notes="manual follow-up"),
+        actor_id,
+    )
+
+    assert passed.verdict == "pass"
+    assert pass_model.status == CertificationStatus.active
+    assert action_required.verdict == "action_required"
+    assert bundle.producer.events[-1]["event_type"] == "trust.certification.updated"
+
+    with pytest.raises(ContractConflictError):
+        await service.dismiss_suspension(action_cert.id, "Nothing to dismiss", actor_id)
+    with pytest.raises(RecertificationRequestNotFoundError):
+        await service.get_recertification_request(uuid4())
+
+
+@pytest.mark.asyncio
+async def test_certification_service_covers_remaining_not_found_and_self_supersede_paths(
+    monkeypatch,
+) -> None:
+    bundle = build_trust_bundle()
+    service = bundle.certification_service
+    actor_id = str(uuid4())
+    created = await service.create(build_certification_create(), actor_id)
+    stored = await bundle.repository.get_certification(created.id)
+    assert stored is not None
+
+    async def _active_rows(_agent_id: str):
+        return [stored]
+
+    monkeypatch.setattr(bundle.repository, "list_active_certifications_for_agent", _active_rows)
+    activated = await service.activate(created.id, actor_id)
+
+    inactive = await service.create_certifier(build_certifier_create(), actor_id)
+    await service.deactivate_certifier(inactive.id, actor_id)
+
+    assert activated.status == CertificationStatus.active
+    assert CertificationService._to_uuid_or_none(stored.id) == stored.id
+
+    with pytest.raises(CertificationNotFoundError):
+        await service.revoke(uuid4(), "missing", actor_id)
+    with pytest.raises(CertifierNotFoundError):
+        await service.issue_with_certifier(created.id, uuid4(), "financial_calculations", actor_id)
+    with pytest.raises(ContractConflictError):
+        await service.issue_with_certifier(
+            created.id,
+            inactive.id,
+            "financial_calculations",
+            actor_id,
+        )
+    with pytest.raises(CertificationNotFoundError):
+        await service.record_reassessment(
+            uuid4(),
+            ReassessmentCreate(verdict="pass", notes="missing"),
+            actor_id,
+        )
+    with pytest.raises(CertificationNotFoundError):
+        await service.list_reassessments(uuid4())
+    with pytest.raises(CertificationNotFoundError):
+        await service.dismiss_suspension(uuid4(), "missing certification", actor_id)

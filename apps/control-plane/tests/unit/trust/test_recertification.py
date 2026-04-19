@@ -65,3 +65,25 @@ async def test_recertification_get_trigger_raises_for_missing_item() -> None:
 
     with pytest.raises(LookupError):
         await bundle.recertification_service.get_trigger(uuid4())
+
+
+@pytest.mark.asyncio
+async def test_recertification_get_trigger_and_helper_paths() -> None:
+    bundle = build_trust_bundle()
+    service = bundle.recertification_service
+    created = await service.create_trigger(
+        "agent-helper",
+        "rev-helper",
+        RecertificationTriggerType.policy_changed,
+        {"event_type": "", "event_id": "", "certification_id": "not-a-uuid"},
+    )
+    assert created is not None
+
+    fetched = await service.get_trigger(created.id)
+    await service.handle_registry_event({"payload": {"agent_id": "missing-revision"}})
+    await service.handle_policy_event({"payload": {"revision_id": "missing-agent"}})
+    await service.handle_runtime_event({"payload": {"agent_id": 1, "revision_id": "rev"}})
+
+    assert fetched.id == created.id
+    assert service._uuid_or_none("not-a-uuid") is None
+    assert service._optional_text("") is None

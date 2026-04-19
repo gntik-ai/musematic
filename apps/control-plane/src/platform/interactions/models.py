@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from platform.common.models.base import Base
 from platform.common.models.mixins import SoftDeleteMixin, TimestampMixin, UUIDMixin
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import (
@@ -21,6 +21,7 @@ from sqlalchemy import (
 )
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
@@ -139,6 +140,12 @@ class Interaction(Base, UUIDMixin, TimestampMixin):
     error_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    contract_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("agent_contracts.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    contract_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     conversation: Mapped[Conversation] = relationship(
         "platform.interactions.models.Conversation",
@@ -154,6 +161,15 @@ class Interaction(Base, UUIDMixin, TimestampMixin):
         back_populates="interaction",
         cascade="all, delete-orphan",
     )
+
+
+cast(Any, Interaction.__table__).append_constraint(
+    Index(
+        "ix_interactions_contract_id",
+        Interaction.__table__.c.contract_id,
+        postgresql_where=Interaction.__table__.c.contract_id.is_not(None),
+    )
+)
 
 
 class InteractionMessage(Base, UUIDMixin, TimestampMixin):
