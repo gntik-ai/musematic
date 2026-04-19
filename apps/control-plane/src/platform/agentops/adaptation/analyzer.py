@@ -25,22 +25,37 @@ class AdaptationSignal:
 
 
 class BehavioralAnalyzer:
-    def __init__(self, *, clickhouse_client: Any | None) -> None:
+    def __init__(
+        self,
+        *,
+        clickhouse_client: Any | None,
+        failure_threshold: int = 5,
+    ) -> None:
         self.clickhouse_client = clickhouse_client
+        self.failure_threshold = failure_threshold
+        self._consecutive_failures = 0
+
+    @property
+    def is_degraded(self) -> bool:
+        return self._consecutive_failures >= self.failure_threshold
 
     async def analyze(self, agent_fqn: str, workspace_id: UUID) -> list[AdaptationSignal]:
-        quality_rows = await self._fetch_quality_trend(agent_fqn, workspace_id)
-        cost_row = await self._fetch_cost_quality(agent_fqn, workspace_id)
-        failure_row = await self._fetch_failure_pattern(agent_fqn, workspace_id)
-        tool_row = await self._fetch_tool_utilization(agent_fqn, workspace_id)
+        try:
+            quality_rows = await self._fetch_quality_trend(agent_fqn, workspace_id)
+            cost_row = await self._fetch_cost_quality(agent_fqn, workspace_id)
+            failure_row = await self._fetch_failure_pattern(agent_fqn, workspace_id)
+            tool_row = await self._fetch_tool_utilization(agent_fqn, workspace_id)
+            convergence_rows = await self._fetch_convergence_regression(agent_fqn, workspace_id)
+        except Exception:
+            self._consecutive_failures += 1
+            raise
+        self._consecutive_failures = 0
 
         signals: list[AdaptationSignal] = []
         trend_slope = _quality_slope(quality_rows)
         if trend_slope is not None and trend_slope < -0.005:
             latest_quality = (
-                _coerce_float(quality_rows[-1].get("average_quality"))
-                if quality_rows
-                else None
+                _coerce_float(quality_rows[-1].get("average_quality")) if quality_rows else None
             )
             signals.append(
                 AdaptationSignal(
@@ -75,9 +90,9 @@ class BehavioralAnalyzer:
                         "ratio_vs_workspace_average": ratio_vs_workspace,
                     },
                     rationale=(
-                        "The agent is spending more than 2x the workspace average cost per "
-                        "quality point, "
-                        "which suggests model parameter tuning."
+                        "The agent is spending more than 2x the workspace average "
+                        "cost per quality point, which suggests model parameter "
+                        "tuning."
                     ),
                 )
             )
@@ -111,13 +126,46 @@ class BehavioralAnalyzer:
                         "tool_slots": _coerce_int(tool_row.get("tool_slots")),
                     },
                     rationale=(
-                        "Tool utilization is below 10%, which suggests simplifying or "
-                        "re-prioritizing "
-                        "the tool selection strategy."
+                        "Tool utilization is below 10%, which suggests simplifying "
+                        "or re-prioritizing the tool selection strategy."
                     ),
                 )
             )
+
+        convergence_signal = self._analyze_convergence_regression(convergence_rows)
+        if convergence_signal is not None:
+            signals.append(convergence_signal)
         return signals
+
+    def _analyze_convergence_regression(
+        self,
+        rows: list[dict[str, Any]],
+    ) -> AdaptationSignal | None:
+        loop_values = [_coerce_float(row.get("average_loops")) for row in rows]
+        clean = [value for value in loop_values if value is not None]
+        if len(clean) < 4:
+            return None
+        midpoint = len(clean) // 2
+        baseline = sum(clean[:midpoint]) / midpoint
+        recent = sum(clean[midpoint:]) / max(len(clean[midpoint:]), 1)
+        if baseline <= 0:
+            return None
+        if recent < baseline * 1.5 or (recent - baseline) < 1.0:
+            return None
+        return AdaptationSignal(
+            rule_type="convergence_regression",
+            metrics={
+                "baseline_loops": round(baseline, 4),
+                "recent_loops": round(recent, 4),
+                "delta": round(recent - baseline, 4),
+                "ratio": round(recent / baseline, 4),
+                "window_buckets": len(clean),
+            },
+            rationale=(
+                "Self-correction loops have regressed materially versus the earlier baseline, "
+                "suggesting the agent now needs more iterations to converge."
+            ),
+        )
 
     async def _fetch_quality_trend(
         self,
@@ -219,6 +267,32 @@ class BehavioralAnalyzer:
             {"workspace_id": workspace_id, "agent_fqn": agent_fqn},
         )
         return rows[0] if rows else {}
+
+    async def _fetch_convergence_regression(
+        self,
+        agent_fqn: str,
+        workspace_id: UUID,
+    ) -> list[dict[str, Any]]:
+        if self.clickhouse_client is None:
+            return []
+        return cast(
+            list[dict[str, Any]],
+            await self.clickhouse_client.execute_query(
+                """
+                SELECT
+                    rowNumberInAllBlocks() - 1 AS bucket_index,
+                    avg(toFloat64(self_correction_loops)) AS average_loops
+                FROM analytics_usage_events
+                WHERE workspace_id = {workspace_id:UUID}
+                  AND agent_fqn = %(agent_fqn)s
+                  AND created_at >= now() - INTERVAL 14 DAY
+                  AND self_correction_loops IS NOT NULL
+                GROUP BY toDate(created_at)
+                ORDER BY toDate(created_at) ASC
+                """,
+                {"workspace_id": workspace_id, "agent_fqn": agent_fqn},
+            ),
+        )
 
 
 def _quality_slope(rows: list[dict[str, Any]]) -> float | None:

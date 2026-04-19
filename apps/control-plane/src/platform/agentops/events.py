@@ -27,6 +27,15 @@ class AgentOpsEventType(StrEnum):
     adaptation_proposed = "agentops.adaptation.proposed"
     adaptation_reviewed = "agentops.adaptation.reviewed"
     adaptation_completed = "agentops.adaptation.completed"
+    adaptation_applied = "agentops.adaptation.applied"
+    adaptation_rolled_back = "agentops.adaptation.rolled_back"
+    adaptation_outcome_recorded = "agentops.adaptation.outcome_recorded"
+    adaptation_approval_revoked = "agentops.adaptation.approval_revoked"
+    adaptation_expired = "agentops.adaptation.expired"
+    adaptation_orphaned = "agentops.adaptation.orphaned"
+    adaptation_stale = "agentops.adaptation.stale"
+    adaptation_ingestion_degraded = "agentops.adaptation.ingestion_degraded"
+    proficiency_assessed = "agentops.proficiency.assessed"
 
 
 class AgentOpsLifecyclePayload(BaseModel):

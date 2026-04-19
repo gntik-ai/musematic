@@ -3,22 +3,41 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from platform.agentops.adaptation.analyzer import BehavioralAnalyzer
+from platform.agentops.adaptation.apply_service import AdaptationApplyService
+from platform.agentops.adaptation.outcome_service import AdaptationOutcomeService
 from platform.agentops.adaptation.pipeline import AdaptationPipeline
+from platform.agentops.adaptation.rollback_service import AdaptationRollbackService
 from platform.agentops.canary.manager import CanaryManager
 from platform.agentops.canary.monitor import CanaryMonitor
 from platform.agentops.cicd.gate import CiCdGate
-from platform.agentops.events import AgentOpsEventPublisher, GovernanceEventPublisher
+from platform.agentops.events import (
+    AgentOpsEventPublisher,
+    AgentOpsEventType,
+    GovernanceEventPublisher,
+)
 from platform.agentops.governance.grace_period import GracePeriodScanner
 from platform.agentops.health.dimensions import HealthDimensionProvider
 from platform.agentops.health.scorer import AgentHealthTarget, HealthScorer
-from platform.agentops.models import AgentHealthConfig, AgentHealthScore, RegressionAlertStatus
+from platform.agentops.models import (
+    AdaptationProposalStatus,
+    AgentHealthConfig,
+    AgentHealthScore,
+    RegressionAlertStatus,
+)
+from platform.agentops.proficiency.scheduler import ProficiencyRecomputerTask
+from platform.agentops.proficiency.service import ProficiencyService
 from platform.agentops.regression.detector import RegressionDetector
 from platform.agentops.repository import AgentOpsRepository, GovernanceSummaryRepository
 from platform.agentops.retirement.workflow import RetirementManager
 from platform.agentops.schemas import (
+    AdaptationApplyResponse,
+    AdaptationLineageResponse,
+    AdaptationOutcomeResponse,
     AdaptationProposalListResponse,
     AdaptationProposalResponse,
     AdaptationReviewRequest,
+    AdaptationRevokeResponse,
+    AdaptationRollbackResponse,
     AdaptationTriggerRequest,
     AgentHealthConfigPayload,
     AgentHealthConfigResponse,
@@ -35,6 +54,9 @@ from platform.agentops.schemas import (
     GovernanceEventListResponse,
     GovernanceEventResponse,
     GovernanceSummaryResponse,
+    ProficiencyFleetResponse,
+    ProficiencyHistoryResponse,
+    ProficiencyResponse,
     RegressionAlertListResponse,
     RegressionAlertResponse,
     RegressionAlertSummary,
@@ -43,6 +65,7 @@ from platform.agentops.schemas import (
     RetirementInitiateRequest,
     RetirementWorkflowResponse,
 )
+from platform.common.config import PlatformSettings
 from platform.common.exceptions import NotFoundError, ValidationError
 from typing import Any, Protocol
 from uuid import UUID
@@ -153,11 +176,25 @@ class RegistryServiceInterface(Protocol):
         actor_id: UUID,
     ) -> Any: ...
 
+    async def get_profile_state(
+        self,
+        agent_fqn: str,
+        workspace_id: UUID,
+    ) -> dict[str, Any] | None: ...
+
+    async def update_profile_fields(
+        self,
+        agent_fqn: str,
+        workspace_id: UUID,
+        fields: dict[str, Any],
+    ) -> dict[str, Any] | None: ...
+
 
 class AgentOpsService:
     def __init__(
         self,
         *,
+        settings: PlatformSettings | None = None,
         repository: AgentOpsRepository,
         event_publisher: AgentOpsEventPublisher,
         governance_publisher: GovernanceEventPublisher | None,
@@ -169,6 +206,7 @@ class AgentOpsService:
         redis_client: Any | None = None,
         clickhouse_client: Any | None = None,
     ) -> None:
+        self.settings = settings
         self.repository = repository
         self.event_publisher = event_publisher
         self.governance_publisher = governance_publisher
@@ -179,6 +217,8 @@ class AgentOpsService:
         self.registry_service = registry_service
         self.redis_client = redis_client
         self.clickhouse_client = clickhouse_client
+        self._behavioral_analyzer_instance: BehavioralAnalyzer | None = None
+        self._ingestion_degraded_emitted = False
 
     async def get_active_regression_alerts(
         self,
@@ -613,6 +653,118 @@ class AgentOpsService:
         )
         return AdaptationProposalResponse.model_validate(proposal)
 
+    async def revoke_adaptation_approval(
+        self,
+        proposal_id: UUID,
+        *,
+        reason: str,
+        actor: UUID,
+    ) -> AdaptationRevokeResponse:
+        proposal = await self._adaptation_pipeline().revoke_approval(
+            proposal_id,
+            reason=reason,
+            actor=actor,
+        )
+        return AdaptationRevokeResponse(
+            proposal=AdaptationProposalResponse.model_validate(proposal),
+        )
+
+    async def apply_adaptation(
+        self,
+        proposal_id: UUID,
+        *,
+        actor: UUID,
+        reason: str | None = None,
+    ) -> AdaptationApplyResponse:
+        return await self._adaptation_apply_service().apply(
+            proposal_id,
+            actor=actor,
+            reason=reason,
+        )
+
+    async def rollback_adaptation(
+        self,
+        proposal_id: UUID,
+        *,
+        actor: UUID,
+        reason: str,
+    ) -> AdaptationRollbackResponse:
+        return await self._adaptation_rollback_service().rollback(
+            proposal_id,
+            actor=actor,
+            reason=reason,
+        )
+
+    async def get_adaptation_outcome(self, proposal_id: UUID) -> AdaptationOutcomeResponse:
+        return await self._adaptation_outcome_service().get_outcome(proposal_id)
+
+    async def get_adaptation_lineage(self, proposal_id: UUID) -> AdaptationLineageResponse:
+        proposal = await self.repository.get_adaptation(proposal_id)
+        if proposal is None:
+            raise NotFoundError("AGENTOPS_ADAPTATION_NOT_FOUND", "Adaptation proposal not found")
+        snapshots = await self.repository.list_snapshots_by_proposal(proposal_id)
+        outcome = await self.repository.get_outcome_by_proposal(proposal_id)
+        snapshot_payload: dict[str, Any] | None = None
+        if snapshots:
+            snapshot_payload = {}
+            for item in snapshots:
+                key = (
+                    item.snapshot_type.value
+                    if hasattr(item.snapshot_type, "value")
+                    else str(item.snapshot_type)
+                )
+                snapshot_payload[key] = {
+                    "id": str(item.id),
+                    "snapshot_type": key,
+                    "configuration_hash": item.configuration_hash,
+                    "configuration": dict(item.configuration or {}),
+                    "revision_id": str(item.revision_id) if item.revision_id is not None else None,
+                    "retention_expires_at": item.retention_expires_at.isoformat(),
+                    "created_at": item.created_at.isoformat(),
+                }
+        return AdaptationLineageResponse(
+            proposal=AdaptationProposalResponse.model_validate(proposal),
+            snapshot=snapshot_payload,
+            outcome=(
+                AdaptationOutcomeResponse.model_validate(outcome) if outcome is not None else None
+            ),
+        )
+
+    async def get_proficiency(
+        self,
+        agent_fqn: str,
+        workspace_id: UUID,
+    ) -> ProficiencyResponse:
+        return await self._proficiency_service().get_current(agent_fqn, workspace_id)
+
+    async def list_proficiency_history(
+        self,
+        agent_fqn: str,
+        workspace_id: UUID,
+        *,
+        cursor: str | None = None,
+        limit: int = 20,
+    ) -> ProficiencyHistoryResponse:
+        return await self._proficiency_service().list_history(
+            agent_fqn,
+            workspace_id,
+            cursor=cursor,
+            limit=limit,
+        )
+
+    async def query_proficiency_fleet(
+        self,
+        workspace_id: UUID,
+        *,
+        level_at_or_below: str | None = None,
+        level: str | None = None,
+    ) -> ProficiencyFleetResponse:
+        return await self._proficiency_service().query_fleet(
+            workspace_id,
+            level_at_or_below=level_at_or_below,
+            level=level,
+        )
+
     async def list_adaptations(
         self,
         agent_fqn: str,
@@ -633,6 +785,128 @@ class AgentOpsService:
             items=[AdaptationProposalResponse.model_validate(item) for item in items],
             next_cursor=next_cursor,
         )
+
+    async def ttl_scanner_task(self) -> list[AdaptationProposalResponse]:
+        now = datetime.now(UTC)
+        updated: list[AdaptationProposalResponse] = []
+        for proposal in await self.repository.list_proposals_past_ttl(now):
+            proposal.status = AdaptationProposalStatus.expired
+            proposal.completed_at = now
+            proposal.completion_note = "Adaptation proposal expired before approval."
+            stored = await self.repository.update_adaptation(proposal)
+            updated.append(AdaptationProposalResponse.model_validate(stored))
+            if self.governance_publisher is not None:
+                await self.governance_publisher.record(
+                    AgentOpsEventType.adaptation_expired.value,
+                    stored.agent_fqn,
+                    stored.workspace_id,
+                    payload={"proposal_id": str(stored.id)},
+                    actor=None,
+                    revision_id=stored.revision_id,
+                )
+        return updated
+
+    async def orphan_scanner_task(self) -> list[AdaptationProposalResponse]:
+        if self.registry_service is None or not hasattr(self.registry_service, "get_profile_state"):
+            return []
+        updated: list[AdaptationProposalResponse] = []
+        now = datetime.now(UTC)
+        for proposal in await self.repository.list_orphaned_proposals():
+            state = await self.registry_service.get_profile_state(
+                proposal.agent_fqn,
+                proposal.workspace_id,
+            )
+            status = str(state.get("status")) if state is not None else None
+            if state is not None and status not in {"archived", "decommissioned"}:
+                continue
+            proposal.status = AdaptationProposalStatus.orphaned
+            proposal.completed_at = now
+            proposal.completion_note = "Proposal orphaned because the agent is no longer active."
+            stored = await self.repository.update_adaptation(proposal)
+            updated.append(AdaptationProposalResponse.model_validate(stored))
+            if self.governance_publisher is not None:
+                await self.governance_publisher.record(
+                    AgentOpsEventType.adaptation_orphaned.value,
+                    stored.agent_fqn,
+                    stored.workspace_id,
+                    payload={"proposal_id": str(stored.id), "agent_status": status},
+                    actor=None,
+                    revision_id=stored.revision_id,
+                )
+        return updated
+
+    async def outcome_measurer_task(self) -> list[AdaptationOutcomeResponse]:
+        window_hours = self._observation_window_hours()
+        before = datetime.now(UTC) - timedelta(hours=window_hours)
+        outcomes: list[AdaptationOutcomeResponse] = []
+        for proposal in await self.repository.list_proposals_pending_outcome(before):
+            outcomes.append(
+                await self._adaptation_outcome_service().measure_for_proposal(proposal.id)
+            )
+        return outcomes
+
+    async def snapshot_retention_gc_task(self) -> int:
+        now = datetime.now(UTC)
+        removed = 0
+        for snapshot in await self.repository.list_snapshots_past_retention(now):
+            await self.repository.delete_snapshot(snapshot)
+            removed += 1
+        return removed
+
+    async def signal_poll_task(
+        self,
+        *,
+        workspace_id: UUID | None = None,
+    ) -> list[AdaptationProposalResponse]:
+        if self.registry_service is None or not hasattr(
+            self.registry_service, "list_active_agents"
+        ):
+            return []
+        proposals: list[AdaptationProposalResponse] = []
+        analyzer = self._behavioral_analyzer()
+        for target in await self.registry_service.list_active_agents(workspace_id):
+            resolved = _coerce_target(target, default_workspace_id=workspace_id)
+            if resolved is None:
+                continue
+            try:
+                proposal = await self._adaptation_pipeline().propose(
+                    agent_fqn=resolved.agent_fqn,
+                    workspace_id=resolved.workspace_id,
+                    revision_id=resolved.revision_id,
+                    triggered_by=None,
+                    signal_source="automatic",
+                )
+            except Exception:
+                if (
+                    analyzer.is_degraded
+                    and not self._ingestion_degraded_emitted
+                    and self.governance_publisher is not None
+                ):
+                    await self.governance_publisher.record(
+                        AgentOpsEventType.adaptation_ingestion_degraded.value,
+                        resolved.agent_fqn,
+                        resolved.workspace_id,
+                        payload={"failure_threshold": analyzer.failure_threshold},
+                        actor=None,
+                        revision_id=resolved.revision_id,
+                    )
+                    self._ingestion_degraded_emitted = True
+                continue
+            if not analyzer.is_degraded:
+                self._ingestion_degraded_emitted = False
+            if (
+                proposal.signal_source == "automatic"
+                and proposal.status != AdaptationProposalStatus.no_opportunities
+            ):
+                proposals.append(AdaptationProposalResponse.model_validate(proposal))
+        return proposals
+
+    async def proficiency_recomputer_task(
+        self,
+        *,
+        workspace_id: UUID | None = None,
+    ) -> list[dict[str, object]]:
+        return await self._proficiency_recomputer().run(workspace_id)
 
     async def score_all_agents_task(
         self,
@@ -788,14 +1062,82 @@ class AgentOpsService:
             trust_service=self.trust_service,
         )
 
+    def _behavioral_analyzer(self) -> BehavioralAnalyzer:
+        if self._behavioral_analyzer_instance is None:
+            self._behavioral_analyzer_instance = BehavioralAnalyzer(
+                clickhouse_client=self.clickhouse_client,
+            )
+        return self._behavioral_analyzer_instance
+
     def _adaptation_pipeline(self) -> AdaptationPipeline:
         return AdaptationPipeline(
             repository=self.repository,
-            analyzer=BehavioralAnalyzer(clickhouse_client=self.clickhouse_client),
+            analyzer=self._behavioral_analyzer(),
             governance_publisher=self.governance_publisher,
             registry_service=self.registry_service,
             eval_suite_service=self.eval_suite_service,
+            proposal_ttl_hours=self._proposal_ttl_hours(),
+            observation_window_hours=self._observation_window_hours(),
         )
+
+    def _adaptation_apply_service(self) -> AdaptationApplyService:
+        return AdaptationApplyService(
+            repository=self.repository,
+            registry_service=self.registry_service,
+            governance_publisher=self.governance_publisher,
+            rollback_retention_days=self._rollback_retention_days(),
+            observation_window_hours=self._observation_window_hours(),
+        )
+
+    def _adaptation_rollback_service(self) -> AdaptationRollbackService:
+        return AdaptationRollbackService(
+            repository=self.repository,
+            registry_service=self.registry_service,
+            governance_publisher=self.governance_publisher,
+        )
+
+    def _adaptation_outcome_service(self) -> AdaptationOutcomeService:
+        return AdaptationOutcomeService(
+            repository=self.repository,
+            clickhouse_client=self.clickhouse_client,
+            governance_publisher=self.governance_publisher,
+            observation_window_hours=self._observation_window_hours(),
+        )
+
+    def _proficiency_service(self) -> ProficiencyService:
+        return ProficiencyService(
+            repository=self.repository,
+            registry_service=self.registry_service,
+            min_observations_per_dimension=self._min_observations_per_dimension(),
+            dwell_time_hours=self._proficiency_dwell_time_hours(),
+        )
+
+    def _proficiency_recomputer(self) -> ProficiencyRecomputerTask:
+        return ProficiencyRecomputerTask(
+            proficiency_service=self._proficiency_service(),
+            registry_service=self.registry_service,
+            governance_publisher=self.governance_publisher,
+        )
+
+    def _proposal_ttl_hours(self) -> int:
+        settings = getattr(self.settings, "agentops", None)
+        return int(getattr(settings, "adaptation_proposal_ttl_hours", 168))
+
+    def _rollback_retention_days(self) -> int:
+        settings = getattr(self.settings, "agentops", None)
+        return int(getattr(settings, "adaptation_rollback_retention_days", 30))
+
+    def _observation_window_hours(self) -> int:
+        settings = getattr(self.settings, "agentops", None)
+        return int(getattr(settings, "adaptation_observation_window_hours", 72))
+
+    def _min_observations_per_dimension(self) -> int:
+        settings = getattr(self.settings, "agentops", None)
+        return int(getattr(settings, "adaptation_min_observations_per_dimension", 5))
+
+    def _proficiency_dwell_time_hours(self) -> int:
+        settings = getattr(self.settings, "agentops", None)
+        return int(getattr(settings, "adaptation_proficiency_dwell_time_hours", 24))
 
 
 def _coerce_target(

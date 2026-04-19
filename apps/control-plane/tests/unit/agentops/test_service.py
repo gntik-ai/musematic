@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from platform.agentops.health.scorer import AgentHealthTarget
 from platform.agentops.models import (
     AdaptationProposal,
     AgentHealthConfig,
@@ -29,6 +30,7 @@ from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
+from tests.agentops_support import build_adaptation_outcome
 
 
 def _health_config(workspace_id: UUID) -> AgentHealthConfig:
@@ -400,17 +402,20 @@ async def test_service_health_regression_gate_canary_retirement_and_governance(m
         actor=uuid4(),
     )
     adaptations = await service.list_adaptations("finance:agent", workspace_id)
-    assert len(
-        await service.score_all_agents_task(
-            agent_targets=[
-                {
-                    "agent_fqn": "finance:agent",
-                    "workspace_id": str(workspace_id),
-                    "revision_id": str(uuid4()),
-                }
-            ]
+    assert (
+        len(
+            await service.score_all_agents_task(
+                agent_targets=[
+                    {
+                        "agent_fqn": "finance:agent",
+                        "workspace_id": str(workspace_id),
+                        "revision_id": str(uuid4()),
+                    }
+                ]
+            )
         )
-    ) == 1
+        == 1
+    )
     await service.monitor_active_canaries_task()
     await service.retirement_grace_period_scanner_task()
     await service.recertification_grace_period_scanner_task()
@@ -646,3 +651,140 @@ async def test_service_task_and_constructor_helpers_cover_invalid_targets_and_de
     assert placeholder.insufficient_data is True
     assert object_target is not None
     assert invalid_object_target is None
+
+
+@pytest.mark.asyncio
+async def test_service_adaptation_and_proficiency_methods_cover_new_delegations(
+    monkeypatch,
+) -> None:
+    workspace_id = uuid4()
+    actor_id = uuid4()
+    service, repository = _service(workspace_id)
+    proposal = _adaptation(workspace_id)
+    proposal.status = "promoted"
+    snapshot = SimpleNamespace(
+        id=uuid4(),
+        snapshot_type=SimpleNamespace(value="pre_apply"),
+        configuration_hash="sha256:pre",
+        configuration={"profile_fields": {"tags": ["finance"]}},
+        revision_id=uuid4(),
+        retention_expires_at=datetime.now(UTC),
+        created_at=datetime.now(UTC),
+    )
+    outcome = build_adaptation_outcome(proposal_id=proposal.id)
+    repository.get_adaptation = AsyncMock(return_value=proposal)
+    repository.list_snapshots_by_proposal = AsyncMock(return_value=[snapshot])
+    repository.get_outcome_by_proposal = AsyncMock(return_value=outcome)
+
+    apply_response = SimpleNamespace(kind="apply")
+    rollback_response = SimpleNamespace(kind="rollback")
+    outcome_response = SimpleNamespace(kind="outcome")
+    proficiency_response = SimpleNamespace(kind="proficiency")
+    history_response = SimpleNamespace(kind="history")
+    fleet_response = SimpleNamespace(kind="fleet")
+    monkeypatch.setattr(
+        service,
+        "_adaptation_pipeline",
+        lambda: SimpleNamespace(revoke_approval=AsyncMock(return_value=proposal)),
+    )
+    monkeypatch.setattr(
+        service,
+        "_adaptation_apply_service",
+        lambda: SimpleNamespace(apply=AsyncMock(return_value=apply_response)),
+    )
+    monkeypatch.setattr(
+        service,
+        "_adaptation_rollback_service",
+        lambda: SimpleNamespace(rollback=AsyncMock(return_value=rollback_response)),
+    )
+    monkeypatch.setattr(
+        service,
+        "_adaptation_outcome_service",
+        lambda: SimpleNamespace(get_outcome=AsyncMock(return_value=outcome_response)),
+    )
+    monkeypatch.setattr(
+        service,
+        "_proficiency_service",
+        lambda: SimpleNamespace(
+            get_current=AsyncMock(return_value=proficiency_response),
+            list_history=AsyncMock(return_value=history_response),
+            query_fleet=AsyncMock(return_value=fleet_response),
+        ),
+    )
+
+    revoked = await service.revoke_adaptation_approval(proposal.id, reason="hold", actor=actor_id)
+    applied = await service.apply_adaptation(proposal.id, actor=actor_id, reason="ship")
+    rolled_back = await service.rollback_adaptation(proposal.id, actor=actor_id, reason="undo")
+    measured_outcome = await service.get_adaptation_outcome(proposal.id)
+    lineage = await service.get_adaptation_lineage(proposal.id)
+    proficiency = await service.get_proficiency("finance:agent", workspace_id)
+    history = await service.list_proficiency_history("finance:agent", workspace_id)
+    fleet = await service.query_proficiency_fleet(
+        workspace_id,
+        level_at_or_below="competent",
+        level="novice",
+    )
+
+    assert revoked.proposal.id == proposal.id
+    assert applied is apply_response
+    assert rolled_back is rollback_response
+    assert measured_outcome is outcome_response
+    assert lineage.proposal.status == "promoted"
+    assert lineage.snapshot is not None
+    assert lineage.snapshot["pre_apply"]["configuration_hash"] == "sha256:pre"
+    assert lineage.outcome is not None
+    assert proficiency is proficiency_response
+    assert history is history_response
+    assert fleet is fleet_response
+
+
+@pytest.mark.asyncio
+async def test_service_get_adaptation_lineage_raises_for_missing_proposal() -> None:
+    workspace_id = uuid4()
+    service, repository = _service(workspace_id)
+    repository.get_adaptation = AsyncMock(return_value=None)
+
+    with pytest.raises(NotFoundError):
+        await service.get_adaptation_lineage(uuid4())
+
+
+def test_service_adaptation_helpers_use_settings_and_cache_analyzer() -> None:
+    workspace_id = uuid4()
+    service, repository = _service(workspace_id)
+    service.settings = SimpleNamespace(
+        agentops=SimpleNamespace(
+            adaptation_proposal_ttl_hours=12,
+            adaptation_rollback_retention_days=15,
+            adaptation_observation_window_hours=48,
+            adaptation_min_observations_per_dimension=7,
+            adaptation_proficiency_dwell_time_hours=36,
+        )
+    )
+
+    analyzer = service._behavioral_analyzer()
+    apply_service = service._adaptation_apply_service()
+    rollback_service = service._adaptation_rollback_service()
+    outcome_service = service._adaptation_outcome_service()
+    proficiency_service = service._proficiency_service()
+    recomputer = service._proficiency_recomputer()
+    target = AgentHealthTarget(
+        agent_fqn="finance:agent",
+        workspace_id=workspace_id,
+        revision_id=uuid4(),
+    )
+
+    assert analyzer is service._behavioral_analyzer()
+    assert apply_service.repository is repository
+    assert apply_service.rollback_retention_days == 15
+    assert apply_service.observation_window_hours == 48
+    assert rollback_service.repository is repository
+    assert outcome_service.observation_window_hours == 48
+    assert proficiency_service.min_observations_per_dimension == 7
+    assert proficiency_service.dwell_time_hours == 36
+    assert recomputer.proficiency_service.repository is repository
+    assert service._proposal_ttl_hours() == 12
+    assert service._rollback_retention_days() == 15
+    assert service._observation_window_hours() == 48
+    assert service._min_observations_per_dimension() == 7
+    assert service._proficiency_dwell_time_hours() == 36
+    assert _coerce_target(target, default_workspace_id=None) is target

@@ -229,6 +229,9 @@ class ContextEngineeringSettings(BaseSettings):
     drift_recent_hours: int = 24
     drift_stddev_multiplier: float = 2.0
     drift_schedule_minutes: int = 5
+    correlation_window_days: int = 30
+    correlation_min_data_points: int = 30
+    correlation_recompute_interval_hours: int = 24
 
 
 class MemorySettings(BaseSettings):
@@ -344,6 +347,12 @@ class AgentOpsSettings(BaseSettings):
     retirement_grace_period_days: int = 14
     retirement_critical_intervals: int = 5
     recertification_grace_period_days: int = 7
+    adaptation_proposal_ttl_hours: int = 168
+    adaptation_rollback_retention_days: int = 30
+    adaptation_observation_window_hours: int = 72
+    adaptation_signal_poll_interval_minutes: int = 60
+    adaptation_min_observations_per_dimension: int = 10
+    adaptation_proficiency_dwell_time_hours: int = 24
 
 
 class CompositionSettings(BaseSettings):

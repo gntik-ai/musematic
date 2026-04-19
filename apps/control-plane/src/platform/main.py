@@ -1469,72 +1469,88 @@ def _build_context_engineering_scheduler(app: FastAPI) -> Any | None:
         minute=f"*/{app.state.settings.context_engineering.drift_schedule_minutes}",
     )
 
+    async def _build_context_engineering_runtime(session: Any) -> Any:
+        workspaces_service = build_workspaces_service(
+            session=session,
+            settings=cast(PlatformSettings, app.state.settings),
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            accounts_service=None,
+        )
+        registry_service = build_registry_service(
+            session=session,
+            settings=cast(PlatformSettings, app.state.settings),
+            object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
+            opensearch=cast(AsyncOpenSearchClient, app.state.clients["opensearch"]),
+            qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
+            workspaces_service=workspaces_service,
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+        )
+        memory_service = build_memory_service(
+            session=session,
+            settings=cast(PlatformSettings, app.state.settings),
+            qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
+            neo4j=cast(AsyncNeo4jClient, app.state.clients["neo4j"]),
+            redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            workspaces_service=workspaces_service,
+            registry_service=registry_service,
+        )
+        interactions_service = build_interactions_service(
+            session=session,
+            settings=cast(PlatformSettings, app.state.settings),
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            qdrant=cast(AsyncQdrantClient | None, app.state.clients.get("qdrant")),
+            workspaces_service=workspaces_service,
+            registry_service=registry_service,
+        )
+        return build_context_engineering_service(
+            session=session,
+            settings=cast(PlatformSettings, app.state.settings),
+            clickhouse_client=cast(AsyncClickHouseClient, app.state.clients["clickhouse"]),
+            object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            workspaces_service=workspaces_service,
+            registry_service=registry_service,
+            execution_service=None,
+            interactions_service=interactions_service,
+            memory_service=memory_service,
+            connectors_service=None,
+            policies_service=build_policy_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                registry_service=registry_service,
+                workspaces_service=workspaces_service,
+                reasoning_client=cast(
+                    ReasoningEngineClient | None,
+                    app.state.clients.get("reasoning_engine"),
+                ),
+            ),
+        )
+
     async def _run_drift_analysis() -> None:
         async with database.AsyncSessionLocal() as session:
-            workspaces_service = build_workspaces_service(
-                session=session,
-                settings=cast(PlatformSettings, app.state.settings),
-                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
-                accounts_service=None,
-            )
-            registry_service = build_registry_service(
-                session=session,
-                settings=cast(PlatformSettings, app.state.settings),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
-                opensearch=cast(AsyncOpenSearchClient, app.state.clients["opensearch"]),
-                qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
-                workspaces_service=workspaces_service,
-                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
-            )
-            memory_service = build_memory_service(
-                session=session,
-                settings=cast(PlatformSettings, app.state.settings),
-                qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
-                neo4j=cast(AsyncNeo4jClient, app.state.clients["neo4j"]),
-                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
-                workspaces_service=workspaces_service,
-                registry_service=registry_service,
-            )
-            interactions_service = build_interactions_service(
-                session=session,
-                settings=cast(PlatformSettings, app.state.settings),
-                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
-                qdrant=cast(AsyncQdrantClient | None, app.state.clients.get("qdrant")),
-                workspaces_service=workspaces_service,
-                registry_service=registry_service,
-            )
-            service = build_context_engineering_service(
-                session=session,
-                settings=cast(PlatformSettings, app.state.settings),
-                clickhouse_client=cast(AsyncClickHouseClient, app.state.clients["clickhouse"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
-                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
-                workspaces_service=workspaces_service,
-                registry_service=registry_service,
-                execution_service=None,
-                interactions_service=interactions_service,
-                memory_service=memory_service,
-                connectors_service=None,
-                policies_service=build_policy_service(
-                    session=session,
-                    settings=cast(PlatformSettings, app.state.settings),
-                    producer=cast(EventProducer | None, app.state.clients.get("kafka")),
-                    redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                    registry_service=registry_service,
-                    workspaces_service=workspaces_service,
-                    reasoning_client=cast(
-                        ReasoningEngineClient | None,
-                        app.state.clients.get("reasoning_engine"),
-                    ),
-                ),
-            )
+            service = await _build_context_engineering_runtime(session)
             await DriftMonitorTask(service).run()
+
+    async def _run_correlation_recompute() -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = await _build_context_engineering_runtime(session)
+            await service.run_correlation_recompute()
+            await session.commit()
 
     scheduler.add_job(
         _run_drift_analysis,
         trigger,
         id="context-engineering-drift-analysis",
+    )
+    scheduler.add_job(
+        _run_correlation_recompute,
+        "interval",
+        hours=app.state.settings.context_engineering.correlation_recompute_interval_hours,
+        id="context-engineering-correlation-recompute",
+        replace_existing=True,
     )
     return scheduler
 
@@ -2402,6 +2418,24 @@ def _build_agentops_lifecycle_scheduler(app: FastAPI) -> Any | None:
     async def _run_recertification_grace() -> None:
         await _run_handler("recertification_grace_period_scanner_task")
 
+    async def _run_ttl_scanner() -> None:
+        await _run_handler("ttl_scanner_task")
+
+    async def _run_orphan_scanner() -> None:
+        await _run_handler("orphan_scanner_task")
+
+    async def _run_outcome_measurer() -> None:
+        await _run_handler("outcome_measurer_task")
+
+    async def _run_signal_poll() -> None:
+        await _run_handler("signal_poll_task")
+
+    async def _run_proficiency_recompute() -> None:
+        await _run_handler("proficiency_recomputer_task")
+
+    async def _run_snapshot_retention_gc() -> None:
+        await _run_handler("snapshot_retention_gc_task")
+
     scheduler.add_job(
         _run_health_scores,
         "interval",
@@ -2428,6 +2462,48 @@ def _build_agentops_lifecycle_scheduler(app: FastAPI) -> Any | None:
         "interval",
         hours=1,
         id="agentops-recertification-grace",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _run_ttl_scanner,
+        "interval",
+        hours=1,
+        id="agentops-adaptation-ttl",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _run_orphan_scanner,
+        "interval",
+        hours=1,
+        id="agentops-adaptation-orphan",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _run_outcome_measurer,
+        "interval",
+        hours=1,
+        id="agentops-adaptation-outcome",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _run_signal_poll,
+        "interval",
+        minutes=app.state.settings.agentops.adaptation_signal_poll_interval_minutes,
+        id="agentops-adaptation-signal-poll",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _run_proficiency_recompute,
+        "interval",
+        hours=24,
+        id="agentops-proficiency-recompute",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _run_snapshot_retention_gc,
+        "interval",
+        hours=24,
+        id="agentops-snapshot-retention-gc",
         replace_existing=True,
     )
     return scheduler
