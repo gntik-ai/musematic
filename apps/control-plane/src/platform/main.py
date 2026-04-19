@@ -122,6 +122,8 @@ from platform.marketplace.events import register_marketplace_event_types
 from platform.marketplace.jobs import run_cf_recommendations, run_trending_computation
 from platform.marketplace.repository import MarketplaceRepository
 from platform.marketplace.router import router as marketplace_router
+from platform.mcp.events import register_mcp_event_types
+from platform.mcp.router import router as mcp_router
 from platform.memory.consolidation_worker import ConsolidationWorker, SessionMemoryCleaner
 from platform.memory.dependencies import build_memory_service
 from platform.memory.embedding_worker import EmbeddingWorker
@@ -223,6 +225,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_simulation_event_types()
     register_governance_event_types()
     register_a2a_event_types()
+    register_mcp_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -370,6 +373,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     checkpoint_gc_scheduler = getattr(app.state, "checkpoint_gc_scheduler", None)
     a2a_idle_timeout_scheduler = getattr(app.state, "a2a_idle_timeout_scheduler", None)
+    mcp_catalog_refresh_scheduler = getattr(app.state, "mcp_catalog_refresh_scheduler", None)
     ibor_sync_scheduler = getattr(app.state, "ibor_sync_scheduler", None)
     connectors_worker_scheduler = getattr(app.state, "connectors_worker_scheduler", None)
     workflow_execution_scheduler = getattr(app.state, "workflow_execution_scheduler", None)
@@ -444,6 +448,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["a2a_idle_timeout_scheduler"] = str(exc)
             LOGGER.warning("Failed to start A2A idle-timeout scheduler: %s", exc)
+    if mcp_catalog_refresh_scheduler is not None:
+        try:
+            mcp_catalog_refresh_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["mcp_catalog_refresh_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start MCP catalog refresh scheduler: %s", exc)
     if connectors_worker_scheduler is not None:
         try:
             connectors_worker_scheduler.start()
@@ -539,6 +550,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                 a2a_idle_timeout_scheduler.shutdown(wait=False)
             except Exception as exc:
                 LOGGER.warning("Failed to stop A2A idle-timeout scheduler cleanly: %s", exc)
+        if mcp_catalog_refresh_scheduler is not None:
+            try:
+                mcp_catalog_refresh_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop MCP catalog refresh scheduler cleanly: %s", exc)
         if ibor_sync_scheduler is not None:
             try:
                 ibor_sync_scheduler.shutdown(wait=False)
@@ -709,6 +725,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.governance_retention_gc_scheduler = None
     app.state.checkpoint_gc_scheduler = None
     app.state.a2a_idle_timeout_scheduler = None
+    app.state.mcp_catalog_refresh_scheduler = None
     if resolved.profile == "api":
         app.state.ibor_sync_scheduler = _build_ibor_sync_scheduler(app)
         app.state.refresh_ibor_sync_scheduler = lambda: _refresh_ibor_sync_scheduler(app)
@@ -742,6 +759,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.governance_retention_gc_scheduler = _build_governance_retention_gc_scheduler(app)
         app.state.checkpoint_gc_scheduler = _build_checkpoint_gc_scheduler(app)
         app.state.a2a_idle_timeout_scheduler = _build_a2a_idle_timeout_scheduler(app)
+        app.state.mcp_catalog_refresh_scheduler = _build_mcp_catalog_refresh_scheduler(app)
     if resolved.profile == "agentops":
         app.state.agentops_lifecycle_scheduler = _build_agentops_lifecycle_scheduler(app)
     if resolved.profile == "agentops-testing":
@@ -760,6 +778,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.governance_retention_gc_scheduler = _build_governance_retention_gc_scheduler(app)
         app.state.checkpoint_gc_scheduler = _build_checkpoint_gc_scheduler(app)
         app.state.a2a_idle_timeout_scheduler = _build_a2a_idle_timeout_scheduler(app)
+        app.state.mcp_catalog_refresh_scheduler = _build_mcp_catalog_refresh_scheduler(app)
     exception_handler = cast(
         Callable[[Request, Exception], Response | Awaitable[Response]],
         platform_exception_handler,
@@ -935,6 +954,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(auth_router)
         app.include_router(oauth_router)
         app.include_router(a2a_gateway_router)
+        app.include_router(mcp_router)
         app.include_router(accounts_router)
         app.include_router(workspaces_router)
         app.include_router(analytics_router)
@@ -1297,6 +1317,83 @@ def _build_a2a_idle_timeout_scheduler(app: FastAPI) -> Any | None:
         "interval",
         minutes=5,
         id="a2a-idle-timeout-scan",
+    )
+    return scheduler
+
+
+def _build_mcp_catalog_refresh_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run() -> None:
+        from platform.mcp.dependencies import build_mcp_service, build_mcp_tool_registry
+        from platform.policies.dependencies import build_tool_gateway_service
+
+        async with database.AsyncSessionLocal() as session:
+            workspaces_service = build_workspaces_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                accounts_service=None,
+            )
+            registry_service = build_registry_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                object_storage=cast(
+                    AsyncObjectStorageClient,
+                    app.state.clients["object_storage"],
+                ),
+                opensearch=cast(AsyncOpenSearchClient, app.state.clients["opensearch"]),
+                qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
+                workspaces_service=workspaces_service,
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            tool_gateway = build_tool_gateway_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                registry_service=registry_service,
+                workspaces_service=workspaces_service,
+                reasoning_client=cast(
+                    ReasoningEngineClient | None,
+                    app.state.clients.get("reasoning_engine"),
+                ),
+            )
+            service = build_mcp_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+            )
+            build_mcp_tool_registry(
+                mcp_service=service,
+                settings=cast(PlatformSettings, app.state.settings),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                tool_gateway=tool_gateway,
+            )
+            try:
+                await service.refresh_due_catalogs()
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("MCP catalog refresh scheduler failed")
+
+    scheduler.add_job(
+        _run,
+        "interval",
+        seconds=60,
+        id="mcp-catalog-refresh",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
     )
     return scheduler
 

@@ -4,6 +4,7 @@ from platform.a2a_gateway.card_generator import AgentCardGenerator
 from platform.a2a_gateway.client_service import A2AGatewayClientService
 from platform.a2a_gateway.events import A2AEventPublisher
 from platform.a2a_gateway.external_registry import ExternalAgentCardRegistry
+from platform.a2a_gateway.mcp_server import MCPServerService
 from platform.a2a_gateway.repository import A2AGatewayRepository
 from platform.a2a_gateway.server_service import A2AServerService
 from platform.a2a_gateway.streaming import A2ASSEStream
@@ -16,6 +17,8 @@ from platform.common.dependencies import get_db
 from platform.common.events.producer import EventProducer
 from platform.policies.dependencies import get_tool_gateway_service
 from platform.policies.gateway import ToolGatewayService
+from platform.policies.repository import PolicyRepository
+from platform.policies.sanitizer import OutputSanitizer
 from typing import cast
 
 from fastapi import Depends, Request
@@ -90,3 +93,25 @@ async def get_a2a_client_service(
 
 def get_a2a_stream() -> A2ASSEStream:
     return A2ASSEStream(session_factory=database.AsyncSessionLocal)
+
+
+async def get_mcp_server_service(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+    tool_gateway: ToolGatewayService = Depends(get_tool_gateway_service),
+) -> MCPServerService:
+    from platform.mcp.dependencies import build_mcp_service
+
+    mcp_service = build_mcp_service(
+        session=session,
+        settings=_get_settings(request),
+        producer=_get_producer(request),
+        redis_client=_get_redis(request),
+    )
+    return MCPServerService(
+        mcp_service=mcp_service,
+        tool_gateway_service=tool_gateway,
+        sanitizer=OutputSanitizer(PolicyRepository(session)),
+        settings=_get_settings(request),
+        tool_executor=getattr(request.app.state, "mcp_tool_executor", None),
+    )

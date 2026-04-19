@@ -93,6 +93,7 @@ class AgentProfile(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
         Index("ix_registry_profile_workspace_status", "workspace_id", "status"),
         Index("ix_registry_profile_fqn", "fqn"),
         Index("ix_registry_profile_needs_reindex", "needs_reindex"),
+        Index("ix_registry_profile_mcp_server_refs", "mcp_server_refs", postgresql_using="gin"),
     )
 
     workspace_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False, index=True)
@@ -126,6 +127,12 @@ class AgentProfile(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
         JSONB(none_as_null=False),
         nullable=False,
         default=list,
+    )
+    mcp_server_refs: Mapped[list[str]] = mapped_column(
+        JSONB(none_as_null=False),
+        nullable=False,
+        default=list,
+        server_default=text("'[]'::jsonb"),
     )
     status: Mapped[LifecycleStatus] = mapped_column(
         SAEnum(LifecycleStatus, name="registry_lifecycle_status"),

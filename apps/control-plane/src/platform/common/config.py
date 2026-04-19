@@ -387,6 +387,11 @@ class PlatformSettings(BaseSettings):
     A2A_TASK_IDLE_TIMEOUT_MINUTES: int = 30
     A2A_DEFAULT_CARD_TTL_SECONDS: int = 3600
     A2A_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE: int = 60
+    MCP_CATALOG_TTL_SECONDS: int = 3600
+    MCP_MAX_PAYLOAD_BYTES: int = 10_485_760
+    MCP_INVOCATION_TIMEOUT_SECONDS: int = 30
+    MCP_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE: int = 60
+    MCP_PROTOCOL_VERSION: str = "2024-11-05"
 
     db: DatabaseSettings = Field(default_factory=DatabaseSettings)
     redis: RedisSettings = Field(default_factory=RedisSettings)
@@ -515,6 +520,13 @@ class PlatformSettings(BaseSettings):
             "A2A_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE": (
                 "A2A_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE",
             ),
+            "MCP_CATALOG_TTL_SECONDS": ("MCP_CATALOG_TTL_SECONDS",),
+            "MCP_MAX_PAYLOAD_BYTES": ("MCP_MAX_PAYLOAD_BYTES",),
+            "MCP_INVOCATION_TIMEOUT_SECONDS": ("MCP_INVOCATION_TIMEOUT_SECONDS",),
+            "MCP_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE": (
+                "MCP_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE",
+            ),
+            "MCP_PROTOCOL_VERSION": ("MCP_PROTOCOL_VERSION",),
             "CHECKPOINT_RETENTION_DAYS": ("checkpoint_retention_days",),
             "CHECKPOINT_MAX_SIZE_BYTES": ("checkpoint_max_size_bytes",),
             "ANALYTICS_BUDGET_THRESHOLD_USD": ("analytics", "budget_threshold_usd"),

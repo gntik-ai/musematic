@@ -168,6 +168,7 @@ def build_profile(
     visibility_agents: list[str] | None = None,
     visibility_tools: list[str] | None = None,
     tags: list[str] | None = None,
+    mcp_server_refs: list[str] | None = None,
     status: LifecycleStatus = LifecycleStatus.draft,
     maturity_level: int = 1,
     embedding_status: EmbeddingStatus = EmbeddingStatus.pending,
@@ -191,6 +192,7 @@ def build_profile(
         visibility_agents=visibility_agents or [],
         visibility_tools=visibility_tools or [],
         tags=tags or ["kyc", "finance"],
+        mcp_server_refs=mcp_server_refs or [],
         status=status,
         maturity_level=maturity_level,
         embedding_status=embedding_status,
@@ -619,6 +621,7 @@ class RegistryRepoStub:
         role_types: list[str],
         custom_role_description: str | None,
         tags: list[str],
+        mcp_server_refs: list[str] | None = None,
         maturity_level: int,
         actor_id: UUID,
     ) -> tuple[AgentProfile, bool]:
@@ -631,6 +634,7 @@ class RegistryRepoStub:
             existing.role_types = role_types
             existing.custom_role_description = custom_role_description
             existing.tags = tags
+            existing.mcp_server_refs = list(mcp_server_refs or [])
             existing.maturity_level = maturity_level
             existing.embedding_status = EmbeddingStatus.pending
             return existing, False
@@ -645,6 +649,7 @@ class RegistryRepoStub:
             role_types=role_types,
             custom_role_description=custom_role_description,
             tags=tags,
+            mcp_server_refs=list(mcp_server_refs or []),
             maturity_level=maturity_level,
             created_by=actor_id,
         )

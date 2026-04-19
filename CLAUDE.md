@@ -108,6 +108,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-19
 - PostgreSQL 16 (primary), Redis (existing dispatch lease coordination unchanged) (056-ibor-integration-and)
 - Go 1.22+ (reasoning engine), Python 3.12+ (control plane) (056-ibor-integration-and)
 - PostgreSQL 16 (trace record metadata), S3-compatible object storage (consolidated trace JSON artifacts) (056-ibor-integration-and)
+- Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, aiokafka 0.11+, redis-py 5.x async, httpx 0.27+, APScheduler 3.x — all already in requirements.txt (056-ibor-integration-and)
+- PostgreSQL 16 (4 new tables + 1 column via Alembic 053) + Redis (hot catalog cache + health aggregates) (056-ibor-integration-and)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -127,8 +129,8 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 056-ibor-integration-and: Added Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, aiokafka 0.11+, redis-py 5.x async, httpx 0.27+, APScheduler 3.x — all already in requirements.txt
 - 056-ibor-integration-and: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
-- 056-ibor-integration-and: Added Go 1.22+ (reasoning engine), Python 3.12+ (control plane)
 - 056-ibor-integration-and: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
 
 

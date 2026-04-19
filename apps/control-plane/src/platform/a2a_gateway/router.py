@@ -6,12 +6,14 @@ from platform.a2a_gateway.dependencies import (
     get_a2a_client_service,
     get_a2a_server_service,
     get_a2a_stream,
+    get_mcp_server_service,
 )
 from platform.a2a_gateway.exceptions import (
     A2AAuthenticationError,
     A2AAuthorizationError,
     A2AError,
 )
+from platform.a2a_gateway.mcp_server import MCPServerService
 from platform.a2a_gateway.schemas import (
     A2AExternalEndpointCreate,
     A2AExternalEndpointResponse,
@@ -22,11 +24,15 @@ from platform.a2a_gateway.server_service import A2AServerService
 from platform.a2a_gateway.streaming import A2ASSEStream
 from platform.auth.dependencies import get_auth_service
 from platform.auth.service import AuthService
+from platform.common.dependencies import get_db
+from platform.mcp.exceptions import MCPError, MCPPolicyDeniedError
+from platform.mcp.schemas import MCPInitializeRequest, MCPToolCallRequest
 from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import JSONResponse, StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter()
 
@@ -59,6 +65,21 @@ def _body(exc: A2AError) -> dict[str, Any]:
     payload = {"code": exc.code}
     payload.update(exc.details)
     return payload
+
+
+def _mcp_error_body(exc: MCPError) -> dict[str, Any]:
+    return {
+        "code": -32603,
+        "message": exc.message,
+        "data": {"code": exc.code, **exc.details},
+    }
+
+
+async def _handle_mcp(action: Callable[[], Awaitable[Any]]) -> Any:
+    try:
+        return await action()
+    except MCPError as exc:
+        return JSONResponse(status_code=exc.status_code, content=_mcp_error_body(exc))
 
 
 async def _handle(action: Callable[[], Awaitable[Any]]) -> Any:
@@ -198,3 +219,46 @@ async def delete_external_endpoint(
         return A2AExternalEndpointResponse.model_validate(endpoint)
 
     return await _handle(_action)
+
+
+@router.post("/api/v1/mcp/protocol/initialize")
+async def mcp_initialize(
+    payload: MCPInitializeRequest,
+    principal: dict[str, Any] = Depends(_authenticate_principal),
+    server_service: MCPServerService = Depends(get_mcp_server_service),
+) -> Any:
+    return await _handle_mcp(lambda: server_service.handle_initialize(payload, principal))
+
+
+def _mcp_workspace_id(principal: dict[str, Any]) -> UUID:
+    workspace_id = principal.get("workspace_id")
+    if not isinstance(workspace_id, str):
+        raise MCPPolicyDeniedError("workspace_context_required")
+    return UUID(workspace_id)
+
+
+@router.post("/api/v1/mcp/protocol/tools/list")
+async def mcp_tools_list(
+    principal: dict[str, Any] = Depends(_authenticate_principal),
+    server_service: MCPServerService = Depends(get_mcp_server_service),
+) -> Any:
+    workspace_id = _mcp_workspace_id(principal)
+    return await _handle_mcp(lambda: server_service.handle_tools_list(principal, workspace_id))
+
+
+@router.post("/api/v1/mcp/protocol/tools/call")
+async def mcp_tools_call(
+    payload: MCPToolCallRequest,
+    principal: dict[str, Any] = Depends(_authenticate_principal),
+    server_service: MCPServerService = Depends(get_mcp_server_service),
+    session: AsyncSession = Depends(get_db),
+) -> Any:
+    workspace_id = _mcp_workspace_id(principal)
+    return await _handle_mcp(
+        lambda: server_service.handle_tools_call(
+            payload,
+            principal,
+            workspace_id,
+            session,
+        )
+    )
