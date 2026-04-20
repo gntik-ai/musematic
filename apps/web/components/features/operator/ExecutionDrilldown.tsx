@@ -1,50 +1,83 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Workflow } from "lucide-react";
+import { CheckpointList } from "@/components/features/execution/checkpoint-list";
+import { DebateTranscript } from "@/components/features/execution/debate-transcript";
+import { ReactCycleViewer } from "@/components/features/execution/react-cycle-viewer";
+import { TrajectoryViz } from "@/components/features/execution/trajectory-viz";
 import { ActiveExecutionStatusBadge } from "@/components/features/operator/ActiveExecutionStatusBadge";
-import { BudgetConsumptionPanel } from "@/components/features/operator/BudgetConsumptionPanel";
-import { ContextQualityPanel } from "@/components/features/operator/ContextQualityPanel";
-import { ReasoningTracePanel } from "@/components/features/operator/ReasoningTracePanel";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  useBudgetStatus,
-  useContextQuality,
-  useExecutionDetail,
-  useReasoningTrace,
-} from "@/lib/hooks/use-execution-drill-down";
+import { useExecutionDetail } from "@/lib/hooks/use-execution-drill-down";
 
 export interface ExecutionDrilldownProps {
   executionId: string;
 }
 
-type DrilldownTab =
-  | "reasoning-trace"
-  | "context-quality"
-  | "budget-consumption";
+type DrilldownTab = "trajectory" | "checkpoints" | "debate" | "react";
+
+const VALID_TABS = new Set<DrilldownTab>([
+  "trajectory",
+  "checkpoints",
+  "debate",
+  "react",
+]);
+
+function resolveTab(value: string | null): DrilldownTab {
+  return value && VALID_TABS.has(value as DrilldownTab)
+    ? (value as DrilldownTab)
+    : "trajectory";
+}
+
+function parseAnchorStep(value: string | null): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return undefined;
+  }
+  return Math.floor(parsed);
+}
 
 export function ExecutionDrilldown({ executionId }: ExecutionDrilldownProps) {
-  const [activeTab, setActiveTab] = useState<DrilldownTab>("reasoning-trace");
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const detailQuery = useExecutionDetail(executionId);
-  const isActive =
-    detailQuery.data?.status === "running" ||
-    detailQuery.data?.status === "paused" ||
-    detailQuery.data?.status === "waiting_for_approval" ||
-    detailQuery.data?.status === "compensating";
-  const traceQuery = useReasoningTrace(executionId);
-  const budgetQuery = useBudgetStatus(executionId, Boolean(isActive));
-  const contextQuery = useContextQuality(executionId);
 
-  if (
-    detailQuery.isLoading ||
-    traceQuery.isLoading ||
-    budgetQuery.isLoading ||
-    contextQuery.isLoading
-  ) {
+  const activeTab = resolveTab(searchParams.get("tab"));
+  const anchorStepIndex = parseAnchorStep(searchParams.get("step"));
+
+  const updateTab = (tab: DrilldownTab) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (tab === "trajectory") {
+      params.delete("tab");
+    } else {
+      params.set("tab", tab);
+    }
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname);
+  };
+
+  const diagnosticSummary = useMemo(() => {
+    if (!detailQuery.data) {
+      return null;
+    }
+
+    return {
+      workflowName: detailQuery.data.workflowName,
+      agentFqn: detailQuery.data.agentFqn,
+      elapsedSeconds: (detailQuery.data.elapsedMs / 1000).toFixed(0),
+    };
+  }, [detailQuery.data]);
+
+  if (detailQuery.isLoading) {
     return (
       <section className="space-y-6">
         <Skeleton className="h-12 w-40 rounded-xl" />
@@ -86,7 +119,7 @@ export function ExecutionDrilldown({ executionId }: ExecutionDrilldownProps) {
                   Execution Drill-Down
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  Diagnostic views for execution {detailQuery.data.id}
+                  Trajectory, checkpoints, debate, and ReAct diagnostics for execution {detailQuery.data.id}
                 </p>
               </div>
             </div>
@@ -98,12 +131,12 @@ export function ExecutionDrilldown({ executionId }: ExecutionDrilldownProps) {
             </div>
           </div>
           <div className="rounded-[1.75rem] border border-border/60 bg-background/75 p-4 shadow-sm">
-            <p className="font-medium">{detailQuery.data.workflowName}</p>
+            <p className="font-medium">{diagnosticSummary?.workflowName}</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              {detailQuery.data.agentFqn}
+              {diagnosticSummary?.agentFqn}
             </p>
             <p className="mt-2 text-xs text-muted-foreground">
-              Elapsed {(detailQuery.data.elapsedMs / 1000).toFixed(0)}s
+              Elapsed {diagnosticSummary?.elapsedSeconds}s
             </p>
           </div>
         </CardContent>
@@ -112,50 +145,57 @@ export function ExecutionDrilldown({ executionId }: ExecutionDrilldownProps) {
       <Tabs>
         <TabsList className="flex w-full flex-wrap gap-2 rounded-[1.5rem] bg-muted/60 p-2">
           <TabsTrigger
-            aria-pressed={activeTab === "reasoning-trace"}
-            className={activeTab === "reasoning-trace" ? "bg-background shadow-sm" : undefined}
-            onClick={() => setActiveTab("reasoning-trace")}
+            aria-pressed={activeTab === "trajectory"}
+            className={activeTab === "trajectory" ? "bg-background shadow-sm" : undefined}
+            onClick={() => updateTab("trajectory")}
           >
-            Reasoning Trace
+            Trajectory
           </TabsTrigger>
           <TabsTrigger
-            aria-pressed={activeTab === "context-quality"}
-            className={activeTab === "context-quality" ? "bg-background shadow-sm" : undefined}
-            onClick={() => setActiveTab("context-quality")}
+            aria-pressed={activeTab === "checkpoints"}
+            className={activeTab === "checkpoints" ? "bg-background shadow-sm" : undefined}
+            onClick={() => updateTab("checkpoints")}
           >
-            Context Quality
+            Checkpoints
           </TabsTrigger>
           <TabsTrigger
-            aria-pressed={activeTab === "budget-consumption"}
-            className={activeTab === "budget-consumption" ? "bg-background shadow-sm" : undefined}
-            onClick={() => setActiveTab("budget-consumption")}
+            aria-pressed={activeTab === "debate"}
+            className={activeTab === "debate" ? "bg-background shadow-sm" : undefined}
+            onClick={() => updateTab("debate")}
           >
-            Budget Consumption
+            Debate
+          </TabsTrigger>
+          <TabsTrigger
+            aria-pressed={activeTab === "react"}
+            className={activeTab === "react" ? "bg-background shadow-sm" : undefined}
+            onClick={() => updateTab("react")}
+          >
+            ReAct
           </TabsTrigger>
         </TabsList>
 
-        {activeTab === "reasoning-trace" ? (
+        {activeTab === "trajectory" ? (
           <TabsContent>
-            <ReasoningTracePanel
-              isLoading={traceQuery.isLoading}
-              trace={traceQuery.data}
-            />
+            {anchorStepIndex === undefined ? (
+              <TrajectoryViz executionId={executionId} />
+            ) : (
+              <TrajectoryViz anchorStepIndex={anchorStepIndex} executionId={executionId} />
+            )}
           </TabsContent>
         ) : null}
-        {activeTab === "context-quality" ? (
+        {activeTab === "checkpoints" ? (
           <TabsContent>
-            <ContextQualityPanel
-              isLoading={contextQuery.isLoading}
-              quality={contextQuery.data}
-            />
+            <CheckpointList executionId={executionId} />
           </TabsContent>
         ) : null}
-        {activeTab === "budget-consumption" ? (
+        {activeTab === "debate" ? (
           <TabsContent>
-            <BudgetConsumptionPanel
-              budget={budgetQuery.data}
-              isLoading={budgetQuery.isLoading}
-            />
+            <DebateTranscript executionId={executionId} />
+          </TabsContent>
+        ) : null}
+        {activeTab === "react" ? (
+          <TabsContent>
+            <ReactCycleViewer executionId={executionId} />
           </TabsContent>
         ) : null}
       </Tabs>

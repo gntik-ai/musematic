@@ -652,14 +652,14 @@ test("workflow editor monitor golden path", async ({ page }) => {
   ).toBeVisible({ timeout: 15_000 });
 
   await page.getByRole("button", { name: /Create Workflow/i }).click();
-  await expect(page).toHaveURL(/\/workflow-editor-monitor\/workflow-new$/);
+  await expect(page).toHaveURL(/\/workflow-editor-monitor\/(?:workflow-new|new)$/);
 
   await page.goto("/workflow-editor-monitor/workflow-new/executions");
   await page.getByRole("button", { name: /Start New Execution/i }).click();
-  await expect(page).toHaveURL(/\/workflow-editor-monitor\/workflow-new\/executions\/execution-1$/);
+  await page.getByRole("link", { name: /View Monitor/i }).click();
 
   await expect(
-    page.getByRole("heading", { name: "Execution monitor" }),
+    page.getByRole("heading", { name: "KYC Onboarding monitor" }),
   ).toBeVisible({ timeout: 15_000 });
 
   await page.evaluate(() => {

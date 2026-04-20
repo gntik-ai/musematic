@@ -45,6 +45,7 @@ export interface Interaction {
   agent_id: string;
   agent_fqn: string;
   agent_display_name: string;
+  goal_id?: string | null;
   state: InteractionState;
   reasoning_mode: ReasoningMode;
   self_correction_count: number;

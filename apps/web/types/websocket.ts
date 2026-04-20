@@ -1,14 +1,24 @@
-export type WsConnectionState = "connecting" | "connected" | "disconnected" | "reconnecting";
+export type WsConnectionState =
+  | "connecting"
+  | "connected"
+  | "disconnected"
+  | "reconnecting";
+
+export type WsChannel =
+  | "alerts"
+  | "governance-verdicts"
+  | "warm-pool"
+  | string;
 
 export interface WsEvent<T = unknown> {
-  channel: string;
+  channel: WsChannel;
   type: string;
   payload: T;
   timestamp: string;
 }
 
 export interface WsMessage {
-  channel: string;
+  channel: WsChannel;
   type: string;
   payload: unknown;
 }

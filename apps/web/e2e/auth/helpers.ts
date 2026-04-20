@@ -1,4 +1,4 @@
-import type { Page, Route } from "@playwright/test";
+import { expect, type Page, type Route } from "@playwright/test";
 
 interface MockAuthOptions {
   loginMode?: "success" | "mfa" | "invalid" | "locked";
@@ -202,6 +202,25 @@ export async function mockAuthApi(page: Page, options: MockAuthOptions = {}) {
     await fulfillJson(route, { success: true });
   });
 
+  await page.route("**/api/v1/auth/oauth/providers", async (route) => {
+    await fulfillJson(route, { providers: [] });
+  });
+
+  await page.route("**/api/v1/workspaces", async (route) => {
+    await fulfillJson(route, {
+      items: [
+        {
+          id: options.workspaceId ?? "workspace-1",
+          name: "Risk Ops",
+          slug: "risk-ops",
+          description: "Primary workspace",
+          memberCount: 8,
+          createdAt: "2026-04-10T09:00:00.000Z",
+        },
+      ],
+    });
+  });
+
   await page.route("**/api/v1/workspaces/*/analytics/summary", async (route) => {
     await fulfillJson(route, buildWorkspaceSummary("workspace-1"));
   });
@@ -227,6 +246,7 @@ export async function signIn(
 ) {
   const { email = "alex@musematic.dev", password = "SecretPass1!" } = options;
 
+  await expect(page.locator('[data-auth-ready="true"]')).toBeVisible();
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: /sign in/i }).click();

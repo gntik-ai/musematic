@@ -112,6 +112,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-20
 - PostgreSQL 16 (4 new tables + 1 column via Alembic 053) + Redis (hot catalog cache + health aggregates) (056-ibor-integration-and)
 - Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, Alembic 1.13+, aiokafka 0.11+, qdrant-client 1.12+ async gRPC, scipy ≥ 1.13 (existing — used by `ProximityClustering`), APScheduler 3.x — all already in requirements.txt (056-ibor-integration-and)
 - PostgreSQL 16 (1 new table + 1 new column + 1 partial index via Alembic 056); Qdrant collection `discovery_hypotheses` (reused — no schema change); no Neo4j, no ClickHouse, no Redis keys added (056-ibor-integration-and)
+- TypeScript 5.x (strict), React 18+ + Next.js 14+ App Router, shadcn/ui (ALL UI primitives), Tailwind CSS 3.4+, TanStack Query v5, Zustand 5.x, React Hook Form 7.x + Zod 3.x, Recharts 2.x, date-fns 4.x, Lucide React — all already in `apps/web/package.json`; **no new packages** (056-ibor-integration-and)
+- None (frontend only — all data sourced from backend REST/WebSocket APIs) (056-ibor-integration-and)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -131,8 +133,8 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 056-ibor-integration-and: Added TypeScript 5.x (strict), React 18+ + Next.js 14+ App Router, shadcn/ui (ALL UI primitives), Tailwind CSS 3.4+, TanStack Query v5, Zustand 5.x, React Hook Form 7.x + Zod 3.x, Recharts 2.x, date-fns 4.x, Lucide React — all already in `apps/web/package.json`; **no new packages**
 - 056-ibor-integration-and: Added Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, Alembic 1.13+, aiokafka 0.11+, qdrant-client 1.12+ async gRPC, scipy ≥ 1.13 (existing — used by `ProximityClustering`), APScheduler 3.x — all already in requirements.txt
-- 056-ibor-integration-and: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
 - 056-ibor-integration-and: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
 
 

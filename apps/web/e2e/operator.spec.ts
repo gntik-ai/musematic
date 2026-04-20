@@ -63,13 +63,20 @@ test("renders the operator dashboard and completes the drill-down navigation flo
   await expect(
     page.getByRole("heading", { name: "Execution Drill-Down" }),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Reasoning Trace" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Context Quality" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Budget Consumption" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Trajectory", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Checkpoints", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Debate", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "ReAct", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Trajectory", exact: true })).toBeVisible();
 
-  await page.getByRole("button", { name: /Step 1/i }).click();
-  await expect(page.getByText("Self-correction chain")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Show full output" })).toBeVisible();
+  await page.getByRole("button", { name: "Checkpoints", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Checkpoints", exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Debate", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Debate transcript", exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "ReAct", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "ReAct cycles", exact: true })).toBeVisible();
 
   await page
     .locator("main")

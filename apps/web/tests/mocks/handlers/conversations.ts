@@ -18,6 +18,19 @@ type ConversationFixtures = {
   branchMessages: Record<string, Message[]>;
   workspaceGoals: Record<string, WorkspaceGoal[]>;
   goalMessages: Record<string, GoalMessage[]>;
+  rationaleByGoalAndMessage: Record<string, Array<{
+    id: string;
+    goal_id: string;
+    message_id: string;
+    agent_fqn: string;
+    strategy_name: string;
+    decision: string;
+    score: number | null;
+    matched_terms: string[];
+    rationale: string;
+    error: string | null;
+    created_at: string;
+  }>>;
 };
 
 function createConversationFixtures(): ConversationFixtures {
@@ -38,6 +51,7 @@ function createConversationFixtures(): ConversationFixtures {
           agent_id: "agent-1",
           agent_fqn: "finance-ops:analyzer",
           agent_display_name: "Finance Analyzer",
+          goal_id: "goal-1",
           state: "active",
           reasoning_mode: "chain_of_thought",
           self_correction_count: 3,
@@ -50,6 +64,7 @@ function createConversationFixtures(): ConversationFixtures {
           agent_id: "agent-2",
           agent_fqn: "trust:reviewer",
           agent_display_name: "Trust Reviewer",
+          goal_id: "goal-2",
           state: "awaiting_approval",
           reasoning_mode: "tree_of_thought",
           self_correction_count: 1,
@@ -81,6 +96,7 @@ function createConversationFixtures(): ConversationFixtures {
           agent_id: "agent-3",
           agent_fqn: "ops:planner",
           agent_display_name: "Ops Planner",
+          goal_id: null,
           state: "completed",
           reasoning_mode: "none",
           self_correction_count: 0,
@@ -318,12 +334,45 @@ function createConversationFixtures(): ConversationFixtures {
     ],
   };
 
+
+  const rationaleByGoalAndMessage = {
+    "goal-1:message-2": [
+      {
+        id: "rationale-tool-1",
+        goal_id: "goal-1",
+        message_id: "message-2",
+        agent_fqn: "finance-ops:analyzer",
+        strategy_name: "tool_selection",
+        decision: "respond",
+        score: 0.91,
+        matched_terms: ["apac", "risk"],
+        rationale: "Used the financial summarizer because APAC performance was the primary focus.",
+        error: null,
+        created_at: iso(-76),
+      },
+      {
+        id: "rationale-policy-1",
+        goal_id: "goal-1",
+        message_id: "message-2",
+        agent_fqn: "finance-ops:analyzer",
+        strategy_name: "policy_guard",
+        decision: "skip",
+        score: 0.32,
+        matched_terms: [],
+        rationale: "Deferred compliance claims until supporting evidence from the appendix was confirmed.",
+        error: null,
+        created_at: iso(-75),
+      },
+    ],
+  };
+
   return {
     conversations,
     interactionMessages,
     branchMessages,
     workspaceGoals,
     goalMessages,
+    rationaleByGoalAndMessage,
   };
 }
 
@@ -558,6 +607,20 @@ export const conversationHandlers = [
       fixtures.goalMessages[goalId] = [...(fixtures.goalMessages[goalId] ?? []), message];
 
       return HttpResponse.json(message, { status: 201 });
+    },
+  ),
+  http.get(
+    "*/api/v1/workspaces/:workspaceId/goals/:goalId/messages/:messageId/rationale",
+    ({ params }) => {
+      const goalId = String(params.goalId);
+      const messageId = String(params.messageId);
+      const items =
+        fixtures.rationaleByGoalAndMessage[`${goalId}:${messageId}`] ?? [];
+
+      return HttpResponse.json({
+        items,
+        total: items.length,
+      });
     },
   ),
 ];

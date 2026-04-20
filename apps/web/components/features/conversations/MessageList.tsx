@@ -14,6 +14,7 @@ interface MessageListProps {
   getStreamingContent: (messageId: string) => string | undefined;
   branchOriginMessageIds?: Set<string>;
   onBranchFromMessage?: (messageId: string) => void;
+  onInspectMessage?: (message: Message) => void;
 }
 
 export function MessageList({
@@ -21,6 +22,7 @@ export function MessageList({
   messages,
   getStreamingContent,
   onBranchFromMessage,
+  onInspectMessage,
 }: MessageListProps) {
   const { containerRef, sentinelRef, scrollToBottom } = useAutoScroll();
   const isAgentProcessing = useConversationStore((state) => state.isAgentProcessing);
@@ -81,6 +83,11 @@ export function MessageList({
                     onBranchFrom={
                       onBranchFromMessage
                         ? () => onBranchFromMessage(message.id)
+                        : undefined
+                    }
+                    onInspect={
+                      onInspectMessage && message.sender_type === "agent"
+                        ? () => onInspectMessage(message)
                         : undefined
                     }
                     showBranchOriginIndicator={Boolean(

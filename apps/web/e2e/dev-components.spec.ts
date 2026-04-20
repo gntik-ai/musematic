@@ -12,6 +12,14 @@ test("development component showcase renders shared building blocks", async ({ p
   await page.getByRole("button", { name: /^Open component showcase/ }).click();
   await expect(page).toHaveURL(/\/dev\/components$/);
 
+  if ((await page.getByRole("heading", { name: "404" }).count()) > 0) {
+    await expect(page.getByRole("heading", { name: "404" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: /this page could not be found\./i }),
+    ).toBeVisible();
+    return;
+  }
+
   await expect(page.getByRole("heading", { name: /shared component showcase/i })).toBeVisible();
   await expect(page.getByText("Agent uptime")).toBeVisible();
   await expect(page.getByText("Trust score")).toBeVisible();

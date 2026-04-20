@@ -4,7 +4,10 @@ import { useEffect, useRef } from "react";
 import { AlertTriangle, SearchX } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AgentCard } from "@/components/features/marketplace/agent-card";
+import {
+  AgentCardFqn,
+  toAgentCardIdentity,
+} from "@/components/features/marketplace/agent-card-fqn";
 import { useComparisonStore } from "@/lib/stores/use-comparison-store";
 import { buildAgentHref, type AgentCard as MarketplaceAgentCard } from "@/lib/types/marketplace";
 
@@ -103,15 +106,21 @@ export function AgentCardGrid({
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {agents.map((agent) => (
-          <AgentCard
-            key={agent.id}
-            agent={agent}
-            href={buildAgentHref(agent.namespace, agent.localName)}
-            isSelected={selectedFqns.includes(agent.fqn)}
-            onToggleCompare={toggle}
-          />
-        ))}
+        {agents.map((agent) => {
+          const isSelected = selectedFqns.includes(agent.fqn);
+          const compareDisabled = !isSelected && selectedFqns.length >= 4;
+
+          return (
+            <AgentCardFqn
+              key={agent.id}
+              agent={toAgentCardIdentity(agent)}
+              compareDisabled={compareDisabled}
+              href={buildAgentHref(agent.namespace, agent.localName)}
+              isSelected={isSelected}
+              onAddToCompare={() => toggle(agent.fqn)}
+            />
+          );
+        })}
       </div>
 
       {hasNextPage ? <div ref={sentinelRef} className="h-1" /> : null}

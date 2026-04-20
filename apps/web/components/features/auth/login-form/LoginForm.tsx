@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import {
   Form,
@@ -34,6 +34,7 @@ export function LoginForm({
   onMfaChallenge,
   onSuccess,
 }: LoginFormProps) {
+  const [isHydrated, setIsHydrated] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const loginMutation = useLoginMutation();
   const form = useForm<LoginFormValues>({
@@ -43,6 +44,10 @@ export function LoginForm({
       password: "",
     },
   });
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   const handleSubmit = form.handleSubmit(async (values) => {
     setErrorMessage(null);
@@ -77,7 +82,7 @@ export function LoginForm({
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" data-auth-ready={isHydrated ? "true" : "false"}>
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-brand-accent">
           Secure access
@@ -136,7 +141,7 @@ export function LoginForm({
           <Button
             aria-busy={loginMutation.isPending}
             className="w-full"
-            disabled={loginMutation.isPending}
+            disabled={loginMutation.isPending || !isHydrated}
             type="submit"
           >
             {loginMutation.isPending ? (
