@@ -23,6 +23,7 @@ interface MessageBubbleProps {
   showBranchOrigin?: boolean | undefined;
   showBranchOriginIndicator?: boolean | undefined;
   onBranchFrom?: (() => void) | undefined;
+  onInspect?: (() => void) | undefined;
   children?: React.ReactNode | undefined;
 }
 
@@ -35,6 +36,7 @@ export function MessageBubble({
   showBranchOrigin = true,
   showBranchOriginIndicator = false,
   onBranchFrom,
+  onInspect,
   children,
 }: MessageBubbleProps) {
   const [expanded, setExpanded] = useState(false);
@@ -71,6 +73,7 @@ export function MessageBubble({
     expanded || !isTruncated
       ? resolvedContent
       : `${resolvedContent.slice(0, MAX_CONTENT_LENGTH)}…`;
+  const isInspectable = message.sender_type === "agent" && Boolean(onInspect);
 
   return (
     <article
@@ -113,7 +116,25 @@ export function MessageBubble({
             </DropdownMenu>
           ) : null}
         </div>
-        <div className={`rounded-2xl px-4 py-3 text-sm shadow-sm ${bubbleClassName}`}>
+        <div
+          aria-label={
+            isInspectable ? `Inspect rationale for ${label} message` : undefined
+          }
+          className={`rounded-2xl px-4 py-3 text-sm shadow-sm ${bubbleClassName} ${isInspectable ? "cursor-pointer transition hover:ring-2 hover:ring-brand-accent/40" : ""}`}
+          onClick={isInspectable ? onInspect : undefined}
+          onKeyDown={
+            isInspectable
+              ? (event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    onInspect?.();
+                  }
+                }
+              : undefined
+          }
+          role={isInspectable ? "button" : undefined}
+          tabIndex={isInspectable ? 0 : undefined}
+        >
           {children ? (
             children
           ) : (

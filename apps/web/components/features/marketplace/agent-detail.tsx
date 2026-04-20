@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Coins, MessageSquareText } from "lucide-react";
+import { AlertTriangle, Coins, MessageSquareText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,13 +38,40 @@ export interface AgentDetailProps {
   currentUserReview?: AgentReview | null;
 }
 
+function certificationTone(status: MarketplaceAgentDetail["certificationStatus"]): string {
+  switch (status) {
+    case "active":
+      return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300";
+    case "expired":
+      return "bg-red-500/15 text-red-700 dark:text-red-300";
+    case "pending":
+      return "bg-amber-500/15 text-amber-700 dark:text-amber-300";
+    case "none":
+      return "bg-slate-500/15 text-slate-700 dark:text-slate-300";
+  }
+}
+
+function certificationLabel(status: MarketplaceAgentDetail["certificationStatus"]): string {
+  switch (status) {
+    case "active":
+      return "Certified";
+    case "expired":
+      return "Certification expired";
+    case "pending":
+      return "Certification pending";
+    case "none":
+      return "Not certified";
+  }
+}
+
 export function AgentDetail({
   agent,
   isOwner,
   currentUserReview = null,
 }: AgentDetailProps) {
   const [activeTab, setActiveTab] = useState<TabValue>("overview");
-  const canInvoke = agent.visibility.visibleToCurrentUser;
+  const canInvoke = agent.visibility.visibleToCurrentUser && agent.certificationStatus !== "expired";
+  const activeCertification = agent.trustSignals.certificationBadges.find((badge) => badge.isActive) ?? agent.trustSignals.certificationBadges[0] ?? null;
 
   const tabs: Array<{ value: TabValue; label: string }> = [
     { value: "overview", label: "Overview" },
@@ -91,6 +118,9 @@ export function AgentDetail({
               <Badge className="border-border/60 bg-background/80 text-foreground" variant="outline">
                 {agent.currentRevision}
               </Badge>
+              <Badge className={certificationTone(agent.certificationStatus)} variant="outline">
+                {certificationLabel(agent.certificationStatus)}
+              </Badge>
             </div>
             <div className="flex flex-wrap gap-2">
               {agent.capabilities.map((capability) => (
@@ -103,6 +133,19 @@ export function AgentDetail({
                 </Badge>
               ))}
             </div>
+            {agent.certificationStatus !== "active" ? (
+              <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-900 dark:text-amber-100">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="mt-0.5 h-4 w-4" />
+                  <div>
+                    <p className="font-medium">Agent not currently certified</p>
+                    <p className="text-amber-900/80 dark:text-amber-100/80">
+                      Invocation remains blocked until certification returns to an active state.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className="grid min-w-[280px] gap-3 rounded-3xl border border-border/60 bg-background/60 p-4">
@@ -114,6 +157,25 @@ export function AgentDetail({
               <p className="mt-1 text-sm text-muted-foreground">
                 {formatUsdCost(agent.costBreakdown.estimatedCostPerInvocationUsd)} per invocation
               </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Certification</p>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <Badge className={certificationTone(agent.certificationStatus)} variant="outline">
+                  {certificationLabel(agent.certificationStatus)}
+                </Badge>
+                <span className="text-sm font-medium text-foreground">
+                  {activeCertification?.name ?? "Agent not currently certified"}
+                </span>
+              </div>
+              {activeCertification ? (
+                <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                  <p>Issued {new Date(activeCertification.issuedAt).toLocaleDateString()}</p>
+                  <p>
+                    Expires {activeCertification.expiresAt ? new Date(activeCertification.expiresAt).toLocaleDateString() : "No expiry"}
+                  </p>
+                </div>
+              ) : null}
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Coins className="h-4 w-4" />
@@ -136,7 +198,7 @@ export function AgentDetail({
                 </TooltipTrigger>
                 {!canInvoke ? (
                   <TooltipContent>
-                    You don&apos;t have access to invoke this agent
+                    Agent is not currently certified for use
                   </TooltipContent>
                 ) : null}
               </Tooltip>

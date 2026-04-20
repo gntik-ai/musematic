@@ -1,26 +1,36 @@
 "use client";
 
 import { Suspense, useMemo } from "react";
-import { Sparkles } from "lucide-react";
+import { ChevronsUpDown, Sparkles } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { MarketplaceSearchBar } from "@/components/features/marketplace/marketplace-search-bar";
-import { FilterSidebar } from "@/components/features/marketplace/filter-sidebar";
 import { AgentCardGrid } from "@/components/features/marketplace/agent-card-grid";
+import {
+  AgentCardFqn,
+  toAgentCardIdentity,
+} from "@/components/features/marketplace/agent-card-fqn";
 import { ComparisonFloatingBar } from "@/components/features/marketplace/comparison-floating-bar";
+import { FilterSidebar } from "@/components/features/marketplace/filter-sidebar";
+import { MarketplaceSearchFqn } from "@/components/features/marketplace/marketplace-search-fqn";
 import { RecommendationCarousel } from "@/components/features/marketplace/recommendation-carousel";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select } from "@/components/ui/select";
 import { useMarketplaceFilterMetadata, useMarketplaceSearch } from "@/lib/hooks/use-marketplace-search";
 import { useRecommendations } from "@/lib/hooks/use-recommendations";
-import { useComparisonStore } from "@/lib/stores/use-comparison-store";
 import { useMediaQuery } from "@/lib/hooks/use-media-query";
 import { parseMarketplaceSearchParams, serializeMarketplaceSearchParams } from "@/lib/schemas/marketplace";
+import { useComparisonStore } from "@/lib/stores/use-comparison-store";
 import {
   DEFAULT_MARKETPLACE_SEARCH_PARAMS,
   SORT_OPTIONS,
+  buildAgentHref,
   encodeComparisonHandle,
   getActiveMarketplaceFilterCount,
   humanizeMarketplaceValue,
 } from "@/lib/types/marketplace";
+
+function isLegacyAgent(fqn: string): boolean {
+  return !fqn.includes(":");
+}
 
 function MarketplacePageContent() {
   const pathname = usePathname();
@@ -29,6 +39,7 @@ function MarketplacePageContent() {
   const isMobile = useMediaQuery("(max-width: 640px)");
   const selectedFqns = useComparisonStore((state) => state.selectedFqns);
   const clearComparison = useComparisonStore((state) => state.clear);
+  const toggleComparison = useComparisonStore((state) => state.toggle);
 
   const filters = useMemo(
     () => parseMarketplaceSearchParams(searchParams),
@@ -44,6 +55,26 @@ function MarketplacePageContent() {
     [searchQuery.data],
   );
 
+  const groupedAgents = useMemo(() => {
+    const query = filters.q.trim().toLowerCase();
+    if (!query) {
+      return {
+        primary: agents,
+        legacy: [] as typeof agents,
+      };
+    }
+
+    const legacy = agents.filter((agent) => isLegacyAgent(agent.fqn));
+    const primary = agents.filter((agent) => {
+      if (isLegacyAgent(agent.fqn)) {
+        return false;
+      }
+      return agent.fqn.toLowerCase().startsWith(query);
+    });
+
+    return { primary, legacy };
+  }, [agents, filters.q]);
+
   const updateSearchParams = (updated: Partial<typeof filters>) => {
     const nextQuery = serializeMarketplaceSearchParams({
       ...DEFAULT_MARKETPLACE_SEARCH_PARAMS,
@@ -54,6 +85,8 @@ function MarketplacePageContent() {
 
     router.push(nextQuery ? `${pathname}?${nextQuery}` : pathname);
   };
+
+  const visibleCount = groupedAgents.primary.length + groupedAgents.legacy.length;
 
   return (
     <section className="space-y-6">
@@ -105,10 +138,10 @@ function MarketplacePageContent() {
         isLoading={recommendationsQuery.isLoading}
       />
 
-      <MarketplaceSearchBar
-        initialValue={filters.q}
+      <MarketplaceSearchFqn
+        initialQuery={filters.q}
         isLoading={searchQuery.isFetching && !searchQuery.isFetchingNextPage}
-        onSearch={() => undefined}
+        onQueryChange={() => undefined}
       />
 
       <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
@@ -127,11 +160,11 @@ function MarketplacePageContent() {
         <div className="space-y-4">
           <div className="flex items-center justify-between gap-4">
             <p className="text-sm text-muted-foreground">
-              {searchQuery.data?.pages[0]?.total ?? agents.length} agents found
+              {filters.q ? visibleCount : searchQuery.data?.pages[0]?.total ?? agents.length} agents found
             </p>
           </div>
           <AgentCardGrid
-            agents={agents}
+            agents={groupedAgents.primary}
             hasNextPage={searchQuery.hasNextPage ?? false}
             isError={searchQuery.isError}
             isFetchingNextPage={searchQuery.isFetchingNextPage}
@@ -142,6 +175,39 @@ function MarketplacePageContent() {
               }
             }}
           />
+
+          {filters.q.trim() && groupedAgents.legacy.length > 0 ? (
+            <Collapsible defaultOpen={false}>
+              <div className="rounded-3xl border border-border/60 bg-card/70 p-4">
+                <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 text-left text-sm font-medium">
+                  <span>Legacy (uncategorized)</span>
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    {groupedAgents.legacy.length}
+                    <ChevronsUpDown className="h-4 w-4" />
+                  </span>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    {groupedAgents.legacy.map((agent) => {
+                      const isSelected = selectedFqns.includes(agent.fqn);
+                      const compareDisabled = !isSelected && selectedFqns.length >= 4;
+
+                      return (
+                        <AgentCardFqn
+                          key={agent.id}
+                          agent={toAgentCardIdentity(agent)}
+                          compareDisabled={compareDisabled}
+                          href={buildAgentHref(agent.namespace, agent.localName)}
+                          isSelected={isSelected}
+                          onAddToCompare={() => toggleComparison(agent.fqn)}
+                        />
+                      );
+                    })}
+                  </div>
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
+          ) : null}
         </div>
       </div>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  WsChannel,
   WsConnectionState,
   WsEvent,
   WsEventHandler,
@@ -12,7 +13,7 @@ const RECONNECT_DELAYS = [1000, 2000, 4000, 8000, 16000, 30000] as const;
 
 export class WebSocketClient {
   private socket: WebSocket | null = null;
-  private readonly subscriptions = new Map<string, Set<WsEventHandler>>();
+  private readonly subscriptions = new Map<WsChannel, Set<WsEventHandler>>();
   private readonly stateHandlers = new Set<(state: WsConnectionState) => void>();
   private reconnectTimer: number | null = null;
   private reconnectAttempt = 0;
@@ -71,7 +72,7 @@ export class WebSocketClient {
     this.setState("disconnected");
   }
 
-  subscribe<T = unknown>(channel: string, handler: WsEventHandler<T>): WsUnsubscribeFn {
+  subscribe<T = unknown>(channel: WsChannel, handler: WsEventHandler<T>): WsUnsubscribeFn {
     const currentHandlers = this.subscriptions.get(channel) ?? new Set<WsEventHandler>();
     currentHandlers.add(handler as WsEventHandler);
     this.subscriptions.set(channel, currentHandlers);
@@ -89,7 +90,7 @@ export class WebSocketClient {
     };
   }
 
-  send(channel: string, type: string, payload: unknown): void {
+  send(channel: WsChannel, type: string, payload: unknown): void {
     if (!this.socket || this.connectionState !== "connected") {
       return;
     }

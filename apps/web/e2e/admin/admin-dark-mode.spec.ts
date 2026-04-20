@@ -23,7 +23,7 @@ test("admin settings tabs render in dark mode without layout regressions", async
   await page.goto("/login");
   await signIn(page, { email: "pat.admin@musematic.dev" });
   await expect(page).toHaveURL(/\/home/);
-  await page.getByRole("link", { name: "Admin" }).click();
+  await page.goto("/admin/settings");
   await expect(page).toHaveURL(/\/admin\/settings/);
 
   await page.evaluate(() => {
