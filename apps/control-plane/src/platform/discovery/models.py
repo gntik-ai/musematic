@@ -19,6 +19,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
@@ -36,6 +37,12 @@ class HypothesisStatus(StrEnum):
     active = "active"
     merged = "merged"
     retired = "retired"
+
+
+class EmbeddingStatus(StrEnum):
+    pending = "pending"
+    indexed = "indexed"
+    failed = "failed"
 
 
 class TournamentRoundStatus(StrEnum):
@@ -193,6 +200,15 @@ class Hypothesis(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     )
     qdrant_point_id: Mapped[str | None] = mapped_column(String(length=128), nullable=True)
     cluster_id: Mapped[str | None] = mapped_column(String(length=128), nullable=True)
+    embedding_status: Mapped[str] = mapped_column(
+        String(length=16),
+        nullable=False,
+        default=EmbeddingStatus.pending.value,
+    )
+    rationale_metadata: Mapped[dict[str, Any] | None] = mapped_column(
+        postgresql.JSONB,
+        nullable=True,
+    )
 
     session: Mapped[DiscoverySession] = relationship(
         "platform.discovery.models.DiscoverySession",
@@ -336,22 +352,28 @@ class DiscoveryExperiment(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin)
 
 
 class HypothesisCluster(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
-    """Proximity clustering result for a discovery session."""
+    """Proximity clustering result for a discovery scope."""
 
     __tablename__ = "discovery_hypothesis_clusters"
     __table_args__ = (
         Index("ix_clusters_session_id", "session_id"),
-        UniqueConstraint("session_id", "cluster_label", name="uq_cluster_session_label"),
+        Index(
+            "uq_cluster_session_label",
+            "session_id",
+            "cluster_label",
+            unique=True,
+            postgresql_where=text("session_id IS NOT NULL"),
+        ),
         CheckConstraint(
             "classification IN ('normal', 'over_explored', 'gap')",
             name="ck_clusters_classification",
         ),
     )
 
-    session_id: Mapped[UUID] = mapped_column(
+    session_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("discovery_sessions.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
     )
     cluster_label: Mapped[str] = mapped_column(String(length=128), nullable=False)
     centroid_description: Mapped[str] = mapped_column(Text(), nullable=False)
@@ -365,4 +387,26 @@ class HypothesisCluster(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
+    )
+
+
+class DiscoveryWorkspaceSettings(Base, TimestampMixin):
+    """Workspace-level proximity graph settings and recompute metadata."""
+
+    __tablename__ = "discovery_workspace_settings"
+
+    workspace_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("workspaces.id", ondelete="CASCADE"),
+        primary_key=True,
+        nullable=False,
+    )
+    bias_enabled: Mapped[bool] = mapped_column(Boolean(), nullable=False, default=True)
+    recompute_interval_minutes: Mapped[int] = mapped_column(Integer(), nullable=False, default=15)
+    last_recomputed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_transition_summary: Mapped[dict[str, Any] | None] = mapped_column(
+        postgresql.JSONB,
+        nullable=True,
     )

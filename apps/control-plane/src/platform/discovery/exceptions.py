@@ -69,3 +69,15 @@ class ProximityComputationRunningError(DiscoveryError):
             "PROXIMITY_COMPUTATION_RUNNING",
             f"Proximity computation already running for session: {session_id}",
         )
+
+
+class WorkspaceProximityRecomputeInFlightError(DiscoveryError):
+    """Raised when a duplicate workspace recompute is requested."""
+
+    status_code = 409
+
+    def __init__(self, workspace_id: object) -> None:
+        super().__init__(
+            "PROXIMITY_RECOMPUTE_IN_FLIGHT",
+            f"Workspace proximity recompute already running: {workspace_id}",
+        )

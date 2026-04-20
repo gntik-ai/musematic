@@ -73,6 +73,7 @@ from platform.context_engineering.dependencies import build_context_engineering_
 from platform.context_engineering.drift_monitor import DriftMonitorTask
 from platform.context_engineering.events import register_context_engineering_event_types
 from platform.context_engineering.router import router as context_engineering_router
+from platform.discovery.dependencies import build_discovery_service
 from platform.discovery.events import register_discovery_event_types
 from platform.discovery.router import router as discovery_router
 from platform.evaluation.dependencies import (
@@ -1566,17 +1567,33 @@ def _build_discovery_proximity_scheduler(app: FastAPI) -> Any | None:
 
     scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
 
-    async def _drain_cycle_completed_queue() -> None:
-        # Actual cycle-completed events are delivered through Kafka. This periodic
-        # job is intentionally lightweight and keeps the discovery runtime profile
-        # ready for queued proximity work without scanning unrelated tables.
-        return None
+    async def _run_workspace_proximity_recompute() -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = build_discovery_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                qdrant=cast(AsyncQdrantClient | None, app.state.clients.get("qdrant")),
+                neo4j=cast(AsyncNeo4jClient | None, app.state.clients.get("neo4j")),
+                sandbox_client=cast(
+                    SandboxManagerClient | None,
+                    app.state.clients.get("sandbox_manager"),
+                ),
+            )
+            try:
+                await service.workspace_proximity_recompute_task()
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Discovery proximity scheduler failed")
 
     scheduler.add_job(
-        _drain_cycle_completed_queue,
+        _run_workspace_proximity_recompute,
         "interval",
-        seconds=60,
+        minutes=app.state.settings.discovery.proximity_graph_recompute_interval_minutes,
         id="discovery-proximity-clustering",
+        replace_existing=True,
     )
     return scheduler
 
