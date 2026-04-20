@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from platform.common.config import PlatformSettings
 from platform.discovery.critique.evaluator import CritiqueEvaluator
 from platform.discovery.events import DiscoveryEventPublisher
@@ -7,12 +8,14 @@ from platform.discovery.exceptions import (
     DiscoveryNotFoundError,
     InsufficientHypothesesError,
     SessionAlreadyRunningError,
+    WorkspaceProximityRecomputeInFlightError,
 )
 from platform.discovery.experiment.designer import ExperimentDesigner
 from platform.discovery.gde.cycle import GDECycleOrchestrator
 from platform.discovery.models import DiscoverySession, EloScore, Hypothesis, TournamentRound
 from platform.discovery.provenance.graph import ProvenanceGraph
 from platform.discovery.proximity.clustering import ProximityClustering
+from platform.discovery.proximity.graph import ProximityGraphService
 from platform.discovery.repository import DiscoveryRepository
 from platform.discovery.schemas import (
     ClusterListResponse,
@@ -27,6 +30,10 @@ from platform.discovery.schemas import (
     LeaderboardEntryResponse,
     LeaderboardResponse,
     ProvenanceGraphResponse,
+    ProximityGraphResponse,
+    ProximityWorkspaceSettingsResponse,
+    ProximityWorkspaceSettingsUpdateRequest,
+    RecomputeEnqueuedResponse,
     TournamentRoundListResponse,
     TournamentRoundResponse,
 )
@@ -34,6 +41,9 @@ from platform.discovery.tournament.comparator import TournamentComparator
 from platform.discovery.tournament.elo import EloRatingEngine
 from typing import Protocol
 from uuid import UUID
+
+LOGGER = logging.getLogger(__name__)
+_RECOMPUTE_IN_FLIGHT: set[UUID] = set()
 
 
 class DiscoveryServiceInterface(Protocol):
@@ -67,6 +77,7 @@ class DiscoveryService:
         experiment_designer: ExperimentDesigner | None,
         provenance_graph: ProvenanceGraph,
         proximity_clustering: ProximityClustering | None,
+        proximity_graph_service: ProximityGraphService | None = None,
     ) -> None:
         self.repository = repository
         self.settings = settings
@@ -78,6 +89,7 @@ class DiscoveryService:
         self.experiment_designer = experiment_designer
         self.provenance_graph = provenance_graph
         self.proximity_clustering = proximity_clustering
+        self.proximity_graph_service = proximity_graph_service
 
     async def start_session(
         self,
@@ -401,6 +413,115 @@ class DiscoveryService:
             landscape_status=result.status,
         )
 
+    async def get_proximity_graph(
+        self,
+        workspace_id: UUID,
+        *,
+        session_id: UUID | None,
+        include_edges: bool,
+        max_nodes: int,
+    ) -> ProximityGraphResponse:
+        if self.proximity_graph_service is None:
+            return ProximityGraphResponse(
+                workspace_id=workspace_id,
+                session_id=session_id,
+                status="pre_proximity",
+                saturation_indicator="low_data",
+                min_hypotheses_required=self.settings.discovery.min_hypotheses,
+                current_embedded_count=0,
+            )
+        return await self.proximity_graph_service.compute_workspace_graph(
+            workspace_id,
+            session_id=session_id,
+            include_edges=include_edges,
+            max_nodes=max_nodes,
+        )
+
+    async def get_workspace_proximity_settings(
+        self,
+        workspace_id: UUID,
+    ) -> ProximityWorkspaceSettingsResponse:
+        if self.proximity_graph_service is None:
+            raise RuntimeError("Proximity graph service is not configured")
+        row = await self.proximity_graph_service._get_or_create_workspace_settings(workspace_id)
+        return ProximityWorkspaceSettingsResponse(
+            workspace_id=row.workspace_id,
+            bias_enabled=row.bias_enabled,
+            recompute_interval_minutes=row.recompute_interval_minutes,
+            last_recomputed_at=row.last_recomputed_at,
+            last_transition_summary=row.last_transition_summary,
+        )
+
+    async def update_workspace_proximity_settings(
+        self,
+        workspace_id: UUID,
+        payload: ProximityWorkspaceSettingsUpdateRequest,
+        actor: UUID,
+    ) -> ProximityWorkspaceSettingsResponse:
+        del actor
+        existing = await self.get_workspace_proximity_settings(workspace_id)
+        fields: dict[str, object] = {}
+        if payload.bias_enabled is not None:
+            fields["bias_enabled"] = payload.bias_enabled
+        if payload.recompute_interval_minutes is not None:
+            fields["recompute_interval_minutes"] = payload.recompute_interval_minutes
+        row = await self.repository.upsert_workspace_settings(
+            workspace_id,
+            bias_enabled=fields.get("bias_enabled", existing.bias_enabled),
+            recompute_interval_minutes=fields.get(
+                "recompute_interval_minutes",
+                existing.recompute_interval_minutes,
+            ),
+            last_recomputed_at=existing.last_recomputed_at,
+            last_transition_summary=existing.last_transition_summary,
+        )
+        return ProximityWorkspaceSettingsResponse(
+            workspace_id=row.workspace_id,
+            bias_enabled=row.bias_enabled,
+            recompute_interval_minutes=row.recompute_interval_minutes,
+            last_recomputed_at=row.last_recomputed_at,
+            last_transition_summary=row.last_transition_summary,
+        )
+
+    async def enqueue_workspace_recompute(
+        self,
+        workspace_id: UUID,
+        actor: UUID,
+    ) -> RecomputeEnqueuedResponse:
+        del actor
+        if self.proximity_graph_service is None:
+            raise RuntimeError("Proximity graph service is not configured")
+        if workspace_id in _RECOMPUTE_IN_FLIGHT:
+            raise WorkspaceProximityRecomputeInFlightError(workspace_id)
+        _RECOMPUTE_IN_FLIGHT.add(workspace_id)
+        try:
+            pending = await self.repository.list_hypotheses_pending_embedding(
+                workspace_id, limit=100
+            )
+            for item in pending:
+                await self.proximity_graph_service.index_hypothesis(item.id)
+            await self.proximity_graph_service.recompute_workspace_graph(workspace_id)
+        finally:
+            _RECOMPUTE_IN_FLIGHT.discard(workspace_id)
+        return RecomputeEnqueuedResponse()
+
+    async def workspace_proximity_recompute_task(self) -> None:
+        if self.proximity_graph_service is None:
+            return
+        for workspace_id in await self.repository.list_active_workspace_ids():
+            try:
+                pending = await self.repository.list_hypotheses_pending_embedding(
+                    workspace_id, limit=100
+                )
+                for item in pending:
+                    await self.proximity_graph_service.index_hypothesis(item.id)
+                await self.proximity_graph_service.recompute_workspace_graph(workspace_id)
+            except Exception:
+                LOGGER.exception(
+                    "Discovery workspace proximity recompute failed for workspace %s",
+                    workspace_id,
+                )
+
     async def get_session_summary(
         self,
         session_id: UUID,
@@ -453,6 +574,8 @@ def _hypothesis_response(
         losses=0 if elo_row is None else elo_row.losses,
         draws=0 if elo_row is None else elo_row.draws,
         cluster_id=hypothesis.cluster_id,
+        embedding_status=hypothesis.embedding_status or "pending",
+        rationale_metadata=hypothesis.rationale_metadata,
         created_at=hypothesis.created_at,
     )
 

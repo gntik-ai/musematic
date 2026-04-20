@@ -15,6 +15,9 @@ from platform.discovery.schemas import (
     HypothesisResponse,
     LeaderboardResponse,
     ProvenanceGraphResponse,
+    ProximityGraphResponse,
+    ProximityWorkspaceSettingsResponse,
+    RecomputeEnqueuedResponse,
     TournamentRoundListResponse,
 )
 from types import SimpleNamespace
@@ -104,6 +107,30 @@ def test_discovery_endpoint_contracts() -> None:
         trigger_proximity_computation=AsyncMock(
             return_value=ClusterListResponse(items=[], landscape_status="low_data")
         ),
+        get_proximity_graph=AsyncMock(
+            return_value=ProximityGraphResponse(
+                workspace_id=workspace_id,
+                status="computed",
+                saturation_indicator="normal",
+                current_embedded_count=1,
+                nodes=[],
+            )
+        ),
+        get_workspace_proximity_settings=AsyncMock(
+            return_value=ProximityWorkspaceSettingsResponse(
+                workspace_id=workspace_id,
+                bias_enabled=True,
+                recompute_interval_minutes=15,
+            )
+        ),
+        update_workspace_proximity_settings=AsyncMock(
+            return_value=ProximityWorkspaceSettingsResponse(
+                workspace_id=workspace_id,
+                bias_enabled=False,
+                recompute_interval_minutes=30,
+            )
+        ),
+        enqueue_workspace_recompute=AsyncMock(return_value=RecomputeEnqueuedResponse()),
     )
     app = FastAPI()
     app.include_router(router)
@@ -144,3 +171,76 @@ def test_discovery_endpoint_contracts() -> None:
     assert (
         client.post(f"/api/v1/discovery/sessions/{session_id}/compute-proximity").status_code == 202
     )
+
+
+def test_discovery_proximity_workspace_endpoints_and_authorization() -> None:
+    workspace_id = uuid4()
+    actor_id = uuid4()
+    service = SimpleNamespace(
+        get_proximity_graph=AsyncMock(
+            return_value=ProximityGraphResponse(
+                workspace_id=workspace_id,
+                status="computed",
+                saturation_indicator="normal",
+                current_embedded_count=2,
+                nodes=[],
+            )
+        ),
+        get_workspace_proximity_settings=AsyncMock(
+            return_value=ProximityWorkspaceSettingsResponse(
+                workspace_id=workspace_id,
+                bias_enabled=True,
+                recompute_interval_minutes=15,
+            )
+        ),
+        update_workspace_proximity_settings=AsyncMock(
+            return_value=ProximityWorkspaceSettingsResponse(
+                workspace_id=workspace_id,
+                bias_enabled=False,
+                recompute_interval_minutes=30,
+            )
+        ),
+        enqueue_workspace_recompute=AsyncMock(return_value=RecomputeEnqueuedResponse()),
+    )
+    app = FastAPI()
+    app.include_router(router)
+    app.add_exception_handler(PlatformError, platform_exception_handler)
+    app.dependency_overrides[get_discovery_service] = lambda: service
+    app.dependency_overrides[get_current_user] = lambda: {
+        "sub": str(actor_id),
+        "workspace_id": str(workspace_id),
+        "roles": [],
+    }
+    client = TestClient(app)
+
+    assert client.get(f"/api/v1/discovery/{workspace_id}/proximity-graph").status_code == 200
+    assert client.get(f"/api/v1/discovery/{workspace_id}/proximity-settings").status_code == 200
+    assert (
+        client.patch(
+            f"/api/v1/discovery/{workspace_id}/proximity-settings",
+            json={"bias_enabled": False},
+        ).status_code
+        == 403
+    )
+    assert (
+        client.post(f"/api/v1/discovery/{workspace_id}/proximity-graph/recompute").status_code
+        == 403
+    )
+
+    app.dependency_overrides[get_current_user] = lambda: {
+        "sub": str(actor_id),
+        "workspace_id": str(workspace_id),
+        "roles": [{"role": "workspace_admin", "workspace_id": str(workspace_id)}],
+    }
+
+    updated = client.patch(
+        f"/api/v1/discovery/{workspace_id}/proximity-settings",
+        json={"bias_enabled": False, "recompute_interval_minutes": 30},
+    )
+    recompute = client.post(f"/api/v1/discovery/{workspace_id}/proximity-graph/recompute")
+
+    assert updated.status_code == 200
+    assert updated.json()["bias_enabled"] is False
+    assert recompute.status_code == 202
+    service.update_workspace_proximity_settings.assert_awaited_once()
+    service.enqueue_workspace_recompute.assert_awaited_once_with(workspace_id, actor_id)

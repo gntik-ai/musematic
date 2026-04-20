@@ -14,6 +14,7 @@ from platform.discovery.gde.cycle import GDECycleOrchestrator
 from platform.discovery.provenance.graph import ProvenanceGraph
 from platform.discovery.proximity.clustering import ProximityClustering
 from platform.discovery.proximity.embeddings import HypothesisEmbedder
+from platform.discovery.proximity.graph import ProximityGraphService
 from platform.discovery.repository import DiscoveryRepository
 from platform.discovery.service import DiscoveryService
 from platform.discovery.tournament.comparator import TournamentComparator
@@ -61,6 +62,13 @@ def build_discovery_service(
         embedder=embedder,
         publisher=publisher,
     )
+    proximity_graph_service = ProximityGraphService(
+        embedder=embedder,
+        clustering=proximity_clustering,
+        repository=repository,
+        event_publisher=publisher,
+        settings=settings.discovery,
+    )
     experiment_designer = ExperimentDesigner(
         repository=repository,
         publisher=publisher,
@@ -78,6 +86,7 @@ def build_discovery_service(
         tournament=tournament,
         critique_evaluator=critique_evaluator,
         workflow_service=None,
+        proximity_graph_service=proximity_graph_service,
     )
     return DiscoveryService(
         repository=repository,
@@ -90,6 +99,7 @@ def build_discovery_service(
         experiment_designer=experiment_designer,
         provenance_graph=provenance_graph,
         proximity_clustering=proximity_clustering,
+        proximity_graph_service=proximity_graph_service,
     )
 
 

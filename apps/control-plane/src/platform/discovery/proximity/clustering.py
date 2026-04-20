@@ -36,6 +36,29 @@ class ProximityClustering:
 
     async def compute(self, session_id: UUID, workspace_id: UUID) -> ProximityComputationResult:
         embeddings = await self.embedder.fetch_session_embeddings(session_id, workspace_id)
+        result = self.compute_embeddings(
+            embeddings,
+            workspace_id=workspace_id,
+            session_id=session_id,
+        )
+        await self.repository.replace_clusters(session_id, workspace_id, result.clusters)
+        for cluster in result.clusters:
+            for hypothesis_id in cluster.hypothesis_ids:
+                await self.repository.update_hypothesis_cluster(
+                    UUID(hypothesis_id),
+                    workspace_id,
+                    cluster.cluster_label,
+                )
+        await self.publisher.proximity_computed(session_id, workspace_id, len(result.clusters))
+        return result
+
+    def compute_embeddings(
+        self,
+        embeddings: list[dict[str, Any]],
+        *,
+        workspace_id: UUID,
+        session_id: UUID | None,
+    ) -> ProximityComputationResult:
         if len(embeddings) < 3:
             return ProximityComputationResult(
                 status="low_data",
@@ -62,18 +85,9 @@ class ProximityClustering:
                 self.settings.discovery.proximity_clustering_threshold,
             )
         clusters = self._build_clusters(session_id, workspace_id, embeddings, labels, distances)
-        await self.repository.replace_clusters(session_id, workspace_id, clusters)
-        for cluster in clusters:
-            for hypothesis_id in cluster.hypothesis_ids:
-                await self.repository.update_hypothesis_cluster(
-                    UUID(hypothesis_id),
-                    workspace_id,
-                    cluster.cluster_label,
-                )
         status = (
             "saturated" if any(c.classification == "over_explored" for c in clusters) else "normal"
         )
-        await self.publisher.proximity_computed(session_id, workspace_id, len(clusters))
         return ProximityComputationResult(
             status=status,
             clusters=clusters,
@@ -89,7 +103,7 @@ class ProximityClustering:
 
     def _build_clusters(
         self,
-        session_id: UUID,
+        session_id: UUID | None,
         workspace_id: UUID,
         embeddings: list[dict[str, Any]],
         labels: Any,
@@ -127,7 +141,7 @@ class ProximityClustering:
 
     def _gap_clusters(
         self,
-        session_id: UUID,
+        session_id: UUID | None,
         workspace_id: UUID,
         embeddings: list[dict[str, Any]],
         labels: Any,
@@ -148,7 +162,7 @@ class ProximityClustering:
                         hypothesis_count=0,
                         density_metric=0.0,
                         classification="gap",
-                        hypothesis_ids=[],
+                        hypothesis_ids=[hypothesis_id],
                         computed_at=datetime.now(UTC),
                     )
                 )

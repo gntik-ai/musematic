@@ -380,6 +380,10 @@ class DiscoverySettings(BaseSettings):
     proximity_over_explored_min_size: int = 5
     proximity_over_explored_similarity: float = 0.85
     proximity_gap_distance_threshold: float = 0.5
+    proximity_graph_max_neighbors_per_node: int = 8
+    proximity_graph_recompute_interval_minutes: int = 15
+    proximity_graph_staleness_warning_minutes: int = 60
+    proximity_bias_default_enabled: bool = True
     qdrant_collection: str = "discovery_hypotheses"
     embedding_vector_size: int = 1536
     experiment_sandbox_timeout_seconds: int = 120

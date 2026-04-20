@@ -74,23 +74,33 @@ class HypothesisEmbedder:
         session_id: UUID,
         workspace_id: UUID,
     ) -> list[dict[str, Any]]:
+        return await self.fetch_workspace_embeddings(workspace_id, session_id=session_id)
+
+    async def fetch_workspace_embeddings(
+        self,
+        workspace_id: UUID,
+        *,
+        session_id: UUID | None = None,
+    ) -> list[dict[str, Any]]:
         if self.qdrant is None:
             return []
         client = await self.qdrant._ensure_client()
         models = import_module("qdrant_client.models")
-        query_filter = models.Filter(
-            must=[
-                models.FieldCondition(
-                    key="workspace_id",
-                    match=models.MatchValue(value=str(workspace_id)),
-                ),
+        must = [
+            models.FieldCondition(
+                key="workspace_id",
+                match=models.MatchValue(value=str(workspace_id)),
+            ),
+            models.FieldCondition(key="status", match=models.MatchValue(value="active")),
+        ]
+        if session_id is not None:
+            must.append(
                 models.FieldCondition(
                     key="session_id",
                     match=models.MatchValue(value=str(session_id)),
-                ),
-                models.FieldCondition(key="status", match=models.MatchValue(value="active")),
-            ]
-        )
+                )
+            )
+        query_filter = models.Filter(must=must)
         points, _ = await client.scroll(
             collection_name=self.settings.discovery.qdrant_collection,
             scroll_filter=query_filter,

@@ -4,8 +4,10 @@ import sys
 from platform.common.config import PlatformSettings
 from platform.discovery.proximity.clustering import (
     ProximityClustering,
+    _average_similarity,
     _cosine_distance,
     _fallback_labels_and_distances,
+    proximity_clustering_task,
 )
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -129,3 +131,76 @@ async def test_compute_uses_scipy_path_when_available(monkeypatch: pytest.Monkey
 
     assert result.status == "normal"
     assert len(result.clusters) >= 2
+
+
+@pytest.mark.asyncio
+async def test_compute_uses_fallback_when_optional_deps_are_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    session_id = uuid4()
+    workspace_id = uuid4()
+    ids = [uuid4(), uuid4(), uuid4()]
+    embeddings = [
+        {
+            "id": str(item),
+            "vector": [1.0, float(index)],
+            "payload": {"hypothesis_id": str(item), "title": f"H{index}"},
+        }
+        for index, item in enumerate(ids)
+    ]
+    real_import = __import__
+
+    def fake_import(name, *args, **kwargs):
+        if name in {"numpy", "scipy.cluster.hierarchy", "scipy.spatial.distance"}:
+            raise ModuleNotFoundError(name)
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", fake_import)
+    repo = SimpleNamespace(
+        replace_clusters=AsyncMock(side_effect=lambda *args: args[-1]),
+        update_hypothesis_cluster=AsyncMock(),
+    )
+    clustering = ProximityClustering(
+        settings=PlatformSettings(),
+        repository=repo,
+        embedder=SimpleNamespace(fetch_session_embeddings=AsyncMock(return_value=embeddings)),
+        publisher=SimpleNamespace(proximity_computed=AsyncMock()),
+    )
+
+    result = await clustering.compute(session_id, workspace_id)
+
+    assert result.status in {"normal", "saturated"}
+    assert result.clusters
+
+
+@pytest.mark.asyncio
+async def test_proximity_clustering_task_wrapper_delegates() -> None:
+    session_id = uuid4()
+    workspace_id = uuid4()
+    expected = SimpleNamespace(status="normal", clusters=[])
+    clustering = SimpleNamespace(compute=AsyncMock(return_value=expected))
+
+    result = await proximity_clustering_task(clustering, session_id, workspace_id)
+
+    assert result is expected
+    clustering.compute.assert_awaited_once_with(session_id, workspace_id)
+
+
+def test_average_similarity_fallback_and_small_cluster_paths(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    real_import = __import__
+
+    def fake_import(name, *args, **kwargs):
+        if name == "numpy":
+            raise ModuleNotFoundError(name)
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr("builtins.__import__", fake_import)
+
+    assert _average_similarity([[0.0]], [0]) == 1.0
+    assert _average_similarity([[0.0, 0.25], [0.25, 0.0]], [0, 1]) == pytest.approx(0.75)
+
+
+def test_average_similarity_returns_one_for_singleton_cluster() -> None:
+    assert _average_similarity([[0.0]], [0]) == 1.0

@@ -21,6 +21,8 @@ class DiscoveryEventType(StrEnum):
     experiment_designed = "experiment_designed"
     experiment_completed = "experiment_completed"
     proximity_computed = "proximity_computed"
+    cluster_saturated = "cluster_saturated"
+    gap_filled = "gap_filled"
 
 
 class DiscoveryEventPayload(BaseModel):
@@ -28,13 +30,37 @@ class DiscoveryEventPayload(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
-    session_id: UUID
+    session_id: UUID | None = None
     workspace_id: UUID
     actor_id: UUID | None = None
 
 
+class ClusterSaturatedPayload(DiscoveryEventPayload):
+    cluster_id: str
+    classification_from: str
+    classification_to: str
+    member_count: int
+    density: float
+
+
+class GapFilledPayload(DiscoveryEventPayload):
+    former_gap_label: str
+    now_part_of_cluster_id: str | None = None
+
+
 DISCOVERY_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
-    event_type.value: DiscoveryEventPayload for event_type in DiscoveryEventType
+    DiscoveryEventType.session_started.value: DiscoveryEventPayload,
+    DiscoveryEventType.hypothesis_generated.value: DiscoveryEventPayload,
+    DiscoveryEventType.critique_completed.value: DiscoveryEventPayload,
+    DiscoveryEventType.tournament_round_completed.value: DiscoveryEventPayload,
+    DiscoveryEventType.cycle_completed.value: DiscoveryEventPayload,
+    DiscoveryEventType.session_converged.value: DiscoveryEventPayload,
+    DiscoveryEventType.session_halted.value: DiscoveryEventPayload,
+    DiscoveryEventType.experiment_designed.value: DiscoveryEventPayload,
+    DiscoveryEventType.experiment_completed.value: DiscoveryEventPayload,
+    DiscoveryEventType.proximity_computed.value: DiscoveryEventPayload,
+    DiscoveryEventType.cluster_saturated.value: ClusterSaturatedPayload,
+    DiscoveryEventType.gap_filled.value: GapFilledPayload,
 }
 
 
@@ -54,7 +80,7 @@ class DiscoveryEventPublisher:
         self,
         event_type: DiscoveryEventType | str,
         *,
-        session_id: UUID,
+        session_id: UUID | None,
         workspace_id: UUID,
         payload: dict[str, Any] | None = None,
         actor_id: UUID | None = None,
@@ -70,7 +96,7 @@ class DiscoveryEventPublisher:
         }
         await self.producer.publish(
             topic="discovery.events",
-            key=str(session_id),
+            key=str(session_id or workspace_id),
             event_type=str(
                 event_type.value if isinstance(event_type, DiscoveryEventType) else event_type
             ),
@@ -202,7 +228,7 @@ class DiscoveryEventPublisher:
 
     async def proximity_computed(
         self,
-        session_id: UUID,
+        session_id: UUID | None,
         workspace_id: UUID,
         cluster_count: int,
     ) -> None:
@@ -211,4 +237,46 @@ class DiscoveryEventPublisher:
             session_id=session_id,
             workspace_id=workspace_id,
             payload={"cluster_count": cluster_count},
+        )
+
+    async def cluster_saturated(
+        self,
+        *,
+        workspace_id: UUID,
+        cluster_id: str,
+        classification_from: str,
+        classification_to: str,
+        member_count: int,
+        density: float,
+        session_id: UUID | None = None,
+    ) -> None:
+        await self.publish(
+            DiscoveryEventType.cluster_saturated,
+            session_id=session_id,
+            workspace_id=workspace_id,
+            payload={
+                "cluster_id": cluster_id,
+                "classification_from": classification_from,
+                "classification_to": classification_to,
+                "member_count": member_count,
+                "density": density,
+            },
+        )
+
+    async def gap_filled(
+        self,
+        *,
+        workspace_id: UUID,
+        former_gap_label: str,
+        now_part_of_cluster_id: str | None,
+        session_id: UUID | None = None,
+    ) -> None:
+        await self.publish(
+            DiscoveryEventType.gap_filled,
+            session_id=session_id,
+            workspace_id=workspace_id,
+            payload={
+                "former_gap_label": former_gap_label,
+                "now_part_of_cluster_id": now_part_of_cluster_id,
+            },
         )
