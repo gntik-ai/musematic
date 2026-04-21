@@ -56,3 +56,17 @@ def test_cluster_scripts_have_valid_bash_shebangs() -> None:
     load_bytes = (ROOT / 'tests/e2e/cluster/load-images.sh').read_bytes()
     assert install_bytes.startswith(b'#!/usr/bin/env bash\n')
     assert load_bytes.startswith(b'#!/usr/bin/env bash\n')
+
+
+def test_e2e_values_override_control_plane_migration_hook() -> None:
+    values = (ROOT / 'tests/e2e/cluster/values-e2e.yaml').read_text()
+    assert 'controlPlane:' in values
+    assert 'hook: post-install,post-upgrade' in values
+    assert 'retryAttempts: 90' in values
+    assert 'retryDelaySeconds: 10' in values
+
+
+def test_install_script_uses_extended_helm_timeout() -> None:
+    install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
+    assert 'HELM_TIMEOUT="${HELM_TIMEOUT:-20m}"' in install_script
+    assert '--timeout "${HELM_TIMEOUT}"' in install_script

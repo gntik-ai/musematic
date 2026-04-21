@@ -16,6 +16,7 @@ KIND_CONFIG_PATH="${KIND_CONFIG_PATH:-/tmp/kind-config-${CLUSTER_NAME}.yaml}"
 VALUES_FILE="${CLUSTER_DIR}/values-e2e.yaml"
 CNPG_MANIFEST_URL="${CNPG_MANIFEST_URL:-https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.27/releases/cnpg-1.27.0.yaml}"
 STRIMZI_MANIFEST_URL="${STRIMZI_MANIFEST_URL:-https://strimzi.io/install/latest?namespace=strimzi-system}"
+HELM_TIMEOUT="${HELM_TIMEOUT:-20m}"
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -87,7 +88,11 @@ install_platform() {
   fi
 
   helm dependency build "${COMPOSITE_CHART_DIR}"
-  helm upgrade --install "${RELEASE_NAME}" "${COMPOSITE_CHART_DIR}"             -f "${VALUES_FILE}"             --namespace "${NAMESPACE}"             --create-namespace             --wait             --timeout 10m
+  helm upgrade --install "${RELEASE_NAME}" "${COMPOSITE_CHART_DIR}" \
+    -f "${VALUES_FILE}" \
+    --namespace "${NAMESPACE}" \
+    --create-namespace \
+    --timeout "${HELM_TIMEOUT}"
 }
 
 wait_for_rollouts() {

@@ -55,7 +55,10 @@ connections:
 
 migration:
   enabled: true
+  hook: pre-install,pre-upgrade
   backoffLimit: 3
+  retryAttempts: 1
+  retryDelaySeconds: 5
 
 api:
   enabled: true

@@ -156,6 +156,10 @@ controlPlane:
     repository: ghcr.io/musematic/control-plane
     tag: local
     pullPolicy: IfNotPresent
+  migration:
+    hook: post-install,post-upgrade
+    retryAttempts: 90
+    retryDelaySeconds: 10
   common:
     featureE2EMode: true
     mockLlmEnabled: true
