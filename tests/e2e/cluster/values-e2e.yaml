@@ -1,0 +1,253 @@
+global:
+  environment: e2e
+  domain: localhost
+
+postgresql:
+  environment: e2e
+  storage:
+    size: 2Gi
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+  monitoring:
+    enabled: false
+  credentials:
+    username: postgres
+    password: change-me
+    database: musematic
+    existingSecret: ""
+
+redis:
+  auth:
+    password: change-me
+  redis-cluster:
+    cluster:
+      nodes: 1
+      replicas: 0
+    redis:
+      maxmemory: 256Mi
+    persistence:
+      size: 2Gi
+    metrics:
+      enabled: false
+    pdb:
+      create: false
+  networkPolicy:
+    enabled: false
+
+kafka:
+  namespace: platform-data
+  clusterName: musematic-kafka
+  combined: true
+  combinedReplicas: 1
+  replicationFactor: 1
+  minInsyncReplicas: 1
+  storage:
+    size: 2Gi
+    class: standard
+  networkPolicy:
+    enabled: false
+
+minio:
+  namespace: platform-data
+  standalone: true
+  servers: 1
+  volumesPerServer: 1
+  storageSize: 2Gi
+  minio:
+    enabled: true
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+  networkPolicy:
+    enabled: false
+  s3:
+    endpointUrl: http://musematic-minio.platform-data.svc.cluster.local:9000
+    accessKey: platform
+    secretKey: change-me
+    region: us-east-1
+    bucketPrefix: platform
+
+qdrant:
+  qdrant:
+    replicaCount: 1
+    config:
+      cluster:
+        enabled: false
+    persistence:
+      size: 2Gi
+    resources:
+      requests:
+        memory: 512Mi
+        cpu: 250m
+  collections:
+    replicationFactor: 1
+  networkPolicy:
+    enabled: false
+  backup:
+    enabled: false
+
+neo4j:
+  neo4j:
+    resources:
+      cpu: 500m
+      memory: 1Gi
+      requests:
+        memory: 1Gi
+        cpu: 500m
+      limits:
+        memory: 2Gi
+        cpu: "1"
+  persistence:
+    size: 2Gi
+  networkPolicy:
+    enabled: false
+  backup:
+    enabled: false
+
+clickhouse:
+  shards: 1
+  replicas: 1
+  zookeeper:
+    enabled: false
+  auth:
+    username: default
+    password: ""
+    database: default
+  persistence:
+    size: 2Gi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+opensearch:
+  opensearch:
+    replicas: 1
+    persistence:
+      size: 2Gi
+    resources:
+      requests:
+        cpu: 250m
+        memory: 1Gi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+  opensearch-dashboards:
+    enabled: false
+  networkPolicy:
+    enabled: false
+  initJob:
+    enabled: false
+
+controlPlane:
+  image:
+    repository: ghcr.io/musematic/control-plane
+    tag: local
+    pullPolicy: IfNotPresent
+  common:
+    featureE2EMode: true
+    mockLlmEnabled: true
+    zeroTrustVisibility: true
+    otelResourceAttributes: deployment.environment=e2e
+  api:
+    replicaCount: 1
+    service:
+      type: NodePort
+      port: 8000
+      nodePort: 30081
+  scheduler:
+    replicaCount: 1
+  worker:
+    replicaCount: 1
+  wsHub:
+    replicaCount: 1
+    service:
+      type: NodePort
+      port: 8001
+      nodePort: 30082
+
+runtimeController:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/musematic/runtime-controller
+    tag: local
+  config:
+    otelResourceAttributes: deployment.environment=e2e
+  networkPolicy:
+    enabled: false
+
+reasoningEngine:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/musematic/reasoning-engine
+    tag: local
+  hpa:
+    minReplicas: 1
+    maxReplicas: 1
+    targetCPUUtilizationPercentage: 70
+  config:
+    otelResourceAttributes: deployment.environment=e2e
+
+simulationController:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/musematic/simulation-controller
+    tag: local
+  service:
+    type: ClusterIP
+    port: 50055
+  env:
+    OTEL_RESOURCE_ATTRIBUTES: deployment.environment=e2e
+  secrets:
+    POSTGRES_DSN: postgres://postgres:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable
+    KAFKA_BROKERS: musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092
+    S3_ENDPOINT_URL: http://musematic-minio.platform-data.svc.cluster.local:9000
+    S3_ACCESS_KEY: platform
+    S3_SECRET_KEY: change-me
+
+sandboxManager:
+  fullnameOverride: sandbox-manager
+  image:
+    repository: ghcr.io/musematic/sandbox-manager
+    tag: local
+    pullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  config:
+    postgresDsn: postgres://postgres:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable
+    kafkaBrokers: musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092
+    minioEndpoint: http://musematic-minio.platform-data.svc.cluster.local:9000
+    minioBucket: platform-execution-artifacts
+    k8sNamespace: platform-execution
+
+ui:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/musematic/ui
+    tag: local
+    pullPolicy: IfNotPresent
+  service:
+    type: NodePort
+    port: 3000
+    nodePort: 30080
+  env:
+    NEXT_PUBLIC_API_URL: http://localhost:8081
+    NEXT_PUBLIC_WS_URL: ws://localhost:8082/ws
+    NEXT_PUBLIC_APP_ENV: e2e

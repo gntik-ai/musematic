@@ -155,6 +155,7 @@ from platform.simulation.events import register_simulation_event_types
 from platform.simulation.router import router as simulation_router
 from platform.testing.dependencies import build_drift_service
 from platform.testing.events import register_testing_event_types
+from platform.testing.router_e2e import router as testing_e2e_router
 from platform.trust.contract_monitor import ContractMonitorConsumer
 from platform.trust.dependencies import (
     build_ate_service,
@@ -989,6 +990,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(connectors_router)
         app.include_router(policies_router)
         app.include_router(testing_router)
+        if resolved.feature_e2e_mode:
+            app.include_router(testing_e2e_router)
         app.include_router(workflows_router)
         app.include_router(execution_router)
         app.include_router(execution_reprioritization_router)

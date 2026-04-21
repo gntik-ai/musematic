@@ -22,6 +22,7 @@ a2a_task_state = postgresql.ENUM(
     "cancellation_pending",
     name="a2a_task_state",
     create_type=False,
+    _create_events=False,
 )
 
 a2a_direction = postgresql.ENUM(
@@ -29,6 +30,7 @@ a2a_direction = postgresql.ENUM(
     "outbound",
     name="a2a_direction",
     create_type=False,
+    _create_events=False,
 )
 
 

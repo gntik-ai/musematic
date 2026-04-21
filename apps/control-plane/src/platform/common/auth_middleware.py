@@ -10,6 +10,8 @@ from starlette.responses import JSONResponse, Response
 
 EXEMPT_PATHS: set[str] = {
     "/health",
+    "/healthz",
+    "/api/v1/healthz",
     "/docs",
     "/openapi.json",
     "/redoc",

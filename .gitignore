@@ -278,3 +278,6 @@ node_modules/
 .next/
 playwright-report/
 test-results/
+
+# E2E harness artifacts
+tests/e2e/reports/

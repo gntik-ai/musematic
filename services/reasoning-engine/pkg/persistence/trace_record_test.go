@@ -152,3 +152,51 @@ func TestGetTraceRecord(t *testing.T) {
 		t.Fatalf("GetTraceRecord() wrapped error = %v", err)
 	}
 }
+
+func TestPostgresTraceStoreWrappersAndScopeValue(t *testing.T) {
+	record := ReasoningTraceRecord{
+		ExecutionID:          "exec-2",
+		StepID:               "step-2",
+		Technique:            "REACT",
+		StorageKey:           "reasoning-traces/exec-2/step-2/react_trace.json",
+		StepCount:            3,
+		Status:               "complete",
+		ComputeBudgetUsed:    0.3,
+		EffectiveBudgetScope: "workflow",
+	}
+	query := &fakeTraceQuerier{row: fakeRow{record: record}}
+	store := &PostgresTraceStore{db: query}
+	if err := store.InsertTraceRecord(context.Background(), record); err != nil {
+		t.Fatalf("store.InsertTraceRecord() error = %v", err)
+	}
+	if query.execArgs[1] != "step-2" {
+		t.Fatalf("step id arg = %#v, want step-2", query.execArgs[1])
+	}
+	if query.execArgs[11] != "workflow" {
+		t.Fatalf("effective budget scope arg = %#v, want workflow", query.execArgs[11])
+	}
+
+	loaded, err := store.GetTraceRecord(context.Background(), "exec-2", "step-2")
+	if err != nil {
+		t.Fatalf("store.GetTraceRecord() error = %v", err)
+	}
+	if loaded.StepID != "step-2" || loaded.EffectiveBudgetScope != "workflow" {
+		t.Fatalf("loaded record = %+v", loaded)
+	}
+
+	pool := NewPostgresPool("postgres://user:pass@127.0.0.1:5432/musematic?sslmode=disable")
+	if pool == nil {
+		t.Fatal("expected postgres pool")
+	}
+	defer pool.Close()
+	if NewTraceRecordStore(pool) == nil {
+		t.Fatal("NewTraceRecordStore(pool) should return a store")
+	}
+}
+
+func TestInsertTraceRecordPropagatesExecError(t *testing.T) {
+	query := &fakeTraceQuerier{execErr: errors.New("exec failed")}
+	if err := InsertTraceRecord(context.Background(), query, ReasoningTraceRecord{ExecutionID: "exec-err", Technique: "DEBATE"}); err == nil || err.Error() != "exec failed" {
+		t.Fatalf("InsertTraceRecord() error = %v", err)
+	}
+}

@@ -1,0 +1,19 @@
+[project]
+name = "musematic-e2e"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+  "pytest>=8.0",
+  "pytest-asyncio",
+  "pytest-html",
+  "pytest-timeout",
+  "httpx>=0.27",
+  "websockets",
+  "aiokafka>=0.11",
+  "asyncpg",
+  "kubernetes",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["suites", "chaos", "performance"]

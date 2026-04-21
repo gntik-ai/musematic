@@ -1,25 +1,25 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ .Release.Name }}
+  name: {{ include "sandbox-manager.fullname" . }}
 spec:
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: {{ .Release.Name }}
+      app.kubernetes.io/name: {{ include "sandbox-manager.fullname" . }}
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: {{ .Release.Name }}
+        app.kubernetes.io/name: {{ include "sandbox-manager.fullname" . }}
     spec:
-      serviceAccountName: {{ .Release.Name }}
+      serviceAccountName: {{ include "sandbox-manager.fullname" . }}
       containers:
         - name: sandbox-manager
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           envFrom:
             - configMapRef:
-                name: {{ .Release.Name }}-config
+                name: {{ include "sandbox-manager.fullname" . }}-config
           ports:
             - name: grpc
               containerPort: {{ .Values.service.grpcPort }}

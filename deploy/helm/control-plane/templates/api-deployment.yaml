@@ -1,0 +1,46 @@
+{{- if .Values.api.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "musematic-control-plane.apiName" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: {{ .Values.api.replicaCount }}
+  selector:
+    matchLabels:
+{{ include "musematic-control-plane.componentLabels" . | indent 6 }}
+      app.kubernetes.io/name: {{ include "musematic-control-plane.apiName" . }}
+  template:
+    metadata:
+      labels:
+{{ include "musematic-control-plane.componentLabels" . | indent 8 }}
+        app.kubernetes.io/name: {{ include "musematic-control-plane.apiName" . }}
+    spec:
+      containers:
+        - name: api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["python", "-m", "entrypoints.api_main"]
+          env:
+            - name: PLATFORM_PROFILE
+              value: api
+          envFrom:
+            - configMapRef:
+                name: {{ include "musematic-control-plane.configName" . }}
+            - secretRef:
+                name: {{ include "musematic-control-plane.secretName" . }}
+          ports:
+            - name: http
+              containerPort: 8000
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 20
+          resources:
+{{ toYaml .Values.common.resources | indent 12 }}
+{{- end }}

@@ -92,3 +92,11 @@ def test_platform_settings_support_a2a_flat_keys_and_single_field_overrides() ->
     assert settings.A2A_DEFAULT_CARD_TTL_SECONDS == 120
     assert settings.A2A_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE == 5
     assert settings.FEATURE_GOAL_AUTO_COMPLETE is False
+
+
+def test_platform_settings_reads_e2e_mode_from_flat_environment(monkeypatch) -> None:
+    monkeypatch.setenv("FEATURE_E2E_MODE", "true")
+
+    settings = PlatformSettings()
+
+    assert settings.feature_e2e_mode is True
