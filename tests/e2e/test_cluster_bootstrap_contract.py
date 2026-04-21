@@ -70,3 +70,59 @@ def test_install_script_uses_extended_helm_timeout() -> None:
     install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
     assert 'HELM_TIMEOUT="${HELM_TIMEOUT:-20m}"' in install_script
     assert '--timeout "${HELM_TIMEOUT}"' in install_script
+
+
+def test_platform_chart_creates_platform_data_namespace_once() -> None:
+    template = (ROOT / 'deploy/helm/platform/templates/platform-data-namespace.yaml').read_text()
+    values = (ROOT / 'deploy/helm/platform/values.yaml').read_text()
+    assert 'kind: Namespace' in template
+    assert 'platformDataNamespace:' in values
+    assert 'name: platform-data' in values
+
+    expected_sections = [
+        'postgresql:\n  enabled: true\n  createNamespace: false',
+        'redis:\n  enabled: true\n  createNamespace: false',
+        'minio:\n  enabled: true\n  createNamespace: false',
+        'qdrant:\n  enabled: true\n  createNamespace: false',
+        'neo4j:\n  enabled: true\n  createNamespace: false',
+        'clickhouse:\n  enabled: true\n  createNamespace: false',
+    ]
+    for expected in expected_sections:
+        assert expected in values
+
+
+def test_data_subcharts_gate_namespace_creation_and_kafka_listener_uses_valid_port() -> None:
+    namespace_templates = [
+        ROOT / 'deploy/helm/postgresql/templates/namespace.yaml',
+        ROOT / 'deploy/helm/redis/templates/namespace.yaml',
+        ROOT / 'deploy/helm/minio/templates/namespace.yaml',
+        ROOT / 'deploy/helm/qdrant/templates/namespace.yaml',
+        ROOT / 'deploy/helm/neo4j/templates/namespace.yaml',
+        ROOT / 'deploy/helm/clickhouse/templates/namespace.yaml',
+    ]
+    for template in namespace_templates:
+        contents = template.read_text()
+        assert 'createNamespace' in contents
+
+    kafka_template = (ROOT / 'deploy/helm/kafka/templates/kafka.yaml').read_text()
+    kafka_network_policy = (ROOT / 'deploy/helm/kafka/templates/network-policy.yaml').read_text()
+    assert 'port: 9093' in kafka_template
+    assert 'port: 9091' not in kafka_template
+    assert 'port: 9093' in kafka_network_policy
+    assert 'port: 9091' not in kafka_network_policy
+
+
+def test_cnpg_templates_use_current_monitoring_and_postgresql_fields() -> None:
+    cluster_template = (ROOT / 'deploy/helm/postgresql/templates/cluster.yaml').read_text()
+    pooler_template = (ROOT / 'deploy/helm/postgresql/templates/pooler.yaml').read_text()
+
+    assert 'enablePodMonitor' in cluster_template
+    assert 'monitoring:\n    enabled:' not in cluster_template
+    assert 'postgresql:\n    version:' not in cluster_template
+    assert 'enablePodMonitor' in pooler_template
+    assert 'monitoring:\n    enabled:' not in pooler_template
+
+
+def test_install_script_parses_kind_version_with_backreference() -> None:
+    install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
+    assert "sed -E 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/'" in install_script

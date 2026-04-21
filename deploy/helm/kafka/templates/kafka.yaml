@@ -16,7 +16,7 @@ spec:
         type: internal
         tls: false
       - name: internal
-        port: 9091
+        port: 9093
         type: internal
         tls: false
     config:

@@ -48,7 +48,7 @@ check_prereqs() {
   require_command helm
   require_command python3
   require_command envsubst
-  check_version "kind" "$(kind version | sed -E 's/.*v([0-9]+\.[0-9]+\.[0-9]+).*//')" "0.23.0"
+  check_version "kind" "$(kind version | sed -E 's/.*v([0-9]+\.[0-9]+\.[0-9]+).*/\1/')" "0.23.0"
   check_version "kubectl" "$(kubectl version --client -o json | python3 -c 'import json,sys; print(json.load(sys.stdin)["clientVersion"]["gitVersion"].lstrip("v"))')" "1.28.0"
   check_version "helm" "$(helm version --template '{{ .Version }}' | sed 's/^v//')" "3.14.0"
   check_version "docker" "$(docker version --format '{{.Client.Version}}')" "24.0.0"

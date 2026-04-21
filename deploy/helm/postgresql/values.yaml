@@ -1,3 +1,5 @@
+createNamespace: true
+
 environment: production
 
 postgresql:

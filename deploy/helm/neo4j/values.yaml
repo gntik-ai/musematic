@@ -1,3 +1,5 @@
+createNamespace: true
+
 neo4j:
   disableLookups: true
   edition: community

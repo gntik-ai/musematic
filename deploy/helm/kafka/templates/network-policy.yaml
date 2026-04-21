@@ -18,7 +18,7 @@ spec:
         - protocol: TCP
           port: 9090
         - protocol: TCP
-          port: 9091
+          port: 9093
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

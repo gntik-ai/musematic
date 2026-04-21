@@ -1,3 +1,5 @@
+createNamespace: true
+
 clickhouse:
   image: clickhouse/clickhouse-server:24.3
   replicaCount: 2

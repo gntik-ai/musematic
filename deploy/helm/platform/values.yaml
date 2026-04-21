@@ -2,8 +2,13 @@ global:
   environment: production
   domain: platform.local
 
+platformDataNamespace:
+  create: true
+  name: platform-data
+
 postgresql:
   enabled: true
+  createNamespace: false
   environment: production
   credentials:
     username: postgres
@@ -12,6 +17,7 @@ postgresql:
 
 redis:
   enabled: true
+  createNamespace: false
   fullnameOverride: musematic-redis
   auth:
     password: change-me
@@ -31,6 +37,7 @@ kafka:
 
 minio:
   enabled: true
+  createNamespace: false
   namespace: platform-data
   minio:
     enabled: true
@@ -45,16 +52,19 @@ minio:
 
 qdrant:
   enabled: true
+  createNamespace: false
   qdrant:
     fullnameOverride: musematic-qdrant
 
 neo4j:
   enabled: true
+  createNamespace: false
   neo4j:
     name: musematic-neo4j
 
 clickhouse:
   enabled: true
+  createNamespace: false
 
 opensearch:
   enabled: true

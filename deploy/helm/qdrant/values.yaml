@@ -1,3 +1,5 @@
+createNamespace: true
+
 qdrant:
   replicaCount: 3
   config:
