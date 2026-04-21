@@ -69,14 +69,14 @@ ensure_cluster() {
 
 install_cnpg_operator() {
   echo "[e2e] installing CloudNativePG operator"
-  kubectl apply -f "${CNPG_MANIFEST_URL}"
+  kubectl apply --server-side=true --force-conflicts -f "${CNPG_MANIFEST_URL}"
   kubectl wait --for=condition=Available deployment/cnpg-controller-manager -n cnpg-system --timeout=300s
 }
 
 install_strimzi_operator() {
   echo "[e2e] installing Strimzi operator"
   kubectl create namespace strimzi-system --dry-run=client -o yaml | kubectl apply -f -
-  kubectl apply -n strimzi-system -f "${STRIMZI_MANIFEST_URL}"
+  kubectl apply --server-side=true --force-conflicts -n strimzi-system -f "${STRIMZI_MANIFEST_URL}"
   kubectl wait --for=condition=Available deployment/strimzi-cluster-operator -n strimzi-system --timeout=300s
 }
 

@@ -31,6 +31,12 @@ def test_install_script_bootstraps_cluster_operators_and_platform_chart() -> Non
     assert 'python3 -m seeders.base --all' in install_script
 
 
+def test_operator_installs_use_server_side_apply_for_large_crds() -> None:
+    install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
+    assert 'kubectl apply --server-side=true --force-conflicts -f "${CNPG_MANIFEST_URL}"' in install_script
+    assert 'kubectl apply --server-side=true --force-conflicts -n strimzi-system -f "${STRIMZI_MANIFEST_URL}"' in install_script
+
+
 def test_makefile_renders_cluster_specific_kind_config() -> None:
     makefile = (ROOT / 'tests/e2e/Makefile').read_text()
     assert 'render-kind-config' in makefile
