@@ -2,6 +2,7 @@ package reasoningv1
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -298,5 +299,45 @@ func TestDebateRPCsHonorBudgetExhaustionAndValidateInputs(t *testing.T) {
 	}
 	if final.GetStatus() != "BUDGET_EXHAUSTED" || final.GetConsensusReached() {
 		t.Fatalf("unexpected budget final result: %+v", final)
+	}
+}
+
+func TestDebateHelperMappings(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		code codes.Code
+	}{
+		{name: "already exists", err: errors.New("debate session debate-1 already exists"), code: codes.AlreadyExists},
+		{name: "not found", err: errors.New("debate session debate-1 not found"), code: codes.NotFound},
+		{name: "not running", err: errors.New("debate session debate-1 is not running"), code: codes.FailedPrecondition},
+		{name: "unknown participant", err: errors.New("participant agent.gamma is not part of debate"), code: codes.InvalidArgument},
+		{name: "invalid participants", err: errors.New("debate requires at least two participants"), code: codes.InvalidArgument},
+		{name: "invalid round limit", err: errors.New("round_limit must be at least 1"), code: codes.InvalidArgument},
+		{name: "missing identifiers", err: errors.New("execution_id and debate_id are required"), code: codes.InvalidArgument},
+		{name: "internal", err: errors.New("upload failed"), code: codes.Internal},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := status.Code(mapDebateError(tc.err)); got != tc.code {
+				t.Fatalf("mapDebateError() code = %s, want %s", got, tc.code)
+			}
+		})
+	}
+	if mapDebateError(nil) != nil {
+		t.Fatal("mapDebateError(nil) should return nil")
+	}
+
+	if round, consensus := latestDebateRound(nil); round != 0 || consensus != "pending" {
+		t.Fatalf("latestDebateRound(nil) = (%d, %q)", round, consensus)
+	}
+	if round, consensus := latestDebateRound(&debate.DebateSession{Transcript: []debate.DebateRound{{RoundNumber: 1}}}); round != 1 || consensus != "pending" {
+		t.Fatalf("latestDebateRound(pending) = (%d, %q)", round, consensus)
+	}
+	if round, consensus := latestDebateRound(&debate.DebateSession{Transcript: []debate.DebateRound{{RoundNumber: 1, CompletedAt: time.Now().UTC(), ConsensusStatus: "consensus"}}}); round != 1 || consensus != "consensus" {
+		t.Fatalf("latestDebateRound(completed) = (%d, %q)", round, consensus)
+	}
+	if round, consensus := latestDebateRound(&debate.DebateSession{Transcript: []debate.DebateRound{{RoundNumber: 1, CompletedAt: time.Now().UTC(), ConsensusStatus: "no_consensus"}, {RoundNumber: 2}}}); round != 1 || consensus != "no_consensus" {
+		t.Fatalf("latestDebateRound(previous) = (%d, %q)", round, consensus)
 	}
 }

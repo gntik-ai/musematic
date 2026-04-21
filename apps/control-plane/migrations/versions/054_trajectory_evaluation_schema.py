@@ -16,6 +16,7 @@ rubric_status = postgresql.ENUM(
     "archived",
     name="rubric_status",
     create_type=False,
+    _create_events=False,
 )
 calibration_run_status = postgresql.ENUM(
     "pending",
@@ -24,6 +25,7 @@ calibration_run_status = postgresql.ENUM(
     "failed",
     name="calibration_run_status",
     create_type=False,
+    _create_events=False,
 )
 
 

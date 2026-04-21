@@ -1,0 +1,3 @@
+Musematic platform umbrella chart.
+
+This chart renders its subcharts and does not define top-level resources.

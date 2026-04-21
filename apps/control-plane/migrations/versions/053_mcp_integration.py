@@ -17,12 +17,14 @@ mcp_server_status = postgresql.ENUM(
     "deregistered",
     name="mcp_server_status",
     create_type=False,
+    _create_events=False,
 )
 mcp_invocation_direction = postgresql.ENUM(
     "inbound",
     "outbound",
     name="mcp_invocation_direction",
     create_type=False,
+    _create_events=False,
 )
 mcp_invocation_outcome = postgresql.ENUM(
     "allowed",
@@ -31,6 +33,7 @@ mcp_invocation_outcome = postgresql.ENUM(
     "error_permanent",
     name="mcp_invocation_outcome",
     create_type=False,
+    _create_events=False,
 )
 
 

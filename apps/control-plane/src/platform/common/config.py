@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import secrets
 from typing import Any, Literal
 
@@ -401,9 +402,17 @@ class SimulationSettings(BaseSettings):
 
 
 class PlatformSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="PLATFORM_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="PLATFORM_",
+        extra="ignore",
+        populate_by_name=True,
+    )
 
     FEATURE_GOAL_AUTO_COMPLETE: bool = False
+    feature_e2e_mode: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("FEATURE_E2E_MODE", "PLATFORM_FEATURE_E2E_MODE"),
+    )
     A2A_PROTOCOL_VERSION: str = "1.0"
     A2A_MAX_PAYLOAD_BYTES: int = 10_485_760
     A2A_TASK_IDLE_TIMEOUT_MINUTES: int = 30
@@ -457,6 +466,8 @@ class PlatformSettings(BaseSettings):
             return data
 
         values = dict(data)
+        if "feature_e2e_mode" not in values and "FEATURE_E2E_MODE" in os.environ:
+            values["feature_e2e_mode"] = os.environ["FEATURE_E2E_MODE"]
         mappings = {
             "POSTGRES_DSN": ("db", "dsn"),
             "POSTGRES_POOL_SIZE": ("db", "pool_size"),
@@ -536,6 +547,7 @@ class PlatformSettings(BaseSettings):
             "WORKSPACES_DEFAULT_NAME_TEMPLATE": ("workspaces", "default_name_template"),
             "WORKSPACES_DEFAULT_LIMIT": ("workspaces", "default_limit"),
             "FEATURE_GOAL_AUTO_COMPLETE": ("FEATURE_GOAL_AUTO_COMPLETE",),
+            "FEATURE_E2E_MODE": ("feature_e2e_mode",),
             "A2A_PROTOCOL_VERSION": ("A2A_PROTOCOL_VERSION",),
             "A2A_MAX_PAYLOAD_BYTES": ("A2A_MAX_PAYLOAD_BYTES",),
             "A2A_TASK_IDLE_TIMEOUT_MINUTES": ("A2A_TASK_IDLE_TIMEOUT_MINUTES",),

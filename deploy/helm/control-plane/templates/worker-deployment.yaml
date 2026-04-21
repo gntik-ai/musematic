@@ -1,0 +1,34 @@
+{{- if .Values.worker.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "musematic-control-plane.workerName" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: {{ .Values.worker.replicaCount }}
+  selector:
+    matchLabels:
+{{ include "musematic-control-plane.componentLabels" . | indent 6 }}
+      app.kubernetes.io/name: {{ include "musematic-control-plane.workerName" . }}
+  template:
+    metadata:
+      labels:
+{{ include "musematic-control-plane.componentLabels" . | indent 8 }}
+        app.kubernetes.io/name: {{ include "musematic-control-plane.workerName" . }}
+    spec:
+      containers:
+        - name: worker
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["python", "-m", "entrypoints.worker_main"]
+          env:
+            - name: PLATFORM_PROFILE
+              value: worker
+          envFrom:
+            - configMapRef:
+                name: {{ include "musematic-control-plane.configName" . }}
+            - secretRef:
+                name: {{ include "musematic-control-plane.secretName" . }}
+          resources:
+{{ toYaml .Values.common.resources | indent 12 }}
+{{- end }}

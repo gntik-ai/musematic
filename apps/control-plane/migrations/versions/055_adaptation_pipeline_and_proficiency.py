@@ -19,6 +19,7 @@ proficiency_level = postgresql.ENUM(
     "expert",
     name="proficiency_level",
     create_type=False,
+    _create_events=False,
 )
 outcome_classification = postgresql.ENUM(
     "improved",
@@ -27,6 +28,7 @@ outcome_classification = postgresql.ENUM(
     "inconclusive",
     name="outcome_classification",
     create_type=False,
+    _create_events=False,
 )
 correlation_classification = postgresql.ENUM(
     "strong_positive",
@@ -37,12 +39,14 @@ correlation_classification = postgresql.ENUM(
     "inconclusive",
     name="correlation_classification",
     create_type=False,
+    _create_events=False,
 )
 snapshot_type = postgresql.ENUM(
     "pre_apply",
     "post_apply",
     name="snapshot_type",
     create_type=False,
+    _create_events=False,
 )
 
 

@@ -64,9 +64,15 @@ async def test_health_endpoint_reports_healthy(monkeypatch) -> None:
             base_url="http://testserver",
         ) as client:
             response = await client.get("/health")
+            response_healthz = await client.get("/healthz")
+            response_api_healthz = await client.get("/api/v1/healthz")
 
     payload = response.json()
     assert response.status_code == 200
+    assert response_healthz.status_code == 200
+    assert response_api_healthz.status_code == 200
+    assert response_healthz.json() == payload
+    assert response_api_healthz.json() == payload
     assert payload["status"] == "healthy"
     assert payload["profile"] == "api"
     assert set(payload["dependencies"]) >= {"postgresql", "redis", "kafka"}

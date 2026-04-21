@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "musematic-ui.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "musematic-ui.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "musematic-ui.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: ui
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: NEXT_PUBLIC_API_URL
+              value: {{ .Values.env.NEXT_PUBLIC_API_URL | quote }}
+            - name: NEXT_PUBLIC_WS_URL
+              value: {{ .Values.env.NEXT_PUBLIC_WS_URL | quote }}
+            - name: NEXT_PUBLIC_APP_ENV
+              value: {{ .Values.env.NEXT_PUBLIC_APP_ENV | quote }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}

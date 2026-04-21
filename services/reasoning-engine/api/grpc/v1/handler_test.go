@@ -12,9 +12,11 @@ import (
 	"github.com/musematic/reasoning-engine/internal/budget_tracker"
 	"github.com/musematic/reasoning-engine/internal/correction_loop"
 	"github.com/musematic/reasoning-engine/internal/cot_coordinator"
+	"github.com/musematic/reasoning-engine/internal/debate"
 	"github.com/musematic/reasoning-engine/internal/mode_selector"
 	"github.com/musematic/reasoning-engine/internal/tot_manager"
 	"github.com/musematic/reasoning-engine/pkg/metrics"
+	"github.com/musematic/reasoning-engine/pkg/persistence"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -422,6 +424,158 @@ func TestHandlerRPCsWithInterceptors(t *testing.T) {
 		DurationMs:   10,
 	}), unaryInterceptor); err != nil {
 		t.Fatalf("SubmitCorrectionIteration handler error = %v", err)
+	}
+}
+
+func TestHandlerUnaryAndStreamingRPCsDebateAndTrace(t *testing.T) {
+	traceReader := &traceStoreStub{record: &persistence.ReasoningTraceRecord{
+		ExecutionID: "exec-debate-grpc",
+		Technique:   "DEBATE",
+		Status:      "complete",
+		StorageKey:  "reasoning-traces/exec-debate-grpc/DEBATE/debate-grpc.json",
+		StepCount:   2,
+	}}
+	uploader := &capturingTraceUploader{}
+	traceWriter := &capturingTraceStore{}
+	events := &capturingReasoningEvents{debateDone: make(chan map[string]any, 1)}
+	handler := NewHandler(HandlerDependencies{
+		DebateService:   debate.NewService(debate.NewConsensusDetector(nil, 0.05), uploader, traceWriter, events),
+		TraceStore:      traceReader,
+		TraceUploader:   uploader,
+		ReasoningEvents: events,
+		Metrics:         metrics.New(),
+	})
+
+	listener := bufconn.Listen(1024 * 1024)
+	server := grpc.NewServer()
+	RegisterReasoningEngineServiceServer(server, handler)
+	go func() {
+		_ = server.Serve(listener)
+	}()
+	defer server.Stop()
+
+	conn, err := grpc.NewClient("passthrough:///bufnet",
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) { return listener.Dial() }),
+	)
+	if err != nil {
+		t.Fatalf("grpc.NewClient() error = %v", err)
+	}
+	defer func() {
+		_ = conn.Close()
+	}()
+
+	client := NewReasoningEngineServiceClient(conn)
+
+	started, err := client.StartDebateSession(context.Background(), &StartDebateSessionRequest{
+		ExecutionId:     "exec-debate-grpc",
+		DebateId:        "debate-grpc",
+		ParticipantFqns: []string{"agent.alpha", "agent.beta"},
+		RoundLimit:      2,
+	})
+	if err != nil || started.GetStatus() != "RUNNING" {
+		t.Fatalf("StartDebateSession() resp=%+v err=%v", started, err)
+	}
+
+	if _, err := client.SubmitDebateTurn(context.Background(), &SubmitDebateTurnRequest{
+		DebateId:   "debate-grpc",
+		AgentFqn:   "agent.alpha",
+		StepType:   "synthesis",
+		Content:    "aligned answer for consensus",
+		TokensUsed: 21,
+		OccurredAt: timestamppb.Now(),
+	}); err != nil {
+		t.Fatalf("SubmitDebateTurn(first) error = %v", err)
+	}
+	round, err := client.SubmitDebateTurn(context.Background(), &SubmitDebateTurnRequest{
+		DebateId:     "debate-grpc",
+		AgentFqn:     "agent.beta",
+		StepType:     "synthesis",
+		Content:      "shared answer for consensus",
+		QualityScore: 0.92,
+		TokensUsed:   18,
+		OccurredAt:   timestamppb.Now(),
+	})
+	if err != nil || !round.GetDebateComplete() {
+		t.Fatalf("SubmitDebateTurn(second) resp=%+v err=%v", round, err)
+	}
+
+	final, err := client.FinalizeDebateSession(context.Background(), &FinalizeDebateSessionRequest{DebateId: "debate-grpc"})
+	if err != nil || final.GetStorageKey() == "" {
+		t.Fatalf("FinalizeDebateSession() resp=%+v err=%v", final, err)
+	}
+
+	traceResp, err := client.GetReasoningTrace(context.Background(), &GetReasoningTraceRequest{ExecutionId: "exec-debate-grpc", StepId: "debate-grpc"})
+	if err != nil || traceResp.GetStorageKey() != traceReader.record.StorageKey {
+		t.Fatalf("GetReasoningTrace() resp=%+v err=%v", traceResp, err)
+	}
+}
+
+func TestHandlerRPCsWithInterceptorsDebateAndTrace(t *testing.T) {
+	traceReader := &traceStoreStub{record: &persistence.ReasoningTraceRecord{
+		ExecutionID: "exec-debate-interceptor",
+		Technique:   "DEBATE",
+		Status:      "complete",
+		StorageKey:  "reasoning-traces/exec-debate-interceptor/DEBATE/debate-interceptor.json",
+		StepCount:   2,
+	}}
+	uploader := &capturingTraceUploader{}
+	traceWriter := &capturingTraceStore{}
+	events := &capturingReasoningEvents{debateDone: make(chan map[string]any, 1)}
+	handler := NewHandler(HandlerDependencies{
+		DebateService:   debate.NewService(debate.NewConsensusDetector(nil, 0.05), uploader, traceWriter, events),
+		TraceStore:      traceReader,
+		TraceUploader:   uploader,
+		ReasoningEvents: events,
+		Metrics:         metrics.New(),
+	})
+
+	unaryInterceptor := UnaryInterceptor(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	ctx := context.Background()
+
+	if _, err := _ReasoningEngineService_StartDebateSession_Handler(handler, ctx, decodeMessage(&StartDebateSessionRequest{
+		ExecutionId:     "exec-debate-interceptor",
+		DebateId:        "debate-interceptor",
+		ParticipantFqns: []string{"agent.alpha", "agent.beta"},
+		RoundLimit:      2,
+	}), unaryInterceptor); err != nil {
+		t.Fatalf("StartDebateSession handler error = %v", err)
+	}
+
+	if _, err := _ReasoningEngineService_SubmitDebateTurn_Handler(handler, ctx, decodeMessage(&SubmitDebateTurnRequest{
+		DebateId:   "debate-interceptor",
+		AgentFqn:   "agent.alpha",
+		StepType:   "synthesis",
+		Content:    "aligned answer for consensus",
+		TokensUsed: 21,
+		OccurredAt: timestamppb.Now(),
+	}), unaryInterceptor); err != nil {
+		t.Fatalf("SubmitDebateTurn(first) handler error = %v", err)
+	}
+
+	if _, err := _ReasoningEngineService_SubmitDebateTurn_Handler(handler, ctx, decodeMessage(&SubmitDebateTurnRequest{
+		DebateId:     "debate-interceptor",
+		AgentFqn:     "agent.beta",
+		StepType:     "synthesis",
+		Content:      "shared answer for consensus",
+		QualityScore: 0.92,
+		TokensUsed:   18,
+		OccurredAt:   timestamppb.Now(),
+	}), unaryInterceptor); err != nil {
+		t.Fatalf("SubmitDebateTurn(second) handler error = %v", err)
+	}
+
+	if _, err := _ReasoningEngineService_FinalizeDebateSession_Handler(handler, ctx, decodeMessage(&FinalizeDebateSessionRequest{
+		DebateId: "debate-interceptor",
+	}), unaryInterceptor); err != nil {
+		t.Fatalf("FinalizeDebateSession handler error = %v", err)
+	}
+
+	if _, err := _ReasoningEngineService_GetReasoningTrace_Handler(handler, ctx, decodeMessage(&GetReasoningTraceRequest{
+		ExecutionId: "exec-debate-interceptor",
+		StepId:      "debate-interceptor",
+	}), unaryInterceptor); err != nil {
+		t.Fatalf("GetReasoningTrace handler error = %v", err)
 	}
 }
 
