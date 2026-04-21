@@ -43,3 +43,10 @@ def test_load_images_uses_repo_root_context_for_ui_build() -> None:
     load_images = (ROOT / 'tests/e2e/cluster/load-images.sh').read_text()
     assert 'ghcr.io/musematic/ui:local|apps/web/Dockerfile|.' in load_images
     assert 'docker build -t "${image}" -f "${ROOT_DIR}/${dockerfile}" "${ROOT_DIR}/${context}"' in load_images
+
+
+def test_cluster_scripts_have_valid_bash_shebangs() -> None:
+    install_bytes = (ROOT / 'tests/e2e/cluster/install.sh').read_bytes()
+    load_bytes = (ROOT / 'tests/e2e/cluster/load-images.sh').read_bytes()
+    assert install_bytes.startswith(b'#!/usr/bin/env bash\n')
+    assert load_bytes.startswith(b'#!/usr/bin/env bash\n')
