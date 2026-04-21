@@ -48,7 +48,7 @@ def test_makefile_renders_cluster_specific_kind_config() -> None:
 def test_load_images_uses_repo_root_context_for_ui_build() -> None:
     load_images = (ROOT / 'tests/e2e/cluster/load-images.sh').read_text()
     assert 'ghcr.io/musematic/ui:local|apps/web/Dockerfile|.' in load_images
-    assert 'docker build -t "${image}" -f "${ROOT_DIR}/${dockerfile}" "${ROOT_DIR}/${context}"' in load_images
+    assert 'docker build --rm --force-rm -t "${image}" -f "${ROOT_DIR}/${dockerfile}" "${ROOT_DIR}/${context}"' in load_images
 
 
 def test_cluster_scripts_have_valid_bash_shebangs() -> None:
@@ -126,3 +126,22 @@ def test_cnpg_templates_use_current_monitoring_and_postgresql_fields() -> None:
 def test_install_script_parses_kind_version_with_backreference() -> None:
     install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
     assert "sed -E 's/.*v([0-9]+\\.[0-9]+\\.[0-9]+).*/\\1/'" in install_script
+
+
+def test_load_images_prunes_docker_cache_between_images() -> None:
+    load_images = (ROOT / 'tests/e2e/cluster/load-images.sh').read_text()
+    assert 'docker build --rm --force-rm' in load_images
+    assert 'docker image rm -f "${image}"' in load_images
+    assert 'docker image prune -af' in load_images
+    assert 'docker builder prune -af' in load_images
+
+
+def test_e2e_workflow_frees_runner_disk_before_bootstrap() -> None:
+    workflow = (ROOT / '.github/workflows/e2e.yml').read_text()
+    assert 'Free runner disk space' in workflow
+    assert 'docker system prune -af --volumes || true' in workflow
+    assert 'rm -rf /usr/local/lib/android' in workflow
+    assert 'rm -rf /usr/share/dotnet' in workflow
+    assert 'rm -rf /usr/share/swift' in workflow
+    assert 'rm -rf /opt/ghc' in workflow
+    assert 'rm -rf /opt/hostedtoolcache/CodeQL' in workflow

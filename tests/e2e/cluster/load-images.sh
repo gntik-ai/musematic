@@ -16,7 +16,12 @@ images=(
 for spec in "${images[@]}"; do
   IFS='|' read -r image dockerfile context <<<"${spec}"
   echo "[e2e] building ${image} from ${dockerfile} (context: ${context})"
-  docker build -t "${image}" -f "${ROOT_DIR}/${dockerfile}" "${ROOT_DIR}/${context}"
+  docker build --rm --force-rm -t "${image}" -f "${ROOT_DIR}/${dockerfile}" "${ROOT_DIR}/${context}"
   echo "[e2e] loading ${image} into kind cluster ${CLUSTER_NAME}"
   kind load docker-image "${image}" --name "${CLUSTER_NAME}"
+  echo "[e2e] pruning local Docker caches after loading ${image}"
+  docker image rm -f "${image}" >/dev/null 2>&1 || true
+  docker image prune -af >/dev/null 2>&1 || true
+  docker builder prune -af >/dev/null 2>&1 || true
+  docker system df || true
 done

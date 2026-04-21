@@ -31,6 +31,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Free runner disk space
+        run: |
+          df -h
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /usr/share/swift || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          docker system prune -af --volumes || true
+          df -h
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -62,6 +73,9 @@ jobs:
 
       - name: Build and load local images
         run: make load-images
+
+      - name: Report Docker disk usage after image load
+        run: docker system df || true
 
       - name: Provision E2E environment
         run: SKIP_LOAD_IMAGES=true make e2e-up
