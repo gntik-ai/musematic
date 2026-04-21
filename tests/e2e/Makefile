@@ -12,7 +12,7 @@ KIND_CONFIG_RENDERED := /tmp/kind-config-$(CLUSTER_NAME).yaml
 export PLATFORM_API_URL ?= http://localhost:$(PORT_API)
 export PLATFORM_WS_URL ?= ws://localhost:$(PORT_WS)
 
-.PHONY: e2e-check render-kind-config e2e-up e2e-down e2e-test e2e-chaos e2e-perf e2e-reset e2e-logs e2e-shell capture-state
+.PHONY: e2e-check render-kind-config load-images e2e-up e2e-down e2e-test e2e-chaos e2e-perf e2e-reset e2e-logs e2e-shell capture-state e2e-journeys e2e-j01 e2e-j02 e2e-j03 e2e-j04 e2e-j05 e2e-j06 e2e-j07 e2e-j08 e2e-j09
 
 e2e-check:
 	@command -v docker >/dev/null 2>&1 || (echo "docker is required" >&2; exit 1)
@@ -25,6 +25,9 @@ e2e-check:
 render-kind-config:
 	@CLUSTER_NAME=$(CLUSTER_NAME) PORT_UI=$(PORT_UI) PORT_API=$(PORT_API) PORT_WS=$(PORT_WS) envsubst < $(KIND_CONFIG_TEMPLATE) > $(KIND_CONFIG_RENDERED)
 
+load-images:
+	@CLUSTER_NAME=$(CLUSTER_NAME) ./cluster/load-images.sh
+
 e2e-up: render-kind-config
 	@CLUSTER_NAME=$(CLUSTER_NAME) PORT_UI=$(PORT_UI) PORT_API=$(PORT_API) PORT_WS=$(PORT_WS) RELEASE_NAME=$(RELEASE_NAME) NAMESPACE=$(NAMESPACE) KIND_CONFIG_PATH=$(KIND_CONFIG_RENDERED) ./cluster/install.sh
 
@@ -34,6 +37,46 @@ e2e-down:
 
 e2e-test:
 	@$(PYTEST) suites
+
+e2e-journeys:
+	@mkdir -p reports
+	@$(PYTEST) journeys/ -n 3 --dist=loadfile -v -m journey --junitxml=reports/journeys-junit.xml --html=reports/journeys-report.html
+
+e2e-j01:
+	@mkdir -p reports
+	@$(PYTEST) journeys/ -v -m j01_admin --junitxml=reports/j01-junit.xml --html=reports/j01-report.html
+
+e2e-j02:
+	@mkdir -p reports
+	@$(PYTEST) journeys/ -v -m j02_creator --junitxml=reports/j02-junit.xml --html=reports/j02-report.html
+
+e2e-j03:
+	@mkdir -p reports
+	@$(PYTEST) journeys/ -v -m j03_consumer --junitxml=reports/j03-junit.xml --html=reports/j03-report.html
+
+e2e-j04:
+	@mkdir -p reports
+	@$(PYTEST) journeys/ -v -m j04_workspace_goal --junitxml=reports/j04-junit.xml --html=reports/j04-report.html
+
+e2e-j05:
+	@mkdir -p reports
+	@$(PYTEST) journeys/ -v -m j05_trust --junitxml=reports/j05-junit.xml --html=reports/j05-report.html
+
+e2e-j06:
+	@mkdir -p reports
+	@$(PYTEST) journeys/ -v -m j06_operator --junitxml=reports/j06-junit.xml --html=reports/j06-report.html
+
+e2e-j07:
+	@mkdir -p reports
+	@$(PYTEST) journeys/ -v -m j07_evaluator --junitxml=reports/j07-junit.xml --html=reports/j07-report.html
+
+e2e-j08:
+	@mkdir -p reports
+	@$(PYTEST) journeys/ -v -m j08_external --junitxml=reports/j08-junit.xml --html=reports/j08-report.html
+
+e2e-j09:
+	@mkdir -p reports
+	@$(PYTEST) journeys/ -v -m j09_discovery --junitxml=reports/j09-junit.xml --html=reports/j09-report.html
 
 e2e-chaos:
 	@$(PYTEST) chaos

@@ -51,8 +51,9 @@ describe("conversation query hooks", () => {
 
     const enabled = renderHook(() => useConversation("conversation-1"), { wrapper });
     await waitFor(() => {
+      expect(enabled.result.current.isSuccess).toBe(true);
       expect(enabled.result.current.data?.id).toBe("conversation-1");
-    });
+    }, { timeout: 3000 });
     expect(enabled.result.current.data?.interactions).toHaveLength(2);
   });
 

@@ -14,6 +14,19 @@ vi.mock("@/lib/hooks/use-toast", () => ({
   useToast: () => ({ toast }),
 }));
 
+async function selectWorkspaceOverrideTarget(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(
+    screen.getByRole("button", { name: "Select workspace override target" }),
+  );
+  const searchInput = await screen.findByLabelText("Search workspaces");
+  await waitFor(async () => {
+    expect(await screen.findByText("Signal Lab", {}, { timeout: 3000 })).toBeInTheDocument();
+  });
+  await user.clear(searchInput);
+  await user.type(searchInput, "Signal");
+  await user.click(await screen.findByText("Signal Lab", {}, { timeout: 3000 }));
+}
+
 describe("QuotasTab", () => {
   beforeEach(() => {
     toast.mockReset();
@@ -28,11 +41,7 @@ describe("QuotasTab", () => {
     const maxAgentInputs = await screen.findAllByLabelText("Max agents");
     expect(maxAgentInputs[0]).toHaveValue(100);
 
-    await user.click(
-      screen.getByRole("button", { name: "Select workspace override target" }),
-    );
-    await user.type(screen.getByLabelText("Search workspaces"), "Signal");
-    await user.click(screen.getByRole("button", { name: /Signal Lab/i }));
+    await selectWorkspaceOverrideTarget(user);
 
     await waitFor(() => {
       const overrideInputs = screen.getAllByLabelText("Max agents");
@@ -61,11 +70,7 @@ describe("QuotasTab", () => {
 
     renderWithProviders(<QuotasTab />);
 
-    await user.click(
-      screen.getByRole("button", { name: "Select workspace override target" }),
-    );
-    await user.type(screen.getByLabelText("Search workspaces"), "Signal");
-    await user.click(screen.getByRole("button", { name: /Signal Lab/i }));
+    await selectWorkspaceOverrideTarget(user);
 
     await waitFor(() => {
       expect(screen.getAllByLabelText("Max agents")[1]).toHaveValue(250);
@@ -272,11 +277,7 @@ describe("QuotasTab", () => {
 
     renderWithProviders(<QuotasTab />);
 
-    await user.click(
-      screen.getByRole("button", { name: "Select workspace override target" }),
-    );
-    await user.type(screen.getByLabelText("Search workspaces"), "Signal");
-    await user.click(screen.getByRole("button", { name: /Signal Lab/i }));
+    await selectWorkspaceOverrideTarget(user);
 
     await waitFor(() => {
       expect(screen.getAllByLabelText("Storage quota (GB)")[1]).toHaveValue(null);
@@ -338,11 +339,7 @@ describe("QuotasTab", () => {
 
     renderWithProviders(<QuotasTab />);
 
-    await user.click(
-      screen.getByRole("button", { name: "Select workspace override target" }),
-    );
-    await user.type(screen.getByLabelText("Search workspaces"), "Signal");
-    await user.click(screen.getByRole("button", { name: /Signal Lab/i }));
+    await selectWorkspaceOverrideTarget(user);
 
     await waitFor(() => {
       expect(screen.getAllByLabelText("Monthly token budget")[1]).toHaveValue(5000);
@@ -390,11 +387,7 @@ describe("QuotasTab", () => {
 
     renderWithProviders(<QuotasTab />);
 
-    await user.click(
-      screen.getByRole("button", { name: "Select workspace override target" }),
-    );
-    await user.type(screen.getByLabelText("Search workspaces"), "Signal");
-    await user.click(screen.getByRole("button", { name: /Signal Lab/i }));
+    await selectWorkspaceOverrideTarget(user);
 
     const overrideMaxAgents = screen.getAllByLabelText("Max agents")[1]!;
     await user.type(overrideMaxAgents, "320");
@@ -415,11 +408,7 @@ describe("QuotasTab", () => {
 
     renderWithProviders(<QuotasTab />);
 
-    await user.click(
-      screen.getByRole("button", { name: "Select workspace override target" }),
-    );
-    await user.type(screen.getByLabelText("Search workspaces"), "Signal");
-    await user.click(screen.getByRole("button", { name: /Signal Lab/i }));
+    await selectWorkspaceOverrideTarget(user);
 
     await waitFor(() => {
       expect(screen.getAllByLabelText("Storage quota (GB)")[1]).toBeInTheDocument();

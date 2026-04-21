@@ -14,6 +14,11 @@ dependencies = [
   "kubernetes",
 ]
 
+[project.optional-dependencies]
+e2e = [
+  "pytest-xdist>=3.6",
+]
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["suites", "chaos", "performance"]
+testpaths = ["suites", "chaos", "performance", "journeys", "tests"]

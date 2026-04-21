@@ -12,32 +12,41 @@ branch_labels = None
 depends_on = None
 
 
-a2a_task_state = postgresql.ENUM(
-    "submitted",
-    "working",
-    "input_required",
-    "completed",
-    "failed",
-    "cancelled",
-    "cancellation_pending",
-    name="a2a_task_state",
-    create_type=False,
-    _create_events=False,
-)
-
-a2a_direction = postgresql.ENUM(
-    "inbound",
-    "outbound",
-    name="a2a_direction",
-    create_type=False,
-    _create_events=False,
-)
+a2a_task_state = postgresql.ENUM(name="a2a_task_state", create_type=False)
+a2a_direction = postgresql.ENUM(name="a2a_direction", create_type=False)
 
 
 def upgrade() -> None:
-    bind = op.get_bind()
-    a2a_task_state.create(bind, checkfirst=True)
-    a2a_direction.create(bind, checkfirst=True)
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'a2a_task_state') THEN
+                CREATE TYPE a2a_task_state AS ENUM (
+                    'submitted',
+                    'working',
+                    'input_required',
+                    'completed',
+                    'failed',
+                    'cancelled',
+                    'cancellation_pending'
+                );
+            END IF;
+        END
+        $$;
+        """
+    )
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'a2a_direction') THEN
+                CREATE TYPE a2a_direction AS ENUM ('inbound', 'outbound');
+            END IF;
+        END
+        $$;
+        """
+    )
 
     op.create_table(
         "a2a_external_endpoints",
@@ -187,6 +196,5 @@ def downgrade() -> None:
     op.drop_index("ix_a2a_endpoints_workspace", table_name="a2a_external_endpoints")
     op.drop_table("a2a_external_endpoints")
 
-    bind = op.get_bind()
-    a2a_task_state.drop(bind, checkfirst=True)
-    a2a_direction.drop(bind, checkfirst=True)
+    op.execute("DROP TYPE IF EXISTS a2a_task_state")
+    op.execute("DROP TYPE IF EXISTS a2a_direction")

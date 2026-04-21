@@ -285,6 +285,9 @@ async def test_fanout_matches_topic_variants_and_loads_envelopes() -> None:
     assert fanout._match_subscriptions(
         "interaction.attention", {"payload": {"target_id": str(target_id)}}
     ) == [(ChannelType.ATTENTION, str(target_id))]
+    assert fanout._match_subscriptions(
+        "interaction.attention", {"payload": {"target_identity": str(user_id)}}
+    ) == [(ChannelType.ATTENTION, str(user_id))]
 
     envelope = EventEnvelope(
         event_type="execution.updated",

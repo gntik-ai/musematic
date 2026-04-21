@@ -9,6 +9,7 @@
         PORT_UI="${PORT_UI:-8080}"
         PORT_API="${PORT_API:-8081}"
         PORT_WS="${PORT_WS:-8082}"
+        SKIP_LOAD_IMAGES="${SKIP_LOAD_IMAGES:-false}"
         COMPOSITE_CHART_DIR="${ROOT_DIR}/deploy/helm/platform"
         KIND_CONFIG_TEMPLATE="${CLUSTER_DIR}/kind-config.yaml"
         KIND_CONFIG_PATH="${KIND_CONFIG_PATH:-/tmp/kind-config-${CLUSTER_NAME}.yaml}"
@@ -109,7 +110,9 @@
           ensure_cluster
           install_cnpg_operator
           install_strimzi_operator
-          "${CLUSTER_DIR}/load-images.sh"
+          if [[ "${SKIP_LOAD_IMAGES}" != "true" ]]; then
+            "${CLUSTER_DIR}/load-images.sh"
+          fi
           install_platform
           wait_for_rollouts
           seed_baseline
