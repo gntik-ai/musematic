@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "musematic-e2e"
 version = "0.1.0"
@@ -18,6 +22,17 @@ dependencies = [
 e2e = [
   "pytest-xdist>=3.6",
 ]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["fixtures*", "journeys*", "seeders*"]
+exclude = ["cluster*", "chaos*", "performance*", "reports*", "suites*", "tests*"]
+
+[tool.setuptools.package-data]
+journeys = ["fixtures/*.tar.gz"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
