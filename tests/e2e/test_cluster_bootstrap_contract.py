@@ -37,3 +37,9 @@ def test_makefile_renders_cluster_specific_kind_config() -> None:
     assert 'envsubst < $(KIND_CONFIG_TEMPLATE) > $(KIND_CONFIG_RENDERED)' in makefile
     assert 'PLATFORM_API_URL ?= http://localhost:$(PORT_API)' in makefile
     assert 'PLATFORM_WS_URL ?= ws://localhost:$(PORT_WS)' in makefile
+
+
+def test_load_images_uses_repo_root_context_for_ui_build() -> None:
+    load_images = (ROOT / 'tests/e2e/cluster/load-images.sh').read_text()
+    assert 'ghcr.io/musematic/ui:local|apps/web/Dockerfile|.' in load_images
+    assert 'docker build -t "${image}" -f "${ROOT_DIR}/${dockerfile}" "${ROOT_DIR}/${context}"' in load_images
