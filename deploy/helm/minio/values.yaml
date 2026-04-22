@@ -38,5 +38,8 @@ resources:
 networkPolicy:
   enabled: true
 
+bucketInit:
+  enabled: true
+
 buckets:
   executionArtifactsRetentionDays: 90

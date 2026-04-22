@@ -54,22 +54,37 @@ def test_load_images_uses_repo_root_context_for_ui_build() -> None:
 def test_cluster_scripts_have_valid_bash_shebangs() -> None:
     install_bytes = (ROOT / 'tests/e2e/cluster/install.sh').read_bytes()
     load_bytes = (ROOT / 'tests/e2e/cluster/load-images.sh').read_bytes()
+    capture_bytes = (ROOT / 'tests/e2e/cluster/capture-state.sh').read_bytes()
     assert install_bytes.startswith(b'#!/usr/bin/env bash\n')
     assert load_bytes.startswith(b'#!/usr/bin/env bash\n')
+    assert capture_bytes.startswith(b'#!/usr/bin/env bash\n')
 
 
-def test_e2e_values_override_control_plane_migration_hook() -> None:
+def test_e2e_values_disable_blocking_helm_hook_jobs() -> None:
     values = (ROOT / 'tests/e2e/cluster/values-e2e.yaml').read_text()
-    assert 'controlPlane:' in values
-    assert 'hook: post-install,post-upgrade' in values
-    assert 'retryAttempts: 90' in values
-    assert 'retryDelaySeconds: 10' in values
+    assert "migration:\n    enabled: false" in values
+    assert "bucketInit:\n    enabled: false" in values
+    assert values.count("schemaInit:\n    enabled: false") == 2
+    assert "  backup:\n    enabled: false\n  schemaInit:\n    enabled: false\n\nclickhouse:\n" in values
+    assert "  schemaInit:\n    enabled: false\n\nopensearch:\n" in values
 
 
 def test_install_script_uses_extended_helm_timeout() -> None:
     install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
     assert 'HELM_TIMEOUT="${HELM_TIMEOUT:-20m}"' in install_script
     assert '--timeout "${HELM_TIMEOUT}"' in install_script
+
+
+def test_install_script_runs_manual_init_jobs_and_ignores_completed_pods() -> None:
+    install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
+    assert 'run_manual_init_jobs' in install_script
+    assert 'launch_minio_bucket_init' in install_script
+    assert 'launch_clickhouse_schema_init' in install_script
+    assert 'launch_neo4j_schema_init' in install_script
+    assert 'launch_control_plane_migration' in install_script
+    assert 'wait_for_job_completion' in install_script
+    assert '--field-selector=status.phase!=Succeeded' in install_script
+    assert 'kubectl rollout restart -n "${NAMESPACE}" "$deployment"' in install_script
 
 
 def test_platform_chart_creates_platform_data_namespace_once() -> None:
@@ -134,6 +149,25 @@ def test_load_images_prunes_docker_cache_between_images() -> None:
     assert 'docker image rm -f "${image}"' in load_images
     assert 'docker image prune -af' in load_images
     assert 'docker builder prune -af' in load_images
+
+
+def test_minio_bucket_init_can_be_disabled_without_losing_the_configmap() -> None:
+    values = (ROOT / 'deploy/helm/minio/values.yaml').read_text()
+    regular_job = (ROOT / 'deploy/helm/minio/templates/bucket-init-job.yaml').read_text()
+    generic_job = (ROOT / 'deploy/helm/minio/templates/bucket-init-job-generic.yaml').read_text()
+    configmap = (ROOT / 'deploy/helm/minio/templates/bucket-init-configmap.yaml').read_text()
+
+    assert 'bucketInit:' in values
+    assert '{{- if and .Values.minio.enabled .Values.bucketInit.enabled }}' in regular_job
+    assert '{{- if and (not .Values.minio.enabled) .Values.bucketInit.enabled }}' in generic_job
+    assert '{{- if .Values.minio.enabled }}' in configmap
+
+
+def test_capture_state_collects_jobs_and_descriptions() -> None:
+    script = (ROOT / 'tests/e2e/cluster/capture-state.sh').read_text()
+    assert 'kubectl get jobs -A' in script
+    assert 'kubectl describe jobs -A' in script
+    assert 'kubectl describe -n "${namespace}" "${pod}"' in script
 
 
 def test_e2e_workflow_frees_runner_disk_before_bootstrap() -> None:

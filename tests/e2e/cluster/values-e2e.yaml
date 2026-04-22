@@ -54,6 +54,8 @@ kafka:
 
 minio:
   namespace: platform-data
+  bucketInit:
+    enabled: false
   standalone: true
   servers: 1
   volumesPerServer: 1
@@ -112,6 +114,8 @@ neo4j:
     enabled: false
   backup:
     enabled: false
+  schemaInit:
+    enabled: false
 
 clickhouse:
   shards: 1
@@ -131,6 +135,8 @@ clickhouse:
     limits:
       cpu: 500m
       memory: 1Gi
+  schemaInit:
+    enabled: false
 
 opensearch:
   opensearch:
@@ -157,9 +163,7 @@ controlPlane:
     tag: local
     pullPolicy: IfNotPresent
   migration:
-    hook: post-install,post-upgrade
-    retryAttempts: 90
-    retryDelaySeconds: 10
+    enabled: false
   common:
     featureE2EMode: true
     mockLlmEnabled: true
