@@ -62,6 +62,18 @@ class ATERunStatus(StrEnum):
     pre_check_failed = "pre_check_failed"
 
 
+class RubricStatus(StrEnum):
+    active = "active"
+    archived = "archived"
+
+
+class CalibrationRunStatus(StrEnum):
+    pending = "pending"
+    running = "running"
+    completed = "completed"
+    failed = "failed"
+
+
 class ReviewDecision(StrEnum):
     confirmed = "confirmed"
     overridden = "overridden"
@@ -242,6 +254,90 @@ class JudgeVerdict(Base, UUIDMixin, TimestampMixin):
         "platform.evaluation.models.HumanAiGrade",
         back_populates="verdict",
         uselist=False,
+    )
+
+
+class Rubric(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
+    __tablename__ = "evaluation_rubrics"
+    __table_args__ = (
+        Index("ix_evaluation_rubrics_workspace_id", "workspace_id"),
+        Index("ix_evaluation_rubrics_status", "status"),
+        Index("ix_evaluation_rubrics_is_builtin", "is_builtin"),
+        Index(
+            "uq_evaluation_rubrics_builtin_name",
+            "name",
+            unique=True,
+            postgresql_where=text("is_builtin = true"),
+        ),
+    )
+
+    workspace_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("workspaces_workspaces.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    name: Mapped[str] = mapped_column(Text(), nullable=False)
+    description: Mapped[str] = mapped_column(Text(), nullable=False, default="")
+    criteria: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB(none_as_null=False),
+        nullable=False,
+        default=list,
+    )
+    version: Mapped[int] = mapped_column(Integer(), nullable=False, default=1)
+    is_builtin: Mapped[bool] = mapped_column(Boolean(), nullable=False, default=False)
+    status: Mapped[RubricStatus] = mapped_column(
+        SAEnum(RubricStatus, name="rubric_status", create_type=False),
+        nullable=False,
+        default=RubricStatus.active,
+    )
+    created_by: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+
+    calibration_runs: Mapped[list[CalibrationRun]] = relationship(
+        "platform.evaluation.models.CalibrationRun",
+        back_populates="rubric",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+
+class CalibrationRun(Base, UUIDMixin, TimestampMixin):
+    __tablename__ = "evaluation_calibration_runs"
+    __table_args__ = (
+        Index("ix_evaluation_calibration_runs_rubric_id", "rubric_id"),
+        Index("ix_evaluation_calibration_runs_status", "status"),
+    )
+
+    rubric_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("evaluation_rubrics.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    rubric_version: Mapped[int] = mapped_column(Integer(), nullable=False)
+    judge_model: Mapped[str] = mapped_column(Text(), nullable=False)
+    reference_set_id: Mapped[str] = mapped_column(Text(), nullable=False)
+    status: Mapped[CalibrationRunStatus] = mapped_column(
+        SAEnum(CalibrationRunStatus, name="calibration_run_status", create_type=False),
+        nullable=False,
+        default=CalibrationRunStatus.pending,
+    )
+    distribution: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONB(none_as_null=False),
+        nullable=True,
+    )
+    agreement_rate: Mapped[float | None] = mapped_column(Float(), nullable=True)
+    calibrated: Mapped[bool | None] = mapped_column(Boolean(), nullable=True)
+    error_grade_finding: Mapped[bool] = mapped_column(Boolean(), nullable=False, default=False)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_by: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+
+    rubric: Mapped[Rubric] = relationship(
+        "platform.evaluation.models.Rubric",
+        back_populates="calibration_runs",
     )
 
 

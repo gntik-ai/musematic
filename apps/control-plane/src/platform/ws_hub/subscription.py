@@ -32,7 +32,7 @@ CHANNEL_TOPIC_MAP: Final[dict[ChannelType, Sequence[str]]] = {
     ChannelType.CORRECTION: ("runtime.selfcorrection",),
     ChannelType.SIMULATION: ("simulation.events",),
     ChannelType.TESTING: ("testing.results",),
-    ChannelType.ALERTS: ("monitor.alerts",),
+    ChannelType.ALERTS: ("monitor.alerts", "notifications.alerts"),
     ChannelType.ATTENTION: ("interaction.attention",),
 }
 

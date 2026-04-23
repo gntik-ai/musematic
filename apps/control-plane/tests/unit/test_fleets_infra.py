@@ -290,6 +290,67 @@ async def test_fleets_dependencies_and_events() -> None:
 
 
 @pytest.mark.asyncio
+async def test_get_governance_service_builds_default_judge_and_pipeline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = FastAPI()
+    settings = build_fleet_service_stack()[0].settings
+    redis_client = FakeAsyncRedisClient()
+    producer = RecordingProducer()
+    app.state.settings = settings
+    app.state.clients = {"redis": redis_client, "kafka": producer}
+    request = _request_with_state(app)
+    session = SessionStub()
+    registry_service = SimpleNamespace()
+    captured: dict[str, dict[str, object]] = {}
+
+    def _capture(name: str):
+        def _builder(**kwargs):
+            captured[name] = kwargs
+            return name
+
+        return _builder
+
+    monkeypatch.setattr(
+        "platform.governance.dependencies.build_judge_service",
+        _capture("judge"),
+    )
+    monkeypatch.setattr(
+        "platform.governance.dependencies.build_pipeline_config_service",
+        _capture("pipeline"),
+    )
+    monkeypatch.setattr(
+        "platform.fleets.dependencies.build_governance_service",
+        _capture("governance"),
+    )
+
+    service = await get_governance_service(
+        request,
+        session=session,
+        registry_service=registry_service,  # type: ignore[arg-type]
+    )
+
+    assert service == "governance"
+    assert captured["judge"] == {
+        "session": session,
+        "settings": settings,
+        "producer": producer,
+        "redis_client": redis_client,
+        "registry_service": registry_service,
+    }
+    assert captured["pipeline"] == {
+        "session": session,
+        "registry_service": registry_service,
+    }
+    assert captured["governance"] == {
+        "session": session,
+        "producer": producer,
+        "oje_service": "judge",
+        "pipeline_config": "pipeline",
+    }
+
+
+@pytest.mark.asyncio
 async def test_fleet_repositories_cover_crud_helpers() -> None:
     workspace_id = uuid4()
     fleet = build_fleet(workspace_id=workspace_id)

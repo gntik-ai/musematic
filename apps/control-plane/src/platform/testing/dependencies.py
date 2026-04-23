@@ -34,7 +34,7 @@ def _get_producer(request: Request) -> EventProducer | None:
 
 
 def _get_object_storage(request: Request) -> AsyncObjectStorageClient:
-    return cast(AsyncObjectStorageClient, request.app.state.clients["minio"])
+    return cast(AsyncObjectStorageClient, request.app.state.clients["object_storage"])
 
 
 def _get_clickhouse(request: Request) -> AsyncClickHouseClient:

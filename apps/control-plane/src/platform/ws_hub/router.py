@@ -118,7 +118,7 @@ async def websocket_endpoint(
 
     try:
         await fanout.ensure_consuming(["auth.events"])
-        auto_subscriptions = await _auto_subscribe_attention(
+        auto_subscriptions = await _auto_subscribe_user_channels(
             connection,
             subscription_registry,
             fanout,
@@ -345,6 +345,40 @@ async def _auto_subscribe_attention(
             auto=subscription.auto,
         )
     ]
+
+
+async def _auto_subscribe_alerts(
+    connection: WebSocketConnection,
+    subscription_registry: SubscriptionRegistry,
+    fanout: KafkaFanout,
+) -> list[SubscriptionInfo]:
+    subscription = Subscription(
+        channel=ChannelType.ALERTS,
+        resource_id=str(connection.user_id),
+        auto=True,
+    )
+    key = subscription_key(subscription.channel, subscription.resource_id)
+    connection.subscriptions[key] = subscription
+    topics = subscription_registry.subscribe(connection.connection_id, subscription)
+    await fanout.ensure_consuming(topics)
+    return [
+        SubscriptionInfo(
+            channel=subscription.channel.value,
+            resource_id=subscription.resource_id,
+            subscribed_at=subscription.subscribed_at,
+            auto=subscription.auto,
+        )
+    ]
+
+
+async def _auto_subscribe_user_channels(
+    connection: WebSocketConnection,
+    subscription_registry: SubscriptionRegistry,
+    fanout: KafkaFanout,
+) -> list[SubscriptionInfo]:
+    attention = await _auto_subscribe_attention(connection, subscription_registry, fanout)
+    alerts = await _auto_subscribe_alerts(connection, subscription_registry, fanout)
+    return [*attention, *alerts]
 
 
 async def _handle_validation_error(

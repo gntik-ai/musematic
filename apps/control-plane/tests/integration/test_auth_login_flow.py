@@ -34,7 +34,7 @@ def _clients(redis_client) -> dict[str, object]:
         "neo4j": NoopClient(),
         "clickhouse": NoopClient(),
         "opensearch": NoopClient(),
-        "minio": NoopClient(),
+        "object_storage": NoopClient(),
         "runtime_controller": NoopClient(),
         "reasoning_engine": NoopClient(),
         "sandbox_manager": NoopClient(),

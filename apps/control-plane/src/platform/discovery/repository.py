@@ -5,6 +5,7 @@ from platform.common.clients.redis import AsyncRedisClient
 from platform.discovery.models import (
     DiscoveryExperiment,
     DiscoverySession,
+    DiscoveryWorkspaceSettings,
     EloScore,
     GDECycle,
     Hypothesis,
@@ -83,6 +84,41 @@ class DiscoveryRepository:
         await self.session.flush()
         return await self.get_session(session_id, workspace_id)
 
+    async def get_workspace_settings(
+        self,
+        workspace_id: UUID,
+    ) -> DiscoveryWorkspaceSettings | None:
+        result = await self.session.execute(
+            select(DiscoveryWorkspaceSettings).where(
+                DiscoveryWorkspaceSettings.workspace_id == workspace_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def upsert_workspace_settings(
+        self,
+        workspace_id: UUID,
+        **fields: Any,
+    ) -> DiscoveryWorkspaceSettings:
+        values = {
+            "workspace_id": workspace_id,
+            **fields,
+        }
+        stmt = pg_insert(DiscoveryWorkspaceSettings).values(**values)
+        await self.session.execute(
+            stmt.on_conflict_do_update(
+                index_elements=[DiscoveryWorkspaceSettings.workspace_id],
+                set_=fields or {"workspace_id": workspace_id},
+            )
+        )
+        await self.session.flush()
+        result = await self.session.execute(
+            select(DiscoveryWorkspaceSettings).where(
+                DiscoveryWorkspaceSettings.workspace_id == workspace_id,
+            )
+        )
+        return result.scalar_one()
+
     async def create_hypothesis(self, item: Hypothesis) -> Hypothesis:
         self.session.add(item)
         await self.session.flush()
@@ -98,6 +134,12 @@ class DiscoveryRepository:
                 Hypothesis.id == hypothesis_id,
                 Hypothesis.workspace_id == workspace_id,
             )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_hypothesis_any(self, hypothesis_id: UUID) -> Hypothesis | None:
+        result = await self.session.execute(
+            select(Hypothesis).where(Hypothesis.id == hypothesis_id)
         )
         return result.scalar_one_or_none()
 
@@ -135,6 +177,52 @@ class DiscoveryRepository:
             .order_by(Hypothesis.created_at.asc(), Hypothesis.id.asc())
         )
         return list(result.scalars().all())
+
+    async def list_hypotheses_pending_embedding(
+        self,
+        workspace_id: UUID,
+        limit: int = 100,
+    ) -> list[Hypothesis]:
+        result = await self.session.execute(
+            select(Hypothesis)
+            .where(
+                Hypothesis.workspace_id == workspace_id,
+                Hypothesis.status == "active",
+                Hypothesis.embedding_status == "pending",
+            )
+            .order_by(Hypothesis.created_at.asc(), Hypothesis.id.asc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def list_hypotheses_for_workspace(
+        self,
+        workspace_id: UUID,
+        session_id: UUID | None = None,
+        embedding_status: str | list[str] | None = None,
+    ) -> list[Hypothesis]:
+        query = select(Hypothesis).where(
+            Hypothesis.workspace_id == workspace_id,
+            Hypothesis.status == "active",
+        )
+        if session_id is not None:
+            query = query.where(Hypothesis.session_id == session_id)
+        if isinstance(embedding_status, list):
+            query = query.where(Hypothesis.embedding_status.in_(embedding_status))
+        elif embedding_status is not None:
+            query = query.where(Hypothesis.embedding_status == embedding_status)
+        query = query.order_by(Hypothesis.created_at.asc(), Hypothesis.id.asc())
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+
+    async def list_active_workspace_ids(self) -> list[UUID]:
+        result = await self.session.execute(
+            select(DiscoverySession.workspace_id)
+            .where(DiscoverySession.status == "active")
+            .distinct()
+            .order_by(DiscoverySession.workspace_id.asc())
+        )
+        return [UUID(str(item)) for item in result.scalars().all()]
 
     async def update_hypothesis_cluster(
         self,
@@ -382,12 +470,38 @@ class DiscoveryRepository:
         await self.session.flush()
         return clusters
 
+    async def replace_workspace_clusters(
+        self,
+        workspace_id: UUID,
+        cluster_entries: list[HypothesisCluster],
+    ) -> list[HypothesisCluster]:
+        await self.session.execute(
+            delete(HypothesisCluster).where(
+                HypothesisCluster.workspace_id == workspace_id,
+                HypothesisCluster.session_id.is_(None),
+            )
+        )
+        self.session.add_all(cluster_entries)
+        await self.session.flush()
+        return cluster_entries
+
     async def list_clusters(self, session_id: UUID, workspace_id: UUID) -> list[HypothesisCluster]:
         result = await self.session.execute(
             select(HypothesisCluster)
             .where(
                 HypothesisCluster.session_id == session_id,
                 HypothesisCluster.workspace_id == workspace_id,
+            )
+            .order_by(HypothesisCluster.cluster_label.asc())
+        )
+        return list(result.scalars().all())
+
+    async def list_workspace_clusters(self, workspace_id: UUID) -> list[HypothesisCluster]:
+        result = await self.session.execute(
+            select(HypothesisCluster)
+            .where(
+                HypothesisCluster.workspace_id == workspace_id,
+                HypothesisCluster.session_id.is_(None),
             )
             .order_by(HypothesisCluster.cluster_label.asc())
         )

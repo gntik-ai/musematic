@@ -1,7 +1,10 @@
 replicaCount: 1
 
+fullnameOverride: ""
+nameOverride: ""
+
 image:
-  repository: ghcr.io/andrea-mucci/musematic/sandbox-manager
+  repository: ghcr.io/musematic/sandbox-manager
   tag: latest
   pullPolicy: IfNotPresent
 

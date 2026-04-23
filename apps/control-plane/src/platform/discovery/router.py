@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from platform.common.dependencies import get_current_user
+from platform.common.exceptions import AuthorizationError
 from platform.discovery.dependencies import DiscoveryServiceDep
 from platform.discovery.schemas import (
     ClusterListResponse,
@@ -16,6 +17,10 @@ from platform.discovery.schemas import (
     HypothesisResponse,
     LeaderboardResponse,
     ProvenanceGraphResponse,
+    ProximityGraphResponse,
+    ProximityWorkspaceSettingsResponse,
+    ProximityWorkspaceSettingsUpdateRequest,
+    RecomputeEnqueuedResponse,
     TournamentRoundListResponse,
 )
 from typing import Any
@@ -37,6 +42,21 @@ def _workspace_id(current_user: dict[str, Any], workspace_id: UUID | None) -> UU
     if value is None:
         raise ValueError("workspace_id query parameter is required")
     return UUID(str(value))
+
+
+def _require_configure_role(current_user: dict[str, Any], workspace_id: UUID) -> None:
+    roles = current_user.get("roles", []) or []
+    allowed = {"workspace_admin", "owner", "platform_admin", "superadmin"}
+    for item in roles:
+        role = str(item.get("role", ""))
+        role_workspace = item.get("workspace_id")
+        if role in {"platform_admin", "superadmin"}:
+            return
+        if role in allowed and (
+            role_workspace is None or UUID(str(role_workspace)) == workspace_id
+        ):
+            return
+    raise AuthorizationError("PERMISSION_DENIED", "Permission denied")
 
 
 @router.post(
@@ -280,3 +300,62 @@ async def compute_proximity(
         session_id,
         _workspace_id(current_user, workspace_id),
     )
+
+
+@router.get("/{workspace_id}/proximity-graph", response_model=ProximityGraphResponse)
+async def get_proximity_graph(
+    workspace_id: UUID,
+    service: DiscoveryServiceDep,
+    session_id: UUID | None = Query(default=None),
+    include_edges: bool = Query(default=True),
+    max_nodes: int = Query(default=10_000, ge=1, le=10_000),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> ProximityGraphResponse:
+    del current_user
+    return await service.get_proximity_graph(
+        workspace_id,
+        session_id=session_id,
+        include_edges=include_edges,
+        max_nodes=max_nodes,
+    )
+
+
+@router.get("/{workspace_id}/proximity-settings", response_model=ProximityWorkspaceSettingsResponse)
+async def get_proximity_settings(
+    workspace_id: UUID,
+    service: DiscoveryServiceDep,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> ProximityWorkspaceSettingsResponse:
+    del current_user
+    return await service.get_workspace_proximity_settings(workspace_id)
+
+
+@router.patch(
+    "/{workspace_id}/proximity-settings", response_model=ProximityWorkspaceSettingsResponse
+)
+async def update_proximity_settings(
+    workspace_id: UUID,
+    payload: ProximityWorkspaceSettingsUpdateRequest,
+    service: DiscoveryServiceDep,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> ProximityWorkspaceSettingsResponse:
+    _require_configure_role(current_user, workspace_id)
+    return await service.update_workspace_proximity_settings(
+        workspace_id,
+        payload,
+        _actor_id(current_user),
+    )
+
+
+@router.post(
+    "/{workspace_id}/proximity-graph/recompute",
+    response_model=RecomputeEnqueuedResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def recompute_proximity_graph(
+    workspace_id: UUID,
+    service: DiscoveryServiceDep,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> RecomputeEnqueuedResponse:
+    _require_configure_role(current_user, workspace_id)
+    return await service.enqueue_workspace_recompute(workspace_id, _actor_id(current_user))

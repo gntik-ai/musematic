@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from platform.common.dependencies import get_current_user
-from platform.common.exceptions import ValidationError
+from platform.common.exceptions import AuthorizationError, ValidationError
 from platform.interactions.dependencies import get_interactions_service
 from platform.interactions.models import AttentionStatus, InteractionState
 from platform.interactions.schemas import (
+    AgentDecisionConfigListResponse,
+    AgentDecisionConfigResponse,
+    AgentDecisionConfigUpsert,
     AttentionRequestCreate,
     AttentionRequestListResponse,
     AttentionRequestResponse,
@@ -16,9 +19,13 @@ from platform.interactions.schemas import (
     ConversationListResponse,
     ConversationResponse,
     ConversationUpdate,
+    DecisionRationaleListResponse,
+    DecisionRationaleMessageListResponse,
     GoalMessageCreate,
     GoalMessageListResponse,
     GoalMessageResponse,
+    GoalStateTransitionRequest,
+    GoalStateTransitionResponse,
     InteractionCreate,
     InteractionListResponse,
     InteractionResponse,
@@ -33,6 +40,7 @@ from platform.interactions.schemas import (
 )
 from platform.interactions.service import InteractionsService
 from typing import Any
+from urllib.parse import unquote
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
@@ -68,6 +76,24 @@ def _identity(current_user: dict[str, Any], request: Request) -> str:
     if subject is None:
         raise ValidationError("IDENTITY_REQUIRED", "Authenticated subject is required")
     return str(subject)
+
+
+def _role_names(current_user: dict[str, Any]) -> set[str]:
+    roles = current_user.get("roles", [])
+    return {
+        str(item.get("role"))
+        for item in roles
+        if isinstance(item, dict) and item.get("role") is not None
+    }
+
+
+def _require_roles(current_user: dict[str, Any], accepted: set[str]) -> None:
+    if _role_names(current_user) & accepted:
+        return
+    raise AuthorizationError(
+        "PERMISSION_DENIED",
+        "Insufficient role for interaction endpoint",
+    )
 
 
 @router.post(
@@ -328,11 +354,10 @@ async def post_goal_message(
     current_user: dict[str, Any] = Depends(get_current_user),
     interactions_service: InteractionsService = Depends(get_interactions_service),
 ) -> GoalMessageResponse:
-    del request
     return await interactions_service.post_goal_message(
         goal_id,
         payload,
-        str(current_user["sub"]),
+        _identity(current_user, request),
         workspace_id,
     )
 
@@ -355,6 +380,120 @@ async def list_goal_messages(
         workspace_id,
         page,
         page_size,
+    )
+
+
+@router.post(
+    "/workspaces/{workspace_id}/goals/{goal_id}/transition",
+    response_model=GoalStateTransitionResponse,
+)
+async def transition_goal_state(
+    workspace_id: UUID,
+    goal_id: UUID,
+    payload: GoalStateTransitionRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    interactions_service: InteractionsService = Depends(get_interactions_service),
+) -> GoalStateTransitionResponse:
+    _require_roles(
+        current_user,
+        {"workspace_admin", "workspace_owner", "platform_admin", "superadmin"},
+    )
+    return await interactions_service.transition_goal_state(goal_id, payload, workspace_id)
+
+
+@router.put(
+    "/workspaces/{workspace_id}/agent-decision-configs/{agent_fqn}",
+    response_model=AgentDecisionConfigResponse,
+)
+async def upsert_agent_decision_config(
+    workspace_id: UUID,
+    agent_fqn: str,
+    payload: AgentDecisionConfigUpsert,
+    response: Response,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    interactions_service: InteractionsService = Depends(get_interactions_service),
+) -> AgentDecisionConfigResponse:
+    _require_roles(
+        current_user,
+        {"workspace_admin", "workspace_owner", "platform_admin", "superadmin"},
+    )
+    config_response, created = await interactions_service.upsert_agent_decision_config(
+        workspace_id,
+        unquote(agent_fqn),
+        payload,
+        UUID(str(current_user["sub"])),
+    )
+    if created:
+        response.status_code = status.HTTP_201_CREATED
+    return config_response
+
+
+@router.get(
+    "/workspaces/{workspace_id}/agent-decision-configs",
+    response_model=AgentDecisionConfigListResponse,
+)
+async def list_agent_decision_configs(
+    workspace_id: UUID,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    interactions_service: InteractionsService = Depends(get_interactions_service),
+) -> AgentDecisionConfigListResponse:
+    _require_roles(
+        current_user,
+        {"workspace_admin", "workspace_owner", "platform_admin", "superadmin"},
+    )
+    return await interactions_service.list_agent_decision_configs(
+        workspace_id,
+        UUID(str(current_user["sub"])),
+    )
+
+
+@router.get(
+    "/workspaces/{workspace_id}/goals/{goal_id}/messages/{message_id}/rationale",
+    response_model=DecisionRationaleMessageListResponse,
+)
+async def list_rationale_for_message(
+    workspace_id: UUID,
+    goal_id: UUID,
+    message_id: UUID,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    interactions_service: InteractionsService = Depends(get_interactions_service),
+) -> DecisionRationaleMessageListResponse:
+    _require_roles(
+        current_user,
+        {"workspace_admin", "workspace_owner", "platform_admin", "superadmin"},
+    )
+    return await interactions_service.list_rationale_for_message(
+        goal_id,
+        message_id,
+        workspace_id,
+    )
+
+
+@router.get(
+    "/workspaces/{workspace_id}/goals/{goal_id}/rationale",
+    response_model=DecisionRationaleListResponse,
+)
+async def list_rationale_for_goal(
+    workspace_id: UUID,
+    goal_id: UUID,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=200),
+    agent_fqn: str | None = Query(default=None),
+    decision: str | None = Query(default=None, pattern="^(respond|skip)$"),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    interactions_service: InteractionsService = Depends(get_interactions_service),
+) -> DecisionRationaleListResponse:
+    _require_roles(
+        current_user,
+        {"workspace_admin", "workspace_owner", "platform_admin", "superadmin"},
+    )
+    return await interactions_service.list_rationale_for_goal(
+        goal_id,
+        workspace_id,
+        page,
+        page_size,
+        agent_fqn=unquote(agent_fqn) if agent_fqn is not None else None,
+        decision=decision,
     )
 
 

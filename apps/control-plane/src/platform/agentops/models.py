@@ -11,6 +11,7 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     Float,
+    ForeignKey,
     Index,
     Integer,
     Numeric,
@@ -73,6 +74,32 @@ class AdaptationProposalStatus(StrEnum):
     passed = "passed"
     failed = "failed"
     promoted = "promoted"
+    applied = "applied"
+    rolled_back = "rolled_back"
+    expired = "expired"
+    orphaned = "orphaned"
+    stale = "stale"
+    revoked = "revoked"
+
+
+class ProficiencyLevel(StrEnum):
+    undetermined = "undetermined"
+    novice = "novice"
+    competent = "competent"
+    advanced = "advanced"
+    expert = "expert"
+
+
+class OutcomeClassification(StrEnum):
+    improved = "improved"
+    no_change = "no_change"
+    regressed = "regressed"
+    inconclusive = "inconclusive"
+
+
+class SnapshotType(StrEnum):
+    pre_apply = "pre_apply"
+    post_apply = "post_apply"
 
 
 class AgentHealthConfig(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
@@ -465,6 +492,21 @@ class AdaptationProposal(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
         default=list,
         server_default=text("'[]'::jsonb"),
     )
+    expected_improvement: Mapped[dict[str, object] | None] = mapped_column(
+        postgresql.JSONB,
+        nullable=True,
+    )
+    pre_apply_snapshot_key: Mapped[str | None] = mapped_column(String(length=255), nullable=True)
+    applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    applied_by: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+    rolled_back_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    rolled_back_by: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+    rollback_reason: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_by: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+    revoke_reason: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    signal_source: Mapped[str | None] = mapped_column(String(length=32), nullable=True)
     review_reason: Mapped[str | None] = mapped_column(Text(), nullable=True)
     reviewed_by: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -472,3 +514,102 @@ class AdaptationProposal(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     evaluation_run_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completion_note: Mapped[str | None] = mapped_column(Text(), nullable=True)
+
+
+class AdaptationSnapshot(Base, UUIDMixin, TimestampMixin):
+    __tablename__ = "agentops_adaptation_snapshots"
+    __table_args__ = (
+        Index("ix_agentops_adaptation_snapshots_proposal", "proposal_id"),
+        Index("ix_agentops_adaptation_snapshots_retention", "retention_expires_at"),
+    )
+
+    proposal_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("agentops_adaptation_proposals.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    snapshot_type: Mapped[SnapshotType] = mapped_column(
+        postgresql.ENUM(SnapshotType, name="snapshot_type", create_type=False),
+        nullable=False,
+    )
+    configuration_hash: Mapped[str] = mapped_column(String(length=64), nullable=False)
+    configuration: Mapped[dict[str, object]] = mapped_column(
+        postgresql.JSONB,
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
+    revision_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+    retention_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class AdaptationOutcome(Base, UUIDMixin, TimestampMixin):
+    __tablename__ = "agentops_adaptation_outcomes"
+    __table_args__ = (
+        Index("ix_agentops_adaptation_outcomes_proposal", "proposal_id", unique=True),
+    )
+
+    proposal_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("agentops_adaptation_proposals.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    observation_window_start: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    observation_window_end: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    expected_delta: Mapped[dict[str, object]] = mapped_column(
+        postgresql.JSONB,
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
+    observed_delta: Mapped[dict[str, object]] = mapped_column(
+        postgresql.JSONB,
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
+    classification: Mapped[OutcomeClassification] = mapped_column(
+        postgresql.ENUM(OutcomeClassification, name="outcome_classification", create_type=False),
+        nullable=False,
+    )
+    variance_annotation: Mapped[dict[str, object] | None] = mapped_column(
+        postgresql.JSONB, nullable=True
+    )
+    measured_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utcnow,
+        server_default=func.now(),
+    )
+
+
+class ProficiencyAssessment(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+    __tablename__ = "agentops_proficiency_assessments"
+    __table_args__ = (
+        Index("ix_agentops_proficiency_agent_workspace", "agent_fqn", "workspace_id"),
+        Index("ix_agentops_proficiency_level", "level"),
+    )
+
+    agent_fqn: Mapped[str] = mapped_column(String(length=512), nullable=False)
+    level: Mapped[ProficiencyLevel] = mapped_column(
+        postgresql.ENUM(ProficiencyLevel, name="proficiency_level", create_type=False),
+        nullable=False,
+    )
+    dimension_values: Mapped[dict[str, float]] = mapped_column(
+        postgresql.JSONB,
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
+    observation_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    trigger: Mapped[str] = mapped_column(String(length=32), nullable=False, default="scheduled")
+    assessed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utcnow,
+        server_default=func.now(),
+    )

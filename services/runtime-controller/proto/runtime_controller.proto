@@ -82,17 +82,33 @@ message RuntimeEvent {
   RuntimeState new_state = 7;
 }
 
-message LaunchRuntimeRequest { RuntimeContract contract = 1; }
-message LaunchRuntimeResponse { string runtime_id = 1; RuntimeState state = 2; bool warm_start = 3; }
+message LaunchRuntimeRequest {
+  RuntimeContract contract = 1;
+  bool prefer_warm = 2;
+}
+message LaunchRuntimeResponse {
+  string runtime_id = 1;
+  RuntimeState state = 2;
+  bool warm_start = 3;
+}
 message GetRuntimeRequest { string execution_id = 1; }
 message GetRuntimeResponse { RuntimeInfo runtime = 1; }
 message PauseRuntimeRequest { string execution_id = 1; }
 message PauseRuntimeResponse { RuntimeState state = 1; }
 message ResumeRuntimeRequest { string execution_id = 1; }
 message ResumeRuntimeResponse { RuntimeState state = 1; }
-message StopRuntimeRequest { string execution_id = 1; int32 grace_period_seconds = 2; }
-message StopRuntimeResponse { RuntimeState state = 1; bool force_killed = 2; }
-message StreamRuntimeEventsRequest { string execution_id = 1; google.protobuf.Timestamp since = 2; }
+message StopRuntimeRequest {
+  string execution_id = 1;
+  int32 grace_period_seconds = 2;
+}
+message StopRuntimeResponse {
+  RuntimeState state = 1;
+  bool force_killed = 2;
+}
+message StreamRuntimeEventsRequest {
+  string execution_id = 1;
+  google.protobuf.Timestamp since = 2;
+}
 message CollectRuntimeArtifactsRequest { string execution_id = 1; }
 
 message ArtifactEntry {
@@ -108,6 +124,34 @@ message CollectRuntimeArtifactsResponse {
   bool complete = 2;
 }
 
+message WarmPoolStatusRequest {
+  string workspace_id = 1;
+  string agent_type = 2;
+}
+
+message WarmPoolKeyStatus {
+  string workspace_id = 1;
+  string agent_type = 2;
+  int32 target_size = 3;
+  int32 available_count = 4;
+  int32 dispatched_count = 5;
+  int32 warming_count = 6;
+  google.protobuf.Timestamp last_dispatch_at = 7;
+}
+
+message WarmPoolStatusResponse { repeated WarmPoolKeyStatus keys = 1; }
+
+message WarmPoolConfigRequest {
+  string workspace_id = 1;
+  string agent_type = 2;
+  int32 target_size = 3;
+}
+
+message WarmPoolConfigResponse {
+  bool accepted = 1;
+  string message = 2;
+}
+
 service RuntimeControlService {
   rpc LaunchRuntime(LaunchRuntimeRequest) returns (LaunchRuntimeResponse);
   rpc GetRuntime(GetRuntimeRequest) returns (GetRuntimeResponse);
@@ -116,4 +160,6 @@ service RuntimeControlService {
   rpc StopRuntime(StopRuntimeRequest) returns (StopRuntimeResponse);
   rpc StreamRuntimeEvents(StreamRuntimeEventsRequest) returns (stream RuntimeEvent);
   rpc CollectRuntimeArtifacts(CollectRuntimeArtifactsRequest) returns (CollectRuntimeArtifactsResponse);
+  rpc WarmPoolStatus(WarmPoolStatusRequest) returns (WarmPoolStatusResponse);
+  rpc WarmPoolConfig(WarmPoolConfigRequest) returns (WarmPoolConfigResponse);
 }

@@ -135,7 +135,7 @@ def build_app(
     app.state.clients = {
         "redis": redis_client,
         "kafka": producer or RecordingProducer(),
-        "minio": object_storage or ObjectStorageStub(),
+        "object_storage": object_storage or ObjectStorageStub(),
     }
     app.add_exception_handler(PlatformError, platform_exception_handler)
     app.include_router(router)
@@ -273,7 +273,7 @@ def request_stub(
                 clients={
                     "kafka": producer,
                     "redis": redis_client,
-                    "minio": object_storage,
+                    "object_storage": object_storage,
                 },
             )
         )

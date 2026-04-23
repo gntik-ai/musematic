@@ -183,9 +183,7 @@ class MarketplaceRecommendationService:
             document = await self.search_service._fetch_document(UUID(str(row["id"])))
             if document is None:
                 continue
-            suggestions.append(
-                await self.search_service._assemble_listing(document)
-            )
+            suggestions.append(await self.search_service._assemble_listing(document))
         return ContextualSuggestionResponse(
             suggestions=suggestions,
             has_results=bool(suggestions),

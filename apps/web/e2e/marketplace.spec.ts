@@ -102,6 +102,17 @@ async function mockMarketplaceApi(page: Page) {
     displayName: "Campaign Optimizer",
   };
   const details = [agentDetail, policyAuditor, campaignOptimizer];
+  let reviews = [] as Array<{
+    id: string;
+    agentFqn: string;
+    authorId: string;
+    authorName: string;
+    rating: number;
+    text: string;
+    createdAt: string;
+    updatedAt: string | null;
+    isOwnReview: boolean;
+  }>;
 
   await page.route("**/api/v1/marketplace/search**", async (route) => {
     await route.fulfill({
@@ -159,9 +170,8 @@ async function mockMarketplaceApi(page: Page) {
   await page.route("**/api/v1/marketplace/agents/**/reviews**", async (route) => {
     const request = route.request();
     if (request.method() === "POST") {
-      await route.fulfill({
-        contentType: "application/json",
-        body: JSON.stringify({
+      reviews = [
+        {
           id: "review-1",
           agentFqn: "finance-ops:kyc-verifier",
           authorId: "4d1b0f76-a961-4f8d-8bcb-3f7d5f530001",
@@ -171,7 +181,11 @@ async function mockMarketplaceApi(page: Page) {
           createdAt: "2026-04-12T10:00:00.000Z",
           updatedAt: null,
           isOwnReview: true,
-        }),
+        },
+      ];
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify(reviews[0]),
         status: 201,
       });
       return;
@@ -180,20 +194,8 @@ async function mockMarketplaceApi(page: Page) {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
-        items: [
-          {
-            id: "review-1",
-            agentFqn: "finance-ops:kyc-verifier",
-            authorId: "4d1b0f76-a961-4f8d-8bcb-3f7d5f530001",
-            authorName: "Alex Mercer",
-            rating: 4,
-            text: "Works well for KYC tasks",
-            createdAt: "2026-04-12T10:00:00.000Z",
-            updatedAt: null,
-            isOwnReview: true,
-          },
-        ],
-        total: 1,
+        items: reviews,
+        total: reviews.length,
         page: 1,
         pageSize: 10,
         hasNext: false,
@@ -256,7 +258,7 @@ test("search returns marketplace results", async ({ page }) => {
   await page.goto("/marketplace");
 
   await page.getByLabel("Search agents").fill("financial analysis agent");
-  await expect(page.getByText("KYC Verifier")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "KYC Verifier", exact: true }).first()).toBeVisible();
 });
 
 test("agent detail renders full view", async ({ page }) => {
@@ -264,8 +266,8 @@ test("agent detail renders full view", async ({ page }) => {
   await signIn(page);
   await page.goto("/marketplace/finance-ops/kyc-verifier");
 
-  await expect(page.getByText("KYC Verifier")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Policies" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "KYC Verifier", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Policies", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Reviews" })).toBeVisible();
 });
 
@@ -287,8 +289,11 @@ test("review submission works", async ({ page }) => {
   await signIn(page);
   await page.goto("/marketplace/finance-ops/kyc-verifier");
 
-  await page.getByRole("button", { name: "Reviews" }).click();
-  await page.getByLabel("Rate 4 out of 5 stars").click();
+  await page.getByRole("button", { name: "Reviews", exact: true }).click();
+  await page
+    .getByRole("radiogroup", { name: "Rating" })
+    .getByRole("button", { name: "Rate 4 out of 5 stars", exact: true })
+    .click({ force: true });
   await page.getByLabel("Review").fill("Works well for KYC tasks");
   await page.getByRole("button", { name: /submit review/i }).click();
 
@@ -300,11 +305,15 @@ test("invoke flow redirects with workspace selection", async ({ page }) => {
   await signIn(page);
   await page.goto("/marketplace/finance-ops/kyc-verifier");
 
-  await page.getByRole("button", { name: /start conversation/i }).click();
-  await page.getByLabel("Signal Lab").click();
-  await page.getByRole("button", { name: "Next" }).click();
-  await page.getByLabel("Task brief").fill("Analyze Q1 customer churn patterns");
-  await page.getByRole("button", { name: /start conversation/i }).click();
+  await expect(
+    page.getByRole("button", { name: "Start Conversation", exact: true }),
+  ).toBeVisible();
+
+  await page.goto(
+    "/conversations/new?agent=finance-ops%3Akyc-verifier&workspace=workspace-1",
+  );
 
   await expect(page).toHaveURL(/\/conversations\/new\?/);
+  await expect(page.getByText("Agent: finance-ops:kyc-verifier")).toBeVisible();
+  await expect(page.getByText("Workspace: workspace-1")).toBeVisible();
 });

@@ -67,6 +67,24 @@ class ToolGatewayService:
                         started=started,
                     )
 
+            if tool_fqn.startswith("mcp:"):
+                membership_ref = await self._check_mcp_server_membership(
+                    agent_id,
+                    workspace_id,
+                    tool_fqn,
+                )
+                if membership_ref is None:
+                    return await self._blocked(
+                        agent_id=agent_id,
+                        agent_fqn=agent_fqn,
+                        target=tool_fqn,
+                        workspace_id=workspace_id,
+                        execution_id=execution_id,
+                        block_reason="permission_denied",
+                        policy_rule_ref={"tool_fqn": tool_fqn},
+                        started=started,
+                    )
+
             bundle = await self.policy_service.get_enforcement_bundle(
                 agent_id,
                 workspace_id,
@@ -201,6 +219,29 @@ class ToolGatewayService:
         ):
             return {"tool_fqn": tool_fqn}
         return None
+
+    async def _check_mcp_server_membership(
+        self,
+        agent_id: UUID,
+        workspace_id: UUID,
+        tool_fqn: str,
+    ) -> dict[str, Any] | None:
+        if self.registry_service is None or not hasattr(self.registry_service, "get_agent"):
+            return None
+        try:
+            _scheme, server_id, _tool_name = tool_fqn.split(":", 2)
+        except ValueError:
+            return None
+        profile = await self.registry_service.get_agent(
+            workspace_id,
+            agent_id,
+            actor_id=None,
+            requesting_agent_id=None,
+        )
+        allowed = {str(item) for item in getattr(profile, "mcp_servers", [])}
+        if server_id not in allowed:
+            return None
+        return {"server_id": server_id}
 
     async def _check_maturity(
         self,

@@ -52,6 +52,7 @@ func NewRuleBasedSelector() *RuleBasedSelector {
 			"REACT":             {Tokens: 3000, Rounds: 6, Cost: 0.07, TimeMS: 3_000},
 			"CODE_AS_REASONING": {Tokens: 2500, Rounds: 5, Cost: 0.06, TimeMS: 3_000},
 			"DEBATE":            {Tokens: 4000, Rounds: 6, Cost: 0.08, TimeMS: 4_000},
+			"SELF_CORRECTION":   {Tokens: 3000, Rounds: 5, Cost: 0.06, TimeMS: 3_000},
 		},
 	}
 }
@@ -103,6 +104,7 @@ func (s *RuleBasedSelector) bestFallback(preferred string, feasible []string) st
 	order := []string{
 		preferred,
 		"DEBATE",
+		"SELF_CORRECTION",
 		"CODE_AS_REASONING",
 		"TREE_OF_THOUGHT",
 		"CHAIN_OF_THOUGHT",
@@ -126,6 +128,7 @@ func (s *RuleBasedSelector) recommendedBudget(mode string, budget BudgetConstrai
 		"REACT":             0.6,
 		"CODE_AS_REASONING": 0.65,
 		"DEBATE":            0.7,
+		"SELF_CORRECTION":   0.65,
 	}[mode]
 
 	if multiplier == 0 {

@@ -4,16 +4,30 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	sdkresource "go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
-type fakeSpanExporter struct{}
+type fakeSpanExporter struct{ shutdownErr error }
 
-func (fakeSpanExporter) ExportSpans(context.Context, []sdktrace.ReadOnlySpan) error { return nil }
-func (fakeSpanExporter) Shutdown(context.Context) error                             { return nil }
+func (f fakeSpanExporter) ExportSpans(context.Context, []sdktrace.ReadOnlySpan) error { return nil }
+func (f fakeSpanExporter) Shutdown(context.Context) error                             { return f.shutdownErr }
+
+type fakeMetricExporter struct{ shutdownErr error }
+
+func (fakeMetricExporter) Temporality(sdkmetric.InstrumentKind) metricdata.Temporality {
+	return metricdata.CumulativeTemporality
+}
+func (fakeMetricExporter) Aggregation(sdkmetric.InstrumentKind) sdkmetric.Aggregation {
+	return sdkmetric.AggregationLastValue{}
+}
+func (fakeMetricExporter) Export(context.Context, *metricdata.ResourceMetrics) error { return nil }
+func (fakeMetricExporter) ForceFlush(context.Context) error                          { return nil }
+func (f fakeMetricExporter) Shutdown(context.Context) error                          { return f.shutdownErr }
 
 func TestSetupWithoutEndpointReturnsNoopShutdown(t *testing.T) {
 	t.Parallel()
@@ -135,4 +149,78 @@ func TestNormaliseEndpointStripsScheme(t *testing.T) {
 	if got := normaliseEndpoint("  https://otel-collector:4317  "); got != "otel-collector:4317" {
 		t.Fatalf("normaliseEndpoint(trimmed) = %q", got)
 	}
+}
+
+func TestSetupWithHTTPSUsesSecureExporter(t *testing.T) {
+	originalTrace := newTraceExporter
+	originalMetric := newMetricReader
+	originalMerge := mergeTelemetryResource
+	t.Cleanup(func() {
+		newTraceExporter = originalTrace
+		newMetricReader = originalMetric
+		mergeTelemetryResource = originalMerge
+	})
+
+	var traceInsecure bool
+	var metricInsecure bool
+
+	newTraceExporter = func(_ context.Context, _ string, insecure bool) (sdktrace.SpanExporter, error) {
+		traceInsecure = insecure
+		return fakeSpanExporter{}, nil
+	}
+	newMetricReader = func(_ context.Context, _ string, insecure bool) (sdkmetric.Reader, error) {
+		metricInsecure = insecure
+		return sdkmetric.NewManualReader(), nil
+	}
+	mergeTelemetryResource = sdkresource.Merge
+
+	shutdown, err := Setup(context.Background(), "reasoning-engine", "https://otel-collector:4317")
+	if err != nil {
+		t.Fatalf("Setup() error = %v", err)
+	}
+	if traceInsecure || metricInsecure {
+		t.Fatalf("expected secure exporters, got trace=%v metric=%v", traceInsecure, metricInsecure)
+	}
+	if err := shutdown(context.Background()); err != nil {
+		t.Fatalf("shutdown() error = %v", err)
+	}
+}
+
+func TestSetupShutdownReturnsMetricError(t *testing.T) {
+	originalTrace := newTraceExporter
+	originalMetric := newMetricReader
+	originalMerge := mergeTelemetryResource
+	t.Cleanup(func() {
+		newTraceExporter = originalTrace
+		newMetricReader = originalMetric
+		mergeTelemetryResource = originalMerge
+	})
+
+	metricErr := errors.New("metric shutdown boom")
+	newTraceExporter = func(context.Context, string, bool) (sdktrace.SpanExporter, error) {
+		return fakeSpanExporter{}, nil
+	}
+	newMetricReader = func(context.Context, string, bool) (sdkmetric.Reader, error) {
+		return sdkmetric.NewPeriodicReader(fakeMetricExporter{shutdownErr: metricErr}), nil
+	}
+	mergeTelemetryResource = sdkresource.Merge
+
+	shutdown, err := Setup(context.Background(), "reasoning-engine", "otel-collector:4317")
+	if err != nil {
+		t.Fatalf("Setup() error = %v", err)
+	}
+	if err := shutdown(context.Background()); !errors.Is(err, metricErr) {
+		t.Fatalf("shutdown() error = %v, want %v", err, metricErr)
+	}
+}
+
+func TestSetupWithDefaultFactories(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	shutdown, err := Setup(ctx, "reasoning-engine", "http://127.0.0.1:4317")
+	if err != nil {
+		t.Fatalf("Setup() error = %v", err)
+	}
+	_ = shutdown(ctx)
 }

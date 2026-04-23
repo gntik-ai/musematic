@@ -6,7 +6,17 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from fnmatch import fnmatch
+from platform.a2a_gateway.events import (
+    A2AEventPayload,
+    A2AEventPublisher,
+    A2AEventType,
+    register_a2a_event_types,
+)
+from platform.a2a_gateway.models import A2AAuditRecord, A2ATaskState
+from platform.a2a_gateway.repository import A2AGatewayRepository
+from platform.a2a_gateway.router import router as a2a_gateway_router
 from platform.accounts.events import register_accounts_event_types
+from platform.accounts.repository import AccountsRepository
 from platform.accounts.router import router as accounts_router
 from platform.agentops.dependencies import build_agentops_service
 from platform.agentops.events import register_agentops_event_types
@@ -24,7 +34,10 @@ from platform.api.evaluations import router as evaluations_router
 from platform.api.health import router as health_router
 from platform.api.testing import router as testing_router
 from platform.auth.events import register_auth_event_types
+from platform.auth.ibor_sync import IBORSyncService
+from platform.auth.repository import AuthRepository
 from platform.auth.router import router as auth_router
+from platform.auth.router_oauth import oauth_router
 from platform.common import database
 from platform.common.auth_middleware import AuthMiddleware
 from platform.common.clients.clickhouse import AsyncClickHouseClient
@@ -42,6 +55,7 @@ from platform.common.config import settings as default_settings
 from platform.common.correlation import CorrelationMiddleware
 from platform.common.dependencies import get_current_user
 from platform.common.events.consumer import EventConsumerManager
+from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import PlatformError, platform_exception_handler
 from platform.common.telemetry import setup_telemetry
@@ -59,13 +73,23 @@ from platform.context_engineering.dependencies import build_context_engineering_
 from platform.context_engineering.drift_monitor import DriftMonitorTask
 from platform.context_engineering.events import register_context_engineering_event_types
 from platform.context_engineering.router import router as context_engineering_router
+from platform.discovery.dependencies import build_discovery_service
 from platform.discovery.events import register_discovery_event_types
 from platform.discovery.router import router as discovery_router
-from platform.evaluation.dependencies import build_eval_runner_service, build_robustness_service
+from platform.evaluation.dependencies import (
+    build_eval_runner_service,
+    build_robustness_service,
+    build_rubric_service,
+)
 from platform.evaluation.events import register_evaluation_event_types
 from platform.evaluation.repository import EvaluationRepository
+from platform.evaluation.rubric_templates import RubricTemplateLoader
 from platform.evaluation.scorers.semantic import SemanticSimilarityScorer
-from platform.execution.dependencies import build_execution_service, build_scheduler_service
+from platform.execution.dependencies import (
+    build_checkpoint_service,
+    build_execution_service,
+    build_scheduler_service,
+)
 from platform.execution.events import (
     event_bus_consumer_handler,
     register_execution_consumers,
@@ -73,6 +97,8 @@ from platform.execution.events import (
 )
 from platform.execution.models import ExecutionEventType, ExecutionStatus
 from platform.execution.router import router as execution_router
+from platform.execution.router import runtime_router as execution_runtime_router
+from platform.execution.router import trigger_router as execution_reprioritization_router
 from platform.execution.schemas import ExecutionCreate
 from platform.fleet_learning.dependencies import build_adaptation_service, build_performance_service
 from platform.fleet_learning.router import router as fleet_learning_router
@@ -81,8 +107,13 @@ from platform.fleets.events import register_fleet_event_types
 from platform.fleets.repository import FleetMemberRepository
 from platform.fleets.router import router as fleets_router
 from platform.fleets.service import route_execution_event_to_observers
+from platform.governance.consumers import ObserverSignalConsumer, VerdictConsumer
+from platform.governance.events import register_governance_event_types
+from platform.governance.repository import GovernanceRepository
+from platform.governance.router import router as governance_router
 from platform.interactions.dependencies import build_interactions_service
 from platform.interactions.events import register_interactions_event_types
+from platform.interactions.goal_lifecycle import GoalAutoCompletionScanner
 from platform.interactions.router import router as interactions_router
 from platform.marketplace.dependencies import (
     build_quality_service as build_marketplace_quality_service,
@@ -97,12 +128,19 @@ from platform.marketplace.events import register_marketplace_event_types
 from platform.marketplace.jobs import run_cf_recommendations, run_trending_computation
 from platform.marketplace.repository import MarketplaceRepository
 from platform.marketplace.router import router as marketplace_router
+from platform.mcp.events import register_mcp_event_types
+from platform.mcp.router import router as mcp_router
 from platform.memory.consolidation_worker import ConsolidationWorker, SessionMemoryCleaner
 from platform.memory.dependencies import build_memory_service
 from platform.memory.embedding_worker import EmbeddingWorker
 from platform.memory.events import register_memory_event_types
 from platform.memory.memory_setup import setup_memory_collections
 from platform.memory.router import router as memory_router
+from platform.notifications.consumers.attention_consumer import AttentionConsumer
+from platform.notifications.consumers.state_change_consumer import StateChangeConsumer
+from platform.notifications.dependencies import build_notifications_service
+from platform.notifications.events import register_notifications_event_types
+from platform.notifications.router import router as notifications_router
 from platform.policies.dependencies import build_policy_service
 from platform.policies.events import PolicyEventConsumer, register_policies_event_types
 from platform.policies.router import router as policies_router
@@ -117,12 +155,15 @@ from platform.simulation.events import register_simulation_event_types
 from platform.simulation.router import router as simulation_router
 from platform.testing.dependencies import build_drift_service
 from platform.testing.events import register_testing_event_types
+from platform.testing.router_e2e import router as testing_e2e_router
+from platform.trust.contract_monitor import ContractMonitorConsumer
 from platform.trust.dependencies import (
     build_ate_service,
     build_certification_service,
     build_circuit_breaker_service,
     build_prescreener_service,
     build_recertification_service,
+    build_surveillance_service,
     build_trust_tier_service,
 )
 from platform.trust.events import register_trust_event_types
@@ -136,7 +177,7 @@ from platform.workspaces.dependencies import build_workspaces_service
 from platform.workspaces.events import register_workspaces_event_types
 from platform.workspaces.router import router as workspaces_router
 from typing import Any, cast
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.responses import Response
@@ -154,7 +195,7 @@ def _build_clients(settings: PlatformSettings) -> dict[str, Any]:
         "neo4j": AsyncNeo4jClient.from_settings(settings),
         "clickhouse": AsyncClickHouseClient.from_settings(settings),
         "opensearch": AsyncOpenSearchClient.from_settings(settings),
-        "minio": AsyncObjectStorageClient.from_settings(settings),
+        "object_storage": AsyncObjectStorageClient.from_settings(settings),
         "runtime_controller": RuntimeControllerClient.from_settings(settings),
         "reasoning_engine": ReasoningEngineClient.from_settings(settings),
         "sandbox_manager": SandboxManagerClient.from_settings(settings),
@@ -175,6 +216,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_context_engineering_event_types()
     register_memory_event_types()
     register_interactions_event_types()
+    register_notifications_event_types()
     register_connectors_event_types()
     register_evaluation_event_types()
     register_policies_event_types()
@@ -188,6 +230,9 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_composition_event_types()
     register_discovery_event_types()
     register_simulation_event_types()
+    register_governance_event_types()
+    register_a2a_event_types()
+    register_mcp_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -200,6 +245,20 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             LOGGER.warning("Failed to connect %s during startup: %s", name, exc)
 
     app.state.startup_errors = startup_errors
+    try:
+        async with database.AsyncSessionLocal() as session:
+            rubric_service = build_rubric_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            await RubricTemplateLoader().load_templates(rubric_service)
+            await session.commit()
+    except Exception as exc:
+        app.state.degraded = True
+        startup_errors["evaluation_rubric_templates"] = str(exc)
+        LOGGER.warning("Failed to load evaluation rubric templates: %s", exc)
+
     clickhouse_client = app.state.clients.get("clickhouse")
     if isinstance(clickhouse_client, AsyncClickHouseClient):
         try:
@@ -227,7 +286,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["testing_clickhouse_setup"] = str(exc)
             LOGGER.warning("Failed to run testing ClickHouse setup: %s", exc)
-    object_storage_client = app.state.clients.get("minio")
+    object_storage_client = app.state.clients.get("object_storage")
     if isinstance(object_storage_client, AsyncObjectStorageClient):
         for bucket_name in ("evaluation-ate-evidence", "evaluation-generated-suites"):
             try:
@@ -317,6 +376,26 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             startup_errors["context_engineering_drift_scheduler"] = str(exc)
             LOGGER.warning("Failed to start context engineering scheduler: %s", exc)
     memory_scheduler = getattr(app.state, "memory_scheduler", None)
+    goal_auto_completion_scheduler = getattr(app.state, "goal_auto_completion_scheduler", None)
+    notifications_webhook_retry_scheduler = getattr(
+        app.state,
+        "notifications_webhook_retry_scheduler",
+        None,
+    )
+    notifications_retention_gc_scheduler = getattr(
+        app.state,
+        "notifications_retention_gc_scheduler",
+        None,
+    )
+    governance_retention_gc_scheduler = getattr(
+        app.state,
+        "governance_retention_gc_scheduler",
+        None,
+    )
+    checkpoint_gc_scheduler = getattr(app.state, "checkpoint_gc_scheduler", None)
+    a2a_idle_timeout_scheduler = getattr(app.state, "a2a_idle_timeout_scheduler", None)
+    mcp_catalog_refresh_scheduler = getattr(app.state, "mcp_catalog_refresh_scheduler", None)
+    ibor_sync_scheduler = getattr(app.state, "ibor_sync_scheduler", None)
     connectors_worker_scheduler = getattr(app.state, "connectors_worker_scheduler", None)
     workflow_execution_scheduler = getattr(app.state, "workflow_execution_scheduler", None)
     marketplace_scheduler = getattr(app.state, "marketplace_scheduler", None)
@@ -334,6 +413,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         "robustness_orchestrator_scheduler",
         None,
     )
+    if ibor_sync_scheduler is not None:
+        try:
+            ibor_sync_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["ibor_sync_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start IBOR sync scheduler: %s", exc)
     if memory_scheduler is not None:
         try:
             memory_scheduler.start()
@@ -341,6 +427,55 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["memory_scheduler"] = str(exc)
             LOGGER.warning("Failed to start memory scheduler: %s", exc)
+    if goal_auto_completion_scheduler is not None:
+        try:
+            goal_auto_completion_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["goal_auto_completion_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start goal auto-completion scheduler: %s", exc)
+    if notifications_webhook_retry_scheduler is not None:
+        try:
+            notifications_webhook_retry_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["notifications_webhook_retry_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start notifications webhook retry scheduler: %s", exc)
+    if notifications_retention_gc_scheduler is not None:
+        try:
+            notifications_retention_gc_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["notifications_retention_gc_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start notifications retention GC scheduler: %s", exc)
+    if governance_retention_gc_scheduler is not None:
+        try:
+            governance_retention_gc_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["governance_retention_gc_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start governance retention GC scheduler: %s", exc)
+    if checkpoint_gc_scheduler is not None:
+        try:
+            checkpoint_gc_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["checkpoint_gc_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start checkpoint GC scheduler: %s", exc)
+    if a2a_idle_timeout_scheduler is not None:
+        try:
+            a2a_idle_timeout_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["a2a_idle_timeout_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start A2A idle-timeout scheduler: %s", exc)
+    if mcp_catalog_refresh_scheduler is not None:
+        try:
+            mcp_catalog_refresh_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["mcp_catalog_refresh_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start MCP catalog refresh scheduler: %s", exc)
     if connectors_worker_scheduler is not None:
         try:
             connectors_worker_scheduler.start()
@@ -426,6 +561,26 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                 simulation_prediction_scheduler.shutdown(wait=False)
             except Exception as exc:
                 LOGGER.warning("Failed to stop simulation prediction scheduler cleanly: %s", exc)
+        if checkpoint_gc_scheduler is not None:
+            try:
+                checkpoint_gc_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop checkpoint GC scheduler cleanly: %s", exc)
+        if a2a_idle_timeout_scheduler is not None:
+            try:
+                a2a_idle_timeout_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop A2A idle-timeout scheduler cleanly: %s", exc)
+        if mcp_catalog_refresh_scheduler is not None:
+            try:
+                mcp_catalog_refresh_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop MCP catalog refresh scheduler cleanly: %s", exc)
+        if ibor_sync_scheduler is not None:
+            try:
+                ibor_sync_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop IBOR sync scheduler cleanly: %s", exc)
         if robustness_orchestrator_scheduler is not None:
             try:
                 robustness_orchestrator_scheduler.shutdown(wait=False)
@@ -482,6 +637,38 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                 memory_scheduler.shutdown(wait=False)
             except Exception as exc:
                 LOGGER.warning("Failed to stop memory scheduler cleanly: %s", exc)
+        if goal_auto_completion_scheduler is not None:
+            try:
+                goal_auto_completion_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning(
+                    "Failed to stop goal auto-completion scheduler cleanly: %s",
+                    exc,
+                )
+        if notifications_webhook_retry_scheduler is not None:
+            try:
+                notifications_webhook_retry_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning(
+                    "Failed to stop notifications webhook retry scheduler cleanly: %s",
+                    exc,
+                )
+        if notifications_retention_gc_scheduler is not None:
+            try:
+                notifications_retention_gc_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning(
+                    "Failed to stop notifications retention GC scheduler cleanly: %s",
+                    exc,
+                )
+        if governance_retention_gc_scheduler is not None:
+            try:
+                governance_retention_gc_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning(
+                    "Failed to stop governance retention GC scheduler cleanly: %s",
+                    exc,
+                )
         if context_engineering_scheduler is not None:
             try:
                 context_engineering_scheduler.shutdown(wait=False)
@@ -540,6 +727,11 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.registry_index_worker = None
     app.state.context_engineering_drift_scheduler = None
     app.state.memory_scheduler = None
+    app.state.goal_auto_completion_scheduler = None
+    app.state.notifications_webhook_retry_scheduler = None
+    app.state.notifications_retention_gc_scheduler = None
+    app.state.ibor_sync_scheduler = None
+    app.state.refresh_ibor_sync_scheduler = None
     app.state.connectors_worker_scheduler = None
     app.state.workflow_execution_scheduler = None
     app.state.workflow_scheduler = None
@@ -551,6 +743,19 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.simulation_prediction_scheduler = None
     app.state.robustness_orchestrator_scheduler = None
     app.state.trust_certifier_scheduler = None
+    app.state.governance_retention_gc_scheduler = None
+    app.state.checkpoint_gc_scheduler = None
+    app.state.a2a_idle_timeout_scheduler = None
+    app.state.mcp_catalog_refresh_scheduler = None
+    if resolved.profile == "api":
+        app.state.ibor_sync_scheduler = _build_ibor_sync_scheduler(app)
+        app.state.refresh_ibor_sync_scheduler = lambda: _refresh_ibor_sync_scheduler(app)
+        app.state.notifications_webhook_retry_scheduler = (
+            _build_notifications_webhook_retry_scheduler(app)
+        )
+        app.state.notifications_retention_gc_scheduler = (
+            _build_notifications_retention_gc_scheduler(app)
+        )
     if resolved.profile == "worker":
         app.state.analytics_consumer = AnalyticsPipelineConsumer(
             settings=resolved,
@@ -571,6 +776,11 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.workflow_scheduler = app.state.workflow_execution_scheduler
         app.state.marketplace_scheduler = _build_marketplace_scheduler(app)
         app.state.fleet_learning_scheduler = _build_fleet_learning_scheduler(app)
+        app.state.goal_auto_completion_scheduler = _build_goal_auto_completion_scheduler(app)
+        app.state.governance_retention_gc_scheduler = _build_governance_retention_gc_scheduler(app)
+        app.state.checkpoint_gc_scheduler = _build_checkpoint_gc_scheduler(app)
+        app.state.a2a_idle_timeout_scheduler = _build_a2a_idle_timeout_scheduler(app)
+        app.state.mcp_catalog_refresh_scheduler = _build_mcp_catalog_refresh_scheduler(app)
     if resolved.profile == "agentops":
         app.state.agentops_lifecycle_scheduler = _build_agentops_lifecycle_scheduler(app)
     if resolved.profile == "agentops-testing":
@@ -584,6 +794,12 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.simulation_prediction_scheduler = _build_simulation_prediction_scheduler(app)
     if resolved.profile in {"scheduler", "context-engineering"}:
         app.state.context_engineering_drift_scheduler = _build_context_engineering_scheduler(app)
+    if resolved.profile == "scheduler":
+        app.state.goal_auto_completion_scheduler = _build_goal_auto_completion_scheduler(app)
+        app.state.governance_retention_gc_scheduler = _build_governance_retention_gc_scheduler(app)
+        app.state.checkpoint_gc_scheduler = _build_checkpoint_gc_scheduler(app)
+        app.state.a2a_idle_timeout_scheduler = _build_a2a_idle_timeout_scheduler(app)
+        app.state.mcp_catalog_refresh_scheduler = _build_mcp_catalog_refresh_scheduler(app)
     exception_handler = cast(
         Callable[[Request, Exception], Response | Awaitable[Response]],
         platform_exception_handler,
@@ -602,6 +818,29 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         PolicyEventConsumer(
             invalidate_bundle_by_revision=_build_policy_bundle_invalidator(app),
         ).register(consumer_manager)
+        if resolved.profile == "api":
+            AttentionConsumer(
+                settings=resolved,
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            ).register(consumer_manager)
+            StateChangeConsumer(
+                settings=resolved,
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            ).register(consumer_manager)
+        if resolved.profile == "worker":
+            ObserverSignalConsumer(
+                settings=resolved,
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                registry_service=None,
+            ).register(consumer_manager)
+            VerdictConsumer(
+                settings=resolved,
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                registry_service=None,
+            ).register(consumer_manager)
         if resolved.profile == "agentops":
             consumer_manager.subscribe(
                 "evaluation.events",
@@ -636,7 +875,18 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
                 resolved.connectors.delivery_consumer_group,
                 _build_connector_delivery_handler(app),
             )
+        if resolved.profile == "trust-certifier":
+            build_surveillance_service(
+                session=database.AsyncSessionLocal(),
+                settings=resolved,
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            ).register(consumer_manager)
         if resolved.profile == "worker":
+            ContractMonitorConsumer(
+                settings=resolved,
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                session_factory=database.AsyncSessionLocal,
+            ).register(consumer_manager)
             register_execution_consumers(
                 consumer_manager,
                 group_id=f"{resolved.kafka.consumer_group}-workflow-execution",
@@ -723,6 +973,9 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     if resolved.profile in {"api", "agentops", "composition", "discovery", "simulation"}:
         app.include_router(api_router)
         app.include_router(auth_router)
+        app.include_router(oauth_router)
+        app.include_router(a2a_gateway_router)
+        app.include_router(mcp_router)
         app.include_router(accounts_router)
         app.include_router(workspaces_router)
         app.include_router(analytics_router)
@@ -732,11 +985,17 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(memory_router)
         app.include_router(marketplace_router)
         app.include_router(interactions_router)
+        app.include_router(notifications_router, prefix="/api/v1")
+        app.include_router(governance_router, prefix="/api/v1")
         app.include_router(connectors_router)
         app.include_router(policies_router)
         app.include_router(testing_router)
+        if resolved.feature_e2e_mode:
+            app.include_router(testing_e2e_router)
         app.include_router(workflows_router)
         app.include_router(execution_router)
+        app.include_router(execution_reprioritization_router)
+        app.include_router(execution_runtime_router)
         app.include_router(trust_router, prefix="/api/v1/trust")
         app.include_router(fleets_router)
         app.include_router(fleet_learning_router)
@@ -752,6 +1011,70 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         engine=database.engine,
     )
     return app
+
+
+async def _refresh_ibor_sync_scheduler(app: FastAPI) -> None:
+    scheduler = getattr(app.state, "ibor_sync_scheduler", None)
+    if scheduler is None:
+        return
+
+    for job in scheduler.get_jobs():
+        job_id = str(getattr(job, "id", ""))
+        if job_id.startswith("ibor-sync-"):
+            scheduler.remove_job(job.id)
+
+    async with database.AsyncSessionLocal() as session:
+        connectors = await AuthRepository(session).list_enabled_connectors()
+
+    for connector in connectors:
+        scheduler.add_job(
+            _build_ibor_sync_job(app, connector.id),
+            "interval",
+            seconds=connector.cadence_seconds,
+            id=f"ibor-sync-{connector.id}",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+
+
+def _build_ibor_sync_job(app: FastAPI, connector_id: UUID) -> Callable[[], Awaitable[None]]:
+    async def _run() -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = IBORSyncService(
+                repository=AuthRepository(session),
+                accounts_repository=AccountsRepository(session),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                session_factory=database.AsyncSessionLocal,
+            )
+            try:
+                await service.run_sync(connector_id, triggered_by=None)
+                await session.commit()
+            except Exception as exc:
+                await session.rollback()
+                LOGGER.warning("IBOR sync job failed for connector %s: %s", connector_id, exc)
+
+    return _run
+
+
+def _build_ibor_sync_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except ModuleNotFoundError:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _load_jobs() -> None:
+        await _refresh_ibor_sync_scheduler(app)
+
+    scheduler.add_job(_load_jobs, "date", id="ibor-sync-loader")
+    return scheduler
 
 
 def _build_analytics_budget_scheduler(app: FastAPI) -> Any | None:
@@ -782,6 +1105,356 @@ def _build_analytics_budget_scheduler(app: FastAPI) -> Any | None:
     return scheduler
 
 
+async def _run_notifications_webhook_retry_scan(app: FastAPI) -> None:
+    async with database.AsyncSessionLocal() as session:
+        workspaces_service = build_workspaces_service(
+            session=session,
+            settings=cast(PlatformSettings, app.state.settings),
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            accounts_service=None,
+        )
+        service = build_notifications_service(
+            session=session,
+            settings=cast(PlatformSettings, app.state.settings),
+            redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            workspaces_service=workspaces_service,
+        )
+        try:
+            await service.run_webhook_retry_scan()
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+async def _run_notifications_retention_gc(app: FastAPI) -> None:
+    async with database.AsyncSessionLocal() as session:
+        service = build_notifications_service(
+            session=session,
+            settings=cast(PlatformSettings, app.state.settings),
+            redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            workspaces_service=None,
+        )
+        try:
+            await service.run_retention_gc()
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+def _build_notifications_webhook_retry_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run() -> None:
+        await _run_notifications_webhook_retry_scan(app)
+
+    scheduler.add_job(
+        _run,
+        "interval",
+        seconds=app.state.settings.notifications.retry_scan_interval_seconds,
+        id="notifications-webhook-retry",
+    )
+    return scheduler
+
+
+def _build_notifications_retention_gc_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run() -> None:
+        await _run_notifications_retention_gc(app)
+
+    scheduler.add_job(
+        _run,
+        "interval",
+        hours=app.state.settings.notifications.gc_interval_hours,
+        id="notifications-retention-gc",
+    )
+    return scheduler
+
+
+async def _run_governance_retention_gc(app: FastAPI) -> None:
+    async with database.AsyncSessionLocal() as session:
+        repository = GovernanceRepository(session)
+        try:
+            await repository.delete_expired_verdicts(app.state.settings.governance.retention_days)
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+def _build_governance_retention_gc_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run() -> None:
+        await _run_governance_retention_gc(app)
+
+    scheduler.add_job(
+        _run,
+        "interval",
+        hours=app.state.settings.governance.gc_interval_hours,
+        id="governance-retention-gc",
+    )
+    return scheduler
+
+
+async def _run_checkpoint_gc(app: FastAPI) -> None:
+    async with database.AsyncSessionLocal() as session:
+        checkpoint_service = build_checkpoint_service(
+            session=session,
+            settings=cast(PlatformSettings, app.state.settings),
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+        )
+        try:
+            await checkpoint_service.gc_expired(
+                app.state.settings.checkpoint_retention_days
+            )
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+def _build_checkpoint_gc_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run() -> None:
+        await _run_checkpoint_gc(app)
+
+    scheduler.add_job(
+        _run,
+        "interval",
+        hours=24,
+        id="execution-checkpoint-gc",
+    )
+    return scheduler
+
+
+async def _run_a2a_idle_timeout_scan(app: FastAPI) -> None:
+    async with database.AsyncSessionLocal() as session:
+        repository = A2AGatewayRepository(session)
+        publisher = A2AEventPublisher(cast(EventProducer | None, app.state.clients.get("kafka")))
+        try:
+            tasks = await repository.list_tasks_idle_expired()
+            for task in tasks:
+                await repository.update_task_state(
+                    task,
+                    a2a_state=A2ATaskState.cancelled,
+                    error_code="idle_timeout",
+                    error_message="Task was cancelled after waiting for follow-up input.",
+                    idle_timeout_at=None,
+                )
+                audit = await repository.create_audit_record(
+                    A2AAuditRecord(
+                        task_id=task.id,
+                        direction=task.direction,
+                        principal_id=task.principal_id,
+                        agent_fqn=task.agent_fqn,
+                        action="task_cancelled",
+                        result="success",
+                        workspace_id=task.workspace_id,
+                        error_code="idle_timeout",
+                    )
+                )
+                await repository.update_task_state(task, last_event_id=str(audit.id))
+                await publisher.publish(
+                    event_type=A2AEventType.task_cancelled,
+                    key=task.task_id,
+                    payload=A2AEventPayload(
+                        task_id=task.task_id,
+                        workspace_id=task.workspace_id,
+                        principal_id=task.principal_id,
+                        agent_fqn=task.agent_fqn,
+                        state=task.a2a_state.value,
+                        direction=task.direction.value,
+                        details={
+                            "action": "task_cancelled",
+                            "error_code": "idle_timeout",
+                        },
+                    ),
+                    correlation_ctx=CorrelationContext(
+                        workspace_id=task.workspace_id,
+                        conversation_id=task.conversation_id,
+                        interaction_id=task.interaction_id,
+                        agent_fqn=task.agent_fqn,
+                        correlation_id=uuid4(),
+                    ),
+                )
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+def _build_a2a_idle_timeout_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run() -> None:
+        await _run_a2a_idle_timeout_scan(app)
+
+    scheduler.add_job(
+        _run,
+        "interval",
+        minutes=5,
+        id="a2a-idle-timeout-scan",
+    )
+    return scheduler
+
+
+def _build_mcp_catalog_refresh_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run() -> None:
+        from platform.mcp.dependencies import build_mcp_service, build_mcp_tool_registry
+        from platform.policies.dependencies import build_tool_gateway_service
+
+        async with database.AsyncSessionLocal() as session:
+            workspaces_service = build_workspaces_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                accounts_service=None,
+            )
+            registry_service = build_registry_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                object_storage=cast(
+                    AsyncObjectStorageClient,
+                    app.state.clients["object_storage"],
+                ),
+                opensearch=cast(AsyncOpenSearchClient, app.state.clients["opensearch"]),
+                qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
+                workspaces_service=workspaces_service,
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            tool_gateway = build_tool_gateway_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                registry_service=registry_service,
+                workspaces_service=workspaces_service,
+                reasoning_client=cast(
+                    ReasoningEngineClient | None,
+                    app.state.clients.get("reasoning_engine"),
+                ),
+            )
+            service = build_mcp_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+            )
+            build_mcp_tool_registry(
+                mcp_service=service,
+                settings=cast(PlatformSettings, app.state.settings),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                tool_gateway=tool_gateway,
+            )
+            try:
+                await service.refresh_due_catalogs()
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("MCP catalog refresh scheduler failed")
+
+    scheduler.add_job(
+        _run,
+        "interval",
+        seconds=60,
+        id="mcp-catalog-refresh",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    return scheduler
+
+
+def _build_goal_auto_completion_scheduler(app: FastAPI) -> Any | None:
+    if not app.state.settings.FEATURE_GOAL_AUTO_COMPLETE:
+        return None
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run_goal_auto_completion() -> None:
+        async with database.AsyncSessionLocal() as session:
+            try:
+                scanner = GoalAutoCompletionScanner(
+                    producer=cast(EventProducer | None, app.state.clients.get("kafka"))
+                )
+                await scanner.scan_and_complete_idle_goals(session)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                raise
+
+    scheduler.add_job(
+        _run_goal_auto_completion,
+        "interval",
+        seconds=app.state.settings.interactions.goal_auto_complete_scan_interval_seconds,
+        id="goal-auto-completion",
+    )
+    return scheduler
+
+
 def _build_context_engineering_scheduler(app: FastAPI) -> Any | None:
     try:
         scheduler_module = __import__(
@@ -800,71 +1473,88 @@ def _build_context_engineering_scheduler(app: FastAPI) -> Any | None:
         minute=f"*/{app.state.settings.context_engineering.drift_schedule_minutes}",
     )
 
+    async def _build_context_engineering_runtime(session: Any) -> Any:
+        workspaces_service = build_workspaces_service(
+            session=session,
+            settings=cast(PlatformSettings, app.state.settings),
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            accounts_service=None,
+        )
+        registry_service = build_registry_service(
+            session=session,
+            settings=cast(PlatformSettings, app.state.settings),
+            object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
+            opensearch=cast(AsyncOpenSearchClient, app.state.clients["opensearch"]),
+            qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
+            workspaces_service=workspaces_service,
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+        )
+        memory_service = build_memory_service(
+            session=session,
+            settings=cast(PlatformSettings, app.state.settings),
+            qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
+            neo4j=cast(AsyncNeo4jClient, app.state.clients["neo4j"]),
+            redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            workspaces_service=workspaces_service,
+            registry_service=registry_service,
+        )
+        interactions_service = build_interactions_service(
+            session=session,
+            settings=cast(PlatformSettings, app.state.settings),
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            qdrant=cast(AsyncQdrantClient | None, app.state.clients.get("qdrant")),
+            workspaces_service=workspaces_service,
+            registry_service=registry_service,
+        )
+        return build_context_engineering_service(
+            session=session,
+            settings=cast(PlatformSettings, app.state.settings),
+            clickhouse_client=cast(AsyncClickHouseClient, app.state.clients["clickhouse"]),
+            object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            workspaces_service=workspaces_service,
+            registry_service=registry_service,
+            execution_service=None,
+            interactions_service=interactions_service,
+            memory_service=memory_service,
+            connectors_service=None,
+            policies_service=build_policy_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                registry_service=registry_service,
+                workspaces_service=workspaces_service,
+                reasoning_client=cast(
+                    ReasoningEngineClient | None,
+                    app.state.clients.get("reasoning_engine"),
+                ),
+            ),
+        )
+
     async def _run_drift_analysis() -> None:
         async with database.AsyncSessionLocal() as session:
-            workspaces_service = build_workspaces_service(
-                session=session,
-                settings=cast(PlatformSettings, app.state.settings),
-                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
-                accounts_service=None,
-            )
-            registry_service = build_registry_service(
-                session=session,
-                settings=cast(PlatformSettings, app.state.settings),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
-                opensearch=cast(AsyncOpenSearchClient, app.state.clients["opensearch"]),
-                qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
-                workspaces_service=workspaces_service,
-                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
-            )
-            memory_service = build_memory_service(
-                session=session,
-                settings=cast(PlatformSettings, app.state.settings),
-                qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
-                neo4j=cast(AsyncNeo4jClient, app.state.clients["neo4j"]),
-                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
-                workspaces_service=workspaces_service,
-                registry_service=registry_service,
-            )
-            interactions_service = build_interactions_service(
-                session=session,
-                settings=cast(PlatformSettings, app.state.settings),
-                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
-                workspaces_service=workspaces_service,
-                registry_service=registry_service,
-            )
-            service = build_context_engineering_service(
-                session=session,
-                settings=cast(PlatformSettings, app.state.settings),
-                clickhouse_client=cast(AsyncClickHouseClient, app.state.clients["clickhouse"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
-                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
-                workspaces_service=workspaces_service,
-                registry_service=registry_service,
-                execution_service=None,
-                interactions_service=interactions_service,
-                memory_service=memory_service,
-                connectors_service=None,
-                policies_service=build_policy_service(
-                    session=session,
-                    settings=cast(PlatformSettings, app.state.settings),
-                    producer=cast(EventProducer | None, app.state.clients.get("kafka")),
-                    redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                    registry_service=registry_service,
-                    workspaces_service=workspaces_service,
-                    reasoning_client=cast(
-                        ReasoningEngineClient | None,
-                        app.state.clients.get("reasoning_engine"),
-                    ),
-                ),
-            )
+            service = await _build_context_engineering_runtime(session)
             await DriftMonitorTask(service).run()
+
+    async def _run_correlation_recompute() -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = await _build_context_engineering_runtime(session)
+            await service.run_correlation_recompute()
+            await session.commit()
 
     scheduler.add_job(
         _run_drift_analysis,
         trigger,
         id="context-engineering-drift-analysis",
+    )
+    scheduler.add_job(
+        _run_correlation_recompute,
+        "interval",
+        hours=app.state.settings.context_engineering.correlation_recompute_interval_hours,
+        id="context-engineering-correlation-recompute",
+        replace_existing=True,
     )
     return scheduler
 
@@ -880,17 +1570,33 @@ def _build_discovery_proximity_scheduler(app: FastAPI) -> Any | None:
 
     scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
 
-    async def _drain_cycle_completed_queue() -> None:
-        # Actual cycle-completed events are delivered through Kafka. This periodic
-        # job is intentionally lightweight and keeps the discovery runtime profile
-        # ready for queued proximity work without scanning unrelated tables.
-        return None
+    async def _run_workspace_proximity_recompute() -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = build_discovery_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                qdrant=cast(AsyncQdrantClient | None, app.state.clients.get("qdrant")),
+                neo4j=cast(AsyncNeo4jClient | None, app.state.clients.get("neo4j")),
+                sandbox_client=cast(
+                    SandboxManagerClient | None,
+                    app.state.clients.get("sandbox_manager"),
+                ),
+            )
+            try:
+                await service.workspace_proximity_recompute_task()
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Discovery proximity scheduler failed")
 
     scheduler.add_job(
-        _drain_cycle_completed_queue,
+        _run_workspace_proximity_recompute,
         "interval",
-        seconds=60,
+        minutes=app.state.settings.discovery.proximity_graph_recompute_interval_minutes,
         id="discovery-proximity-clustering",
+        replace_existing=True,
     )
     return scheduler
 
@@ -961,7 +1667,7 @@ def _build_memory_scheduler(app: FastAPI) -> Any | None:
             registry_service = build_registry_service(
                 session=session,
                 settings=cast(PlatformSettings, app.state.settings),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 opensearch=cast(AsyncOpenSearchClient, app.state.clients["opensearch"]),
                 qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
                 workspaces_service=workspaces_service,
@@ -994,7 +1700,7 @@ def _build_memory_scheduler(app: FastAPI) -> Any | None:
             registry_service = build_registry_service(
                 session=session,
                 settings=cast(PlatformSettings, app.state.settings),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 opensearch=cast(AsyncOpenSearchClient, app.state.clients["opensearch"]),
                 qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
                 workspaces_service=workspaces_service,
@@ -1028,7 +1734,7 @@ def _build_memory_scheduler(app: FastAPI) -> Any | None:
             registry_service = build_registry_service(
                 session=session,
                 settings=cast(PlatformSettings, app.state.settings),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 opensearch=cast(AsyncOpenSearchClient, app.state.clients["opensearch"]),
                 qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
                 workspaces_service=workspaces_service,
@@ -1100,7 +1806,7 @@ def _build_workflow_execution_scheduler(app: FastAPI) -> Any | None:
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 runtime_controller=cast(
                     RuntimeControllerClient | None,
                     app.state.clients.get("runtime_controller"),
@@ -1168,7 +1874,7 @@ def _build_workflow_execution_scheduler(app: FastAPI) -> Any | None:
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 runtime_controller=cast(
                     RuntimeControllerClient | None,
                     app.state.clients.get("runtime_controller"),
@@ -1194,7 +1900,7 @@ def _build_workflow_execution_scheduler(app: FastAPI) -> Any | None:
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 runtime_controller=cast(
                     RuntimeControllerClient | None,
                     app.state.clients.get("runtime_controller"),
@@ -1237,7 +1943,7 @@ def _build_workflow_runtime_handler(app: FastAPI) -> Callable[[Any], Awaitable[N
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 runtime_controller=cast(
                     RuntimeControllerClient | None,
                     app.state.clients.get("runtime_controller"),
@@ -1328,7 +2034,7 @@ def _build_reprioritization_handler(
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 runtime_controller=cast(
                     RuntimeControllerClient | None,
                     app.state.clients.get("runtime_controller"),
@@ -1375,7 +2081,7 @@ def _build_workspace_goal_handler(app: FastAPI) -> Callable[[Any], Awaitable[Non
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 runtime_controller=cast(
                     RuntimeControllerClient | None,
                     app.state.clients.get("runtime_controller"),
@@ -1434,7 +2140,7 @@ def _build_event_bus_handler(app: FastAPI) -> Callable[[Any], Awaitable[None]]:
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 runtime_controller=cast(
                     RuntimeControllerClient | None,
                     app.state.clients.get("runtime_controller"),
@@ -1472,7 +2178,7 @@ def _build_connector_delivery_handler(
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
             )
             try:
                 await service.execute_delivery(UUID(str(delivery_id)))
@@ -1501,7 +2207,7 @@ def _build_policy_bundle_invalidator(
             registry_service = build_registry_service(
                 session=session,
                 settings=cast(PlatformSettings, app.state.settings),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 opensearch=cast(AsyncOpenSearchClient, app.state.clients["opensearch"]),
                 qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
                 workspaces_service=workspaces_service,
@@ -1732,6 +2438,24 @@ def _build_agentops_lifecycle_scheduler(app: FastAPI) -> Any | None:
     async def _run_recertification_grace() -> None:
         await _run_handler("recertification_grace_period_scanner_task")
 
+    async def _run_ttl_scanner() -> None:
+        await _run_handler("ttl_scanner_task")
+
+    async def _run_orphan_scanner() -> None:
+        await _run_handler("orphan_scanner_task")
+
+    async def _run_outcome_measurer() -> None:
+        await _run_handler("outcome_measurer_task")
+
+    async def _run_signal_poll() -> None:
+        await _run_handler("signal_poll_task")
+
+    async def _run_proficiency_recompute() -> None:
+        await _run_handler("proficiency_recomputer_task")
+
+    async def _run_snapshot_retention_gc() -> None:
+        await _run_handler("snapshot_retention_gc_task")
+
     scheduler.add_job(
         _run_health_scores,
         "interval",
@@ -1758,6 +2482,48 @@ def _build_agentops_lifecycle_scheduler(app: FastAPI) -> Any | None:
         "interval",
         hours=1,
         id="agentops-recertification-grace",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _run_ttl_scanner,
+        "interval",
+        hours=1,
+        id="agentops-adaptation-ttl",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _run_orphan_scanner,
+        "interval",
+        hours=1,
+        id="agentops-adaptation-orphan",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _run_outcome_measurer,
+        "interval",
+        hours=1,
+        id="agentops-adaptation-outcome",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _run_signal_poll,
+        "interval",
+        minutes=app.state.settings.agentops.adaptation_signal_poll_interval_minutes,
+        id="agentops-adaptation-signal-poll",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _run_proficiency_recompute,
+        "interval",
+        hours=24,
+        id="agentops-proficiency-recompute",
+        replace_existing=True,
+    )
+    scheduler.add_job(
+        _run_snapshot_retention_gc,
+        "interval",
+        hours=24,
+        id="agentops-snapshot-retention-gc",
         replace_existing=True,
     )
     return scheduler
@@ -1827,7 +2593,7 @@ def _build_robustness_orchestrator_scheduler(app: FastAPI) -> Any | None:
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 runtime_controller=cast(
                     RuntimeControllerClient | None,
                     app.state.clients.get("runtime_controller"),
@@ -1913,7 +2679,7 @@ async def _load_trust_runtime_assets(app: FastAPI) -> None:
             settings=cast(PlatformSettings, app.state.settings),
             producer=cast(EventProducer | None, app.state.clients.get("kafka")),
             redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-            object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+            object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
         )
         await prescreener_service.load_active_rules()
         circuit_breaker_service = build_circuit_breaker_service(
@@ -1978,7 +2744,7 @@ def _build_trust_certifier_scheduler(app: FastAPI) -> Any | None:
             service = build_ate_service(
                 session=session,
                 settings=cast(PlatformSettings, app.state.settings),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 simulation_controller=cast(
                     SimulationControllerClient | None,
                     app.state.clients.get("simulation_controller"),
@@ -1992,7 +2758,47 @@ def _build_trust_certifier_scheduler(app: FastAPI) -> Any | None:
                 await session.rollback()
                 LOGGER.exception("Trust ATE timeout scan failed")
 
+    async def _run_surveillance_cycle() -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = build_surveillance_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            try:
+                await service.run_surveillance_cycle()
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Trust surveillance cycle failed")
+
+    async def _run_grace_period_check() -> None:
+        async with database.AsyncSessionLocal() as session:
+            service = build_surveillance_service(
+                session=session,
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            try:
+                await service.check_grace_period_expiry()
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Trust grace period expiry scan failed")
+
     scheduler.add_job(_run_expire_stale, "interval", hours=1, id="trust-expire-stale")
+    scheduler.add_job(
+        _run_surveillance_cycle,
+        "interval",
+        hours=1,
+        id="trust-surveillance-cycle",
+    )
+    scheduler.add_job(
+        _run_grace_period_check,
+        "interval",
+        hours=1,
+        id="trust-grace-period-check",
+    )
     scheduler.add_job(
         _run_expiry_approaching_scan,
         cron_trigger(hour=0, minute=5, timezone="UTC"),
@@ -2144,7 +2950,7 @@ def _build_trust_simulation_handler(app: FastAPI) -> Callable[[Any], Awaitable[N
             service = build_ate_service(
                 session=session,
                 settings=cast(PlatformSettings, app.state.settings),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
                 simulation_controller=cast(
                     SimulationControllerClient | None,
                     app.state.clients.get("simulation_controller"),
@@ -2190,7 +2996,7 @@ def _build_trust_prescreener_handler(app: FastAPI) -> Callable[[Any], Awaitable[
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
             )
             try:
                 await service.handle_rule_set_activated(payload)
@@ -2319,7 +3125,7 @@ def _build_connectors_worker_scheduler(app: FastAPI) -> Any | None:
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
             )
             try:
                 await RetryScanner(service).run()
@@ -2335,7 +3141,7 @@ def _build_connectors_worker_scheduler(app: FastAPI) -> Any | None:
                 settings=cast(PlatformSettings, app.state.settings),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-                object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+                object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
             )
             try:
                 await EmailPollingJob(service.poll_email_connectors).run()

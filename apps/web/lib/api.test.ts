@@ -228,4 +228,22 @@ describe("createApiClient", () => {
     const headers = fetchSpy.mock.calls[0]?.[1]?.headers as Headers;
     expect(headers.get("Authorization")).toBeNull();
   });
+
+  it("normalizes JSON payloads without an error envelope as unknown errors", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ message: "plain failure" }), {
+        status: 500,
+        statusText: "Internal Server Error",
+      }),
+    );
+
+    const client = createApiClient("https://api.example.com");
+
+    await expect(client.get("/json-without-envelope")).rejects.toEqual(
+      expect.objectContaining<Partial<ApiError>>({
+        code: "unknown_error",
+        status: 500,
+      }),
+    );
+  });
 });

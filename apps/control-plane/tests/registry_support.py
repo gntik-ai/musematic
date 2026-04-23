@@ -168,6 +168,7 @@ def build_profile(
     visibility_agents: list[str] | None = None,
     visibility_tools: list[str] | None = None,
     tags: list[str] | None = None,
+    mcp_server_refs: list[str] | None = None,
     status: LifecycleStatus = LifecycleStatus.draft,
     maturity_level: int = 1,
     embedding_status: EmbeddingStatus = EmbeddingStatus.pending,
@@ -191,6 +192,7 @@ def build_profile(
         visibility_agents=visibility_agents or [],
         visibility_tools=visibility_tools or [],
         tags=tags or ["kyc", "finance"],
+        mcp_server_refs=mcp_server_refs or [],
         status=status,
         maturity_level=maturity_level,
         embedding_status=embedding_status,
@@ -359,7 +361,12 @@ class ExecuteResultStub:
         return self.one
 
     def scalars(self) -> SimpleNamespace:
-        return SimpleNamespace(all=lambda: list(self.many))
+        values = list(self.many)
+        first_value = values[0] if values else self.one
+        return SimpleNamespace(
+            all=lambda: values,
+            first=lambda: first_value,
+        )
 
 
 @dataclass
@@ -614,18 +621,20 @@ class RegistryRepoStub:
         role_types: list[str],
         custom_role_description: str | None,
         tags: list[str],
+        mcp_server_refs: list[str] | None = None,
         maturity_level: int,
         actor_id: UUID,
     ) -> tuple[AgentProfile, bool]:
         key = (workspace_id, f"{namespace.name}:{local_name}")
         existing = self.profiles_by_fqn.get(key)
-        if existing is not None:
+        if existing is not None and existing.status is not LifecycleStatus.decommissioned:
             existing.display_name = display_name
             existing.purpose = purpose
             existing.approach = approach
             existing.role_types = role_types
             existing.custom_role_description = custom_role_description
             existing.tags = tags
+            existing.mcp_server_refs = list(mcp_server_refs or [])
             existing.maturity_level = maturity_level
             existing.embedding_status = EmbeddingStatus.pending
             return existing, False
@@ -640,6 +649,7 @@ class RegistryRepoStub:
             role_types=role_types,
             custom_role_description=custom_role_description,
             tags=tags,
+            mcp_server_refs=list(mcp_server_refs or []),
             maturity_level=maturity_level,
             created_by=actor_id,
         )
@@ -648,6 +658,17 @@ class RegistryRepoStub:
         return profile, True
 
     async def update_agent_profile(self, profile: AgentProfile, **fields: Any) -> AgentProfile:
+        from platform.registry.exceptions import DecommissionImmutableError
+
+        immutable_fields = [
+            key
+            for key in ("decommissioned_at", "decommission_reason", "decommissioned_by")
+            if key in fields
+            and getattr(profile, key) is not None
+            and fields[key] != getattr(profile, key)
+        ]
+        if immutable_fields:
+            raise DecommissionImmutableError(immutable_fields)
         for key, value in fields.items():
             setattr(profile, key, value)
         profile.updated_at = datetime.now(UTC)
@@ -659,11 +680,29 @@ class RegistryRepoStub:
             return None
         return profile
 
-    async def get_agent_by_fqn(self, workspace_id: UUID, fqn: str) -> AgentProfile | None:
-        return self.profiles_by_fqn.get((workspace_id, fqn))
+    async def get_agent_by_id_any(self, agent_id: UUID) -> AgentProfile | None:
+        return self.profiles_by_id.get(agent_id)
+
+    async def get_agent_by_fqn(
+        self,
+        workspace_id: UUID,
+        fqn: str,
+        *,
+        include_decommissioned: bool = False,
+    ) -> AgentProfile | None:
+        profile = self.profiles_by_fqn.get((workspace_id, fqn))
+        if profile is None:
+            return None
+        if not include_decommissioned and profile.status is LifecycleStatus.decommissioned:
+            return None
+        return profile
 
     async def get_by_fqn(self, workspace_id: UUID, fqn: str) -> AgentProfile | None:
-        return await self.get_agent_by_fqn(workspace_id, fqn)
+        return await self.get_agent_by_fqn(
+            workspace_id,
+            fqn,
+            include_decommissioned=True,
+        )
 
     async def list_agents_by_workspace(
         self,
@@ -674,6 +713,7 @@ class RegistryRepoStub:
         limit: int,
         offset: int,
         visibility_filter: Any | None = None,
+        include_decommissioned: bool = False,
     ) -> tuple[list[AgentProfile], int]:
         profiles = [
             profile
@@ -681,6 +721,7 @@ class RegistryRepoStub:
             if profile.workspace_id == workspace_id
             and profile.maturity_level >= maturity_min
             and (status is None or profile.status == status)
+            and (include_decommissioned or profile.status is not LifecycleStatus.decommissioned)
             and (
                 visibility_filter is None
                 or _matches_visibility_patterns(
@@ -750,6 +791,22 @@ class RegistryRepoStub:
 
     async def list_revisions(self, agent_profile_id: UUID) -> list[AgentRevision]:
         return list(self.revisions_by_profile.get(agent_profile_id, []))
+
+    async def persist_decommission(
+        self,
+        profile: AgentProfile,
+        *,
+        reason: str,
+        actor_id: UUID,
+    ) -> AgentProfile:
+        if profile.status is LifecycleStatus.decommissioned:
+            return profile
+        profile.status = LifecycleStatus.decommissioned
+        profile.decommissioned_at = datetime.now(UTC)
+        profile.decommission_reason = reason
+        profile.decommissioned_by = actor_id
+        profile.updated_at = datetime.now(UTC)
+        return profile
 
     async def insert_maturity_record(
         self,
@@ -944,6 +1001,36 @@ class RouterRegistryServiceStub:
     ) -> AgentProfileResponse:
         self._record("transition_lifecycle", workspace_id, agent_id, payload, actor_id)
         return build_profile_response(self.profile, self.revision)
+
+    async def decommission_agent(
+        self,
+        workspace_id: UUID,
+        agent_id: UUID,
+        reason: str,
+        actor_id: UUID,
+        runtime_controller: Any | None,
+        *,
+        actor_is_platform_admin: bool = False,
+    ):
+        del runtime_controller
+        self._record(
+            "decommission_agent",
+            workspace_id,
+            agent_id,
+            reason,
+            actor_id,
+            actor_is_platform_admin,
+        )
+        from platform.registry.schemas import AgentDecommissionResponse
+
+        return AgentDecommissionResponse(
+            agent_id=self.profile.id,
+            agent_fqn=self.profile.fqn,
+            decommissioned_at=self.profile.updated_at,
+            decommission_reason=reason,
+            decommissioned_by=actor_id,
+            active_instances_stopped=0,
+        )
 
     async def update_maturity(
         self,

@@ -27,6 +27,7 @@ import (
 	"github.com/andrea-mucci/musematic/services/runtime-controller/pkg/telemetry"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
 	"github.com/redis/go-redis/v9"
@@ -75,15 +76,32 @@ func run() error {
 	if err := state.RunMigrations(ctx, store.Pool()); err != nil {
 		return err
 	}
-	awsCfg, err := awsconfig.LoadDefaultConfig(ctx)
+	for targetKey, targetSize := range cfg.WarmPoolTargets {
+		workspaceID, agentType := splitTargetKey(targetKey)
+		if workspaceID == "" || agentType == "" {
+			continue
+		}
+		if err := store.EnsureWarmPoolTarget(ctx, workspaceID, agentType, targetSize); err != nil {
+			return err
+		}
+	}
+	loadOptions := []func(*awsconfig.LoadOptions) error{awsconfig.WithRegion(cfg.S3Region)}
+	if cfg.S3AccessKey != "" && cfg.S3SecretKey != "" {
+		loadOptions = append(loadOptions, awsconfig.WithCredentialsProvider(
+			credentials.NewStaticCredentialsProvider(cfg.S3AccessKey, cfg.S3SecretKey, ""),
+		))
+	}
+	awsCfg, err := awsconfig.LoadDefaultConfig(ctx, loadOptions...)
 	if err != nil {
 		return err
 	}
 	s3Client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
-		o.BaseEndpoint = aws.String(cfg.MinIOEndpoint)
-		o.UsePathStyle = true
+		if cfg.S3EndpointURL != "" {
+			o.BaseEndpoint = aws.String(cfg.S3EndpointURL)
+		}
+		o.UsePathStyle = cfg.S3UsePathStyle
 	})
-	store.TaskPlanUploader = state.S3TaskPlanUploader{Client: s3Client, Bucket: cfg.MinIOBucket}
+	store.TaskPlanUploader = state.S3TaskPlanUploader{Client: s3Client, Bucket: cfg.S3Bucket}
 
 	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
 	defer func() {
@@ -214,4 +232,13 @@ func run() error {
 
 func toPort(port int) string {
 	return strconv.Itoa(port)
+}
+
+func splitTargetKey(value string) (string, string) {
+	for i := 0; i < len(value); i++ {
+		if value[i] == '/' {
+			return value[:i], value[i+1:]
+		}
+	}
+	return value, ""
 }

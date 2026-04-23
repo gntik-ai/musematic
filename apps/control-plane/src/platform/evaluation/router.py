@@ -15,21 +15,34 @@ from platform.evaluation.ate_service import ATEService
 from platform.evaluation.dependencies import (
     build_ab_experiment_service,
     build_ate_service,
+    build_calibration_service,
     build_eval_runner_service,
     build_robustness_service,
+    build_rubric_service,
+    build_scorer_registry,
     get_ab_experiment_service,
     get_ate_service,
+    get_calibration_service,
     get_eval_runner_service,
     get_eval_suite_service,
     get_human_grading_service,
     get_robustness_service,
+    get_rubric_service,
 )
 from platform.evaluation.human_grading_service import HumanGradingService
-from platform.evaluation.models import ATERunStatus, EvalSetStatus, RunStatus, VerdictStatus
+from platform.evaluation.models import (
+    ATERunStatus,
+    EvalSetStatus,
+    RubricStatus,
+    RunStatus,
+    VerdictStatus,
+)
 from platform.evaluation.robustness_service import RobustnessTestService
 from platform.evaluation.schemas import (
     AbExperimentCreate,
     AbExperimentResponse,
+    AdHocJudgeRequest,
+    AdHocJudgeResponse,
     ATEConfigCreate,
     ATEConfigListResponse,
     ATEConfigResponse,
@@ -40,6 +53,8 @@ from platform.evaluation.schemas import (
     BenchmarkCaseCreate,
     BenchmarkCaseListResponse,
     BenchmarkCaseResponse,
+    CalibrationRunCreate,
+    CalibrationRunResponse,
     EvalSetCreate,
     EvalSetListResponse,
     EvalSetResponse,
@@ -55,8 +70,20 @@ from platform.evaluation.schemas import (
     ReviewProgressResponse,
     RobustnessRunCreate,
     RobustnessTestRunResponse,
+    RubricCreate,
+    RubricListResponse,
+    RubricResponse,
+    RubricTemplateListResponse,
+    RubricTemplateSummary,
+    RubricUpdate,
+    ScorerTypeListResponse,
 )
-from platform.evaluation.service import EvalRunnerService, EvalSuiteService
+from platform.evaluation.service import (
+    CalibrationService,
+    EvalRunnerService,
+    EvalSuiteService,
+    RubricService,
+)
 from platform.execution.dependencies import build_execution_service
 from typing import Any, cast
 from uuid import UUID
@@ -114,7 +141,7 @@ def _build_execution_query(app: FastAPI, session: Any) -> Any:
         settings=cast(PlatformSettings, app.state.settings),
         producer=cast(EventProducer | None, app.state.clients.get("kafka")),
         redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
-        object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+        object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
         runtime_controller=cast(
             RuntimeControllerClient | None,
             app.state.clients.get("runtime_controller"),
@@ -176,7 +203,7 @@ async def _run_ate_background(app: FastAPI, ate_run_id: UUID) -> None:
             session=session,
             settings=cast(PlatformSettings, app.state.settings),
             producer=cast(EventProducer | None, app.state.clients.get("kafka")),
-            object_storage=cast(AsyncObjectStorageClient, app.state.clients["minio"]),
+            object_storage=cast(AsyncObjectStorageClient, app.state.clients["object_storage"]),
             simulation_controller=cast(
                 Any,
                 app.state.clients.get("simulation_controller"),
@@ -200,6 +227,37 @@ async def _run_robustness_background(app: FastAPI, run_id: UUID) -> None:
         )
         try:
             await service.execute_run(run_id)
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+async def _run_calibration_background(app: FastAPI, calibration_run_id: UUID) -> None:
+    async with database.AsyncSessionLocal() as session:
+        rubric_service = build_rubric_service(
+            session=session,
+            settings=cast(PlatformSettings, app.state.settings),
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+        )
+        scorer_registry = build_scorer_registry(
+            settings=cast(PlatformSettings, app.state.settings),
+            qdrant=cast(AsyncQdrantClient, app.state.clients["qdrant"]),
+            execution_service=_build_execution_query(app, session),
+            reasoning_engine=cast(
+                ReasoningEngineClient | None, app.state.clients.get("reasoning_engine")
+            ),
+            rubric_service=rubric_service,
+        )
+        service = build_calibration_service(
+            session=session,
+            settings=cast(PlatformSettings, app.state.settings),
+            producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            scorer_registry=scorer_registry,
+            rubric_service=rubric_service,
+        )
+        try:
+            await service.execute_calibration(calibration_run_id)
             await session.commit()
         except Exception:
             await session.rollback()
@@ -395,6 +453,163 @@ async def get_verdict(
     eval_runner_service: EvalRunnerService = Depends(get_eval_runner_service),
 ) -> JudgeVerdictResponse:
     return await eval_runner_service.get_verdict(verdict_id)
+
+
+@router.post("/rubrics", response_model=RubricResponse, status_code=status.HTTP_201_CREATED)
+async def create_rubric(
+    payload: RubricCreate,
+    request: Request,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    rubric_service: RubricService = Depends(get_rubric_service),
+) -> RubricResponse:
+    _require_roles(current_user, {"workspace_admin", "platform_admin", "superadmin"})
+    return await rubric_service.create_rubric(
+        payload,
+        _workspace_id(request, current_user),
+        _actor_id(current_user),
+    )
+
+
+@router.get("/rubrics", response_model=RubricListResponse)
+async def list_rubrics(
+    request: Request,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    status_filter: RubricStatus | None = Query(default=None, alias="status"),
+    include_builtins: bool = Query(default=True),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    rubric_service: RubricService = Depends(get_rubric_service),
+) -> RubricListResponse:
+    return await rubric_service.list_rubrics(
+        workspace_id=_workspace_id(request, current_user),
+        status=status_filter,
+        include_builtins=include_builtins,
+        page=page,
+        page_size=page_size,
+    )
+
+
+@router.get("/rubrics/{rubric_id}", response_model=RubricResponse)
+async def get_rubric(
+    rubric_id: UUID,
+    request: Request,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    rubric_service: RubricService = Depends(get_rubric_service),
+) -> RubricResponse:
+    return await rubric_service.get_rubric(rubric_id, _workspace_id(request, current_user))
+
+
+@router.patch("/rubrics/{rubric_id}", response_model=RubricResponse)
+async def update_rubric(
+    rubric_id: UUID,
+    payload: RubricUpdate,
+    request: Request,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    rubric_service: RubricService = Depends(get_rubric_service),
+) -> RubricResponse:
+    _require_roles(current_user, {"workspace_admin", "platform_admin", "superadmin"})
+    return await rubric_service.update_rubric(
+        rubric_id,
+        payload,
+        _workspace_id(request, current_user),
+        _actor_id(current_user),
+    )
+
+
+@router.delete("/rubrics/{rubric_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def archive_rubric(
+    rubric_id: UUID,
+    request: Request,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    rubric_service: RubricService = Depends(get_rubric_service),
+) -> Response:
+    _require_roles(current_user, {"workspace_admin", "platform_admin", "superadmin"})
+    await rubric_service.archive_rubric(
+        rubric_id,
+        _workspace_id(request, current_user),
+        _actor_id(current_user),
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/rubrics/{rubric_id}/calibrate",
+    response_model=CalibrationRunResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def calibrate_rubric(
+    rubric_id: UUID,
+    payload: CalibrationRunCreate,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    calibration_service: CalibrationService = Depends(get_calibration_service),
+) -> CalibrationRunResponse:
+    _require_roles(current_user, {"workspace_admin", "platform_admin", "superadmin"})
+    run = await calibration_service.start_calibration(
+        rubric_id,
+        payload,
+        _actor_id(current_user),
+        _workspace_id(request, current_user),
+    )
+    background_tasks.add_task(_run_calibration_background, request.app, run.id)
+    return run
+
+
+@router.get("/calibration-runs/{run_id}", response_model=CalibrationRunResponse)
+async def get_calibration_run(
+    run_id: UUID,
+    calibration_service: CalibrationService = Depends(get_calibration_service),
+) -> CalibrationRunResponse:
+    return await calibration_service.get_calibration_run(run_id)
+
+
+@router.post("/judge", response_model=AdHocJudgeResponse)
+async def judge_adhoc(
+    payload: AdHocJudgeRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    eval_runner_service: EvalRunnerService = Depends(get_eval_runner_service),
+) -> AdHocJudgeResponse:
+    return await eval_runner_service.judge_adhoc(payload, _actor_id(current_user))
+
+
+@router.get("/scorers", response_model=ScorerTypeListResponse)
+async def list_scorer_types(
+    eval_runner_service: EvalRunnerService = Depends(get_eval_runner_service),
+) -> ScorerTypeListResponse:
+    return ScorerTypeListResponse(items=eval_runner_service.list_scorer_types())
+
+
+@router.get("/rubric-templates", response_model=RubricTemplateListResponse)
+async def list_rubric_templates(
+    rubric_service: RubricService = Depends(get_rubric_service),
+) -> RubricTemplateListResponse:
+    response = await rubric_service.list_rubrics(
+        workspace_id=None,
+        status=RubricStatus.active,
+        include_builtins=True,
+        page=1,
+        page_size=100,
+    )
+    items = [
+        RubricTemplateSummary(
+            name=item.name,
+            description=item.description,
+            criteria_count=len(item.criteria),
+            rubric_id=item.id,
+        )
+        for item in response.items
+        if item.is_builtin
+    ]
+    return RubricTemplateListResponse(items=items, total=len(items))
+
+
+@router.get("/rubric-templates/{template_name}", response_model=RubricResponse)
+async def get_rubric_template(
+    template_name: str,
+    rubric_service: RubricService = Depends(get_rubric_service),
+) -> RubricResponse:
+    return await rubric_service.get_builtin_by_name(template_name)
 
 
 @router.post(

@@ -21,6 +21,12 @@ class EvaluationEventType(StrEnum):
     robustness_completed = "evaluation.robustness.completed"
     drift_detected = "evaluation.drift.detected"
     human_grade_submitted = "evaluation.human.grade.submitted"
+    rubric_created = "evaluation.rubric.created"
+    rubric_updated = "evaluation.rubric.updated"
+    rubric_archived = "evaluation.rubric.archived"
+    calibration_started = "evaluation.calibration.started"
+    calibration_completed = "evaluation.calibration.completed"
+    judge_adhoc = "evaluation.judge.adhoc"
 
 
 class RunStartedPayload(BaseModel):
@@ -99,6 +105,44 @@ class HumanGradeSubmittedPayload(BaseModel):
     decision: str
 
 
+class RubricCreatedPayload(BaseModel):
+    rubric_id: UUID
+    workspace_id: UUID | None
+    name: str
+    version: int
+
+
+class RubricUpdatedPayload(BaseModel):
+    rubric_id: UUID
+    old_version: int
+    new_version: int
+
+
+class RubricArchivedPayload(BaseModel):
+    rubric_id: UUID
+    workspace_id: UUID | None
+
+
+class CalibrationStartedPayload(BaseModel):
+    run_id: UUID
+    rubric_id: UUID
+    rubric_version: int
+
+
+class CalibrationCompletedPayload(BaseModel):
+    run_id: UUID
+    rubric_id: UUID
+    calibrated: bool | None
+    error_grade_finding: bool
+
+
+class AdHocJudgePayload(BaseModel):
+    rubric_id: UUID | None
+    judge_model: str
+    principal_id: UUID
+    duration_ms: int
+
+
 EVALUATION_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     EvaluationEventType.run_started.value: RunStartedPayload,
     EvaluationEventType.run_completed.value: RunCompletedPayload,
@@ -110,6 +154,12 @@ EVALUATION_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     EvaluationEventType.robustness_completed.value: RobustnessCompletedPayload,
     EvaluationEventType.drift_detected.value: DriftDetectedPayload,
     EvaluationEventType.human_grade_submitted.value: HumanGradeSubmittedPayload,
+    EvaluationEventType.rubric_created.value: RubricCreatedPayload,
+    EvaluationEventType.rubric_updated.value: RubricUpdatedPayload,
+    EvaluationEventType.rubric_archived.value: RubricArchivedPayload,
+    EvaluationEventType.calibration_started.value: CalibrationStartedPayload,
+    EvaluationEventType.calibration_completed.value: CalibrationCompletedPayload,
+    EvaluationEventType.judge_adhoc.value: AdHocJudgePayload,
 }
 
 
@@ -151,6 +201,8 @@ async def publish_evaluation_event(
         or getattr(payload, "robustness_run_id", None)
         or getattr(payload, "alert_id", None)
         or getattr(payload, "grade_id", None)
+        or getattr(payload, "rubric_id", None)
+        or getattr(payload, "principal_id", None)
         or correlation_ctx.correlation_id
     )
     await _publish(

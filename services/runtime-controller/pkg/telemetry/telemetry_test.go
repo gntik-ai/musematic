@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	sdkresource "go.opentelemetry.io/otel/sdk/resource"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	sdkresource "go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 )
 
@@ -137,3 +137,51 @@ func TestNormaliseEndpointStripsScheme(t *testing.T) {
 	}
 }
 
+func TestSetupWithHTTPSKeepsExportersSecure(t *testing.T) {
+	originalTrace := newTraceExporter
+	originalMetric := newMetricReader
+	originalMerge := mergeTelemetryResource
+	t.Cleanup(func() {
+		newTraceExporter = originalTrace
+		newMetricReader = originalMetric
+		mergeTelemetryResource = originalMerge
+	})
+
+	var traceInsecure bool
+	var metricInsecure bool
+
+	newTraceExporter = func(_ context.Context, endpoint string, insecure bool) (sdktrace.SpanExporter, error) {
+		traceInsecure = insecure
+		if endpoint != "otel-collector:4317" {
+			t.Fatalf("unexpected trace endpoint: %s", endpoint)
+		}
+		return fakeSpanExporter{}, nil
+	}
+	newMetricReader = func(_ context.Context, endpoint string, insecure bool) (sdkmetric.Reader, error) {
+		metricInsecure = insecure
+		if endpoint != "otel-collector:4317" {
+			t.Fatalf("unexpected metric endpoint: %s", endpoint)
+		}
+		return sdkmetric.NewManualReader(), nil
+	}
+	mergeTelemetryResource = sdkresource.Merge
+
+	shutdown, err := Setup(context.Background(), "runtime-controller", "https://otel-collector:4317")
+	if err != nil {
+		t.Fatalf("Setup() error = %v", err)
+	}
+	if traceInsecure || metricInsecure {
+		t.Fatalf("expected secure exporters, got trace=%v metric=%v", traceInsecure, metricInsecure)
+	}
+	if err := shutdown(context.Background()); err != nil {
+		t.Fatalf("shutdown() error = %v", err)
+	}
+}
+
+func TestNormaliseEndpointKeepsHostWithoutScheme(t *testing.T) {
+	t.Parallel()
+
+	if got := normaliseEndpoint("otel-collector:4317"); got != "otel-collector:4317" {
+		t.Fatalf("normaliseEndpoint(no scheme) = %q", got)
+	}
+}

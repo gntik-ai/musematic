@@ -42,11 +42,15 @@ class _ScalarsResult:
     def all(self):
         return self._items
 
+    def first(self):
+        return self._items[0] if self._items else None
+
 
 def _session(*, dialect: str = "sqlite") -> SimpleNamespace:
     return SimpleNamespace(
         bind=SimpleNamespace(dialect=SimpleNamespace(name=dialect)),
         add=Mock(),
+        delete=AsyncMock(),
         flush=AsyncMock(),
         execute=AsyncMock(),
         scalar=AsyncMock(),
@@ -212,8 +216,9 @@ async def test_repository_list_methods_delegate_to_paginate_for_all_resources() 
 
 
 @pytest.mark.asyncio
-async def test_repository_crud_helpers_cover_regression_canary_retirement_governance_and_adaptation(
-) -> None:
+async def test_repository_crud_helpers_cover_regression_canary_retirement_governance_and_adaptation() -> (
+    None
+):
     workspace_id = uuid4()
     now = datetime.now(UTC)
     baseline = SimpleNamespace(id=uuid4(), revision_id=uuid4())
@@ -295,11 +300,14 @@ async def test_repository_crud_helpers_cover_regression_canary_retirement_govern
         is adaptation
     )
     assert await repository.update_adaptation(adaptation) is adaptation
-    assert await repository.count_active_regression_alerts(
-        "finance:agent",
-        workspace_id,
-        alert.new_revision_id,
-    ) == 3
+    assert (
+        await repository.count_active_regression_alerts(
+            "finance:agent",
+            workspace_id,
+            alert.new_revision_id,
+        )
+        == 3
+    )
 
     assert session.add.call_count == 7
 
@@ -374,3 +382,77 @@ async def test_repository_paginate_and_governance_summary_helpers_cover_cursor_a
     assert _coerce_tier(True, None) == 1
     assert _coerce_tier(None, 2.8) == 2
     assert _coerce_tier(None, "provisional") == 1
+
+
+@pytest.mark.asyncio
+async def test_repository_adaptation_snapshot_outcome_and_proficiency_helpers() -> None:
+    workspace_id = uuid4()
+    now = datetime.now(UTC)
+    proposal = SimpleNamespace(
+        id=uuid4(),
+        agent_fqn="finance:agent",
+        workspace_id=workspace_id,
+        status="approved",
+        applied_at=now - timedelta(hours=72),
+        created_at=now,
+    )
+    snapshot = SimpleNamespace(
+        id=uuid4(),
+        proposal_id=proposal.id,
+        created_at=now,
+        retention_expires_at=now + timedelta(days=7),
+    )
+    outcome = SimpleNamespace(id=uuid4(), proposal_id=proposal.id)
+    proficiency = SimpleNamespace(
+        id=uuid4(),
+        agent_fqn="finance:agent",
+        workspace_id=workspace_id,
+        assessed_at=now,
+        level="competent",
+    )
+    session = _session()
+    session.execute.side_effect = [
+        _ScalarResult(proposal),
+        _ScalarsResult([snapshot]),
+        _ScalarsResult([snapshot]),
+        _ScalarResult(outcome),
+        _ScalarsResult([proposal]),
+        _ScalarsResult([proposal]),
+        _ScalarsResult([proposal]),
+        _ScalarsResult([snapshot]),
+        _ScalarResult(proficiency),
+        _ScalarsResult([proficiency]),
+    ]
+    repository = AgentOpsRepository(session)  # type: ignore[arg-type]
+
+    assert await repository.get_open_adaptation("finance:agent", workspace_id) is proposal
+    created_snapshot = await repository.create_snapshot(snapshot)
+    fetched_snapshot = await repository.get_snapshot_by_proposal(proposal.id)
+    listed_snapshots = await repository.list_snapshots_by_proposal(proposal.id)
+    created_outcome = await repository.create_outcome(outcome)
+    fetched_outcome = await repository.get_outcome_by_proposal(proposal.id)
+    expired = await repository.list_proposals_past_ttl(now)
+    orphaned = await repository.list_orphaned_proposals()
+    pending = await repository.list_proposals_pending_outcome(now)
+    stale_snapshots = await repository.list_snapshots_past_retention(now)
+    created_proficiency = await repository.create_proficiency_assessment(proficiency)
+    latest_proficiency = await repository.get_latest_proficiency_assessment(
+        "finance:agent",
+        workspace_id,
+    )
+    fleet = await repository.list_proficiency_fleet(workspace_id, levels=["competent"])
+    await repository.delete_snapshot(snapshot)
+
+    assert created_snapshot is snapshot
+    assert fetched_snapshot is snapshot
+    assert listed_snapshots == [snapshot]
+    assert created_outcome is outcome
+    assert fetched_outcome is outcome
+    assert expired == [proposal]
+    assert orphaned == [proposal]
+    assert pending == [proposal]
+    assert stale_snapshots == [snapshot]
+    assert created_proficiency is proficiency
+    assert latest_proficiency is proficiency
+    assert fleet == [proficiency]
+    session.delete.assert_awaited_once_with(snapshot)

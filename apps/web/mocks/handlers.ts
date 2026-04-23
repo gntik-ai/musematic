@@ -1,6 +1,8 @@
 import { http, HttpResponse } from "msw";
 import { homeHandlers } from "@/mocks/handlers/home";
+import { frontendExpansionHandlers, resetFrontendExpansionFixtures } from "@/mocks/handlers/frontend-expansions";
 import { analyticsHandlers, resetAnalyticsFixtures } from "@/mocks/handlers/analytics";
+import { oauthHandlers, resetOAuthFixtures } from "@/mocks/handlers/oauth";
 import {
   executionHandlers,
   resetExecutionFixtures,
@@ -184,6 +186,8 @@ export const handlers = [
   ...taskPlanHandlers,
   ...analyticsHandlers,
   ...marketplaceHandlers,
+  ...oauthHandlers,
+  ...frontendExpansionHandlers,
   ...authHandlers,
   ...homeHandlers,
   ...conversationHandlers,
@@ -197,6 +201,8 @@ export {
   resetAnalyticsFixtures,
   resetExecutionFixtures,
   resetMarketplaceFixtures,
+  resetFrontendExpansionFixtures,
+  resetOAuthFixtures,
   resetTaskPlanFixtures,
   resetWorkflowFixtures,
   toLoginSuccess,

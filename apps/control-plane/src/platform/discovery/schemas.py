@@ -10,6 +10,9 @@ SessionStatus = Literal["active", "converged", "halted", "iteration_limit_reache
 HypothesisStatus = Literal["active", "merged", "retired"]
 Outcome = Literal["a_wins", "b_wins", "draw"]
 LandscapeStatus = Literal["normal", "saturated", "low_data"]
+EmbeddingStatus = Literal["pending", "indexed", "failed"]
+ClusterDensityClassification = Literal["under_explored", "normal", "over_explored"]
+ProximityGraphStatus = Literal["pre_proximity", "computed"]
 
 
 class CorpusRef(BaseModel):
@@ -81,6 +84,8 @@ class HypothesisResponse(BaseModel):
     losses: int = 0
     draws: int = 0
     cluster_id: str | None = None
+    embedding_status: EmbeddingStatus = "pending"
+    rationale_metadata: dict[str, Any] | None = None
     created_at: datetime
 
 
@@ -222,6 +227,76 @@ class HypothesisClusterResponse(BaseModel):
 class ClusterListResponse(BaseModel):
     items: list[HypothesisClusterResponse]
     landscape_status: LandscapeStatus
+
+
+class NodeEntry(BaseModel):
+    hypothesis_id: UUID
+    cluster_id: str | None = None
+    embedding_status: EmbeddingStatus
+
+
+class EdgeEntry(BaseModel):
+    source_hypothesis_id: UUID
+    target_hypothesis_id: UUID
+    similarity: float = Field(ge=0.0, le=1.0)
+
+
+class GapRegionEntry(BaseModel):
+    label: str
+    center_hypothesis_id: UUID | None = None
+    min_distance_to_nearest: float = Field(ge=0.0, le=1.0)
+
+
+class ClusterEntry(BaseModel):
+    cluster_id: str
+    centroid_description: str
+    classification: ClusterDensityClassification
+    hypothesis_ids: list[UUID]
+    density: float = Field(ge=0.0, le=1.0)
+
+
+class ProximityGraphResponse(BaseModel):
+    workspace_id: UUID
+    session_id: UUID | None = None
+    status: ProximityGraphStatus
+    saturation_indicator: Literal["normal", "saturated", "low_data"]
+    computed_at: datetime | None = None
+    staleness_warning: str | None = None
+    pending_embedding_count: int = 0
+    truncated: bool = False
+    min_hypotheses_required: int | None = None
+    current_embedded_count: int | None = None
+    nodes: list[NodeEntry] = Field(default_factory=list)
+    edges: list[EdgeEntry] = Field(default_factory=list)
+    clusters: list[ClusterEntry] = Field(default_factory=list)
+    gap_regions: list[GapRegionEntry] = Field(default_factory=list)
+
+
+class ProximityWorkspaceSettingsResponse(BaseModel):
+    workspace_id: UUID
+    bias_enabled: bool
+    recompute_interval_minutes: int
+    last_recomputed_at: datetime | None = None
+    last_transition_summary: dict[str, Any] | None = None
+
+
+class ProximityWorkspaceSettingsUpdateRequest(BaseModel):
+    bias_enabled: bool | None = None
+    recompute_interval_minutes: int | None = None
+
+    @field_validator("recompute_interval_minutes")
+    @classmethod
+    def _validate_interval(cls, value: int | None) -> int | None:
+        if value is None:
+            return value
+        if not 5 <= value <= 240:
+            raise ValueError("recompute_interval_minutes must be between 5 and 240")
+        return value
+
+
+class RecomputeEnqueuedResponse(BaseModel):
+    enqueued: bool = True
+    estimated_completion_seconds: int = 15
 
 
 class HaltSessionRequest(BaseModel):

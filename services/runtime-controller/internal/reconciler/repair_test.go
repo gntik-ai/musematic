@@ -3,6 +3,7 @@ package reconciler
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -18,6 +19,16 @@ import (
 type recordingStore struct {
 	fakeRuntimeStore
 	events []state.RuntimeEventRecord
+}
+
+type erroringPods struct {
+	fakePods
+	deleteErr error
+}
+
+func (p *erroringPods) DeletePod(_ context.Context, name string, _ int64) error {
+	p.deleted = append(p.deleted, name)
+	return p.deleteErr
 }
 
 func (r *recordingStore) InsertRuntimeEvent(_ context.Context, event state.RuntimeEventRecord) error {
@@ -133,5 +144,18 @@ func TestRunOncePropagatesDetectDriftErrors(t *testing.T) {
 	reconciler.Store.(*recordingStore).listErr = errors.New("list failed")
 	if err := reconciler.RunOnce(context.Background()); err == nil {
 		t.Fatalf("expected detect drift error")
+	}
+}
+
+func TestApplyRepairsIgnoresOrphanDeletionErrors(t *testing.T) {
+	store := &recordingStore{fakeRuntimeStore: fakeRuntimeStore{}}
+	pods := &erroringPods{deleteErr: errors.New("delete failed")}
+	report := DriftReport{Orphans: []v1.Pod{{ObjectMeta: metav1.ObjectMeta{Name: "orphan"}}}}
+
+	if err := ApplyRepairs(context.Background(), report, store, pods, store, nil, nil, slog.Default()); err != nil {
+		t.Fatalf("ApplyRepairs returned error: %v", err)
+	}
+	if len(pods.deleted) != 1 || pods.deleted[0] != "orphan" {
+		t.Fatalf("expected orphan delete attempt, got %+v", pods.deleted)
 	}
 }

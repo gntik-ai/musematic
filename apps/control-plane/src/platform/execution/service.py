@@ -9,7 +9,8 @@ from platform.common.clients.runtime_controller import RuntimeControllerClient
 from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
-from platform.common.exceptions import ObjectNotFoundError, ValidationError
+from platform.common.exceptions import AuthorizationError, ObjectNotFoundError, ValidationError
+from platform.execution.checkpoint_service import CheckpointService
 from platform.execution.events import (
     ExecutionCreatedEvent,
     ExecutionReprioritizedEvent,
@@ -23,6 +24,8 @@ from platform.execution.exceptions import (
     ExecutionAlreadyRunningError,
     ExecutionNotFoundError,
     HotChangeIncompatibleError,
+    TraceNotAvailableError,
+    TraceNotFoundError,
 )
 from platform.execution.models import (
     ApprovalDecision,
@@ -35,6 +38,7 @@ from platform.execution.models import (
 from platform.execution.projector import ExecutionProjector
 from platform.execution.repository import ExecutionRepository
 from platform.execution.schemas import (
+    DEFAULT_CHECKPOINT_POLICY,
     ApprovalDecisionRequest,
     ApprovalWaitListResponse,
     ApprovalWaitResponse,
@@ -45,8 +49,12 @@ from platform.execution.schemas import (
     ExecutionResponse,
     ExecutionStateResponse,
     HotChangeCompatibilityResult,
+    ReasoningTraceResponse,
+    RollbackResponse,
     TaskPlanFullResponse,
     TaskPlanRecordResponse,
+    TracePaginationResponse,
+    TraceStepResponse,
 )
 from platform.workflows.compiler import WorkflowCompiler
 from platform.workflows.exceptions import WorkflowNotFoundError
@@ -59,6 +67,7 @@ from uuid import UUID, uuid4
 
 class ExecutionService:
     """Provide execution operations."""
+
     def __init__(
         self,
         *,
@@ -72,6 +81,7 @@ class ExecutionService:
         context_engineering_service: Any | None,
         projector: ExecutionProjector,
         compiler: WorkflowCompiler | None = None,
+        checkpoint_service: CheckpointService | None = None,
     ) -> None:
         self.repository = repository
         self.settings = settings
@@ -83,8 +93,10 @@ class ExecutionService:
         self.context_engineering_service = context_engineering_service
         self.projector = projector
         self.compiler = compiler or WorkflowCompiler()
+        self.checkpoint_service = checkpoint_service
         self.workflow_repository = WorkflowRepository(repository.session)
         self.task_plan_bucket = "execution-task-plans"
+        self.reasoning_trace_bucket = "reasoning-traces"
 
     async def create_execution(
         self,
@@ -135,6 +147,9 @@ class ExecutionService:
                 rerun_of_execution_id=rerun_of_execution_id,
                 sla_deadline=data.sla_deadline,
                 created_by=created_by,
+                checkpoint_policy_snapshot=dict(
+                    version.checkpoint_policy or DEFAULT_CHECKPOINT_POLICY
+                ),
             )
         )
         ir = WorkflowIR.from_dict(version.compiled_ir)
@@ -238,6 +253,7 @@ class ExecutionService:
         )
         state = self.projector.project_state(events, checkpoint)
         state.workflow_version_id = execution.workflow_version_id
+        state.status = execution.status
         await self.redis_client.set(
             cache_key,
             state.model_dump_json().encode("utf-8"),
@@ -270,6 +286,7 @@ class ExecutionService:
         events = await self.repository.get_events(execution_id)
         state = self.projector.project_state(events)
         state.workflow_version_id = execution.workflow_version_id
+        state.status = execution.status
         return state
 
     async def resume_execution(self, execution_id: UUID) -> ExecutionResponse:
@@ -341,6 +358,47 @@ class ExecutionService:
             ),
             created_by=execution.created_by,
             rerun_of_execution_id=execution.id,
+        )
+
+    async def pause_execution(self, execution_id: UUID) -> ExecutionResponse:
+        """Pause a queued or running execution."""
+        execution = await self._get_execution_or_raise(execution_id)
+        if execution.status not in {ExecutionStatus.queued, ExecutionStatus.running}:
+            raise ValidationError(
+                "EXECUTION_NOT_PAUSABLE",
+                "Only queued or running executions can be paused",
+            )
+        await self.repository.update_execution_status(execution, ExecutionStatus.paused)
+        await self._invalidate_state_cache(execution.id)
+        return ExecutionResponse.model_validate(execution)
+
+    async def rollback_execution(
+        self,
+        execution_id: UUID,
+        checkpoint_number: int,
+        *,
+        initiated_by: UUID | None,
+        reason: str | None = None,
+        authorized: bool = True,
+    ) -> RollbackResponse:
+        """Rollback an execution to a checkpoint."""
+        if not authorized:
+            raise AuthorizationError(
+                "PERMISSION_DENIED",
+                "Permission 'execution.rollback' required",
+            )
+        checkpoint_service = self.checkpoint_service or CheckpointService(
+            repository=self.repository,
+            settings=self.settings,
+            producer=self.producer,
+            projector=self.projector,
+        )
+        self.checkpoint_service = checkpoint_service
+        return await checkpoint_service.rollback(
+            execution_id,
+            checkpoint_number,
+            initiated_by=initiated_by,
+            reason=reason,
         )
 
     async def validate_hot_change(
@@ -523,6 +581,112 @@ class ExecutionService:
             rejected_alternatives=list(payload.get("rejected_alternatives", [])),
         )
 
+    async def get_reasoning_trace(
+        self,
+        execution_id: UUID,
+        step_id: str | None = None,
+        *,
+        page: int = 1,
+        page_size: int = 100,
+        requester_workspace_id: UUID | None = None,
+    ) -> ReasoningTraceResponse:
+        """Return the structured reasoning trace for an execution."""
+        execution = await self._get_execution_or_raise(execution_id)
+        if requester_workspace_id is not None and execution.workspace_id != requester_workspace_id:
+            raise AuthorizationError("AUTHORIZATION_ERROR", "Not authorized")
+
+        record = await self.repository.get_reasoning_trace_record(execution_id, step_id)
+        if record is None:
+            raise TraceNotFoundError(execution_id, step_id)
+        if record.status == "expired":
+            raise TraceNotAvailableError(execution_id, record.storage_key)
+
+        try:
+            raw = await self.object_storage.download_object(
+                self.reasoning_trace_bucket,
+                record.storage_key,
+            )
+        except ObjectNotFoundError as exc:
+            raise TraceNotAvailableError(execution_id, record.storage_key) from exc
+
+        payload = json.loads(raw.decode("utf-8")) if raw else {}
+        all_steps = list(payload.get("steps", []))
+        total_steps = len(all_steps)
+        start = max(page - 1, 0) * page_size
+        end = start + page_size
+        page_items = all_steps[start:end]
+        steps = [TraceStepResponse.model_validate(item) for item in page_items]
+
+        total_tokens = int(
+            payload.get("total_tokens")
+            or sum(int(item.get("tokens_used", 0)) for item in all_steps if isinstance(item, dict))
+        )
+        pagination = TracePaginationResponse(
+            page=page,
+            page_size=page_size,
+            total_steps=total_steps,
+            has_more=end < total_steps,
+        )
+        compute_budget_value = payload.get("compute_budget_used")
+        compute_budget_used = (
+            float(compute_budget_value)
+            if compute_budget_value is not None
+            else float(record.compute_budget_used or 0.0)
+        )
+        effective_budget_scope = (
+            payload.get("effective_budget_scope") or record.effective_budget_scope
+        )
+        return ReasoningTraceResponse(
+            execution_id=execution.id,
+            technique=record.technique,
+            schema_version=str(payload.get("schema_version", "1.0")),
+            status=record.status,
+            steps=steps,
+            total_tokens=total_tokens,
+            compute_budget_used=compute_budget_used,
+            effective_budget_scope=(
+                str(effective_budget_scope) if effective_budget_scope else None
+            ),
+            compute_budget_exhausted=bool(
+                payload.get("compute_budget_exhausted", record.compute_budget_exhausted)
+            ),
+            consensus_reached=(
+                payload.get("consensus_reached")
+                if payload.get("consensus_reached") is not None
+                else record.consensus_reached
+            ),
+            stabilized=(
+                payload.get("stabilized")
+                if payload.get("stabilized") is not None
+                else record.stabilized
+            ),
+            degradation_detected=(
+                payload.get("degradation_detected")
+                if payload.get("degradation_detected") is not None
+                else record.degradation_detected
+            ),
+            last_updated_at=(
+                (payload.get("last_updated_at") or record.updated_at)
+                if record.status != "complete"
+                else None
+            ),
+            pagination=pagination,
+        )
+
+    async def get_reasoning_traces(
+        self,
+        execution_id: UUID,
+        step_id: str | None = None,
+    ) -> list[dict[str, Any]]:
+        """Return reasoning trace steps for legacy adapter compatibility."""
+        trace = await self.get_reasoning_trace(
+            execution_id,
+            step_id,
+            page=1,
+            page_size=500,
+        )
+        return [item.model_dump(mode="json") for item in trace.steps]
+
     async def record_runtime_event(
         self,
         execution_id: UUID,
@@ -598,6 +762,9 @@ class ExecutionService:
         *,
         trigger_reason: str,
         steps_affected: list[str],
+        trigger_id: UUID | None = None,
+        trigger_name: str | None = None,
+        new_queue_order: list[dict[str, Any]] | None = None,
     ) -> None:
         """Publish reprioritization."""
         await publish_execution_reprioritized(
@@ -606,6 +773,9 @@ class ExecutionService:
                 execution_id=execution.id,
                 trigger_reason=trigger_reason,
                 steps_affected=steps_affected,
+                trigger_id=trigger_id,
+                trigger_name=trigger_name,
+                new_queue_order=new_queue_order,
             ),
             self._correlation(execution),
         )

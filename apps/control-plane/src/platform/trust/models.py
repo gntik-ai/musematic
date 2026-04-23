@@ -4,7 +4,12 @@ from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
 from platform.common.models.base import Base
-from platform.common.models.mixins import AuditMixin, TimestampMixin, UUIDMixin
+from platform.common.models.mixins import (
+    AuditMixin,
+    TimestampMixin,
+    UUIDMixin,
+    WorkspaceScopedMixin,
+)
 from typing import Any, cast
 from uuid import UUID
 
@@ -18,7 +23,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 class CertificationStatus(StrEnum):
     pending = "pending"
     active = "active"
+    expiring = "expiring"
     expired = "expired"
+    suspended = "suspended"
     revoked = "revoked"
     superseded = "superseded"
 
@@ -93,6 +100,12 @@ class TrustCertification(Base, UUIDMixin, TimestampMixin, AuditMixin):
         ForeignKey("trust_certifications.id", ondelete="SET NULL"),
         nullable=True,
     )
+    external_certifier_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("certifiers.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    reassessment_schedule: Mapped[str | None] = mapped_column(String(length=64), nullable=True)
 
     evidence_refs: Mapped[list[TrustCertificationEvidenceRef]] = relationship(
         "platform.trust.models.TrustCertificationEvidenceRef",
@@ -100,6 +113,151 @@ class TrustCertification(Base, UUIDMixin, TimestampMixin, AuditMixin):
         cascade="all, delete-orphan",
         order_by="platform.trust.models.TrustCertificationEvidenceRef.created_at.asc()",
     )
+    certifier: Mapped[Certifier | None] = relationship(
+        "platform.trust.models.Certifier",
+        back_populates="certifications",
+    )
+    reassessment_records: Mapped[list[ReassessmentRecord]] = relationship(
+        "platform.trust.models.ReassessmentRecord",
+        back_populates="certification",
+        cascade="all, delete-orphan",
+        order_by="platform.trust.models.ReassessmentRecord.created_at.asc()",
+    )
+    recertification_requests: Mapped[list[TrustRecertificationRequest]] = relationship(
+        "platform.trust.models.TrustRecertificationRequest",
+        back_populates="certification",
+        cascade="all, delete-orphan",
+        order_by="platform.trust.models.TrustRecertificationRequest.created_at.asc()",
+    )
+
+
+class Certifier(Base, UUIDMixin, TimestampMixin, AuditMixin):
+    __tablename__ = "certifiers"
+    __table_args__ = (Index("ix_certifiers_name", "name"),)
+
+    name: Mapped[str] = mapped_column(String(length=256), nullable=False)
+    organization: Mapped[str | None] = mapped_column(String(length=256), nullable=True)
+    credentials: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    permitted_scopes: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+
+    certifications: Mapped[list[TrustCertification]] = relationship(
+        "platform.trust.models.TrustCertification",
+        back_populates="certifier",
+    )
+
+
+class AgentContract(Base, UUIDMixin, TimestampMixin, AuditMixin, WorkspaceScopedMixin):
+    __tablename__ = "agent_contracts"
+    __table_args__ = (
+        Index("ix_agent_contracts_agent_id", "agent_id"),
+        Index("ix_agent_contracts_workspace_agent", "workspace_id", "agent_id"),
+    )
+
+    agent_id: Mapped[str] = mapped_column(String(length=512), nullable=False)
+    task_scope: Mapped[str] = mapped_column(Text(), nullable=False)
+    expected_outputs: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    quality_thresholds: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    time_constraint_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cost_limit_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    escalation_conditions: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    success_criteria: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    enforcement_policy: Mapped[str] = mapped_column(
+        String(length=32),
+        nullable=False,
+        default="warn",
+    )
+    is_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    breach_events: Mapped[list[ContractBreachEvent]] = relationship(
+        "platform.trust.models.ContractBreachEvent",
+        back_populates="contract",
+        cascade="all, delete-orphan",
+        order_by="platform.trust.models.ContractBreachEvent.created_at.asc()",
+    )
+
+
+class ContractBreachEvent(Base, UUIDMixin, TimestampMixin):
+    __tablename__ = "contract_breach_events"
+    __table_args__ = (
+        Index("ix_contract_breach_events_contract_id", "contract_id"),
+        Index("ix_contract_breach_events_target", "target_type", "target_id"),
+        Index("ix_contract_breach_events_created_at", "created_at"),
+    )
+
+    contract_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("agent_contracts.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    target_type: Mapped[str] = mapped_column(String(length=32), nullable=False)
+    target_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
+    breached_term: Mapped[str] = mapped_column(String(length=64), nullable=False)
+    observed_value: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    threshold_value: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+    enforcement_action: Mapped[str] = mapped_column(String(length=32), nullable=False)
+    enforcement_outcome: Mapped[str] = mapped_column(String(length=32), nullable=False)
+    contract_snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
+
+    contract: Mapped[AgentContract | None] = relationship(
+        "platform.trust.models.AgentContract",
+        back_populates="breach_events",
+    )
+
+
+class ReassessmentRecord(Base, UUIDMixin, TimestampMixin, AuditMixin):
+    __tablename__ = "reassessment_records"
+    __table_args__ = (Index("ix_reassessment_records_certification_id", "certification_id"),)
+
+    certification_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("trust_certifications.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    verdict: Mapped[str] = mapped_column(String(length=32), nullable=False)
+    reassessor_id: Mapped[str] = mapped_column(String(length=255), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
+
+    certification: Mapped[TrustCertification] = relationship(
+        "platform.trust.models.TrustCertification",
+        back_populates="reassessment_records",
+    )
+
+
+class TrustRecertificationRequest(Base, UUIDMixin, TimestampMixin):
+    __tablename__ = "trust_recertification_requests"
+    __table_args__ = (
+        Index("ix_trust_recertification_requests_certification_id", "certification_id"),
+    )
+
+    certification_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("trust_certifications.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    trigger_type: Mapped[str] = mapped_column(String(length=32), nullable=False)
+    trigger_reference: Mapped[str] = mapped_column(Text(), nullable=False)
+    deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolution_status: Mapped[str] = mapped_column(
+        String(length=32),
+        nullable=False,
+        default="pending",
+    )
+    dismissal_justification: Mapped[str | None] = mapped_column(Text(), nullable=True)
+
+    certification: Mapped[TrustCertification] = relationship(
+        "platform.trust.models.TrustCertification",
+        back_populates="recertification_requests",
+    )
+
+
+cast(Any, TrustRecertificationRequest.__table__).append_constraint(
+    Index(
+        "ix_trust_recertification_requests_deadline",
+        TrustRecertificationRequest.__table__.c.deadline,
+        postgresql_where=TrustRecertificationRequest.__table__.c.resolution_status == "pending",
+    )
+)
 
 
 class TrustCertificationEvidenceRef(Base, UUIDMixin, TimestampMixin):

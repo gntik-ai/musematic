@@ -580,3 +580,201 @@ async def test_service_assemble_context_and_drift_monitor_cover_remaining_branch
             ),
             actor_id,
         )
+
+
+
+@pytest.mark.asyncio
+async def test_service_profile_fallbacks_and_private_helpers_cover_remaining_branches() -> None:
+    workspace_id = uuid4()
+    actor_id = uuid4()
+    service, repo, _, _, _, _ = _service(workspace_id)
+
+    original_default = await service.create_profile(
+        workspace_id,
+        build_profile_create(name="original-default", is_default=True),
+        actor_id,
+    )
+    candidate = await service.create_profile(
+        workspace_id,
+        build_profile_create(name="candidate", is_default=False),
+        actor_id,
+    )
+    updated = await service.update_profile(
+        workspace_id,
+        candidate.id,
+        build_profile_create(name="candidate-default", is_default=True),
+        actor_id,
+    )
+    assert repo.profiles[original_default.id].is_default is False
+    assert updated.is_default is True
+
+    with pytest.raises(ProfileNotFoundError):
+        await service.delete_profile(workspace_id, uuid4(), actor_id)
+
+    workspace_profile = await service.create_profile(
+        workspace_id,
+        build_profile_create(name="workspace-profile"),
+        actor_id,
+    )
+    await service.assign_profile(
+        workspace_id,
+        workspace_profile.id,
+        ProfileAssignmentCreate(assignment_level="workspace"),
+        actor_id,
+    )
+
+    workspace_resolved = await service.resolve_profile(
+        workspace_id=workspace_id,
+        agent_fqn="finance:unassigned",
+        role_type="missing-role",
+    )
+    assert workspace_resolved.profile_id == workspace_profile.id
+
+    repo.assignments.clear()
+    default_resolved = await service.resolve_profile(
+        workspace_id=workspace_id,
+        agent_fqn="finance:unassigned",
+        role_type="missing-role",
+    )
+    assert default_resolved.profile_id == updated.id
+
+    correlation_service = service._correlation_service()
+    recomputer = service._correlation_recomputer()
+    assert correlation_service.repository is repo
+    assert (
+        recomputer.default_window_days
+        == service.settings.context_engineering.correlation_window_days
+    )
+
+    no_session_service = ContextEngineeringService(
+        repository=SimpleNamespace(session=SimpleNamespace()),
+        adapters={},
+        quality_scorer=QualityScorer(),
+        compactor=ContextCompactor(),
+        privacy_filter=PrivacyFilter(policies_service=None),
+        object_storage=SimpleNamespace(),
+        clickhouse_client=SimpleNamespace(),
+        settings=PlatformSettings(),
+        event_producer=None,
+        workspaces_service=None,
+        registry_service=None,
+    )
+    await no_session_service._commit()
+    await no_session_service._rollback()
+
+
+@pytest.mark.asyncio
+async def test_service_assemble_context_budget_minimum_and_ab_metrics_paths() -> None:
+    from platform.context_engineering.exceptions import BudgetExceededMinimumError
+
+    workspace_id = uuid4()
+    actor_id = uuid4()
+
+    class _BudgetFailingCompactor:
+        async def compact(self, elements, budget, strategies):
+            del elements, strategies
+            raise BudgetExceededMinimumError(budget.max_tokens_step, minimum_tokens=99)
+
+        def minimum_viable_elements(self, elements):
+            return list(elements[:1])
+
+    repo = MemoryContextRepository()
+    workspaces = WorkspacesServiceStub(workspace_ids=[workspace_id])
+    clickhouse = ClickHouseClientStub()
+    storage = ObjectStorageStub()
+    producer = EventProducerStub()
+    service = ContextEngineeringService(
+        repository=repo,
+        adapters={
+            ContextSourceType.system_instructions: StaticAdapter(
+                [
+                    build_element(
+                        source_type=ContextSourceType.system_instructions,
+                        content="budget critical context",
+                        token_count=50,
+                        origin="registry:finance:agent",
+                    )
+                ]
+            )
+        },
+        quality_scorer=QualityScorer(),
+        compactor=_BudgetFailingCompactor(),
+        privacy_filter=PrivacyFilter(policies_service=None),
+        object_storage=storage,
+        clickhouse_client=clickhouse,  # type: ignore[arg-type]
+        settings=PlatformSettings(),
+        event_producer=producer,
+        workspaces_service=workspaces,
+        registry_service=None,
+    )
+
+    control_profile = await service.create_profile(
+        workspace_id,
+        build_profile_create(
+            name="control",
+            source_config=[
+                {
+                    "source_type": ContextSourceType.system_instructions.value,
+                    "priority": 100,
+                    "enabled": True,
+                    "max_elements": 1,
+                }
+            ],
+            budget_config={"max_tokens_step": 1, "max_sources": 1},
+        ),
+        actor_id,
+    )
+    variant_profile = await service.create_profile(
+        workspace_id,
+        build_profile_create(
+            name="variant",
+            source_config=[
+                {
+                    "source_type": ContextSourceType.system_instructions.value,
+                    "priority": 100,
+                    "enabled": True,
+                    "max_elements": 1,
+                }
+            ],
+            budget_config={"max_tokens_step": 1, "max_sources": 1},
+        ),
+        actor_id,
+    )
+    ab_test = await repo.create_ab_test(
+        workspace_id=workspace_id,
+        created_by=actor_id,
+        updated_by=actor_id,
+        name="budget-exp",
+        control_profile_id=control_profile.id,
+        variant_profile_id=variant_profile.id,
+        target_agent_fqn="finance:agent",
+        status=AbTestStatus.active,
+        started_at=datetime.now(UTC),
+        ended_at=None,
+        control_assembly_count=0,
+        variant_assembly_count=0,
+        control_quality_mean=None,
+        variant_quality_mean=None,
+        control_token_mean=None,
+        variant_token_mean=None,
+    )
+
+    bundle = await service.assemble_context(
+        execution_id=uuid4(),
+        step_id=uuid4(),
+        agent_fqn="finance:agent",
+        workspace_id=workspace_id,
+        task_brief="recover payment",
+    )
+
+    assert "budget_exceeded_minimum" in bundle.flags
+    assert any(
+        item["event_type"] == "context_engineering.budget.exceeded_minimum"
+        for item in producer.published
+    )
+    assert any(
+        item["event_type"] == "context_engineering.assembly.completed"
+        for item in producer.published
+    )
+    refreshed_ab_test = repo.ab_tests[ab_test.id]
+    assert refreshed_ab_test.control_assembly_count + refreshed_ab_test.variant_assembly_count == 1

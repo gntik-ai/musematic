@@ -1,10 +1,21 @@
 "use client";
 
 import { createApiClient } from "@/lib/api";
+import type {
+  OAuthAuthorizeResponse,
+  OAuthLinkListResponse,
+  OAuthProviderAdminListResponse,
+  OAuthProviderAdminResponse,
+  OAuthProviderPublicListResponse,
+  OAuthProviderType,
+  OAuthProviderUpsertRequest,
+} from "@/lib/types/oauth";
 import type { ApiError } from "@/types/api";
 import type { AuthSession, RoleType, UserProfile } from "@/types/auth";
 
-const authApi = createApiClient(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000");
+const authApi = createApiClient(
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000",
+);
 
 export interface AuthUserResponse {
   id: string;
@@ -84,6 +95,25 @@ export interface MfaConfirmResponse {
   recovery_codes: string[];
 }
 
+export interface OAuthCallbackSuccessResponse {
+  token_pair: {
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
+  };
+  user: AuthUserResponse;
+}
+
+export interface OAuthCallbackMfaResponse {
+  mfa_required: true;
+  session_token: string;
+  user: AuthUserResponse;
+}
+
+export type OAuthCallbackResponse =
+  | OAuthCallbackSuccessResponse
+  | OAuthCallbackMfaResponse;
+
 export async function login(request: LoginRequest): Promise<LoginResponse> {
   return authApi.post<LoginResponse>("/api/v1/auth/login", request, {
     skipAuth: true,
@@ -91,7 +121,9 @@ export async function login(request: LoginRequest): Promise<LoginResponse> {
   });
 }
 
-export async function verifyMfa(request: MfaVerifyRequest): Promise<MfaVerifyResponse> {
+export async function verifyMfa(
+  request: MfaVerifyRequest,
+): Promise<MfaVerifyResponse> {
   return authApi.post<MfaVerifyResponse>("/api/v1/auth/mfa/verify", request, {
     skipAuth: true,
     skipRetry: true,
@@ -126,13 +158,70 @@ export async function enrollMfa(): Promise<MfaEnrollResponse> {
   });
 }
 
-export async function confirmMfa(request: MfaConfirmRequest): Promise<MfaConfirmResponse> {
+export async function confirmMfa(
+  request: MfaConfirmRequest,
+): Promise<MfaConfirmResponse> {
   return authApi.post<MfaConfirmResponse>("/api/v1/auth/mfa/confirm", request, {
     skipRetry: true,
   });
 }
 
-export function isMfaChallengeResponse(response: LoginResponse): response is MfaChallengeResponse {
+export async function listOAuthProviders(): Promise<OAuthProviderPublicListResponse> {
+  return authApi.get<OAuthProviderPublicListResponse>("/api/v1/auth/oauth/providers", {
+    skipAuth: true,
+  });
+}
+
+export async function listOAuthLinks(): Promise<OAuthLinkListResponse> {
+  return authApi.get<OAuthLinkListResponse>("/api/v1/auth/oauth/links");
+}
+
+export async function authorizeOAuthProvider(
+  providerType: OAuthProviderType,
+): Promise<OAuthAuthorizeResponse> {
+  return authApi.get<OAuthAuthorizeResponse>(
+    `/api/v1/auth/oauth/${providerType}/authorize`,
+    { skipAuth: true },
+  );
+}
+
+export async function linkOAuthProvider(
+  providerType: OAuthProviderType,
+): Promise<OAuthAuthorizeResponse> {
+  return authApi.post<OAuthAuthorizeResponse>(
+    `/api/v1/auth/oauth/${providerType}/link`,
+  );
+}
+
+export async function unlinkOAuthProvider(
+  providerType: OAuthProviderType,
+): Promise<void> {
+  return authApi.delete<void>(`/api/v1/auth/oauth/${providerType}/link`);
+}
+
+export async function listAdminOAuthProviders(): Promise<OAuthProviderAdminListResponse> {
+  return authApi.get<OAuthProviderAdminListResponse>("/api/v1/admin/oauth/providers");
+}
+
+export async function upsertAdminOAuthProvider(
+  providerType: OAuthProviderType,
+  payload: OAuthProviderUpsertRequest,
+): Promise<OAuthProviderAdminResponse> {
+  return authApi.put<OAuthProviderAdminResponse>(
+    `/api/v1/admin/oauth/providers/${providerType}`,
+    payload,
+  );
+}
+
+export function isMfaChallengeResponse(
+  response: LoginResponse,
+): response is MfaChallengeResponse {
+  return "mfa_required" in response && response.mfa_required === true;
+}
+
+export function isOAuthCallbackMfaResponse(
+  response: OAuthCallbackResponse,
+): response is OAuthCallbackMfaResponse {
   return "mfa_required" in response && response.mfa_required === true;
 }
 
@@ -157,6 +246,26 @@ export function toAuthSession(
     expiresIn: response.expires_in,
     user: toUserProfile(response.user),
   };
+}
+
+export function toAuthSessionFromOAuthCallback(
+  response: OAuthCallbackSuccessResponse,
+): AuthSession {
+  return {
+    accessToken: response.token_pair.access_token,
+    refreshToken: response.token_pair.refresh_token,
+    expiresIn: response.token_pair.expires_in,
+    user: toUserProfile(response.user),
+  };
+}
+
+export function decodeOAuthSessionFragment(
+  encodedFragment: string,
+): OAuthCallbackResponse {
+  const normalized = encodedFragment.replace(/-/g, "+").replace(/_/g, "/");
+  const padding = (4 - (normalized.length % 4)) % 4;
+  const decoded = window.atob(normalized.padEnd(normalized.length + padding, "="));
+  return JSON.parse(decoded) as OAuthCallbackResponse;
 }
 
 export function getLockoutSeconds(error: ApiError): number | null {

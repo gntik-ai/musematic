@@ -4,12 +4,24 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from platform.common.models.base import Base
 from platform.common.models.mixins import SoftDeleteMixin, TimestampMixin, UUIDMixin
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
@@ -63,9 +75,7 @@ class AttentionStatus(StrEnum):
 
 class Conversation(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "conversations"
-    __table_args__ = (
-        Index("ix_conversations_workspace_created", "workspace_id", "created_at"),
-    )
+    __table_args__ = (Index("ix_conversations_workspace_created", "workspace_id", "created_at"),)
 
     workspace_id: Mapped[UUID] = mapped_column(
         ForeignKey("workspaces_workspaces.id", ondelete="CASCADE"),
@@ -130,6 +140,12 @@ class Interaction(Base, UUIDMixin, TimestampMixin):
     error_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    contract_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("agent_contracts.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    contract_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
     conversation: Mapped[Conversation] = relationship(
         "platform.interactions.models.Conversation",
@@ -145,6 +161,15 @@ class Interaction(Base, UUIDMixin, TimestampMixin):
         back_populates="interaction",
         cascade="all, delete-orphan",
     )
+
+
+cast(Any, Interaction.__table__).append_constraint(
+    Index(
+        "ix_interactions_contract_id",
+        Interaction.__table__.c.contract_id,
+        postgresql_where=Interaction.__table__.c.contract_id.is_not(None),
+    )
+)
 
 
 class InteractionMessage(Base, UUIDMixin, TimestampMixin):
@@ -254,11 +279,43 @@ class WorkspaceGoalMessage(Base, UUIDMixin, TimestampMixin):
     )
 
 
+class WorkspaceGoalDecisionRationale(Base, UUIDMixin):
+    __tablename__ = "workspace_goal_decision_rationales"
+    __table_args__ = (
+        UniqueConstraint("message_id", "agent_fqn", name="uq_wgdr_message_agent"),
+        Index("ix_wgdr_goal", "goal_id", "created_at"),
+        Index("ix_wgdr_workspace", "workspace_id", "agent_fqn"),
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+    workspace_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workspaces_workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    goal_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workspaces_goals.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    message_id: Mapped[UUID] = mapped_column(
+        ForeignKey("workspace_goal_messages.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    agent_fqn: Mapped[str] = mapped_column(Text(), nullable=False)
+    strategy_name: Mapped[str] = mapped_column(String(length=64), nullable=False)
+    decision: Mapped[str] = mapped_column(String(length=8), nullable=False)
+    score: Mapped[float | None] = mapped_column(Float(), nullable=True)
+    matched_terms: Mapped[list[str]] = mapped_column(ARRAY(Text()), nullable=False, default=list)
+    rationale: Mapped[str] = mapped_column(Text(), nullable=False, default="")
+    error: Mapped[str | None] = mapped_column(Text(), nullable=True)
+
+
 class ConversationBranch(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "conversation_branches"
-    __table_args__ = (
-        Index("ix_conversation_branches_parent", "parent_interaction_id"),
-    )
+    __table_args__ = (Index("ix_conversation_branches_parent", "parent_interaction_id"),)
 
     conversation_id: Mapped[UUID] = mapped_column(
         ForeignKey("conversations.id", ondelete="CASCADE"),
@@ -306,9 +363,7 @@ class BranchMergeRecord(Base, UUIDMixin, TimestampMixin):
 
 class AttentionRequest(Base, UUIDMixin, TimestampMixin):
     __tablename__ = "attention_requests"
-    __table_args__ = (
-        Index("ix_attention_requests_target_status", "target_identity", "status"),
-    )
+    __table_args__ = (Index("ix_attention_requests_target_status", "target_identity", "status"),)
 
     workspace_id: Mapped[UUID] = mapped_column(
         ForeignKey("workspaces_workspaces.id", ondelete="CASCADE"),

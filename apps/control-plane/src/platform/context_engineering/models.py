@@ -58,6 +58,15 @@ class ProfileAssignmentLevel(StrEnum):
     workspace = "workspace"
 
 
+class CorrelationClassification(StrEnum):
+    strong_positive = "strong_positive"
+    moderate_positive = "moderate_positive"
+    weak = "weak"
+    moderate_negative = "moderate_negative"
+    strong_negative = "strong_negative"
+    inconclusive = "inconclusive"
+
+
 class ContextEngineeringProfile(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin, AuditMixin):
     __tablename__ = "context_engineering_profiles"
     __table_args__ = (
@@ -234,3 +243,34 @@ class ContextDriftAlert(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
         default=list,
     )
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class CorrelationResult(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+    __tablename__ = "context_engineering_correlation_results"
+    __table_args__ = (
+        Index("ix_ce_correlation_agent_window", "agent_fqn", "window_start", "window_end"),
+        Index("ix_ce_correlation_classification", "classification"),
+        Index(
+            "uq_ce_correlation_window_metric",
+            "workspace_id",
+            "agent_fqn",
+            "dimension",
+            "performance_metric",
+            "window_start",
+            "window_end",
+            unique=True,
+        ),
+    )
+
+    agent_fqn: Mapped[str] = mapped_column(String(length=190), nullable=False)
+    dimension: Mapped[str] = mapped_column(String(length=64), nullable=False)
+    performance_metric: Mapped[str] = mapped_column(String(length=64), nullable=False)
+    window_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    window_end: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    coefficient: Mapped[float | None] = mapped_column(Float(), nullable=True)
+    classification: Mapped[CorrelationClassification] = mapped_column(
+        SAEnum(CorrelationClassification, name="correlation_classification", create_type=False),
+        nullable=False,
+    )
+    data_point_count: Mapped[int] = mapped_column(Integer(), nullable=False, default=0)
+    computed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

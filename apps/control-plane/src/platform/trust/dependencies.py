@@ -15,6 +15,8 @@ from platform.registry.dependencies import get_registry_service
 from platform.registry.service import RegistryService
 from platform.trust.ate_service import ATEService
 from platform.trust.circuit_breaker import CircuitBreakerService
+from platform.trust.contract_service import ContractService
+from platform.trust.events import TrustEventPublisher
 from platform.trust.guardrail_pipeline import GuardrailPipelineService
 from platform.trust.oje_pipeline import OJEPipelineService
 from platform.trust.prescreener import SafetyPreScreenerService
@@ -22,6 +24,7 @@ from platform.trust.privacy_assessment import PrivacyAssessmentService
 from platform.trust.recertification import RecertificationService
 from platform.trust.repository import TrustRepository
 from platform.trust.service import CertificationService
+from platform.trust.surveillance_service import SurveillanceService
 from platform.trust.trust_tier import TrustTierService
 from typing import cast
 
@@ -42,7 +45,7 @@ def _get_redis(request: Request) -> AsyncRedisClient:
 
 
 def _get_object_storage(request: Request) -> AsyncObjectStorageClient:
-    return cast(AsyncObjectStorageClient, request.app.state.clients["minio"])
+    return cast(AsyncObjectStorageClient, request.app.state.clients["object_storage"])
 
 
 def _get_runtime_controller(request: Request) -> RuntimeControllerClient | None:
@@ -66,6 +69,51 @@ def build_certification_service(
         repository=TrustRepository(session),
         settings=settings,
         producer=producer,
+    )
+
+
+def build_contract_service(
+    *,
+    session: AsyncSession,
+    producer: EventProducer | None,
+) -> ContractService:
+    return ContractService(
+        repository=TrustRepository(session),
+        publisher=TrustEventPublisher(producer),
+    )
+
+
+def build_surveillance_service(
+    *,
+    session: AsyncSession,
+    settings: PlatformSettings,
+    producer: EventProducer | None,
+) -> SurveillanceService:
+    return SurveillanceService(
+        repository=TrustRepository(session),
+        publisher=TrustEventPublisher(producer),
+        settings=settings,
+    )
+
+
+async def get_contract_service(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+) -> ContractService:
+    return build_contract_service(
+        session=session,
+        producer=_get_producer(request),
+    )
+
+
+async def get_surveillance_service(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+) -> SurveillanceService:
+    return build_surveillance_service(
+        session=session,
+        settings=_get_settings(request),
+        producer=_get_producer(request),
     )
 
 

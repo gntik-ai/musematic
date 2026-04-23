@@ -10,6 +10,8 @@ from platform.context_engineering.schemas import (
     AbTestResponse,
     AssemblyRecordListResponse,
     AssemblyRecordResponse,
+    CorrelationFleetResponse,
+    CorrelationRecomputeRequest,
     DriftAlertListResponse,
     ProfileAssignmentCreate,
     ProfileAssignmentResponse,
@@ -166,6 +168,55 @@ async def list_drift_alerts(
         resolved=resolved,
         limit=limit,
         offset=offset,
+    )
+
+
+@router.get("/correlations/{agent_fqn}", response_model=CorrelationFleetResponse)
+async def get_correlations_for_agent(
+    agent_fqn: str,
+    request: Request,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    service: ContextEngineeringService = Depends(get_context_engineering_service),
+    *,
+    window_days: int | None = Query(default=None, ge=1),
+    classification: str | None = Query(default=None),
+) -> CorrelationFleetResponse:
+    return await service.get_latest_correlation(
+        _workspace_id(request),
+        _actor_id(current_user),
+        agent_fqn=agent_fqn,
+        window_days=window_days,
+        classification=classification,
+    )
+
+
+@router.get("/correlations", response_model=CorrelationFleetResponse)
+async def list_correlations(
+    request: Request,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    service: ContextEngineeringService = Depends(get_context_engineering_service),
+    *,
+    classification: str | None = Query(default=None),
+) -> CorrelationFleetResponse:
+    return await service.query_fleet_correlations(
+        _workspace_id(request),
+        _actor_id(current_user),
+        classification=classification,
+    )
+
+
+@router.post("/correlations/recompute", status_code=202)
+async def recompute_correlations(
+    payload: CorrelationRecomputeRequest,
+    request: Request,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    service: ContextEngineeringService = Depends(get_context_engineering_service),
+) -> dict[str, object]:
+    return await service.enqueue_correlation_recompute(
+        _workspace_id(request),
+        _actor_id(current_user),
+        agent_fqn=payload.agent_fqn,
+        window_days=payload.window_days,
     )
 
 

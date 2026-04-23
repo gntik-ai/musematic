@@ -107,7 +107,7 @@ async def test_connector_credential_isolation_and_rotation(
             settings=settings,
             producer=producer,
             redis_client=redis_client,
-            object_storage=app.state.clients["minio"],
+            object_storage=app.state.clients["object_storage"],
         )
         await service.execute_delivery(UUID(first_delivery.json()["id"]))
         await session.commit()
@@ -139,7 +139,7 @@ async def test_connector_credential_isolation_and_rotation(
             settings=settings,
             producer=producer,
             redis_client=redis_client,
-            object_storage=app.state.clients["minio"],
+            object_storage=app.state.clients["object_storage"],
         )
         failed = await service.execute_delivery(UUID(second_delivery.json()["id"]))
         await session.commit()

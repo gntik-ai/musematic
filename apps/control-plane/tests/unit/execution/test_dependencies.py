@@ -33,7 +33,7 @@ def _request(settings: PlatformSettings) -> SimpleNamespace:
                     "redis": FakeRedisClient(),
                     "runtime_controller": object(),
                     "reasoning_engine": object(),
-                    "minio": FakeObjectStorage(),
+                    "object_storage": FakeObjectStorage(),
                 },
                 context_engineering_service="context",
                 interactions_service="interactions",
@@ -51,7 +51,7 @@ def test_execution_dependency_helpers_read_from_request_state() -> None:
     assert _get_redis(request) is request.app.state.clients["redis"]
     assert _get_runtime_controller(request) is request.app.state.clients["runtime_controller"]
     assert _get_reasoning_engine(request) is request.app.state.clients["reasoning_engine"]
-    assert _get_object_storage(request) is request.app.state.clients["minio"]
+    assert _get_object_storage(request) is request.app.state.clients["object_storage"]
 
 
 @pytest.mark.asyncio
@@ -65,7 +65,7 @@ async def test_execution_dependency_factories_build_services() -> None:
         settings=settings,
         producer=request.app.state.clients["kafka"],  # type: ignore[arg-type]
         redis_client=request.app.state.clients["redis"],  # type: ignore[arg-type]
-        object_storage=request.app.state.clients["minio"],  # type: ignore[arg-type]
+        object_storage=request.app.state.clients["object_storage"],  # type: ignore[arg-type]
         runtime_controller=request.app.state.clients["runtime_controller"],
         reasoning_engine=request.app.state.clients["reasoning_engine"],
         context_engineering_service="context",
@@ -75,7 +75,7 @@ async def test_execution_dependency_factories_build_services() -> None:
         settings=settings,
         producer=request.app.state.clients["kafka"],  # type: ignore[arg-type]
         redis_client=request.app.state.clients["redis"],  # type: ignore[arg-type]
-        object_storage=request.app.state.clients["minio"],  # type: ignore[arg-type]
+        object_storage=request.app.state.clients["object_storage"],  # type: ignore[arg-type]
         runtime_controller=request.app.state.clients["runtime_controller"],
         reasoning_engine=request.app.state.clients["reasoning_engine"],
         context_engineering_service="context",

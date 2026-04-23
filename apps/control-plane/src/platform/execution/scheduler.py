@@ -3,6 +3,10 @@ from __future__ import annotations
 import json
 import logging
 from datetime import UTC, datetime, timedelta
+from platform.common.events.envelope import CorrelationContext
+from platform.common.exceptions import PolicySecretLeakError
+from platform.execution.checkpoint_service import CheckpointService
+from platform.execution.events import PromptSecretDetectedEvent, publish_prompt_secret_detected
 from platform.execution.models import (
     ApprovalDecision,
     ApprovalTimeoutAction,
@@ -16,17 +20,22 @@ from platform.execution.models import (
 )
 from platform.execution.projector import ExecutionProjector
 from platform.execution.repository import ExecutionRepository
-from platform.execution.schemas import ExecutionStateResponse
+from platform.execution.reprioritization import ReprioritizationResult, ReprioritizationService
+from platform.execution.schemas import DEFAULT_CHECKPOINT_POLICY, ExecutionStateResponse
 from platform.execution.service import ExecutionService
+from platform.policies.models import EnforcementComponent, PolicyBlockedActionRecord
+from platform.policies.repository import PolicyRepository
+from platform.policies.sanitizer import OutputSanitizer
 from platform.workflows.ir import StepIR, WorkflowIR
 from typing import Any, TypedDict
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 LOGGER = logging.getLogger(__name__)
 
 
 class PriorityChange(TypedDict):
     """Represent the priority change."""
+
     step_id: str
     old_priority: float
     new_priority: float
@@ -34,6 +43,7 @@ class PriorityChange(TypedDict):
 
 class PriorityScorer:
     """Represent the priority scorer."""
+
     def compute(self, step: StepIR, execution_context: dict[str, Any]) -> float:
         """Handle compute."""
         now = execution_context["now"]
@@ -61,6 +71,7 @@ class PriorityScorer:
 
 class SchedulerService:
     """Provide scheduler operations."""
+
     def __init__(
         self,
         *,
@@ -76,6 +87,8 @@ class SchedulerService:
         context_engineering_service: Any | None,
         interactions_service: Any | None,
         priority_scorer: PriorityScorer | None = None,
+        reprioritization_service: ReprioritizationService | None = None,
+        checkpoint_service: CheckpointService | None = None,
     ) -> None:
         self.repository = repository
         self.execution_service = execution_service
@@ -89,6 +102,8 @@ class SchedulerService:
         self.context_engineering_service = context_engineering_service
         self.interactions_service = interactions_service
         self.priority_scorer = priority_scorer or PriorityScorer()
+        self.reprioritization_service = reprioritization_service
+        self.checkpoint_service = checkpoint_service
         self.worker_id = f"worker-{uuid4()}"
 
     async def tick(self) -> None:
@@ -96,8 +111,28 @@ class SchedulerService:
         executions = await self.repository.list_by_statuses(
             [ExecutionStatus.queued, ExecutionStatus.running]
         )
-        executions.sort(key=self._execution_priority_key)
-        for execution in executions:
+        queued = [item for item in executions if item.status == ExecutionStatus.queued]
+        running = [item for item in executions if item.status != ExecutionStatus.queued]
+        running.sort(key=self._execution_priority_key)
+
+        reordered_queued: list[Execution] = []
+        if queued and self.reprioritization_service is not None:
+            by_workspace: dict[Any, list[Execution]] = {}
+            for execution in queued:
+                by_workspace.setdefault(execution.workspace_id, []).append(execution)
+            for workspace_id, workspace_executions in by_workspace.items():
+                result = await self.reprioritization_service.evaluate_for_dispatch_cycle(
+                    workspace_executions,
+                    workspace_id,
+                    cycle_budget_ms=25,
+                )
+                reordered_queued.extend(result.ordered_executions)
+                if result.firings:
+                    await self._emit_queue_reprioritization(result)
+        else:
+            reordered_queued = sorted(queued, key=self._execution_priority_key)
+
+        for execution in [*running, *reordered_queued]:
             await self._process_execution(execution)
 
     async def handle_reprioritization_trigger(
@@ -251,12 +286,44 @@ class SchedulerService:
         )
 
         for step in scored:
+            if not await self._capture_pre_dispatch_checkpoint(execution, step, state):
+                return
             if step.step_type == "approval_gate":
                 await self._handle_approval_gate(execution, step)
                 continue
             if not await self._acquire_lease(execution.id, step.step_id):
                 continue
-            await self._persist_task_plan(execution, step)
+            try:
+                await self._persist_task_plan(execution, step)
+            except PolicySecretLeakError as exc:
+                LOGGER.warning(
+                    "Prompt preflight blocked runtime dispatch",
+                    extra={
+                        "execution_id": str(execution.id),
+                        "step_id": step.step_id,
+                        "secret_type": exc.secret_type,
+                    },
+                )
+                lease = await self.repository.get_active_dispatch_lease(execution.id, step.step_id)
+                if lease is not None:
+                    await self.repository.release_dispatch_lease(
+                        lease,
+                        released_at=datetime.now(UTC),
+                        expired=False,
+                    )
+                await self.repository.update_execution_status(
+                    execution,
+                    ExecutionStatus.failed,
+                    completed_at=datetime.now(UTC),
+                )
+                await self.execution_service.record_runtime_event(
+                    execution.id,
+                    step_id=step.step_id,
+                    event_type=ExecutionEventType.failed,
+                    payload={"step_type": step.step_type, "secret_type": exc.secret_type},
+                    status=ExecutionStatus.failed,
+                )
+                return
             await self.repository.update_execution_status(
                 execution,
                 ExecutionStatus.running,
@@ -273,8 +340,89 @@ class SchedulerService:
                 payload={"step_type": step.step_type},
                 status=ExecutionStatus.running,
             )
-            await self._dispatch_to_runtime(execution, step)
+            await self._dispatch_to_runtime(execution, ir, step)
             await self._maybe_checkpoint(execution.id)
+
+    async def _emit_queue_reprioritization(self, result: ReprioritizationResult) -> None:
+        queue_order = [
+            {"execution_id": str(item.id), "position": index + 1}
+            for index, item in enumerate(result.ordered_executions)
+        ]
+        for firing in result.firings:
+            execution = next(
+                item for item in result.ordered_executions if item.id == firing.execution_id
+            )
+            payload = {
+                "trigger_reason": firing.trigger.trigger_type,
+                "trigger_id": str(firing.trigger.id),
+                "trigger_name": firing.trigger.name,
+                "new_queue_order": queue_order,
+                "priority_changes": [
+                    {
+                        "execution_id": str(firing.execution_id),
+                        "old_position": firing.old_position,
+                        "new_position": firing.new_position,
+                    }
+                ],
+                "steps_affected": [],
+            }
+            await self.execution_service.record_runtime_event(
+                execution.id,
+                step_id=None,
+                event_type=ExecutionEventType.reprioritized,
+                payload=payload,
+            )
+            await self.execution_service.publish_reprioritization(
+                execution,
+                trigger_reason=firing.trigger.trigger_type,
+                steps_affected=[],
+                trigger_id=firing.trigger.id,
+                trigger_name=firing.trigger.name,
+                new_queue_order=queue_order,
+            )
+
+    async def _capture_pre_dispatch_checkpoint(
+        self,
+        execution: Execution,
+        step: StepIR,
+        state: ExecutionStateResponse,
+    ) -> bool:
+        if self.checkpoint_service is None:
+            return True
+        policy = dict(execution.checkpoint_policy_snapshot or DEFAULT_CHECKPOINT_POLICY)
+        if not self.checkpoint_service.should_capture(step, policy):
+            return True
+        try:
+            await self.checkpoint_service.capture(
+                execution=execution,
+                step_id=step.step_id,
+                state=state,
+                policy_snapshot=policy,
+            )
+        except Exception as exc:
+            LOGGER.warning(
+                "Checkpoint capture paused execution",
+                extra={
+                    "execution_id": str(execution.id),
+                    "step_id": step.step_id,
+                    "error": str(exc),
+                },
+            )
+            await self.repository.update_execution_status(execution, ExecutionStatus.paused)
+            await self.execution_service.record_runtime_event(
+                execution.id,
+                step_id=step.step_id,
+                event_type=ExecutionEventType.failed,
+                payload={
+                    "step_type": step.step_type,
+                    "failure_kind": "checkpoint_capture",
+                    "recoverable": True,
+                    "error": str(exc),
+                },
+                status=ExecutionStatus.paused,
+            )
+            return False
+        return True
 
     async def _handle_approval_gate(self, execution: Execution, step: StepIR) -> None:
         existing = await self.repository.get_approval_wait(execution.id, step.step_id)
@@ -362,6 +510,7 @@ class SchedulerService:
                 else:
                     payload = result
                 if isinstance(payload, dict):
+                    await self._prompt_secret_preflight(payload, execution=execution, step=step)
                     return payload
         parameter_sources = []
         parameters = {}
@@ -369,7 +518,7 @@ class SchedulerService:
             provenance = "prev_step_output" if value.startswith("$.steps.") else "user_input"
             parameter_sources.append(provenance)
             parameters[key] = {"value": value, "provenance": provenance}
-        return {
+        payload = {
             "execution_id": str(execution.id),
             "step_id": step.step_id,
             "selected_agent_fqn": step.agent_fqn,
@@ -387,6 +536,8 @@ class SchedulerService:
             "parameter_sources": list(dict.fromkeys(parameter_sources)),
             "rejected_alternatives": [],
         }
+        await self._prompt_secret_preflight(payload, execution=execution, step=step)
+        return payload
 
     async def _acquire_lease(self, execution_id: Any, step_id: str) -> bool:
         client = await self.redis_client._get_client()
@@ -409,8 +560,14 @@ class SchedulerService:
         )
         return True
 
-    async def _dispatch_to_runtime(self, execution: Execution, step: StepIR) -> None:
-        payload = {
+    async def _dispatch_to_runtime(
+        self,
+        execution: Execution,
+        ir: WorkflowIR,
+        step: StepIR,
+    ) -> None:
+        compute_budget, effective_budget_scope = self._resolve_effective_compute_budget(ir, step)
+        payload: dict[str, object] = {
             "execution_id": str(execution.id),
             "workflow_version_id": str(execution.workflow_version_id),
             "step_id": step.step_id,
@@ -419,13 +576,113 @@ class SchedulerService:
             "tool_fqn": step.tool_fqn,
             "input_bindings": dict(step.input_bindings or {}),
         }
-        target = getattr(self.runtime_controller, "dispatch", None)
-        if not callable(target) and getattr(self.runtime_controller, "stub", None) is not None:
-            target = getattr(self.runtime_controller.stub, "dispatch", None)
-        if callable(target):
-            result = target(payload)
+        if step.reasoning_mode is not None:
+            payload["reasoning_mode"] = step.reasoning_mode
+        if compute_budget is not None:
+            payload["compute_budget"] = compute_budget
+            payload["effective_budget_scope"] = effective_budget_scope
+        launch = getattr(self.runtime_controller, "launch_runtime", None)
+        fallback = getattr(self.runtime_controller, "dispatch", None)
+        if not callable(fallback) and getattr(self.runtime_controller, "stub", None) is not None:
+            fallback = getattr(self.runtime_controller.stub, "dispatch", None)
+        if callable(launch):
+            try:
+                result = launch(payload, prefer_warm=True)
+                if hasattr(result, "__await__"):
+                    await result
+                return
+            except Exception:
+                if not callable(fallback):
+                    raise
+        if callable(fallback):
+            result = fallback(payload)
             if hasattr(result, "__await__"):
                 await result
+
+    def _resolve_effective_compute_budget(
+        self,
+        ir: WorkflowIR,
+        step: StepIR,
+    ) -> tuple[float | None, str | None]:
+        workflow_budget = (
+            ir.metadata.get("compute_budget") if isinstance(ir.metadata, dict) else None
+        )
+        step_budget = step.compute_budget
+        if not self._is_valid_compute_budget(step_budget):
+            step_budget = None
+        if not self._is_valid_compute_budget(workflow_budget):
+            workflow_budget = None
+        workflow_budget_value = float(workflow_budget) if workflow_budget is not None else None
+        step_budget_value = float(step_budget) if step_budget is not None else None
+        if step_budget_value is None and workflow_budget_value is None:
+            return None, None
+        if step_budget_value is None:
+            return workflow_budget_value, "workflow"
+        if workflow_budget_value is None:
+            return step_budget_value, "step"
+        if step_budget_value <= workflow_budget_value:
+            return step_budget_value, "step"
+        return workflow_budget_value, "workflow"
+
+    @staticmethod
+    def _is_valid_compute_budget(value: Any) -> bool:
+        return (
+            isinstance(value, (int, float))
+            and not isinstance(value, bool)
+            and 0.0 < float(value) <= 1.0
+        )
+
+    async def _prompt_secret_preflight(
+        self,
+        payload: dict[str, Any],
+        *,
+        execution: Execution,
+        step: StepIR,
+    ) -> None:
+        prompt_payload = json.dumps(payload, sort_keys=True)
+        for secret_type, pattern in OutputSanitizer.SECRET_PATTERNS.items():
+            if pattern.search(prompt_payload) is None:
+                continue
+            agent_fqn = step.agent_fqn or "unknown-agent"
+            agent_id = uuid5(NAMESPACE_URL, agent_fqn)
+            repository = PolicyRepository(self.repository.session)
+            await repository.create_blocked_action_record(
+                PolicyBlockedActionRecord(
+                    agent_id=agent_id,
+                    agent_fqn=agent_fqn,
+                    enforcement_component=EnforcementComponent.sanitizer,
+                    action_type="prompt_preflight_block",
+                    target=secret_type,
+                    block_reason=f"prompt_secret_detected:{secret_type}",
+                    policy_rule_ref={"step_id": step.step_id},
+                    execution_id=execution.id,
+                    workspace_id=execution.workspace_id,
+                )
+            )
+            await publish_prompt_secret_detected(
+                self.producer,
+                PromptSecretDetectedEvent(
+                    execution_id=execution.id,
+                    workspace_id=execution.workspace_id,
+                    agent_fqn=agent_fqn,
+                    step_id=step.step_id,
+                    secret_type=secret_type,
+                ),
+                self._correlation_context(execution, step),
+            )
+            raise PolicySecretLeakError(secret_type)
+
+    def _correlation_context(self, execution: Execution, step: StepIR) -> CorrelationContext:
+        return CorrelationContext(
+            correlation_id=uuid4(),
+            workspace_id=execution.workspace_id,
+            execution_id=execution.id,
+            conversation_id=execution.correlation_conversation_id,
+            interaction_id=execution.correlation_interaction_id,
+            fleet_id=execution.correlation_fleet_id,
+            goal_id=execution.correlation_goal_id,
+            agent_fqn=step.agent_fqn,
+        )
 
     async def _maybe_checkpoint(self, execution_id: Any) -> None:
         event_count = await self.repository.count_events(execution_id)

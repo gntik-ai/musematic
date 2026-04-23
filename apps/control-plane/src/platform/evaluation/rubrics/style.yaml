@@ -1,0 +1,27 @@
+name: style
+description: Evaluates tone, conciseness, and formatting quality.
+criteria:
+  - name: tone_appropriateness
+    description: Whether the tone matches the intended audience and task.
+    scale_min: 1
+    scale_max: 5
+    examples:
+      "1": Tone is clearly inappropriate.
+      "3": Tone is acceptable but inconsistent.
+      "5": Tone is well matched end to end.
+  - name: conciseness
+    description: Whether the output is concise without losing key information.
+    scale_min: 1
+    scale_max: 5
+    examples:
+      "1": Rambling or overly terse.
+      "3": Somewhat verbose or slightly clipped.
+      "5": Tight and appropriately concise.
+  - name: formatting
+    description: Whether the structure and formatting improve readability.
+    scale_min: 1
+    scale_max: 5
+    examples:
+      "1": Poorly structured and hard to scan.
+      "3": Acceptable structure with minor issues.
+      "5": Well structured and highly readable.

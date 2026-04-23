@@ -1,10 +1,11 @@
 "use client";
 
-import { Bell, Command as CommandIcon, Menu, MoonStar, SunMedium } from "lucide-react";
+import { Command as CommandIcon, Menu, MoonStar, SunMedium } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Breadcrumb } from "@/components/layout/breadcrumb/Breadcrumb";
 import { useCommandPalette } from "@/components/layout/command-palette/CommandPaletteProvider";
 import { ConnectionIndicator } from "@/components/layout/header/ConnectionIndicator";
+import { NotificationBell } from "@/components/features/alerts/notification-bell";
 import { UserMenu } from "@/components/layout/header/UserMenu";
 import { WorkspaceSelector } from "@/components/layout/header/WorkspaceSelector";
 import { Button } from "@/components/ui/button";
@@ -53,9 +54,7 @@ export function Header({ onOpenMobileNav }: HeaderProps) {
         >
           {resolvedTheme === "dark" ? <SunMedium className="h-4 w-4" /> : <MoonStar className="h-4 w-4" />}
         </Button>
-        <Button size="icon" variant="ghost">
-          <Bell className="h-4 w-4" />
-        </Button>
+        <NotificationBell />
         <UserMenu />
       </div>
       <div className="w-full lg:hidden">

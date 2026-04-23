@@ -1,3 +1,4 @@
+{{- if .Values.minio.enabled }}
 {{- $name := include "musematic.minio.fullname" . -}}
 {{- $endpoint := ternary (printf "http://%s:9000" $name) (printf "http://%s-svc:9000" $name) .Values.standalone -}}
 apiVersion: v1
@@ -101,3 +102,4 @@ data:
     mc admin policy create local platform-policy /tmp/platform-policy.json >/dev/null 2>&1 || true
     mc admin policy attach local simulation-policy --user "${SIMULATION_ACCESS_KEY}" >/dev/null 2>&1 || true
     mc admin policy attach local platform-policy --user "${PLATFORM_ACCESS_KEY}" >/dev/null 2>&1 || true
+{{- end }}

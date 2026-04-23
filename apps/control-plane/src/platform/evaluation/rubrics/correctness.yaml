@@ -1,0 +1,19 @@
+name: correctness
+description: Evaluates factual accuracy and completeness of an output.
+criteria:
+  - name: factual_accuracy
+    description: Whether the output contains factually correct statements.
+    scale_min: 1
+    scale_max: 5
+    examples:
+      "1": Contains factual errors that mislead the reader.
+      "3": Mostly correct with minor inaccuracies.
+      "5": Fully accurate and verifiable.
+  - name: completeness
+    description: Whether the output addresses all relevant parts of the task.
+    scale_min: 1
+    scale_max: 5
+    examples:
+      "1": Omits critical information.
+      "3": Covers the main points but misses supporting details.
+      "5": Fully addresses the task with appropriate depth.

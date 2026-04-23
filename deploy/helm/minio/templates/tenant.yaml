@@ -1,3 +1,4 @@
+{{- if .Values.minio.enabled }}
 {{- if not .Values.standalone }}
 {{- $name := include "musematic.minio.fullname" . -}}
 apiVersion: minio.min.io/v2
@@ -38,4 +39,5 @@ spec:
   prometheusOperator: false
   # The MinIO Operator exposes the tenant S3 API and console services for this tenant.
   # Expect the S3 API on port 9000 and the console on port 9001 for {{ $name }}.
+{{- end }}
 {{- end }}

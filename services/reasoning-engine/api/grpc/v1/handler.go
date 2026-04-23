@@ -4,48 +4,68 @@ import (
 	"context"
 	"errors"
 	"math"
+	"sync"
+	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/musematic/reasoning-engine/internal/budget_tracker"
 	"github.com/musematic/reasoning-engine/internal/correction_loop"
 	"github.com/musematic/reasoning-engine/internal/cot_coordinator"
+	"github.com/musematic/reasoning-engine/internal/debate"
 	"github.com/musematic/reasoning-engine/internal/mode_selector"
 	"github.com/musematic/reasoning-engine/internal/tot_manager"
 	"github.com/musematic/reasoning-engine/pkg/metrics"
+	"github.com/musematic/reasoning-engine/pkg/persistence"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type HandlerDependencies struct {
-	ModeSelector   mode_selector.ModeSelector
-	BudgetTracker  budget_tracker.BudgetTracker
-	EventRegistry  *budget_tracker.EventRegistry
-	CoTCoordinator cot_coordinator.CoTCoordinator
-	ToTManager     tot_manager.ToTManager
-	CorrectionLoop correction_loop.CorrectionLoop
-	Metrics        *metrics.Metrics
+	ModeSelector    mode_selector.ModeSelector
+	BudgetTracker   budget_tracker.BudgetTracker
+	EventRegistry   *budget_tracker.EventRegistry
+	CoTCoordinator  cot_coordinator.CoTCoordinator
+	ToTManager      tot_manager.ToTManager
+	DebateService   debate.DebateOrchestrator
+	CorrectionLoop  correction_loop.CorrectionLoop
+	TraceStore      persistence.TraceRecordStore
+	TraceUploader   traceUploader
+	ReasoningEvents reasoningEventProducer
+	Metrics         *metrics.Metrics
 }
 
 type Handler struct {
 	UnimplementedReasoningEngineServiceServer
-	modeSelector   mode_selector.ModeSelector
-	budgetTracker  budget_tracker.BudgetTracker
-	eventRegistry  *budget_tracker.EventRegistry
-	cotCoordinator cot_coordinator.CoTCoordinator
-	totManager     tot_manager.ToTManager
-	correctionLoop correction_loop.CorrectionLoop
-	metrics        *metrics.Metrics
+	modeSelector           mode_selector.ModeSelector
+	budgetTracker          budget_tracker.BudgetTracker
+	eventRegistry          *budget_tracker.EventRegistry
+	cotCoordinator         cot_coordinator.CoTCoordinator
+	totManager             tot_manager.ToTManager
+	debateService          debate.DebateOrchestrator
+	correctionLoop         correction_loop.CorrectionLoop
+	traceStore             persistence.TraceRecordStore
+	traceUploader          traceUploader
+	reasoningEvents        reasoningEventProducer
+	metrics                *metrics.Metrics
+	selfCorrectionMu       sync.Mutex
+	selfCorrectionSessions map[string]*selfCorrectionSession
 }
 
 func NewHandler(deps HandlerDependencies) *Handler {
 	return &Handler{
-		modeSelector:   deps.ModeSelector,
-		budgetTracker:  deps.BudgetTracker,
-		eventRegistry:  deps.EventRegistry,
-		cotCoordinator: deps.CoTCoordinator,
-		totManager:     deps.ToTManager,
-		correctionLoop: deps.CorrectionLoop,
-		metrics:        deps.Metrics,
+		modeSelector:           deps.ModeSelector,
+		budgetTracker:          deps.BudgetTracker,
+		eventRegistry:          deps.EventRegistry,
+		cotCoordinator:         deps.CoTCoordinator,
+		totManager:             deps.ToTManager,
+		debateService:          deps.DebateService,
+		correctionLoop:         deps.CorrectionLoop,
+		traceStore:             deps.TraceStore,
+		traceUploader:          deps.TraceUploader,
+		reasoningEvents:        deps.ReasoningEvents,
+		metrics:                deps.Metrics,
+		selfCorrectionSessions: map[string]*selfCorrectionSession{},
 	}
 }
 
@@ -72,6 +92,18 @@ func (h *Handler) SelectReasoningMode(ctx context.Context, req *SelectReasoningM
 			return nil, status.Error(codes.ResourceExhausted, err.Error())
 		}
 		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	if req.ComputeBudget != nil {
+		computeBudget := req.GetComputeBudget()
+		if computeBudget <= 0 || computeBudget > 1 {
+			return nil, status.Error(codes.InvalidArgument, "compute_budget must be within (0,1]")
+		}
+		selection.RecommendedBudget = mapComputeBudgetToAllocation(
+			selection.Mode,
+			computeBudget,
+			selection.RecommendedBudget,
+		)
 	}
 
 	h.metrics.RecordModeSelection(ctx, selection.Mode)
@@ -259,60 +291,53 @@ func (h *Handler) EvaluateTreeBranches(ctx context.Context, req *EvaluateTreeBra
 }
 
 func (h *Handler) StartSelfCorrectionLoop(ctx context.Context, req *StartSelfCorrectionRequest) (*SelfCorrectionHandle, error) {
-	if h.correctionLoop == nil {
-		return nil, status.Error(codes.Unimplemented, "correction loop is not configured")
-	}
-
-	handle, err := h.correctionLoop.Start(ctx, req.GetLoopId(), req.GetExecutionId(), correction_loop.LoopConfig{
-		MaxIterations:            int(req.GetMaxIterations()),
-		CostCap:                  req.GetCostCap(),
-		Epsilon:                  req.GetEpsilon(),
-		EscalateOnBudgetExceeded: req.GetEscalateOnBudgetExceeded(),
-	})
-	if err != nil {
-		switch {
-		case errors.Is(err, correction_loop.ErrLoopExists):
-			return nil, status.Error(codes.AlreadyExists, err.Error())
-		default:
-			return nil, status.Error(codes.InvalidArgument, err.Error())
-		}
-	}
-
-	return &SelfCorrectionHandle{
-		LoopId:    handle.LoopID,
-		Status:    handle.Status,
-		StartedAt: timestamppb.New(handle.StartedAt),
-	}, nil
+	return h.startSelfCorrectionLoop(ctx, req)
 }
 
 func (h *Handler) SubmitCorrectionIteration(ctx context.Context, req *CorrectionIterationEvent) (*ConvergenceResult, error) {
-	if h.correctionLoop == nil {
-		return nil, status.Error(codes.Unimplemented, "correction loop is not configured")
-	}
+	return h.submitCorrectionIteration(ctx, req)
+}
 
-	statusValue, iterationNum, delta, err := h.correctionLoop.Submit(ctx, req.GetLoopId(), req.GetQualityScore(), req.GetCost(), req.GetDurationMs())
+func (h *Handler) GetReasoningTrace(
+	ctx context.Context,
+	req *GetReasoningTraceRequest,
+) (*GetReasoningTraceResponse, error) {
+	if req.GetExecutionId() == "" {
+		return nil, status.Error(codes.InvalidArgument, "execution_id is required")
+	}
+	if h.traceStore == nil {
+		return nil, status.Error(codes.Unimplemented, "trace store is not configured")
+	}
+	record, err := h.traceStore.GetTraceRecord(ctx, req.GetExecutionId(), req.GetStepId())
 	if err != nil {
-		switch {
-		case errors.Is(err, correction_loop.ErrLoopNotFound):
-			return nil, status.Error(codes.NotFound, err.Error())
-		case errors.Is(err, correction_loop.ErrLoopNotRunning):
-			return nil, status.Error(codes.FailedPrecondition, err.Error())
-		default:
-			return nil, status.Error(codes.InvalidArgument, err.Error())
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, status.Error(codes.NotFound, "reasoning trace not found")
 		}
+		return nil, status.Error(codes.Internal, err.Error())
 	}
-
-	h.metrics.RecordCorrectionCost(ctx, req.GetCost())
-	h.metrics.RecordCorrectionIteration(ctx, string(statusValue))
-	if statusValue == correction_loop.StatusBudgetExceeded || statusValue == correction_loop.StatusEscalateToHuman {
-		h.metrics.RecordCorrectionNonConvergence(ctx, string(statusValue))
+	response := &GetReasoningTraceResponse{
+		ExecutionId:            record.ExecutionID,
+		Technique:              record.Technique,
+		Status:                 record.Status,
+		StorageKey:             record.StorageKey,
+		StepCount:              int64(record.StepCount),
+		ComputeBudgetUsed:      record.ComputeBudgetUsed,
+		ComputeBudgetExhausted: record.ComputeBudgetExhausted,
 	}
-	return &ConvergenceResult{
-		Status:       convergenceToProto(statusValue),
-		IterationNum: safeInt32(iterationNum),
-		Delta:        delta,
-		LoopId:       req.GetLoopId(),
-	}, nil
+	if record.ConsensusReached != nil {
+		response.ConsensusReached = *record.ConsensusReached
+	}
+	if record.Stabilized != nil {
+		response.Stabilized = *record.Stabilized
+	}
+	if record.DegradationDetected != nil {
+		response.DegradationDetected = *record.DegradationDetected
+	}
+	if record.Status != "complete" && !record.UpdatedAt.IsZero() {
+		response.LastUpdatedAt = record.UpdatedAt.UTC().Format(time.RFC3339)
+	}
+	response.EffectiveBudgetScope = record.EffectiveBudgetScope
+	return response, nil
 }
 
 type traceStreamAdapter struct {
@@ -378,6 +403,8 @@ func modeToProto(mode string) ReasoningMode {
 		return ReasoningMode_CODE_AS_REASONING
 	case "DEBATE":
 		return ReasoningMode_DEBATE
+	case "SELF_CORRECTION":
+		return ReasoningMode_SELF_CORRECTION
 	default:
 		return ReasoningMode_REASONING_MODE_UNSPECIFIED
 	}
@@ -406,4 +433,44 @@ func safeInt32(value int) int32 {
 		return math.MinInt32
 	}
 	return int32(value)
+}
+
+func mapComputeBudgetToAllocation(
+	mode string,
+	computeBudget float64,
+	allocation mode_selector.BudgetAllocation,
+) mode_selector.BudgetAllocation {
+	if computeBudget <= 0 {
+		return allocation
+	}
+	scaled := allocation
+	switch mode {
+	case "CHAIN_OF_THOUGHT", "DIRECT", "CODE_AS_REASONING":
+		scaled.Tokens = scaleInt64(allocation.Tokens, computeBudget)
+	case "TREE_OF_THOUGHT", "REACT", "DEBATE", "SELF_CORRECTION":
+		scaled.Rounds = scaleInt64(allocation.Rounds, computeBudget)
+	default:
+		scaled.Tokens = scaleInt64(allocation.Tokens, computeBudget)
+	}
+	scaled.Cost = scaleFloat64(allocation.Cost, computeBudget)
+	scaled.TimeMS = scaleInt64(allocation.TimeMS, computeBudget)
+	return scaled
+}
+
+func scaleInt64(value int64, factor float64) int64 {
+	if value <= 0 || factor <= 0 {
+		return value
+	}
+	scaled := int64(math.Round(float64(value) * factor))
+	if scaled < 1 {
+		return 1
+	}
+	return scaled
+}
+
+func scaleFloat64(value float64, factor float64) float64 {
+	if value <= 0 || factor <= 0 {
+		return value
+	}
+	return value * factor
 }

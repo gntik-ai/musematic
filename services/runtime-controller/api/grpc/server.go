@@ -31,6 +31,8 @@ type Store interface {
 	UpdateRuntimeState(context.Context, string, string, string) error
 	GetRuntimeEventsSince(context.Context, string, time.Time) ([]state.RuntimeEventRecord, error)
 	InsertRuntimeEvent(context.Context, state.RuntimeEventRecord) error
+	ListWarmPoolStatus(context.Context, string, string) ([]state.WarmPoolStatusRecord, error)
+	UpsertWarmPoolTarget(context.Context, string, string, int) error
 }
 
 type RuntimeControlServiceServer struct {
@@ -46,7 +48,7 @@ type RuntimeControlServiceServer struct {
 
 func (s *RuntimeControlServiceServer) LaunchRuntime(ctx context.Context, req *runtimev1.LaunchRuntimeRequest) (*runtimev1.LaunchRuntimeResponse, error) {
 	start := time.Now()
-	info, warmStart, err := s.Launcher.Launch(ctx, req.Contract)
+	info, warmStart, err := s.Launcher.Launch(ctx, req.Contract, req.GetPreferWarm())
 	if err != nil {
 		switch {
 		case errors.Is(err, launcher.ErrAlreadyExists):
@@ -58,8 +60,22 @@ func (s *RuntimeControlServiceServer) LaunchRuntime(ctx context.Context, req *ru
 		}
 	}
 	if s.Metrics != nil {
+		agentType := ""
+		workspaceID := ""
+		if req.GetContract() != nil {
+			agentType = req.GetContract().GetAgentRevision()
+			if req.GetContract().GetCorrelationContext() != nil {
+				workspaceID = req.GetContract().GetCorrelationContext().GetWorkspaceId()
+			}
+		}
 		s.Metrics.IncLaunches()
 		s.Metrics.ObserveLaunchDuration(time.Since(start))
+		if warmStart {
+			s.Metrics.IncWarmPoolDispatches(workspaceID, agentType)
+			s.Metrics.ObserveWarmDispatchLatency(workspaceID, agentType, float64(time.Since(start).Milliseconds()))
+		} else {
+			s.Metrics.IncColdStart(workspaceID, agentType)
+		}
 	}
 	return &runtimev1.LaunchRuntimeResponse{
 		RuntimeId: info.RuntimeId,
@@ -183,6 +199,47 @@ func (s *RuntimeControlServiceServer) waitForTermination(ctx context.Context, po
 		case <-ticker.C:
 		}
 	}
+}
+
+func (s *RuntimeControlServiceServer) WarmPoolStatus(ctx context.Context, req *runtimev1.WarmPoolStatusRequest) (*runtimev1.WarmPoolStatusResponse, error) {
+	records, err := s.Store.ListWarmPoolStatus(ctx, req.GetWorkspaceId(), req.GetAgentType())
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	response := &runtimev1.WarmPoolStatusResponse{Keys: make([]*runtimev1.WarmPoolKeyStatus, 0, len(records))}
+	for _, record := range records {
+		response.Keys = append(response.Keys, &runtimev1.WarmPoolKeyStatus{
+			WorkspaceId:     record.WorkspaceID,
+			AgentType:       record.AgentType,
+			TargetSize:      int32(record.TargetSize),
+			AvailableCount:  int32(record.AvailableCount),
+			DispatchedCount: int32(record.DispatchedCount),
+			WarmingCount:    int32(record.WarmingCount),
+			LastDispatchAt:  timestampOrNil(record.LastDispatchAt),
+		})
+		if s.Metrics != nil {
+			s.Metrics.SetWarmPoolTarget(record.WorkspaceID, record.AgentType, float64(record.TargetSize))
+			s.Metrics.SetWarmPoolAvailable(record.WorkspaceID, record.AgentType, float64(record.AvailableCount))
+			s.Metrics.SetWarmPoolWarming(record.WorkspaceID, record.AgentType, float64(record.WarmingCount))
+		}
+	}
+	return response, nil
+}
+
+func (s *RuntimeControlServiceServer) WarmPoolConfig(ctx context.Context, req *runtimev1.WarmPoolConfigRequest) (*runtimev1.WarmPoolConfigResponse, error) {
+	if req.GetWorkspaceId() == "" || req.GetAgentType() == "" {
+		return nil, status.Error(codes.InvalidArgument, "workspace_id and agent_type are required")
+	}
+	if req.GetTargetSize() < 0 {
+		return nil, status.Error(codes.InvalidArgument, "target_size must be >= 0")
+	}
+	if err := s.Store.UpsertWarmPoolTarget(ctx, req.GetWorkspaceId(), req.GetAgentType(), int(req.GetTargetSize())); err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+	if s.Metrics != nil {
+		s.Metrics.SetWarmPoolTarget(req.GetWorkspaceId(), req.GetAgentType(), float64(req.GetTargetSize()))
+	}
+	return &runtimev1.WarmPoolConfigResponse{Accepted: true}, nil
 }
 
 func (s *RuntimeControlServiceServer) StreamRuntimeEvents(req *runtimev1.StreamRuntimeEventsRequest, stream runtimev1.RuntimeControlService_StreamRuntimeEventsServer) error {
@@ -342,4 +399,11 @@ func (s *RuntimeControlServiceServer) broadcast(record state.RuntimeRecord, name
 	if s.Fanout != nil {
 		s.Fanout.Publish(event)
 	}
+}
+
+func timestampOrNil(value *time.Time) *timestamppb.Timestamp {
+	if value == nil {
+		return nil
+	}
+	return timestamppb.New(*value)
 }

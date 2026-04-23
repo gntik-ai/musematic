@@ -7,6 +7,7 @@ from platform.workspaces.models import (
     Membership,
     Workspace,
     WorkspaceGoal,
+    WorkspaceGoalState,
     WorkspaceRole,
     WorkspaceSettings,
     WorkspaceStatus,
@@ -177,6 +178,14 @@ class WorkspacesRepository:
         )
         return result.scalar_one_or_none()
 
+    async def list_member_ids(self, workspace_id: UUID) -> list[UUID]:
+        result = await self.session.execute(
+            select(Membership.user_id)
+            .where(Membership.workspace_id == workspace_id)
+            .order_by(Membership.user_id.asc())
+        )
+        return [UUID(str(user_id)) for user_id in result.scalars().all()]
+
     async def list_members(
         self,
         workspace_id: UUID,
@@ -241,12 +250,15 @@ class WorkspacesRepository:
         title: str,
         description: str | None,
         created_by: UUID,
+        auto_complete_timeout_seconds: int | None = None,
     ) -> WorkspaceGoal:
         goal = WorkspaceGoal(
             workspace_id=workspace_id,
             title=title,
             description=description,
             status=GoalStatus.open,
+            state=WorkspaceGoalState.ready,
+            auto_complete_timeout_seconds=auto_complete_timeout_seconds,
             created_by=created_by,
         )
         self.session.add(goal)

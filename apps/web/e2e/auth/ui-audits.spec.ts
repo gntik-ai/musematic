@@ -56,7 +56,7 @@ test("auth pages and MFA enrollment dialog stay responsive in dark mode", async 
     await page.setViewportSize({ width, height: 900 });
 
     for (const authRoute of authRoutes) {
-      await page.goto(authRoute.route);
+      await page.goto(authRoute.route, { waitUntil: "domcontentloaded" });
 
       await expect(page.locator("html")).toHaveClass(/dark/);
       await expect(

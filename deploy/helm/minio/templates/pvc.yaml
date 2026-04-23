@@ -1,3 +1,4 @@
+{{- if .Values.minio.enabled }}
 {{- if .Values.standalone }}
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -11,4 +12,5 @@ spec:
   resources:
     requests:
       storage: {{ .Values.storageSize | quote }}
+{{- end }}
 {{- end }}

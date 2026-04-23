@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from enum import StrEnum
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
@@ -20,6 +21,8 @@ class InteractionsEventType(StrEnum):
     branch_merged = "branch.merged"
     goal_message_posted = "goal.message.posted"
     goal_status_changed = "goal.status.changed"
+    goal_state_changed = "workspace.goal.state_changed"
+    state_changed = "interaction.state_changed"
     attention_requested = "attention.requested"
 
 
@@ -84,14 +87,33 @@ class GoalStatusChangedPayload(BaseModel):
     status: str
 
 
+class GoalStateChangedPayload(BaseModel):
+    goal_id: UUID
+    workspace_id: UUID
+    previous_state: str
+    new_state: str
+    automatic: bool
+    reason: str | None
+    transitioned_at: datetime
+
+
+class InteractionStateChangedPayload(BaseModel):
+    interaction_id: UUID
+    workspace_id: UUID
+    from_state: str
+    to_state: str
+    occurred_at: datetime
+
+
 class AttentionRequestedPayload(BaseModel):
     request_id: UUID
     workspace_id: UUID
     source_agent_fqn: str
     target_identity: str
-    urgency: AttentionUrgency
+    urgency: AttentionUrgency | str
     related_interaction_id: UUID | None
     related_goal_id: UUID | None
+    context_summary: str | None = None
 
 
 INTERACTIONS_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
@@ -103,6 +125,8 @@ INTERACTIONS_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     InteractionsEventType.branch_merged.value: BranchMergedPayload,
     InteractionsEventType.goal_message_posted.value: GoalMessagePostedPayload,
     InteractionsEventType.goal_status_changed.value: GoalStatusChangedPayload,
+    InteractionsEventType.goal_state_changed.value: GoalStateChangedPayload,
+    InteractionsEventType.state_changed.value: InteractionStateChangedPayload,
     InteractionsEventType.attention_requested.value: AttentionRequestedPayload,
 }
 
@@ -249,6 +273,36 @@ async def publish_goal_status_changed(
         topic="workspace.goal",
         event_type=InteractionsEventType.goal_status_changed,
         key=str(payload.workspace_id),
+        payload=payload,
+        correlation_ctx=correlation_ctx,
+    )
+
+
+async def publish_goal_state_changed(
+    producer: EventProducer | None,
+    payload: GoalStateChangedPayload,
+    correlation_ctx: CorrelationContext,
+) -> None:
+    await _publish(
+        producer=producer,
+        topic="workspace.goal",
+        event_type=InteractionsEventType.goal_state_changed,
+        key=str(payload.workspace_id),
+        payload=payload,
+        correlation_ctx=correlation_ctx,
+    )
+
+
+async def publish_interaction_state_changed(
+    producer: EventProducer | None,
+    payload: InteractionStateChangedPayload,
+    correlation_ctx: CorrelationContext,
+) -> None:
+    await _publish(
+        producer=producer,
+        topic="interaction.events",
+        event_type=InteractionsEventType.state_changed,
+        key=str(payload.interaction_id),
         payload=payload,
         correlation_ctx=correlation_ctx,
     )

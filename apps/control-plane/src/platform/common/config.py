@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import os
+import secrets
 from typing import Any, Literal
 
-from pydantic import Field, model_validator
+from pydantic import AliasChoices, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -82,14 +84,24 @@ class OpenSearchSettings(BaseSettings):
     timeout: int = 30
 
 
-class MinIOSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="MINIO_", extra="ignore")
+class ObjectStorageSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="S3_", extra="ignore", populate_by_name=True)
 
-    endpoint: str = "http://localhost:9000"
-    access_key: str = "minioadmin"
-    secret_key: str = "minioadmin"
-    default_bucket: str = "platform-artifacts"
-    use_ssl: bool = False
+    endpoint_url: str = Field(
+        default="", validation_alias=AliasChoices("S3_ENDPOINT_URL", "MINIO_ENDPOINT")
+    )
+    access_key: str = Field(
+        default="minioadmin",
+        validation_alias=AliasChoices("S3_ACCESS_KEY", "MINIO_ACCESS_KEY"),
+    )
+    secret_key: str = Field(
+        default="minioadmin",
+        validation_alias=AliasChoices("S3_SECRET_KEY", "MINIO_SECRET_KEY"),
+    )
+    region: str = Field(default="us-east-1", validation_alias="S3_REGION")
+    bucket_prefix: str = Field(default="platform", validation_alias="S3_BUCKET_PREFIX")
+    use_path_style: bool = Field(default=True, validation_alias="S3_USE_PATH_STYLE")
+    provider: str = Field(default="generic", validation_alias="S3_PROVIDER")
 
 
 class GRPCSettings(BaseSettings):
@@ -116,6 +128,11 @@ class AuthSettings(BaseSettings):
     mfa_enrollment_ttl: int = 600
     session_ttl: int = 604800
     password_reset_ttl: int = 3600
+    oauth_state_secret: str = Field(default_factory=lambda: secrets.token_hex(32))
+    oauth_state_ttl: int = 600
+    oauth_jwks_cache_ttl: int = 3600
+    oauth_rate_limit_max: int = 10
+    oauth_rate_limit_window: int = 60
 
     @property
     def signing_key(self) -> str:
@@ -213,6 +230,9 @@ class ContextEngineeringSettings(BaseSettings):
     drift_recent_hours: int = 24
     drift_stddev_multiplier: float = 2.0
     drift_schedule_minutes: int = 5
+    correlation_window_days: int = 30
+    correlation_min_data_points: int = 30
+    correlation_recompute_interval_hours: int = 24
 
 
 class MemorySettings(BaseSettings):
@@ -242,14 +262,56 @@ class InteractionsSettings(BaseSettings):
 
     max_messages_per_conversation: int = 10000
     default_page_size: int = 20
+    goal_auto_complete_scan_interval_seconds: int = 60
+
+
+class NotificationsSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="NOTIFICATIONS_", extra="ignore")
+
+    rate_limit_per_source_per_minute: int = 20
+    alert_retention_days: int = 90
+    webhook_max_retries: int = 5
+    retry_scan_interval_seconds: int = 30
+    gc_interval_hours: int = 24
+
+
+class GovernanceSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="GOVERNANCE_", extra="ignore")
+
+    rate_limit_per_observer_per_minute: int = 100
+    retention_days: int = 90
+    gc_interval_hours: int = 24
+    judge_timeout_seconds: int = 30
+
+
+class EvaluationSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="EVALUATION_", extra="ignore")
+
+    llm_judge_api_url: str = ""
+    llm_judge_model: str = "gpt-4"
+    llm_judge_timeout_seconds: int = 30
+    llm_judge_max_retries: int = 2
+    trajectory_max_steps: int = 10000
+    calibration_variance_envelope: float = 0.2
 
 
 class ConnectorsSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="CONNECTOR_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="CONNECTOR_",
+        extra="ignore",
+        populate_by_name=True,
+    )
 
     ingress_topic: str = "connector.ingress"
     delivery_topic: str = "connector.delivery"
-    dead_letter_bucket: str = "connector-dead-letters"
+    dead_letter_bucket: str = Field(
+        default="connector-dead-letters",
+        validation_alias=AliasChoices(
+            "CONNECTOR_DEAD_LETTER_BUCKET",
+            "S3_BUCKET_DEAD_LETTERS",
+            "MINIO_BUCKET_DEAD_LETTERS",
+        ),
+    )
     delivery_consumer_group: str = "connector-delivery-worker"
     retry_scan_interval_seconds: int = 30
     route_cache_ttl_seconds: int = 60
@@ -267,6 +329,8 @@ class TrustSettings(BaseSettings):
     evidence_bucket: str = "trust-evidence"
     output_moderation_url: str = ""
     recertification_expiry_threshold_days: int = 30
+    surveillance_warning_window_days: int = 7
+    recertification_grace_period_days: int = 14
     attention_target_identity: str = "platform_admin"
     default_workspace_id: str = "00000000-0000-0000-0000-000000000000"
 
@@ -284,6 +348,12 @@ class AgentOpsSettings(BaseSettings):
     retirement_grace_period_days: int = 14
     retirement_critical_intervals: int = 5
     recertification_grace_period_days: int = 7
+    adaptation_proposal_ttl_hours: int = 168
+    adaptation_rollback_retention_days: int = 30
+    adaptation_observation_window_hours: int = 72
+    adaptation_signal_poll_interval_minutes: int = 60
+    adaptation_min_observations_per_dimension: int = 10
+    adaptation_proficiency_dwell_time_hours: int = 24
 
 
 class CompositionSettings(BaseSettings):
@@ -311,6 +381,10 @@ class DiscoverySettings(BaseSettings):
     proximity_over_explored_min_size: int = 5
     proximity_over_explored_similarity: float = 0.85
     proximity_gap_distance_threshold: float = 0.5
+    proximity_graph_max_neighbors_per_node: int = 8
+    proximity_graph_recompute_interval_minutes: int = 15
+    proximity_graph_staleness_warning_minutes: int = 60
+    proximity_bias_default_enabled: bool = True
     qdrant_collection: str = "discovery_hypotheses"
     embedding_vector_size: int = 1536
     experiment_sandbox_timeout_seconds: int = 120
@@ -328,7 +402,27 @@ class SimulationSettings(BaseSettings):
 
 
 class PlatformSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="PLATFORM_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="PLATFORM_",
+        extra="ignore",
+        populate_by_name=True,
+    )
+
+    FEATURE_GOAL_AUTO_COMPLETE: bool = False
+    feature_e2e_mode: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("FEATURE_E2E_MODE", "PLATFORM_FEATURE_E2E_MODE"),
+    )
+    A2A_PROTOCOL_VERSION: str = "1.0"
+    A2A_MAX_PAYLOAD_BYTES: int = 10_485_760
+    A2A_TASK_IDLE_TIMEOUT_MINUTES: int = 30
+    A2A_DEFAULT_CARD_TTL_SECONDS: int = 3600
+    A2A_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE: int = 60
+    MCP_CATALOG_TTL_SECONDS: int = 3600
+    MCP_MAX_PAYLOAD_BYTES: int = 10_485_760
+    MCP_INVOCATION_TIMEOUT_SECONDS: int = 30
+    MCP_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE: int = 60
+    MCP_PROTOCOL_VERSION: str = "2024-11-05"
 
     db: DatabaseSettings = Field(default_factory=DatabaseSettings)
     redis: RedisSettings = Field(default_factory=RedisSettings)
@@ -337,7 +431,7 @@ class PlatformSettings(BaseSettings):
     neo4j: Neo4jSettings = Field(default_factory=Neo4jSettings)
     clickhouse: ClickHouseSettings = Field(default_factory=ClickHouseSettings)
     opensearch: OpenSearchSettings = Field(default_factory=OpenSearchSettings)
-    minio: MinIOSettings = Field(default_factory=MinIOSettings)
+    s3: ObjectStorageSettings = Field(default_factory=ObjectStorageSettings)
     grpc: GRPCSettings = Field(default_factory=GRPCSettings)
     auth: AuthSettings = Field(default_factory=AuthSettings)
     otel: OTelSettings = Field(default_factory=OTelSettings)
@@ -352,12 +446,17 @@ class PlatformSettings(BaseSettings):
     )
     memory: MemorySettings = Field(default_factory=MemorySettings)
     interactions: InteractionsSettings = Field(default_factory=InteractionsSettings)
+    notifications: NotificationsSettings = Field(default_factory=NotificationsSettings)
+    governance: GovernanceSettings = Field(default_factory=GovernanceSettings)
+    evaluation: EvaluationSettings = Field(default_factory=EvaluationSettings)
     connectors: ConnectorsSettings = Field(default_factory=ConnectorsSettings)
     trust: TrustSettings = Field(default_factory=TrustSettings)
     agentops: AgentOpsSettings = Field(default_factory=AgentOpsSettings)
     composition: CompositionSettings = Field(default_factory=CompositionSettings)
     discovery: DiscoverySettings = Field(default_factory=DiscoverySettings)
     simulation: SimulationSettings = Field(default_factory=SimulationSettings)
+    checkpoint_retention_days: int = 30
+    checkpoint_max_size_bytes: int = 10_485_760
     profile: str = "api"
 
     @model_validator(mode="before")
@@ -367,6 +466,8 @@ class PlatformSettings(BaseSettings):
             return data
 
         values = dict(data)
+        if "feature_e2e_mode" not in values and "FEATURE_E2E_MODE" in os.environ:
+            values["feature_e2e_mode"] = os.environ["FEATURE_E2E_MODE"]
         mappings = {
             "POSTGRES_DSN": ("db", "dsn"),
             "POSTGRES_POOL_SIZE": ("db", "pool_size"),
@@ -405,11 +506,16 @@ class PlatformSettings(BaseSettings):
             "OPENSEARCH_VERIFY_CERTS": ("opensearch", "verify_certs"),
             "OPENSEARCH_CA_CERTS": ("opensearch", "ca_certs"),
             "OPENSEARCH_TIMEOUT": ("opensearch", "timeout"),
-            "MINIO_ENDPOINT": ("minio", "endpoint"),
-            "MINIO_ACCESS_KEY": ("minio", "access_key"),
-            "MINIO_SECRET_KEY": ("minio", "secret_key"),
-            "MINIO_DEFAULT_BUCKET": ("minio", "default_bucket"),
-            "MINIO_USE_SSL": ("minio", "use_ssl"),
+            "S3_ENDPOINT_URL": ("s3", "endpoint_url"),
+            "S3_ACCESS_KEY": ("s3", "access_key"),
+            "S3_SECRET_KEY": ("s3", "secret_key"),
+            "S3_REGION": ("s3", "region"),
+            "S3_BUCKET_PREFIX": ("s3", "bucket_prefix"),
+            "S3_USE_PATH_STYLE": ("s3", "use_path_style"),
+            "S3_PROVIDER": ("s3", "provider"),
+            "MINIO_ENDPOINT": ("s3", "endpoint_url"),
+            "MINIO_ACCESS_KEY": ("s3", "access_key"),
+            "MINIO_SECRET_KEY": ("s3", "secret_key"),
             "GRPC_RUNTIME_CONTROLLER": ("grpc", "runtime_controller"),
             "GRPC_REASONING_ENGINE": ("grpc", "reasoning_engine"),
             "GRPC_SANDBOX_MANAGER": ("grpc", "sandbox_manager"),
@@ -427,6 +533,11 @@ class PlatformSettings(BaseSettings):
             "AUTH_SESSION_TTL": ("auth", "session_ttl"),
             "AUTH_SESSION_TTL_SECONDS": ("auth", "session_ttl"),
             "AUTH_PASSWORD_RESET_TTL": ("auth", "password_reset_ttl"),
+            "AUTH_OAUTH_STATE_SECRET": ("auth", "oauth_state_secret"),
+            "AUTH_OAUTH_STATE_TTL": ("auth", "oauth_state_ttl"),
+            "AUTH_OAUTH_JWKS_CACHE_TTL": ("auth", "oauth_jwks_cache_ttl"),
+            "AUTH_OAUTH_RATE_LIMIT_MAX": ("auth", "oauth_rate_limit_max"),
+            "AUTH_OAUTH_RATE_LIMIT_WINDOW": ("auth", "oauth_rate_limit_window"),
             "OTEL_EXPORTER_ENDPOINT": ("otel", "exporter_endpoint"),
             "OTEL_SERVICE_NAME": ("otel", "service_name"),
             "ACCOUNTS_SIGNUP_MODE": ("accounts", "signup_mode"),
@@ -435,6 +546,20 @@ class PlatformSettings(BaseSettings):
             "ACCOUNTS_RESEND_RATE_LIMIT": ("accounts", "resend_rate_limit"),
             "WORKSPACES_DEFAULT_NAME_TEMPLATE": ("workspaces", "default_name_template"),
             "WORKSPACES_DEFAULT_LIMIT": ("workspaces", "default_limit"),
+            "FEATURE_GOAL_AUTO_COMPLETE": ("FEATURE_GOAL_AUTO_COMPLETE",),
+            "FEATURE_E2E_MODE": ("feature_e2e_mode",),
+            "A2A_PROTOCOL_VERSION": ("A2A_PROTOCOL_VERSION",),
+            "A2A_MAX_PAYLOAD_BYTES": ("A2A_MAX_PAYLOAD_BYTES",),
+            "A2A_TASK_IDLE_TIMEOUT_MINUTES": ("A2A_TASK_IDLE_TIMEOUT_MINUTES",),
+            "A2A_DEFAULT_CARD_TTL_SECONDS": ("A2A_DEFAULT_CARD_TTL_SECONDS",),
+            "A2A_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE": ("A2A_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE",),
+            "MCP_CATALOG_TTL_SECONDS": ("MCP_CATALOG_TTL_SECONDS",),
+            "MCP_MAX_PAYLOAD_BYTES": ("MCP_MAX_PAYLOAD_BYTES",),
+            "MCP_INVOCATION_TIMEOUT_SECONDS": ("MCP_INVOCATION_TIMEOUT_SECONDS",),
+            "MCP_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE": ("MCP_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE",),
+            "MCP_PROTOCOL_VERSION": ("MCP_PROTOCOL_VERSION",),
+            "CHECKPOINT_RETENTION_DAYS": ("checkpoint_retention_days",),
+            "CHECKPOINT_MAX_SIZE_BYTES": ("checkpoint_max_size_bytes",),
             "ANALYTICS_BUDGET_THRESHOLD_USD": ("analytics", "budget_threshold_usd"),
             "VISIBILITY_ZERO_TRUST_ENABLED": ("visibility", "zero_trust_enabled"),
             "REGISTRY_PACKAGE_BUCKET": ("registry", "package_bucket"),
@@ -449,6 +574,10 @@ class PlatformSettings(BaseSettings):
             "REGISTRY_REINDEX_POLL_INTERVAL_SECONDS": (
                 "registry",
                 "reindex_poll_interval_seconds",
+            ),
+            "INTERACTIONS_GOAL_AUTO_COMPLETE_SCAN_INTERVAL_SECONDS": (
+                "interactions",
+                "goal_auto_complete_scan_interval_seconds",
             ),
             "CONTEXT_ENGINEERING_BUNDLE_BUCKET": (
                 "context_engineering",
@@ -524,8 +653,63 @@ class PlatformSettings(BaseSettings):
                 "max_messages_per_conversation",
             ),
             "INTERACTIONS_DEFAULT_PAGE_SIZE": ("interactions", "default_page_size"),
+            "NOTIFICATIONS_RATE_LIMIT_PER_SOURCE_PER_MINUTE": (
+                "notifications",
+                "rate_limit_per_source_per_minute",
+            ),
+            "NOTIFICATIONS_ALERT_RETENTION_DAYS": (
+                "notifications",
+                "alert_retention_days",
+            ),
+            "NOTIFICATIONS_WEBHOOK_MAX_RETRIES": (
+                "notifications",
+                "webhook_max_retries",
+            ),
+            "NOTIFICATIONS_RETRY_SCAN_INTERVAL_SECONDS": (
+                "notifications",
+                "retry_scan_interval_seconds",
+            ),
+            "NOTIFICATIONS_GC_INTERVAL_HOURS": (
+                "notifications",
+                "gc_interval_hours",
+            ),
+            "GOVERNANCE_RATE_LIMIT_PER_OBSERVER_PER_MINUTE": (
+                "governance",
+                "rate_limit_per_observer_per_minute",
+            ),
+            "GOVERNANCE_RETENTION_DAYS": (
+                "governance",
+                "retention_days",
+            ),
+            "GOVERNANCE_GC_INTERVAL_HOURS": (
+                "governance",
+                "gc_interval_hours",
+            ),
+            "GOVERNANCE_JUDGE_TIMEOUT_SECONDS": (
+                "governance",
+                "judge_timeout_seconds",
+            ),
+            "EVALUATION_LLM_JUDGE_API_URL": ("evaluation", "llm_judge_api_url"),
+            "EVALUATION_LLM_JUDGE_MODEL": ("evaluation", "llm_judge_model"),
+            "EVALUATION_LLM_JUDGE_TIMEOUT_SECONDS": (
+                "evaluation",
+                "llm_judge_timeout_seconds",
+            ),
+            "EVALUATION_LLM_JUDGE_MAX_RETRIES": (
+                "evaluation",
+                "llm_judge_max_retries",
+            ),
+            "EVALUATION_TRAJECTORY_MAX_STEPS": (
+                "evaluation",
+                "trajectory_max_steps",
+            ),
+            "EVALUATION_CALIBRATION_VARIANCE_ENVELOPE": (
+                "evaluation",
+                "calibration_variance_envelope",
+            ),
             "CONNECTOR_INGRESS_TOPIC": ("connectors", "ingress_topic"),
             "CONNECTOR_DELIVERY_TOPIC": ("connectors", "delivery_topic"),
+            "S3_BUCKET_DEAD_LETTERS": ("connectors", "dead_letter_bucket"),
             "MINIO_BUCKET_DEAD_LETTERS": ("connectors", "dead_letter_bucket"),
             "CONNECTOR_DELIVERY_CONSUMER_GROUP": (
                 "connectors",
@@ -560,6 +744,14 @@ class PlatformSettings(BaseSettings):
             "TRUST_RECERTIFICATION_EXPIRY_THRESHOLD_DAYS": (
                 "trust",
                 "recertification_expiry_threshold_days",
+            ),
+            "TRUST_SURVEILLANCE_WARNING_WINDOW_DAYS": (
+                "trust",
+                "surveillance_warning_window_days",
+            ),
+            "TRUST_RECERTIFICATION_GRACE_PERIOD_DAYS": (
+                "trust",
+                "recertification_grace_period_days",
             ),
             "TRUST_ATTENTION_TARGET_IDENTITY": ("trust", "attention_target_identity"),
             "TRUST_DEFAULT_WORKSPACE_ID": ("trust", "default_workspace_id"),
@@ -678,8 +870,11 @@ class PlatformSettings(BaseSettings):
         for key, target in mappings.items():
             if key not in values:
                 continue
-            section, field = target
             value = values.pop(key)
+            if len(target) == 1:
+                values[target[0]] = value
+                continue
+            section, field = target
             if section == "profile":
                 values["profile"] = value
                 continue
@@ -822,24 +1017,32 @@ class PlatformSettings(BaseSettings):
         return self.opensearch.timeout
 
     @property
-    def MINIO_ENDPOINT(self) -> str:
-        return self.minio.endpoint
+    def S3_ENDPOINT_URL(self) -> str:
+        return self.s3.endpoint_url
 
     @property
-    def MINIO_ACCESS_KEY(self) -> str:
-        return self.minio.access_key
+    def S3_ACCESS_KEY(self) -> str:
+        return self.s3.access_key
 
     @property
-    def MINIO_SECRET_KEY(self) -> str:
-        return self.minio.secret_key
+    def S3_SECRET_KEY(self) -> str:
+        return self.s3.secret_key
 
     @property
-    def MINIO_DEFAULT_BUCKET(self) -> str:
-        return self.minio.default_bucket
+    def S3_REGION(self) -> str:
+        return self.s3.region
 
     @property
-    def MINIO_USE_SSL(self) -> bool:
-        return self.minio.use_ssl
+    def S3_BUCKET_PREFIX(self) -> str:
+        return self.s3.bucket_prefix
+
+    @property
+    def S3_USE_PATH_STYLE(self) -> bool:
+        return self.s3.use_path_style
+
+    @property
+    def S3_PROVIDER(self) -> str:
+        return self.s3.provider
 
     @property
     def GRPC_RUNTIME_CONTROLLER(self) -> str:
@@ -908,6 +1111,26 @@ class PlatformSettings(BaseSettings):
     @property
     def AUTH_PASSWORD_RESET_TTL(self) -> int:
         return self.auth.password_reset_ttl
+
+    @property
+    def AUTH_OAUTH_STATE_SECRET(self) -> str:
+        return self.auth.oauth_state_secret
+
+    @property
+    def AUTH_OAUTH_STATE_TTL(self) -> int:
+        return self.auth.oauth_state_ttl
+
+    @property
+    def AUTH_OAUTH_JWKS_CACHE_TTL(self) -> int:
+        return self.auth.oauth_jwks_cache_ttl
+
+    @property
+    def AUTH_OAUTH_RATE_LIMIT_MAX(self) -> int:
+        return self.auth.oauth_rate_limit_max
+
+    @property
+    def AUTH_OAUTH_RATE_LIMIT_WINDOW(self) -> int:
+        return self.auth.oauth_rate_limit_window
 
     @property
     def OTEL_EXPORTER_ENDPOINT(self) -> str:
@@ -1094,7 +1317,7 @@ class PlatformSettings(BaseSettings):
         return self.connectors.delivery_topic
 
     @property
-    def MINIO_BUCKET_DEAD_LETTERS(self) -> str:
+    def S3_BUCKET_DEAD_LETTERS(self) -> str:
         return self.connectors.dead_letter_bucket
 
     @property
@@ -1160,6 +1383,14 @@ class PlatformSettings(BaseSettings):
     @property
     def TRUST_RECERTIFICATION_EXPIRY_THRESHOLD_DAYS(self) -> int:
         return self.trust.recertification_expiry_threshold_days
+
+    @property
+    def TRUST_SURVEILLANCE_WARNING_WINDOW_DAYS(self) -> int:
+        return self.trust.surveillance_warning_window_days
+
+    @property
+    def TRUST_RECERTIFICATION_GRACE_PERIOD_DAYS(self) -> int:
+        return self.trust.recertification_grace_period_days
 
     @property
     def TRUST_ATTENTION_TARGET_IDENTITY(self) -> str:

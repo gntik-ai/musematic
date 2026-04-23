@@ -77,4 +77,3 @@ class LockoutManager:
     @staticmethod
     def _locked_key(user_id: UUID) -> str:
         return f"auth:locked:{user_id}"
-

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from platform.auth.models import IBORSyncMode, IBORSyncRunStatus
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.events.registry import event_registry
@@ -45,6 +46,53 @@ class ApiKeyRotatedPayload(BaseModel):
     service_account_id: UUID
 
 
+class IBORSyncCompletedPayload(BaseModel):
+    run_id: UUID
+    connector_id: UUID
+    connector_name: str
+    mode: IBORSyncMode
+    status: IBORSyncRunStatus
+    duration_ms: int
+    counts: dict[str, int]
+
+
+
+class OAuthSignInSucceededPayload(BaseModel):
+    user_id: UUID
+    provider_type: str
+    external_id: str
+
+
+class OAuthSignInFailedPayload(BaseModel):
+    provider_type: str
+    failure_reason: str
+    external_id: str | None = None
+
+
+class OAuthUserProvisionedPayload(BaseModel):
+    user_id: UUID
+    provider_type: str
+    external_id: str
+    email: str
+
+
+class OAuthAccountLinkedPayload(BaseModel):
+    user_id: UUID
+    provider_type: str
+    external_id: str
+
+
+class OAuthAccountUnlinkedPayload(BaseModel):
+    user_id: UUID
+    provider_type: str
+
+
+class OAuthProviderConfiguredPayload(BaseModel):
+    actor_id: UUID
+    provider_type: str
+    enabled: bool
+
+
 AUTH_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     "auth.user.authenticated": UserAuthenticatedPayload,
     "auth.user.locked": UserLockedPayload,
@@ -52,6 +100,13 @@ AUTH_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     "auth.mfa.enrolled": MfaEnrolledPayload,
     "auth.permission.denied": PermissionDeniedPayload,
     "auth.apikey.rotated": ApiKeyRotatedPayload,
+    "ibor_sync_completed": IBORSyncCompletedPayload,
+    "auth.oauth.sign_in_succeeded": OAuthSignInSucceededPayload,
+    "auth.oauth.sign_in_failed": OAuthSignInFailedPayload,
+    "auth.oauth.user_provisioned": OAuthUserProvisionedPayload,
+    "auth.oauth.account_linked": OAuthAccountLinkedPayload,
+    "auth.oauth.account_unlinked": OAuthAccountUnlinkedPayload,
+    "auth.oauth.provider_configured": OAuthProviderConfiguredPayload,
 }
 
 
@@ -71,19 +126,34 @@ async def publish_auth_event(
 ) -> None:
     if producer is None:
         return
+    payload_data = payload.model_dump(mode="json")
     subject_id = (
-        payload.model_dump().get("user_id")
-        or payload.model_dump().get("service_account_id")
+        payload_data.get("user_id")
+        or payload_data.get("service_account_id")
+        or payload_data.get("connector_id")
         or correlation_id
     )
     await producer.publish(
         topic="auth.events",
         key=str(subject_id),
         event_type=event_type,
-        payload=payload.model_dump(mode="json"),
+        payload=payload_data,
         correlation_ctx=CorrelationContext(
             correlation_id=correlation_id,
             workspace_id=workspace_id,
         ),
         source=source,
+    )
+
+
+async def publish_ibor_sync_completed(
+    payload: IBORSyncCompletedPayload,
+    correlation_id: UUID,
+    producer: EventProducer | None,
+) -> None:
+    await publish_auth_event(
+        "ibor_sync_completed",
+        payload,
+        correlation_id,
+        producer,
     )

@@ -52,4 +52,3 @@ def verify_recovery_code(candidate: str, hashes: list[str]) -> int | None:
         if verify_password(candidate, stored_hash):
             return index
     return None
-

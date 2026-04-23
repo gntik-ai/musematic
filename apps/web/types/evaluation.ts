@@ -2,6 +2,12 @@ export type EvalSetStatus = "active" | "archived";
 export type RunStatus = "pending" | "running" | "completed" | "failed";
 export type VerdictStatus = "scored" | "error";
 export type ExperimentStatus = "pending" | "completed" | "failed";
+export type RubricScaleType = "numeric_1_5" | "categorical_enum";
+export type TrajectoryComparisonMethod =
+  | "exact_match"
+  | "semantic_similarity"
+  | "edit_distance"
+  | "trajectory_judge";
 export type ATERunStatus =
   | "pending"
   | "running"
@@ -9,6 +15,29 @@ export type ATERunStatus =
   | "failed"
   | "pre_check_failed";
 export type ReviewDecision = "confirmed" | "overridden";
+
+export interface RubricDimension {
+  id: string;
+  name: string;
+  description: string;
+  weight: number;
+  scaleType: RubricScaleType;
+  categoricalValues: string[] | null;
+}
+
+export interface CalibrationScore {
+  dimensionId: string;
+  dimensionName: string;
+  distribution: {
+    min: number;
+    q1: number;
+    median: number;
+    q3: number;
+    max: number;
+  };
+  kappa: number;
+  isOutlier: boolean;
+}
 
 export interface EvalSetResponse {
   id: string;

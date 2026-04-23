@@ -2,8 +2,10 @@ package persistence
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
+	"math"
 	"net/http"
 	"strings"
 	"testing"
@@ -73,6 +75,16 @@ func TestSplitCSVAndRedisClient(t *testing.T) {
 		t.Fatal("expected standalone cluster slots override")
 	}
 	_ = client.Close()
+
+	t.Setenv("REDIS_TEST_MODE", "")
+	clusterClient := NewRedisClient("127.0.0.1:6379,127.0.0.1:6380")
+	if clusterClient == nil {
+		t.Fatal("expected redis cluster client")
+	}
+	if clusterClient.Options().ClusterSlots != nil {
+		t.Fatal("expected cluster slots override to be disabled outside standalone mode")
+	}
+	_ = clusterClient.Close()
 }
 
 func TestPostgresAndKafkaHelpers(t *testing.T) {
@@ -196,6 +208,137 @@ func TestMinIOClientUploadAndURL(t *testing.T) {
 	}
 	if err := client.Upload(context.Background(), "path/object.txt", []byte("payload")); err == nil {
 		t.Fatal("expected upload transport error")
+	}
+}
+
+type uploadedTrace struct {
+	path  string
+	trace ConsolidatedTrace
+}
+
+func newRecordingTraceClient(t *testing.T) (*MinIOClient, *[]uploadedTrace) {
+	t.Helper()
+
+	client := NewMinIOClient("https://example.test", "bucket")
+	if client == nil {
+		t.Fatal("expected minio client")
+	}
+
+	uploads := []uploadedTrace{}
+	client.client = &http.Client{
+		Transport: roundTripper(func(r *http.Request) (*http.Response, error) {
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				return nil, err
+			}
+			trace := ConsolidatedTrace{}
+			if err := json.Unmarshal(body, &trace); err != nil {
+				return nil, err
+			}
+			uploads = append(uploads, uploadedTrace{path: r.URL.Path, trace: trace})
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader("ok")),
+				Header:     make(http.Header),
+			}, nil
+		}),
+	}
+	return client, &uploads
+}
+
+func assertUploadTraceResult(t *testing.T, upload uploadedTrace, wantPath string, wantTrace ConsolidatedTrace) {
+	t.Helper()
+
+	if upload.path != wantPath {
+		t.Fatalf("uploaded path = %q, want %q", upload.path, wantPath)
+	}
+	if upload.trace.SchemaVersion != wantTrace.SchemaVersion || upload.trace.ExecutionID != wantTrace.ExecutionID || upload.trace.Technique != wantTrace.Technique {
+		t.Fatalf("uploaded trace = %+v, want schema=%q execution=%q technique=%q", upload.trace, wantTrace.SchemaVersion, wantTrace.ExecutionID, wantTrace.Technique)
+	}
+}
+
+func TestMinIOClientUploadTraceBuildsStorageKeys(t *testing.T) {
+	client, uploads := newRecordingTraceClient(t)
+
+	testCases := []struct {
+		name      string
+		execution string
+		technique string
+		session   string
+		trace     ConsolidatedTrace
+		wantKey   string
+		wantPath  string
+		wantTrace ConsolidatedTrace
+	}{
+		{
+			name:      "debate defaults",
+			execution: "exec-1",
+			technique: "debate",
+			session:   "session-1",
+			trace:     ConsolidatedTrace{},
+			wantKey:   "reasoning-debates/exec-1/session-1/trace.json",
+			wantPath:  "/bucket/reasoning-debates/exec-1/session-1/trace.json",
+			wantTrace: ConsolidatedTrace{SchemaVersion: "1.0", ExecutionID: "exec-1", Technique: "DEBATE"},
+		},
+		{
+			name:      "self correction preserves explicit metadata",
+			execution: "exec-2",
+			technique: "self_correction",
+			session:   "session-2",
+			trace:     ConsolidatedTrace{SchemaVersion: "2.0", ExecutionID: "override-exec", Technique: "CUSTOM"},
+			wantKey:   "reasoning-corrections/exec-2/session-2/trace.json",
+			wantPath:  "/bucket/reasoning-corrections/exec-2/session-2/trace.json",
+			wantTrace: ConsolidatedTrace{SchemaVersion: "2.0", ExecutionID: "override-exec", Technique: "CUSTOM"},
+		},
+		{
+			name:      "react uses specialized filename",
+			execution: "exec-3",
+			technique: "react",
+			session:   "session-3",
+			trace:     ConsolidatedTrace{},
+			wantKey:   "reasoning-traces/exec-3/session-3/react_trace.json",
+			wantPath:  "/bucket/reasoning-traces/exec-3/session-3/react_trace.json",
+			wantTrace: ConsolidatedTrace{SchemaVersion: "1.0", ExecutionID: "exec-3", Technique: "REACT"},
+		},
+		{
+			name:      "default trace path",
+			execution: "exec-4",
+			technique: "chain_of_thought",
+			session:   "session-4",
+			trace:     ConsolidatedTrace{},
+			wantKey:   "reasoning-traces/exec-4/session-4/trace.json",
+			wantPath:  "/bucket/reasoning-traces/exec-4/session-4/trace.json",
+			wantTrace: ConsolidatedTrace{SchemaVersion: "1.0", ExecutionID: "exec-4", Technique: "CHAIN_OF_THOUGHT"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			key, err := client.UploadTrace(context.Background(), tc.execution, tc.technique, tc.session, tc.trace)
+			if err != nil {
+				t.Fatalf("UploadTrace() error = %v", err)
+			}
+			if key != tc.wantKey {
+				t.Fatalf("storage key = %q, want %q", key, tc.wantKey)
+			}
+			assertUploadTraceResult(t, (*uploads)[len(*uploads)-1], tc.wantPath, tc.wantTrace)
+		})
+	}
+}
+
+func TestMinIOClientUploadTracePropagatesErrors(t *testing.T) {
+	client, _ := newRecordingTraceClient(t)
+	client.client = &http.Client{
+		Transport: roundTripper(func(*http.Request) (*http.Response, error) {
+			return nil, errors.New("upload failed")
+		}),
+	}
+
+	if _, err := client.UploadTrace(context.Background(), "exec-5", "debate", "session-5", ConsolidatedTrace{}); err == nil {
+		t.Fatal("expected UploadTrace() transport error")
+	}
+	if _, err := client.UploadTrace(context.Background(), "exec-6", "debate", "session-6", ConsolidatedTrace{ComputeBudgetUsed: math.NaN()}); err == nil {
+		t.Fatal("expected UploadTrace() marshal error")
 	}
 }
 

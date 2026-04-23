@@ -8,10 +8,10 @@ from platform.fleets.models import (
     FleetStatus,
     FleetTopologyType,
 )
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 def _strip_text(value: str) -> str:
@@ -170,6 +170,7 @@ class FleetGovernanceChainUpdate(BaseModel):
     judge_fqns: list[str]
     enforcer_fqns: list[str]
     policy_binding_ids: list[UUID] = Field(default_factory=list)
+    verdict_to_action_mapping: dict[str, str] = Field(default_factory=dict)
 
     @field_validator("observer_fqns", "judge_fqns", "enforcer_fqns")
     @classmethod
@@ -187,9 +188,25 @@ class FleetGovernanceChainResponse(BaseModel):
     judge_fqns: list[str]
     enforcer_fqns: list[str]
     policy_binding_ids: list[UUID]
+    verdict_to_action_mapping: dict[str, str]
     is_current: bool
     is_default: bool
     created_at: datetime
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_mapping(cls, data: object) -> object:
+        if isinstance(data, dict):
+            if data.get("verdict_to_action_mapping") is None:
+                normalized = dict(data)
+                normalized["verdict_to_action_mapping"] = {}
+                return normalized
+            return data
+        candidate = cast(Any, data)
+        mapping = getattr(candidate, "verdict_to_action_mapping", {})
+        if mapping is None:
+            candidate.verdict_to_action_mapping = {}
+        return candidate
 
 
 class FleetGovernanceChainListResponse(BaseModel):

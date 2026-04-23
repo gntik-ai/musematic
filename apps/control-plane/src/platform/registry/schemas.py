@@ -38,6 +38,7 @@ class AgentManifest(BaseModel):
     tags: list[str] = Field(default_factory=list)
     display_name: str | None = None
     custom_role_description: str | None = None
+    mcp_servers: list[str] = Field(default_factory=list)
 
     @field_validator("purpose")
     @classmethod
@@ -49,7 +50,7 @@ class AgentManifest(BaseModel):
     def normalize_optional_text(cls, value: str | None) -> str | None:
         return _normalize_optional_text(value)
 
-    @field_validator("reasoning_modes", "tags")
+    @field_validator("reasoning_modes", "tags", "mcp_servers")
     @classmethod
     def normalize_list_fields(cls, value: list[str]) -> list[str]:
         return [item.strip() for item in value if item.strip()]
@@ -89,6 +90,7 @@ class AgentPatch(BaseModel):
     tags: list[str] | None = None
     visibility_agents: list[str] | None = None
     visibility_tools: list[str] | None = None
+    mcp_servers: list[str] | None = None
     role_types: list[AgentRoleType] | None = None
     custom_role_description: str | None = None
 
@@ -97,7 +99,7 @@ class AgentPatch(BaseModel):
     def normalize_optional_text(cls, value: str | None) -> str | None:
         return _normalize_optional_text(value)
 
-    @field_validator("tags", "visibility_agents", "visibility_tools")
+    @field_validator("tags", "visibility_agents", "visibility_tools", "mcp_servers")
     @classmethod
     def normalize_list_fields(cls, value: list[str] | None) -> list[str] | None:
         return _normalize_string_list(value)
@@ -113,6 +115,26 @@ class AgentPatch(BaseModel):
                 "custom_role_description is required when role_types contains 'custom'"
             )
         return self
+
+
+class AgentDecommissionRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str = Field(min_length=10, max_length=2000)
+
+    @field_validator("reason")
+    @classmethod
+    def normalize_reason(cls, value: str) -> str:
+        return value.strip()
+
+
+class AgentDecommissionResponse(BaseModel):
+    agent_id: UUID
+    agent_fqn: str
+    decommissioned_at: datetime
+    decommission_reason: str
+    decommissioned_by: UUID
+    active_instances_stopped: int
 
 
 class LifecycleTransitionRequest(BaseModel):
@@ -198,6 +220,7 @@ class AgentProfileResponse(BaseModel):
     visibility_agents: list[str]
     visibility_tools: list[str]
     tags: list[str]
+    mcp_servers: list[str] = Field(default_factory=list)
     status: LifecycleStatus
     maturity_level: int
     embedding_status: EmbeddingStatus

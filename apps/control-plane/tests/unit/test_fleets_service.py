@@ -367,9 +367,7 @@ async def test_fleet_service_error_paths_and_forwarding_guards() -> None:
         producer=no_raw_producer,
     )
 
-    assert controller.calls == [
-        {"fleet_id": str(created.id), "agent_fqn": "agent:worker-1"}
-    ]
+    assert controller.calls == [{"fleet_id": str(created.id), "agent_fqn": "agent:worker-1"}]
     assert no_raw_producer.events == []
 
 

@@ -10,22 +10,32 @@ from platform.common.dependencies import get_current_user
 from platform.common.exceptions import PlatformError, platform_exception_handler
 from platform.trust.ate_service import ATEService
 from platform.trust.circuit_breaker import CircuitBreakerService
+from platform.trust.contract_schemas import AgentContractCreate, CertifierCreate
+from platform.trust.contract_service import ContractService
 from platform.trust.dependencies import (
     get_ate_service,
     get_certification_service,
     get_circuit_breaker_service,
+    get_contract_service,
     get_guardrail_pipeline_service,
     get_oje_service,
     get_prescreener_service,
     get_privacy_assessment_service,
     get_recertification_service,
+    get_surveillance_service,
     get_trust_tier_service,
 )
+from platform.trust.events import TrustEventPublisher
+from platform.trust.exceptions import ContractConflictError
 from platform.trust.guardrail_pipeline import GuardrailPipelineService
 from platform.trust.models import (
+    AgentContract,
     CertificationStatus,
+    Certifier,
+    ContractBreachEvent,
     GuardrailLayer,
     OJEVerdictType,
+    ReassessmentRecord,
     RecertificationTriggerStatus,
     RecertificationTriggerType,
     TrustATEConfiguration,
@@ -36,6 +46,7 @@ from platform.trust.models import (
     TrustGuardrailPipelineConfig,
     TrustOJEPipelineConfig,
     TrustProofLink,
+    TrustRecertificationRequest,
     TrustRecertificationTrigger,
     TrustSafetyPreScreenerRuleSet,
     TrustSignal,
@@ -57,6 +68,7 @@ from platform.trust.schemas import (
     PreScreenerRuleSetCreate,
 )
 from platform.trust.service import CertificationService
+from platform.trust.surveillance_service import SurveillanceService
 from platform.trust.trust_tier import TrustTierService
 from typing import Any
 from uuid import UUID, uuid4
@@ -99,6 +111,11 @@ class SessionStub:
 class InMemoryTrustRepository:
     session: SessionStub = field(default_factory=SessionStub)
     certifications: list[TrustCertification] = field(default_factory=list)
+    certifiers: list[Certifier] = field(default_factory=list)
+    contracts: list[AgentContract] = field(default_factory=list)
+    breach_events: list[ContractBreachEvent] = field(default_factory=list)
+    reassessments: list[ReassessmentRecord] = field(default_factory=list)
+    recertification_requests: list[TrustRecertificationRequest] = field(default_factory=list)
     evidence_refs: list[TrustCertificationEvidenceRef] = field(default_factory=list)
     tiers: list[TrustTier] = field(default_factory=list)
     signals: list[TrustSignal] = field(default_factory=list)
@@ -110,6 +127,9 @@ class InMemoryTrustRepository:
     oje_configs: list[TrustOJEPipelineConfig] = field(default_factory=list)
     circuit_breaker_configs: list[TrustCircuitBreakerConfig] = field(default_factory=list)
     rule_sets: list[TrustSafetyPreScreenerRuleSet] = field(default_factory=list)
+    execution_attachments: dict[UUID, dict[str, Any]] = field(default_factory=dict)
+    interaction_attachments: dict[UUID, dict[str, Any]] = field(default_factory=dict)
+    execution_states: dict[UUID, str] = field(default_factory=dict)
 
     async def create_certification(self, certification: TrustCertification) -> TrustCertification:
         certification.evidence_refs = list(getattr(certification, "evidence_refs", []))
@@ -139,10 +159,361 @@ class InMemoryTrustRepository:
         return [
             item
             for item in self.certifications
-            if item.status == CertificationStatus.active
+            if item.status in {CertificationStatus.active, CertificationStatus.expiring}
             and item.expires_at is not None
             and item.expires_at < now
         ]
+
+    async def create_certifier(self, certifier: Certifier) -> Certifier:
+        stamp(certifier)
+        self.certifiers.append(certifier)
+        await self.session.flush()
+        return certifier
+
+    async def get_certifier(self, certifier_id: UUID) -> Certifier | None:
+        return next((item for item in self.certifiers if item.id == certifier_id), None)
+
+    async def list_certifiers(self, include_inactive: bool = False) -> list[Certifier]:
+        items = list(self.certifiers)
+        if not include_inactive:
+            items = [item for item in items if item.is_active]
+        return sorted(items, key=lambda item: (item.name, item.id))
+
+    async def deactivate_certifier(self, certifier_id: UUID) -> Certifier | None:
+        certifier = await self.get_certifier(certifier_id)
+        if certifier is None:
+            return None
+        certifier.is_active = False
+        certifier.updated_at = datetime.now(UTC)
+        await self.session.flush()
+        return certifier
+
+    async def create_contract(self, contract: AgentContract) -> AgentContract:
+        stamp(contract)
+        self.contracts.append(contract)
+        await self.session.flush()
+        return contract
+
+    async def get_contract(self, contract_id: UUID) -> AgentContract | None:
+        return next((item for item in self.contracts if item.id == contract_id), None)
+
+    async def list_contracts(
+        self,
+        workspace_id: UUID,
+        agent_id: str | None = None,
+        include_archived: bool = False,
+    ) -> list[AgentContract]:
+        items = [item for item in self.contracts if item.workspace_id == workspace_id]
+        if agent_id is not None:
+            items = [item for item in items if item.agent_id == agent_id]
+        if not include_archived:
+            items = [item for item in items if not item.is_archived]
+        return sorted(items, key=lambda item: (item.created_at, item.id), reverse=True)
+
+    async def update_contract(
+        self,
+        contract_id: UUID,
+        data: dict[str, Any],
+    ) -> AgentContract | None:
+        contract = await self.get_contract(contract_id)
+        if contract is None:
+            return None
+        for field_name, value in data.items():
+            setattr(contract, field_name, value)
+        contract.updated_at = datetime.now(UTC)
+        await self.session.flush()
+        return contract
+
+    async def archive_contract(self, contract_id: UUID) -> AgentContract | None:
+        return await self.update_contract(contract_id, {"is_archived": True})
+
+    async def has_inflight_execution_for_contract(self, contract_id: UUID) -> bool:
+        inflight = {"queued", "running", "waiting_for_approval", "compensating"}
+        return any(
+            attachment["contract_id"] == contract_id
+            and str(self.execution_states.get(execution_id, "completed")) in inflight
+            for execution_id, attachment in self.execution_attachments.items()
+        )
+
+    async def get_interaction_contract_snapshot(
+        self,
+        interaction_id: UUID,
+    ) -> dict[str, Any] | None:
+        item = self.interaction_attachments.get(interaction_id)
+        return None if item is None else dict(item["snapshot"])
+
+    async def get_execution_contract_snapshot(self, execution_id: UUID) -> dict[str, Any] | None:
+        item = self.execution_attachments.get(execution_id)
+        return None if item is None else dict(item["snapshot"])
+
+    async def attach_contract_to_interaction(
+        self,
+        interaction_id: UUID,
+        contract_id: UUID,
+        snapshot: dict[str, Any],
+    ) -> dict[str, Any]:
+        existing = self.interaction_attachments.get(interaction_id)
+        if existing is not None and existing["contract_id"] != contract_id:
+            raise ContractConflictError(
+                "TRUST_CONTRACT_ALREADY_ATTACHED",
+                "Interaction already has a different contract attached",
+            )
+        self.interaction_attachments[interaction_id] = {
+            "contract_id": contract_id,
+            "snapshot": dict(snapshot),
+            "created_at": existing["created_at"] if existing is not None else datetime.now(UTC),
+            "workspace_id": (
+                existing["workspace_id"] if existing is not None else snapshot["workspace_id"]
+            ),
+        }
+        await self.session.flush()
+        return self.interaction_attachments[interaction_id]
+
+    async def attach_contract_to_execution(
+        self,
+        execution_id: UUID,
+        contract_id: UUID,
+        snapshot: dict[str, Any],
+    ) -> dict[str, Any]:
+        existing = self.execution_attachments.get(execution_id)
+        if existing is not None and existing["contract_id"] != contract_id:
+            raise ContractConflictError(
+                "TRUST_CONTRACT_ALREADY_ATTACHED",
+                "Execution already has a different contract attached",
+            )
+        self.execution_attachments[execution_id] = {
+            "contract_id": contract_id,
+            "snapshot": dict(snapshot),
+            "created_at": existing["created_at"] if existing is not None else datetime.now(UTC),
+            "workspace_id": (
+                existing["workspace_id"] if existing is not None else snapshot["workspace_id"]
+            ),
+            "fleet_id": existing.get("fleet_id") if existing is not None else None,
+        }
+        await self.session.flush()
+        return self.execution_attachments[execution_id]
+
+    async def create_breach_event(self, breach_event: ContractBreachEvent) -> ContractBreachEvent:
+        stamp(breach_event)
+        self.breach_events.append(breach_event)
+        await self.session.flush()
+        return breach_event
+
+    async def list_breach_events(
+        self,
+        contract_id: UUID,
+        *,
+        target_type: str | None = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> tuple[list[ContractBreachEvent], int]:
+        items = [item for item in self.breach_events if item.contract_id == contract_id]
+        if target_type is not None:
+            items = [item for item in items if item.target_type == target_type]
+        if start is not None:
+            items = [item for item in items if item.created_at >= start]
+        if end is not None:
+            items = [item for item in items if item.created_at <= end]
+        items.sort(key=lambda item: (item.created_at, item.id), reverse=True)
+        total = len(items)
+        return items[offset : offset + limit], total
+
+    async def create_reassessment(
+        self,
+        certification_id: UUID,
+        data: ReassessmentRecord,
+    ) -> ReassessmentRecord:
+        data.certification_id = certification_id
+        stamp(data)
+        self.reassessments.append(data)
+        await self.session.flush()
+        return data
+
+    async def list_reassessments(self, certification_id: UUID) -> list[ReassessmentRecord]:
+        items = [item for item in self.reassessments if item.certification_id == certification_id]
+        return sorted(items, key=lambda item: (item.created_at, item.id), reverse=True)
+
+    async def create_recertification_request(
+        self,
+        request: TrustRecertificationRequest,
+    ) -> TrustRecertificationRequest:
+        stamp(request)
+        self.recertification_requests.append(request)
+        await self.session.flush()
+        return request
+
+    async def get_recertification_request(
+        self,
+        request_id: UUID,
+    ) -> TrustRecertificationRequest | None:
+        return next((item for item in self.recertification_requests if item.id == request_id), None)
+
+    async def list_recertification_requests(
+        self,
+        *,
+        certification_id: UUID | None = None,
+        status: str | None = None,
+    ) -> list[TrustRecertificationRequest]:
+        items = list(self.recertification_requests)
+        if certification_id is not None:
+            items = [item for item in items if item.certification_id == certification_id]
+        if status is not None:
+            items = [item for item in items if item.resolution_status == status]
+        return sorted(items, key=lambda item: (item.created_at, item.id), reverse=True)
+
+    async def get_pending_requests_past_deadline(
+        self,
+        now: datetime,
+    ) -> list[TrustRecertificationRequest]:
+        return [
+            item
+            for item in self.recertification_requests
+            if item.resolution_status == "pending"
+            and item.deadline is not None
+            and item.deadline < now
+        ]
+
+    async def resolve_recertification_request(
+        self,
+        request_id: UUID,
+        status: str,
+        justification: str | None = None,
+    ) -> TrustRecertificationRequest | None:
+        request = await self.get_recertification_request(request_id)
+        if request is None:
+            return None
+        request.resolution_status = status
+        request.dismissal_justification = justification
+        request.updated_at = datetime.now(UTC)
+        await self.session.flush()
+        return request
+
+    async def get_active_or_expiring_certifications_for_agent(
+        self,
+        agent_id: str,
+    ) -> list[TrustCertification]:
+        return [
+            item
+            for item in self.certifications
+            if item.agent_id == agent_id
+            and item.status in {CertificationStatus.active, CertificationStatus.expiring}
+        ]
+
+    async def get_compliance_stats(
+        self,
+        scope: str,
+        scope_id: str,
+        start: datetime,
+        end: datetime,
+        bucket: str,
+    ) -> dict[str, Any]:
+        del bucket
+        attachments: list[tuple[str, UUID, datetime, UUID]] = []
+        for execution_id, item in self.execution_attachments.items():
+            created_at = item["created_at"]
+            if not (start <= created_at < end):
+                continue
+            if scope == "workspace" and str(item["workspace_id"]) != scope_id:
+                continue
+            if scope == "fleet" and str(item.get("fleet_id")) != scope_id:
+                continue
+            contract = await self.get_contract(item["contract_id"])
+            if contract is None:
+                continue
+            if scope == "agent" and contract.agent_id != scope_id:
+                continue
+            attachments.append(("execution", execution_id, created_at, contract.id))
+        if scope != "fleet":
+            for interaction_id, item in self.interaction_attachments.items():
+                created_at = item["created_at"]
+                if not (start <= created_at < end):
+                    continue
+                if scope == "workspace" and str(item["workspace_id"]) != scope_id:
+                    continue
+                contract = await self.get_contract(item["contract_id"])
+                if contract is None:
+                    continue
+                if scope == "agent" and contract.agent_id != scope_id:
+                    continue
+                attachments.append(("interaction", interaction_id, created_at, contract.id))
+
+        attachment_keys = {(target_type, target_id) for target_type, target_id, _, _ in attachments}
+        breaches = [
+            item
+            for item in self.breach_events
+            if start <= item.created_at < end
+            and (item.target_type, item.target_id) in attachment_keys
+        ]
+        breached_targets = {(item.target_type, item.target_id) for item in breaches}
+        breach_by_term: dict[str, int] = {}
+        for breach in breaches:
+            breach_by_term[breach.breached_term] = breach_by_term.get(breach.breached_term, 0) + 1
+
+        warned = sum(1 for item in breaches if item.enforcement_action == "warn")
+        throttled = sum(1 for item in breaches if item.enforcement_action == "throttle")
+        escalated = sum(1 for item in breaches if item.enforcement_action == "escalate")
+        terminated = sum(1 for item in breaches if item.enforcement_action == "terminate")
+        total = len(attachments)
+        compliant = total - len(breached_targets)
+        trend_map: dict[str, dict[str, int]] = {}
+        for target_type, target_id, created_at, _contract_id in attachments:
+            bucket_value = created_at.date().isoformat()
+            stats = trend_map.setdefault(bucket_value, {"total": 0, "compliant": 0})
+            stats["total"] += 1
+            if (target_type, target_id) not in breached_targets:
+                stats["compliant"] += 1
+
+        return {
+            "total_contract_attached": total,
+            "compliant": compliant,
+            "warned": warned,
+            "throttled": throttled,
+            "escalated": escalated,
+            "terminated": terminated,
+            "breach_by_term": breach_by_term,
+            "trend": [
+                {"bucket": key, "compliant": value["compliant"], "total": value["total"]}
+                for key, value in sorted(trend_map.items())
+            ],
+        }
+
+    def seed_execution_attachment(
+        self,
+        *,
+        execution_id: UUID,
+        contract_id: UUID,
+        snapshot: dict[str, Any],
+        created_at: datetime | None = None,
+        workspace_id: UUID | str | None = None,
+        fleet_id: UUID | str | None = None,
+        status: str = "completed",
+    ) -> None:
+        self.execution_attachments[execution_id] = {
+            "contract_id": contract_id,
+            "snapshot": dict(snapshot),
+            "created_at": created_at or datetime.now(UTC),
+            "workspace_id": workspace_id or snapshot["workspace_id"],
+            "fleet_id": fleet_id,
+        }
+        self.execution_states[execution_id] = status
+
+    def seed_interaction_attachment(
+        self,
+        *,
+        interaction_id: UUID,
+        contract_id: UUID,
+        snapshot: dict[str, Any],
+        created_at: datetime | None = None,
+        workspace_id: UUID | str | None = None,
+    ) -> None:
+        self.interaction_attachments[interaction_id] = {
+            "contract_id": contract_id,
+            "snapshot": dict(snapshot),
+            "created_at": created_at or datetime.now(UTC),
+            "workspace_id": workspace_id or snapshot["workspace_id"],
+        }
 
     async def get_latest_certification_for_agent(self, agent_id: str) -> TrustCertification | None:
         certifications = await self.list_certifications_for_agent(agent_id)
@@ -866,6 +1237,8 @@ class TrustServiceBundle:
     registry_service: RegistryServiceStub
     interactions_service: InteractionsServiceStub
     certification_service: CertificationService
+    contract_service: ContractService
+    surveillance_service: SurveillanceService
     trust_tier_service: TrustTierService
     guardrail_service: GuardrailPipelineService
     prescreener_service: SafetyPreScreenerService
@@ -891,6 +1264,15 @@ def build_trust_bundle(**settings_overrides: Any) -> TrustServiceBundle:
         repository=repository,
         settings=settings,
         producer=producer,
+    )
+    contract_service = ContractService(
+        repository=repository,
+        publisher=TrustEventPublisher(producer),
+    )
+    surveillance_service = SurveillanceService(
+        repository=repository,
+        publisher=TrustEventPublisher(producer),
+        settings=settings,
     )
     trust_tier_service = TrustTierService(
         repository=repository,
@@ -951,6 +1333,8 @@ def build_trust_bundle(**settings_overrides: Any) -> TrustServiceBundle:
         registry_service=registry_service,
         interactions_service=interactions_service,
         certification_service=certification_service,
+        contract_service=contract_service,
+        surveillance_service=surveillance_service,
         trust_tier_service=trust_tier_service,
         guardrail_service=guardrail_service,
         prescreener_service=prescreener_service,
@@ -974,7 +1358,7 @@ def build_trust_app(
     app.state.clients = {
         "redis": resolved_bundle.redis,
         "kafka": resolved_bundle.producer,
-        "minio": resolved_bundle.object_storage,
+        "object_storage": resolved_bundle.object_storage,
         "runtime_controller": resolved_bundle.runtime_controller,
         "simulation_controller": resolved_bundle.simulation_controller,
     }
@@ -983,6 +1367,10 @@ def build_trust_app(
         app.add_middleware(AuthMiddleware)
     app.dependency_overrides[get_certification_service] = lambda: (
         resolved_bundle.certification_service
+    )
+    app.dependency_overrides[get_contract_service] = lambda: resolved_bundle.contract_service
+    app.dependency_overrides[get_surveillance_service] = lambda: (
+        resolved_bundle.surveillance_service
     )
     app.dependency_overrides[get_trust_tier_service] = lambda: resolved_bundle.trust_tier_service
     app.dependency_overrides[get_guardrail_pipeline_service] = lambda: (
@@ -1015,6 +1403,7 @@ def admin_user() -> dict[str, Any]:
         "sub": str(uuid4()),
         "roles": [role_claim("platform_admin")],
         "type": "human",
+        "workspace_id": "00000000-0000-0000-0000-000000000001",
     }
 
 
@@ -1023,6 +1412,7 @@ def trust_certifier_user() -> dict[str, Any]:
         "sub": str(uuid4()),
         "roles": [role_claim("trust_certifier"), role_claim("platform_admin")],
         "type": "human",
+        "workspace_id": "00000000-0000-0000-0000-000000000001",
     }
 
 
@@ -1031,6 +1421,16 @@ def workspace_member_user() -> dict[str, Any]:
         "sub": str(uuid4()),
         "roles": [role_claim("workspace_member"), role_claim("workspace_admin")],
         "type": "human",
+        "workspace_id": "00000000-0000-0000-0000-000000000001",
+    }
+
+
+def compliance_officer_user() -> dict[str, Any]:
+    return {
+        "sub": str(uuid4()),
+        "roles": [role_claim("compliance_officer"), role_claim("platform_admin")],
+        "type": "human",
+        "workspace_id": "00000000-0000-0000-0000-000000000001",
     }
 
 
@@ -1039,6 +1439,7 @@ def service_account_user() -> dict[str, Any]:
         "sub": str(uuid4()),
         "roles": [role_claim("service_account")],
         "type": "service",
+        "workspace_id": "00000000-0000-0000-0000-000000000001",
     }
 
 
@@ -1141,4 +1542,27 @@ def build_certification_create() -> CertificationCreate:
         agent_id="agent-1",
         agent_fqn="fleet:agent-1",
         agent_revision_id="rev-1",
+    )
+
+
+def build_contract_create() -> AgentContractCreate:
+    return AgentContractCreate(
+        agent_id="agent-1",
+        task_scope="Process financial reconciliation tasks",
+        expected_outputs={"records": 1},
+        quality_thresholds={"accuracy_min": 0.95},
+        time_constraint_seconds=30,
+        cost_limit_tokens=1000,
+        escalation_conditions={"human_required_on": ["pii_detected"]},
+        success_criteria={"status": "completed"},
+        enforcement_policy="warn",
+    )
+
+
+def build_certifier_create() -> CertifierCreate:
+    return CertifierCreate(
+        name="ACME Labs",
+        organization="ACME",
+        credentials={"id": "cert-001"},
+        permitted_scopes=["financial_calculations"],
     )

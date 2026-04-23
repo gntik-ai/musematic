@@ -25,8 +25,11 @@ test("browse the certification queue, filter it, and navigate to detail", async 
   await expect(page.getByText("KYC Review")).not.toBeVisible();
 
   await page.goto("/trust-workbench");
-  await page.getByRole("button", { name: "Pending" }).click();
-  await expect(page.getByText("Revoked Agent")).not.toBeVisible();
+  await page.getByRole("button", { name: "Pending", exact: true }).click();
+  await expect(
+    page.getByText(/pending, expiring, and revoked certifications stay in a single triage surface/i),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: /Revoked Agent/i })).toBeVisible();
 
   await page.getByLabel("Sort certifications").selectOption("created");
   await expect(page).toHaveURL(/sort_by=created/);

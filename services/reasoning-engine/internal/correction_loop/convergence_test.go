@@ -8,7 +8,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/musematic/reasoning-engine/internal/escalation"
+	"github.com/redis/go-redis/v9"
 )
 
 type recordingProducer struct {
@@ -340,5 +342,70 @@ func TestPersistIterationUsesStore(t *testing.T) {
 	service.pool = &fakeIterationStore{err: errors.New("insert failed")}
 	if err := service.persistIteration(context.Background(), loopState{LoopID: "loop-db", UsedIterations: 2}, 0.7, 0.2, 0.1, 50); err == nil {
 		t.Fatal("expected persistIteration() error")
+	}
+}
+
+func TestLoopServiceWrappersAndConstructorBranches(t *testing.T) {
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:         "127.0.0.1:0",
+		DialTimeout:  10 * time.Millisecond,
+		ReadTimeout:  10 * time.Millisecond,
+		WriteTimeout: 10 * time.Millisecond,
+	})
+	defer func() {
+		_ = redisClient.Close()
+	}()
+
+	wrapped := redisCmdable{client: redisClient}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	if err := wrapped.HSet(ctx, "correction:test", "status", "RUNNING"); err == nil {
+		t.Fatal("expected HSet() network error")
+	}
+	if _, err := wrapped.EvalSha(ctx, "sha", []string{"correction:test"}, "status", 1); err == nil {
+		t.Fatal("expected EvalSha() network error")
+	}
+
+	cfg, err := pgxpool.ParseConfig("postgres://user:pass@127.0.0.1:5432/musematic?sslmode=disable")
+	if err != nil {
+		t.Fatalf("ParseConfig() error = %v", err)
+	}
+	pool, err := pgxpool.NewWithConfig(context.Background(), cfg)
+	if err != nil {
+		t.Fatalf("NewWithConfig() error = %v", err)
+	}
+	defer pool.Close()
+
+	service := NewLoopService(redisClient, nil, nil, nil, pool)
+	if service.client == nil || service.pool == nil {
+		t.Fatalf("expected wrapped client and pool, got client=%v pool=%v", service.client, service.pool)
+	}
+}
+
+func TestLoopServicePublishRuntimeEventError(t *testing.T) {
+	service := NewLoopService(nil, nil, &recordingProducer{err: errors.New("produce failed")}, nil, nil)
+	if err := service.publishRuntimeEvent(context.Background(), "reasoning.loop_converged", loopState{ExecutionID: "exec", LoopID: "loop"}, 0.9); err == nil {
+		t.Fatal("expected publishRuntimeEvent() error")
+	}
+}
+
+func TestLoopServiceSubmitPropagatesStatusWriteError(t *testing.T) {
+	client := newScriptedRedisClient()
+	service := &LoopService{
+		client: client,
+		now:    func() time.Time { return time.Unix(20, 0).UTC() },
+		states: map[string]*loopState{
+			"loop-status": {
+				LoopID:      "loop-status",
+				ExecutionID: "exec-status",
+				Config:      LoopConfig{MaxIterations: 1, CostCap: 1, Epsilon: 0},
+				PrevQuality: -1,
+				Status:      "RUNNING",
+			},
+		},
+	}
+	client.hsetErr = errors.New("status write failed")
+	if _, _, _, err := service.Submit(context.Background(), "loop-status", 0.5, 0.1, 10); err == nil || err.Error() != "status write failed" {
+		t.Fatalf("Submit() error = %v", err)
 	}
 }

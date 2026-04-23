@@ -16,7 +16,12 @@ from platform.evaluation.scorers.llm_judge import LLMJudgeScorer
 from platform.evaluation.scorers.registry import ScorerRegistry
 from platform.evaluation.scorers.semantic import SemanticSimilarityScorer
 from platform.evaluation.scorers.trajectory import TrajectoryScorer
-from platform.evaluation.service import EvalRunnerService, EvalSuiteService
+from platform.evaluation.service import (
+    CalibrationService,
+    EvalRunnerService,
+    EvalSuiteService,
+    RubricService,
+)
 from platform.execution.dependencies import build_execution_service
 from typing import Any, cast
 
@@ -45,7 +50,7 @@ def _get_reasoning_engine(request: Request) -> ReasoningEngineClient | None:
 
 
 def _get_object_storage(request: Request) -> AsyncObjectStorageClient:
-    return cast(AsyncObjectStorageClient, request.app.state.clients["minio"])
+    return cast(AsyncObjectStorageClient, request.app.state.clients["object_storage"])
 
 
 def build_scorer_registry(
@@ -54,6 +59,7 @@ def build_scorer_registry(
     qdrant: AsyncQdrantClient,
     execution_service: Any | None,
     reasoning_engine: Any | None,
+    rubric_service: RubricService | None = None,
 ) -> ScorerRegistry:
     registry = ScorerRegistry()
     from platform.evaluation.scorers.exact_match import ExactMatchScorer
@@ -67,11 +73,12 @@ def build_scorer_registry(
         "semantic",
         SemanticSimilarityScorer(settings=settings, qdrant=qdrant),
     )
-    llm_judge = LLMJudgeScorer(settings=settings)
+    llm_judge = LLMJudgeScorer(settings=settings, rubric_service=rubric_service)
     registry.register("llm_judge", llm_judge)
     registry.register(
         "trajectory",
         TrajectoryScorer(
+            settings=settings,
             execution_query=execution_service,
             reasoning_engine=reasoning_engine,
             llm_judge=llm_judge,
@@ -114,6 +121,7 @@ def build_eval_runner_service(
     reasoning_engine: ReasoningEngineClient | Any | None,
     execution_service: Any | None,
     drift_service: Any | None = None,
+    rubric_service: RubricService | None = None,
 ) -> EvalRunnerService:
     return EvalRunnerService(
         repository=EvaluationRepository(session),
@@ -123,11 +131,13 @@ def build_eval_runner_service(
             qdrant=qdrant,
             execution_service=execution_service,
             reasoning_engine=reasoning_engine,
+            rubric_service=rubric_service,
         ),
         producer=producer,
         runtime_controller=runtime_controller,
         execution_query=execution_service,
         drift_service=drift_service,
+        rubric_service=rubric_service,
     )
 
 
@@ -145,6 +155,11 @@ async def get_eval_runner_service(
         reasoning_engine=_get_reasoning_engine(request),
         context_engineering_service=getattr(request.app.state, "context_engineering_service", None),
     )
+    rubric_service = build_rubric_service(
+        session=session,
+        settings=_get_settings(request),
+        producer=_get_producer(request),
+    )
     return build_eval_runner_service(
         session=session,
         settings=_get_settings(request),
@@ -153,6 +168,79 @@ async def get_eval_runner_service(
         runtime_controller=_get_runtime_controller(request),
         reasoning_engine=_get_reasoning_engine(request),
         execution_service=execution_service,
+        rubric_service=rubric_service,
+    )
+
+
+def build_rubric_service(
+    *,
+    session: AsyncSession,
+    settings: PlatformSettings,
+    producer: EventProducer | None,
+) -> RubricService:
+    return RubricService(
+        repository=EvaluationRepository(session),
+        settings=settings,
+        producer=producer,
+    )
+
+
+async def get_rubric_service(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+) -> RubricService:
+    return build_rubric_service(
+        session=session,
+        settings=_get_settings(request),
+        producer=_get_producer(request),
+    )
+
+
+def build_calibration_service(
+    *,
+    session: AsyncSession,
+    settings: PlatformSettings,
+    producer: EventProducer | None,
+    scorer_registry: ScorerRegistry,
+    rubric_service: RubricService,
+) -> CalibrationService:
+    return CalibrationService(
+        repository=EvaluationRepository(session),
+        settings=settings,
+        producer=producer,
+        scorer_registry=scorer_registry,
+        rubric_service=rubric_service,
+    )
+
+
+async def get_calibration_service(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+    rubric_service: RubricService = Depends(get_rubric_service),
+) -> CalibrationService:
+    execution_service = build_execution_service(
+        session=session,
+        settings=_get_settings(request),
+        producer=_get_producer(request),
+        redis_client=cast(Any, request.app.state.clients["redis"]),
+        object_storage=_get_object_storage(request),
+        runtime_controller=_get_runtime_controller(request),
+        reasoning_engine=_get_reasoning_engine(request),
+        context_engineering_service=getattr(request.app.state, "context_engineering_service", None),
+    )
+    registry = build_scorer_registry(
+        settings=_get_settings(request),
+        qdrant=_get_qdrant(request),
+        execution_service=execution_service,
+        reasoning_engine=_get_reasoning_engine(request),
+        rubric_service=rubric_service,
+    )
+    return build_calibration_service(
+        session=session,
+        settings=_get_settings(request),
+        producer=_get_producer(request),
+        scorer_registry=registry,
+        rubric_service=rubric_service,
     )
 
 

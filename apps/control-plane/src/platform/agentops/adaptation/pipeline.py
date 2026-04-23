@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from platform.agentops.adaptation.analyzer import AdaptationSignal, BehavioralAnalyzer
 from platform.agentops.events import AgentOpsEventType, GovernanceEventPublisher
 from platform.agentops.models import AdaptationProposal, AdaptationProposalStatus
 from platform.agentops.repository import AgentOpsRepository
 from platform.common.exceptions import NotFoundError, ValidationError
-from typing import Any
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 _ADJUSTMENT_MAP: dict[str, dict[str, str]] = {
@@ -31,6 +31,11 @@ _ADJUSTMENT_MAP: dict[str, dict[str, str]] = {
         "action": "rebalance_tool_selection",
         "summary": "Simplify and reprioritize tool selection based on actual utilization.",
     },
+    "convergence_regression": {
+        "target": "self_correction_strategy",
+        "action": "stabilize_convergence_strategy",
+        "summary": "Adjust self-correction guidance to reduce convergence loops.",
+    },
 }
 
 
@@ -43,12 +48,16 @@ class AdaptationPipeline:
         governance_publisher: GovernanceEventPublisher | None,
         registry_service: Any | None,
         eval_suite_service: Any | None,
+        proposal_ttl_hours: int = 168,
+        observation_window_hours: int = 72,
     ) -> None:
         self.repository = repository
         self.analyzer = analyzer
         self.governance_publisher = governance_publisher
         self.registry_service = registry_service
         self.eval_suite_service = eval_suite_service
+        self.proposal_ttl_hours = proposal_ttl_hours
+        self.observation_window_hours = observation_window_hours
 
     async def propose(
         self,
@@ -57,7 +66,17 @@ class AdaptationPipeline:
         workspace_id: UUID,
         revision_id: UUID | None,
         triggered_by: UUID | None,
+        signal_source: str = "manual",
     ) -> AdaptationProposal:
+        existing_loader = getattr(self.repository, "get_open_adaptation", None)
+        if callable(existing_loader):
+            existing = cast(
+                AdaptationProposal | None,
+                await existing_loader(agent_fqn, workspace_id),
+            )
+            if existing is not None:
+                return existing
+
         signals = await self.analyzer.analyze(agent_fqn, workspace_id)
         adjustments = [_build_adjustment(signal) for signal in signals]
         ate_config_id = await self._resolve_ate_config(workspace_id)
@@ -66,6 +85,7 @@ class AdaptationPipeline:
             if signals
             else AdaptationProposalStatus.no_opportunities
         )
+        expected_improvement = _build_expected_improvement(signals, self.observation_window_hours)
         proposal = AdaptationProposal(
             id=uuid4(),
             workspace_id=workspace_id,
@@ -77,9 +97,10 @@ class AdaptationPipeline:
                 "ate_config_id": str(ate_config_id) if ate_config_id is not None else None,
             },
             signals=[signal.as_payload() for signal in signals],
-            completion_note=(
-                None if signals else "No adaptation opportunities detected."
-            ),
+            expected_improvement=expected_improvement,
+            signal_source=signal_source,
+            expires_at=datetime.now(UTC) + timedelta(hours=self.proposal_ttl_hours),
+            completion_note=(None if signals else "No adaptation opportunities detected."),
         )
         created = await self.repository.create_adaptation(proposal)
         await self._record_governance(
@@ -91,6 +112,7 @@ class AdaptationPipeline:
                 "revision_id": str(revision_id) if revision_id is not None else None,
                 "status": str(created.status),
                 "signal_count": len(signals),
+                "signal_source": signal_source,
             },
             actor=triggered_by,
             revision_id=revision_id,
@@ -108,6 +130,16 @@ class AdaptationPipeline:
         proposal = await self.repository.get_adaptation(proposal_id)
         if proposal is None:
             raise NotFoundError("AGENTOPS_ADAPTATION_NOT_FOUND", "Adaptation proposal not found")
+        if proposal.status == AdaptationProposalStatus.expired.value:
+            raise ValidationError(
+                "AGENTOPS_ADAPTATION_EXPIRED",
+                "Expired adaptation proposals cannot be reviewed.",
+            )
+        if proposal.status == AdaptationProposalStatus.orphaned.value:
+            raise ValidationError(
+                "AGENTOPS_ADAPTATION_ORPHANED",
+                "Orphaned adaptation proposals cannot be reviewed.",
+            )
 
         proposal.review_reason = reason
         proposal.reviewed_by = reviewed_by
@@ -117,84 +149,15 @@ class AdaptationPipeline:
             proposal.status = AdaptationProposalStatus.rejected
             proposal.completed_at = datetime.now(UTC)
             proposal.completion_note = "Adaptation proposal rejected by human review."
-            updated = await self.repository.update_adaptation(proposal)
-            await self._record_governance(
-                AgentOpsEventType.adaptation_reviewed.value,
-                updated.agent_fqn,
-                updated.workspace_id,
-                payload={
-                    "proposal_id": str(updated.id),
-                    "decision": decision,
-                    "reason": reason,
-                },
-                actor=reviewed_by,
-                revision_id=updated.revision_id,
-            )
-            return updated
-
-        if decision != "approved":
+        elif decision == "approved":
+            proposal.status = AdaptationProposalStatus.approved
+            proposal.completion_note = "Adaptation proposal approved and awaiting explicit apply."
+        else:
             raise ValidationError(
                 "AGENTOPS_ADAPTATION_DECISION_INVALID",
                 "Invalid adaptation decision",
             )
 
-        if proposal.revision_id is None:
-            raise ValidationError(
-                "AGENTOPS_ADAPTATION_REVISION_REQUIRED",
-                "Approved adaptation proposals require a source revision.",
-            )
-        if self.registry_service is None:
-            raise ValidationError(
-                "AGENTOPS_ADAPTATION_REGISTRY_UNAVAILABLE",
-                "Registry service is required to approve adaptation proposals.",
-            )
-
-        base_revision = await self.registry_service.get_agent_revision(
-            proposal.agent_fqn,
-            proposal.revision_id,
-        )
-        if base_revision is None:
-            raise NotFoundError("AGENTOPS_SOURCE_REVISION_NOT_FOUND", "Source revision not found")
-
-        adjustments = _coerce_adjustments(proposal.proposal_details)
-        candidate_revision_id = proposal.revision_id
-        creator = getattr(self.registry_service, "create_candidate_revision", None)
-        if callable(creator):
-            candidate = await creator(
-                agent_fqn=proposal.agent_fqn,
-                base_revision_id=proposal.revision_id,
-                workspace_id=proposal.workspace_id,
-                adjustments=adjustments,
-                actor_id=reviewed_by,
-            )
-            candidate_revision_id = (
-                _coerce_uuid(getattr(candidate, "id", candidate_revision_id))
-                or candidate_revision_id
-            )
-
-        evaluation_run_id: UUID | None = None
-        ate_config_id = _coerce_uuid(proposal.proposal_details.get("ate_config_id"))
-        starter = getattr(self.eval_suite_service, "start_ate_run", None)
-        if callable(starter) and ate_config_id is not None:
-            run = await starter(
-                ate_config_id=ate_config_id,
-                workspace_id=proposal.workspace_id,
-                agent_fqn=proposal.agent_fqn,
-                candidate_revision_id=candidate_revision_id,
-            )
-            evaluation_run_id = _coerce_uuid(getattr(run, "id", None))
-        else:
-            submitter = getattr(self.eval_suite_service, "submit_to_ate", None)
-            if callable(submitter) and ate_config_id is not None:
-                run = await submitter(candidate_revision_id, ate_config_id, proposal.workspace_id)
-                evaluation_run_id = _coerce_uuid(
-                    getattr(run, "id", None) or getattr(run, "ate_run_id", None)
-                )
-
-        proposal.status = AdaptationProposalStatus.testing
-        proposal.candidate_revision_id = candidate_revision_id
-        proposal.evaluation_run_id = evaluation_run_id
-        proposal.completion_note = "Candidate revision approved and queued for ATE."
         updated = await self.repository.update_adaptation(proposal)
         await self._record_governance(
             AgentOpsEventType.adaptation_reviewed.value,
@@ -203,12 +166,41 @@ class AdaptationPipeline:
             payload={
                 "proposal_id": str(updated.id),
                 "decision": decision,
-                "candidate_revision_id": str(candidate_revision_id),
-                "evaluation_run_id": (
-                    str(evaluation_run_id) if evaluation_run_id is not None else None
-                ),
+                "reason": reason,
+                "status": str(updated.status),
             },
             actor=reviewed_by,
+            revision_id=updated.revision_id,
+        )
+        return updated
+
+    async def revoke_approval(
+        self,
+        proposal_id: UUID,
+        *,
+        reason: str,
+        actor: UUID,
+    ) -> AdaptationProposal:
+        proposal = await self.repository.get_adaptation(proposal_id)
+        if proposal is None:
+            raise NotFoundError("AGENTOPS_ADAPTATION_NOT_FOUND", "Adaptation proposal not found")
+        if proposal.status != AdaptationProposalStatus.approved.value:
+            raise ValidationError(
+                "AGENTOPS_ADAPTATION_NOT_APPROVED",
+                "Only approved proposals can have approval revoked.",
+            )
+        proposal.status = AdaptationProposalStatus.proposed
+        proposal.revoked_at = datetime.now(UTC)
+        proposal.revoked_by = actor
+        proposal.revoke_reason = reason
+        proposal.completion_note = "Approval revoked; proposal returned to proposed state."
+        updated = await self.repository.update_adaptation(proposal)
+        await self._record_governance(
+            AgentOpsEventType.adaptation_approval_revoked.value,
+            updated.agent_fqn,
+            updated.workspace_id,
+            payload={"proposal_id": str(updated.id), "reason": reason},
+            actor=actor,
             revision_id=updated.revision_id,
         )
         return updated
@@ -286,6 +278,45 @@ def _build_adjustment(signal: AdaptationSignal) -> dict[str, object]:
         "summary": mapping.get("summary", signal.rationale),
         "metrics": deepcopy(signal.metrics),
         "rationale": signal.rationale,
+    }
+
+
+def _build_expected_improvement(
+    signals: list[AdaptationSignal],
+    observation_window_hours: int,
+) -> dict[str, object] | None:
+    if not signals:
+        return None
+    primary = signals[0]
+    baseline = 0.0
+    target = 0.1
+    metric = "quality_score"
+    if primary.rule_type == "quality_trend":
+        metric = "quality_score"
+        baseline = float(primary.metrics.get("latest_quality") or 0.0)
+        target = baseline + 0.08
+    elif primary.rule_type == "cost_quality":
+        metric = "cost_quality_ratio"
+        baseline = float(primary.metrics.get("agent_cost_quality_ratio") or 0.0)
+        target = max(baseline * 0.8, 0.0)
+    elif primary.rule_type == "failure_pattern":
+        metric = "failure_rate"
+        baseline = float(primary.metrics.get("failure_rate") or 0.0)
+        target = max(baseline - 0.1, 0.0)
+    elif primary.rule_type == "tool_utilization":
+        metric = "tool_utilization_rate"
+        baseline = float(primary.metrics.get("tool_utilization_rate") or 0.0)
+        target = min(baseline + 0.15, 1.0)
+    elif primary.rule_type == "convergence_regression":
+        metric = "self_correction_loops"
+        baseline = float(primary.metrics.get("recent_loops") or 0.0)
+        target = max(float(primary.metrics.get("baseline_loops") or 0.0), baseline - 1.0)
+    return {
+        "metric": metric,
+        "baseline_value": round(baseline, 4),
+        "target_value": round(target, 4),
+        "target_delta": round(target - baseline, 4),
+        "observation_window_hours": observation_window_hours,
     }
 
 

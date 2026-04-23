@@ -222,3 +222,78 @@ async def test_execution_repository_mutation_methods_update_state_and_flush() ->
     assert created_compensation is compensation
     assert session.add.call_count == 7
     assert session.flush.await_count >= 8
+
+
+@pytest.mark.asyncio
+async def test_execution_repository_reasoning_trace_record_queries_and_upserts() -> None:
+    record = SimpleNamespace(id=uuid4(), execution_id=uuid4(), step_id="trace-step")
+    session = _session(execute_results=[_ScalarResult(record), _ScalarResult(None)])
+    repository = ExecutionRepository(session)  # type: ignore[arg-type]
+
+    fetched = await repository.get_reasoning_trace_record(record.execution_id, record.step_id)
+    assert fetched is record
+
+    new_record = SimpleNamespace(
+        execution_id=uuid4(),
+        step_id="trace-step",
+        technique="DEBATE",
+        storage_key="reasoning-debates/a/trace.json",
+        step_count=2,
+        status="complete",
+        compute_budget_used=0.4,
+        consensus_reached=True,
+        stabilized=None,
+        degradation_detected=None,
+        compute_budget_exhausted=False,
+        effective_budget_scope="step",
+    )
+    inserted = await repository.upsert_reasoning_trace_record(new_record)  # type: ignore[arg-type]
+
+    assert inserted is new_record
+    assert session.add.call_count == 1
+    assert session.flush.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_execution_repository_updates_existing_reasoning_trace_record() -> None:
+    existing_record = SimpleNamespace(
+        execution_id=uuid4(),
+        step_id="trace-step",
+        technique="COT",
+        storage_key="old.json",
+        step_count=1,
+        status="in_progress",
+        compute_budget_used=0.1,
+        consensus_reached=None,
+        stabilized=None,
+        degradation_detected=None,
+        compute_budget_exhausted=False,
+        effective_budget_scope="workflow",
+    )
+    updated_record = SimpleNamespace(
+        execution_id=existing_record.execution_id,
+        step_id=existing_record.step_id,
+        technique="DEBATE",
+        storage_key="new.json",
+        step_count=3,
+        status="complete",
+        compute_budget_used=0.6,
+        consensus_reached=True,
+        stabilized=False,
+        degradation_detected=False,
+        compute_budget_exhausted=True,
+        effective_budget_scope="step",
+    )
+    session = _session()
+    repository = ExecutionRepository(session)  # type: ignore[arg-type]
+    repository.get_reasoning_trace_record = AsyncMock(return_value=existing_record)  # type: ignore[method-assign]
+
+    result = await repository.upsert_reasoning_trace_record(updated_record)  # type: ignore[arg-type]
+
+    assert result is existing_record
+    assert existing_record.technique == "DEBATE"
+    assert existing_record.storage_key == "new.json"
+    assert existing_record.compute_budget_exhausted is True
+    assert existing_record.effective_budget_scope == "step"
+    assert session.add.call_count == 0
+    assert session.flush.await_count == 1

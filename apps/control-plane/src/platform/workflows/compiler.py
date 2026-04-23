@@ -158,6 +158,14 @@ class WorkflowCompiler:
                 value=metadata,
                 code="WORKFLOW_SCHEMA_INVALID",
             )
+        if isinstance(metadata, dict) and metadata.get("compute_budget") is not None:
+            self._require_float_in_range(
+                metadata,
+                "compute_budget",
+                path="metadata.compute_budget",
+                minimum_exclusive=0.0,
+                maximum=1.0,
+            )
 
     def _validate_step(self, step: Any, index: int) -> None:
         path = f"steps[{index}]"
@@ -181,6 +189,7 @@ class WorkflowCompiler:
             "compensation_handler",
             "approval_config",
             "reasoning_mode",
+            "compute_budget",
             "context_budget_tokens",
             "parallel_group",
             "condition_expression",
@@ -236,6 +245,14 @@ class WorkflowCompiler:
                 code="WORKFLOW_SCHEMA_INVALID",
             )
         self._validate_optional_string(step, "reasoning_mode", path=f"{path}.reasoning_mode")
+        if "compute_budget" in step and step.get("compute_budget") is not None:
+            self._require_float_in_range(
+                step,
+                "compute_budget",
+                path=f"{path}.compute_budget",
+                minimum_exclusive=0.0,
+                maximum=1.0,
+            )
         if "context_budget_tokens" in step and step.get("context_budget_tokens") is not None:
             self._require_int(
                 step,
@@ -277,6 +294,33 @@ class WorkflowCompiler:
                     code="WORKFLOW_SCHEMA_INVALID",
                 )
             seen.add(item)
+
+    def _require_float_in_range(
+        self,
+        payload: dict[str, Any],
+        key: str,
+        *,
+        path: str,
+        minimum_exclusive: float,
+        maximum: float,
+    ) -> float:
+        value = payload.get(key)
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            raise WorkflowCompilationError(
+                f"{key} must be a number",
+                path=path,
+                value=value,
+                code="WORKFLOW_SCHEMA_INVALID",
+            )
+        number = float(value)
+        if number <= minimum_exclusive or number > maximum:
+            raise WorkflowCompilationError(
+                f"{key} must be within ({minimum_exclusive}, {maximum}]",
+                path=path,
+                value=value,
+                code="WORKFLOW_SCHEMA_INVALID",
+            )
+        return number
 
     def _validate_input_bindings(self, value: Any, *, path: str) -> None:
         if value is None:
@@ -596,6 +640,11 @@ class WorkflowCompiler:
                 else None
             ),
             reasoning_mode=self._optional_str(payload.get("reasoning_mode")),
+            compute_budget=(
+                float(payload["compute_budget"])
+                if payload.get("compute_budget") is not None
+                else None
+            ),
             context_budget_tokens=(
                 int(payload["context_budget_tokens"])
                 if payload.get("context_budget_tokens") is not None

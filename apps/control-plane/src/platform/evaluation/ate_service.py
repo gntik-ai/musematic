@@ -120,9 +120,7 @@ class ATEService:
         if config is None:
             raise NotFoundError("ATE_CONFIG_NOT_FOUND", "ATE configuration not found")
         pre_check_errors = self.pre_check(config)
-        initial_status = (
-            ATERunStatus.pre_check_failed if pre_check_errors else ATERunStatus.pending
-        )
+        initial_status = ATERunStatus.pre_check_failed if pre_check_errors else ATERunStatus.pending
         run = await self.repository.create_ate_run(
             ATERun(
                 workspace_id=workspace_id,

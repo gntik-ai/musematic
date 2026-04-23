@@ -2,10 +2,15 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from platform.trust.exceptions import ContractConflictError
 from platform.trust.models import (
+    AgentContract,
     CertificationStatus,
+    Certifier,
+    ContractBreachEvent,
     EvidenceType,
     GuardrailLayer,
+    ReassessmentRecord,
     RecertificationTriggerStatus,
     RecertificationTriggerType,
     TrustATEConfiguration,
@@ -15,12 +20,14 @@ from platform.trust.models import (
     TrustGuardrailPipelineConfig,
     TrustOJEPipelineConfig,
     TrustProofLink,
+    TrustRecertificationRequest,
     TrustRecertificationTrigger,
     TrustSafetyPreScreenerRuleSet,
     TrustSignal,
     TrustTierName,
 )
 from platform.trust.repository import TrustRepository
+from types import SimpleNamespace
 from typing import Any
 from uuid import uuid4
 
@@ -48,6 +55,9 @@ class _ResultStub:
     def scalars(self) -> _ScalarSequence:
         return _ScalarSequence(self._items)
 
+    def all(self) -> list[Any]:
+        return list(self._items)
+
 
 class _SessionStub:
     def __init__(
@@ -55,9 +65,11 @@ class _SessionStub:
         *,
         execute_results: list[_ResultStub] | None = None,
         scalar_results: list[Any] | None = None,
+        get_results: list[Any] | None = None,
     ) -> None:
         self.execute_results = list(execute_results or [])
         self.scalar_results = list(scalar_results or [])
+        self.get_results = list(get_results or [])
         self.added: list[Any] = []
         self.flush_count = 0
 
@@ -74,6 +86,10 @@ class _SessionStub:
     async def scalar(self, statement: Any) -> Any:
         del statement
         return self.scalar_results.pop(0)
+
+    async def get(self, model: Any, ident: Any) -> Any:
+        del model, ident
+        return self.get_results.pop(0)
 
 
 @pytest.mark.asyncio
@@ -179,6 +195,337 @@ async def test_repository_create_helpers_add_and_flush() -> None:
 
     assert len(session.added) == 11
     assert session.flush_count == 11
+
+
+@pytest.mark.asyncio
+async def test_repository_certifier_contract_and_attachment_helpers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    certifier = stamp(
+        Certifier(
+            name="Acme Certifier",
+            organization="Acme",
+            credentials={"credential_id": "cred-1"},
+            permitted_scopes=["safety", "quality"],
+            is_active=True,
+            created_by="admin",
+            updated_by="admin",
+        )
+    )
+    contract = stamp(
+        AgentContract(
+            workspace_id=workspace_id,
+            agent_id="agent-1",
+            task_scope="Validate responses",
+            expected_outputs={"type": "json"},
+            quality_thresholds={"accuracy_min": 0.9},
+            time_constraint_seconds=30,
+            cost_limit_tokens=2000,
+            escalation_conditions={"timeout": "warn"},
+            success_criteria={"pass_rate": 0.95},
+            enforcement_policy="warn",
+            is_archived=False,
+            created_by="owner",
+            updated_by="owner",
+        )
+    )
+    session = _SessionStub(
+        execute_results=[
+            _ResultStub(scalar=certifier),
+            _ResultStub(items=[certifier]),
+            _ResultStub(items=[certifier]),
+            _ResultStub(scalar=contract),
+            _ResultStub(items=[contract]),
+            _ResultStub(items=[contract]),
+            _ResultStub(scalar={"snapshot": "interaction"}),
+            _ResultStub(scalar={"snapshot": "execution"}),
+        ],
+        scalar_results=[2, 0],
+        get_results=[
+            None,
+            SimpleNamespace(contract_id=uuid4(), contract_snapshot=None),
+            SimpleNamespace(contract_id=None, contract_snapshot=None),
+            None,
+            SimpleNamespace(contract_id=uuid4(), contract_snapshot=None),
+            SimpleNamespace(contract_id=None, contract_snapshot=None),
+        ],
+    )
+    repo = TrustRepository(session)  # type: ignore[arg-type]
+
+    created_certifier = await repo.create_certifier(
+        Certifier(
+            name="Fresh Certifier",
+            organization=None,
+            credentials=None,
+            permitted_scopes=None,
+            is_active=True,
+            created_by="admin",
+            updated_by="admin",
+        )
+    )
+    assert created_certifier in session.added
+    assert await repo.get_certifier(certifier.id) == certifier
+    assert await repo.list_certifiers() == [certifier]
+    assert await repo.list_certifiers(include_inactive=True) == [certifier]
+
+    async def _get_certifier(certifier_id: Any) -> Any:
+        del certifier_id
+        return certifier
+
+    monkeypatch.setattr(repo, "get_certifier", _get_certifier)
+    deactivated = await repo.deactivate_certifier(certifier.id)
+    assert deactivated is certifier
+    assert certifier.is_active is False
+
+    async def _missing_certifier(certifier_id: Any) -> Any:
+        del certifier_id
+        return None
+
+    monkeypatch.setattr(repo, "get_certifier", _missing_certifier)
+    assert await repo.deactivate_certifier(uuid4()) is None
+
+    created_contract = await repo.create_contract(
+        AgentContract(
+            workspace_id=workspace_id,
+            agent_id="agent-2",
+            task_scope="Score prompts",
+            expected_outputs=None,
+            quality_thresholds=None,
+            time_constraint_seconds=None,
+            cost_limit_tokens=None,
+            escalation_conditions=None,
+            success_criteria=None,
+            enforcement_policy="throttle",
+            is_archived=False,
+            created_by="owner",
+            updated_by="owner",
+        )
+    )
+    assert created_contract in session.added
+    assert await repo.get_contract(contract.id) == contract
+    assert await repo.list_contracts(workspace_id, agent_id="agent-1") == [contract]
+    assert await repo.list_contracts(workspace_id, include_archived=True) == [contract]
+
+    async def _get_contract(contract_id: Any) -> Any:
+        del contract_id
+        return contract
+
+    monkeypatch.setattr(repo, "get_contract", _get_contract)
+    updated = await repo.update_contract(
+        contract.id,
+        {"task_scope": "Updated", "cost_limit_tokens": 42},
+    )
+    assert updated is contract
+    assert contract.task_scope == "Updated"
+    assert contract.cost_limit_tokens == 42
+    archived = await repo.archive_contract(contract.id)
+    assert archived is contract
+    assert contract.is_archived is True
+
+    async def _missing_contract(contract_id: Any) -> Any:
+        del contract_id
+        return None
+
+    monkeypatch.setattr(repo, "get_contract", _missing_contract)
+    assert await repo.update_contract(uuid4(), {"task_scope": "ignored"}) is None
+    assert await repo.archive_contract(uuid4()) is None
+
+    assert await repo.has_inflight_execution_for_contract(contract.id) is True
+    assert await repo.has_inflight_execution_for_contract(contract.id) is False
+    assert await repo.get_interaction_contract_snapshot(uuid4()) == {"snapshot": "interaction"}
+    assert await repo.get_execution_contract_snapshot(uuid4()) == {"snapshot": "execution"}
+
+    interaction_id = uuid4()
+    execution_id = uuid4()
+    assert await repo.attach_contract_to_interaction(interaction_id, contract.id, {"v": 1}) is None
+    with pytest.raises(ContractConflictError):
+        await repo.attach_contract_to_interaction(interaction_id, contract.id, {"v": 1})
+    attached_interaction = await repo.attach_contract_to_interaction(
+        interaction_id,
+        contract.id,
+        {"v": 2},
+    )
+    assert attached_interaction.contract_id == contract.id
+    assert attached_interaction.contract_snapshot == {"v": 2}
+
+    assert await repo.attach_contract_to_execution(execution_id, contract.id, {"v": 3}) is None
+    with pytest.raises(ContractConflictError):
+        await repo.attach_contract_to_execution(execution_id, contract.id, {"v": 3})
+    attached_execution = await repo.attach_contract_to_execution(
+        execution_id,
+        contract.id,
+        {"v": 4},
+    )
+    assert attached_execution.contract_id == contract.id
+    assert attached_execution.contract_snapshot == {"v": 4}
+
+
+@pytest.mark.asyncio
+async def test_repository_reassessment_recertification_and_compliance_helpers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    certification = build_certification(status=CertificationStatus.active)
+    reassessment = stamp(
+        ReassessmentRecord(
+            certification_id=certification.id,
+            verdict="pass",
+            reassessor_id="reviewer",
+            notes="ok",
+            created_by="reviewer",
+            updated_by="reviewer",
+        )
+    )
+    request = stamp(
+        TrustRecertificationRequest(
+            certification_id=certification.id,
+            trigger_type="signal",
+            trigger_reference="run-1",
+            deadline=datetime.now(UTC) + timedelta(days=1),
+            resolution_status="pending",
+            dismissal_justification=None,
+        )
+    )
+    breach = stamp(
+        ContractBreachEvent(
+            contract_id=uuid4(),
+            target_type="execution",
+            target_id=uuid4(),
+            breached_term="quality_threshold",
+            observed_value={"accuracy_min": 0.5},
+            threshold_value={"accuracy_min": 0.9},
+            enforcement_action="warn",
+            enforcement_outcome="success",
+            contract_snapshot={"contract": "snapshot"},
+        )
+    )
+    start = datetime.now(UTC) - timedelta(days=1)
+    end = datetime.now(UTC) + timedelta(days=1)
+    execution_row = SimpleNamespace(
+        id=uuid4(),
+        created_at=(datetime.now(UTC) - timedelta(hours=1)).replace(
+            minute=15, second=0, microsecond=0
+        ),
+        contract_id=breach.contract_id,
+    )
+    interaction_row = SimpleNamespace(
+        id=uuid4(),
+        created_at=datetime.now(UTC).replace(minute=45, second=0, microsecond=0),
+        contract_id=breach.contract_id,
+    )
+    breach.target_id = execution_row.id
+    session = _SessionStub(
+        execute_results=[
+            _ResultStub(items=[breach]),
+            _ResultStub(items=[reassessment]),
+            _ResultStub(scalar=request),
+            _ResultStub(items=[request]),
+            _ResultStub(items=[request]),
+            _ResultStub(items=[certification]),
+            _ResultStub(items=[execution_row]),
+            _ResultStub(items=[interaction_row]),
+            _ResultStub(items=[breach]),
+            _ResultStub(items=[execution_row]),
+            _ResultStub(items=[]),
+            _ResultStub(items=[execution_row]),
+            _ResultStub(items=[interaction_row]),
+            _ResultStub(items=[breach]),
+        ],
+        scalar_results=[3],
+    )
+    repo = TrustRepository(session)  # type: ignore[arg-type]
+
+    created_breach = await repo.create_breach_event(
+        ContractBreachEvent(
+            contract_id=uuid4(),
+            target_type="interaction",
+            target_id=uuid4(),
+            breached_term="timeout",
+            observed_value={"seconds": 31},
+            threshold_value={"seconds": 30},
+            enforcement_action="throttle",
+            enforcement_outcome="applied",
+            contract_snapshot={},
+        )
+    )
+    assert created_breach in session.added
+
+    listed_breaches, total_breaches = await repo.list_breach_events(
+        breach.contract_id,
+        target_type="execution",
+        start=start,
+        end=end,
+    )
+    assert listed_breaches == [breach]
+    assert total_breaches == 3
+
+    created_reassessment = await repo.create_reassessment(certification.id, reassessment)
+    assert created_reassessment is reassessment
+    assert reassessment.certification_id == certification.id
+    assert await repo.list_reassessments(certification.id) == [reassessment]
+
+    created_request = await repo.create_recertification_request(request)
+    assert created_request is request
+    assert await repo.get_recertification_request(request.id) == request
+    assert await repo.list_recertification_requests(
+        certification_id=certification.id,
+        status="pending",
+    ) == [request]
+    assert await repo.get_pending_requests_past_deadline(datetime.now(UTC)) == [request]
+
+    async def _get_request(request_id: Any) -> Any:
+        del request_id
+        return request
+
+    monkeypatch.setattr(repo, "get_recertification_request", _get_request)
+    resolved = await repo.resolve_recertification_request(
+        request.id,
+        "dismissed",
+        "manually reviewed",
+    )
+    assert resolved is request
+    assert request.resolution_status == "dismissed"
+    assert request.dismissal_justification == "manually reviewed"
+
+    async def _missing_request(request_id: Any) -> Any:
+        del request_id
+        return None
+
+    monkeypatch.setattr(repo, "get_recertification_request", _missing_request)
+    assert await repo.resolve_recertification_request(uuid4(), "dismissed") is None
+
+    assert await repo.get_active_or_expiring_certifications_for_agent("agent-1") == [certification]
+
+    workspace_stats = await repo.get_compliance_stats(
+        "workspace",
+        str(uuid4()),
+        start,
+        end,
+        "hourly",
+    )
+    assert workspace_stats["total_contract_attached"] == 2
+    assert workspace_stats["compliant"] == 1
+    assert workspace_stats["warned"] == 1
+    assert workspace_stats["breach_by_term"] == {"quality_threshold": 1}
+    assert len(workspace_stats["trend"]) == 2
+
+    fleet_stats = await repo.get_compliance_stats(
+        "fleet",
+        str(uuid4()),
+        start,
+        end,
+        "daily",
+    )
+    agent_stats = await repo.get_compliance_stats(
+        "agent",
+        "agent-1",
+        start,
+        end,
+        "daily",
+    )
+    assert fleet_stats["total_contract_attached"] == 1
+    assert fleet_stats["trend"][0]["total"] == 1
+    assert agent_stats["warned"] == 1
 
 
 @pytest.mark.asyncio

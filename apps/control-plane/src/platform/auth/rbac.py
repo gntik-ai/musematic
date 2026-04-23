@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from platform.auth.events import PermissionDeniedPayload, publish_auth_event
 from platform.auth.purpose import check_purpose_bound
 from platform.auth.repository import AuthRepository
@@ -20,9 +21,7 @@ class RBACEngine:
         rows = await repository.get_all_role_permissions()
         permissions: dict[str, set[tuple[str, str, str]]] = {}
         for row in rows:
-            permissions.setdefault(row.role, set()).add(
-                (row.resource_type, row.action, row.scope)
-            )
+            permissions.setdefault(row.role, set()).add((row.resource_type, row.action, row.scope))
         self._permissions = permissions
         self._loaded = True
 
@@ -100,6 +99,28 @@ class RBACEngine:
             "rbac_denied",
         )
 
+    async def revoke_connector_sourced_roles(
+        self,
+        repository: AuthRepository,
+        *,
+        user_id: UUID,
+        connector_id: UUID,
+        keep_assignments: Iterable[tuple[str, UUID | None]],
+    ) -> int:
+        preserved = set(keep_assignments)
+        revoked = 0
+        assignments = await repository.get_user_roles_by_source_connector(
+            user_id,
+            connector_id,
+        )
+        for assignment in assignments:
+            key = (assignment.role, assignment.workspace_id)
+            if key in preserved:
+                continue
+            await repository.revoke_user_role(assignment.id)
+            revoked += 1
+        return revoked
+
     async def _deny(
         self,
         user_id: UUID,
@@ -149,4 +170,3 @@ class RBACEngine:
 
 
 rbac_engine = RBACEngine()
-

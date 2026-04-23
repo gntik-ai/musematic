@@ -2,9 +2,16 @@ package events
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/confluentinc/confluent-kafka-go/v2/kafka"
+)
+
+const (
+	EventDebateRoundCompleted = "reasoning.debate.round_completed"
+	EventReactCycleCompleted  = "reasoning.react.cycle_completed"
 )
 
 type KafkaProducer struct {
@@ -61,6 +68,42 @@ func (p *KafkaProducer) Produce(ctx context.Context, topic string, key string, v
 		}
 		return message.TopicPartition.Error
 	}
+}
+
+func (p *KafkaProducer) ProduceDebateRoundCompleted(
+	ctx context.Context,
+	executionID string,
+	payload map[string]any,
+) error {
+	return p.produceReasoningEvent(ctx, EventDebateRoundCompleted, executionID, payload)
+}
+
+func (p *KafkaProducer) ProduceReactCycleCompleted(
+	ctx context.Context,
+	executionID string,
+	payload map[string]any,
+) error {
+	return p.produceReasoningEvent(ctx, EventReactCycleCompleted, executionID, payload)
+}
+
+func (p *KafkaProducer) produceReasoningEvent(
+	ctx context.Context,
+	eventType string,
+	executionID string,
+	payload map[string]any,
+) error {
+	body, err := json.Marshal(map[string]any{
+		"event_type":   eventType,
+		"version":      "1.0",
+		"source":       "reasoning-engine",
+		"execution_id": executionID,
+		"occurred_at":  time.Now().UTC().Format(time.RFC3339Nano),
+		"payload":      payload,
+	})
+	if err != nil {
+		return err
+	}
+	return p.Produce(ctx, "runtime.reasoning", executionID, body)
 }
 
 func (p *KafkaProducer) Close() {

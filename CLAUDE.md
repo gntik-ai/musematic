@@ -1,6 +1,6 @@
 # musematic Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-18
+Auto-generated from all feature plans. Last updated: 2026-04-20
 
 ## Active Technologies
 - Python 3.12+ (control plane client), Go 1.22+ (reasoning engine client) + `redis-py 5.x` (Python async), `go-redis/redis/v9` (Go), Bitnami `redis-cluster` Helm chart (002-redis-cache-hot-state)
@@ -96,6 +96,26 @@ Auto-generated from all feature plans. Last updated: 2026-04-18
 - PostgreSQL (no new DDL; existing `workspaces_visibility_grants` + `registry_agent_profiles`); no ClickHouse or OpenSearch changes (053-zero-trust-visibility)
 - Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, aiokafka 0.11+, opentelemetry-sdk 1.27+, PyYAML 6.x (already present), pytest + pytest-asyncio 8.x (054-safety-prescreener-sanitization)
 - PostgreSQL (enum value addition via Alembic migration 042; no new tables or columns); MinIO (existing bucket unchanged) (054-safety-prescreener-sanitization)
+- Go 1.22+ (runtime-controller satellite), Python 3.12+ (control plane) + `prometheus/promauto` (Go metrics), `google.golang.org/grpc 1.67+` (gRPC), `pgx/v5` (Go PostgreSQL), FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, grpcio 1.65+, pytest + pytest-asyncio 8.x (055-runtime-warm-pool)
+- PostgreSQL — 1 new table `runtime_warm_pool_targets` (additive; no columns added to existing tables) (055-runtime-warm-pool)
+- Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, Alembic, aiokafka 0.11+ (events), redis-py 5.x async (sync-lock), APScheduler 3.x (periodic sync), `ldap3` 2.9+ (LDAP adapter — NEW dependency), httpx 0.27+ (OIDC/SCIM adapters), pytest + pytest-asyncio 8.x (056-ibor-integration-and)
+- PostgreSQL — 2 new tables (`ibor_connectors`, `ibor_sync_runs`), 4 new columns across existing tables, 1 new enum value on `registry_lifecycle_status`; no new data stores (056-ibor-integration-and)
+- Python 3.12+ (control plane), TypeScript 5.x (frontend) + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, Alembic 1.13+, aiokafka 0.11+, redis-py 5.x, httpx 0.27+, PyJWT 2.x, cryptography (JWKS RSA key parsing) — all already in requirements.txt (056-ibor-integration-and)
+- PostgreSQL (3 new tables), Redis (3 new key patterns for state + JWKS cache + rate limit) (056-ibor-integration-and)
+- Python 3.12+ (control plane) + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, Alembic 1.13+, aiokafka 0.11+, APScheduler 3.x, pytest + pytest-asyncio 8.x (056-ibor-integration-and)
+- PostgreSQL 16 (5 new tables + 4 altered tables); Kafka topics: `workflow.runtime`, `runtime.lifecycle`, `policy.events`, `trust.events` (056-ibor-integration-and)
+- Python 3.12+ + FastAPI 0.115+, SQLAlchemy 2.x async, Pydantic v2, aiokafka 0.11+, APScheduler 3.x (GC job) (056-ibor-integration-and)
+- PostgreSQL 16 (primary), Redis (existing dispatch lease coordination unchanged) (056-ibor-integration-and)
+- Go 1.22+ (reasoning engine), Python 3.12+ (control plane) (056-ibor-integration-and)
+- PostgreSQL 16 (trace record metadata), S3-compatible object storage (consolidated trace JSON artifacts) (056-ibor-integration-and)
+- Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, aiokafka 0.11+, redis-py 5.x async, httpx 0.27+, APScheduler 3.x — all already in requirements.txt (056-ibor-integration-and)
+- PostgreSQL 16 (4 new tables + 1 column via Alembic 053) + Redis (hot catalog cache + health aggregates) (056-ibor-integration-and)
+- Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, Alembic 1.13+, aiokafka 0.11+, qdrant-client 1.12+ async gRPC, scipy ≥ 1.13 (existing — used by `ProximityClustering`), APScheduler 3.x — all already in requirements.txt (056-ibor-integration-and)
+- PostgreSQL 16 (1 new table + 1 new column + 1 partial index via Alembic 056); Qdrant collection `discovery_hypotheses` (reused — no schema change); no Neo4j, no ClickHouse, no Redis keys added (056-ibor-integration-and)
+- TypeScript 5.x (strict), React 18+ + Next.js 14+ App Router, shadcn/ui (ALL UI primitives), Tailwind CSS 3.4+, TanStack Query v5, Zustand 5.x, React Hook Form 7.x + Zod 3.x, Recharts 2.x, date-fns 4.x, Lucide React — all already in `apps/web/package.json`; **no new packages** (056-ibor-integration-and)
+- None (frontend only — all data sourced from backend REST/WebSocket APIs) (056-ibor-integration-and)
+- Python 3.12+ (test harness + platform dev-only endpoints); YAML (Helm overlay + kind-config + GitHub Actions); Bash (Makefile + image-load scripts) + kind ≥ 0.23, kubectl ≥ 1.28, helm ≥ 3.14, Docker ≥ 24 (host prerequisites); pytest 8.x, pytest-asyncio, pytest-html, pytest-timeout, httpx 0.27+, websockets, aiokafka 0.11+, asyncpg (direct DB assertion path distinct from SQLAlchemy), python-on-whales (optional, for container inspection); existing Helm chart at `deploy/helm/platform/` — no fork (056-ibor-integration-and)
+- None directly owned — the harness orchestrates existing data stores (PostgreSQL via CloudNativePG chart dependency, Redis, Kafka/Strimzi, MinIO, Qdrant, Neo4j, ClickHouse, OpenSearch) installed by the existing platform Helm chart (056-ibor-integration-and)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -115,9 +135,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
-- 054-safety-prescreener-sanitization: Added Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, aiokafka 0.11+, opentelemetry-sdk 1.27+, PyYAML 6.x (already present), pytest + pytest-asyncio 8.x
-- 053-zero-trust-visibility: Added Python 3.12+ + FastAPI 0.115+, Pydantic v2 / pydantic-settings (feature flag), SQLAlchemy 2.x async, aiokafka 0.11+ (audit events), pytest + pytest-asyncio 8.x
-- 052-gid-correlation-envelope: Added Python 3.12+ + FastAPI 0.115+, Starlette middleware, Pydantic v2, aiokafka 0.11+, clickhouse-connect 0.8+, opensearch-py 2.x
+- 056-ibor-integration-and: Added Python 3.12+ (test harness + platform dev-only endpoints); YAML (Helm overlay + kind-config + GitHub Actions); Bash (Makefile + image-load scripts) + kind ≥ 0.23, kubectl ≥ 1.28, helm ≥ 3.14, Docker ≥ 24 (host prerequisites); pytest 8.x, pytest-asyncio, pytest-html, pytest-timeout, httpx 0.27+, websockets, aiokafka 0.11+, asyncpg (direct DB assertion path distinct from SQLAlchemy), python-on-whales (optional, for container inspection); existing Helm chart at `deploy/helm/platform/` — no fork
+- 056-ibor-integration-and: Added TypeScript 5.x (strict), React 18+ + Next.js 14+ App Router, shadcn/ui (ALL UI primitives), Tailwind CSS 3.4+, TanStack Query v5, Zustand 5.x, React Hook Form 7.x + Zod 3.x, Recharts 2.x, date-fns 4.x, Lucide React — all already in `apps/web/package.json`; **no new packages**
+- 056-ibor-integration-and: Added Python 3.12+ + FastAPI 0.115+, Pydantic v2, SQLAlchemy 2.x async, Alembic 1.13+, aiokafka 0.11+, qdrant-client 1.12+ async gRPC, scipy ≥ 1.13 (existing — used by `ProximityClustering`), APScheduler 3.x — all already in requirements.txt
 
 
 <!-- MANUAL ADDITIONS START -->

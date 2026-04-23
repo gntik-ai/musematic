@@ -1,3 +1,3 @@
-from platform.accounts.dependencies import get_accounts_service
+"""Accounts package."""
 
-__all__ = ["get_accounts_service"]
+__all__: list[str] = []

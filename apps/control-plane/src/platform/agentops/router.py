@@ -3,9 +3,17 @@ from __future__ import annotations
 from datetime import datetime
 from platform.agentops.dependencies import AgentOpsServiceDep, get_agentops_workspace_id
 from platform.agentops.schemas import (
+    AdaptationApplyRequest,
+    AdaptationApplyResponse,
+    AdaptationLineageResponse,
+    AdaptationOutcomeResponse,
     AdaptationProposalListResponse,
     AdaptationProposalResponse,
     AdaptationReviewRequest,
+    AdaptationRevokeRequest,
+    AdaptationRevokeResponse,
+    AdaptationRollbackRequest,
+    AdaptationRollbackResponse,
     AdaptationTriggerRequest,
     AgentHealthConfigResponse,
     AgentHealthConfigUpdateRequest,
@@ -20,6 +28,9 @@ from platform.agentops.schemas import (
     GateCheckRequest,
     GovernanceEventListResponse,
     GovernanceSummaryResponse,
+    ProficiencyFleetResponse,
+    ProficiencyHistoryResponse,
+    ProficiencyResponse,
     RegressionAlertListResponse,
     RegressionAlertResolveRequest,
     RegressionAlertResponse,
@@ -35,6 +46,21 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 
 router = APIRouter(prefix="/api/v1/agentops", tags=["agentops"])
+
+
+@router.get("/proficiency", response_model=ProficiencyFleetResponse)
+async def get_proficiency_fleet(
+    agentops_service: AgentOpsServiceDep,
+    *,
+    level_at_or_below: str | None = Query(default=None),
+    level: str | None = Query(default=None),
+    workspace_id: UUID = Depends(get_agentops_workspace_id),
+) -> ProficiencyFleetResponse:
+    return await agentops_service.query_proficiency_fleet(
+        workspace_id,
+        level_at_or_below=level_at_or_below,
+        level=level,
+    )
 
 
 @router.get("/health-config", response_model=AgentHealthConfigResponse)
@@ -54,6 +80,33 @@ async def update_health_config(
     workspace_id: UUID = Depends(get_agentops_workspace_id),
 ) -> AgentHealthConfigResponse:
     return await agentops_service.update_health_config(workspace_id, payload)
+
+
+@router.get("/{agent_fqn}/proficiency", response_model=ProficiencyResponse)
+async def get_agent_proficiency(
+    agent_fqn: str,
+    agentops_service: AgentOpsServiceDep,
+    *,
+    workspace_id: UUID = Depends(get_agentops_workspace_id),
+) -> ProficiencyResponse:
+    return await agentops_service.get_proficiency(agent_fqn, workspace_id)
+
+
+@router.get("/{agent_fqn}/proficiency/history", response_model=ProficiencyHistoryResponse)
+async def get_agent_proficiency_history(
+    agent_fqn: str,
+    agentops_service: AgentOpsServiceDep,
+    *,
+    cursor: str | None = Query(default=None),
+    limit: int = Query(default=20, ge=1, le=100),
+    workspace_id: UUID = Depends(get_agentops_workspace_id),
+) -> ProficiencyHistoryResponse:
+    return await agentops_service.list_proficiency_history(
+        agent_fqn,
+        workspace_id,
+        cursor=cursor,
+        limit=limit,
+    )
 
 
 @router.get("/{agent_fqn}/health", response_model=AgentHealthScoreResponse)
@@ -355,6 +408,79 @@ async def review_adaptation(
         payload,
         actor=_required_actor_id(current_user),
     )
+
+
+@router.post(
+    "/adaptations/{proposal_id}/revoke-approval",
+    response_model=AdaptationRevokeResponse,
+)
+async def revoke_adaptation_approval(
+    proposal_id: UUID,
+    payload: AdaptationRevokeRequest,
+    agentops_service: AgentOpsServiceDep,
+    current_user: dict[str, object] = Depends(get_current_user),
+) -> AdaptationRevokeResponse:
+    return await agentops_service.revoke_adaptation_approval(
+        proposal_id,
+        reason=payload.reason,
+        actor=_required_actor_id(current_user),
+    )
+
+
+@router.post(
+    "/adaptations/{proposal_id}/apply",
+    response_model=AdaptationApplyResponse,
+)
+async def apply_adaptation(
+    proposal_id: UUID,
+    payload: AdaptationApplyRequest,
+    agentops_service: AgentOpsServiceDep,
+    current_user: dict[str, object] = Depends(get_current_user),
+) -> AdaptationApplyResponse:
+    return await agentops_service.apply_adaptation(
+        proposal_id,
+        actor=_required_actor_id(current_user),
+        reason=payload.reason,
+    )
+
+
+@router.post(
+    "/adaptations/{proposal_id}/rollback",
+    response_model=AdaptationRollbackResponse,
+)
+async def rollback_adaptation(
+    proposal_id: UUID,
+    payload: AdaptationRollbackRequest,
+    agentops_service: AgentOpsServiceDep,
+    current_user: dict[str, object] = Depends(get_current_user),
+) -> AdaptationRollbackResponse:
+    return await agentops_service.rollback_adaptation(
+        proposal_id,
+        actor=_required_actor_id(current_user),
+        reason=payload.reason,
+    )
+
+
+@router.get(
+    "/adaptations/{proposal_id}/outcome",
+    response_model=AdaptationOutcomeResponse,
+)
+async def get_adaptation_outcome(
+    proposal_id: UUID,
+    agentops_service: AgentOpsServiceDep,
+) -> AdaptationOutcomeResponse:
+    return await agentops_service.get_adaptation_outcome(proposal_id)
+
+
+@router.get(
+    "/adaptations/{proposal_id}/lineage",
+    response_model=AdaptationLineageResponse,
+)
+async def get_adaptation_lineage(
+    proposal_id: UUID,
+    agentops_service: AgentOpsServiceDep,
+) -> AdaptationLineageResponse:
+    return await agentops_service.get_adaptation_lineage(proposal_id)
 
 
 @router.get(

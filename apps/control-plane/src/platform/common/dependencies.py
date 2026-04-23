@@ -84,6 +84,7 @@ async def get_eval_suite_service_interface(
 ) -> EvalSuiteServiceInterface:
     from platform.common.events.producer import EventProducer
     from platform.evaluation.dependencies import build_eval_suite_service
+    from platform.evaluation.service_interfaces import EvalSuiteServiceInterface
 
     return cast(
         EvalSuiteServiceInterface,
@@ -105,6 +106,7 @@ async def get_coordination_test_service_interface(
     from platform.common.clients.runtime_controller import RuntimeControllerClient
     from platform.common.events.producer import EventProducer
     from platform.testing.dependencies import build_coordination_service
+    from platform.testing.service_interfaces import CoordinationTestServiceInterface
 
     return cast(
         CoordinationTestServiceInterface,
@@ -113,7 +115,10 @@ async def get_coordination_test_service_interface(
             settings=_resolve_settings(request),
             producer=cast(EventProducer | None, request.app.state.clients.get("kafka")),
             redis_client=cast(AsyncRedisClient, request.app.state.clients["redis"]),
-            object_storage=cast(AsyncObjectStorageClient, request.app.state.clients["minio"]),
+            object_storage=cast(
+                AsyncObjectStorageClient,
+                request.app.state.clients["object_storage"],
+            ),
             runtime_controller=cast(
                 RuntimeControllerClient | None,
                 request.app.state.clients.get("runtime_controller"),

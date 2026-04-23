@@ -85,6 +85,7 @@ async def test_repository_upsert_and_profile_accessors() -> None:
         role_types=["executor"],
         custom_role_description=None,
         tags=["kyc"],
+        mcp_server_refs=[],
         maturity_level=1,
         actor_id=uuid4(),
     )

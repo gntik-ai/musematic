@@ -62,6 +62,8 @@ class CertificationResponse(BaseModel):
     revoked_at: datetime | None
     revocation_reason: str | None
     superseded_by_id: UUID | None
+    external_certifier_id: UUID | None = None
+    reassessment_schedule: str | None = None
     evidence_refs: list[EvidenceRefResponse] = Field(default_factory=list)
 
 

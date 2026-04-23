@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from platform.trust.exceptions import PreScreenerError
+
 import pytest
 
 from tests.trust_support import build_rule_set_create, build_trust_bundle
@@ -41,3 +44,37 @@ async def test_prescreener_loads_active_rules_from_redis_version_cache() -> None
 
     assert response.blocked is True
     assert response.matched_rule == "drop-table"
+
+
+@pytest.mark.asyncio
+async def test_prescreener_handles_invalid_cache_values_and_sparse_rule_payloads() -> None:
+    bundle = build_trust_bundle()
+    service = bundle.prescreener_service
+    created = await service.create_rule_set(build_rule_set_create())
+    stored = await bundle.repository.get_rule_set(created.id)
+    assert stored is not None
+    stored.is_active = True
+    bundle.object_storage.objects[("trust-evidence", stored.rules_ref)] = json.dumps(
+        [
+            {"name": "", "pattern": "ignored"},
+            {"name": "valid", "pattern": "token"},
+            "skip-me",
+            {"name": "missing-pattern", "pattern": ""},
+        ]
+    ).encode("utf-8")
+    await bundle.redis.set("trust:prescreener:active_version", b"not-an-int")
+
+    await service.load_active_rules()
+    blocked = await service.screen("contains token", "input")
+
+    assert blocked.blocked is True
+    assert set(service._compiled_patterns) == {"valid"}
+
+    bundle.repository.rule_sets.clear()
+    await service.load_active_rules()
+
+    assert service._compiled_patterns == {}
+    assert service._active_version is None
+
+    with pytest.raises(PreScreenerError):
+        await service.activate_rule_set(created.id)

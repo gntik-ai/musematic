@@ -112,10 +112,7 @@ async def run_trending_computation(
     ranked.sort(key=lambda item: (-float(item["growth_rate"]), item["agent_fqn"]))
     ranked = ranked[:20]
     snapshot_date = datetime.now(UTC).date()
-    snapshot_entries = [
-        dict(entry, rank=index)
-        for index, entry in enumerate(ranked, start=1)
-    ]
+    snapshot_entries = [dict(entry, rank=index) for index, entry in enumerate(ranked, start=1)]
     await repository.insert_trending_snapshot(snapshot_date=snapshot_date, entries=snapshot_entries)
     await redis_client.set(
         "marketplace:trending:latest",

@@ -43,4 +43,3 @@ class ComparisonRangeError(MarketplaceError):
             "Please select between 2 and 4 agents to compare.",
             {"provided": provided},
         )
-

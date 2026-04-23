@@ -7,8 +7,10 @@ from platform.common.clients.runtime_controller import RuntimeControllerClient
 from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_db
 from platform.common.events.producer import EventProducer
+from platform.execution.checkpoint_service import CheckpointService
 from platform.execution.projector import ExecutionProjector
 from platform.execution.repository import ExecutionRepository
+from platform.execution.reprioritization import ReprioritizationService
 from platform.execution.scheduler import SchedulerService
 from platform.execution.service import ExecutionService
 from typing import Any, cast
@@ -29,8 +31,12 @@ def _get_redis(request: Request) -> AsyncRedisClient:
     return cast(AsyncRedisClient, request.app.state.clients["redis"])
 
 
-def _get_runtime_controller(request: Request) -> RuntimeControllerClient:
+def get_runtime_controller_client(request: Request) -> RuntimeControllerClient:
     return cast(RuntimeControllerClient, request.app.state.clients["runtime_controller"])
+
+
+def _get_runtime_controller(request: Request) -> RuntimeControllerClient:
+    return get_runtime_controller_client(request)
 
 
 def _get_reasoning_engine(request: Request) -> ReasoningEngineClient:
@@ -38,7 +44,7 @@ def _get_reasoning_engine(request: Request) -> ReasoningEngineClient:
 
 
 def _get_object_storage(request: Request) -> AsyncObjectStorageClient:
-    return cast(AsyncObjectStorageClient, request.app.state.clients["minio"])
+    return cast(AsyncObjectStorageClient, request.app.state.clients["object_storage"])
 
 
 def build_execution_service(
@@ -52,9 +58,16 @@ def build_execution_service(
     reasoning_engine: ReasoningEngineClient | Any | None,
     context_engineering_service: Any | None = None,
 ) -> ExecutionService:
-    """Handle build execution service."""
+    """Build execution service."""
+    repository = ExecutionRepository(session)
+    checkpoint_service = CheckpointService(
+        repository=repository,
+        settings=settings,
+        producer=producer,
+        projector=ExecutionProjector(),
+    )
     return ExecutionService(
-        repository=ExecutionRepository(session),
+        repository=repository,
         settings=settings,
         producer=producer,
         redis_client=redis_client,
@@ -62,6 +75,32 @@ def build_execution_service(
         runtime_controller=runtime_controller,
         reasoning_engine=reasoning_engine,
         context_engineering_service=context_engineering_service,
+        projector=ExecutionProjector(),
+        checkpoint_service=checkpoint_service,
+    )
+
+
+def build_reprioritization_service(
+    *,
+    session: AsyncSession,
+    repository: ExecutionRepository | None = None,
+) -> ReprioritizationService:
+    """Build reprioritization service."""
+    return ReprioritizationService(repository=repository or ExecutionRepository(session))
+
+
+def build_checkpoint_service(
+    *,
+    session: AsyncSession,
+    settings: PlatformSettings,
+    producer: EventProducer | None,
+    repository: ExecutionRepository | None = None,
+) -> CheckpointService:
+    """Build checkpoint service."""
+    return CheckpointService(
+        repository=repository or ExecutionRepository(session),
+        settings=settings,
+        producer=producer,
         projector=ExecutionProjector(),
     )
 
@@ -78,9 +117,16 @@ def build_scheduler_service(
     context_engineering_service: Any | None = None,
     interactions_service: Any | None = None,
 ) -> SchedulerService:
-    """Handle build scheduler service."""
-    execution_service = build_execution_service(
+    """Build scheduler service."""
+    repository = ExecutionRepository(session)
+    checkpoint_service = build_checkpoint_service(
         session=session,
+        settings=settings,
+        producer=producer,
+        repository=repository,
+    )
+    execution_service = ExecutionService(
+        repository=repository,
         settings=settings,
         producer=producer,
         redis_client=redis_client,
@@ -88,9 +134,11 @@ def build_scheduler_service(
         runtime_controller=runtime_controller,
         reasoning_engine=reasoning_engine,
         context_engineering_service=context_engineering_service,
+        projector=ExecutionProjector(),
+        checkpoint_service=checkpoint_service,
     )
     return SchedulerService(
-        repository=ExecutionRepository(session),
+        repository=repository,
         execution_service=execution_service,
         projector=ExecutionProjector(),
         settings=settings,
@@ -101,6 +149,11 @@ def build_scheduler_service(
         reasoning_engine=reasoning_engine,
         context_engineering_service=context_engineering_service,
         interactions_service=interactions_service,
+        reprioritization_service=build_reprioritization_service(
+            session=session,
+            repository=repository,
+        ),
+        checkpoint_service=checkpoint_service,
     )
 
 
@@ -115,9 +168,30 @@ async def get_execution_service(
         producer=_get_producer(request),
         redis_client=_get_redis(request),
         object_storage=_get_object_storage(request),
-        runtime_controller=_get_runtime_controller(request),
+        runtime_controller=get_runtime_controller_client(request),
         reasoning_engine=_get_reasoning_engine(request),
         context_engineering_service=getattr(request.app.state, "context_engineering_service", None),
+    )
+
+
+async def get_reprioritization_service(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+) -> ReprioritizationService:
+    """Return reprioritization service."""
+    del request
+    return build_reprioritization_service(session=session)
+
+
+async def get_checkpoint_service(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+) -> CheckpointService:
+    """Return checkpoint service."""
+    return build_checkpoint_service(
+        session=session,
+        settings=_get_settings(request),
+        producer=_get_producer(request),
     )
 
 
@@ -132,7 +206,7 @@ async def get_scheduler_service(
         producer=_get_producer(request),
         redis_client=_get_redis(request),
         object_storage=_get_object_storage(request),
-        runtime_controller=_get_runtime_controller(request),
+        runtime_controller=get_runtime_controller_client(request),
         reasoning_engine=_get_reasoning_engine(request),
         context_engineering_service=getattr(request.app.state, "context_engineering_service", None),
         interactions_service=getattr(request.app.state, "interactions_service", None),

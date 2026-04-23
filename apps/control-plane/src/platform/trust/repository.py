@@ -2,9 +2,16 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from platform.execution.models import Execution, ExecutionStatus
+from platform.interactions.models import Interaction
+from platform.trust.exceptions import ContractConflictError
 from platform.trust.models import (
+    AgentContract,
     CertificationStatus,
+    Certifier,
+    ContractBreachEvent,
     GuardrailLayer,
+    ReassessmentRecord,
     RecertificationTriggerStatus,
     RecertificationTriggerType,
     TrustATEConfiguration,
@@ -15,6 +22,7 @@ from platform.trust.models import (
     TrustGuardrailPipelineConfig,
     TrustOJEPipelineConfig,
     TrustProofLink,
+    TrustRecertificationRequest,
     TrustRecertificationTrigger,
     TrustSafetyPreScreenerRuleSet,
     TrustSignal,
@@ -67,12 +75,425 @@ class TrustRepository:
     async def list_stale_certifications(self, now: datetime) -> list[TrustCertification]:
         result = await self.session.execute(
             select(TrustCertification).where(
-                TrustCertification.status == CertificationStatus.active,
+                TrustCertification.status.in_(
+                    (CertificationStatus.active, CertificationStatus.expiring)
+                ),
                 TrustCertification.expires_at.is_not(None),
                 TrustCertification.expires_at < now,
             )
         )
         return list(result.scalars().all())
+
+    async def create_certifier(self, certifier: Certifier) -> Certifier:
+        self.session.add(certifier)
+        await self.session.flush()
+        return certifier
+
+    async def get_certifier(self, certifier_id: UUID) -> Certifier | None:
+        result = await self.session.execute(select(Certifier).where(Certifier.id == certifier_id))
+        return result.scalar_one_or_none()
+
+    async def list_certifiers(self, include_inactive: bool = False) -> list[Certifier]:
+        query = select(Certifier).order_by(Certifier.name.asc(), Certifier.id.asc())
+        if not include_inactive:
+            query = query.where(Certifier.is_active.is_(True))
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+
+    async def deactivate_certifier(self, certifier_id: UUID) -> Certifier | None:
+        certifier = await self.get_certifier(certifier_id)
+        if certifier is None:
+            return None
+        certifier.is_active = False
+        await self.session.flush()
+        return certifier
+
+    async def create_contract(self, contract: AgentContract) -> AgentContract:
+        self.session.add(contract)
+        await self.session.flush()
+        return contract
+
+    async def get_contract(self, contract_id: UUID) -> AgentContract | None:
+        result = await self.session.execute(
+            select(AgentContract).where(AgentContract.id == contract_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def list_contracts(
+        self,
+        workspace_id: UUID,
+        agent_id: str | None = None,
+        include_archived: bool = False,
+    ) -> list[AgentContract]:
+        filters = [AgentContract.workspace_id == workspace_id]
+        if agent_id is not None:
+            filters.append(AgentContract.agent_id == agent_id)
+        if not include_archived:
+            filters.append(AgentContract.is_archived.is_(False))
+        result = await self.session.execute(
+            select(AgentContract)
+            .where(*filters)
+            .order_by(AgentContract.created_at.desc(), AgentContract.id.desc())
+        )
+        return list(result.scalars().all())
+
+    async def update_contract(
+        self,
+        contract_id: UUID,
+        data: dict[str, Any],
+    ) -> AgentContract | None:
+        contract = await self.get_contract(contract_id)
+        if contract is None:
+            return None
+        for field, value in data.items():
+            setattr(contract, field, value)
+        await self.session.flush()
+        return contract
+
+    async def archive_contract(self, contract_id: UUID) -> AgentContract | None:
+        contract = await self.get_contract(contract_id)
+        if contract is None:
+            return None
+        contract.is_archived = True
+        await self.session.flush()
+        return contract
+
+    async def has_inflight_execution_for_contract(self, contract_id: UUID) -> bool:
+        total = await self.session.scalar(
+            select(func.count())
+            .select_from(Execution)
+            .where(
+                Execution.contract_id == contract_id,
+                Execution.status.in_(
+                    (
+                        ExecutionStatus.queued,
+                        ExecutionStatus.running,
+                        ExecutionStatus.waiting_for_approval,
+                        ExecutionStatus.compensating,
+                    )
+                ),
+            )
+        )
+        return bool(total)
+
+    async def get_interaction_contract_snapshot(
+        self,
+        interaction_id: UUID,
+    ) -> dict[str, Any] | None:
+        result = await self.session.execute(
+            select(Interaction.contract_snapshot).where(Interaction.id == interaction_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_execution_contract_snapshot(self, execution_id: UUID) -> dict[str, Any] | None:
+        result = await self.session.execute(
+            select(Execution.contract_snapshot).where(Execution.id == execution_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def attach_contract_to_interaction(
+        self,
+        interaction_id: UUID,
+        contract_id: UUID,
+        snapshot: dict[str, Any],
+    ) -> Interaction | None:
+        interaction = await self.session.get(Interaction, interaction_id)
+        if interaction is None:
+            return None
+        if interaction.contract_id is not None and interaction.contract_id != contract_id:
+            raise ContractConflictError(
+                "TRUST_CONTRACT_ALREADY_ATTACHED",
+                "Interaction already has a different contract attached",
+                {
+                    "interaction_id": str(interaction_id),
+                    "existing_contract_id": str(interaction.contract_id),
+                    "requested_contract_id": str(contract_id),
+                },
+            )
+        interaction.contract_id = contract_id
+        interaction.contract_snapshot = dict(snapshot)
+        await self.session.flush()
+        return interaction
+
+    async def attach_contract_to_execution(
+        self,
+        execution_id: UUID,
+        contract_id: UUID,
+        snapshot: dict[str, Any],
+    ) -> Execution | None:
+        execution = await self.session.get(Execution, execution_id)
+        if execution is None:
+            return None
+        if execution.contract_id is not None and execution.contract_id != contract_id:
+            raise ContractConflictError(
+                "TRUST_CONTRACT_ALREADY_ATTACHED",
+                "Execution already has a different contract attached",
+                {
+                    "execution_id": str(execution_id),
+                    "existing_contract_id": str(execution.contract_id),
+                    "requested_contract_id": str(contract_id),
+                },
+            )
+        execution.contract_id = contract_id
+        execution.contract_snapshot = dict(snapshot)
+        await self.session.flush()
+        return execution
+
+    async def create_breach_event(self, breach_event: ContractBreachEvent) -> ContractBreachEvent:
+        self.session.add(breach_event)
+        await self.session.flush()
+        return breach_event
+
+    async def list_breach_events(
+        self,
+        contract_id: UUID,
+        *,
+        target_type: str | None = None,
+        start: datetime | None = None,
+        end: datetime | None = None,
+        offset: int = 0,
+        limit: int = 50,
+    ) -> tuple[list[ContractBreachEvent], int]:
+        filters = [ContractBreachEvent.contract_id == contract_id]
+        if target_type is not None:
+            filters.append(ContractBreachEvent.target_type == target_type)
+        if start is not None:
+            filters.append(ContractBreachEvent.created_at >= start)
+        if end is not None:
+            filters.append(ContractBreachEvent.created_at <= end)
+        total = await self.session.scalar(
+            select(func.count()).select_from(ContractBreachEvent).where(*filters)
+        )
+        result = await self.session.execute(
+            select(ContractBreachEvent)
+            .where(*filters)
+            .order_by(ContractBreachEvent.created_at.desc(), ContractBreachEvent.id.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+        return list(result.scalars().all()), int(total or 0)
+
+    async def create_reassessment(
+        self,
+        certification_id: UUID,
+        data: ReassessmentRecord,
+    ) -> ReassessmentRecord:
+        data.certification_id = certification_id
+        self.session.add(data)
+        await self.session.flush()
+        return data
+
+    async def list_reassessments(self, certification_id: UUID) -> list[ReassessmentRecord]:
+        result = await self.session.execute(
+            select(ReassessmentRecord)
+            .where(ReassessmentRecord.certification_id == certification_id)
+            .order_by(ReassessmentRecord.created_at.desc(), ReassessmentRecord.id.desc())
+        )
+        return list(result.scalars().all())
+
+    async def create_recertification_request(
+        self,
+        request: TrustRecertificationRequest,
+    ) -> TrustRecertificationRequest:
+        self.session.add(request)
+        await self.session.flush()
+        return request
+
+    async def get_recertification_request(
+        self,
+        request_id: UUID,
+    ) -> TrustRecertificationRequest | None:
+        result = await self.session.execute(
+            select(TrustRecertificationRequest).where(TrustRecertificationRequest.id == request_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def list_recertification_requests(
+        self,
+        *,
+        certification_id: UUID | None = None,
+        status: str | None = None,
+    ) -> list[TrustRecertificationRequest]:
+        filters = []
+        if certification_id is not None:
+            filters.append(TrustRecertificationRequest.certification_id == certification_id)
+        if status is not None:
+            filters.append(TrustRecertificationRequest.resolution_status == status)
+        result = await self.session.execute(
+            select(TrustRecertificationRequest)
+            .where(*filters)
+            .order_by(
+                TrustRecertificationRequest.created_at.desc(),
+                TrustRecertificationRequest.id.desc(),
+            )
+        )
+        return list(result.scalars().all())
+
+    async def get_pending_requests_past_deadline(
+        self,
+        now: datetime,
+    ) -> list[TrustRecertificationRequest]:
+        result = await self.session.execute(
+            select(TrustRecertificationRequest).where(
+                TrustRecertificationRequest.resolution_status == "pending",
+                TrustRecertificationRequest.deadline.is_not(None),
+                TrustRecertificationRequest.deadline < now,
+            )
+        )
+        return list(result.scalars().all())
+
+    async def resolve_recertification_request(
+        self,
+        request_id: UUID,
+        status: str,
+        justification: str | None = None,
+    ) -> TrustRecertificationRequest | None:
+        request = await self.get_recertification_request(request_id)
+        if request is None:
+            return None
+        request.resolution_status = status
+        request.dismissal_justification = justification
+        await self.session.flush()
+        return request
+
+    async def get_active_or_expiring_certifications_for_agent(
+        self,
+        agent_id: str,
+    ) -> list[TrustCertification]:
+        result = await self.session.execute(
+            select(TrustCertification).where(
+                TrustCertification.agent_id == agent_id,
+                TrustCertification.status.in_(
+                    (CertificationStatus.active, CertificationStatus.expiring)
+                ),
+            )
+        )
+        return list(result.scalars().all())
+
+    async def get_compliance_stats(
+        self,
+        scope: str,
+        scope_id: str,
+        start: datetime,
+        end: datetime,
+        bucket: str,
+    ) -> dict[str, Any]:
+        def _bucket_value(dt: datetime) -> str:
+            if bucket == "hourly":
+                return dt.replace(minute=0, second=0, microsecond=0).isoformat()
+            return dt.date().isoformat()
+
+        execution_query = (
+            select(Execution.id, Execution.created_at, Execution.contract_id)
+            .where(
+                Execution.contract_id.is_not(None),
+                Execution.created_at >= start,
+                Execution.created_at < end,
+            )
+            .join(AgentContract, AgentContract.id == Execution.contract_id)
+        )
+        interaction_query = select(Interaction.id, Interaction.created_at, Interaction.contract_id)
+        interaction_query = interaction_query.where(
+            Interaction.contract_id.is_not(None),
+            Interaction.created_at >= start,
+            Interaction.created_at < end,
+        ).join(AgentContract, AgentContract.id == Interaction.contract_id)
+        if scope == "workspace":
+            workspace_id = UUID(scope_id)
+            execution_query = execution_query.where(Execution.workspace_id == workspace_id)
+            interaction_query = interaction_query.where(Interaction.workspace_id == workspace_id)
+        elif scope == "agent":
+            execution_query = execution_query.where(AgentContract.agent_id == scope_id)
+            interaction_query = interaction_query.where(AgentContract.agent_id == scope_id)
+        interaction_rows: list[Any] = []
+        if scope == "fleet":
+            fleet_id = UUID(scope_id)
+            execution_query = execution_query.where(Execution.correlation_fleet_id == fleet_id)
+
+        executions = list((await self.session.execute(execution_query)).all())
+        if scope != "fleet":
+            interaction_rows = list((await self.session.execute(interaction_query)).all())
+
+        attachments: list[tuple[str, UUID, datetime, UUID | None]] = [
+            ("execution", item.id, item.created_at, item.contract_id) for item in executions
+        ] + [
+            ("interaction", item.id, item.created_at, item.contract_id)
+            for item in interaction_rows
+        ]
+
+        contract_ids = {
+            contract_id
+            for _, _, _, contract_id in attachments
+            if contract_id is not None
+        }
+        breaches: list[ContractBreachEvent] = []
+        if contract_ids:
+            breaches = list(
+                (
+                    await self.session.execute(
+                        select(ContractBreachEvent).where(
+                            ContractBreachEvent.created_at >= start,
+                            ContractBreachEvent.created_at < end,
+                            ContractBreachEvent.contract_id.in_(contract_ids),
+                        )
+                    )
+                ).scalars().all()
+            )
+        attachment_keys = {(target_type, target_id) for target_type, target_id, _, _ in attachments}
+        filtered_breaches = [
+            breach
+            for breach in breaches
+            if (breach.target_type, breach.target_id) in attachment_keys
+        ]
+        breached_targets = {
+            (breach.target_type, breach.target_id)
+            for breach in filtered_breaches
+        }
+
+        warned = sum(
+            1 for breach in filtered_breaches if breach.enforcement_action == "warn"
+        )
+        throttled = sum(
+            1 for breach in filtered_breaches if breach.enforcement_action == "throttle"
+        )
+        escalated = sum(
+            1 for breach in filtered_breaches if breach.enforcement_action == "escalate"
+        )
+        terminated = sum(
+            1 for breach in filtered_breaches if breach.enforcement_action == "terminate"
+        )
+
+        breach_by_term: dict[str, int] = {}
+        for breach in filtered_breaches:
+            breach_by_term[breach.breached_term] = breach_by_term.get(breach.breached_term, 0) + 1
+
+        trend_map: dict[str, dict[str, int]] = {}
+        for target_type, target_id, created_at, _ in attachments:
+            bucket_value = _bucket_value(created_at)
+            current = trend_map.setdefault(bucket_value, {"total": 0, "compliant": 0})
+            current["total"] += 1
+            if (target_type, target_id) not in breached_targets:
+                current["compliant"] += 1
+        total_contract_attached = len(attachments)
+        compliant = total_contract_attached - len(breached_targets)
+
+        return {
+            "total_contract_attached": total_contract_attached,
+            "compliant": compliant,
+            "warned": warned,
+            "throttled": throttled,
+            "escalated": escalated,
+            "terminated": terminated,
+            "breach_by_term": breach_by_term,
+            "trend": [
+                {
+                    "bucket": bucket_value,
+                    "compliant": values["compliant"],
+                    "total": values["total"],
+                }
+                for bucket_value, values in sorted(trend_map.items())
+            ],
+        }
 
     async def create_evidence_ref(
         self,

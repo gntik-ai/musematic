@@ -187,6 +187,7 @@ def build_governance_chain(
             judge_fqns=["judge:default"],
             enforcer_fqns=["enforcer:default"],
             policy_binding_ids=[],
+            verdict_to_action_mapping={},
             is_current=is_current,
             is_default=is_default,
         )

@@ -215,3 +215,20 @@ async def get_creator_analytics(
     rating_service: MarketplaceRatingService = Depends(get_rating_service),
 ) -> CreatorAnalyticsResponse:
     return await rating_service.get_creator_analytics(agent_id, _actor_id(current_user))
+
+
+@router.get("/agents/{namespace}/{name}", response_model=AgentListingProjection)
+async def get_agent_listing_by_fqn(
+    namespace: str,
+    name: str,
+    request: Request,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    search_service: MarketplaceSearchService = Depends(get_search_service),
+) -> AgentListingProjection:
+    return await search_service.get_listing_by_fqn(
+        namespace,
+        name,
+        _workspace_id(request, current_user),
+        actor_id=_actor_id(current_user),
+        requesting_agent_id=_requesting_agent_id(current_user),
+    )

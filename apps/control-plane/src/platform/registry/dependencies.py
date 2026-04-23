@@ -22,7 +22,7 @@ def _get_settings(request: Request) -> PlatformSettings:
 
 
 def _get_object_storage(request: Request) -> AsyncObjectStorageClient:
-    return cast(AsyncObjectStorageClient, request.app.state.clients["minio"])
+    return cast(AsyncObjectStorageClient, request.app.state.clients["object_storage"])
 
 
 def _get_opensearch(request: Request) -> AsyncOpenSearchClient:

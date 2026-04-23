@@ -74,10 +74,18 @@ func TestGeneratedMessagesAndEnums(t *testing.T) {
 		&EvaluateTreeBranchesRequest{},
 		&BranchSelectionResult{},
 		&BranchSummary{},
+		&StartDebateSessionRequest{},
+		&SubmitDebateTurnRequest{},
+		&DebateSessionHandle{},
+		&DebateRoundResult{},
+		&FinalizeDebateSessionRequest{},
+		&DebateSessionResult{},
 		&StartSelfCorrectionRequest{},
 		&SelfCorrectionHandle{},
 		&CorrectionIterationEvent{},
 		&ConvergenceResult{},
+		&GetReasoningTraceRequest{},
+		&GetReasoningTraceResponse{},
 	}
 	for _, message := range messages {
 		exerciseMessage(t, message)
@@ -89,6 +97,7 @@ func TestGeneratedMessagesAndEnums(t *testing.T) {
 	_ = ReasoningMode_TREE_OF_THOUGHT.Descriptor()
 	_ = ReasoningMode_REACT.Type()
 	_ = ReasoningMode_DEBATE.Number()
+	_ = ReasoningMode_SELF_CORRECTION.Number()
 	_, _ = ReasoningMode_CODE_AS_REASONING.EnumDescriptor()
 
 	_ = ConvergenceStatus_CONVERGENCE_STATUS_UNSPECIFIED.Enum()
@@ -124,11 +133,23 @@ func TestUnimplementedReasoningEngineServiceServer(t *testing.T) {
 	if _, err := server.EvaluateTreeBranches(context.Background(), &EvaluateTreeBranchesRequest{}); status.Code(err) != codes.Unimplemented {
 		t.Fatalf("EvaluateTreeBranches() error = %v", err)
 	}
+	if _, err := server.StartDebateSession(context.Background(), &StartDebateSessionRequest{}); status.Code(err) != codes.Unimplemented {
+		t.Fatalf("StartDebateSession() error = %v", err)
+	}
+	if _, err := server.SubmitDebateTurn(context.Background(), &SubmitDebateTurnRequest{}); status.Code(err) != codes.Unimplemented {
+		t.Fatalf("SubmitDebateTurn() error = %v", err)
+	}
+	if _, err := server.FinalizeDebateSession(context.Background(), &FinalizeDebateSessionRequest{}); status.Code(err) != codes.Unimplemented {
+		t.Fatalf("FinalizeDebateSession() error = %v", err)
+	}
 	if _, err := server.StartSelfCorrectionLoop(context.Background(), &StartSelfCorrectionRequest{}); status.Code(err) != codes.Unimplemented {
 		t.Fatalf("StartSelfCorrectionLoop() error = %v", err)
 	}
 	if _, err := server.SubmitCorrectionIteration(context.Background(), &CorrectionIterationEvent{}); status.Code(err) != codes.Unimplemented {
 		t.Fatalf("SubmitCorrectionIteration() error = %v", err)
+	}
+	if _, err := server.GetReasoningTrace(context.Background(), &GetReasoningTraceRequest{}); status.Code(err) != codes.Unimplemented {
+		t.Fatalf("GetReasoningTrace() error = %v", err)
 	}
 	server.testEmbeddedByValue()
 }

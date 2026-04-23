@@ -8,7 +8,9 @@ import { resetHomeFixtures } from "@/mocks/handlers/home";
 import {
   resetAnalyticsFixtures,
   resetExecutionFixtures,
+  resetFrontendExpansionFixtures,
   resetMarketplaceFixtures,
+  resetOAuthFixtures,
   resetTaskPlanFixtures,
   resetWorkflowFixtures,
 } from "@/mocks/handlers";
@@ -86,6 +88,8 @@ afterEach(() => {
   resetTaskPlanFixtures();
   resetAnalyticsFixtures();
   resetMarketplaceFixtures();
+  resetFrontendExpansionFixtures();
+  resetOAuthFixtures();
   resetAdminFixtures();
   resetConversationFixtures();
   resetStreamState();

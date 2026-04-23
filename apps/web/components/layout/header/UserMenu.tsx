@@ -2,6 +2,7 @@
 
 import { LogOut, MoonStar, SunMedium, UserRound } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getInitials } from "@/lib/utils";
@@ -10,6 +11,7 @@ import { useAuthStore } from "@/store/auth-store";
 export function UserMenu() {
   const user = useAuthStore((state) => state.user);
   const clearAuth = useAuthStore((state) => state.clearAuth);
+  const router = useRouter();
   const { setTheme, resolvedTheme } = useTheme();
 
   return (
@@ -28,7 +30,11 @@ export function UserMenu() {
           <p className="text-xs font-normal text-muted-foreground">{user?.email ?? "No email"}</p>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => {
+            router.push("/profile");
+          }}
+        >
           <UserRound className="h-4 w-4" />
           Profile
         </DropdownMenuItem>

@@ -5,6 +5,7 @@ from platform.context_engineering.models import (
     AbTestStatus,
     CompactionStrategyType,
     ContextSourceType,
+    CorrelationClassification,
     ProfileAssignmentLevel,
 )
 from typing import Any, Literal
@@ -288,3 +289,31 @@ class AbTestListResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class CorrelationResultResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    workspace_id: UUID
+    agent_fqn: str
+    dimension: str
+    performance_metric: str
+    window_start: datetime
+    window_end: datetime
+    coefficient: float | None
+    classification: CorrelationClassification | str
+    data_point_count: int
+    computed_at: datetime
+    created_at: datetime
+    updated_at: datetime
+
+
+class CorrelationFleetResponse(BaseModel):
+    items: list[CorrelationResultResponse]
+    total: int
+
+
+class CorrelationRecomputeRequest(BaseModel):
+    agent_fqn: str | None = None
+    window_days: int = Field(default=30, ge=1)

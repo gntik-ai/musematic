@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ .Release.Name }}-config
+  name: {{ include "sandbox-manager.fullname" . }}-config
 data:
   GRPC_PORT: {{ .Values.config.grpcPort | quote }}
   HTTP_PORT: {{ .Values.config.httpPort | quote }}

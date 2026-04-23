@@ -407,6 +407,206 @@ export function resetExecutionFixtures(): void {
   executionFixtures.stepDetailsByExecutionId = fresh.stepDetailsByExecutionId;
 }
 
+function buildStructuredReasoningTrace(executionId: string) {
+  const baseTime = new Date("2026-04-13T09:00:00.000Z").getTime();
+  const steps = Array.from({ length: 48 }).flatMap((_, cycleIndex) => {
+    const cycle = cycleIndex + 1;
+    const startedAt = new Date(baseTime + cycleIndex * 45_000).toISOString();
+    const actionAt = new Date(baseTime + cycleIndex * 45_000 + 12_000).toISOString();
+    const observationAt = new Date(baseTime + cycleIndex * 45_000 + 24_000).toISOString();
+
+    return [
+      {
+        step_number: cycle * 3 - 2,
+        type: "thought",
+        agent_fqn: "risk:trajectory-judge",
+        content: `Cycle ${cycle} thought: reconcile policy, evidence, and operator hints before acting.`,
+        quality_score: cycle % 4 === 0 ? null : 0.92,
+        tokens_used: 24,
+        duration_ms: 320,
+        timestamp: startedAt,
+      },
+      {
+        step_number: cycle * 3 - 1,
+        type: "action",
+        agent_fqn: "risk:trajectory-judge",
+        content: `Cycle ${cycle} action: query supporting tool outputs.`,
+        tool_call: {
+          tool: "knowledge.search",
+          args: {
+            cycle,
+            query: `case-${executionId}-${cycle}`,
+          },
+        },
+        quality_score: 0.74,
+        tokens_used: 18,
+        duration_ms: 180,
+        timestamp: actionAt,
+      },
+      {
+        step_number: cycle * 3,
+        type: "observation",
+        agent_fqn: "risk:trajectory-judge",
+        content: `Cycle ${cycle} observation: tool output returned enough evidence to continue safely.`,
+        quality_score: cycle % 6 === 0 ? 0.48 : 0.83,
+        tokens_used: 20,
+        duration_ms: 210,
+        timestamp: observationAt,
+      },
+    ];
+  });
+
+  const debateStart = steps.length;
+  const debateSteps = [
+    {
+      step_number: debateStart + 1,
+      type: "position",
+      agent_fqn: "agents.alpha",
+      content: "Lead with accuracy-first adjudication for the final recommendation.",
+      quality_score: 0.82,
+      tokens_used: 14,
+      duration_ms: 120,
+      timestamp: new Date(baseTime + 49 * 45_000).toISOString(),
+    },
+    {
+      step_number: debateStart + 2,
+      type: "critique",
+      agent_fqn: null,
+      content: "A removed participant challenged the evidence freshness assumptions.",
+      quality_score: 0.67,
+      tokens_used: 16,
+      duration_ms: 140,
+      timestamp: new Date(baseTime + 49 * 45_000 + 9_000).toISOString(),
+    },
+    {
+      step_number: debateStart + 3,
+      type: "synthesis",
+      agent_fqn: "agents.beta",
+      content: "Synthesize both positions into a rollback-safe recommendation.",
+      quality_score: 0.9,
+      tokens_used: 18,
+      duration_ms: 160,
+      timestamp: new Date(baseTime + 49 * 45_000 + 18_000).toISOString(),
+    },
+    {
+      step_number: debateStart + 4,
+      type: "position",
+      agent_fqn: "agents.gamma",
+      content: "Prefer operator escalation when signals remain ambiguous.",
+      quality_score: null,
+      tokens_used: 12,
+      duration_ms: 110,
+      timestamp: new Date(baseTime + 49 * 45_000 + 27_000).toISOString(),
+    },
+    {
+      step_number: debateStart + 5,
+      type: "critique",
+      agent_fqn: "agents.delta",
+      content: "Escalation is too costly unless a checkpoint rollback is available.",
+      quality_score: 0.58,
+      tokens_used: 15,
+      duration_ms: 130,
+      timestamp: new Date(baseTime + 49 * 45_000 + 36_000).toISOString(),
+    },
+    {
+      step_number: debateStart + 6,
+      type: "synthesis",
+      agent_fqn: "agents.alpha",
+      content: "Consensus: keep the action, but gate it behind checkpoint #2.",
+      quality_score: 0.94,
+      tokens_used: 17,
+      duration_ms: 170,
+      timestamp: new Date(baseTime + 49 * 45_000 + 45_000).toISOString(),
+    },
+  ];
+
+  const allSteps = [...steps, ...debateSteps];
+  const totalTokens = allSteps.reduce(
+    (sum, step) => sum + Number(step.tokens_used ?? 0),
+    0,
+  );
+
+  return {
+    execution_id: executionId,
+    technique: "REACT",
+    schema_version: "1.0",
+    status: "complete",
+    steps: allSteps,
+    total_tokens: totalTokens,
+    compute_budget_used: 0.73,
+    effective_budget_scope: "workflow",
+    compute_budget_exhausted: false,
+    consensus_reached: true,
+    stabilized: true,
+    degradation_detected: false,
+    last_updated_at: new Date(baseTime + 50 * 45_000).toISOString(),
+    pagination: {
+      page: 1,
+      page_size: 500,
+      total_steps: allSteps.length,
+      has_more: false,
+    },
+  };
+}
+
+function buildCheckpointList(executionId: string) {
+  return {
+    items: [
+      {
+        id: `${executionId}-checkpoint-1`,
+        execution_id: executionId,
+        checkpoint_number: 1,
+        last_event_sequence: 22,
+        created_at: "2026-04-13T09:08:00.000Z",
+        current_step_id: "collect_context",
+        accumulated_costs: { tokens: 440, usd: 0.014 },
+        superseded: true,
+        policy_snapshot: { type: "pre_tool" },
+      },
+      {
+        id: `${executionId}-checkpoint-2`,
+        execution_id: executionId,
+        checkpoint_number: 2,
+        last_event_sequence: 78,
+        created_at: "2026-04-13T09:22:00.000Z",
+        current_step_id: "debate_review",
+        accumulated_costs: { tokens: 1890, usd: 0.062 },
+        superseded: false,
+        policy_snapshot: { type: "named_steps", step_ids: ["debate_review"] },
+      },
+      {
+        id: `${executionId}-checkpoint-3`,
+        execution_id: executionId,
+        checkpoint_number: 3,
+        last_event_sequence: 124,
+        created_at: "2026-04-13T09:34:00.000Z",
+        current_step_id: "finalize_response",
+        accumulated_costs: { tokens: 2660, usd: 0.091 },
+        superseded: false,
+        policy_snapshot: { type: "every_step" },
+      },
+    ],
+    total: 3,
+    page: 1,
+    page_size: 100,
+  };
+}
+
+function buildRollbackResponse(executionId: string, checkpointNumber: number) {
+  return {
+    rollback_action_id: `${executionId}-rollback-${checkpointNumber}`,
+    execution_id: executionId,
+    target_checkpoint_id: `${executionId}-checkpoint-${checkpointNumber}`,
+    target_checkpoint_number: checkpointNumber,
+    initiated_by: "user-1",
+    cost_delta_reversed: { tokens: 320, usd: 0.01 },
+    status: "completed",
+    execution_status: "running",
+    warning: null,
+    created_at: new Date("2026-04-13T09:40:00.000Z").toISOString(),
+  };
+}
+
 function appendJournalEvent(
   executionId: string,
   eventType: ExecutionEventResponse["event_type"],
@@ -568,6 +768,46 @@ export const executionHandlers = [
     }
 
     return HttpResponse.json(detail);
+  }),
+  http.get("*/api/v1/executions/:executionId/reasoning-trace", ({ params }) => {
+    const executionId = String(params.executionId);
+    const execution = executionFixtures.executionsById[executionId];
+
+    if (!execution) {
+      return HttpResponse.json(
+        { code: "NOT_FOUND", message: "Execution not found", details: {} },
+        { status: 404 },
+      );
+    }
+
+    return HttpResponse.json(buildStructuredReasoningTrace(executionId));
+  }),
+  http.get("*/api/v1/executions/:executionId/checkpoints", ({ params }) => {
+    const executionId = String(params.executionId);
+    const execution = executionFixtures.executionsById[executionId];
+
+    if (!execution) {
+      return HttpResponse.json(
+        { code: "NOT_FOUND", message: "Execution not found", details: {} },
+        { status: 404 },
+      );
+    }
+
+    return HttpResponse.json(buildCheckpointList(executionId));
+  }),
+  http.post("*/api/v1/executions/:executionId/rollback/:checkpointNumber", ({ params }) => {
+    const executionId = String(params.executionId);
+    const checkpointNumber = Number(params.checkpointNumber);
+    const execution = executionFixtures.executionsById[executionId];
+
+    if (!execution) {
+      return HttpResponse.json(
+        { code: "NOT_FOUND", message: "Execution not found", details: {} },
+        { status: 404 },
+      );
+    }
+
+    return HttpResponse.json(buildRollbackResponse(executionId, checkpointNumber));
   }),
   http.post("*/api/v1/executions/:executionId/pause", ({ params }) => {
     const executionId = String(params.executionId);

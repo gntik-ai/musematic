@@ -220,10 +220,12 @@ def object_storage_settings(
     minio_admin_client,
 ) -> Settings:
     return Settings(
-        MINIO_ENDPOINT=str(minio_server["endpoint"]),
-        MINIO_ACCESS_KEY=str(minio_server["access_key"]),
-        MINIO_SECRET_KEY=str(minio_server["secret_key"]),
-        MINIO_USE_SSL=bool(minio_server["use_ssl"]),
+        S3_ENDPOINT_URL=str(minio_server["endpoint"]),
+        S3_ACCESS_KEY=str(minio_server["access_key"]),
+        S3_SECRET_KEY=str(minio_server["secret_key"]),
+        S3_REGION="us-east-1",
+        S3_USE_PATH_STYLE=True,
+        S3_PROVIDER="minio",
     )
 
 

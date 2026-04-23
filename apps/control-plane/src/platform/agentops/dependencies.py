@@ -244,6 +244,76 @@ class AgentOpsRegistryAdapter:
             )
             return
 
+    async def get_profile_state(
+        self,
+        agent_fqn: str,
+        workspace_id: UUID,
+    ) -> dict[str, Any] | None:
+        if self.registry_service is not None and hasattr(
+            self.registry_service, "get_profile_state"
+        ):
+            return cast(
+                dict[str, Any] | None,
+                await self.registry_service.get_profile_state(agent_fqn, workspace_id),
+            )
+
+        profile = await self.repository.get_by_fqn(workspace_id, agent_fqn)
+        if profile is None:
+            return None
+        revision = await self.repository.get_latest_revision(profile.id)
+        return {
+            "agent_profile_id": profile.id,
+            "agent_fqn": profile.fqn,
+            "workspace_id": profile.workspace_id,
+            "revision_id": revision.id if revision is not None else None,
+            "display_name": profile.display_name,
+            "purpose": profile.purpose,
+            "approach": profile.approach,
+            "role_types": list(profile.role_types or []),
+            "custom_role_description": profile.custom_role_description,
+            "tags": list(profile.tags or []),
+            "visibility_agents": list(profile.visibility_agents or []),
+            "visibility_tools": list(profile.visibility_tools or []),
+            "mcp_server_refs": list(profile.mcp_server_refs or []),
+            "status": str(profile.status),
+        }
+
+    async def update_profile_fields(
+        self,
+        agent_fqn: str,
+        workspace_id: UUID,
+        fields: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        if self.registry_service is not None and hasattr(
+            self.registry_service, "update_profile_fields"
+        ):
+            return cast(
+                dict[str, Any] | None,
+                await self.registry_service.update_profile_fields(agent_fqn, workspace_id, fields),
+            )
+
+        profile = await self.repository.get_by_fqn(workspace_id, agent_fqn)
+        if profile is None:
+            return None
+        mutable_fields = {
+            "display_name",
+            "purpose",
+            "approach",
+            "role_types",
+            "custom_role_description",
+            "tags",
+            "visibility_agents",
+            "visibility_tools",
+            "mcp_server_refs",
+        }
+        for name, value in fields.items():
+            if name not in mutable_fields:
+                continue
+            setattr(profile, name, value)
+        profile.needs_reindex = True
+        await self.session.flush()
+        return await self.get_profile_state(agent_fqn, workspace_id)
+
     async def list_active_agents(self, workspace_id: UUID | None = None) -> list[dict[str, Any]]:
         if self.registry_service is not None and hasattr(
             self.registry_service, "list_active_agents"
@@ -412,6 +482,7 @@ def build_agentops_service(
         session=session,
     )
     return AgentOpsService(
+        settings=settings,
         repository=repository,
         event_publisher=event_publisher,
         governance_publisher=governance_publisher,

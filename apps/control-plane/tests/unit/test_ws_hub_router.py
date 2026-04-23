@@ -66,10 +66,19 @@ async def test_websocket_endpoint_sends_welcome_and_cleans_up_last_connection() 
     messages = websocket.decoded_messages()
     assert websocket.accepted is True
     assert messages[0]["type"] == "connection_established"
-    assert messages[0]["auto_subscriptions"][0]["channel"] == "attention"
+    assert [item["channel"] for item in messages[0]["auto_subscriptions"]] == [
+        "attention",
+        "alerts",
+    ]
     assert fanout.ensured[0] == ["auth.events"]
     assert fanout.ensured[1] == ["interaction.attention"]
-    assert fanout.released[-1] == ["auth.events", "interaction.attention"]
+    assert fanout.ensured[2] == ["monitor.alerts", "notifications.alerts"]
+    assert fanout.released[-1] == [
+        "auth.events",
+        "interaction.attention",
+        "monitor.alerts",
+        "notifications.alerts",
+    ]
 
 
 @pytest.mark.asyncio
@@ -130,8 +139,9 @@ async def test_websocket_endpoint_handles_subscribe_list_and_unsubscribe() -> No
 
 
 @pytest.mark.asyncio
-async def test_websocket_endpoint_handles_invalid_channel_and_protocol_violation_threshold(
-) -> None:
+async def test_websocket_endpoint_handles_invalid_channel_and_protocol_violation_threshold() -> (
+    None
+):
     user_id = uuid4()
     token = "good-token"
     state = build_state(

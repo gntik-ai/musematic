@@ -3,7 +3,10 @@
   "$id": "https://musematic.dev/schemas/workflows/v1.json",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "steps"],
+  "required": [
+    "schema_version",
+    "steps"
+  ],
   "properties": {
     "schema_version": {
       "type": "integer",
@@ -19,7 +22,10 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "step_type"],
+        "required": [
+          "id",
+          "step_type"
+        ],
         "properties": {
           "id": {
             "type": "string",
@@ -59,22 +65,43 @@
             "default": {}
           },
           "output_schema": {
-            "type": ["object", "null"]
+            "type": [
+              "object",
+              "null"
+            ]
           },
           "retry_config": {
-            "type": ["object", "null"],
+            "type": [
+              "object",
+              "null"
+            ],
             "additionalProperties": false,
             "properties": {
-              "max_retries": { "type": "integer", "minimum": 0 },
+              "max_retries": {
+                "type": "integer",
+                "minimum": 0
+              },
               "backoff_strategy": {
                 "type": "string",
-                "enum": ["fixed", "exponential", "linear"]
+                "enum": [
+                  "fixed",
+                  "exponential",
+                  "linear"
+                ]
               },
-              "base_delay_seconds": { "type": "number", "minimum": 0 },
-              "max_delay_seconds": { "type": "number", "minimum": 0 },
+              "base_delay_seconds": {
+                "type": "number",
+                "minimum": 0
+              },
+              "max_delay_seconds": {
+                "type": "number",
+                "minimum": 0
+              },
               "retry_on_event_types": {
                 "type": "array",
-                "items": { "type": "string" }
+                "items": {
+                  "type": "string"
+                }
               }
             }
           },
@@ -83,16 +110,27 @@
             "minimum": 1
           },
           "compensation_handler": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "approval_config": {
-            "type": ["object", "null"],
+            "type": [
+              "object",
+              "null"
+            ],
             "additionalProperties": false,
-            "required": ["required_approvers"],
+            "required": [
+              "required_approvers"
+            ],
             "properties": {
               "required_approvers": {
                 "type": "array",
-                "items": { "type": "string", "minLength": 1 }
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
               },
               "timeout_seconds": {
                 "type": "integer",
@@ -100,49 +138,109 @@
               },
               "timeout_action": {
                 "type": "string",
-                "enum": ["fail", "skip", "escalate"]
+                "enum": [
+                  "fail",
+                  "skip",
+                  "escalate"
+                ]
               }
             }
           },
           "reasoning_mode": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "context_budget_tokens": {
-            "type": ["integer", "null"],
+            "type": [
+              "integer",
+              "null"
+            ],
             "minimum": 1
           },
           "parallel_group": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "condition_expression": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "compute_budget": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 1
           }
         },
         "allOf": [
           {
-            "if": { "properties": { "step_type": { "const": "agent_task" } } },
-            "then": { "required": ["agent_fqn"] }
+            "if": {
+              "properties": {
+                "step_type": {
+                  "const": "agent_task"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "agent_fqn"
+              ]
+            }
           },
           {
-            "if": { "properties": { "step_type": { "const": "tool_call" } } },
-            "then": { "required": ["tool_fqn"] }
+            "if": {
+              "properties": {
+                "step_type": {
+                  "const": "tool_call"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "tool_fqn"
+              ]
+            }
           },
           {
-            "if": { "properties": { "step_type": { "const": "approval_gate" } } },
-            "then": { "required": ["approval_config"] }
+            "if": {
+              "properties": {
+                "step_type": {
+                  "const": "approval_gate"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "approval_config"
+              ]
+            }
           }
         ]
       }
     },
     "data_bindings": {
       "type": "array",
-      "items": { "type": "object" },
+      "items": {
+        "type": "object"
+      },
       "default": []
     },
     "metadata": {
       "type": "object",
       "additionalProperties": true,
-      "default": {}
+      "default": {},
+      "properties": {
+        "compute_budget": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1
+        }
+      }
     }
   }
 }

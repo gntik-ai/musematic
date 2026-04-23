@@ -26,7 +26,7 @@ def _get_redis(request: Request) -> AsyncRedisClient:
 
 
 def _get_object_storage(request: Request) -> AsyncObjectStorageClient:
-    return cast(AsyncObjectStorageClient, request.app.state.clients["minio"])
+    return cast(AsyncObjectStorageClient, request.app.state.clients["object_storage"])
 
 
 def build_connectors_service(

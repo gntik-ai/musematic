@@ -1,0 +1,44 @@
+{{- if .Values.scheduler.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "musematic-control-plane.schedulerName" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: {{ .Values.scheduler.replicaCount }}
+  selector:
+    matchLabels:
+{{ include "musematic-control-plane.componentLabels" . | indent 6 }}
+      app.kubernetes.io/name: {{ include "musematic-control-plane.schedulerName" . }}
+  template:
+    metadata:
+      labels:
+{{ include "musematic-control-plane.componentLabels" . | indent 8 }}
+        app.kubernetes.io/name: {{ include "musematic-control-plane.schedulerName" . }}
+    spec:
+      containers:
+        - name: scheduler
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["python", "-m", "entrypoints.scheduler_main"]
+          env:
+            - name: PLATFORM_PROFILE
+              value: scheduler
+          envFrom:
+            - configMapRef:
+                name: {{ include "musematic-control-plane.configName" . }}
+            - secretRef:
+                name: {{ include "musematic-control-plane.secretName" . }}
+          ports:
+            - name: http
+              containerPort: 8001
+          readinessProbe:
+            tcpSocket:
+              port: http
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 20
+          resources:
+{{ toYaml .Values.common.resources | indent 12 }}
+{{- end }}

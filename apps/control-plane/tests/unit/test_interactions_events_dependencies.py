@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from platform.common.events.registry import event_registry
 from platform.interactions.dependencies import build_interactions_service, get_interactions_service
 from platform.interactions.events import (
@@ -12,6 +13,7 @@ from platform.interactions.events import (
     InteractionFailedPayload,
     InteractionsEventType,
     InteractionStartedPayload,
+    InteractionStateChangedPayload,
     MessageReceivedPayload,
     publish_attention_requested,
     publish_branch_merged,
@@ -21,6 +23,7 @@ from platform.interactions.events import (
     publish_interaction_completed,
     publish_interaction_failed,
     publish_interaction_started,
+    publish_interaction_state_changed,
     publish_message_received,
     register_interactions_event_types,
 )
@@ -39,6 +42,7 @@ def test_interactions_register_event_types_and_build_service() -> None:
     register_interactions_event_types()
     assert event_registry.is_registered(InteractionsEventType.interaction_started.value) is True
     assert event_registry.is_registered(InteractionsEventType.goal_message_posted.value) is True
+    assert event_registry.is_registered(InteractionsEventType.state_changed.value) is True
     assert event_registry.is_registered(InteractionsEventType.attention_requested.value) is True
 
     service = build_interactions_service(
@@ -123,6 +127,17 @@ async def test_interactions_publish_helpers_and_get_dependency() -> None:
         ),
         correlation,
     )
+    await publish_interaction_state_changed(
+        producer,
+        InteractionStateChangedPayload(
+            interaction_id=interaction_id,
+            workspace_id=workspace_id,
+            from_state="running",
+            to_state="failed",
+            occurred_at=datetime.now(UTC),
+        ),
+        correlation,
+    )
     await publish_message_received(
         producer,
         MessageReceivedPayload(
@@ -188,6 +203,7 @@ async def test_interactions_publish_helpers_and_get_dependency() -> None:
         "interaction.completed",
         "interaction.failed",
         "interaction.canceled",
+        "interaction.state_changed",
         "message.received",
         "branch.merged",
         "goal.message.posted",

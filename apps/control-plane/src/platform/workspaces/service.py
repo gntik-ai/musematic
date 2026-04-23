@@ -38,6 +38,7 @@ from platform.workspaces.models import (
     Membership,
     Workspace,
     WorkspaceGoal,
+    WorkspaceGoalState,
     WorkspaceRole,
     WorkspaceStatus,
 )
@@ -304,6 +305,9 @@ class WorkspacesService:
         )
         return self._membership_response(membership)
 
+    async def list_member_ids(self, workspace_id: UUID) -> list[UUID]:
+        return await self.repo.list_member_ids(workspace_id)
+
     async def list_members(
         self,
         workspace_id: UUID,
@@ -393,6 +397,7 @@ class WorkspacesService:
             title=request.title,
             description=request.description,
             created_by=requester_id,
+            auto_complete_timeout_seconds=request.auto_complete_timeout_seconds,
         )
         await publish_goal_created(
             self.kafka_producer,
@@ -651,6 +656,8 @@ class WorkspacesService:
             title=goal.title,
             description=goal.description,
             status=goal.status,
+            state=getattr(goal, "state", WorkspaceGoalState.ready),
+            auto_complete_timeout_seconds=getattr(goal, "auto_complete_timeout_seconds", None),
             created_by=goal.created_by,
             created_at=goal.created_at,
             updated_at=goal.updated_at,

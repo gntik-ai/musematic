@@ -78,3 +78,96 @@ class InactiveUserError(PlatformError):
 
     def __init__(self, message: str = "User is not allowed to connect") -> None:
         super().__init__("FORBIDDEN", message)
+
+
+class IBORConnectorConflictError(PlatformError):
+    status_code = 409
+
+    def __init__(self, name: str) -> None:
+        super().__init__("IBOR_CONNECTOR_CONFLICT", f"IBOR connector '{name}' already exists")
+
+
+class IBORConnectorNotFoundError(PlatformError):
+    status_code = 404
+
+    def __init__(self, connector_id: str) -> None:
+        super().__init__("IBOR_CONNECTOR_NOT_FOUND", f"IBOR connector '{connector_id}' not found")
+
+
+class IBORSyncInProgressError(PlatformError):
+    status_code = 409
+
+    def __init__(self, connector_id: str) -> None:
+        super().__init__(
+            "IBOR_SYNC_IN_PROGRESS",
+            f"A sync is already in progress for connector '{connector_id}'",
+        )
+
+
+class IBORCredentialResolutionError(PlatformError):
+    status_code = 422
+
+    def __init__(self, connector_name: str) -> None:
+        super().__init__(
+            "IBOR_CREDENTIAL_RESOLUTION_FAILED",
+            f"Unable to resolve credentials for connector '{connector_name}'",
+        )
+
+
+
+class OAuthProviderNotFoundError(PlatformError):
+    status_code = 404
+
+    def __init__(self, provider_type: str) -> None:
+        super().__init__(
+            "OAUTH_PROVIDER_NOT_FOUND",
+            f"OAuth provider '{provider_type}' not found",
+        )
+
+
+class OAuthProviderDisabledError(PlatformError):
+    status_code = 404
+
+    def __init__(self, provider_type: str) -> None:
+        super().__init__(
+            "OAUTH_PROVIDER_DISABLED",
+            f"OAuth provider '{provider_type}' is disabled",
+        )
+
+
+class OAuthStateInvalidError(PlatformError):
+    status_code = 401
+
+    def __init__(self, message: str = "OAuth state is invalid") -> None:
+        super().__init__("OAUTH_STATE_INVALID", message)
+
+
+class OAuthStateExpiredError(PlatformError):
+    status_code = 401
+
+    def __init__(self, message: str = "OAuth state has expired") -> None:
+        super().__init__("OAUTH_STATE_EXPIRED", message)
+
+
+class OAuthLinkConflictError(PlatformError):
+    status_code = 409
+
+    def __init__(self, message: str = "External identity is already linked") -> None:
+        super().__init__("OAUTH_LINK_CONFLICT", message)
+
+
+class OAuthUnlinkLastMethodError(PlatformError):
+    status_code = 409
+
+    def __init__(self) -> None:
+        super().__init__(
+            "OAUTH_LAST_AUTH_METHOD",
+            "Cannot unlink: this is your only authentication method",
+        )
+
+
+class OAuthRestrictionError(PlatformError):
+    status_code = 403
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(code, message)

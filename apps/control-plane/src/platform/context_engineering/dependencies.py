@@ -43,7 +43,7 @@ def _get_redis(request: Request) -> Any:
 
 
 def _get_object_storage(request: Request) -> AsyncObjectStorageClient:
-    return cast(AsyncObjectStorageClient, request.app.state.clients["minio"])
+    return cast(AsyncObjectStorageClient, request.app.state.clients["object_storage"])
 
 
 def _get_producer(request: Request) -> EventProducer | None:
@@ -95,6 +95,7 @@ def build_context_engineering_service(
         settings=settings,
         event_producer=producer,
         workspaces_service=workspaces_service,
+        registry_service=registry_service,
     )
 
 
@@ -131,6 +132,7 @@ async def get_context_engineering_service(
             session=session,
             settings=settings,
             producer=_get_producer(request),
+            qdrant=_get_qdrant(request),
             workspaces_service=workspaces_service,
             registry_service=registry_service,
         )

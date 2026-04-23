@@ -1,0 +1,27 @@
+name: helpfulness
+description: Evaluates how useful and actionable an output is.
+criteria:
+  - name: relevance
+    description: Whether the response stays focused on the user's request.
+    scale_min: 1
+    scale_max: 5
+    examples:
+      "1": Mostly irrelevant to the request.
+      "3": Partially relevant with some drift.
+      "5": Directly relevant throughout.
+  - name: actionability
+    description: Whether the response helps the user take the next step.
+    scale_min: 1
+    scale_max: 5
+    examples:
+      "1": Provides no usable next step.
+      "3": Suggests a vague next step.
+      "5": Gives concrete, immediately usable guidance.
+  - name: clarity
+    description: Whether the response is easy to understand.
+    scale_min: 1
+    scale_max: 5
+    examples:
+      "1": Confusing and hard to parse.
+      "3": Understandable but uneven.
+      "5": Clear and easy to follow.
