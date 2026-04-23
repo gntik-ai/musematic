@@ -10,6 +10,7 @@ import httpx
 import pytest
 from tests.marketplace_support import (
     OpenSearchClientStub,
+    RegistryServiceStub,
     build_agent_document,
     build_quality_aggregate,
     build_search_service,
@@ -237,6 +238,76 @@ async def test_search_service_falls_back_to_registry_profile_when_index_document
     assert listing.agent_id == agent_id
     assert listing.fqn == "finance-ops:registry-fallback"
     assert listing.name == "Registry Fallback"
+
+
+@pytest.mark.asyncio
+async def test_search_service_prefers_live_registry_status_over_stale_index_document() -> None:
+    workspace_id = uuid4()
+    agent_id = uuid4()
+    service, repository, _opensearch, _qdrant, _workspaces = build_search_service(
+        documents=[
+            build_agent_document(
+                agent_id=agent_id,
+                fqn="finance-ops:stale-status",
+                status="draft",
+            )
+        ],
+        visibility_by_workspace={workspace_id: ["finance-ops:*"]},
+    )
+    service.registry_service.profiles_by_agent[agent_id] = SimpleNamespace(
+        id=agent_id,
+        workspace_id=workspace_id,
+        fqn="finance-ops:stale-status",
+        display_name="Stale Status",
+        purpose="Published agent whose marketplace index still carries a draft status.",
+        role_types=["financial_analysis"],
+        tags=["finance"],
+        maturity_level=2,
+        status=LifecycleStatus.published,
+    )
+    repository.quality_by_agent[agent_id] = build_quality_aggregate(agent_id=agent_id)
+
+    listing = await service.get_listing(agent_id, workspace_id)
+
+    assert listing.status == "published"
+    assert listing.invocable is True
+
+
+@pytest.mark.asyncio
+async def test_search_service_prefers_live_registry_status_for_fqn_listing() -> None:
+    workspace_id = uuid4()
+    agent_id = uuid4()
+    registry_profile = SimpleNamespace(
+        id=agent_id,
+        workspace_id=workspace_id,
+        fqn="finance-ops:stale-fqn-status",
+        display_name="Stale FQN Status",
+        purpose="Published agent resolved by FQN while the index still reports a draft status.",
+        role_types=["financial_analysis"],
+        tags=["finance"],
+        maturity_level=2,
+        status=LifecycleStatus.published,
+    )
+    registry_service = RegistryServiceStub()
+    registry_service.profiles_by_agent[agent_id] = registry_profile
+    registry_service.profiles_by_fqn[registry_profile.fqn] = registry_profile
+    service, repository, _opensearch, _qdrant, _workspaces = build_search_service(
+        documents=[
+            build_agent_document(
+                agent_id=agent_id,
+                fqn=registry_profile.fqn,
+                status="draft",
+            )
+        ],
+        visibility_by_workspace={workspace_id: ["finance-ops:*"]},
+        registry_service=registry_service,
+    )
+    repository.quality_by_agent[agent_id] = build_quality_aggregate(agent_id=agent_id)
+
+    listing = await service.get_listing_by_fqn("finance-ops", "stale-fqn-status", workspace_id)
+
+    assert listing.status == "published"
+    assert listing.invocable is True
 
 
 @pytest.mark.asyncio

@@ -127,15 +127,17 @@ class MarketplaceSearchService:
             requesting_agent_id=requesting_agent_id,
         )
         document = await self._fetch_document(agent_id)
+        profile = await self._resolve_registry_profile_by_id(
+            agent_id,
+            workspace_id,
+            requesting_agent_id=requesting_agent_id,
+        )
         if document is None:
-            profile = await self._resolve_registry_profile_by_id(
-                agent_id,
-                workspace_id,
-                requesting_agent_id=requesting_agent_id,
-            )
             if profile is None:
                 raise AgentNotFoundError(agent_id)
             document = self._build_document_from_profile(profile)
+        else:
+            document = self._merge_document_with_profile_status(document, profile)
         if not self._is_operational_status(document.get("status")):
             raise AgentNotFoundError(agent_id)
         if not self._is_visible(document.get("fqn"), visibility_patterns):
@@ -171,8 +173,7 @@ class MarketplaceSearchService:
         if document is None:
             document = self._build_document_from_profile(profile)
         else:
-            document = dict(document)
-            document.setdefault("status", self._profile_status_value(profile))
+            document = self._merge_document_with_profile_status(document, profile)
         listing = await self._assemble_listing(document)
         if self._profile_status_value(profile) == "decommissioned":
             listing = listing.model_copy(update={"status": "decommissioned", "invocable": False})
@@ -680,6 +681,17 @@ class MarketplaceSearchService:
             "cost_tier": "free",
             "status": self._profile_status_value(profile),
         }
+
+    def _merge_document_with_profile_status(
+        self,
+        document: dict[str, Any],
+        profile: Any | None,
+    ) -> dict[str, Any]:
+        if profile is None:
+            return document
+        merged = dict(document)
+        merged["status"] = self._profile_status_value(profile)
+        return merged
 
     def _profile_status_value(self, profile: Any) -> str:
         status = getattr(profile, "status", None)

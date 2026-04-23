@@ -73,21 +73,28 @@ async def _wait_for_marketplace_listing(
     client: AuthenticatedAsyncClient,
     agent_id: str,
     *,
+    expected_status: str | None = None,
     timeout: float = 60.0,
 ) -> dict[str, Any]:
     deadline = monotonic() + timeout
     last_status: int | None = None
+    last_payload: dict[str, Any] | None = None
     while monotonic() < deadline:
         response = await client.get(f"/api/v1/marketplace/agents/{agent_id}")
         if response.status_code == 200:
-            return response.json()
+            payload = response.json()
+            last_payload = payload
+            if expected_status is None or payload.get("status") == expected_status:
+                return payload
+            await asyncio.sleep(1)
+            continue
         if response.status_code not in {403, 404}:
             response.raise_for_status()
         last_status = response.status_code
         await asyncio.sleep(1)
     raise AssertionError(
         f"marketplace listing for agent {agent_id} did not become available within {timeout:.0f}s; "
-        f"last status={last_status}"
+        f"last status={last_status}; last payload={last_payload}"
     )
 
 
@@ -390,7 +397,11 @@ async def test_j02_creator_to_publication(
 
     with journey_step("Marketplace listing appears in the primary workspace with trust-related fields"):
         assert agent is not None
-        listing_payload = await _wait_for_marketplace_listing(creator_primary, agent["id"])
+        listing_payload = await _wait_for_marketplace_listing(
+            creator_primary,
+            agent["id"],
+            expected_status="published",
+        )
         quality = await creator_primary.get(f"/api/v1/marketplace/agents/{agent['id']}/quality")
         quality.raise_for_status()
         quality_payload = quality.json()
