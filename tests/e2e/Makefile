@@ -8,6 +8,7 @@ RELEASE_NAME ?= amp
 NAMESPACE ?= platform
 
 PYTEST ?= python3 -m pytest
+E2E_TEST_PATHS ?= tests test_*.py
 KIND_CONFIG_TEMPLATE := cluster/kind-config.yaml
 KIND_CONFIG_RENDERED := /tmp/kind-config-$(CLUSTER_NAME).yaml
 
@@ -40,7 +41,7 @@ e2e-down:
 	@rm -f $(KIND_CONFIG_RENDERED)
 
 e2e-test:
-	@$(PYTEST) suites
+	@$(PYTEST) $(E2E_TEST_PATHS)
 
 e2e-journeys:
 	@mkdir -p reports
@@ -83,10 +84,18 @@ e2e-j09:
 	@$(PYTEST) journeys/ -v -m j09_discovery --junitxml=reports/j09-junit.xml --html=reports/j09-report.html
 
 e2e-chaos:
-	@$(PYTEST) chaos
+	@if [ -d chaos ] && find chaos -type f \( -name 'test_*.py' -o -name '*_test.py' \) | grep -q .; then \
+		$(PYTEST) chaos; \
+	else \
+		echo "[e2e] no chaos suites found; skipping"; \
+	fi
 
 e2e-perf:
-	@$(PYTEST) performance
+	@if [ -d performance ] && find performance -type f \( -name 'test_*.py' -o -name '*_test.py' \) | grep -q .; then \
+		$(PYTEST) performance; \
+	else \
+		echo "[e2e] no performance suites found; skipping"; \
+	fi
 
 e2e-reset:
 	@python3 -m seeders.base --all --reset

@@ -73,7 +73,7 @@ kafka:
 minio:
   namespace: platform-data
   bucketInit:
-    enabled: true
+    enabled: false
   standalone: true
   servers: 1
   volumesPerServer: 1

@@ -62,11 +62,15 @@ def test_cluster_scripts_have_valid_bash_shebangs() -> None:
 
 def test_e2e_values_disable_blocking_helm_hook_jobs() -> None:
     values = (ROOT / 'tests/e2e/cluster/values-e2e.yaml').read_text()
+    neo4j_section = values.split('\nclickhouse:\n', 1)[0].split('\nneo4j:\n', 1)[1]
+    clickhouse_section = values.split('\nopensearch:\n', 1)[0].split('\nclickhouse:\n', 1)[1]
+
     assert "migration:\n    enabled: false" in values
     assert "bucketInit:\n    enabled: false" in values
     assert values.count("schemaInit:\n    enabled: false") == 2
-    assert "  backup:\n    enabled: false\n  schemaInit:\n    enabled: false\n\nclickhouse:\n" in values
-    assert "  schemaInit:\n    enabled: false\n\nopensearch:\n" in values
+    assert "  backup:\n    enabled: false" in neo4j_section
+    assert "  schemaInit:\n    enabled: false" in neo4j_section
+    assert "  schemaInit:\n    enabled: false" in clickhouse_section
 
 
 def test_install_script_uses_extended_helm_timeout() -> None:
@@ -179,3 +183,10 @@ def test_e2e_workflow_frees_runner_disk_before_bootstrap() -> None:
     assert 'rm -rf /usr/share/swift' in workflow
     assert 'rm -rf /opt/ghc' in workflow
     assert 'rm -rf /opt/hostedtoolcache/CodeQL' in workflow
+
+
+def test_e2e_test_target_uses_versioned_test_paths() -> None:
+    makefile = (ROOT / 'tests/e2e/Makefile').read_text()
+    assert 'E2E_TEST_PATHS ?= tests test_*.py' in makefile
+    assert '$(PYTEST) $(E2E_TEST_PATHS)' in makefile
+    assert '$(PYTEST) suites' not in makefile

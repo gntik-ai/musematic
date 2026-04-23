@@ -38,4 +38,4 @@ journeys = ["fixtures/*.tar.gz"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["suites", "chaos", "performance", "journeys", "tests"]
+testpaths = ["journeys", "tests", "test_chart_identity.py", "test_cluster_bootstrap_contract.py"]
