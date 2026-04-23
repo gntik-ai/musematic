@@ -581,7 +581,7 @@ class MarketplaceSearchService:
 
         ranked_documents.sort(
             key=lambda item: (
-                -_as_float(item.get("_relevance_score")),
+                -(_as_float(item.get("_relevance_score")) or 0.0),
                 str(item.get("name") or item.get("display_name") or item.get("fqn") or ""),
             )
         )
@@ -683,7 +683,7 @@ class MarketplaceSearchService:
 
     def _profile_status_value(self, profile: Any) -> str:
         status = getattr(profile, "status", None)
-        if hasattr(status, "value"):
+        if status is not None and hasattr(status, "value"):
             return str(status.value)
         return str(status or "published")
 

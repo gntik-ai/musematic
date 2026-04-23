@@ -555,7 +555,10 @@ class PlatformSettings(BaseSettings):
             "AUTH_OAUTH_GITHUB_USER_URL": ("auth", "oauth_github_user_url"),
             "AUTH_OAUTH_GITHUB_EMAILS_URL": ("auth", "oauth_github_emails_url"),
             "AUTH_OAUTH_GITHUB_TEAMS_URL": ("auth", "oauth_github_teams_url"),
-            "AUTH_OAUTH_GITHUB_ORG_MEMBERSHIP_URL_TEMPLATE": ("auth", "oauth_github_org_membership_url_template"),
+            "AUTH_OAUTH_GITHUB_ORG_MEMBERSHIP_URL_TEMPLATE": (
+                "auth",
+                "oauth_github_org_membership_url_template",
+            ),
             "OTEL_EXPORTER_ENDPOINT": ("otel", "exporter_endpoint"),
             "OTEL_SERVICE_NAME": ("otel", "service_name"),
             "ACCOUNTS_SIGNUP_MODE": ("accounts", "signup_mode"),

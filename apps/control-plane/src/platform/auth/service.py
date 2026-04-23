@@ -375,7 +375,9 @@ class AuthService:
 
         account_user = await self.repository.get_account_user(user_id)
         if account_user is None:
-            existing_account_user = await self.repository.get_account_user_by_email(normalized_email)
+            existing_account_user = await self.repository.get_account_user_by_email(
+                normalized_email
+            )
             if existing_account_user is not None and existing_account_user.id != user_id:
                 raise InvalidAccessTokenError()
             await self.repository.ensure_account_user(

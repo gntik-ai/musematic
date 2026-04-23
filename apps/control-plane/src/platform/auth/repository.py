@@ -3,7 +3,9 @@ from __future__ import annotations
 import base64
 import hashlib
 from datetime import UTC, datetime
-from platform.accounts.models import SignupSource, User as AccountUser, UserStatus as AccountUserStatus
+from platform.accounts.models import SignupSource
+from platform.accounts.models import User as AccountUser
+from platform.accounts.models import UserStatus as AccountUserStatus
 from platform.auth.models import (
     AuthAttempt,
     IBORConnector,

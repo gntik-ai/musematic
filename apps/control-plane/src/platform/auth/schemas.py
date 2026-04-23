@@ -1,14 +1,12 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from enum import StrEnum
 from platform.auth.models import IBORSourceType, IBORSyncMode, IBORSyncRunStatus
 from uuid import UUID
 
-import re
-
 from pydantic import BaseModel, Field, field_validator
-
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 

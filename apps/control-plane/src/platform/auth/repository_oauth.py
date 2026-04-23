@@ -57,7 +57,7 @@ class OAuthRepository:
             "default_role": default_role,
             "require_mfa": require_mfa,
         }
-        created_expr = literal_column("xmax = 0").label("created")
+        created_expr: Any = literal_column("xmax = 0").label("created")
         statement = (
             insert(OAuthProvider)
             .values(**values)
@@ -130,7 +130,9 @@ class OAuthRepository:
                     external_groups=list(external_groups),
                     last_login_at=last_login_at,
                 )
-                .on_conflict_do_nothing(index_elements=[OAuthLink.provider_id, OAuthLink.external_id])
+                .on_conflict_do_nothing(
+                    index_elements=[OAuthLink.provider_id, OAuthLink.external_id]
+                )
                 .returning(OAuthLink.id)
             )
         ).scalar_one_or_none()
@@ -139,7 +141,8 @@ class OAuthRepository:
             existing = await self.get_link_by_external(provider_id, external_id)
             if existing is None:  # pragma: no cover - guarded by unique link constraint
                 raise LookupError(
-                    f"OAuth link for provider={provider_id} external_id={external_id} disappeared after concurrent create"
+                    f"OAuth link for provider={provider_id} external_id={external_id} "
+                    "disappeared after concurrent create"
                 )
             if existing.user_id != user_id:
                 raise ValueError("OAuth link already belongs to a different user")
@@ -154,7 +157,8 @@ class OAuthRepository:
         link = await self.session.get(OAuthLink, inserted_link_id, populate_existing=True)
         if link is None:  # pragma: no cover - guarded by RETURNING
             raise LookupError(
-                f"OAuth link for provider={provider_id} external_id={external_id} disappeared after insert"
+                f"OAuth link for provider={provider_id} external_id={external_id} "
+                "disappeared after insert"
             )
         return link
 

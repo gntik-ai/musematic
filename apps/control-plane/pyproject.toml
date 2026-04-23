@@ -128,6 +128,10 @@ strict = true
 warn_unreachable = true
 plugins = ["pydantic.mypy"]
 mypy_path = ["src"]
+exclude = [
+  "^src/platform/common/clients/runtime_controller_pb2(_grpc)?\\.py$",
+  "^src/platform/grpc_stubs/runtime_controller_pb2(_grpc)?\\.py$",
+]
 
 [[tool.mypy.overrides]]
 module = [

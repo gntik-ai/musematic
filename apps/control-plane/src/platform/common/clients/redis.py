@@ -15,6 +15,7 @@ from redis.asyncio import Redis
 from redis.asyncio.cluster import RedisCluster
 from redis.exceptions import RedisError
 
+
 def _resolve_lua_dir() -> Path:
     current = Path(__file__).resolve()
     for parent in current.parents:

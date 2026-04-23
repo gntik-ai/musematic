@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 from importlib import import_module
-from platform.common.clients import runtime_controller_pb2, runtime_controller_pb2_grpc
 from platform.common.config import PlatformSettings, Settings
 from platform.common.config import settings as default_settings
 from typing import Any, cast
 
-from google.protobuf.json_format import MessageToDict, ParseDict
+_runtime_controller_pb2: Any = import_module("platform.common.clients.runtime_controller_pb2")
+_runtime_controller_pb2_grpc: Any = import_module(
+    "platform.common.clients.runtime_controller_pb2_grpc"
+)
+_protobuf_json_format: Any = import_module("google.protobuf.json_format")
 
 
 class RuntimeControllerClient:
@@ -110,7 +113,7 @@ class RuntimeControllerClient:
         await self.connect()
         if self.stub is None:
             assert self.channel is not None
-            self.stub = runtime_controller_pb2_grpc.RuntimeControlServiceStub(self.channel)
+            self.stub = _runtime_controller_pb2_grpc.RuntimeControlServiceStub(self.channel)
         return self.stub
 
     async def _invoke(self, method_name: str, request: dict[str, Any]) -> Any:
@@ -129,22 +132,22 @@ class RuntimeControllerClient:
         factory = self._request_factory(method_name)
         if factory is None:
             return request
-        return ParseDict(request, factory(), ignore_unknown_fields=False)
+        return _protobuf_json_format.ParseDict(request, factory(), ignore_unknown_fields=False)
 
     @staticmethod
     def _uses_generated_stub(stub: Any) -> bool:
         module_name = type(stub).__module__
         return module_name.startswith(
-            (runtime_controller_pb2_grpc.__name__, "platform.grpc_stubs.")
+            (_runtime_controller_pb2_grpc.__name__, "platform.grpc_stubs.")
         )
 
     @staticmethod
     def _request_factory(method_name: str) -> Any:
         factories = {
-            "LaunchRuntime": runtime_controller_pb2.LaunchRuntimeRequest,
-            "StopRuntime": runtime_controller_pb2.StopRuntimeRequest,
-            "WarmPoolStatus": runtime_controller_pb2.WarmPoolStatusRequest,
-            "WarmPoolConfig": runtime_controller_pb2.WarmPoolConfigRequest,
+            "LaunchRuntime": _runtime_controller_pb2.LaunchRuntimeRequest,
+            "StopRuntime": _runtime_controller_pb2.StopRuntimeRequest,
+            "WarmPoolStatus": _runtime_controller_pb2.WarmPoolStatusRequest,
+            "WarmPoolConfig": _runtime_controller_pb2.WarmPoolConfigRequest,
         }
         return factories.get(method_name)
 
@@ -154,7 +157,7 @@ class RuntimeControllerClient:
         if hasattr(response, "DESCRIPTOR"):
             return cast(
                 dict[str, Any],
-                MessageToDict(response, preserving_proto_field_name=True),
+                _protobuf_json_format.MessageToDict(response, preserving_proto_field_name=True),
             )
         model_dump = getattr(response, "model_dump", None)
         if callable(model_dump):

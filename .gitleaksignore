@@ -1,2 +1,5 @@
 # False positive: synthetic JWT fixture introduced in an earlier PR commit
 263dfa3357543a80d1327f43fb6c114f945d1ca7:apps/control-plane/tests/unit/policies/test_sanitize_output_endpoint.py:jwt:105
+
+# False positive: e2e-only Fernet key placeholder introduced in PR history; current value is deterministic and non-secret.
+093d5bf3ee09a89034f827e7f88de5c5b76f5fa2:tests/e2e/cluster/values-e2e.yaml:generic-api-key:264

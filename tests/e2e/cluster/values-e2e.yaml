@@ -261,7 +261,8 @@ controlPlane:
   connections:
     kafkaBrokers: musematic-kafka-kafka-bootstrap.strimzi-system.svc.cluster.local:9092
     redisTestMode: cluster
-    authMfaEncryptionKey: qdMMPTH3tcYWWMTPdN1zQ8F1PQ89mZ7xRcbk6VwBEm0=
+    # E2E-only deterministic Fernet key; not used outside local kind tests.
+    authMfaEncryptionKey: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
   api:
     replicaCount: 1
     service:
