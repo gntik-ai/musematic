@@ -124,6 +124,14 @@ def _mint_access_token(
     return jwt.encode(payload, _jwt_secret(), algorithm=_jwt_algorithm())
 
 
+def _decode_access_token(token: str) -> dict[str, Any]:
+    return jwt.decode(
+        token,
+        options={"verify_signature": False, "verify_exp": False},
+        algorithms=[_jwt_algorithm()],
+    )
+
+
 @dataclass(slots=True)
 class JourneyContext:
     journey_id: str
@@ -319,6 +327,8 @@ def _minted_persona_client(
     workspace_id: UUID | None = None,
     extra_roles: list[str] | None = None,
     permissions: list[str] | None = None,
+    user_id: UUID | None = None,
+    email: str | None = None,
 ) -> AuthenticatedAsyncClient:
     client = http_client.clone(
         default_headers=(
@@ -329,8 +339,8 @@ def _minted_persona_client(
     if extra_roles:
         role_names = [*role_names, *extra_roles]
     token = _mint_access_token(
-        user_id=_persona_user_id(persona),
-        email=_persona_email(persona),
+        user_id=user_id or _persona_user_id(persona),
+        email=email or _persona_email(persona),
         role_names=role_names,
         workspace_id=workspace_id,
         permissions=permissions,
@@ -338,6 +348,27 @@ def _minted_persona_client(
     client.set_bearer_token(token)
     return client
 
+
+def _scoped_persona_client(
+    http_client: AuthenticatedAsyncClient,
+    persona: str,
+    *,
+    workspace_id: UUID,
+    extra_roles: list[str] | None = None,
+    permissions: list[str] | None = None,
+) -> AuthenticatedAsyncClient:
+    if http_client.access_token is None:
+        raise AssertionError(f"{persona} client must be authenticated before scoping")
+    claims = _decode_access_token(http_client.access_token)
+    return _minted_persona_client(
+        http_client,
+        persona,
+        workspace_id=workspace_id,
+        extra_roles=extra_roles,
+        permissions=permissions,
+        user_id=UUID(str(claims["sub"])),
+        email=str(claims.get("email") or _persona_email(persona)),
+    )
 
 
 def _register_cleanup(request: pytest.FixtureRequest, item: dict[str, Any]) -> None:
@@ -556,6 +587,7 @@ async def cleanup_journey_resources(
 @pytest_asyncio.fixture
 async def admin_client(
     http_client: AuthenticatedAsyncClient,
+    mock_google_oidc: str,
     ensure_journey_personas: dict[str, str],
 ) -> AuthenticatedAsyncClient:
     del ensure_journey_personas
@@ -567,7 +599,27 @@ async def admin_client(
             totp_env="JOURNEY_ADMIN_TOTP_CODE",
             default_email=_persona_email("admin"),
         )
-    return _minted_persona_client(http_client, "admin")
+
+    # Provision the backing account through the same OAuth path used by real users,
+    # then mint the elevated journey token against that persisted user id.
+    provisioned = await oauth_login(
+        http_client.clone(),
+        provider="google",
+        mock_server=mock_google_oidc,
+        login="j-admin",
+    )
+    assert provisioned.access_token is not None
+    claims = _decode_access_token(provisioned.access_token)
+    user_id = UUID(str(claims["sub"]))
+    email = str(claims.get("email") or _persona_email("admin"))
+    token = _mint_access_token(
+        user_id=user_id,
+        email=email,
+        role_names=_persona_roles("admin"),
+    )
+    client = http_client.clone()
+    client.set_bearer_token(token)
+    return client
 
 
 @pytest_asyncio.fixture
@@ -700,7 +752,11 @@ async def workspace_with_agents(
         },
     )
 
-    scoped_admin = _minted_persona_client(http_client=admin_client, persona="admin", workspace_id=workspace_id)
+    scoped_admin = _scoped_persona_client(
+        http_client=admin_client,
+        persona="admin",
+        workspace_id=workspace_id,
+    )
     try:
         agent_specs = [
             ("ops", "executor", "executor"),
@@ -774,7 +830,11 @@ async def published_agent(
     journey_context: JourneyContext,
 ) -> dict[str, Any]:
     workspace_id = UUID(workspace_with_agents["workspace_id"])
-    scoped_admin = _minted_persona_client(http_client=admin_client, persona="admin", workspace_id=workspace_id)
+    scoped_admin = _scoped_persona_client(
+        http_client=admin_client,
+        persona="admin",
+        workspace_id=workspace_id,
+    )
     try:
         published = await register_full_agent(
             scoped_admin,
@@ -849,7 +909,11 @@ async def workspace_with_goal_ready(
     journey_context: JourneyContext,
 ) -> dict[str, Any]:
     workspace_id = UUID(workspace_with_agents["workspace_id"])
-    scoped_admin = _minted_persona_client(http_client=admin_client, persona="admin", workspace_id=workspace_id)
+    scoped_admin = _scoped_persona_client(
+        http_client=admin_client,
+        persona="admin",
+        workspace_id=workspace_id,
+    )
     try:
         agent_specs = [
             ("collab", "market-data-agent", "executor", {"keywords": ["market", "portfolio"]}),
@@ -919,7 +983,11 @@ async def running_workload(
     journey_context: JourneyContext,
 ) -> dict[str, Any]:
     workspace_id = UUID(workspace_with_agents["workspace_id"])
-    scoped_admin = _minted_persona_client(http_client=admin_client, persona="admin", workspace_id=workspace_id)
+    scoped_admin = _scoped_persona_client(
+        http_client=admin_client,
+        persona="admin",
+        workspace_id=workspace_id,
+    )
     try:
         workload_agents = [
             await register_full_agent(
@@ -1020,9 +1088,13 @@ def pytest_configure(config) -> None:
     for marker, description in (
         ("journey", "marks a user journey test"),
         ("j01_admin", "admin bootstrap journey"),
+        ("j01_admin_bootstrap", "full admin bootstrap journey"),
         ("j02_creator", "creator to publication journey"),
+        ("j02_creator_to_publication", "full creator to publication journey"),
         ("j03_consumer", "consumer discovery and execution journey"),
+        ("j03_consumer_discovery_execution", "full consumer discovery and execution journey"),
         ("j04_workspace_goal", "workspace goal collaboration journey"),
+        ("j04_workspace_goal_collaboration", "full workspace goal collaboration journey"),
         ("j05_trust", "trust governance pipeline journey"),
         ("j06_operator", "operator incident response journey"),
         ("j07_evaluator", "evaluator improvement loop journey"),
