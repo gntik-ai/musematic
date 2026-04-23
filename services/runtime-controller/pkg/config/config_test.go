@@ -12,6 +12,7 @@ func clearConfigEnv(t *testing.T) {
 		"HTTP_PORT",
 		"POSTGRES_DSN",
 		"REDIS_ADDR",
+		"REDIS_PASSWORD",
 		"KAFKA_BROKERS",
 		"S3_ENDPOINT_URL",
 		"MINIO_ENDPOINT",
@@ -70,6 +71,9 @@ func TestLoadUsesDefaults(t *testing.T) {
 	if cfg.S3Bucket != "musematic-artifacts" || cfg.K8sNamespace != "platform-execution" {
 		t.Fatalf("unexpected defaults: %+v", cfg)
 	}
+	if cfg.RedisPassword != "" {
+		t.Fatalf("expected empty redis password by default, got %q", cfg.RedisPassword)
+	}
 	if cfg.ReconcileInterval != 30*time.Second || cfg.AgentPackagePresignTTL != 2*time.Hour {
 		t.Fatalf("unexpected duration defaults: %+v", cfg)
 	}
@@ -127,6 +131,7 @@ func TestLoadParsesCustomValues(t *testing.T) {
 	clearConfigEnv(t)
 	t.Setenv("POSTGRES_DSN", "postgres://custom")
 	t.Setenv("REDIS_ADDR", "redis.internal:6380")
+	t.Setenv("REDIS_PASSWORD", "top-secret")
 	t.Setenv("GRPC_PORT", "6000")
 	t.Setenv("HTTP_PORT", "9000")
 	t.Setenv("KAFKA_BROKERS", "k1:9092, k2:9092 , ,k3:9092")
@@ -160,6 +165,9 @@ func TestLoadParsesCustomValues(t *testing.T) {
 	}
 	if cfg.S3EndpointURL != "https://s3.example.com" || cfg.S3Bucket != "runtime-artifacts" || cfg.K8sNamespace != "runtime" {
 		t.Fatalf("unexpected custom strings: %+v", cfg)
+	}
+	if cfg.RedisPassword != "top-secret" {
+		t.Fatalf("unexpected redis password: %q", cfg.RedisPassword)
 	}
 	if cfg.ReconcileInterval != 45*time.Second || cfg.WarmPoolIdleTimeout != 10*time.Minute {
 		t.Fatalf("unexpected custom durations: %+v", cfg)

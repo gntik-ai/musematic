@@ -5,8 +5,19 @@ from enum import StrEnum
 from platform.auth.models import IBORSourceType, IBORSyncMode, IBORSyncRunStatus
 from uuid import UUID
 
-from pydantic import BaseModel, Field
-from pydantic.networks import EmailStr
+import re
+
+from pydantic import BaseModel, Field, field_validator
+
+
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _normalize_email(value: str) -> str:
+    normalized = value.strip().lower()
+    if not EMAIL_PATTERN.fullmatch(normalized):
+        raise ValueError("value is not a valid email address")
+    return normalized
 
 
 class RoleType(StrEnum):
@@ -42,8 +53,13 @@ class CredentialStatus(StrEnum):
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: str
     password: str = Field(min_length=1)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return _normalize_email(value)
 
 
 class LoginResponse(BaseModel):

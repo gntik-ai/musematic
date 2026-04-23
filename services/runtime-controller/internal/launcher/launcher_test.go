@@ -111,7 +111,7 @@ func (f fakeWarmPoolDispatcher) Dispatch(context.Context, string, string, uuid.U
 	return f.podName, f.ok, f.err
 }
 
-func TestLaunchCreatesPendingRuntimeThenRunningPod(t *testing.T) {
+func TestLaunchCreatesRunningRuntimeAfterPodCreation(t *testing.T) {
 	store := &fakeStore{getErr: pgx.ErrNoRows}
 	pods := &fakePodManager{}
 	service := &Launcher{
@@ -140,8 +140,14 @@ func TestLaunchCreatesPendingRuntimeThenRunningPod(t *testing.T) {
 	if info.State != runtimev1.RuntimeState_RUNTIME_STATE_RUNNING {
 		t.Fatalf("expected running state, got %v", info.State)
 	}
-	if len(store.inserted) != 1 || pods.created == nil || store.updatedTo != "running" {
+	if len(store.inserted) != 1 || pods.created == nil {
 		t.Fatalf("launch did not persist and create pod as expected")
+	}
+	if store.updatedTo != "" {
+		t.Fatalf("expected launch to insert the runtime directly in running state, got update %q", store.updatedTo)
+	}
+	if store.inserted[0].State != "running" || store.inserted[0].PodName == "" || store.inserted[0].LaunchedAt == nil {
+		t.Fatalf("expected running runtime record with pod metadata, got %+v", store.inserted[0])
 	}
 	if len(store.taskPlans) != 1 {
 		t.Fatalf("expected task plan persistence")
@@ -190,6 +196,9 @@ func TestLaunchUsesWarmPoolWithoutCreatingPod(t *testing.T) {
 	if !warmStart || info.PodName != "warm-pod-1" || pods.created != nil {
 		t.Fatalf("unexpected warm pool launch result: warm=%v info=%+v created=%+v", warmStart, info, pods.created)
 	}
+	if len(store.inserted) != 1 || store.inserted[0].PodName != "warm-pod-1" || store.inserted[0].LaunchedAt == nil {
+		t.Fatalf("expected warm start to persist a running runtime, got %+v", store.inserted)
+	}
 }
 
 func TestLaunchWarmPoolErrors(t *testing.T) {
@@ -224,6 +233,9 @@ func TestLaunchWarmPoolErrors(t *testing.T) {
 		},
 	}); err == nil {
 		t.Fatalf("expected warm pod preparation error")
+	}
+	if len(store.inserted) != 1 {
+		t.Fatalf("warm pod preparation failure should not persist a second runtime, got %d records", len(store.inserted))
 	}
 }
 
@@ -272,7 +284,7 @@ func TestLaunchPropagatesOperationalErrors(t *testing.T) {
 	}
 
 	store = &fakeStore{getErr: pgx.ErrNoRows, insertErr: errors.New("insert failed")}
-	service = &Launcher{Store: store}
+	service = &Launcher{Store: store, Pods: &fakePodManager{}}
 	if _, _, err := service.Launch(context.Background(), &runtimev1.RuntimeContract{
 		CorrelationContext: &runtimev1.CorrelationContext{ExecutionId: "exec-1", WorkspaceId: "ws-1"},
 	}); err == nil {
@@ -295,6 +307,9 @@ func TestLaunchPropagatesOperationalErrors(t *testing.T) {
 	}); err == nil {
 		t.Fatalf("expected create pod error")
 	}
+	if len(store.inserted) != 0 {
+		t.Fatalf("create pod failure should not persist a runtime, got %+v", store.inserted)
+	}
 
 	store = &fakeStore{getErr: pgx.ErrNoRows}
 	pods := &fakePodManager{}
@@ -316,23 +331,6 @@ func TestLaunchPropagatesOperationalErrors(t *testing.T) {
 		t.Fatalf("expected presign error")
 	}
 
-	store = &fakeStore{getErr: pgx.ErrNoRows, updateErr: errors.New("update failed")}
-	service = &Launcher{
-		Namespace:  "platform-execution",
-		Store:      store,
-		Pods:       pods,
-		Presigner:  fakePresigner{},
-		PresignTTL: time.Hour,
-	}
-	if _, _, err := service.Launch(context.Background(), &runtimev1.RuntimeContract{
-		AgentRevision: "agent-v1",
-		CorrelationContext: &runtimev1.CorrelationContext{
-			ExecutionId: "exec-1",
-			WorkspaceId: "ws-1",
-		},
-	}); err == nil {
-		t.Fatalf("expected update error")
-	}
 }
 
 func TestMustJSON(t *testing.T) {

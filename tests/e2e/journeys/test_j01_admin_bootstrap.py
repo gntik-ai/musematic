@@ -67,6 +67,8 @@ async def test_j01_admin_bootstrap(
         assert "platform_admin" in role_names
 
     with journey_step("Admin enrolls TOTP MFA for the bootstrap session"):
+        reset_mfa = await admin_client.post(f"/api/v1/accounts/{claims['sub']}/reset-mfa")
+        reset_mfa.raise_for_status()
         enroll = await admin_client.post("/api/v1/auth/mfa/enroll")
         enroll.raise_for_status()
         enrollment = enroll.json()

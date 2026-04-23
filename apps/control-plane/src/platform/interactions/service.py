@@ -132,6 +132,7 @@ class InteractionsService:
             created_by=created_by,
             metadata=request.metadata,
         )
+        await self._commit_repository_session()
         return self._conversation_response(conversation)
 
     async def get_conversation(
@@ -167,6 +168,7 @@ class InteractionsService:
             title=request.title if "title" in request.model_fields_set else None,
             metadata=request.metadata if "metadata" in request.model_fields_set else None,
         )
+        await self._commit_repository_session()
         return self._conversation_response(updated)
 
     async def delete_conversation(self, conversation_id: UUID, workspace_id: UUID) -> None:
@@ -174,6 +176,7 @@ class InteractionsService:
         if conversation is None:
             raise ConversationNotFoundError(conversation_id)
         await self.repository.soft_delete_conversation(conversation)
+        await self._commit_repository_session()
 
     async def create_interaction(
         self,
@@ -194,6 +197,7 @@ class InteractionsService:
             identity=created_by,
             role=ParticipantRole.initiator,
         )
+        await self._commit_repository_session()
         return self._interaction_response(interaction)
 
     async def get_interaction(
@@ -322,6 +326,7 @@ class InteractionsService:
                 ),
                 correlation,
             )
+        await self._commit_repository_session()
         return self._interaction_response(updated)
 
     async def send_message(
@@ -371,6 +376,7 @@ class InteractionsService:
                 goal_id=interaction.goal_id,
             ),
         )
+        await self._commit_repository_session()
         return self._message_response(created)
 
     async def inject_message(
@@ -435,6 +441,7 @@ class InteractionsService:
             identity=participant.identity,
             role=participant.role,
         )
+        await self._commit_repository_session()
         return self._participant_response(created)
 
     async def remove_participant(
@@ -448,6 +455,7 @@ class InteractionsService:
         if participant is None:
             return
         await self.repository.remove_participant(participant)
+        await self._commit_repository_session()
 
     async def list_participants(
         self,
@@ -526,6 +534,7 @@ class InteractionsService:
             ),
             self._correlation(workspace_id=workspace_id, goal_id=goal_id),
         )
+        await self._commit_repository_session()
         return self._goal_message_response(created)
 
     async def transition_goal_state(
@@ -545,6 +554,7 @@ class InteractionsService:
             reason=request.reason,
         )
         await self._flush_repository_session()
+        await self._commit_repository_session()
         transitioned_at = datetime.now(UTC)
         return GoalStateTransitionResponse(
             goal_id=goal.id,
@@ -578,6 +588,7 @@ class InteractionsService:
             response_decision_strategy=request.response_decision_strategy,
             response_decision_config=request.response_decision_config,
         )
+        await self._commit_repository_session()
         return self._agent_decision_config_response(item), created
 
     async def list_agent_decision_configs(
@@ -727,6 +738,7 @@ class InteractionsService:
             branch_interaction_id=branch_interaction.id,
             branch_point_message_id=request.branch_point_message_id,
         )
+        await self._commit_repository_session()
         return self._branch_response(branch)
 
     async def merge_branch(
@@ -779,6 +791,7 @@ class InteractionsService:
                 goal_id=parent.goal_id,
             ),
         )
+        await self._commit_repository_session()
         return self._merge_record_response(record)
 
     async def abandon_branch(
@@ -790,6 +803,7 @@ class InteractionsService:
         if branch is None:
             raise BranchNotFoundError(branch_id)
         updated = await self.repository.update_branch_status(branch, BranchStatus.abandoned)
+        await self._commit_repository_session()
         return self._branch_response(updated)
 
     async def list_branches(
@@ -838,6 +852,7 @@ class InteractionsService:
                 execution_id=created.related_execution_id,
             ),
         )
+        await self._commit_repository_session()
         return self._attention_response(created)
 
     async def list_attention_requests(
@@ -907,6 +922,7 @@ class InteractionsService:
             acknowledged_at=acknowledged_at,
             resolved_at=resolved_at,
         )
+        await self._commit_repository_session()
         return self._attention_response(updated)
 
     async def get_conversation_history(
@@ -1034,6 +1050,11 @@ class InteractionsService:
         session = self._repository_session()
         if session is not None and hasattr(session, "flush"):
             await session.flush()
+
+    async def _commit_repository_session(self) -> None:
+        session = self._repository_session()
+        if session is not None and hasattr(session, "commit"):
+            await session.commit()
 
     async def _get_subscribed_agent_patterns(
         self,

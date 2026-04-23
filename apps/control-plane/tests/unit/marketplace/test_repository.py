@@ -155,6 +155,25 @@ async def test_repository_bulk_replace_and_trending_snapshot_writes() -> None:
 
 
 @pytest.mark.asyncio
+async def test_repository_reads_active_certification_status_helpers() -> None:
+    agent_id = uuid4()
+    other_agent_id = uuid4()
+    session = SessionStub(
+        execute_results=[
+            ScalarResult("active"),
+            RowsResult([(str(agent_id), "active"), (str(other_agent_id), "active")]),
+        ]
+    )
+    repository = MarketplaceRepository(session)  # type: ignore[arg-type]
+
+    status = await repository.get_active_certification_status(agent_id)
+    statuses = await repository.get_active_certification_statuses([agent_id, other_agent_id])
+
+    assert status == "active"
+    assert statuses == {agent_id: "active", other_agent_id: "active"}
+
+
+@pytest.mark.asyncio
 async def test_repository_read_helpers_return_expected_summaries() -> None:
     agent_id = uuid4()
     other_agent_id = uuid4()

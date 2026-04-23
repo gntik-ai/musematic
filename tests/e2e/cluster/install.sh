@@ -7,9 +7,17 @@ CLUSTER_NAME="${CLUSTER_NAME:-amp-e2e}"
 RELEASE_NAME="${RELEASE_NAME:-amp}"
 NAMESPACE="${NAMESPACE:-platform}"
 PLATFORM_DATA_NAMESPACE="${PLATFORM_DATA_NAMESPACE:-platform-data}"
+PLATFORM_EXECUTION_NAMESPACE="${PLATFORM_EXECUTION_NAMESPACE:-platform-execution}"
+PLATFORM_SIMULATION_NAMESPACE="${PLATFORM_SIMULATION_NAMESPACE:-platform-simulation}"
+KAFKA_NAMESPACE="${KAFKA_NAMESPACE:-strimzi-system}"
+KAFKA_CLUSTER_NAME="${KAFKA_CLUSTER_NAME:-musematic-kafka}"
+CLICKHOUSE_NAMESPACE="${CLICKHOUSE_NAMESPACE:-${NAMESPACE}}"
+NEO4J_NAMESPACE="${NEO4J_NAMESPACE:-${NAMESPACE}}"
 PORT_UI="${PORT_UI:-8080}"
 PORT_API="${PORT_API:-8081}"
 PORT_WS="${PORT_WS:-8082}"
+PORT_GOOGLE_OIDC="${PORT_GOOGLE_OIDC:-8083}"
+PORT_GITHUB_OAUTH="${PORT_GITHUB_OAUTH:-8084}"
 SKIP_LOAD_IMAGES="${SKIP_LOAD_IMAGES:-false}"
 COMPOSITE_CHART_DIR="${ROOT_DIR}/deploy/helm/platform"
 KIND_CONFIG_TEMPLATE="${CLUSTER_DIR}/kind-config.yaml"
@@ -24,9 +32,9 @@ JOB_READY_TIMEOUT="${JOB_READY_TIMEOUT:-600s}"
 MIGRATION_RETRY_ATTEMPTS="${MIGRATION_RETRY_ATTEMPTS:-60}"
 MIGRATION_RETRY_DELAY_SECONDS="${MIGRATION_RETRY_DELAY_SECONDS:-5}"
 CONTROL_PLANE_MIGRATION_IMAGE="${CONTROL_PLANE_MIGRATION_IMAGE:-ghcr.io/musematic/control-plane:local}"
-CLICKHOUSE_SCHEMA_IMAGE="${CLICKHOUSE_SCHEMA_IMAGE:-clickhouse/clickhouse-server:24.3}"
-NEO4J_SCHEMA_IMAGE="${NEO4J_SCHEMA_IMAGE:-neo4j:5.21.2-enterprise}"
-MINIO_BUCKET_INIT_IMAGE="${MINIO_BUCKET_INIT_IMAGE:-minio/mc:latest}"
+CLICKHOUSE_SCHEMA_IMAGE="${CLICKHOUSE_SCHEMA_IMAGE:-mirror.gcr.io/clickhouse/clickhouse-server:24.3}"
+NEO4J_SCHEMA_IMAGE="${NEO4J_SCHEMA_IMAGE:-mirror.gcr.io/library/neo4j:5.21.0}"
+MINIO_BUCKET_INIT_IMAGE="${MINIO_BUCKET_INIT_IMAGE:-mirror.gcr.io/minio/mc:latest}"
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -63,7 +71,7 @@ check_prereqs() {
 }
 
 render_kind_config() {
-  CLUSTER_NAME="$CLUSTER_NAME" PORT_UI="$PORT_UI" PORT_API="$PORT_API" PORT_WS="$PORT_WS" envsubst < "$KIND_CONFIG_TEMPLATE" > "$KIND_CONFIG_PATH"
+  CLUSTER_NAME="$CLUSTER_NAME" PORT_UI="$PORT_UI" PORT_API="$PORT_API" PORT_WS="$PORT_WS" PORT_GOOGLE_OIDC="$PORT_GOOGLE_OIDC" PORT_GITHUB_OAUTH="$PORT_GITHUB_OAUTH" envsubst < "$KIND_CONFIG_TEMPLATE" > "$KIND_CONFIG_PATH"
 }
 
 ensure_cluster() {
@@ -76,6 +84,12 @@ ensure_cluster() {
   kind create cluster --name "${CLUSTER_NAME}" --config "${KIND_CONFIG_PATH}"
 }
 
+ensure_supporting_namespaces() {
+  for namespace in "${PLATFORM_EXECUTION_NAMESPACE}" "${PLATFORM_SIMULATION_NAMESPACE}"; do
+    kubectl create namespace "$namespace" --dry-run=client -o yaml | kubectl apply -f -
+  done
+}
+
 install_cnpg_operator() {
   echo "[e2e] installing CloudNativePG operator"
   kubectl apply --server-side=true --force-conflicts -f "${CNPG_MANIFEST_URL}"
@@ -86,6 +100,7 @@ install_strimzi_operator() {
   echo "[e2e] installing Strimzi operator"
   kubectl create namespace strimzi-system --dry-run=client -o yaml | kubectl apply -f -
   kubectl apply --server-side=true --force-conflicts -n strimzi-system -f "${STRIMZI_MANIFEST_URL}"
+  kubectl rollout status -n strimzi-system deployment/strimzi-cluster-operator --timeout=300s
   kubectl wait --for=condition=Available deployment/strimzi-cluster-operator -n strimzi-system --timeout=300s
 }
 
@@ -238,12 +253,12 @@ EOF_JOB
 launch_clickhouse_schema_init() {
   local job_name="${RELEASE_NAME}-clickhouse-schema-init"
 
-  cat <<EOF_JOB | create_job_from_stdin "${PLATFORM_DATA_NAMESPACE}" "$job_name"
+  cat <<EOF_JOB | create_job_from_stdin "${CLICKHOUSE_NAMESPACE}" "$job_name"
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: ${job_name}
-  namespace: ${PLATFORM_DATA_NAMESPACE}
+  namespace: ${CLICKHOUSE_NAMESPACE}
 spec:
   ttlSecondsAfterFinished: 300
   backoffLimit: 0
@@ -253,12 +268,23 @@ spec:
       initContainers:
         - name: wait-for-clickhouse
           image: ${CLICKHOUSE_SCHEMA_IMAGE}
+          env:
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: clickhouse-credentials
+                  key: CLICKHOUSE_PASSWORD
           command:
             - /bin/bash
             - -ec
             - |
-              for attempt in $(seq 1 60); do
-                if curl -fsS http://musematic-clickhouse.${PLATFORM_DATA_NAMESPACE}.svc.cluster.local:8123/ping >/dev/null; then
+              for attempt in \$(seq 1 60); do
+                if clickhouse-client \
+                  --host musematic-clickhouse.${CLICKHOUSE_NAMESPACE}.svc.cluster.local \
+                  --port 9000 \
+                  --user default \
+                  --password "\$CLICKHOUSE_PASSWORD" \
+                  --query "SELECT 1" >/dev/null 2>&1; then
                   exit 0
                 fi
                 sleep 5
@@ -272,7 +298,7 @@ spec:
             - -ec
             - |
               cat /scripts/*.sql | clickhouse-client \
-                --host musematic-clickhouse.${PLATFORM_DATA_NAMESPACE}.svc.cluster.local \
+                --host musematic-clickhouse.${CLICKHOUSE_NAMESPACE}.svc.cluster.local \
                 --port 9000 \
                 --user default \
                 --password "\$CLICKHOUSE_PASSWORD" \
@@ -296,12 +322,12 @@ EOF_JOB
 launch_neo4j_schema_init() {
   local job_name="${RELEASE_NAME}-neo4j-schema-init"
 
-  cat <<EOF_JOB | create_job_from_stdin "${PLATFORM_DATA_NAMESPACE}" "$job_name"
+  cat <<EOF_JOB | create_job_from_stdin "${NEO4J_NAMESPACE}" "$job_name"
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: ${job_name}
-  namespace: ${PLATFORM_DATA_NAMESPACE}
+  namespace: ${NEO4J_NAMESPACE}
 spec:
   ttlSecondsAfterFinished: 300
   backoffLimit: 0
@@ -315,8 +341,8 @@ spec:
             - /bin/bash
             - -ec
             - |
-              for attempt in $(seq 1 60); do
-                if cypher-shell -u neo4j -p "\$NEO4J_PASSWORD" -a bolt://musematic-neo4j.${PLATFORM_DATA_NAMESPACE}.svc.cluster.local:7687 "RETURN 1;" >/dev/null 2>&1; then
+              for attempt in \$(seq 1 60); do
+                if cypher-shell -u neo4j -p "\$NEO4J_PASSWORD" -a bolt://musematic-neo4j.${NEO4J_NAMESPACE}.svc.cluster.local:7687 "RETURN 1;" >/dev/null 2>&1; then
                   exit 0
                 fi
                 sleep 5
@@ -336,7 +362,7 @@ spec:
             - -ec
             - |
               cypher-shell -u neo4j -p "\$NEO4J_PASSWORD" \
-                -a bolt://musematic-neo4j.${PLATFORM_DATA_NAMESPACE}.svc.cluster.local:7687 \
+                -a bolt://musematic-neo4j.${NEO4J_NAMESPACE}.svc.cluster.local:7687 \
                 -f /scripts/init.cypher
           env:
             - name: NEO4J_PASSWORD
@@ -392,6 +418,31 @@ spec:
                 count=\$((count + 1))
                 sleep "\$delay"
               done
+          env:
+            - name: QDRANT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: qdrant-api-key
+                  key: QDRANT_API_KEY
+                  optional: true
+            - name: NEO4J_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: neo4j-credentials
+                  key: NEO4J_PASSWORD
+                  optional: true
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: clickhouse-credentials
+                  key: CLICKHOUSE_PASSWORD
+                  optional: true
+            - name: OPENSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: opensearch-credentials
+                  key: OPENSEARCH_PASSWORD
+                  optional: true
           envFrom:
             - configMapRef:
                 name: ${RELEASE_NAME}-control-plane-config
@@ -411,11 +462,21 @@ restart_platform_deployments() {
 wait_for_active_pods() {
   local namespace="$1"
   local timeout="$2"
+  local pod
+
   mapfile -t pods < <(kubectl get pods -n "$namespace" --field-selector=status.phase!=Succeeded -o name 2>/dev/null || true)
   if [[ "${#pods[@]}" -eq 0 ]]; then
     return
   fi
-  kubectl wait -n "$namespace" --for=condition=Ready "${pods[@]}" --timeout="$timeout"
+
+  for pod in "${pods[@]}"; do
+    if kubectl wait -n "$namespace" --for=condition=Ready "$pod" --timeout="$timeout" >/dev/null 2>&1; then
+      continue
+    fi
+    if kubectl get -n "$namespace" "$pod" >/dev/null 2>&1; then
+      kubectl wait -n "$namespace" --for=condition=Ready "$pod" --timeout="$timeout"
+    fi
+  done
 }
 
 wait_for_deployment_rollouts() {
@@ -427,17 +488,43 @@ wait_for_deployment_rollouts() {
   done
 }
 
+wait_for_kafka_ready() {
+  if ! kubectl get kafka -n "${KAFKA_NAMESPACE}" "${KAFKA_CLUSTER_NAME}" >/dev/null 2>&1; then
+    return
+  fi
+  kubectl wait --for=condition=Ready -n "${KAFKA_NAMESPACE}" "kafka/${KAFKA_CLUSTER_NAME}" --timeout="${PLATFORM_READY_TIMEOUT}"
+}
+
+wait_for_kafka_topics_ready() {
+  local timeout="$1"
+  local selector="strimzi.io/cluster=${KAFKA_CLUSTER_NAME}"
+
+  if ! kubectl get kafkatopic -n "${KAFKA_NAMESPACE}" -l "$selector" >/dev/null 2>&1; then
+    return
+  fi
+
+  kubectl wait --for=condition=Ready -n "${KAFKA_NAMESPACE}" kafkatopic -l "$selector" --timeout="$timeout"
+}
+
 run_manual_init_jobs() {
   echo "[e2e] launching manual init jobs outside Helm hooks"
   launch_minio_bucket_init
-  launch_clickhouse_schema_init
-  launch_neo4j_schema_init
+  if kubectl get statefulset -n "${CLICKHOUSE_NAMESPACE}" musematic-clickhouse >/dev/null 2>&1; then
+    launch_clickhouse_schema_init
+  fi
+  if kubectl get statefulset -n "${NEO4J_NAMESPACE}" musematic-neo4j >/dev/null 2>&1; then
+    launch_neo4j_schema_init
+  fi
   wait_for_labelled_pod "${PLATFORM_DATA_NAMESPACE}" "cnpg.io/cluster=musematic-postgres" "${POSTGRES_READY_TIMEOUT}"
   launch_control_plane_migration
 
   wait_for_job_completion "${PLATFORM_DATA_NAMESPACE}" "${RELEASE_NAME}-minio-bucket-init" "${JOB_READY_TIMEOUT}"
-  wait_for_job_completion "${PLATFORM_DATA_NAMESPACE}" "${RELEASE_NAME}-clickhouse-schema-init" "${JOB_READY_TIMEOUT}"
-  wait_for_job_completion "${PLATFORM_DATA_NAMESPACE}" "${RELEASE_NAME}-neo4j-schema-init" "${JOB_READY_TIMEOUT}"
+  if kubectl get job -n "${CLICKHOUSE_NAMESPACE}" "${RELEASE_NAME}-clickhouse-schema-init" >/dev/null 2>&1; then
+    wait_for_job_completion "${CLICKHOUSE_NAMESPACE}" "${RELEASE_NAME}-clickhouse-schema-init" "${JOB_READY_TIMEOUT}"
+  fi
+  if kubectl get job -n "${NEO4J_NAMESPACE}" "${RELEASE_NAME}-neo4j-schema-init" >/dev/null 2>&1; then
+    wait_for_job_completion "${NEO4J_NAMESPACE}" "${RELEASE_NAME}-neo4j-schema-init" "${JOB_READY_TIMEOUT}"
+  fi
   wait_for_job_completion "${NAMESPACE}" "${RELEASE_NAME}-control-plane-manual-migrate" "${JOB_READY_TIMEOUT}"
 }
 
@@ -457,6 +544,7 @@ seed_baseline() {
 main() {
   check_prereqs
   ensure_cluster
+  ensure_supporting_namespaces
   install_cnpg_operator
   install_strimzi_operator
   if [[ "${SKIP_LOAD_IMAGES}" != "true" ]]; then
@@ -464,6 +552,8 @@ main() {
   fi
   install_platform
   run_manual_init_jobs
+  wait_for_kafka_ready
+  wait_for_kafka_topics_ready "${PLATFORM_READY_TIMEOUT}"
   restart_platform_deployments
   wait_for_rollouts
   seed_baseline

@@ -116,6 +116,10 @@ class SearchStub:
                     source_unavailable_since=None,
                 )
 
+            async def get_active_certification_status(self, agent_id):
+                del agent_id
+                return None
+
         return _Repo()
 
 
@@ -239,6 +243,58 @@ def test_marketplace_router_helper_functions_use_header_and_claims() -> None:
     assert _actor_id(user) == UUID(user["sub"])
     assert _workspace_id(request, user) == workspace_id
     assert _workspace_id(SimpleNamespace(headers={}), user) == workspace_id
+
+
+@pytest.mark.asyncio
+async def test_marketplace_quality_endpoint_uses_active_certification_fallback() -> None:
+    workspace_id = uuid4()
+    user = build_current_user(workspace_id=workspace_id)
+    listing = _listing(uuid4(), "finance-ops:router-agent", name="Router Agent")
+
+    class _FallbackSearchStub(SearchStub):
+        @property
+        def repository(self):
+            class _Repo:
+                async def get_or_create_quality_aggregate(self, agent_id):
+                    return SimpleNamespace(
+                        agent_id=agent_id,
+                        has_data=False,
+                        success_rate=0.0,
+                        quality_score_avg=0.0,
+                        self_correction_rate=0.0,
+                        satisfaction_avg=0.0,
+                        satisfaction_count=0,
+                        certification_status="uncertified",
+                        data_source_last_updated_at=None,
+                        source_unavailable_since=None,
+                    )
+
+                async def get_active_certification_status(self, agent_id):
+                    del agent_id
+                    return "active"
+
+            return _Repo()
+
+    app = build_marketplace_app(
+        current_user=user,
+        search_service=_FallbackSearchStub(listing),
+        quality_service=SimpleNamespace(),
+        rating_service=RatingStub(listing),
+        recommendation_service=RecommendationStub(listing),
+        trending_service=TrendingStub(listing),
+    )
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+    ) as client:
+        response = await client.get(
+            f"/api/v1/marketplace/agents/{listing.agent_id}/quality",
+            headers={"X-Workspace-ID": str(workspace_id)},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["certification_compliance"] == "active"
 
 
 @pytest.mark.asyncio

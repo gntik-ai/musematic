@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from importlib import import_module
 from platform.common.config import PlatformSettings, Settings
 from platform.common.config import settings as default_settings
-from platform.common.events.envelope import EventEnvelope
+from platform.common.events.envelope import EventEnvelope, parse_event_envelope
 from platform.common.exceptions import KafkaConsumerError
 from platform.common.kafka_tracing import extract_trace_context
 from platform.common.tracing import trace
@@ -67,7 +67,7 @@ class EventConsumerManager:
         tracer = trace.get_tracer(__name__)
         try:
             async for message in consumer:
-                envelope = EventEnvelope.model_validate_json(message.value)
+                envelope = parse_event_envelope(message.value)
                 message_headers = dict(message.headers or [])
                 extracted_context = extract_trace_context(message_headers)
                 topic = getattr(message, "topic", "events")

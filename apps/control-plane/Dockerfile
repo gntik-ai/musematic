@@ -1,8 +1,11 @@
-FROM python:3.12-slim AS builder
+ARG PYTHON_BASE=mirror.gcr.io/library/python:3.12-slim
+
+FROM ${PYTHON_BASE} AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONPATH=/app/src
 
 WORKDIR /app
 
@@ -10,14 +13,16 @@ COPY pyproject.toml ./
 COPY src ./src
 COPY entrypoints ./entrypoints
 COPY migrations ./migrations
+COPY lua ./lua
 
 RUN python -m pip install --upgrade pip \
     && pip install --no-cache-dir -e .
 
-FROM python:3.12-slim AS runner
+FROM ${PYTHON_BASE} AS runner
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/src
 
 WORKDIR /app
 

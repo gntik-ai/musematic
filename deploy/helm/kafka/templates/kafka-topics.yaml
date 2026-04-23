@@ -1,17 +1,18 @@
 {{- range .Values.topics }}
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
 metadata:
-  name: {{ .name }}
+  name: {{ .name | replace "_" "-" }}
   namespace: {{ $.Values.namespace }}
   labels:
     strimzi.io/cluster: {{ $.Values.clusterName }}
 spec:
+  topicName: {{ .name }}
   partitions: {{ .partitions }}
   replicas: {{ $.Values.replicationFactor }}
   config:
-    retention.ms: {{ .retentionMs | quote }}
-    min.insync.replicas: {{ $.Values.minInsyncReplicas | quote }}
+    retention.ms: {{ .retentionMs | int64 | quote }}
+    min.insync.replicas: {{ $.Values.minInsyncReplicas | int64 | quote }}
 ---
 {{- end }}
 

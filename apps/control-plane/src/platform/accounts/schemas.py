@@ -6,7 +6,7 @@ from platform.accounts.models import InvitationStatus, UserStatus
 from platform.auth.schemas import RoleType
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 PASSWORD_PATTERNS = (
     re.compile(r"[A-Z]"),
@@ -14,6 +14,14 @@ PASSWORD_PATTERNS = (
     re.compile(r"\d"),
     re.compile(r"[^A-Za-z0-9]"),
 )
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _normalize_email(value: str) -> str:
+    normalized = value.strip().lower()
+    if not EMAIL_PATTERN.fullmatch(normalized):
+        raise ValueError("value is not a valid email address")
+    return normalized
 
 
 def _validate_password_strength(value: str) -> str:
@@ -26,14 +34,14 @@ def _validate_password_strength(value: str) -> str:
 
 
 class RegisterRequest(BaseModel):
-    email: EmailStr
+    email: str
     display_name: str = Field(min_length=2, max_length=100)
     password: str = Field(min_length=12)
 
     @field_validator("email")
     @classmethod
-    def normalize_email(cls, value: EmailStr) -> str:
-        return str(value).strip().lower()
+    def normalize_email(cls, value: str) -> str:
+        return _normalize_email(value)
 
     @field_validator("password")
     @classmethod
@@ -46,12 +54,12 @@ class VerifyEmailRequest(BaseModel):
 
 
 class ResendVerificationRequest(BaseModel):
-    email: EmailStr
+    email: str
 
     @field_validator("email")
     @classmethod
-    def normalize_email(cls, value: EmailStr) -> str:
-        return str(value).strip().lower()
+    def normalize_email(cls, value: str) -> str:
+        return _normalize_email(value)
 
 
 class ApproveUserRequest(BaseModel):
@@ -87,15 +95,15 @@ class ResetPasswordRequest(BaseModel):
 
 
 class CreateInvitationRequest(BaseModel):
-    email: EmailStr
+    email: str
     roles: list[RoleType] = Field(min_length=1)
     workspace_ids: list[UUID] | None = None
     message: str | None = Field(default=None, max_length=500)
 
     @field_validator("email")
     @classmethod
-    def normalize_email(cls, value: EmailStr) -> str:
-        return str(value).strip().lower()
+    def normalize_email(cls, value: str) -> str:
+        return _normalize_email(value)
 
 
 class AcceptInvitationRequest(BaseModel):

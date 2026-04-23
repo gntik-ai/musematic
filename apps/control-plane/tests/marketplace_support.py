@@ -343,9 +343,63 @@ class WorkspacesServiceStub:
 class RegistryServiceStub:
     owners_by_agent: dict[UUID, UUID] = field(default_factory=dict)
     visibility_by_agent: dict[UUID, tuple[list[str], list[str]]] = field(default_factory=dict)
+    profiles_by_agent: dict[UUID, SimpleNamespace] = field(default_factory=dict)
+    profiles_by_fqn: dict[str, SimpleNamespace] = field(default_factory=dict)
 
     async def get_agent_namespace_owner(self, agent_id: UUID) -> UUID | None:
         return self.owners_by_agent.get(agent_id)
+
+    async def get_agent(
+        self,
+        workspace_id: UUID,
+        agent_id: UUID,
+        *,
+        actor_id: UUID | None = None,
+        requesting_agent_id: UUID | None = None,
+    ) -> SimpleNamespace | None:
+        del workspace_id, actor_id, requesting_agent_id
+        return self.profiles_by_agent.get(agent_id)
+
+    async def resolve_fqn(
+        self,
+        fqn: str,
+        *,
+        workspace_id: UUID,
+        actor_id: UUID | None = None,
+        requesting_agent_id: UUID | None = None,
+    ) -> SimpleNamespace | None:
+        del workspace_id, actor_id, requesting_agent_id
+        return self.profiles_by_fqn.get(fqn)
+
+    async def list_agents(
+        self,
+        params: SimpleNamespace,
+        *,
+        requesting_agent_id: UUID | None = None,
+        actor_id: UUID | None = None,
+    ) -> SimpleNamespace:
+        del requesting_agent_id, actor_id
+        items = []
+        for profile in self.profiles_by_agent.values():
+            status = getattr(profile, "status", None)
+            status_value = getattr(status, "value", status)
+            requested_status = getattr(params, "status", None)
+            requested_status_value = getattr(requested_status, "value", requested_status)
+            if requested_status_value is not None and status_value != requested_status_value:
+                continue
+            if getattr(profile, "workspace_id", getattr(params, "workspace_id", None)) != getattr(
+                params, "workspace_id", None
+            ):
+                continue
+            items.append(profile)
+        offset = getattr(params, "offset", 0)
+        limit = getattr(params, "limit", len(items))
+        return SimpleNamespace(
+            items=items[offset : offset + limit],
+            total=len(items),
+            limit=limit,
+            offset=offset,
+        )
 
     async def resolve_effective_visibility(
         self,
@@ -364,6 +418,7 @@ class RegistryServiceStub:
 class InMemoryMarketplaceRepository:
     ratings: dict[tuple[UUID, UUID], MarketplaceAgentRating] = field(default_factory=dict)
     quality_by_agent: dict[UUID, MarketplaceQualityAggregate] = field(default_factory=dict)
+    active_certification_status_by_agent: dict[UUID, str] = field(default_factory=dict)
     recommendations_by_user: dict[UUID, list[MarketplaceRecommendation]] = field(
         default_factory=dict
     )
@@ -427,6 +482,22 @@ class InMemoryMarketplaceRepository:
         return {
             agent_id: aggregate
             for agent_id, aggregate in self.quality_by_agent.items()
+            if agent_id in set(agent_ids)
+        }
+
+    async def get_active_certification_status(
+        self,
+        agent_id: UUID,
+    ) -> str | None:
+        return self.active_certification_status_by_agent.get(agent_id)
+
+    async def get_active_certification_statuses(
+        self,
+        agent_ids: list[UUID],
+    ) -> dict[UUID, str]:
+        return {
+            agent_id: status
+            for agent_id, status in self.active_certification_status_by_agent.items()
             if agent_id in set(agent_ids)
         }
 
@@ -583,7 +654,9 @@ def build_search_service(
     resolved_repository = repository or InMemoryMarketplaceRepository()
     resolved_opensearch = opensearch or OpenSearchClientStub(documents or [])
     resolved_qdrant = qdrant or QdrantClientStub(search_results=qdrant_results or [])
-    resolved_workspaces = WorkspacesServiceStub(visibility_by_workspace=visibility_by_workspace or {})
+    resolved_workspaces = WorkspacesServiceStub(
+        visibility_by_workspace=visibility_by_workspace or {}
+    )
     resolved_registry = registry_service or RegistryServiceStub()
     service = MarketplaceSearchService(
         repository=resolved_repository,

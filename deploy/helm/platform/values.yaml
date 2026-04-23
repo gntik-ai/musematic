@@ -11,16 +11,23 @@ postgresql:
   createNamespace: false
   environment: production
   credentials:
-    username: postgres
+    username: musematic
     password: change-me
     database: musematic
 
 redis:
   enabled: true
   createNamespace: false
-  fullnameOverride: musematic-redis
   auth:
     password: change-me
+  global:
+    redis:
+      password: change-me
+  redis-cluster:
+    fullnameOverride: musematic-redis
+    password: change-me
+    existingSecret: redis-credentials
+    existingSecretPasswordKey: password
   networkPolicy:
     enabled: false
 
@@ -60,6 +67,7 @@ neo4j:
   enabled: true
   createNamespace: false
   neo4j:
+    fullnameOverride: musematic-neo4j
     name: musematic-neo4j
 
 clickhouse:
@@ -93,21 +101,22 @@ controlPlane:
     wsHeartbeatIntervalSeconds: 30
     wsHeartbeatTimeoutSeconds: 10
   connections:
-    postgresDsn: postgresql+asyncpg://postgres:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic
-    redisUrl: redis://:change-me@musematic-redis-redis-cluster.platform-data.svc.cluster.local:6379/0
+    postgresDsn: postgresql+asyncpg://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic
+    redisUrl: redis://:change-me@musematic-redis.platform.svc.cluster.local:6379
+    redisTestMode: cluster
     kafkaBrokers: musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092
-    qdrantHost: musematic-qdrant.platform-data.svc.cluster.local
+    qdrantHost: musematic-qdrant.platform.svc.cluster.local
     qdrantPort: 6333
     qdrantGrpcPort: 6334
-    neo4jUri: bolt://musematic-neo4j.platform-data.svc.cluster.local:7687
+    neo4jUri: bolt://musematic-neo4j.platform.svc.cluster.local:7687
     neo4jUser: neo4j
     neo4jPassword: neo4j
-    clickhouseHost: musematic-clickhouse.platform-data.svc.cluster.local
+    clickhouseHost: musematic-clickhouse.platform.svc.cluster.local
     clickhousePort: 8123
     clickhouseUser: default
     clickhousePassword: ""
     clickhouseDatabase: default
-    opensearchHosts: http://musematic-opensearch.platform-data.svc.cluster.local:9200
+    opensearchHosts: http://musematic-opensearch.platform.svc.cluster.local:9200
     opensearchUsername: admin
     opensearchPassword: admin
     s3EndpointUrl: http://musematic-minio.platform-data.svc.cluster.local:9000
@@ -120,8 +129,9 @@ controlPlane:
     grpcRuntimeController: musematic-runtime-controller.platform.svc.cluster.local:50051
     grpcReasoningEngine: reasoning-engine.platform.svc.cluster.local:50052
     grpcSandboxManager: sandbox-manager.platform.svc.cluster.local:50053
-    grpcSimulationController: amp-simulation-controller.platform.svc.cluster.local:50055
+    grpcSimulationController: musematic-simulation-controller.platform.svc.cluster.local:50055
     authJwtSecretKey: change-me
+    authMfaEncryptionKey: ""
     authJwtAlgorithm: HS256
   migration:
     enabled: true
@@ -152,12 +162,31 @@ runtimeController:
   image:
     repository: ghcr.io/musematic/runtime-controller
     tag: latest
+  secrets:
+    POSTGRES_DSN: postgres://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable
+    REDIS_ADDR: musematic-redis.platform.svc.cluster.local:6379
+    REDIS_PASSWORD: change-me
+    KAFKA_BROKERS: musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092
+    S3_ENDPOINT_URL: http://musematic-minio.platform-data.svc.cluster.local:9000
+    S3_BUCKET: platform-execution-artifacts
+    S3_ACCESS_KEY: platform
+    S3_SECRET_KEY: change-me
+    S3_REGION: us-east-1
+    S3_USE_PATH_STYLE: "true"
+    K8S_DRY_RUN: "false"
 
 reasoningEngine:
   enabled: true
   image:
     repository: ghcr.io/musematic/reasoning-engine
     tag: latest
+  secrets:
+    POSTGRES_DSN: postgres://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable
+    REDIS_ADDR: musematic-redis.platform.svc.cluster.local:6379
+    REDIS_PASSWORD: change-me
+    KAFKA_BROKERS: musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092
+    MINIO_ENDPOINT: http://musematic-minio.platform-data.svc.cluster.local:9000
+    MINIO_BUCKET: reasoning-traces
 
 simulationController:
   enabled: true
@@ -174,7 +203,7 @@ sandboxManager:
     tag: latest
     pullPolicy: IfNotPresent
   config:
-    postgresDsn: postgres://postgres:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable
+    postgresDsn: postgres://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable
     kafkaBrokers: musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092
     minioEndpoint: http://musematic-minio.platform-data.svc.cluster.local:9000
     minioBucket: platform-execution-artifacts
@@ -195,3 +224,31 @@ ui:
     NEXT_PUBLIC_API_URL: http://localhost:8000
     NEXT_PUBLIC_WS_URL: ws://localhost:8001/ws
     NEXT_PUBLIC_APP_ENV: production
+
+mockOAuth:
+  google:
+    enabled: false
+    image:
+      repository: ghcr.io/musematic/mock-google-oidc
+      tag: latest
+      pullPolicy: IfNotPresent
+    replicas: 1
+    service:
+      type: ClusterIP
+      port: 8080
+      nodePort: null
+    resources: {}
+    seedUsers: []
+  github:
+    enabled: false
+    image:
+      repository: ghcr.io/musematic/mock-github-oauth
+      tag: latest
+      pullPolicy: IfNotPresent
+    replicas: 1
+    service:
+      type: ClusterIP
+      port: 8080
+      nodePort: null
+    resources: {}
+    seedUsers: []

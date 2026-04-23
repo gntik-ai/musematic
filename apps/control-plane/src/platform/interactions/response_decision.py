@@ -144,7 +144,6 @@ class KeywordDecision:
         goal_context: str,
         config: dict[str, Any],
     ) -> DecisionResult:
-        del goal_context
         keywords = [str(item) for item in config.get("keywords", []) if str(item).strip()]
         if not keywords:
             return DecisionResult(
@@ -154,7 +153,9 @@ class KeywordDecision:
                 error="keywords list is empty",
             )
         case_sensitive = bool(config.get("case_sensitive", False))
-        haystack = message if case_sensitive else message.lower()
+        haystack_parts = [part for part in (message, goal_context) if part]
+        combined_haystack = "\n".join(haystack_parts)
+        haystack = combined_haystack if case_sensitive else combined_haystack.lower()
         normalized_keywords = keywords if case_sensitive else [item.lower() for item in keywords]
         matches = [kw for kw in normalized_keywords if kw in haystack]
         mode = str(config.get("mode", "any_of"))

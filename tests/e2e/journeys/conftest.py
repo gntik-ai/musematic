@@ -234,11 +234,17 @@ class JourneyWsClient:
         self.url = url
         self.access_token = access_token
 
+    def _connect_url(self) -> str:
+        normalized = self.url.rstrip('/')
+        if normalized.endswith('/ws'):
+            return normalized
+        return f"{normalized}/ws"
+
     async def connect(self):
         headers = {}
         if self.access_token:
             headers["Authorization"] = f"Bearer {self.access_token}"
-        return await websockets.connect(self.url, additional_headers=headers)
+        return await websockets.connect(self._connect_url(), additional_headers=headers)
 
 
 
@@ -442,17 +448,19 @@ steps:
   - id: run_agent
     step_type: agent_task
     agent_fqn: {agent_fqn}
+    input_bindings:
+      journey: $.input.journey
 """.strip()
 
 
 @pytest.fixture(scope="session")
 def mock_google_oidc() -> str:
-    return _env("MOCK_GOOGLE_OIDC_URL", "http://mock-google-oidc:8080")
+    return _env("MOCK_GOOGLE_OIDC_URL", "http://localhost:8083")
 
 
 @pytest.fixture(scope="session")
 def mock_github_oauth() -> str:
-    return _env("MOCK_GITHUB_OAUTH_URL", "http://mock-github-oauth:8080")
+    return _env("MOCK_GITHUB_OAUTH_URL", "http://localhost:8084")
 
 
 @pytest.fixture(scope="session")

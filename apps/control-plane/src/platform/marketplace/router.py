@@ -157,6 +157,17 @@ async def get_quality_profile(
         requesting_agent_id=_requesting_agent_id(current_user),
     )
     aggregate = await search_service.repository.get_or_create_quality_aggregate(agent_id)
+    certification_compliance = aggregate.certification_status
+    if certification_compliance == "uncertified":
+        get_active_certification_status = getattr(
+            search_service.repository,
+            "get_active_certification_status",
+            None,
+        )
+        if get_active_certification_status is not None:
+            active_certification_status = await get_active_certification_status(agent_id)
+            if active_certification_status is not None:
+                certification_compliance = active_certification_status
     return QualityProfileSchema(
         agent_id=agent_id,
         has_data=aggregate.has_data,
@@ -165,7 +176,7 @@ async def get_quality_profile(
         self_correction_rate=aggregate.self_correction_rate if aggregate.has_data else None,
         satisfaction_avg=aggregate.satisfaction_avg if aggregate.has_data else None,
         satisfaction_count=aggregate.satisfaction_count,
-        certification_compliance=aggregate.certification_status,
+        certification_compliance=certification_compliance,
         last_updated_at=aggregate.data_source_last_updated_at,
         source_unavailable=aggregate.source_unavailable_since is not None,
     )

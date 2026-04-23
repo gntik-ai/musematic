@@ -24,10 +24,12 @@ type Scanner struct {
 		InsertRuntimeEvent(context.Context, state.RuntimeEventRecord) error
 	}
 	Interval time.Duration
+	Timeout  time.Duration
 	Emitter  *events.EventEmitter
 	Fanout   *events.FanoutRegistry
 	Logger   *slog.Logger
 	Metrics  *metrics.Registry
+	Now      func() time.Time
 }
 
 func (s *Scanner) Run(ctx context.Context) error {
@@ -50,12 +52,16 @@ func (s *Scanner) ScanOnce(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	now := s.now()
 	for _, runtime := range runtimes {
 		exists, err := s.Redis.Exists(ctx, heartbeatKey(runtime.ExecutionID)).Result()
 		if err != nil {
 			return err
 		}
 		if exists > 0 {
+			continue
+		}
+		if !s.timedOut(runtime, now) {
 			continue
 		}
 		if err := s.Store.UpdateRuntimeState(ctx, runtime.ExecutionID, "failed", "heartbeat_timeout"); err != nil {
@@ -83,4 +89,29 @@ func (s *Scanner) ScanOnce(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (s *Scanner) now() time.Time {
+	if s.Now != nil {
+		return s.Now().UTC()
+	}
+	return time.Now().UTC()
+}
+
+func (s *Scanner) timedOut(runtime state.RuntimeRecord, now time.Time) bool {
+	timeout := s.Timeout
+	if timeout <= 0 {
+		timeout = time.Minute
+	}
+	reference := runtime.CreatedAt
+	if runtime.LaunchedAt != nil {
+		reference = *runtime.LaunchedAt
+	}
+	if runtime.LastHeartbeatAt != nil {
+		reference = *runtime.LastHeartbeatAt
+	}
+	if reference.IsZero() {
+		return true
+	}
+	return !reference.Add(timeout).After(now)
 }

@@ -37,6 +37,7 @@ class ExecutionDomainEventType(StrEnum):
     execution_reprioritized = "execution.reprioritized"
     execution_rolled_back = "execution.rolled_back"
     prompt_secret_detected = "prompt_secret_detected"
+    reasoning_trace_emitted = "reasoning.trace_emitted"
 
 
 class ExecutionCreatedEvent(BaseModel):
@@ -82,12 +83,23 @@ class PromptSecretDetectedEvent(BaseModel):
     secret_type: str
 
 
+class ReasoningTraceEmittedEvent(BaseModel):
+    """Represent a runtime reasoning trace event payload."""
+
+    execution_id: UUID
+    step_id: str | None = None
+    technique: str
+    status: str
+    storage_key: str
+
+
 EXECUTION_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     ExecutionDomainEventType.execution_created.value: ExecutionCreatedEvent,
     ExecutionDomainEventType.execution_status_changed.value: ExecutionStatusChangedEvent,
     ExecutionDomainEventType.execution_reprioritized.value: ExecutionReprioritizedEvent,
     ExecutionDomainEventType.execution_rolled_back.value: ExecutionRolledBackEvent,
     ExecutionDomainEventType.prompt_secret_detected.value: PromptSecretDetectedEvent,
+    ExecutionDomainEventType.reasoning_trace_emitted.value: ReasoningTraceEmittedEvent,
 }
 
 

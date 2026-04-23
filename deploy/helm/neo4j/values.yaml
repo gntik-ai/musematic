@@ -1,6 +1,7 @@
 createNamespace: true
 
 neo4j:
+  fullnameOverride: musematic-neo4j
   disableLookups: true
   edition: community
   minimumClusterSize: 1

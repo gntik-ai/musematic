@@ -15,7 +15,8 @@ func NewRedisClient(addr string) *redis.ClusterClient {
 	}
 
 	opts := &redis.ClusterOptions{
-		Addrs: addrs,
+		Addrs:    addrs,
+		Password: strings.TrimSpace(os.Getenv("REDIS_PASSWORD")),
 	}
 	if os.Getenv("REDIS_TEST_MODE") == "standalone" {
 		opts.ClusterSlots = func(context.Context) ([]redis.ClusterSlot, error) {

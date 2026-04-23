@@ -2,17 +2,19 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import json
+import logging
 import os
 import socket
 from datetime import UTC, datetime
 from importlib import import_module
-from platform.common.events.envelope import EventEnvelope
+from platform.common.events.envelope import EventEnvelope, parse_event_envelope
 from platform.ws_hub.schemas import EventMessage
-from platform.ws_hub.subscription import ChannelType, SubscriptionRegistry
+from platform.ws_hub.subscription import ChannelType, SubscriptionRegistry, subscription_key
 from platform.ws_hub.visibility import VisibilityFilter
 from typing import Any, Protocol
 from uuid import UUID
+
+LOGGER = logging.getLogger(__name__)
 
 
 class _ConnectionRegistry(Protocol):
@@ -131,7 +133,7 @@ class KafkaFanout:
                 consumer = consumer_cls(
                     topic,
                     bootstrap_servers=self.settings.KAFKA_BROKERS,
-                    group_id=self._consumer_group_id,
+                    group_id=self._group_id_for_topic(topic),
                     enable_auto_commit=False,
                     auto_offset_reset="latest",
                 )
@@ -161,7 +163,12 @@ class KafkaFanout:
     async def _consumer_loop(self, topic: str, consumer: Any) -> None:
         try:
             async for message in consumer:
-                await self._route_event(topic, message.value)
+                try:
+                    await self._route_event(topic, message.value)
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    LOGGER.exception("ws-hub failed to route Kafka event", extra={"topic": topic})
                 commit = getattr(consumer, "commit", None)
                 if callable(commit):
                     result = commit()
@@ -188,6 +195,8 @@ class KafkaFanout:
             for subscriber_id in subscriber_ids:
                 conn = self.connection_registry.get(subscriber_id)
                 if conn is None or conn.closed.is_set():
+                    continue
+                if not await self._wait_for_subscription_confirmation(conn, channel, resource_id):
                     continue
                 if not self.visibility_filter.is_visible(envelope_dict, conn):
                     continue
@@ -242,7 +251,10 @@ class KafkaFanout:
         payload = envelope.get("payload", {})
         matches: list[tuple[ChannelType, str]] = []
 
-        if topic == "workflow.runtime":
+        if topic == "execution.events":
+            if execution_id := self._as_resource_id(correlation.get("execution_id")):
+                matches.append((ChannelType.EXECUTION, execution_id))
+        elif topic == "workflow.runtime":
             if execution_id := self._as_resource_id(correlation.get("execution_id")):
                 matches.append((ChannelType.EXECUTION, execution_id))
         elif topic == "runtime.lifecycle":
@@ -285,6 +297,33 @@ class KafkaFanout:
 
         return matches
 
+    async def _wait_for_subscription_confirmation(
+        self,
+        conn: Any,
+        channel: ChannelType,
+        resource_id: str,
+    ) -> bool:
+        key = subscription_key(channel, resource_id)
+        if key not in getattr(conn, "pending_subscriptions", set()):
+            return True
+
+        for _ in range(100):
+            if conn.closed.is_set():
+                return False
+            if key not in conn.pending_subscriptions:
+                return True
+            await asyncio.sleep(0.01)
+
+        LOGGER.warning(
+            "ws-hub timed out waiting for subscription confirmation before delivery",
+            extra={
+                "connection_id": getattr(conn, "connection_id", None),
+                "channel": channel.value,
+                "resource_id": resource_id,
+            },
+        )
+        return key not in conn.pending_subscriptions
+
     def _enqueue(self, conn: Any, event_message: EventMessage) -> bool:
         try:
             conn.send_queue.put_nowait(event_message)
@@ -300,22 +339,13 @@ class KafkaFanout:
         conn.send_queue.put_nowait(event_message)
         return True
 
+    def _group_id_for_topic(self, topic: str) -> str:
+        safe_topic = topic.replace(".", "-").replace("_", "-")
+        return f"{self._consumer_group_id}-{safe_topic}"
+
     @staticmethod
     def _load_envelope(raw_message: Any) -> EventEnvelope:
-        if isinstance(raw_message, EventEnvelope):
-            return raw_message
-        if isinstance(raw_message, bytes):
-            payload = json.loads(raw_message.decode("utf-8"))
-        elif isinstance(raw_message, str):
-            payload = json.loads(raw_message)
-        elif isinstance(raw_message, dict):
-            payload = dict(raw_message)
-        else:
-            raise TypeError(f"Unsupported Kafka payload type: {type(raw_message)!r}")
-
-        if "correlation" in payload and "correlation_context" not in payload:
-            payload["correlation_context"] = payload.pop("correlation")
-        return EventEnvelope.model_validate(payload)
+        return parse_event_envelope(raw_message)
 
     @staticmethod
     def _as_resource_id(value: Any) -> str | None:

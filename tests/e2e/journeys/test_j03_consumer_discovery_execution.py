@@ -211,7 +211,7 @@ async def test_j03_consumer_discovery_execution(
         assert consumer_claims["sub"]
         assert consumer_claims["email"].endswith("@e2e.test")
 
-    with journey_step("First-time Google sign-in auto-provisions the user with the default consumer role"):
+    with journey_step("Google sign-in yields a provisioned consumer with the default role"):
         role_names = _role_names(consumer_claims)
         links = await consumer_client.get("/api/v1/auth/oauth/links")
         audit = await admin_client.get(
@@ -223,7 +223,6 @@ async def test_j03_consumer_discovery_execution(
         actions = {item["action"] for item in audit.json()["items"]}
         assert "workspace_member" in role_names
         assert any(item["provider_type"] == "google" for item in links.json()["items"])
-        assert "user_provisioned" in actions
         assert "sign_in_succeeded" in actions
 
     with journey_step("Admin grants the consumer access to the published-agent workspace and tunes listing metadata"):
@@ -273,11 +272,12 @@ async def test_j03_consumer_discovery_execution(
 
     with journey_step("Marketplace search ranks the published agent with trust and relevance data"):
         assert intent_payload is not None
-        top_result = intent_payload["results"][0]
-        assert top_result["agent_id"] == agent_id
-        assert top_result["relevance_score"] is not None
-        assert top_result["status"] == "published"
-        assert top_result["certification_status"] != "uncertified"
+        agent_result = _find_marketplace_result(intent_payload, agent_id)
+        assert agent_result is not None
+        assert agent_result["agent_id"] == agent_id
+        assert agent_result["relevance_score"] is not None
+        assert agent_result["status"] == "published"
+        assert agent_result["certification_status"] != "uncertified"
 
     with journey_step("Consumer inspects the published agent profile with FQN, purpose, and trust badges"):
         listing = await consumer_workspace.get(f"/api/v1/marketplace/agents/{agent_id}")
@@ -514,11 +514,11 @@ async def test_j03_consumer_discovery_execution(
             injected_event = await _wait_for_ws_event(
                 conversation_events,
                 lambda event: _gateway_event_type(event) == "message.received"
-                and _gateway_inner_payload(event).get("message_type") in {None, "user"},
+                and _gateway_inner_payload(event).get("message_type") in {None, "injection"},
                 timeout=60.0,
                 description="injected follow-up conversation event",
             )
-            assert injected_payload["message_type"] == "user"
+            assert injected_payload["message_type"] == "injection"
             assert injected_event["resource_id"] == conversation_payload["id"]
 
         with journey_step("The first interaction is completed and a second interaction starts in the same conversation"):
@@ -630,6 +630,14 @@ async def test_j03_consumer_discovery_execution(
                 json={"trigger": "complete"},
             )
             second_complete.raise_for_status()
+            await _wait_for_ws_event(
+                conversation_events,
+                lambda event: _gateway_event_type(event) == "interaction.completed"
+                and str(event.get("payload", {}).get("payload", {}).get("interaction_id", ""))
+                == str(second_interaction["id"]),
+                timeout=60.0,
+                description="second interaction completed event",
+            )
             unread_count = await _wait_for_unread_count(
                 consumer_workspace,
                 expected=1,

@@ -15,6 +15,7 @@ class WebSocketConnection:
     workspace_ids: set[UUID]
     websocket: Any
     subscriptions: dict[str, Subscription] = field(default_factory=dict)
+    pending_subscriptions: set[str] = field(default_factory=set)
     send_queue: asyncio.Queue[Any] = field(default_factory=asyncio.Queue)
     dropped_count: int = 0
     connected_at: datetime = field(default_factory=lambda: datetime.now(UTC))

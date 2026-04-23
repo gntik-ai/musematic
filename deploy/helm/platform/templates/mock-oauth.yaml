@@ -1,0 +1,148 @@
+{{- $e2eEnabled := and .Values.controlPlane.common.featureE2EMode true -}}
+{{- if and $e2eEnabled .Values.mockOAuth.google.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mock-google-oidc-config
+  namespace: {{ .Release.Namespace }}
+data:
+  seed-users.json: |
+{{ .Values.mockOAuth.google.seedUsers | toJson | indent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-google-oidc
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: {{ .Values.mockOAuth.google.service.type }}
+  selector:
+    app.kubernetes.io/name: mock-google-oidc
+  ports:
+    - name: http
+      port: {{ .Values.mockOAuth.google.service.port }}
+      targetPort: http
+{{- if and (eq .Values.mockOAuth.google.service.type "NodePort") .Values.mockOAuth.google.service.nodePort }}
+      nodePort: {{ .Values.mockOAuth.google.service.nodePort }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-google-oidc
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: {{ .Values.mockOAuth.google.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mock-google-oidc
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mock-google-oidc
+    spec:
+      containers:
+        - name: mock-google-oidc
+          image: {{ printf "%s:%s" .Values.mockOAuth.google.image.repository .Values.mockOAuth.google.image.tag | quote }}
+          imagePullPolicy: {{ .Values.mockOAuth.google.image.pullPolicy }}
+          env:
+            - name: SEED_USERS_FILE
+              value: /config/seed-users.json
+            - name: MOCK_ISSUER
+              value: http://mock-google-oidc:8080
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+          resources:
+{{ toYaml .Values.mockOAuth.google.resources | indent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: mock-google-oidc-config
+{{- end }}
+{{- if and $e2eEnabled .Values.mockOAuth.github.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mock-github-oauth-config
+  namespace: {{ .Release.Namespace }}
+data:
+  seed-users.json: |
+{{ .Values.mockOAuth.github.seedUsers | toJson | indent 4 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mock-github-oauth
+  namespace: {{ .Release.Namespace }}
+spec:
+  type: {{ .Values.mockOAuth.github.service.type }}
+  selector:
+    app.kubernetes.io/name: mock-github-oauth
+  ports:
+    - name: http
+      port: {{ .Values.mockOAuth.github.service.port }}
+      targetPort: http
+{{- if and (eq .Values.mockOAuth.github.service.type "NodePort") .Values.mockOAuth.github.service.nodePort }}
+      nodePort: {{ .Values.mockOAuth.github.service.nodePort }}
+{{- end }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-github-oauth
+  namespace: {{ .Release.Namespace }}
+spec:
+  replicas: {{ .Values.mockOAuth.github.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mock-github-oauth
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mock-github-oauth
+    spec:
+      containers:
+        - name: mock-github-oauth
+          image: {{ printf "%s:%s" .Values.mockOAuth.github.image.repository .Values.mockOAuth.github.image.tag | quote }}
+          imagePullPolicy: {{ .Values.mockOAuth.github.image.pullPolicy }}
+          env:
+            - name: SEED_USERS_FILE
+              value: /config/seed-users.json
+            - name: MOCK_BASE_URL
+              value: http://mock-github-oauth:8080
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+          resources:
+{{ toYaml .Values.mockOAuth.github.resources | indent 12 }}
+          volumeMounts:
+            - name: config
+              mountPath: /config
+              readOnly: true
+      volumes:
+        - name: config
+          configMap:
+            name: mock-github-oauth-config
+{{- end }}

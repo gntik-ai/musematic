@@ -575,10 +575,16 @@ class WorkspacesService:
             workspace = await self.repo.get_workspace_by_id_any(resource_id)
             return workspace.id if workspace is not None else None
 
+        if resolved_channel is ChannelType.EXECUTION:
+            return await self.repo.get_workspace_id_for_execution(resource_id)
+
+        if resolved_channel is ChannelType.INTERACTION:
+            return await self.repo.get_workspace_id_for_interaction(resource_id)
+
+        if resolved_channel is ChannelType.CONVERSATION:
+            return await self.repo.get_workspace_id_for_conversation(resource_id)
+
         if resolved_channel in {
-            ChannelType.EXECUTION,
-            ChannelType.INTERACTION,
-            ChannelType.CONVERSATION,
             ChannelType.REASONING,
             ChannelType.CORRECTION,
             ChannelType.SIMULATION,

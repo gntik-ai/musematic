@@ -16,7 +16,7 @@ postgresql:
   monitoring:
     enabled: false
   credentials:
-    username: postgres
+    username: musematic
     password: change-me
     database: musematic
     existingSecret: ""
@@ -24,10 +24,28 @@ postgresql:
 redis:
   auth:
     password: change-me
+  global:
+    imageRegistry: mirror.gcr.io
+    security:
+      allowInsecureImages: true
+    redis:
+      password: change-me
   redis-cluster:
+    fullnameOverride: musematic-redis
+    image:
+      registry: mirror.gcr.io
+      repository: bitnamilegacy/redis-cluster
+      tag: 8.2.1-debian-12-r0
+    password: change-me
+    existingSecret: redis-credentials
+    existingSecretPasswordKey: password
     cluster:
-      nodes: 1
+      nodes: 3
       replicas: 0
+    volumePermissions:
+      enabled: false
+    sysctlImage:
+      enabled: false
     redis:
       maxmemory: 256Mi
     persistence:
@@ -40,7 +58,7 @@ redis:
     enabled: false
 
 kafka:
-  namespace: platform-data
+  namespace: strimzi-system
   clusterName: musematic-kafka
   combined: true
   combinedReplicas: 1
@@ -55,13 +73,20 @@ kafka:
 minio:
   namespace: platform-data
   bucketInit:
-    enabled: false
+    enabled: true
   standalone: true
   servers: 1
   volumesPerServer: 1
   storageSize: 2Gi
   minio:
     enabled: true
+  images:
+    minio:
+      repository: mirror.gcr.io/minio/minio
+      tag: latest
+    mc:
+      repository: mirror.gcr.io/minio/mc
+      tag: latest
   resources:
     requests:
       cpu: 250m
@@ -81,6 +106,9 @@ minio:
 qdrant:
   qdrant:
     replicaCount: 1
+    image:
+      repository: mirror.gcr.io/qdrant/qdrant
+      tag: v1.16.3
     config:
       cluster:
         enabled: false
@@ -99,6 +127,9 @@ qdrant:
 
 neo4j:
   neo4j:
+    fullnameOverride: musematic-neo4j
+    image:
+      customImage: mirror.gcr.io/library/neo4j:5.21.0
     resources:
       cpu: 500m
       memory: 1Gi
@@ -114,34 +145,73 @@ neo4j:
     enabled: false
   backup:
     enabled: false
+    image: mirror.gcr.io/library/neo4j:5.21.0
   schemaInit:
     enabled: false
+    image: mirror.gcr.io/library/neo4j:5.21.0
 
 clickhouse:
-  shards: 1
-  replicas: 1
-  zookeeper:
-    enabled: false
-  auth:
-    username: default
-    password: ""
-    database: default
+  enabled: false
+  clickhouse:
+    replicaCount: 1
+    keeper:
+      enabled: false
+      replicaCount: 1
+    auth:
+      user: default
+      password: ""
+    resources:
+      requests:
+        cpu: 250m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+    config:
+      max_memory_usage: "536870912"
+      max_insert_block_size: 262144
   persistence:
     size: 2Gi
-  resources:
-    requests:
-      cpu: 250m
-      memory: 512Mi
-    limits:
-      cpu: 500m
-      memory: 1Gi
   schemaInit:
+    enabled: false
+  backup:
+    enabled: false
+  networkPolicy:
     enabled: false
 
 opensearch:
+  global:
+    dockerRegistry: mirror.gcr.io
   opensearch:
+    singleNode: true
+    protocol: http
     replicas: 1
+    image:
+      repository: opensearchproject/opensearch
+      tag: "2.18.0"
+    plugins:
+      enabled: false
+    config:
+      opensearch.yml: |
+        cluster.name: opensearch-cluster
+        network.host: 0.0.0.0
+        discovery.type: single-node
+        plugins.security.disabled: true
+    extraEnvs:
+      - name: DISABLE_SECURITY_PLUGIN
+        value: "true"
+      - name: DISABLE_INSTALL_DEMO_CONFIG
+        value: "true"
+      - name: OPENSEARCH_JAVA_OPTS
+        value: "-Xms512m -Xmx512m"
+    keystore: []
+    extraInitContainers: []
+    sysctlInit:
+      enabled: false
     persistence:
+      enableInitChown: false
+      image: library/busybox
+      imageTag: latest
       size: 2Gi
     resources:
       requests:
@@ -152,10 +222,16 @@ opensearch:
         memory: 1Gi
   opensearch-dashboards:
     enabled: false
+    image:
+      repository: opensearchproject/opensearch-dashboards
+      tag: "2.18.0"
   networkPolicy:
     enabled: false
   initJob:
     enabled: false
+    image:
+      repository: mirror.gcr.io/library/python
+      tag: "3.12-slim"
 
 controlPlane:
   image:
@@ -169,6 +245,23 @@ controlPlane:
     mockLlmEnabled: true
     zeroTrustVisibility: true
     otelResourceAttributes: deployment.environment=e2e
+  auth:
+    oauth:
+      google:
+        authorizeUrl: http://mock-google-oidc.platform.svc.cluster.local:8080/authorize
+        tokenUrl: http://mock-google-oidc.platform.svc.cluster.local:8080/token
+        tokenInfoUrl: http://mock-google-oidc.platform.svc.cluster.local:8080/tokeninfo
+      github:
+        authorizeUrl: http://mock-github-oauth.platform.svc.cluster.local:8080/login/oauth/authorize
+        tokenUrl: http://mock-github-oauth.platform.svc.cluster.local:8080/login/oauth/access_token
+        userUrl: http://mock-github-oauth.platform.svc.cluster.local:8080/user
+        emailsUrl: http://mock-github-oauth.platform.svc.cluster.local:8080/user/emails
+        teamsUrl: http://mock-github-oauth.platform.svc.cluster.local:8080/user/teams
+        orgMembershipUrlTemplate: http://mock-github-oauth.platform.svc.cluster.local:8080/user/memberships/orgs/{org}
+  connections:
+    kafkaBrokers: musematic-kafka-kafka-bootstrap.strimzi-system.svc.cluster.local:9092
+    redisTestMode: cluster
+    authMfaEncryptionKey: qdMMPTH3tcYWWMTPdN1zQ8F1PQ89mZ7xRcbk6VwBEm0=
   api:
     replicaCount: 1
     service:
@@ -193,6 +286,18 @@ runtimeController:
     tag: local
   config:
     otelResourceAttributes: deployment.environment=e2e
+  secrets:
+    POSTGRES_DSN: postgres://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable
+    REDIS_ADDR: musematic-redis.platform.svc.cluster.local:6379
+    REDIS_PASSWORD: change-me
+    KAFKA_BROKERS: musematic-kafka-kafka-bootstrap.strimzi-system.svc.cluster.local:9092
+    S3_ENDPOINT_URL: http://musematic-minio.platform-data.svc.cluster.local:9000
+    S3_BUCKET: platform-execution-artifacts
+    S3_ACCESS_KEY: platform
+    S3_SECRET_KEY: change-me
+    S3_REGION: us-east-1
+    S3_USE_PATH_STYLE: "true"
+    K8S_DRY_RUN: "false"
   networkPolicy:
     enabled: false
 
@@ -207,6 +312,13 @@ reasoningEngine:
     targetCPUUtilizationPercentage: 70
   config:
     otelResourceAttributes: deployment.environment=e2e
+  secrets:
+    POSTGRES_DSN: postgres://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable
+    REDIS_ADDR: musematic-redis.platform.svc.cluster.local:6379
+    REDIS_PASSWORD: change-me
+    KAFKA_BROKERS: musematic-kafka-kafka-bootstrap.strimzi-system.svc.cluster.local:9092
+    MINIO_ENDPOINT: http://musematic-minio.platform-data.svc.cluster.local:9000
+    MINIO_BUCKET: reasoning-traces
 
 simulationController:
   replicaCount: 1
@@ -219,8 +331,8 @@ simulationController:
   env:
     OTEL_RESOURCE_ATTRIBUTES: deployment.environment=e2e
   secrets:
-    POSTGRES_DSN: postgres://postgres:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable
-    KAFKA_BROKERS: musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092
+    POSTGRES_DSN: postgres://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable
+    KAFKA_BROKERS: musematic-kafka-kafka-bootstrap.strimzi-system.svc.cluster.local:9092
     S3_ENDPOINT_URL: http://musematic-minio.platform-data.svc.cluster.local:9000
     S3_ACCESS_KEY: platform
     S3_SECRET_KEY: change-me
@@ -239,8 +351,8 @@ sandboxManager:
       cpu: 500m
       memory: 512Mi
   config:
-    postgresDsn: postgres://postgres:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable
-    kafkaBrokers: musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092
+    postgresDsn: postgres://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable
+    kafkaBrokers: musematic-kafka-kafka-bootstrap.strimzi-system.svc.cluster.local:9092
     minioEndpoint: http://musematic-minio.platform-data.svc.cluster.local:9000
     minioBucket: platform-execution-artifacts
     k8sNamespace: platform-execution
@@ -263,11 +375,15 @@ ui:
 mockOAuth:
   google:
     enabled: true
-    image: ghcr.io/musematic/mock-google-oidc:local
+    image:
+      repository: ghcr.io/musematic/mock-google-oidc
+      tag: local
+      pullPolicy: IfNotPresent
     replicas: 1
     service:
-      type: ClusterIP
+      type: NodePort
       port: 8080
+      nodePort: 30083
     resources:
       requests:
         memory: 64Mi
@@ -278,23 +394,27 @@ mockOAuth:
     seedUsers:
       - key: j-admin
         sub: google-admin-001
-        email: j-admin@company.com
+        email: j-admin@e2e.test
         email_verified: true
       - key: j-creator
         sub: google-creator-001
-        email: j-creator@company.com
+        email: j-creator@e2e.test
         email_verified: true
       - key: j-consumer
         sub: google-consumer-001
-        email: j-consumer@company.com
+        email: j-consumer@e2e.test
         email_verified: true
   github:
     enabled: true
-    image: ghcr.io/musematic/mock-github-oauth:local
+    image:
+      repository: ghcr.io/musematic/mock-github-oauth
+      tag: local
+      pullPolicy: IfNotPresent
     replicas: 1
     service:
-      type: ClusterIP
+      type: NodePort
       port: 8080
+      nodePort: 30084
     resources:
       requests:
         memory: 64Mi
@@ -306,26 +426,9 @@ mockOAuth:
       - key: j-admin-gh
         id: 1001
         login: j-admin
-        email: j-admin@company.com
+        email: j-admin@e2e.test
       - key: j-creator-gh
         id: 1002
         login: j-creator
-        email: j-creator@company.com
+        email: j-creator@e2e.test
 
-auth:
-  oauth:
-    google:
-      authorize_url: http://mock-google-oidc:8080/authorize
-      token_url: http://mock-google-oidc:8080/token
-      userinfo_url: http://mock-google-oidc:8080/userinfo
-      jwks_url: http://mock-google-oidc:8080/.well-known/jwks.json
-      issuer: http://mock-google-oidc:8080
-      client_id: mock-google-client-id
-      client_secret: mock-google-client-secret
-    github:
-      authorize_url: http://mock-github-oauth:8080/login/oauth/authorize
-      token_url: http://mock-github-oauth:8080/login/oauth/access_token
-      user_url: http://mock-github-oauth:8080/user
-      emails_url: http://mock-github-oauth:8080/user/emails
-      client_id: mock-github-client-id
-      client_secret: mock-github-client-secret

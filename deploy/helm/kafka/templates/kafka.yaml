@@ -1,4 +1,4 @@
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: Kafka
 metadata:
   name: {{ .Values.clusterName }}
@@ -24,7 +24,7 @@ spec:
       offsets.topic.replication.factor: {{ .Values.replicationFactor }}
       transaction.state.log.replication.factor: {{ .Values.replicationFactor }}
       min.insync.replicas: {{ .Values.minInsyncReplicas }}
-      log.retention.ms: {{ .Values.logRetentionMs | quote }}
+      log.retention.ms: {{ .Values.logRetentionMs | int64 | quote }}
     metricsConfig:
       type: jmxPrometheusExporter
       valueFrom:

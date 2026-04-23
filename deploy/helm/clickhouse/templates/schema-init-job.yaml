@@ -20,12 +20,23 @@ spec:
       initContainers:
         - name: wait-for-clickhouse
           image: {{ .Values.schemaInit.image | quote }}
+          env:
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: clickhouse-credentials
+                  key: CLICKHOUSE_PASSWORD
           command:
             - /bin/bash
             - -ec
             - |
               for attempt in $(seq 1 {{ .Values.schemaInit.retries }}); do
-                if curl -fsS http://musematic-clickhouse.{{ .Release.Namespace }}.svc.cluster.local:8123/ping >/dev/null; then
+                if clickhouse-client \
+                  --host musematic-clickhouse.{{ .Release.Namespace }}.svc.cluster.local \
+                  --port {{ .Values.service.nativePort }} \
+                  --user {{ .Values.clickhouse.auth.user }} \
+                  --password "$CLICKHOUSE_PASSWORD" \
+                  --query "SELECT 1" >/dev/null 2>&1; then
                   exit 0
                 fi
                 sleep {{ .Values.schemaInit.retryIntervalSeconds }}

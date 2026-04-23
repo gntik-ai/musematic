@@ -21,16 +21,28 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 
 def build_oauth_service(request: Request, db: AsyncSession) -> OAuthService:
+    settings = _get_settings(request)
     return OAuthService(
         repository=OAuthRepository(db),
         auth_repository=AuthRepository(db),
         accounts_repository=AccountsRepository(db),
         redis_client=_get_redis_client(request),
-        settings=_get_settings(request),
+        settings=settings,
         producer=_get_producer(request),
         auth_service=build_auth_service(request, db),
-        google_provider=GoogleOAuthProvider(),
-        github_provider=GitHubOAuthProvider(),
+        google_provider=GoogleOAuthProvider(
+            auth_endpoint=settings.auth.oauth_google_authorize_url,
+            token_endpoint=settings.auth.oauth_google_token_url,
+            token_info_endpoint=settings.auth.oauth_google_token_info_url,
+        ),
+        github_provider=GitHubOAuthProvider(
+            auth_endpoint=settings.auth.oauth_github_authorize_url,
+            token_endpoint=settings.auth.oauth_github_token_url,
+            user_endpoint=settings.auth.oauth_github_user_url,
+            emails_endpoint=settings.auth.oauth_github_emails_url,
+            teams_endpoint=settings.auth.oauth_github_teams_url,
+            org_membership_endpoint_template=settings.auth.oauth_github_org_membership_url_template,
+        ),
     )
 
 

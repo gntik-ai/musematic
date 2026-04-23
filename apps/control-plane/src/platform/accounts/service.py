@@ -533,7 +533,10 @@ class AccountsService:
         )
 
     async def reset_mfa(self, user_id: UUID, actor_id: UUID) -> ResetMfaResponse:
-        if await self.repo.get_user_by_id(user_id) is None:
+        account_user = await self.repo.get_user_by_id(user_id)
+        platform_user = await self.auth_service.repository.get_platform_user(user_id)
+        enrollment = await self.auth_service.repository.get_mfa_enrollment(user_id)
+        if account_user is None and platform_user is None and enrollment is None:
             raise NotFoundError("USER_NOT_FOUND", "User not found")
         cleared = await self.auth_service.reset_mfa(user_id)
         await publish_accounts_event(

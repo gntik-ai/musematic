@@ -2,6 +2,8 @@ CLUSTER_NAME ?= amp-e2e
 PORT_UI ?= 8080
 PORT_API ?= 8081
 PORT_WS ?= 8082
+PORT_GOOGLE_OIDC ?= 8083
+PORT_GITHUB_OAUTH ?= 8084
 RELEASE_NAME ?= amp
 NAMESPACE ?= platform
 
@@ -11,6 +13,8 @@ KIND_CONFIG_RENDERED := /tmp/kind-config-$(CLUSTER_NAME).yaml
 
 export PLATFORM_API_URL ?= http://localhost:$(PORT_API)
 export PLATFORM_WS_URL ?= ws://localhost:$(PORT_WS)
+export MOCK_GOOGLE_OIDC_URL ?= http://localhost:$(PORT_GOOGLE_OIDC)
+export MOCK_GITHUB_OAUTH_URL ?= http://localhost:$(PORT_GITHUB_OAUTH)
 
 .PHONY: e2e-check render-kind-config load-images e2e-up e2e-down e2e-test e2e-chaos e2e-perf e2e-reset e2e-logs e2e-shell capture-state e2e-journeys e2e-j01 e2e-j02 e2e-j03 e2e-j04 e2e-j05 e2e-j06 e2e-j07 e2e-j08 e2e-j09
 
@@ -23,13 +27,13 @@ e2e-check:
 	@command -v envsubst >/dev/null 2>&1 || (echo "envsubst is required" >&2; exit 1)
 
 render-kind-config:
-	@CLUSTER_NAME=$(CLUSTER_NAME) PORT_UI=$(PORT_UI) PORT_API=$(PORT_API) PORT_WS=$(PORT_WS) envsubst < $(KIND_CONFIG_TEMPLATE) > $(KIND_CONFIG_RENDERED)
+	@CLUSTER_NAME=$(CLUSTER_NAME) PORT_UI=$(PORT_UI) PORT_API=$(PORT_API) PORT_WS=$(PORT_WS) PORT_GOOGLE_OIDC=$(PORT_GOOGLE_OIDC) PORT_GITHUB_OAUTH=$(PORT_GITHUB_OAUTH) envsubst < $(KIND_CONFIG_TEMPLATE) > $(KIND_CONFIG_RENDERED)
 
 load-images:
 	@CLUSTER_NAME=$(CLUSTER_NAME) ./cluster/load-images.sh
 
 e2e-up: render-kind-config
-	@CLUSTER_NAME=$(CLUSTER_NAME) PORT_UI=$(PORT_UI) PORT_API=$(PORT_API) PORT_WS=$(PORT_WS) RELEASE_NAME=$(RELEASE_NAME) NAMESPACE=$(NAMESPACE) KIND_CONFIG_PATH=$(KIND_CONFIG_RENDERED) ./cluster/install.sh
+	@CLUSTER_NAME=$(CLUSTER_NAME) PORT_UI=$(PORT_UI) PORT_API=$(PORT_API) PORT_WS=$(PORT_WS) PORT_GOOGLE_OIDC=$(PORT_GOOGLE_OIDC) PORT_GITHUB_OAUTH=$(PORT_GITHUB_OAUTH) RELEASE_NAME=$(RELEASE_NAME) NAMESPACE=$(NAMESPACE) KIND_CONFIG_PATH=$(KIND_CONFIG_RENDERED) ./cluster/install.sh
 
 e2e-down:
 	@kind delete cluster --name $(CLUSTER_NAME)

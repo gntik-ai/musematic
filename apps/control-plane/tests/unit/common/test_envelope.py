@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
+
 from platform.common.correlation import goal_id_var
-from platform.common.events.envelope import CorrelationContext, make_envelope
+from platform.common.events.envelope import CorrelationContext, make_envelope, parse_event_envelope
 from uuid import uuid4
 
 import pytest
@@ -149,3 +151,50 @@ def test_make_envelope_updates_existing_context_one_field_at_a_time() -> None:
     )
     assert with_fqn.correlation_context.goal_id == goal_id
     assert with_fqn.correlation_context.agent_fqn == "ops:agent"
+
+
+def test_parse_event_envelope_normalizes_legacy_runtime_controller_payload() -> None:
+    execution_id = uuid4()
+    workspace_id = uuid4()
+    event_id = uuid4()
+
+    envelope = parse_event_envelope(
+        {
+            "event_id": str(event_id),
+            "event_type": "runtime.drift.mismatch",
+            "execution_id": str(execution_id),
+            "occurred_at": "2026-04-22T22:13:00.000000Z",
+            "correlation_context": {
+                "workspace_id": str(workspace_id),
+                "execution_id": str(execution_id),
+            },
+            "payload": {"reason": "runtime.drift.mismatch"},
+        }
+    )
+
+    assert envelope.source == "runtime-controller"
+    assert envelope.version == "1.0"
+    assert envelope.correlation_context.correlation_id == event_id
+    assert envelope.correlation_context.workspace_id == workspace_id
+    assert envelope.correlation_context.execution_id == execution_id
+    assert envelope.payload == {"reason": "runtime.drift.mismatch"}
+
+
+def test_parse_event_envelope_unwraps_nested_envelope_bytes() -> None:
+    correlation_id = uuid4()
+    raw = {
+        "event": {"type": "ignored"},
+        "envelope": {
+            "event_type": "sandbox.created",
+            "source": "sandbox-manager",
+            "correlation_context": {"correlation_id": str(correlation_id)},
+            "payload": {"state": "creating"},
+        },
+    }
+
+    envelope = parse_event_envelope(json.dumps(raw).encode("utf-8"))
+
+    assert envelope.event_type == "sandbox.created"
+    assert envelope.source == "sandbox-manager"
+    assert envelope.correlation_context.correlation_id == correlation_id
+    assert envelope.payload == {"state": "creating"}

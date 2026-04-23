@@ -15,7 +15,16 @@ from redis.asyncio import Redis
 from redis.asyncio.cluster import RedisCluster
 from redis.exceptions import RedisError
 
-LUA_DIR = Path(__file__).resolve().parents[6] / "lua"
+def _resolve_lua_dir() -> Path:
+    current = Path(__file__).resolve()
+    for parent in current.parents:
+        candidate = parent / "lua"
+        if candidate.is_dir():
+            return candidate
+    raise RuntimeError(f"unable to locate lua directory from {current}")
+
+
+LUA_DIR = _resolve_lua_dir()
 
 
 @dataclass(slots=True)

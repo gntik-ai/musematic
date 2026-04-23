@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 from datetime import UTC, datetime
+from platform.accounts.models import SignupSource, User as AccountUser, UserStatus as AccountUserStatus
 from platform.auth.models import (
     AuthAttempt,
     IBORConnector,
@@ -19,12 +20,55 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import and_, delete, or_, select, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class AuthRepository:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
+
+    async def get_account_user(self, user_id: UUID) -> AccountUser | None:
+        result = await self.db.execute(select(AccountUser).where(AccountUser.id == user_id))
+        return result.scalar_one_or_none()
+
+    async def get_account_user_by_email(self, email: str) -> AccountUser | None:
+        result = await self.db.execute(
+            select(AccountUser).where(AccountUser.email == email.lower())
+        )
+        return result.scalar_one_or_none()
+
+    async def ensure_account_user(
+        self,
+        user_id: UUID,
+        email: str,
+        display_name: str,
+    ) -> AccountUser:
+        normalized_email = email.lower()
+        now = datetime.now(UTC)
+        await self.db.execute(
+            insert(AccountUser)
+            .values(
+                id=user_id,
+                email=normalized_email,
+                display_name=display_name,
+                status=AccountUserStatus.active,
+                signup_source=SignupSource.self_registration,
+                email_verified_at=now,
+                activated_at=now,
+                max_workspaces=0,
+            )
+            .on_conflict_do_nothing()
+        )
+        account_user = await self.get_account_user(user_id)
+        if account_user is not None:
+            return account_user
+        existing = await self.get_account_user_by_email(normalized_email)
+        if existing is not None and existing.id == user_id:
+            return existing
+        if existing is not None:
+            raise ValueError('Account email already belongs to a different user')
+        raise LookupError(f'Account user for {user_id} disappeared after ensure')
 
     async def get_credential_by_email(self, email: str) -> UserCredential | None:
         result = await self.db.execute(
@@ -73,6 +117,39 @@ class AuthRepository:
         self.db.add(credential)
         await self.db.flush()
         return credential
+
+    async def get_credential_by_user_id(self, user_id: UUID) -> UserCredential | None:
+        result = await self.db.execute(
+            select(UserCredential).where(UserCredential.user_id == user_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def ensure_credential(
+        self,
+        user_id: UUID,
+        email: str,
+        password_hash: str,
+    ) -> UserCredential:
+        normalized_email = email.lower()
+        await self.db.execute(
+            insert(UserCredential)
+            .values(
+                user_id=user_id,
+                email=normalized_email,
+                password_hash=password_hash,
+                is_active=True,
+            )
+            .on_conflict_do_nothing()
+        )
+        credential = await self.get_credential_by_user_id(user_id)
+        if credential is not None:
+            return credential
+        existing = await self.get_credential_by_email(normalized_email)
+        if existing is not None and existing.user_id == user_id:
+            return existing
+        if existing is not None:
+            raise ValueError('Credential email already belongs to a different user')
+        raise LookupError(f'Credential for user {user_id} disappeared after ensure')
 
     async def create_password_reset_token(
         self,

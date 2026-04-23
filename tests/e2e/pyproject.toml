@@ -16,6 +16,8 @@ dependencies = [
   "aiokafka>=0.11",
   "asyncpg",
   "kubernetes",
+  "PyJWT>=2.9",
+  "pyotp>=2.9",
 ]
 
 [project.optional-dependencies]

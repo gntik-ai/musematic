@@ -7,7 +7,7 @@ from platform.common.models.mixins import TimestampMixin, UUIDMixin
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import Boolean, ForeignKey, Index, Integer, String, Text, text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
@@ -133,9 +133,9 @@ class AlertDeliveryOutcome(Base, UUIDMixin, TimestampMixin):
         SAEnum(DeliveryOutcome, name="deliveryoutcome"),
         nullable=True,
     )
-    next_retry_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     error_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
-    delivered_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     alert: Mapped[UserAlert] = relationship(
         "platform.notifications.models.UserAlert",

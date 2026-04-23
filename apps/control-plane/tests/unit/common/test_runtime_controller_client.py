@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from platform.common.clients import runtime_controller_pb2, runtime_controller_pb2_grpc
 from platform.common.clients.runtime_controller import RuntimeControllerClient
 
 import pytest
@@ -97,3 +98,36 @@ async def test_runtime_controller_client_warm_pool_config_calls_stub() -> None:
             "target_size": 5,
         },
     )
+
+
+class GeneratedRuntimeControlServiceStub:
+    __module__ = runtime_controller_pb2_grpc.__name__
+
+
+def test_runtime_controller_client_builds_generated_launch_request() -> None:
+    client = RuntimeControllerClient(target="runtime-controller:50051")
+    request = client._build_request(
+        GeneratedRuntimeControlServiceStub(),
+        "LaunchRuntime",
+        {
+            "contract": {
+                "agent_revision": "ns:a",
+                "model_binding": "{}",
+                "policy_ids": [],
+                "correlation_context": {
+                    "workspace_id": "ws-1",
+                    "execution_id": "exec-1",
+                },
+                "resource_limits": {},
+                "task_plan_json": "{}",
+                "step_id": "step-a",
+            },
+            "prefer_warm": True,
+        },
+    )
+
+    assert isinstance(request, runtime_controller_pb2.LaunchRuntimeRequest)
+    assert request.contract.correlation_context.workspace_id == "ws-1"
+    assert request.contract.correlation_context.execution_id == "exec-1"
+    assert request.contract.agent_revision == "ns:a"
+    assert request.prefer_warm is True

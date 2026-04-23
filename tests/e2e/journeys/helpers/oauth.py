@@ -65,8 +65,13 @@ async def oauth_login(client, provider: str, mock_server: str, login: str):
     redirect_location = callback.headers.get("location", "")
     payload = _decode_oauth_session_payload(redirect_location)
 
-    access_token = payload.get("access_token")
-    refresh_token = payload.get("refresh_token")
+    token_pair = payload.get("token_pair")
+    if isinstance(token_pair, dict):
+        access_token = token_pair.get("access_token")
+        refresh_token = token_pair.get("refresh_token")
+    else:
+        access_token = payload.get("access_token")
+        refresh_token = payload.get("refresh_token")
     if not isinstance(access_token, str) or not access_token:
         raise AssertionError(f"{provider} callback did not include an access token")
     client.set_bearer_token(access_token)

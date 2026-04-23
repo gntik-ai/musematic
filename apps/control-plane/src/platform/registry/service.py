@@ -221,8 +221,9 @@ class RegistryService:
         validation = await self.package_validator.validate(package_bytes, filename)
         manifest = validation.manifest
         revision_id = uuid4()
+        namespace_name = namespace.name
         storage_key = (
-            f"{workspace_id}/{namespace.name}/{manifest.local_name}/{revision_id}/package.tar.gz"
+            f"{workspace_id}/{namespace_name}/{manifest.local_name}/{revision_id}/package.tar.gz"
         )
         bucket = self.settings.registry.package_bucket
         created = False
@@ -271,7 +272,7 @@ class RegistryService:
             if "uq_registry_revision_profile_version" in message:
                 raise RevisionConflictError(manifest.version) from exc
             if "uq_registry_profile_fqn" in message:
-                raise FQNConflictError(f"{namespace.name}:{manifest.local_name}") from exc
+                raise FQNConflictError(f"{namespace_name}:{manifest.local_name}") from exc
             raise
         except Exception:
             await self._rollback()
@@ -287,7 +288,7 @@ class RegistryService:
             AgentCreatedPayload(
                 agent_profile_id=str(profile.id),
                 fqn=profile.fqn,
-                namespace=namespace.name,
+                namespace=namespace_name,
                 workspace_id=str(workspace_id),
                 revision_id=str(revision.id),
                 version=revision.version,
@@ -359,13 +360,14 @@ class RegistryService:
             await self._assert_workspace_access(workspace_id, actor_id)
 
         fetch_limit = max(params.limit + params.offset, 200)
+        visibility_filter = None
+        if requesting_agent_id is not None and self.settings.visibility.zero_trust_enabled:
+            visibility_filter = await self.resolve_effective_visibility(
+                requesting_agent_id,
+                workspace_id,
+            )
+
         if params.keyword:
-            visibility_filter = None
-            if requesting_agent_id is not None and self.settings.visibility.zero_trust_enabled:
-                visibility_filter = await self.resolve_effective_visibility(
-                    requesting_agent_id,
-                    workspace_id,
-                )
             agent_ids, _ = await self.repository.search_by_keyword(
                 workspace_id=workspace_id,
                 keyword=params.keyword,
@@ -375,19 +377,21 @@ class RegistryService:
                 offset=0,
                 index_name=self.settings.registry.search_index,
             )
-            profiles = await self.repository.get_agents_by_ids(
+            visible_profiles = await self.repository.get_agents_by_ids(
                 workspace_id,
                 agent_ids,
                 visibility_filter=visibility_filter,
             )
-            visible_profiles = profiles
-        else:
-            visibility_filter = None
-            if requesting_agent_id is not None and self.settings.visibility.zero_trust_enabled:
-                visibility_filter = await self.resolve_effective_visibility(
-                    requesting_agent_id,
-                    workspace_id,
+            if not visible_profiles:
+                visible_profiles = await self._search_profiles_by_keyword_fallback(
+                    workspace_id=workspace_id,
+                    keyword=params.keyword,
+                    status=params.status,
+                    maturity_min=params.maturity_min,
+                    limit=fetch_limit,
+                    visibility_filter=visibility_filter,
                 )
+        else:
             visible_profiles, total = await self.repository.list_agents_by_workspace(
                 workspace_id,
                 status=params.status,
@@ -415,6 +419,74 @@ class RegistryService:
             offset=params.offset,
         )
 
+    async def _search_profiles_by_keyword_fallback(
+        self,
+        *,
+        workspace_id: UUID,
+        keyword: str,
+        status: LifecycleStatus | None,
+        maturity_min: int,
+        limit: int,
+        visibility_filter: EffectiveVisibility | None,
+    ) -> list[AgentProfile]:
+        fallback_limit = max(limit, 500)
+        profiles, _ = await self.repository.list_agents_by_workspace(
+            workspace_id,
+            status=status,
+            maturity_min=maturity_min,
+            limit=fallback_limit,
+            offset=0,
+            visibility_filter=visibility_filter,
+            include_decommissioned=False,
+        )
+        scored_profiles: list[tuple[int, AgentProfile]] = []
+        for profile in profiles:
+            score = self._keyword_match_score(profile, keyword)
+            if score > 0:
+                scored_profiles.append((score, profile))
+        scored_profiles.sort(
+            key=lambda item: (-item[0], item[1].created_at, str(item[1].id))
+        )
+        return [profile for _, profile in scored_profiles[:limit]]
+
+    def _keyword_match_score(self, profile: AgentProfile, keyword: str) -> int:
+        terms = self._keyword_terms(keyword)
+        if not terms:
+            return 0
+
+        namespace_name = (
+            profile.namespace.name
+            if profile.namespace is not None
+            else profile.fqn.split(":", 1)[0]
+        )
+        full_query = " ".join(terms)
+        weighted_fields = (
+            (profile.display_name, 6),
+            (profile.fqn, 5),
+            (profile.local_name, 4),
+            (namespace_name, 3),
+            (profile.purpose, 5),
+            (profile.approach, 3),
+            (profile.custom_role_description, 2),
+            (" ".join(profile.tags), 3),
+            (" ".join(profile.role_types), 2),
+        )
+        score = 0
+        for value, weight in weighted_fields:
+            if not value:
+                continue
+            normalized_value = self._normalize_keyword_text(value)
+            if full_query in normalized_value:
+                score += weight * (len(terms) + 1)
+            score += sum(weight for term in terms if term in normalized_value)
+        return score
+
+    def _keyword_terms(self, keyword: str) -> list[str]:
+        return re.findall(r"[a-z0-9]+", keyword.casefold())
+
+    def _normalize_keyword_text(self, value: str) -> str:
+        return " ".join(self._keyword_terms(value))
+
     async def patch_agent(
         self,
         workspace_id: UUID,
@@ -427,6 +499,8 @@ class RegistryService:
         updates: dict[str, Any] = {}
         if "display_name" in patch.model_fields_set:
             updates["display_name"] = patch.display_name
+        if "purpose" in patch.model_fields_set and patch.purpose is not None:
+            updates["purpose"] = patch.purpose
         if "approach" in patch.model_fields_set:
             updates["approach"] = patch.approach
         if "tags" in patch.model_fields_set and patch.tags is not None:

@@ -319,6 +319,8 @@ class AuthService:
         return token_pair
 
     async def enroll_mfa(self, user_id: UUID, email: str) -> MfaEnrollResponse:
+        await self._ensure_user_records(user_id=user_id, email=email)
+
         existing = await self.repository.get_mfa_enrollment(user_id)
         if existing is not None and existing.status == MfaStatus.ACTIVE.value:
             raise MfaAlreadyEnrolledError()
@@ -366,6 +368,41 @@ class AuthService:
             self.producer,
         )
         return MfaConfirmResponse()
+
+    async def _ensure_user_records(self, *, user_id: UUID, email: str) -> None:
+        normalized_email = email.strip().lower()
+        display_name = normalized_email.split('@', 1)[0]
+
+        account_user = await self.repository.get_account_user(user_id)
+        if account_user is None:
+            existing_account_user = await self.repository.get_account_user_by_email(normalized_email)
+            if existing_account_user is not None and existing_account_user.id != user_id:
+                raise InvalidAccessTokenError()
+            await self.repository.ensure_account_user(
+                user_id,
+                normalized_email,
+                display_name,
+            )
+
+        platform_user = await self.repository.get_platform_user(user_id)
+        if platform_user is None:
+            existing_user = await self.repository.get_platform_user_by_email(normalized_email)
+            if existing_user is not None and existing_user.id != user_id:
+                raise InvalidAccessTokenError()
+            if existing_user is None:
+                await self.repository.create_platform_user(
+                    user_id,
+                    normalized_email,
+                    display_name,
+                )
+
+        credential = await self.repository.get_credential_by_user_id(user_id)
+        if credential is None:
+            await self.repository.ensure_credential(
+                user_id,
+                normalized_email,
+                hash_password(secrets.token_urlsafe(48)),
+            )
 
     async def create_session(
         self,

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import asyncio
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import date, datetime
 from platform.agentops.events import AgentOpsEventType, GovernanceEventPublisher
 from platform.agentops.models import CiCdGateResult
 from platform.agentops.repository import AgentOpsRepository
@@ -46,20 +46,13 @@ class CiCdGate:
         requested_by: UUID,
     ) -> CiCdGateResultResponse:
         started_at = time.perf_counter()
-        gates = await asyncio.gather(
-            self._policy_gate(agent_fqn, revision_id, workspace_id),
-            self._evaluation_gate(agent_fqn, workspace_id),
-            self._certification_gate(agent_fqn, revision_id),
-            self._regression_gate(agent_fqn, revision_id, workspace_id),
-            self._trust_gate(agent_fqn, workspace_id),
-        )
-        (
-            policy_gate,
-            evaluation_gate,
-            certification_gate,
-            regression_gate,
-            trust_gate,
-        ) = gates
+        # These gate adapters commonly share the request-scoped AsyncSession.
+        # Running them concurrently causes illegal concurrent session use.
+        policy_gate = await self._policy_gate(agent_fqn, revision_id, workspace_id)
+        evaluation_gate = await self._evaluation_gate(agent_fqn, workspace_id)
+        certification_gate = await self._certification_gate(agent_fqn, revision_id)
+        regression_gate = await self._regression_gate(agent_fqn, revision_id, workspace_id)
+        trust_gate = await self._trust_gate(agent_fqn, workspace_id)
         duration_ms = int((time.perf_counter() - started_at) * 1000)
         overall_passed = all(
             gate.passed
@@ -71,6 +64,11 @@ class CiCdGate:
                 trust_gate,
             )
         )
+        policy_detail = _json_safe_mapping(policy_gate.detail)
+        evaluation_detail = _json_safe_mapping(evaluation_gate.detail)
+        certification_detail = _json_safe_mapping(certification_gate.detail)
+        regression_detail = _json_safe_mapping(regression_gate.detail)
+        trust_detail = _json_safe_mapping(trust_gate.detail)
         persisted = await self.repository.create_gate_result(
             CiCdGateResult(
                 agent_fqn=agent_fqn,
@@ -79,19 +77,19 @@ class CiCdGate:
                 requested_by=requested_by,
                 overall_passed=overall_passed,
                 policy_gate_passed=policy_gate.passed,
-                policy_gate_detail=policy_gate.detail,
+                policy_gate_detail=policy_detail,
                 policy_gate_remediation=policy_gate.remediation,
                 evaluation_gate_passed=evaluation_gate.passed,
-                evaluation_gate_detail=evaluation_gate.detail,
+                evaluation_gate_detail=evaluation_detail,
                 evaluation_gate_remediation=evaluation_gate.remediation,
                 certification_gate_passed=certification_gate.passed,
-                certification_gate_detail=certification_gate.detail,
+                certification_gate_detail=certification_detail,
                 certification_gate_remediation=certification_gate.remediation,
                 regression_gate_passed=regression_gate.passed,
-                regression_gate_detail=regression_gate.detail,
+                regression_gate_detail=regression_detail,
                 regression_gate_remediation=regression_gate.remediation,
                 trust_tier_gate_passed=trust_gate.passed,
-                trust_tier_gate_detail=trust_gate.detail,
+                trust_tier_gate_detail=trust_detail,
                 trust_tier_gate_remediation=trust_gate.remediation,
                 evaluation_duration_ms=duration_ms,
             )
@@ -217,6 +215,26 @@ class CiCdGate:
         passed = tier >= 1
         remediation = None if passed else "Raise trust tier above 0 before deployment."
         return GateVerdict(passed, detail, remediation)
+
+
+def _json_safe_mapping(detail: dict[str, Any]) -> dict[str, Any]:
+    return {str(key): _json_safe_value(value) for key, value in detail.items()}
+
+
+def _json_safe_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(key): _json_safe_value(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_json_safe_value(item) for item in value]
+    if isinstance(value, tuple):
+        return [_json_safe_value(item) for item in value]
+    if isinstance(value, set):
+        return [_json_safe_value(item) for item in sorted(value, key=repr)]
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, UUID):
+        return str(value)
+    return value
 
 
 def _as_mapping(value: Any) -> dict[str, Any]:

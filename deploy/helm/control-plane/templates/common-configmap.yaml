@@ -6,7 +6,7 @@ metadata:
 data:
   KAFKA_BROKERS: {{ .Values.connections.kafkaBrokers | quote }}
   REDIS_URL: {{ .Values.connections.redisUrl | quote }}
-  REDIS_TEST_MODE: "standalone"
+  REDIS_TEST_MODE: {{ .Values.connections.redisTestMode | quote }}
   QDRANT_HOST: {{ .Values.connections.qdrantHost | quote }}
   QDRANT_PORT: {{ .Values.connections.qdrantPort | quote }}
   QDRANT_GRPC_PORT: {{ .Values.connections.qdrantGrpcPort | quote }}
@@ -39,3 +39,12 @@ data:
   WS_HEARTBEAT_INTERVAL_SECONDS: {{ .Values.common.wsHeartbeatIntervalSeconds | quote }}
   WS_HEARTBEAT_TIMEOUT_SECONDS: {{ .Values.common.wsHeartbeatTimeoutSeconds | quote }}
   AUTH_JWT_ALGORITHM: {{ .Values.connections.authJwtAlgorithm | quote }}
+  AUTH_OAUTH_GOOGLE_AUTHORIZE_URL: {{ .Values.auth.oauth.google.authorizeUrl | quote }}
+  AUTH_OAUTH_GOOGLE_TOKEN_URL: {{ .Values.auth.oauth.google.tokenUrl | quote }}
+  AUTH_OAUTH_GOOGLE_TOKEN_INFO_URL: {{ .Values.auth.oauth.google.tokenInfoUrl | quote }}
+  AUTH_OAUTH_GITHUB_AUTHORIZE_URL: {{ .Values.auth.oauth.github.authorizeUrl | quote }}
+  AUTH_OAUTH_GITHUB_TOKEN_URL: {{ .Values.auth.oauth.github.tokenUrl | quote }}
+  AUTH_OAUTH_GITHUB_USER_URL: {{ .Values.auth.oauth.github.userUrl | quote }}
+  AUTH_OAUTH_GITHUB_EMAILS_URL: {{ .Values.auth.oauth.github.emailsUrl | quote }}
+  AUTH_OAUTH_GITHUB_TEAMS_URL: {{ .Values.auth.oauth.github.teamsUrl | quote }}
+  AUTH_OAUTH_GITHUB_ORG_MEMBERSHIP_URL_TEMPLATE: {{ .Values.auth.oauth.github.orgMembershipUrlTemplate | quote }}

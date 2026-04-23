@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from importlib import import_module
+from platform.common.clients import runtime_controller_pb2, runtime_controller_pb2_grpc
 from platform.common.config import PlatformSettings, Settings
 from platform.common.config import settings as default_settings
 from typing import Any, cast
+
+from google.protobuf.json_format import MessageToDict, ParseDict
 
 
 class RuntimeControllerClient:
@@ -22,7 +25,6 @@ class RuntimeControllerClient:
             return
         grpc = import_module("grpc")
         self.channel = grpc.aio.insecure_channel(self.target)
-        self.stub = self.channel
 
     async def close(self) -> None:
         if self.channel is None:
@@ -57,7 +59,8 @@ class RuntimeControllerClient:
         return self._normalize_response(response)
 
     async def list_active_instances(self, agent_fqn: str) -> list[str]:
-        target = getattr(self.stub, "ListActiveInstances", None)
+        stub = await self._get_stub()
+        target = getattr(stub, "ListActiveInstances", None)
         if callable(target):
             response = await self._invoke("ListActiveInstances", {"agent_fqn": agent_fqn})
             instances = response.get("execution_ids") if isinstance(response, dict) else None
@@ -103,19 +106,56 @@ class RuntimeControllerClient:
         )
         return self._normalize_response(response)
 
-    async def _invoke(self, method_name: str, request: dict[str, Any]) -> Any:
+    async def _get_stub(self) -> Any:
         await self.connect()
-        target = getattr(self.stub, method_name, None)
+        if self.stub is None:
+            assert self.channel is not None
+            self.stub = runtime_controller_pb2_grpc.RuntimeControlServiceStub(self.channel)
+        return self.stub
+
+    async def _invoke(self, method_name: str, request: dict[str, Any]) -> Any:
+        stub = await self._get_stub()
+        target = getattr(stub, method_name, None)
         if not callable(target):
             raise AttributeError(f"runtime controller stub does not implement {method_name}")
-        result = target(request)
+        result = target(self._build_request(stub, method_name, request))
         if hasattr(result, "__await__"):
             return await result
         return result
 
+    def _build_request(self, stub: Any, method_name: str, request: dict[str, Any]) -> Any:
+        if not self._uses_generated_stub(stub):
+            return request
+        factory = self._request_factory(method_name)
+        if factory is None:
+            return request
+        return ParseDict(request, factory(), ignore_unknown_fields=False)
+
+    @staticmethod
+    def _uses_generated_stub(stub: Any) -> bool:
+        module_name = type(stub).__module__
+        return module_name.startswith(
+            (runtime_controller_pb2_grpc.__name__, "platform.grpc_stubs.")
+        )
+
+    @staticmethod
+    def _request_factory(method_name: str) -> Any:
+        factories = {
+            "LaunchRuntime": runtime_controller_pb2.LaunchRuntimeRequest,
+            "StopRuntime": runtime_controller_pb2.StopRuntimeRequest,
+            "WarmPoolStatus": runtime_controller_pb2.WarmPoolStatusRequest,
+            "WarmPoolConfig": runtime_controller_pb2.WarmPoolConfigRequest,
+        }
+        return factories.get(method_name)
+
     def _normalize_response(self, response: Any) -> dict[str, Any]:
         if isinstance(response, dict):
             return response
+        if hasattr(response, "DESCRIPTOR"):
+            return cast(
+                dict[str, Any],
+                MessageToDict(response, preserving_proto_field_name=True),
+            )
         model_dump = getattr(response, "model_dump", None)
         if callable(model_dump):
             return cast(dict[str, Any], model_dump(mode="json"))

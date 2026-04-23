@@ -86,6 +86,7 @@ class AgentPatch(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     display_name: str | None = None
+    purpose: str | None = Field(default=None, min_length=50)
     approach: str | None = None
     tags: list[str] | None = None
     visibility_agents: list[str] | None = None
@@ -94,7 +95,7 @@ class AgentPatch(BaseModel):
     role_types: list[AgentRoleType] | None = None
     custom_role_description: str | None = None
 
-    @field_validator("display_name", "approach", "custom_role_description")
+    @field_validator("display_name", "purpose", "approach", "custom_role_description")
     @classmethod
     def normalize_optional_text(cls, value: str | None) -> str | None:
         return _normalize_optional_text(value)

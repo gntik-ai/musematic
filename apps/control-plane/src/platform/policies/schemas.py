@@ -88,13 +88,21 @@ class PolicyRulesSchema(BaseModel):
     enforcement_rules: list[EnforcementRuleSchema] = Field(default_factory=list)
     maturity_gate_rules: list[MaturityGateRuleSchema] = Field(default_factory=list)
     purpose_scopes: list[PurposeScopeSchema] = Field(default_factory=list)
+    allowed_purposes: list[str] = Field(default_factory=list)
+    denied_purposes: list[str] = Field(default_factory=list)
     budget_limits: BudgetLimitsSchema = Field(default_factory=BudgetLimitsSchema)
     safety_rules: list[SafetyRuleSchema] = Field(default_factory=list)
     allowed_namespaces: list[str] = Field(default_factory=list)
     allowed_classifications: list[str] = Field(default_factory=list)
     allowed_agent_fqns: list[str] = Field(default_factory=list)
 
-    @field_validator("allowed_namespaces", "allowed_classifications", "allowed_agent_fqns")
+    @field_validator(
+        "allowed_namespaces",
+        "allowed_classifications",
+        "allowed_agent_fqns",
+        "allowed_purposes",
+        "denied_purposes",
+    )
     @classmethod
     def normalize_lists(cls, value: list[str]) -> list[str]:
         return [item.strip() for item in value if item.strip()]

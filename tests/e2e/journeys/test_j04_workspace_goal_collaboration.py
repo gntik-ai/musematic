@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from time import monotonic
-from typing import Any, Callable
+from typing import Any
 from uuid import UUID
 
 import jwt
@@ -90,13 +91,24 @@ async def _wait_for_ws_event(
     description: str,
 ) -> dict[str, Any]:
     deadline = monotonic() + timeout
+    observed: list[dict[str, Any]] = []
     while True:
         remaining = deadline - monotonic()
         if remaining <= 0:
-            raise AssertionError(f"timed out waiting for websocket event: {description}")
-        event = await asyncio.wait_for(_read_ws_event(websocket), timeout=remaining)
+            raise AssertionError(
+                f"timed out waiting for websocket event: {description}; "
+                f"observed={observed[-5:]}"
+            )
+        try:
+            event = await asyncio.wait_for(_read_ws_event(websocket), timeout=remaining)
+        except TimeoutError as exc:
+            raise AssertionError(
+                f"timed out waiting for websocket event: {description}; "
+                f"observed={observed[-5:]}"
+            ) from exc
         if event.get("type") != "event":
             continue
+        observed.append(event)
         if predicate(event):
             return event
 
@@ -494,14 +506,18 @@ async def test_j04_workspace_goal_collaboration(
             attention_event = await _wait_for_ws_event(
                 websocket,
                 lambda event: event.get("channel") == "attention"
-                and _ws_event_type(event) == "attention.requested",
+                and _ws_event_type(event) == "attention.requested"
+                and _ws_goal_gid(event) == str(goal_id)
+                and _ws_payload(event).get("related_goal_id") == str(goal_id),
                 timeout=30.0,
                 description="attention.requested",
             )
             alert_event = await _wait_for_ws_event(
                 websocket,
                 lambda event: event.get("channel") == "alerts"
-                and _ws_event_type(event) == "notifications.alert_created",
+                and _ws_event_type(event) == "notifications.alert_created"
+                and _ws_payload(event).get("alert_type") == "attention_request"
+                and _ws_payload(event).get("interaction_id") == interaction_payload["id"],
                 timeout=60.0,
                 description="notifications.alert_created",
             )
@@ -509,7 +525,7 @@ async def test_j04_workspace_goal_collaboration(
                 [attention_event, alert_event],
                 ["attention.requested", "notifications.alert_created"],
             )
-            assert _ws_goal_gid(attention_event) == goal_gid
+            assert _ws_goal_gid(attention_event) == str(goal_id)
             assert _ws_payload(attention_event)["urgency"] == "high"
             assert _ws_payload(attention_event)["related_goal_id"] == str(goal_id)
             assert _ws_payload(alert_event)["alert_type"] == "attention_request"
@@ -568,7 +584,7 @@ async def test_j04_workspace_goal_collaboration(
                 admin_client,
                 topic="workspaces.events",
                 since=kafka_since,
-                key=str(goal_id),
+                key=str(workspace_id),
                 predicate=lambda event: event["payload"].get("event_type")
                 == "workspaces.goal.created"
                 and event["payload"].get("payload", {}).get("gid") == goal_gid
@@ -582,7 +598,7 @@ async def test_j04_workspace_goal_collaboration(
                 predicate=lambda event: event["payload"].get("event_type")
                 == "attention.requested"
                 and event["payload"].get("payload", {}).get("related_goal_id") == str(goal_id)
-                and event["payload"].get("correlation_context", {}).get("goal_id") == goal_gid,
+                and event["payload"].get("correlation_context", {}).get("goal_id") == str(goal_id),
             )
             final_messages = await consumer_workspace_admin.get(
                 f"/api/v1/workspaces/{workspace_id}/goals/{goal_id}/messages",

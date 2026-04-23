@@ -133,6 +133,15 @@ class AuthSettings(BaseSettings):
     oauth_jwks_cache_ttl: int = 3600
     oauth_rate_limit_max: int = 10
     oauth_rate_limit_window: int = 60
+    oauth_google_authorize_url: str = "https://accounts.google.com/o/oauth2/v2/auth"
+    oauth_google_token_url: str = "https://oauth2.googleapis.com/token"
+    oauth_google_token_info_url: str = "https://oauth2.googleapis.com/tokeninfo"
+    oauth_github_authorize_url: str = "https://github.com/login/oauth/authorize"
+    oauth_github_token_url: str = "https://github.com/login/oauth/access_token"
+    oauth_github_user_url: str = "https://api.github.com/user"
+    oauth_github_emails_url: str = "https://api.github.com/user/emails"
+    oauth_github_teams_url: str = "https://api.github.com/user/teams"
+    oauth_github_org_membership_url_template: str = "https://api.github.com/user/memberships/orgs/{org}"
 
     @property
     def signing_key(self) -> str:
@@ -538,6 +547,15 @@ class PlatformSettings(BaseSettings):
             "AUTH_OAUTH_JWKS_CACHE_TTL": ("auth", "oauth_jwks_cache_ttl"),
             "AUTH_OAUTH_RATE_LIMIT_MAX": ("auth", "oauth_rate_limit_max"),
             "AUTH_OAUTH_RATE_LIMIT_WINDOW": ("auth", "oauth_rate_limit_window"),
+            "AUTH_OAUTH_GOOGLE_AUTHORIZE_URL": ("auth", "oauth_google_authorize_url"),
+            "AUTH_OAUTH_GOOGLE_TOKEN_URL": ("auth", "oauth_google_token_url"),
+            "AUTH_OAUTH_GOOGLE_TOKEN_INFO_URL": ("auth", "oauth_google_token_info_url"),
+            "AUTH_OAUTH_GITHUB_AUTHORIZE_URL": ("auth", "oauth_github_authorize_url"),
+            "AUTH_OAUTH_GITHUB_TOKEN_URL": ("auth", "oauth_github_token_url"),
+            "AUTH_OAUTH_GITHUB_USER_URL": ("auth", "oauth_github_user_url"),
+            "AUTH_OAUTH_GITHUB_EMAILS_URL": ("auth", "oauth_github_emails_url"),
+            "AUTH_OAUTH_GITHUB_TEAMS_URL": ("auth", "oauth_github_teams_url"),
+            "AUTH_OAUTH_GITHUB_ORG_MEMBERSHIP_URL_TEMPLATE": ("auth", "oauth_github_org_membership_url_template"),
             "OTEL_EXPORTER_ENDPOINT": ("otel", "exporter_endpoint"),
             "OTEL_SERVICE_NAME": ("otel", "service_name"),
             "ACCOUNTS_SIGNUP_MODE": ("accounts", "signup_mode"),
@@ -1131,6 +1149,42 @@ class PlatformSettings(BaseSettings):
     @property
     def AUTH_OAUTH_RATE_LIMIT_WINDOW(self) -> int:
         return self.auth.oauth_rate_limit_window
+
+    @property
+    def AUTH_OAUTH_GOOGLE_AUTHORIZE_URL(self) -> str:
+        return self.auth.oauth_google_authorize_url
+
+    @property
+    def AUTH_OAUTH_GOOGLE_TOKEN_URL(self) -> str:
+        return self.auth.oauth_google_token_url
+
+    @property
+    def AUTH_OAUTH_GOOGLE_TOKEN_INFO_URL(self) -> str:
+        return self.auth.oauth_google_token_info_url
+
+    @property
+    def AUTH_OAUTH_GITHUB_AUTHORIZE_URL(self) -> str:
+        return self.auth.oauth_github_authorize_url
+
+    @property
+    def AUTH_OAUTH_GITHUB_TOKEN_URL(self) -> str:
+        return self.auth.oauth_github_token_url
+
+    @property
+    def AUTH_OAUTH_GITHUB_USER_URL(self) -> str:
+        return self.auth.oauth_github_user_url
+
+    @property
+    def AUTH_OAUTH_GITHUB_EMAILS_URL(self) -> str:
+        return self.auth.oauth_github_emails_url
+
+    @property
+    def AUTH_OAUTH_GITHUB_TEAMS_URL(self) -> str:
+        return self.auth.oauth_github_teams_url
+
+    @property
+    def AUTH_OAUTH_GITHUB_ORG_MEMBERSHIP_URL_TEMPLATE(self) -> str:
+        return self.auth.oauth_github_org_membership_url_template
 
     @property
     def OTEL_EXPORTER_ENDPOINT(self) -> str:

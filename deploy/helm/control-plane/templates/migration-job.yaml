@@ -36,6 +36,31 @@ spec:
                 count=$((count + 1))
                 sleep "$delay"
               done
+          env:
+            - name: QDRANT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: qdrant-api-key
+                  key: QDRANT_API_KEY
+                  optional: true
+            - name: NEO4J_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: neo4j-credentials
+                  key: NEO4J_PASSWORD
+                  optional: true
+            - name: CLICKHOUSE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: clickhouse-credentials
+                  key: CLICKHOUSE_PASSWORD
+                  optional: true
+            - name: OPENSEARCH_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: opensearch-credentials
+                  key: OPENSEARCH_PASSWORD
+                  optional: true
           envFrom:
             - configMapRef:
                 name: {{ include "musematic-control-plane.configName" . }}

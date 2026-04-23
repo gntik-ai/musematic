@@ -154,8 +154,8 @@ async def test_create_governance_chain_rejects_wrong_agent_role() -> None:
 
 
 class _FakeWebSocket:
-    def __init__(self, inbound: list[dict[str, object]]) -> None:
-        self._inbound = [json.dumps(item) for item in inbound]
+    def __init__(self, inbound: list[dict[str, object] | str]) -> None:
+        self._inbound = [item if isinstance(item, str) else json.dumps(item) for item in inbound]
         self.sent_messages: list[dict[str, object]] = []
         self.closed = False
 
@@ -185,6 +185,8 @@ async def test_subscribe_ws_uses_ws_hub_protocol_and_consumes_handshake() -> Non
         [
             {"type": "connection_established", "connection_id": "conn-1", "user_id": str(uuid4())},
             {"type": "subscription_confirmed", "channel": "conversation", "resource_id": str(uuid4())},
+            "",
+            {"type": "heartbeat", "server_time": "2026-04-22T00:00:00Z"},
             {"type": "event", "channel": "conversation", "resource_id": "conv-1", "payload": {"event_type": "interaction.completed"}},
         ]
     )
@@ -199,4 +201,28 @@ async def test_subscribe_ws_uses_ws_hub_protocol_and_consumes_handshake() -> Non
     assert subscription.resource_id == "conv-1"
     assert event["type"] == "event"
     assert subscription.received_events == [event]
+    assert websocket.closed is True
+
+
+@pytest.mark.asyncio
+async def test_subscribe_ws_buffers_events_before_confirmation() -> None:
+    early_event = {
+        "type": "event",
+        "channel": "conversation",
+        "resource_id": "conv-1",
+        "payload": {"event_type": "interaction.created"},
+    }
+    websocket = _FakeWebSocket(
+        [
+            {"type": "connection_established", "connection_id": "conn-1", "user_id": str(uuid4())},
+            early_event,
+            {"type": "subscription_confirmed", "channel": "conversation", "resource_id": "conv-1"},
+        ]
+    )
+
+    async with subscribe_ws(_FakeWsClient(websocket), "conversation", "conv-1") as subscription:
+        event = await anext(subscription.events())
+
+    assert event == early_event
+    assert subscription.received_events == [early_event]
     assert websocket.closed is True

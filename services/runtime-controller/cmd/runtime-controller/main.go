@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -34,9 +36,30 @@ import (
 	"google.golang.org/grpc"
 )
 
-type redisPinger struct{ client *redis.Client }
+type redisPinger struct{ client redis.UniversalClient }
 
 func (r redisPinger) Ping(ctx context.Context) error { return r.client.Ping(ctx).Err() }
+
+func newRedisClient(addr string, password string) redis.UniversalClient {
+	addrs := splitCSV(addr)
+	if len(addrs) == 0 {
+		return nil
+	}
+	opts := &redis.ClusterOptions{
+		Addrs:    addrs,
+		Password: password,
+	}
+	if strings.TrimSpace(os.Getenv("REDIS_TEST_MODE")) == "standalone" {
+		opts.ClusterSlots = func(context.Context) ([]redis.ClusterSlot, error) {
+			return []redis.ClusterSlot{{
+				Start: 0,
+				End:   16383,
+				Nodes: []redis.ClusterNode{{Addr: addrs[0]}},
+			}}, nil
+		}
+	}
+	return redis.NewClusterClient(opts)
+}
 
 type restHealth struct{}
 
@@ -103,7 +126,10 @@ func run() error {
 	})
 	store.TaskPlanUploader = state.S3TaskPlanUploader{Client: s3Client, Bucket: cfg.S3Bucket}
 
-	redisClient := redis.NewClient(&redis.Options{Addr: cfg.RedisAddr})
+	redisClient := newRedisClient(cfg.RedisAddr, cfg.RedisPassword)
+	if redisClient == nil {
+		return fmt.Errorf("REDIS_ADDR is required")
+	}
 	defer func() {
 		if closeErr := redisClient.Close(); closeErr != nil {
 			logger.Warn("failed to close redis client", "error", closeErr)
@@ -194,6 +220,7 @@ func run() error {
 		Redis:    redisClient,
 		Store:    store,
 		Interval: cfg.HeartbeatCheckInterval,
+		Timeout:  cfg.HeartbeatTimeout,
 		Emitter:  emitter,
 		Fanout:   fanout,
 		Logger:   logger,
@@ -232,6 +259,18 @@ func run() error {
 
 func toPort(port int) string {
 	return strconv.Itoa(port)
+}
+
+func splitCSV(value string) []string {
+	parts := strings.Split(value, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if part != "" {
+			out = append(out, part)
+		}
+	}
+	return out
 }
 
 func splitTargetKey(value string) (string, string) {

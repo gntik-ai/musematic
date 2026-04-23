@@ -663,6 +663,58 @@ async def test_service_resolution_listing_and_transition_branches(monkeypatch) -
 
 
 @pytest.mark.asyncio
+async def test_service_keyword_search_falls_back_to_profile_scan_when_index_is_stale() -> None:
+    workspace_id = uuid4()
+    actor_id = uuid4()
+    namespace = build_namespace(workspace_id=workspace_id, created_by=actor_id, name="finance")
+    matching = build_profile(
+        workspace_id=workspace_id,
+        namespace=namespace,
+        local_name="policy-auditor",
+        display_name="Policy Auditor",
+        purpose=(
+            "Runs deterministic compliance checks for regulated payment flows "
+            "with auditable policy decisions and traceable remediation paths."
+        ),
+        tags=["compliance", "payments"],
+        status=LifecycleStatus.published,
+    )
+    non_matching = build_profile(
+        workspace_id=workspace_id,
+        namespace=namespace,
+        local_name="support-summarizer",
+        purpose=(
+            "Summarizes internal support queues for triage workflows and "
+            "operator handoffs across the platform control plane."
+        ),
+        tags=["support"],
+        status=LifecycleStatus.published,
+    )
+    repo = RegistryRepoStub()
+    for profile in (matching, non_matching):
+        repo.profiles_by_id[profile.id] = profile
+        repo.profiles_by_fqn[(workspace_id, profile.fqn)] = profile
+
+    repo.keyword_ids = [uuid4()]
+    repo.keyword_total = 1
+    service, _repo, _storage, _opensearch, _qdrant = _service(repo)
+
+    listed = await service.list_agents(
+        AgentDiscoveryParams(
+            workspace_id=workspace_id,
+            keyword="deterministic compliance checks",
+            limit=10,
+            offset=0,
+        ),
+        actor_id=None,
+        requesting_agent_id=None,
+    )
+
+    assert listed.total == 1
+    assert [item.id for item in listed.items] == [matching.id]
+
+
+@pytest.mark.asyncio
 async def test_service_misc_branches_and_internal_helpers(monkeypatch) -> None:
     workspace_id = uuid4()
     actor_id = uuid4()

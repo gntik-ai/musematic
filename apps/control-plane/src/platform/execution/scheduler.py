@@ -5,8 +5,13 @@ import logging
 from datetime import UTC, datetime, timedelta
 from platform.common.events.envelope import CorrelationContext
 from platform.common.exceptions import PolicySecretLeakError
+from platform.common.llm.mock_provider import MockLLMProvider
 from platform.execution.checkpoint_service import CheckpointService
-from platform.execution.events import PromptSecretDetectedEvent, publish_prompt_secret_detected
+from platform.execution.events import (
+    ExecutionDomainEventType,
+    PromptSecretDetectedEvent,
+    publish_prompt_secret_detected,
+)
 from platform.execution.models import (
     ApprovalDecision,
     ApprovalTimeoutAction,
@@ -15,6 +20,7 @@ from platform.execution.models import (
     ExecutionCheckpoint,
     ExecutionDispatchLease,
     ExecutionEventType,
+    ExecutionReasoningTraceRecord,
     ExecutionStatus,
     ExecutionTaskPlanRecord,
 )
@@ -23,6 +29,9 @@ from platform.execution.repository import ExecutionRepository
 from platform.execution.reprioritization import ReprioritizationResult, ReprioritizationService
 from platform.execution.schemas import DEFAULT_CHECKPOINT_POLICY, ExecutionStateResponse
 from platform.execution.service import ExecutionService
+from platform.interactions.events import MessageReceivedPayload, publish_message_received
+from platform.interactions.models import MessageType
+from platform.interactions.repository import InteractionsRepository
 from platform.policies.models import EnforcementComponent, PolicyBlockedActionRecord
 from platform.policies.repository import PolicyRepository
 from platform.policies.sanitizer import OutputSanitizer
@@ -294,7 +303,7 @@ class SchedulerService:
             if not await self._acquire_lease(execution.id, step.step_id):
                 continue
             try:
-                await self._persist_task_plan(execution, step)
+                task_plan_payload = await self._persist_task_plan(execution, step)
             except PolicySecretLeakError as exc:
                 LOGGER.warning(
                     "Prompt preflight blocked runtime dispatch",
@@ -340,7 +349,12 @@ class SchedulerService:
                 payload={"step_type": step.step_type},
                 status=ExecutionStatus.running,
             )
-            await self._dispatch_to_runtime(execution, ir, step)
+            await self._dispatch_to_runtime(
+                execution,
+                ir,
+                step,
+                task_plan_payload=task_plan_payload,
+            )
             await self._maybe_checkpoint(execution.id)
 
     async def _emit_queue_reprioritization(self, result: ReprioritizationResult) -> None:
@@ -465,9 +479,13 @@ class SchedulerService:
                 if hasattr(result, "__await__"):
                     await result
 
-    async def _persist_task_plan(self, execution: Execution, step: StepIR) -> None:
+    async def _persist_task_plan(
+        self,
+        execution: Execution,
+        step: StepIR,
+    ) -> dict[str, Any]:
         payload = await self._build_task_plan_payload(execution, step)
-        encoded = json.dumps(payload).encode("utf-8")
+        encoded = self._runtime_json_dumps(payload).encode("utf-8")
         storage_key = f"{execution.id}/{step.step_id}/task-plan.json"
         try:
             await self.object_storage.create_bucket_if_not_exists(
@@ -499,6 +517,7 @@ class SchedulerService:
                 storage_size_bytes=len(encoded),
             )
         )
+        return payload
 
     async def _build_task_plan_payload(self, execution: Execution, step: StepIR) -> dict[str, Any]:
         if self.context_engineering_service is not None:
@@ -565,6 +584,8 @@ class SchedulerService:
         execution: Execution,
         ir: WorkflowIR,
         step: StepIR,
+        *,
+        task_plan_payload: dict[str, Any] | None = None,
     ) -> None:
         compute_budget, effective_budget_scope = self._resolve_effective_compute_budget(ir, step)
         payload: dict[str, object] = {
@@ -581,13 +602,31 @@ class SchedulerService:
         if compute_budget is not None:
             payload["compute_budget"] = compute_budget
             payload["effective_budget_scope"] = effective_budget_scope
+        if task_plan_payload is None:
+            task_plan_payload = await self._build_task_plan_payload(execution, step)
+        if self._e2e_runtime_simulation_enabled():
+            await self._simulate_e2e_runtime_completion(
+                execution,
+                step,
+                task_plan_payload,
+                compute_budget=compute_budget,
+                effective_budget_scope=effective_budget_scope,
+            )
+            return
+        contract = self._runtime_contract_payload(
+            execution,
+            step,
+            task_plan_payload,
+            compute_budget=compute_budget,
+            effective_budget_scope=effective_budget_scope,
+        )
         launch = getattr(self.runtime_controller, "launch_runtime", None)
         fallback = getattr(self.runtime_controller, "dispatch", None)
         if not callable(fallback) and getattr(self.runtime_controller, "stub", None) is not None:
             fallback = getattr(self.runtime_controller.stub, "dispatch", None)
         if callable(launch):
             try:
-                result = launch(payload, prefer_warm=True)
+                result = launch(contract, prefer_warm=True)
                 if hasattr(result, "__await__"):
                     await result
                 return
@@ -598,6 +637,348 @@ class SchedulerService:
             result = fallback(payload)
             if hasattr(result, "__await__"):
                 await result
+
+    def _e2e_runtime_simulation_enabled(self) -> bool:
+        return bool(getattr(self.settings, "feature_e2e_mode", False))
+
+    async def _simulate_e2e_runtime_completion(
+        self,
+        execution: Execution,
+        step: StepIR,
+        task_plan_payload: dict[str, Any],
+        *,
+        compute_budget: float | None,
+        effective_budget_scope: str | None,
+    ) -> None:
+        response_text = await self._generate_e2e_agent_response(execution, step, task_plan_payload)
+        now = datetime.now(UTC)
+        tokens_used = max(1, len(response_text.split()))
+        trace_steps = [
+            {
+                "step_number": 1,
+                "type": "thought",
+                "agent_fqn": step.agent_fqn,
+                "content": f"E2E runtime selected {step.step_id} for deterministic execution.",
+                "tokens_used": 0,
+                "timestamp": now.isoformat(),
+            },
+            {
+                "step_number": 2,
+                "type": "final",
+                "agent_fqn": step.agent_fqn,
+                "content": response_text,
+                "tokens_used": tokens_used,
+                "timestamp": now.isoformat(),
+            },
+        ]
+        trace_key = f"e2e/{execution.id}/{step.step_id}/trace.json"
+        trace_payload = {
+            "schema_version": "1.0",
+            "steps": trace_steps,
+            "total_tokens": tokens_used,
+            "compute_budget_used": float(compute_budget or 0.0),
+            "effective_budget_scope": effective_budget_scope,
+            "compute_budget_exhausted": False,
+            "consensus_reached": True,
+            "stabilized": True,
+            "degradation_detected": False,
+            "last_updated_at": now.isoformat(),
+        }
+        await self.object_storage.create_bucket_if_not_exists(
+            self.execution_service.reasoning_trace_bucket
+        )
+        await self.object_storage.upload_object(
+            self.execution_service.reasoning_trace_bucket,
+            trace_key,
+            json.dumps(trace_payload, sort_keys=True).encode("utf-8"),
+            content_type="application/json",
+            metadata={"execution_id": str(execution.id), "step_id": step.step_id},
+        )
+        await self.repository.upsert_reasoning_trace_record(
+            ExecutionReasoningTraceRecord(
+                execution_id=execution.id,
+                step_id=step.step_id,
+                technique="e2e_mock_agent",
+                storage_key=trace_key,
+                step_count=len(trace_steps),
+                status="complete",
+                compute_budget_used=float(compute_budget or 0.0),
+                consensus_reached=True,
+                stabilized=True,
+                degradation_detected=False,
+                compute_budget_exhausted=False,
+                effective_budget_scope=effective_budget_scope,
+            )
+        )
+        await self.execution_service.record_runtime_event(
+            execution.id,
+            step_id=step.step_id,
+            event_type=ExecutionEventType.reasoning_trace_emitted,
+            payload={
+                "technique": "e2e_mock_agent",
+                "storage_key": trace_key,
+                "step_count": len(trace_steps),
+            },
+            status=ExecutionStatus.running,
+        )
+        await self._publish_e2e_reasoning_event(execution, step, trace_key)
+        await self._append_e2e_agent_message(execution, step, response_text)
+        await self.execution_service.record_runtime_event(
+            execution.id,
+            step_id=step.step_id,
+            event_type=ExecutionEventType.completed,
+            payload={
+                "step_type": step.step_type,
+                "output": {"content": response_text},
+            },
+            status=ExecutionStatus.running,
+        )
+        await self._release_step_dispatch_lease(execution.id, step.step_id)
+
+    async def _generate_e2e_agent_response(
+        self,
+        execution: Execution,
+        step: StepIR,
+        task_plan_payload: dict[str, Any],
+    ) -> str:
+        provider = MockLLMProvider(self.redis_client)
+        prompt = json.dumps(
+            {
+                "execution_id": str(execution.id),
+                "step_id": step.step_id,
+                "task_plan": task_plan_payload,
+            },
+            default=self._runtime_json_default,
+            sort_keys=True,
+        )
+        try:
+            return await provider.generate(
+                "agent_response",
+                prompt,
+                model="e2e-mock-runtime",
+                temperature=0.0,
+                max_tokens=1024,
+                correlation_context=self._runtime_correlation_payload(execution, step),
+            )
+        except Exception:
+            LOGGER.warning(
+                "E2E mock LLM response lookup failed; using deterministic fallback",
+                exc_info=True,
+                extra={"execution_id": str(execution.id), "step_id": step.step_id},
+            )
+            return f"E2E runtime completed step {step.step_id}."
+
+    async def _publish_e2e_reasoning_event(
+        self,
+        execution: Execution,
+        step: StepIR,
+        storage_key: str,
+    ) -> None:
+        if self.producer is None:
+            return
+        await self.producer.publish(
+            topic="runtime.reasoning",
+            key=str(execution.id),
+            event_type=ExecutionDomainEventType.reasoning_trace_emitted.value,
+            payload={
+                "execution_id": str(execution.id),
+                "step_id": step.step_id,
+                "technique": "e2e_mock_agent",
+                "status": "complete",
+                "storage_key": storage_key,
+            },
+            correlation_ctx=self._correlation_context(execution, step),
+            source="platform.execution.e2e",
+        )
+
+    async def _append_e2e_agent_message(
+        self,
+        execution: Execution,
+        step: StepIR,
+        response_text: str,
+    ) -> None:
+        if (
+            execution.correlation_interaction_id is None
+            or execution.correlation_conversation_id is None
+        ):
+            return
+        repository = InteractionsRepository(self.repository.session)
+        interaction = await repository.get_interaction(
+            execution.correlation_interaction_id,
+            execution.workspace_id,
+        )
+        if interaction is None:
+            return
+        latest_agent_message = await repository.get_latest_agent_message(interaction.id)
+        if (
+            latest_agent_message is not None
+            and latest_agent_message.metadata_json.get("execution_id") == str(execution.id)
+        ):
+            return
+        limit = int(getattr(self.settings.interactions, "max_messages_per_conversation", 500))
+        incremented = await repository.increment_message_count(
+            conversation_id=interaction.conversation_id,
+            workspace_id=execution.workspace_id,
+            limit=limit,
+        )
+        if incremented is None:
+            return
+        message = await repository.create_message(
+            interaction_id=interaction.id,
+            parent_message_id=None,
+            sender_identity=step.agent_fqn or "e2e-runtime",
+            message_type=MessageType.agent,
+            content=response_text,
+            metadata={
+                "execution_id": str(execution.id),
+                "step_id": step.step_id,
+                "source": "e2e_runtime_simulator",
+            },
+        )
+        await publish_message_received(
+            self.producer,
+            MessageReceivedPayload(
+                message_id=message.id,
+                interaction_id=interaction.id,
+                conversation_id=interaction.conversation_id,
+                workspace_id=execution.workspace_id,
+                sender_identity=message.sender_identity,
+                message_type=message.message_type,
+            ),
+            CorrelationContext(
+                correlation_id=uuid4(),
+                workspace_id=execution.workspace_id,
+                conversation_id=interaction.conversation_id,
+                interaction_id=interaction.id,
+                goal_id=interaction.goal_id,
+                execution_id=execution.id,
+                agent_fqn=step.agent_fqn,
+            ),
+        )
+
+    async def _release_step_dispatch_lease(self, execution_id: Any, step_id: str) -> None:
+        lease = await self.repository.get_active_dispatch_lease(execution_id, step_id)
+        if lease is not None:
+            await self.repository.release_dispatch_lease(
+                lease,
+                released_at=datetime.now(UTC),
+                expired=False,
+            )
+        client = await self.redis_client._get_client()
+        delete = getattr(client, "delete", None)
+        if callable(delete):
+            result = delete(f"exec:lease:{execution_id}:{step_id}")
+            if hasattr(result, "__await__"):
+                await result
+
+    def _runtime_contract_payload(
+        self,
+        execution: Execution,
+        step: StepIR,
+        task_plan_payload: dict[str, Any],
+        *,
+        compute_budget: float | None,
+        effective_budget_scope: str | None,
+    ) -> dict[str, Any]:
+        raw_contract_snapshot = getattr(execution, "contract_snapshot", None)
+        contract_snapshot = raw_contract_snapshot if isinstance(raw_contract_snapshot, dict) else {}
+        model_binding = contract_snapshot.get("model_binding")
+        if isinstance(model_binding, str) and model_binding.strip():
+            model_binding_json = model_binding
+        elif model_binding is not None:
+            model_binding_json = self._runtime_json_dumps(model_binding)
+        else:
+            model_binding_json = "{}"
+
+        policy_ids = (
+            contract_snapshot.get("policy_ids") or contract_snapshot.get("source_policy_ids") or []
+        )
+        policy_id_values = [str(item) for item in policy_ids if item is not None]
+
+        contract: dict[str, Any] = {
+            "agent_revision": self._runtime_agent_revision(execution, step),
+            "model_binding": model_binding_json,
+            "policy_ids": policy_id_values,
+            "correlation_context": self._runtime_correlation_payload(execution, step),
+            "resource_limits": {},
+            "secret_refs": [],
+            "env_vars": {
+                "WORKFLOW_VERSION_ID": str(execution.workflow_version_id),
+                "STEP_TYPE": step.step_type,
+            },
+            "task_plan_json": self._runtime_json_dumps(task_plan_payload),
+            "step_id": step.step_id,
+        }
+        if step.agent_fqn is not None:
+            contract["env_vars"]["AGENT_FQN"] = step.agent_fqn
+        if step.tool_fqn is not None:
+            contract["env_vars"]["TOOL_FQN"] = step.tool_fqn
+        if step.reasoning_mode is not None:
+            contract["reasoning_config_json"] = self._runtime_json_dumps(
+                {"reasoning_mode": step.reasoning_mode}
+            )
+        if compute_budget is not None:
+            contract["reasoning_budget_envelope_json"] = self._runtime_json_dumps(
+                {
+                    "compute_budget": compute_budget,
+                    "effective_budget_scope": effective_budget_scope,
+                }
+            )
+        context_profile_id = (
+            task_plan_payload.get("context_engineering_profile_id")
+            if isinstance(task_plan_payload, dict)
+            else None
+        )
+        if context_profile_id:
+            contract["context_engineering_profile_id"] = str(context_profile_id)
+        return contract
+
+    def _runtime_agent_revision(self, execution: Execution, step: StepIR) -> str:
+        raw_contract_snapshot = getattr(execution, "contract_snapshot", None)
+        contract_snapshot = raw_contract_snapshot if isinstance(raw_contract_snapshot, dict) else {}
+        for key in ("agent_revision_id", "revision_id", "agent_revision"):
+            value = contract_snapshot.get(key)
+            if value is not None and str(value).strip():
+                return str(value)
+        return str(step.agent_fqn or step.tool_fqn or step.step_id)
+
+    def _runtime_correlation_payload(
+        self,
+        execution: Execution,
+        step: StepIR,
+    ) -> dict[str, str]:
+        workspace_id = getattr(execution, "correlation_workspace_id", None)
+        if workspace_id is None:
+            workspace_id = execution.workspace_id
+        conversation_id = getattr(execution, "correlation_conversation_id", None)
+        interaction_id = getattr(execution, "correlation_interaction_id", None)
+        fleet_id = getattr(execution, "correlation_fleet_id", None)
+        goal_id = getattr(execution, "correlation_goal_id", None)
+        trace_id = str(uuid5(NAMESPACE_URL, f"{execution.id}:{step.step_id}"))
+        payload = {
+            "workspace_id": str(workspace_id),
+            "execution_id": str(execution.id),
+            "trace_id": trace_id,
+        }
+        if conversation_id is not None:
+            payload["conversation_id"] = str(conversation_id)
+        if interaction_id is not None:
+            payload["interaction_id"] = str(interaction_id)
+        if fleet_id is not None:
+            payload["fleet_id"] = str(fleet_id)
+        if goal_id is not None:
+            payload["goal_id"] = str(goal_id)
+        return payload
+
+    @staticmethod
+    def _runtime_json_dumps(payload: Any) -> str:
+        return json.dumps(payload, default=SchedulerService._runtime_json_default, sort_keys=True)
+
+    @staticmethod
+    def _runtime_json_default(value: Any) -> str:
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return str(value)
 
     def _resolve_effective_compute_budget(
         self,

@@ -21,6 +21,7 @@ from platform.ws_hub.router import (
     _handle_unsubscribe,
     _handle_validation_error,
     _receive_loop,
+    _send_subscription_snapshot,
     _validate_token,
 )
 from platform.ws_hub.schemas import (
@@ -504,6 +505,86 @@ async def test_router_helpers_cover_duplicate_unsubscribe_and_validation_paths()
 
 
 @pytest.mark.asyncio
+async def test_subscription_snapshot_sends_execution_and_reasoning_state(monkeypatch) -> None:
+    execution_id = uuid4()
+    workspace_id = uuid4()
+    execution = SimpleNamespace(
+        id=execution_id,
+        workspace_id=workspace_id,
+        correlation_conversation_id=None,
+        correlation_interaction_id=None,
+        correlation_fleet_id=None,
+        correlation_goal_id=None,
+        status=SimpleNamespace(value="completed"),
+    )
+    trace = SimpleNamespace(
+        step_id="run_agent",
+        technique="e2e_mock_agent",
+        status="complete",
+        storage_key="trace-key",
+    )
+
+    class FakeSession:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+    class FakeRepository:
+        def __init__(self, session) -> None:
+            self.session = session
+
+        async def get_execution_by_id(self, requested_id):
+            assert requested_id == execution_id
+            return execution
+
+        async def get_reasoning_trace_record(self, requested_id, step_id):
+            assert requested_id == execution_id
+            assert step_id is None
+            return trace
+
+    monkeypatch.setattr(
+        "platform.ws_hub.router.database.AsyncSessionLocal",
+        lambda: FakeSession(),
+    )
+    monkeypatch.setattr("platform.ws_hub.router.ExecutionRepository", FakeRepository)
+
+    websocket = FakeWebSocket(build_state())
+    await _send_subscription_snapshot(
+        websocket,
+        SubscribeMessage(
+            type="subscribe",
+            channel=ChannelType.EXECUTION,
+            resource_id=str(execution_id),
+        ),
+    )
+    await _send_subscription_snapshot(
+        websocket,
+        SubscribeMessage(
+            type="subscribe",
+            channel=ChannelType.REASONING,
+            resource_id=str(execution_id),
+        ),
+    )
+
+    execution_message, reasoning_message = websocket.decoded_messages()
+    assert execution_message["type"] == "event"
+    assert execution_message["channel"] == "execution"
+    assert execution_message["payload"]["event_type"] == "execution.status_changed"
+    assert execution_message["payload"]["payload"] == {
+        "execution_id": str(execution_id),
+        "status": "completed",
+        "snapshot": True,
+    }
+    assert execution_message["payload"]["correlation_context"]["workspace_id"] == str(workspace_id)
+    assert reasoning_message["channel"] == "reasoning"
+    assert reasoning_message["payload"]["event_type"] == "reasoning.trace_emitted"
+    assert reasoning_message["payload"]["payload"]["step_id"] == "run_agent"
+    assert reasoning_message["payload"]["payload"]["snapshot"] is True
+
+
+@pytest.mark.asyncio
 async def test_receive_loop_and_cleanup_cover_remaining_router_branches(monkeypatch) -> None:
     user_id = uuid4()
     workspace_id = uuid4()
@@ -568,15 +649,17 @@ async def test_heartbeat_and_writer_cover_timeout_and_error_paths(monkeypatch) -
     websocket = FakeWebSocket(SimpleNamespace())
     connection = build_connection(websocket=websocket)
 
-    async def send_and_stop(_: bytes) -> None:
+    async def send_and_stop(payload: str) -> None:
         connection.closed.set()
-        websocket.sent_bytes.append(b"")
+        websocket.sent_text.append(payload)
 
-    websocket.send_bytes = send_and_stop
+    websocket.send_text = send_and_stop
     await ConnectionHeartbeat(interval_seconds=0, timeout_seconds=10).run(connection)
-    assert websocket.sent_bytes == [b""]
+    heartbeat_messages = websocket.decoded_messages()
+    assert len(heartbeat_messages) == 1
+    assert heartbeat_messages[0]["type"] == "heartbeat"
 
-    failing_socket = FakeWebSocket(SimpleNamespace(), fail_send_bytes=True)
+    failing_socket = FakeWebSocket(SimpleNamespace(), fail_send_text=True)
     failing_conn = build_connection(websocket=failing_socket)
     await ConnectionHeartbeat(interval_seconds=0, timeout_seconds=10).run(failing_conn)
     assert failing_conn.closed.is_set() is True
@@ -612,7 +695,7 @@ async def test_heartbeat_and_writer_cover_timeout_and_error_paths(monkeypatch) -
 
     monkeypatch.setattr("platform.ws_hub.heartbeat.asyncio.sleep", close_before_return)
     await ConnectionHeartbeat(interval_seconds=0, timeout_seconds=10).run(closing_conn)
-    assert closing_socket.sent_bytes == []
+    assert closing_socket.sent_text == []
 
     broken_close_socket = FakeWebSocket(SimpleNamespace())
     broken_conn = build_connection(websocket=broken_close_socket)

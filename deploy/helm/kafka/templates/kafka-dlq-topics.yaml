@@ -1,16 +1,17 @@
 {{- range .Values.topics }}
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: KafkaTopic
 metadata:
-  name: {{ .name }}.dlq
+  name: {{ printf "%s.dlq" (.name | replace "_" "-") }}
   namespace: {{ $.Values.namespace }}
   labels:
     strimzi.io/cluster: {{ $.Values.clusterName }}
 spec:
+  topicName: {{ .name }}.dlq
   partitions: {{ $.Values.dlqPartitions }}
   replicas: {{ $.Values.replicationFactor }}
   config:
-    retention.ms: {{ $.Values.dlqRetentionMs | quote }}
+    retention.ms: {{ $.Values.dlqRetentionMs | int64 | quote }}
 ---
 {{- end }}
 

@@ -6,6 +6,7 @@ from platform.common.config import PlatformSettings
 from platform.common.events.envelope import EventEnvelope
 from platform.common.events.producer import EventProducer
 from platform.marketplace.repository import MarketplaceRepository
+from platform.trust.models import CertificationStatus
 from uuid import UUID
 
 
@@ -59,13 +60,13 @@ class MarketplaceQualityAggregateService:
         await self.repository.update_quality_aggregate(aggregate)
 
     async def handle_trust_event(self, event: dict[str, object] | EventEnvelope) -> None:
-        _, payload = _event_parts(event)
+        event_type, payload = _event_parts(event)
         agent_id = _coerce_uuid(payload.get("agent_id") or payload.get("agent_profile_id"))
-        certification_status = payload.get("certification_status") or payload.get("status")
+        certification_status = _resolve_trust_certification_status(event_type, payload)
         if agent_id is None or certification_status is None:
             return
         aggregate = await self.repository.get_or_create_quality_aggregate(agent_id)
-        aggregate.certification_status = str(certification_status)
+        aggregate.certification_status = certification_status
         aggregate.data_source_last_updated_at = datetime.now(UTC)
         aggregate.source_unavailable_since = None
         await self.repository.update_quality_aggregate(aggregate)
@@ -100,3 +101,25 @@ def _coerce_uuid(value: object) -> UUID | None:
         return UUID(str(value))
     except (TypeError, ValueError):
         return None
+
+
+def _resolve_trust_certification_status(
+    event_type: str,
+    payload: dict[str, object],
+) -> str | None:
+    for candidate in (payload.get("certification_status"), payload.get("status")):
+        if candidate is None:
+            continue
+        rendered = str(candidate).strip()
+        if rendered:
+            return rendered
+    inferred = {
+        "certification.created": CertificationStatus.pending.value,
+        "certification.activated": CertificationStatus.active.value,
+        "certification.revoked": CertificationStatus.revoked.value,
+        "certification.expired": CertificationStatus.expired.value,
+        "certification.superseded": CertificationStatus.superseded.value,
+        "trust.certification.expiring": CertificationStatus.expiring.value,
+        "trust.certification.suspended": CertificationStatus.suspended.value,
+    }.get(event_type)
+    return inferred

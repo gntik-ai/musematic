@@ -1,4 +1,7 @@
-FROM golang:1.25-alpine3.23 AS builder
+ARG GO_BASE=mirror.gcr.io/library/golang:1.25-alpine3.23
+ARG ALPINE_BASE=mirror.gcr.io/library/alpine:3.23.3
+
+FROM ${GO_BASE} AS builder
 
 RUN apk add --no-cache build-base pkgconf
 
@@ -8,7 +11,7 @@ RUN go mod download || true
 COPY . .
 RUN CGO_ENABLED=1 GOARCH=amd64 GOOS=linux go build -tags musl -ldflags="-s -w" -o /sandbox-manager ./cmd/sandbox-manager
 
-FROM alpine:3.23.3
+FROM ${ALPINE_BASE}
 
 RUN apk upgrade --no-cache \
     && apk add --no-cache ca-certificates libstdc++ \
