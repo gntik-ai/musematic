@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import asyncio
 import tarfile
 from io import BytesIO
 from pathlib import Path
+from time import monotonic
 from typing import Any
 
 from journeys.helpers import fixtures_dir, journey_resource_prefix
+from journeys.helpers.api_waits import wait_for_certification
 
 
 def _package_path() -> Path:
@@ -77,20 +80,39 @@ def _build_package_from_stub(
     return buffer.getvalue()
 
 
-async def _ensure_namespace(client, namespace_name: str) -> dict[str, Any]:
-    response = await client.post("/api/v1/namespaces", json={"name": namespace_name})
-    if response.status_code in {200, 201}:
-        return response.json()
-    if response.status_code not in {400, 409}:
-        response.raise_for_status()
+async def _ensure_namespace(
+    client,
+    namespace_name: str,
+    *,
+    timeout: float = 30.0,
+) -> dict[str, Any]:
+    deadline = monotonic() + timeout
+    last_create_status: int | None = None
+    last_list_status: int | None = None
+    while monotonic() < deadline:
+        response = await client.post("/api/v1/namespaces", json={"name": namespace_name})
+        if response.status_code in {200, 201}:
+            return response.json()
+        last_create_status = response.status_code
+        if response.status_code not in {400, 403, 404, 409}:
+            response.raise_for_status()
 
-    listed = await client.get("/api/v1/namespaces")
-    listed.raise_for_status()
-    items = listed.json().get("items", [])
-    for item in items:
-        if item.get("name") == namespace_name:
-            return item
-    raise AssertionError(f"namespace {namespace_name} could not be created or discovered")
+        listed = await client.get("/api/v1/namespaces")
+        last_list_status = listed.status_code
+        if listed.status_code == 200:
+            items = listed.json().get("items", [])
+            for item in items:
+                if item.get("name") == namespace_name:
+                    return item
+        elif listed.status_code not in {403, 404}:
+            listed.raise_for_status()
+
+        await asyncio.sleep(0.5)
+
+    raise AssertionError(
+        f"namespace {namespace_name} could not be created or discovered within {timeout:.0f}s; "
+        f"last create status={last_create_status}; last list status={last_list_status}"
+    )
 
 
 async def register_full_agent(
@@ -167,6 +189,7 @@ async def certify_agent(
     )
     created.raise_for_status()
     certification = created.json()
+    certification = await wait_for_certification(operator, certification["id"])
 
     for index, item in enumerate(evidence or [], start=1):
         attached = await operator.post(

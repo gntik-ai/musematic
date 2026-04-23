@@ -15,6 +15,7 @@ from journeys.conftest import (
     JourneyWsClient,
     _workflow_yaml,
 )
+from journeys.helpers.api_waits import wait_for_workspace_access
 from journeys.helpers.executions import wait_for_execution
 from journeys.helpers.narrative import journey_step
 from journeys.helpers.websockets import assert_event_order, subscribe_ws
@@ -251,6 +252,7 @@ async def test_j03_consumer_discovery_execution(
         patch.raise_for_status()
         assert membership.json()["workspace_id"] == str(workspace_id)
         assert patch.json()["display_name"] == "Customer Identity Verifier"
+        await wait_for_workspace_access(consumer_workspace, workspace_id)
 
     with journey_step("Consumer browses the marketplace home within the workspace scope"):
         browse_payload = await _wait_for_marketplace_search_result(

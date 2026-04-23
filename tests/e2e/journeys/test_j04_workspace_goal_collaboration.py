@@ -17,6 +17,7 @@ from journeys.conftest import (
     JourneyWsClient,
     _mint_access_token,
 )
+from journeys.helpers.api_waits import wait_for_workspace_access
 from journeys.helpers.narrative import journey_step
 from journeys.helpers.websockets import assert_event_order
 
@@ -236,14 +237,13 @@ async def test_j04_workspace_goal_collaboration(
             assert membership_payload["workspace_id"] == str(workspace_id)
             assert membership_payload["role"] == "admin"
             assert consumer_workspace_admin.access_token is not None
+            workspace_detail_payload = await wait_for_workspace_access(consumer_workspace_admin, workspace_id)
 
         with journey_step("Collaborator opens the prepared workspace and sees four subscribed agents"):
-            workspace_detail = await consumer_workspace_admin.get(f"/api/v1/workspaces/{workspace_id}")
             settings = await consumer_workspace_admin.get(f"/api/v1/workspaces/{workspace_id}/settings")
-            workspace_detail.raise_for_status()
             settings.raise_for_status()
             settings_payload = settings.json()
-            assert workspace_detail.json()["id"] == str(workspace_id)
+            assert workspace_detail_payload["id"] == str(workspace_id)
             assert set(settings_payload["subscribed_agents"]) == set(
                 workspace_with_goal_ready["subscribed_agents"]
             )

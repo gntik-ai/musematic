@@ -14,6 +14,7 @@ from journeys.conftest import (
     _register_cleanup,
 )
 from journeys.helpers.agents import certify_agent, register_full_agent
+from journeys.helpers.api_waits import wait_for_policy, wait_for_workspace_access
 from journeys.helpers.narrative import journey_step
 
 JOURNEY_ID = "j02"
@@ -58,6 +59,7 @@ async def _create_workspace(
     )
     created.raise_for_status()
     payload = created.json()
+    payload = await wait_for_workspace_access(admin_client, payload["id"])
     _register_cleanup(
         request,
         {
@@ -215,9 +217,9 @@ async def test_j02_creator_to_publication(
         shadow_member.raise_for_status()
         assert primary_member.json()["role"] == "admin"
         assert shadow_member.json()["workspace_id"] == str(shadow_workspace_id)
+        primary_detail_payload = await wait_for_workspace_access(creator_primary, primary_workspace_id)
 
     with journey_step("Creator opens the primary workspace and selects the finance-ops namespace"):
-        primary_detail = await creator_primary.get(f"/api/v1/workspaces/{primary_workspace_id}")
         namespace = await creator_primary.post(
             "/api/v1/namespaces",
             json={
@@ -225,9 +227,8 @@ async def test_j02_creator_to_publication(
                 "description": "Namespace dedicated to KYC and fraud-screening automations.",
             },
         )
-        primary_detail.raise_for_status()
         namespace.raise_for_status()
-        assert primary_detail.json()["id"] == str(primary_workspace_id)
+        assert primary_detail_payload["id"] == str(primary_workspace_id)
         assert namespace.json()["name"] == finance_namespace_name
 
     with journey_step("Admin narrows primary visibility to finance agents and isolates the shadow workspace"):
@@ -332,8 +333,9 @@ async def test_j02_creator_to_publication(
             },
         )
         policy.raise_for_status()
+        policy_payload = await wait_for_policy(creator_primary, policy.json()["id"])
         attached = await creator_primary.post(
-            f"/api/v1/policies/{policy.json()['id']}/attach",
+            f"/api/v1/policies/{policy_payload['id']}/attach",
             json={
                 "target_type": "agent_revision",
                 "target_id": str(revision_payload["id"]),

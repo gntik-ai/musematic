@@ -15,6 +15,7 @@ import websockets
 
 from journeys.helpers import journey_resource_prefix
 from journeys.helpers.agents import certify_agent, register_full_agent
+from journeys.helpers.api_waits import wait_for_policy, wait_for_workspace_access
 from journeys.helpers.governance import create_governance_chain
 from journeys.helpers.oauth import oauth_login
 
@@ -409,7 +410,8 @@ async def _create_workspace_policy(
         },
     )
     response.raise_for_status()
-    return response.json()
+    policy = response.json()
+    return await wait_for_policy(client, policy["id"])
 
 
 async def _list_namespace_by_name(
@@ -461,6 +463,7 @@ async def _attach_policy_to_revision(
     policy_id: str,
     revision_id: str,
 ) -> dict[str, Any]:
+    await wait_for_policy(client, policy_id)
     response = await client.post(
         f"/api/v1/policies/{policy_id}/attach",
         json={
@@ -743,6 +746,7 @@ async def workspace_with_agents(
     workspace.raise_for_status()
     workspace_payload = workspace.json()
     workspace_id = UUID(str(workspace_payload["id"]))
+    workspace_payload = await wait_for_workspace_access(admin_client, workspace_id)
     _register_cleanup(
         request,
         {
