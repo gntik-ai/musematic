@@ -168,3 +168,62 @@ async def test_github_org_membership_handles_404_and_missing_primary_email(monke
         await provider.fetch_emails(access_token="token")
 
     assert await provider.check_org_membership(access_token="token", org="missing") is False
+
+@pytest.mark.asyncio
+async def test_google_exchange_code_posts_pkce_payload(monkeypatch) -> None:
+    calls = []
+    monkeypatch.setattr(
+        "platform.auth.services.oauth_providers.google.httpx.AsyncClient",
+        lambda **kwargs: AsyncClientStub(
+            post_responses=[ResponseStub({"access_token": "token"})],
+            calls=calls,
+            **kwargs,
+        ),
+    )
+    provider = GoogleOAuthProvider(token_endpoint="https://google.test/token")
+
+    token = await provider.exchange_code(
+        client_id="google-client",
+        client_secret="secret",
+        redirect_uri="https://app.example.com/callback",
+        code="oauth-code",
+        code_verifier="verifier",
+    )
+
+    assert token["access_token"] == "token"
+    assert calls[0] == (
+        "post",
+        "https://google.test/token",
+        {
+            "data": {
+                "client_id": "google-client",
+                "client_secret": "secret",
+                "redirect_uri": "https://app.example.com/callback",
+                "grant_type": "authorization_code",
+                "code": "oauth-code",
+                "code_verifier": "verifier",
+            }
+        },
+    )
+
+
+@pytest.mark.asyncio
+async def test_google_fetch_user_rejects_unverified_email_and_groups_are_empty(
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(
+        "platform.auth.services.oauth_providers.google.httpx.AsyncClient",
+        lambda **kwargs: AsyncClientStub(
+            get_responses=[
+                ResponseStub({"aud": "google-client", "email_verified": "false"})
+            ],
+            **kwargs,
+        ),
+    )
+    provider = GoogleOAuthProvider()
+
+    with pytest.raises(ValueError, match="google_email_not_verified"):
+        await provider.fetch_user(id_token="id-token", client_id="google-client")
+
+    assert await provider.fetch_groups(access_token="token") == []
+

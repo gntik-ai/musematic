@@ -1,4 +1,4 @@
-# Functional Requirements Specification v5 (v4 + Post-Audit Completeness Pass)
+# Functional Requirements Specification v6 (v5 + UPD-035 Capstone)
 
 ## 0. Revision Intent, Scope Discipline, and Superseding Clarifications
 
@@ -2613,7 +2613,7 @@ The E2E test suite shall include lightweight performance smoke tests: agent laun
 ## 94. User Journey E2E Tests
 
 ### FR-461 User Journey Test Suite
-The platform shall maintain E2E test suites organized by user journey (in addition to the bounded-context suites in FR-456). Each journey simulates a complete user workflow from login through a multi-step business process, crossing at least 4 bounded contexts per journey. Journeys shall cover the following personas and workflows: Platform Administrator (bootstrap to production-ready), Agent Creator (idea to published agent), Consumer (discover, execute, track), Workspace Collaborator (multi-agent goal solving), Trust Officer (policy to enforcement), Operator (monitor, diagnose, recover), Evaluator (quality assessment and improvement loop), External Integrator (A2A and MCP), and Research Scientist (hypothesis to experiment).
+The platform shall maintain E2E test suites organized by user journey (in addition to the bounded-context suites in FR-456). Each journey simulates a complete user workflow from login through a multi-step business process, crossing at least 4 bounded contexts per journey. Journeys shall cover the following personas and workflows: Platform Administrator (bootstrap to production-ready), Agent Creator (idea to published agent), Consumer (discover, execute, track), Workspace Collaborator (multi-agent goal solving), Trust Officer (policy to enforcement), Operator (monitor, diagnose, recover), Evaluator (quality assessment and improvement loop), External Integrator (A2A and MCP), Research Scientist (hypothesis to experiment), Privacy Officer (data subject request lifecycle), Security Officer (SBOM, vulnerability, rotation workflows), Finance Owner (budget setup, chargeback, anomaly response), SRE (multi-region failover and maintenance), Model Steward (model catalog approval, fallback verification), Accessibility User (screen-reader and keyboard-only flows), Compliance Auditor (hash-chain verification, audit export), and Dashboard Consumer (log-metric-trace correlation).
 
 ### FR-462 Journey Test Assertions at Every Boundary Crossing
 Each journey test shall include explicit assertions at every bounded-context boundary crossing — not just at the start and end. For example, the Consumer journey shall assert: login response, marketplace search results, conversation creation, execution creation, WebSocket event reception, reasoning trace content, result structure, alert delivery, and conversation history. Each journey shall have a minimum of 15 assertion points.
@@ -2789,6 +2789,120 @@ Workspaces, agents, fleets, workflows, policies, certifications, and evaluation 
 
 ### FR-512 Saved Views and Filters
 Users shall be able to save frequently-used filter combinations as named views (e.g., "Production agents in finance-ops with active certifications"). Saved views shall be personal or shared per workspace.
+
+## 106. Observability Helm Bundle and Deployment Topology
+
+### FR-513 Unified Observability Helm Chart
+The platform shall ship a single umbrella Helm chart `deploy/helm/observability/` that installs the complete observability stack in one command. The umbrella chart shall declare sub-chart dependencies on the upstream Prometheus community chart (kube-prometheus-stack or equivalent providing Prometheus, Alertmanager, node-exporter, kube-state-metrics), Grafana, Jaeger, Loki, Promtail, and OpenTelemetry Collector. Sub-charts shall be version-pinned, overridable via values, and installable into a dedicated `platform-observability` namespace with network-policy isolation.
+
+### FR-514 Observability Stack Lifecycle Management
+The observability chart shall support independent installation, upgrade, and uninstallation from the rest of the platform. A platform operator CLI command (`platform-cli observability install|upgrade|uninstall|status`) shall wrap Helm invocations and verify that each component is healthy post-install (Prometheus scraping platform targets, Grafana datasources reachable, Jaeger accepting spans, Loki accepting log pushes).
+
+### FR-515 Grafana Data Source Auto-Provisioning
+The Helm chart shall auto-provision all required Grafana data sources (Prometheus, Loki, Jaeger) via Grafana provisioning ConfigMaps. Data sources shall be configured with correct intra-cluster URLs, derived-field links (e.g., `trace_id` in Loki logs → Jaeger trace view), and default dashboards set per data source. Grafana shall be reachable behind an Ingress (or NodePort in dev) with platform SSO integration available via OAuth plugin.
+
+### FR-516 Dashboard and Alert Provisioning via ConfigMaps
+All 21 platform dashboards (7 existing from feature 047 + 14 new from UPD-034) and all alert rules (Prometheus + Loki) shall be delivered as Kubernetes ConfigMaps with the `grafana_dashboard: "1"` / `prometheus-rule: "1"` labels. Grafana sidecar and Prometheus Operator shall discover and load them automatically. Dashboards and alerts shall be versioned with the platform release.
+
+### FR-517 Log Retention Configuration via Helm Values
+Helm values shall expose: Loki hot retention (default 14 days), Loki cold retention in S3 (default 90 days), Prometheus metric retention (default 30 days), Jaeger trace retention (default 7 days), Alertmanager silence retention (default 120 days). Each value shall be tenant-override-able via a per-installation `values-tenant.yaml` overlay.
+
+### FR-518 Observability Resource Sizing Presets
+Helm values shall ship three sizing presets — `minimal` (single-node dev/kind, ≤1 GB RAM for the whole stack), `standard` (small production, HA Prometheus, single-binary Loki), `enterprise` (horizontal Prometheus via Thanos, distributed Loki with S3 chunks, Grafana HA). Operators shall select the preset via `values.yaml`; each preset shall have documented capacity limits (metrics cardinality, logs/sec, traces/sec).
+
+## 107. Extended User Journey E2E Tests (Audit-Pass and Observability)
+
+### FR-519 Extended Journey Coverage for Audit-Pass Features
+In addition to the 9 journeys defined in FR-461, the platform shall provide 7 additional user journey E2E tests covering the audit-pass features: Privacy Officer (DSR lifecycle end-to-end), Security Officer (SBOM and vulnerability and rotation workflows), Finance Owner (budget and chargeback and anomaly response), SRE (multi-region replication and failover and maintenance), Model Steward (model catalog approval and fallback verification), Accessibility User (WCAG AA keyboard and screen-reader only flows), Compliance Auditor (hash-chain integrity and audit export), and Dashboard Consumer (correlated log-metric-trace debugging). Each journey shall meet the same criteria as FR-462 (minimum 15 assertion points) and FR-463 (independence and parallelism).
+
+### FR-520 Existing Journey Extension for New Features
+The existing 9 user journeys from FR-461 shall be extended to exercise audit-pass and observability capabilities wherever they naturally fit:
+- **Administrator journey**: configure DLP rules, set a workspace budget, seed the approved model catalog with at least one entry per provider, verify the observability stack is reachable and all dashboards load.
+- **Creator journey**: agent creation flow triggers a PIA when sensitive data categories are declared; model binding validated against approved catalog; new agent appears in the Privacy & Compliance dashboard if it processes PII.
+- **Consumer journey**: after execution, verify cost attribution record exists; verify content moderation pass event is logged; verify the corresponding log entry reaches Loki within 15 seconds with the correct `user_id` label.
+- **Workspace Goal journey**: label the goal with tags (UPD-033), verify tag-based policy expression is evaluated; verify the goal appears in the Goal Lifecycle dashboard.
+- **Trust journey**: extend to cover bias/fairness evaluation run + result persistence (UPD-032); verify verdict appears in the Governance Pipeline dashboard.
+- **Operator journey**: extend to open an incident via PagerDuty webhook mock (UPD-031), consult a runbook inline, generate a post-mortem with timeline reconstruction; verify the Incident Response dashboard reflects the active incident.
+- **Evaluator journey**: verify fairness scorer is available; verify LLM-as-Judge uses a catalog-approved model; verify model fallback triggers when the primary model returns a rate-limit error.
+- **External Integrator journey**: verify A2A webhook is HMAC-signed (UPD-028); verify rate-limit headers are present on API responses (UPD-029); verify OpenAPI schema is served at `/api/openapi.json`.
+- **Scientific Discovery journey**: verify hypothesis evaluation runs a fairness check when demographic data is involved; verify evaluation results are cost-attributed.
+
+### FR-521 Journey Test — Privacy Officer
+The Privacy Officer journey shall simulate a data subject request lifecycle: user submits a DSR via the self-service portal (or officer creates one on behalf), officer reviews and validates identity, officer executes the erasure, cascade deletion propagates across PostgreSQL/Qdrant/Neo4j/ClickHouse/OpenSearch/S3, tombstone record is created with cryptographic proof hash, DSR is marked complete, audit chain entry records the operation, notification is sent to the subject. Minimum 20 assertion points crossing auth, accounts, privacy_compliance, audit, security_compliance, notifications bounded contexts.
+
+### FR-522 Journey Test — Security Officer
+The Security Officer journey shall simulate a security compliance cycle: officer publishes SBOM for current release, officer reviews vulnerability scan results, officer triages a critical CVE finding, officer schedules a secret rotation with dual-credential window, officer issues a JIT credential to an on-call operator for a specific operation, officer verifies audit chain integrity and exports signed audit log for a regulatory period. Minimum 20 assertion points crossing auth, security_compliance, audit, notifications bounded contexts.
+
+### FR-523 Journey Test — Finance Owner
+The Finance Owner journey shall simulate a cost-governance cycle: owner configures a monthly workspace budget with soft thresholds and hard cap, owner sets up chargeback routing, triggers an execution that crosses the 50% and 80% soft thresholds (verify alerts fire), extends budget after hard cap is reached with admin override, reviews the end-of-period forecast, triggers a cost anomaly (sudden model-cost spike) and reviews the anomaly feed, exports a chargeback report. Minimum 18 assertion points crossing auth, workspaces, cost_governance, notifications, analytics.
+
+### FR-524 Journey Test — SRE / Multi-Region Operator
+The SRE journey shall simulate a multi-region operations cycle: operator reviews replication lag across all data stores, schedules a maintenance window with graceful drain, executes a quarterly failover test to the secondary region, verifies in-flight executions complete gracefully, verifies new executions route to the secondary, performs failback, verifies no data loss via reconciliation queries, reviews RPO/RTO metrics for the event. Minimum 18 assertion points crossing auth, multi_region_ops, workflow, workspaces.
+
+### FR-525 Journey Test — Model Steward
+The Model Steward journey shall simulate a model catalog governance cycle: steward reviews and approves a new model entry with full card (capabilities, limitations, training cutoff, safety assessments), deprecates an older model with a grace period, configures a fallback policy for a critical agent (primary + two fallbacks with quality-tier constraints), triggers a primary provider outage (mock 429 rate-limit), verifies fallback is used correctly, verifies the fallback event is logged and visible in the Model Catalog dashboard, verifies cost attribution reflects the fallback provider's price. Minimum 18 assertion points crossing auth, model_catalog, trust, workflow, cost_governance.
+
+### FR-526 Journey Test — Accessibility User
+The Accessibility User journey shall simulate an end-to-end workflow completed by a user operating only keyboard + screen reader: user logs in (Tab/Shift+Tab navigation, Enter to submit), navigates the marketplace with arrow keys, starts a conversation with an agent, sends a message, observes execution progress via ARIA live region announcements, reviews the reasoning trace via keyboard navigation, logs out. Every interactive element MUST be reachable via keyboard; every status change MUST be announced via ARIA; color contrast ratios MUST be verified against WCAG AA thresholds. Run with axe-core in headless-browser automation asserting zero AA violations on every visited page. Minimum 15 assertion points.
+
+### FR-527 Journey Test — Compliance Auditor
+The Compliance Auditor journey shall simulate an audit preparation cycle: auditor logs in, requests audit trail export for a specific period via admin API, platform generates export with cryptographic signature covering the hash chain, auditor verifies chain integrity end-to-end (every entry's hash matches its predecessor), auditor queries specific events (authentication, DSR, policy violations, JIT grants), auditor reviews the compliance evidence dashboard for SOC2/ISO27001 controls, auditor exports evidence bundle for regulatory submission. Minimum 16 assertion points crossing auth, audit, security_compliance, privacy_compliance.
+
+### FR-528 Journey Test — Dashboard Consumer / Log-Metric-Trace Correlation
+The Dashboard Consumer journey shall simulate an SRE debugging a production issue using the observability stack: SRE observes a `HighErrorLogRate` alert, opens the Cross-Service Error Overview dashboard, identifies the top failing service, drills down to Loki logs filtered by service, picks an error log entry with a `trace_id`, clicks through to Jaeger to view the full distributed trace, correlates the trace with Prometheus metrics for the same time window, identifies root cause, verifies the resolution by watching the alert close. Minimum 15 assertion points exercising the integrated observability experience.
+
+### FR-529 Journey Test Narrative Reports with Dashboard Snapshots
+Extended journey tests (FR-521 through FR-528) shall produce HTML reports including: step-by-step narrative with pass/fail indicators, screenshots of relevant Grafana dashboards taken at key moments, links to Loki log queries, links to Jaeger trace views. Reports shall be downloadable as artifacts from CI and viewable directly in the browser.
+
+### FR-530 Journey Tests Run Against Ephemeral Observability Stack
+All journey tests (original + extended) shall run against a kind cluster that includes the full observability stack (Prometheus + Grafana + Loki + Jaeger + Alertmanager) provisioned via the same Helm chart used in production. No mocking of observability backends — assertions about dashboard data, log presence, and metric values use real queries against the running Loki/Prometheus.
+
+### FR-531 Updated Bounded-Context E2E Suites for New Bounded Contexts
+The bounded-context E2E suites (FR-456) shall be extended with new suites covering the bounded contexts introduced by the audit pass: `privacy_compliance` (DSR, cascade deletion, DLP, PIA, residency), `security_compliance` (SBOM, vuln scan ingestion, pen test, rotation, JIT, audit chain), `cost_governance` (attribution, chargeback, budget enforcement, forecast, anomaly), `multi_region_ops` (region config, replication monitoring, maintenance mode), `model_catalog` (catalog CRUD, card publication, fallback), `localization` (preferences, locale files). Each new suite shall follow the same style as existing suites (FR-457) and integrate with the Mock LLM Provider and dev-only `_e2e` endpoints.
+
+### FR-532 Chaos Scenario Expansion
+The chaos scenario catalog (FR-459) shall be expanded with scenarios specific to the new bounded contexts and the observability stack: Loki ingestion outage (logs buffered, alerts on drop), Prometheus scrape failure (metrics gap visible), model provider total outage (fallback exhaustion behavior), residency enforcement misconfiguration (query rejection), budget hard cap reached mid-execution (graceful termination or admin override flow), audit chain storage failure (fail-closed behavior preserves integrity).
+
+## 108. Log Aggregation with Loki (Structured Logging and Dashboards)
+
+### FR-533 Loki Log Aggregation Backend
+The platform shall deploy Grafana Loki in the `platform-observability` namespace as the centralized log aggregation backend. Loki shall use S3-compatible object storage (via the generic S3 client from FR-447) for chunk storage, enabling retention beyond what in-cluster disk can hold. Loki shall be reachable only from within the cluster; external access is exclusively via Grafana proxy.
+
+### FR-534 Promtail Log Collection DaemonSet
+The platform shall deploy Promtail as a DaemonSet on every node. Promtail shall auto-discover pods in all platform namespaces (`platform-control`, `platform-execution`, `platform-simulation`, `platform-data`, `platform-observability`, `platform-ui`) and ship their container stdout/stderr logs to Loki. Promtail shall run as non-root with read-only access to log paths.
+
+### FR-535 Structured JSON Logging Contract
+All platform services (Python control plane, Go satellite services, Next.js frontend server, frontend client via error reporting) shall emit structured JSON logs to stdout with the following mandatory fields: `timestamp` (ISO 8601 with timezone), `level` (debug|info|warn|error|fatal), `service` (service identifier), `bounded_context`, `message`. Optional but strongly recommended fields: `trace_id`, `span_id`, `correlation_id`, `workspace_id`, `goal_id`, `user_id`, `execution_id`, `agent_id`. Non-structured logging (plain text `print`, `fmt.Println`) shall be treated as a code review violation.
+
+### FR-536 Correlation ID Propagation via Context
+`trace_id`, `correlation_id`, `workspace_id`, `goal_id`, and `user_id` shall propagate automatically through async boundaries via Python ContextVars (control plane), Go `context.Context` (satellite services), and Next.js request context (frontend server). Middleware at HTTP ingress and Kafka consumption shall populate these at entry. Manual passing of correlation IDs shall not be required in business logic.
+
+### FR-537 Log Retention — Hot and Cold Tiers
+Loki shall retain logs for at least 14 days hot (in-cluster, fast queries) and at least 90 days cold (S3-archived, slower queries but regulatorily retained). Retention durations shall be configurable per tenant via Helm values. Log data in both tiers shall be queryable via LogQL with unified semantics (the tier transition is transparent to the query author).
+
+### FR-538 Sensitive Data Redaction in Log Ingestion
+Promtail shall apply redaction patterns to incoming log lines before shipping to Loki, masking at minimum: bearer tokens (`Bearer <alphanumeric>`), API keys matching known patterns (`sk-...`, `ghp_...`, AWS key format), email addresses in error contexts, Social Security Numbers, credit-card-like sequences. Redaction patterns shall be additive via Helm values. Redaction failures shall not block ingestion; they shall be counted and reported.
+
+### FR-539 Grafana Data Source Integration
+Grafana shall have Loki configured as a data source alongside Prometheus and Jaeger, with derived-field configuration that renders a `trace_id` in a Loki log entry as a clickable link opening the corresponding trace in Jaeger. Similarly, a Prometheus metric data point with a matching label set shall offer a "View related logs" action that opens Loki filtered by the same labels and time range.
+
+### FR-540 Five Log-Focused Grafana Dashboards
+The platform shall ship five log-focused dashboards: (1) **Control Plane Service Logs** — unified view of Python bounded contexts with log volume, error rate, recent errors, filters by workspace/goal/user; (2) **Go Satellite Service Logs** — runtime-controller / sandbox-manager / reasoning-engine / simulation-controller; (3) **Frontend Web Logs** — Next.js server logs + client-side error reporting with correlated API errors; (4) **Audit Event Stream** — real-time audit chain feed with entries by type and hash verification status; (5) **Cross-Service Error Overview** — aggregated errors across all services with clustering.
+
+### FR-541 Nine Metric+Log Dashboards for Audit-Pass Bounded Contexts
+The platform shall ship nine metric-and-log dashboards covering the audit-pass bounded contexts: **Privacy & Compliance** (DSRs, DLP events, PIAs, residency), **Security Compliance** (SBOM, CVEs, pen-tests, rotations, JIT, audit chain integrity), **Cost Governance** (spend, budgets, anomalies, forecasts), **Multi-Region Operations** (replication lag, RPO/RTO, maintenance windows), **Model Catalog & Fallback** (usage, fallback events, provider health), **Notifications Delivery** (channels, webhook status, DLQ), **Incident Response & Runbooks** (active incidents, MTTR, post-mortems, runbook access), **Goal Lifecycle & Agent Responses** (goal states, response decisions, attention requests), **Governance Pipeline** (observer signals, verdicts, enforcement actions).
+
+### FR-542 Dashboard Load Performance and Filtering
+All dashboards (7 existing + 14 new) shall load and render initial data within 5 seconds on seeded demo data. All dashboards shall support: time range picker, workspace filter variable, auto-refresh (default 30s), drill-down links to related dashboards and raw Loki/Jaeger queries. Default time range shall be one hour to prevent expensive 90-day-scope queries.
+
+### FR-543 Loki-Based Alert Rules
+The platform shall ship Loki-based alert rules via Loki Ruler (or Prometheus-compatible AlertManager routing), covering at minimum: `HighErrorLogRate` (per-service error rate exceeding threshold), `SecurityEventSpike` (auth/privacy/security BC errors), `DLPViolationSpike` (DLP block rate), `AuditChainAnomaly` (hash mismatch or gap), `CostAnomalyLogged` (cost anomaly messages). Alert rules shall fire through the same Alertmanager used for Prometheus alerts, with consistent routing and silencing.
+
+### FR-544 Low-Cardinality Loki Label Discipline
+Loki label cardinality shall be bounded. Labels permitted: `service`, `bounded_context`, `level`, `namespace`, `pod`, `container`, `region`. High-cardinality values such as `workspace_id`, `user_id`, `goal_id`, `execution_id`, `trace_id` shall live in the JSON payload of each log line, NOT as Loki labels. LogQL queries filter high-cardinality values via line-filter predicates over the JSON payload.
+
+### FR-545 Log Volume Observability
+Log ingestion rate (lines per second per service, bytes per second per service, rejected-log count) shall be exposed as Prometheus metrics from both Promtail (client-side) and Loki (server-side). An operator dashboard panel shall surface these rates and alert on sustained flooding (a service exceeding 1 MB/s sustained triggers operator review).
 
 ## 71. Final Comprehensive Acceptance Criteria
 

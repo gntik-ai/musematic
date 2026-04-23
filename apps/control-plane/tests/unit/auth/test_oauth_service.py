@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from platform.auth.exceptions import (
+    InactiveUserError,
     OAuthLinkConflictError,
     OAuthProviderDisabledError,
+    OAuthProviderNotFoundError,
     OAuthRestrictionError,
+    OAuthStateExpiredError,
     OAuthStateInvalidError,
     OAuthUnlinkLastMethodError,
 )
@@ -352,3 +355,228 @@ async def test_unlink_account_enforces_last_auth_method_and_deletes_link(auth_se
     assert repository.deleted_links == [link]
     assert repository.audit_entries[-1]["action"] == "account_unlinked"
     assert producer.events[-1]["event_type"] == "auth.oauth.account_unlinked"
+
+@pytest.mark.asyncio
+async def test_upsert_provider_records_changed_fields_and_event(auth_settings) -> None:
+    provider = build_provider(provider_type="google", enabled=False)
+    service, repository, _, _, _, producer, _ = build_oauth_service_fixture(
+        auth_settings,
+        provider=provider,
+    )
+    actor_id = uuid4()
+
+    response, created = await service.upsert_provider(
+        provider_type="google",
+        actor_id=actor_id,
+        display_name="Google Workspace",
+        enabled=True,
+        client_id="google-client-updated",
+        client_secret_ref="plain:new-secret",
+        redirect_uri="https://app.example.com/oauth/google/callback",
+        scopes=["openid", "email"],
+        domain_restrictions=["example.com"],
+        org_restrictions=[],
+        group_role_mapping={"admins": "platform_admin"},
+        default_role="viewer",
+        require_mfa=True,
+    )
+
+    assert created is False
+    assert response.display_name == "Google Workspace"
+    assert repository.audit_entries[-1]["action"] == "provider_configured"
+    assert repository.audit_entries[-1]["actor_id"] == actor_id
+    assert repository.audit_entries[-1]["changed_fields"]["enabled"] == {
+        "before": False,
+        "after": True,
+    }
+    assert producer.events[-1]["event_type"] == "auth.oauth.provider_configured"
+
+    with pytest.raises(ValueError, match="cannot be blank"):
+        await service.upsert_provider(
+            provider_type="google",
+            actor_id=actor_id,
+            display_name="Google Workspace",
+            enabled=True,
+            client_id="google-client",
+            client_secret_ref="plain:secret",
+            redirect_uri="https://app.example.com/oauth/google/callback",
+            scopes=["openid"],
+            domain_restrictions=[],
+            org_restrictions=[],
+            group_role_mapping={"admins": "   "},
+            default_role="viewer",
+            require_mfa=False,
+        )
+
+
+@pytest.mark.asyncio
+async def test_link_callback_conflict_records_failed_link_audit(auth_settings) -> None:
+    provider = build_provider(provider_type="google")
+    service, repository, _, _, _, _, _ = build_oauth_service_fixture(
+        auth_settings,
+        provider=provider,
+    )
+    target_user_id = uuid4()
+    existing_link = await repository.create_link(
+        user_id=uuid4(),
+        provider_id=provider.id,
+        external_id="google-subject",
+        external_email="alex@example.com",
+        external_name="Alex Example",
+        external_avatar_url=None,
+        external_groups=[],
+        last_login_at=None,
+    )
+    existing_link.provider = provider
+    state = extract_query_param(
+        (
+            await service.get_authorization_url(
+                "google",
+                link_for_user_id=target_user_id,
+            )
+        ).redirect_url,
+        "state",
+    )
+
+    with pytest.raises(OAuthLinkConflictError):
+        await service.handle_callback(
+            provider_type="google",
+            code="oauth-code",
+            raw_state=state,
+            source_ip="127.0.0.1",
+            user_agent="pytest",
+        )
+
+    assert repository.audit_entries[-1]["action"] == "account_linked"
+    assert repository.audit_entries[-1]["outcome"] == "failure"
+    assert repository.audit_entries[-1]["failure_reason"] == "OAUTH_LINK_CONFLICT"
+
+
+@pytest.mark.asyncio
+async def test_handle_callback_rejects_inactive_linked_user(auth_settings) -> None:
+    provider = build_provider(provider_type="google")
+    user_id = uuid4()
+    auth_repository = AuthRepositoryStub(
+        users_by_id={
+            user_id: SimpleNamespace(
+                id=user_id,
+                email="alex@example.com",
+                display_name="Alex Example",
+                status="blocked",
+            )
+        },
+        roles_by_user={user_id: [SimpleNamespace(role="viewer", workspace_id=None)]},
+    )
+    repository = OAuthRepositoryStub(providers={provider.provider_type: provider})
+    existing_link = await repository.create_link(
+        user_id=user_id,
+        provider_id=provider.id,
+        external_id="google-subject",
+        external_email="alex@example.com",
+        external_name="Alex Example",
+        external_avatar_url=None,
+        external_groups=[],
+        last_login_at=None,
+    )
+    existing_link.provider = provider
+    service, _, _, _, _, _, _ = build_oauth_service_fixture(
+        auth_settings,
+        provider=provider,
+        repository=repository,
+        auth_repository=auth_repository,
+    )
+    state = extract_query_param(
+        (await service.get_authorization_url("google")).redirect_url,
+        "state",
+    )
+
+    with pytest.raises(InactiveUserError):
+        await service.handle_callback(
+            provider_type="google",
+            code="oauth-code",
+            raw_state=state,
+            source_ip="127.0.0.1",
+            user_agent="pytest",
+        )
+
+    assert repository.audit_entries[-1]["action"] == "sign_in_failed"
+    assert repository.audit_entries[-1]["failure_reason"] == "FORBIDDEN"
+
+@pytest.mark.asyncio
+async def test_handle_callback_audits_identity_resolution_failure(auth_settings) -> None:
+    class FailingGoogleProvider(GoogleProviderStub):
+        async def exchange_code(self, **kwargs):
+            del kwargs
+            raise RuntimeError("oauth-down")
+
+    provider = build_provider(provider_type="google")
+    service, repository, *_ = build_oauth_service_fixture(
+        auth_settings,
+        provider=provider,
+        google_provider=FailingGoogleProvider(),
+    )
+    state = extract_query_param(
+        (await service.get_authorization_url("google")).redirect_url,
+        "state",
+    )
+
+    with pytest.raises(RuntimeError, match="oauth-down"):
+        await service.handle_callback(
+            provider_type="google",
+            code="oauth-code",
+            raw_state=state,
+            source_ip="127.0.0.1",
+            user_agent="pytest",
+        )
+
+    assert repository.audit_entries[-1]["action"] == "sign_in_failed"
+    assert repository.audit_entries[-1]["failure_reason"] == "oauth-down"
+
+
+@pytest.mark.asyncio
+async def test_oauth_internal_helpers_cover_error_paths(monkeypatch, auth_settings) -> None:
+    async def resolver(reference: str) -> str:
+        assert reference == "vault/google"
+        return "resolved-secret"
+
+    provider = build_provider(provider_type="google", enabled=False)
+    service, _, _, _, redis_client, _, _ = build_oauth_service_fixture(
+        auth_settings,
+        provider=provider,
+        credential_resolver=resolver,
+    )
+
+    assert await service._resolve_secret("vault/google") == "resolved-secret"
+    service.credential_resolver = None
+    assert await service._resolve_secret("plain:inline") == "inline"
+    monkeypatch.setenv("OAUTH_SECRET_VAULT_GOOGLE", "env-secret")
+    assert await service._resolve_secret("vault/google") == "env-secret"
+    monkeypatch.delenv("OAUTH_SECRET_VAULT_GOOGLE")
+    assert await service._resolve_secret("vault/google") == "vault/google"
+    assert service._resolve_role(provider, ["unmapped"]) == provider.default_role
+
+    with pytest.raises(OAuthProviderDisabledError):
+        await service._require_enabled_provider("google")
+
+    with pytest.raises(OAuthProviderNotFoundError):
+        await service._require_provider("missing")
+
+    with pytest.raises(OAuthProviderNotFoundError):
+        service._provider_client("unknown")
+
+    with pytest.raises(OAuthStateInvalidError):
+        service._verify_state("invalid-state")
+
+    expired_state = service._sign_state("expired")
+    with pytest.raises(OAuthStateExpiredError):
+        await service._consume_state(expired_state, "google")
+
+    mismatch_state = service._sign_state("mismatch")
+    await redis_client.set(
+        service._state_key("mismatch"),
+        b'{"provider_type":"github","code_verifier":"verifier"}',
+        ttl=60,
+    )
+    with pytest.raises(OAuthStateInvalidError):
+        await service._consume_state(mismatch_state, "google")
+

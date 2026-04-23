@@ -32,6 +32,7 @@ from platform.accounts.schemas import (
 from platform.accounts.service import AccountsService
 from platform.auth.schemas import RoleType
 from platform.common.exceptions import AuthorizationError, NotFoundError
+from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 import pytest
@@ -59,6 +60,10 @@ class AuthServiceStub:
         self.reset_mfa_calls: list[UUID] = []
         self.password_reset_calls: list[tuple[UUID, bool]] = []
         self.clear_lockout_calls: list[UUID] = []
+        self.repository = SimpleNamespace(
+            get_platform_user=self.get_platform_user,
+            get_mfa_enrollment=self.get_mfa_enrollment,
+        )
 
     async def create_user_credential(self, user_id: UUID, email: str, password: str) -> None:
         self.created_credentials.append((user_id, email, password))
@@ -74,6 +79,14 @@ class AuthServiceStub:
     async def invalidate_user_sessions(self, user_id: UUID) -> int:
         self.invalidated_sessions.append(user_id)
         return 1
+
+    async def get_platform_user(self, user_id: UUID) -> object | None:
+        del user_id
+        return None
+
+    async def get_mfa_enrollment(self, user_id: UUID) -> object | None:
+        del user_id
+        return None
 
     async def reset_mfa(self, user_id: UUID) -> bool:
         self.reset_mfa_calls.append(user_id)

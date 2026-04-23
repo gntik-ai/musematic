@@ -1,4 +1,4 @@
-# Product System Architecture (v4 — Post-Audit Completeness Pass)
+# Product System Architecture (v5 — Audit Pass + UPD-035 Capstone)
 
 Version: 2.0
 Scope baseline: 391 functional requirements + 375 technical requirements = 766 total requirements covered
@@ -670,9 +670,10 @@ This plane provides the infrastructure for semantic, behavioral, and adversarial
 - Evaluation artifact store
 - **E2E test harness** (kind-based ephemeral cluster, pytest-based, Helm-driven install)
 - **E2E test data seeder** (deterministic fixtures for all bounded contexts)
-- **User journey test framework** (9 cross-cutting journeys: admin bootstrap, creator publication, consumer execution, workspace goal collaboration, trust governance, operator incident response, evaluator improvement, external A2A/MCP integration, scientific discovery)
-- **Chaos injector** (pod kill, network partition, credential revocation scenarios)
+- **User journey test framework** (**17 cross-cutting journeys**: admin bootstrap, creator publication, consumer execution, workspace goal collaboration, trust governance, operator incident response, evaluator improvement, external A2A/MCP integration, scientific discovery, **privacy officer, security officer, finance owner, SRE multi-region, model steward, accessibility user, compliance auditor, dashboard consumer**)
+- **Chaos injector** (pod kill, network partition, credential revocation, **Loki ingestion outage, Prometheus scrape failure, model provider total outage, residency misconfig, budget hard cap mid-execution, audit chain storage failure**)
 - **Performance smoke test runner**
+- **Observability assertion helpers** (Loki log presence with timeout, Prometheus metric tolerance, Jaeger trace structure, Grafana dashboard snapshot for reports, axe-core accessibility automation)
 
 ### Responsibilities
 
@@ -1599,7 +1600,52 @@ Short-lived, policy-scoped, language-templated pods. Code-as-reasoning sandboxes
 
 Independently scalable Deployments or Jobs subscribing to Kafka topics.
 
-## 11.6 Autoscaling
+## 11.6 Observability deployment topology (unified Helm bundle)
+
+The entire observability stack is shipped as a single umbrella Helm chart at `deploy/helm/observability/` that installs all components into the `platform-observability` namespace in one command:
+
+**Components (each as a sub-chart dependency):**
+- **Prometheus** (via kube-prometheus-stack) — metric time-series backend with Alertmanager and node-exporter
+- **Grafana** — unified visualization with auto-provisioned data sources, 21 dashboards, and sidecar-based ConfigMap discovery
+- **Jaeger** — distributed-trace backend with BadgerDB (in-memory for kind, persistent for production)
+- **Loki** — log aggregation backend using S3-compatible chunk storage (generic S3 client, same as the rest of the platform)
+- **Promtail** — log-collection DaemonSet running on every node with pipeline stages for JSON parsing, label extraction, and sensitive-data redaction
+- **OpenTelemetry Collector** — OTLP ingress point for traces and optional metrics
+
+**Install / upgrade / uninstall lifecycle:**
+```bash
+# One command:
+helm upgrade --install observability ./deploy/helm/observability/ \
+  --namespace platform-observability --create-namespace \
+  --values ./deploy/helm/observability/values-standard.yaml
+
+# Operator CLI wrapper:
+platform-cli observability install --preset standard
+platform-cli observability status
+platform-cli observability upgrade
+platform-cli observability uninstall
+```
+
+**Sizing presets** (selected via `values.yaml` choice):
+- `minimal` — single-node dev/kind, ≤1 GB RAM for the entire stack, metrics retention 24h, logs retention 1h
+- `standard` — small production, Prometheus in HA pair, Loki single-binary with S3 chunks, logs retention 14d hot / 90d cold
+- `enterprise` — horizontal Prometheus via Thanos, distributed Loki with independent read/write paths, Grafana HA behind Ingress, documented capacity limits
+
+**Provisioning:**
+- Data sources (Prometheus, Loki, Jaeger) auto-provisioned via Grafana provisioning ConfigMaps
+- All 21 dashboards auto-provisioned as ConfigMaps with `grafana_dashboard: "1"` label discovered by the Grafana sidecar
+- Prometheus alert rules and Loki alert rules auto-provisioned via Prometheus Operator CRDs and Loki Ruler configuration
+- Derived-field links in Loki (trace_id → Jaeger) and Prometheus (related logs filter) configured at provisioning time
+
+**Network isolation:**
+- Loki, Prometheus, Jaeger are reachable only from within the cluster
+- External access exclusively via Grafana proxy
+- NetworkPolicy restricts cross-namespace traffic per least-privilege
+
+**Decoupled lifecycle:**
+The observability bundle installs independently from the platform proper. This separation allows: standing up observability first for install validation; upgrading observability without affecting platform workloads; running the same observability bundle in multiple environments (dev/stage/prod) with different sizing presets.
+
+## 11.7 Autoscaling
 
 - HPA for stateless monolith profiles;
 - HPA/KEDA for Kafka-driven workers and WebSocket hubs;
@@ -1607,7 +1653,7 @@ Independently scalable Deployments or Jobs subscribing to Kafka topics.
 - Policy-aware fleet autoscaling;
 - Simulation pool scaling independent of production execution pool.
 
-## 11.7 Network security
+## 11.8 Network security
 
 - Namespace isolation;
 - NetworkPolicies between planes (especially simulation ↔ production isolation);
@@ -1615,7 +1661,7 @@ Independently scalable Deployments or Jobs subscribing to Kafka topics.
 - No privileged containers by default;
 - Image provenance and admission checks.
 
-## 11.8 Backup, restore, and DR
+## 11.9 Backup, restore, and DR
 
 - PostgreSQL logical and physical backups;
 - Qdrant snapshot-based backups;

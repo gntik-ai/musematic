@@ -1,4 +1,4 @@
-# Product Software Architecture (v4 — Post-Audit Completeness Pass)
+# Product Software Architecture (v5 — Audit Pass + UPD-035 Capstone)
 
 Version: 2.0
 Scope baseline: 391 functional requirements + 375 technical requirements = 766 total requirements covered
@@ -224,18 +224,28 @@ repo/
         ibor/                        # IBOR sync
       chaos/                         # chaos injection scenarios
       performance/                   # performance smoke tests
-      journeys/                      # NEW: user journey tests (cross-cutting, per persona)
+      journeys/                      # user journey tests (cross-cutting, per persona)
         conftest.py                  # shared journey fixtures (admin/creator/consumer clients)
-        helpers/                     # reusable: oauth_login, register_agent, certify, wait_for_exec
-        test_j01_admin_bootstrap.py
-        test_j02_creator_to_publication.py
-        test_j03_consumer_discovery_execution.py
-        test_j04_workspace_goal_collaboration.py
-        test_j05_trust_governance_pipeline.py
-        test_j06_operator_incident_response.py
-        test_j07_evaluator_improvement_loop.py
-        test_j08_external_a2a_mcp.py
-        test_j09_scientific_discovery.py
+        helpers/                     # oauth_login, register_agent, certify, wait_for_exec
+                                     # + (UPD-035) assert_log_entry, assert_metric, assert_trace,
+                                     #              assert_dashboard_snapshot, axe_runner
+        test_j01_admin_bootstrap.py           # extended in UPD-035
+        test_j02_creator_to_publication.py    # extended in UPD-035
+        test_j03_consumer_discovery_execution.py    # extended in UPD-035
+        test_j04_workspace_goal_collaboration.py    # extended in UPD-035
+        test_j05_trust_governance_pipeline.py       # extended in UPD-035
+        test_j06_operator_incident_response.py      # extended in UPD-035
+        test_j07_evaluator_improvement_loop.py      # extended in UPD-035
+        test_j08_external_a2a_mcp.py                # extended in UPD-035
+        test_j09_scientific_discovery.py            # extended in UPD-035
+        test_j10_privacy_officer.py                 # NEW in UPD-035
+        test_j11_security_officer.py                # NEW in UPD-035
+        test_j12_finance_owner.py                   # NEW in UPD-035
+        test_j13_sre_multi_region.py                # NEW in UPD-035
+        test_j14_model_steward.py                   # NEW in UPD-035
+        test_j15_accessibility_user.py              # NEW in UPD-035
+        test_j16_compliance_auditor.py              # NEW in UPD-035
+        test_j17_dashboard_consumer.py              # NEW in UPD-035
       Makefile                       # e2e-up, e2e-down, e2e-test targets
       conftest.py                    # shared pytest configuration
   docs/

@@ -51,6 +51,7 @@ class FakeSession:
         self.added: list[object] = []
         self.flush_count = 0
         self.execute_results: list[FakeResult] = []
+        self.executed: list[object] = []
         self.scalar_results: list[object] = []
         self.get_results: dict[tuple[object, object], object] = {}
 
@@ -61,7 +62,7 @@ class FakeSession:
         self.flush_count += 1
 
     async def execute(self, statement):
-        del statement
+        self.executed.append(statement)
         return self.execute_results.pop(0)
 
     async def scalar(self, statement):
@@ -76,6 +77,16 @@ class FakeSession:
 async def test_create_user_creates_accounts_and_platform_users() -> None:
     session = FakeSession()
     repository = AccountsRepository(session)
+    user_id = uuid4()
+    account_user = User(
+        id=user_id,
+        email="user@example.com",
+        display_name="Jane Smith",
+        status=UserStatus.pending_verification,
+        signup_source=SignupSource.self_registration,
+    )
+    session.execute_results = [FakeResult(scalar_value=user_id), FakeResult()]
+    session.get_results[(User, user_id)] = account_user
 
     user = await repository.create_user(
         email="USER@Example.COM",
@@ -84,12 +95,11 @@ async def test_create_user_creates_accounts_and_platform_users() -> None:
         signup_source=SignupSource.self_registration,
     )
 
-    account_user, platform_user = session.added
     assert user is account_user
     assert account_user.email == "user@example.com"
-    assert platform_user.email == "user@example.com"
-    assert platform_user.id == account_user.id
-    assert platform_user.status == UserStatus.pending_verification.value
+    assert session.added == []
+    assert session.flush_count == 0
+    assert len(session.executed) == 2
 
 
 @pytest.mark.asyncio
