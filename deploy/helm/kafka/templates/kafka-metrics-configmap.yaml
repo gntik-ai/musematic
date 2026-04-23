@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.clusterName }}-metrics
+  namespace: {{ .Values.namespace }}
+data:
+  kafka-metrics-config.yml: |-
+    lowercaseOutputName: true
+    lowercaseOutputLabelNames: true
+    rules:
+      - pattern: ".*"

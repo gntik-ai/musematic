@@ -56,12 +56,56 @@ class FakeProducer:
 class FakeRedisClient:
     def __init__(self) -> None:
         self.storage: dict[str, bytes] = {}
+        self.lists: dict[str, list[bytes]] = {}
+        self.sets: dict[str, set[str]] = {}
+        self.published: list[tuple[str, str]] = []
 
     async def get(self, key: str) -> bytes | None:
         return self.storage.get(key)
 
-    async def delete(self, key: str) -> None:
-        self.storage.pop(key, None)
+    async def delete(self, *keys: str) -> None:
+        for key in keys:
+            self.storage.pop(key, None)
+            self.lists.pop(key, None)
+            self.sets.pop(key, None)
+
+    async def rpush(self, key: str, *values: str | bytes) -> int:
+        items = self.lists.setdefault(key, [])
+        for value in values:
+            items.append(value if isinstance(value, bytes) else value.encode("utf-8"))
+        return len(items)
+
+    async def lpop(self, key: str) -> bytes | None:
+        items = self.lists.get(key)
+        if not items:
+            return None
+        return items.pop(0)
+
+    async def llen(self, key: str) -> int:
+        return len(self.lists.get(key, []))
+
+    async def lrange(self, key: str, start: int, end: int) -> list[bytes]:
+        items = self.lists.get(key, [])
+        resolved_end = None if end == -1 else end + 1
+        return items[start:resolved_end]
+
+    async def ltrim(self, key: str, start: int, end: int) -> None:
+        items = self.lists.get(key, [])
+        resolved_end = None if end == -1 else end + 1
+        self.lists[key] = items[start:resolved_end]
+
+    async def sadd(self, key: str, *values: str) -> int:
+        items = self.sets.setdefault(key, set())
+        original_size = len(items)
+        items.update(str(value) for value in values)
+        return len(items) - original_size
+
+    async def smembers(self, key: str) -> set[str]:
+        return set(self.sets.get(key, set()))
+
+    async def publish(self, channel: str, payload: str) -> int:
+        self.published.append((channel, payload))
+        return 0
 
     async def _get_client(self) -> FakeRedisClient:
         return self
@@ -664,5 +708,5 @@ class FakeExecutionRepository:
         return record
 
 
-def make_settings() -> PlatformSettings:
-    return PlatformSettings()
+def make_settings(**overrides: Any) -> PlatformSettings:
+    return PlatformSettings(**overrides)

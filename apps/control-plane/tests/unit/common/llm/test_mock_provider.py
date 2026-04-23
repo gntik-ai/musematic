@@ -62,6 +62,38 @@ class FakeRedis:
         return deleted
 
 
+class FakeRedisCluster(FakeRedis):
+    publish = None
+
+    async def execute_command(self, command: str, channel: str, payload: str) -> int:
+        assert command == 'PUBLISH'
+        self.published.append((channel, payload))
+        return 1
+
+
+
+
+@pytest.mark.asyncio
+async def test_mock_provider_broadcasts_with_execute_command_when_publish_is_unavailable() -> None:
+    redis = FakeRedisCluster()
+    provider = MockLLMProvider(redis)
+
+    await provider.set_response('agent_response', 'cluster-safe')
+
+    expected_payload = (
+        '{"prompt_pattern": "agent_response", '
+        '"response": "cluster-safe", '
+        '"streaming_chunks": []}'
+    )
+
+    assert redis.published == [
+        (
+            provider.BROADCAST_CHANNEL,
+            expected_payload,
+        )
+    ]
+
+
 @pytest.mark.asyncio
 async def test_mock_provider_returns_fifo_responses_and_records_calls() -> None:
     redis = FakeRedis()

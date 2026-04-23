@@ -26,6 +26,14 @@ config:
 
 configSecretRef: reasoning-engine-config
 
+secrets:
+  POSTGRES_DSN: ""
+  REDIS_ADDR: ""
+  REDIS_PASSWORD: ""
+  KAFKA_BROKERS: ""
+  MINIO_ENDPOINT: ""
+  MINIO_BUCKET: reasoning-traces
+
 hpa:
   minReplicas: 2
   maxReplicas: 10

@@ -14,9 +14,9 @@ def test_subscription_registry_topic_refcounts_and_subscribers() -> None:
 
     topics = registry.subscribe("conn-1", sub)
 
-    assert set(topics) == {"workflow.runtime", "runtime.lifecycle"}
+    assert set(topics) == {"execution.events", "workflow.runtime", "runtime.lifecycle"}
     assert registry.get_subscribers(ChannelType.EXECUTION, "resource-1") == {"conn-1"}
-    assert registry.get_active_topics() == {"workflow.runtime", "runtime.lifecycle"}
+    assert registry.get_active_topics() == {"execution.events", "workflow.runtime", "runtime.lifecycle"}
 
     more_topics = registry.subscribe("conn-2", sub)
 
@@ -31,7 +31,7 @@ def test_subscription_registry_topic_refcounts_and_subscribers() -> None:
 
     released = registry.unsubscribe("conn-2", subscription_key(sub.channel, sub.resource_id))
 
-    assert set(released) == {"workflow.runtime", "runtime.lifecycle"}
+    assert set(released) == {"execution.events", "workflow.runtime", "runtime.lifecycle"}
     assert registry.get_active_topics() == set()
 
 

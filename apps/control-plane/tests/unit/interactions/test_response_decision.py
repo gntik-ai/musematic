@@ -238,6 +238,20 @@ async def test_keyword_strategy_modes_and_empty_keywords() -> None:
 
 
 @pytest.mark.asyncio
+async def test_keyword_strategy_matches_terms_from_goal_context() -> None:
+    strategy = KeywordDecision()
+
+    result = await strategy.decide(
+        "Focus the recommendation and hedge downside scenarios.",
+        "Coordinate market and portfolio perspectives for the next client review.",
+        {"keywords": ["market", "portfolio"], "mode": "any_of"},
+    )
+
+    assert result.decision == "respond"
+    assert result.matched_terms == ["market", "portfolio"]
+
+
+@pytest.mark.asyncio
 async def test_embedding_similarity_threshold_and_fail_safe(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -435,11 +449,13 @@ async def test_response_decision_helpers_and_non_best_match_paths() -> None:
     assert wrapped.strategy_name == "best_match"
     assert wrapped.decision == "skip"
 
-    assert decision_module._extract_score({"choices": [{"message": {"content": '{"score": 0.77}'}}]}) == pytest.approx(0.77)
-    with pytest.raises(ValueError):
+    assert decision_module._extract_score(
+        {"choices": [{"message": {"content": '{"score": 0.77}'}}]}
+    ) == pytest.approx(0.77)
+    with pytest.raises(ValueError, match="score not present in LLM response"):
         decision_module._extract_score({"choices": []})
     assert decision_module._extract_embedding({"embedding": [1, 2, 3]}) == [1.0, 2.0, 3.0]
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="embedding not present in response"):
         decision_module._extract_embedding({"embedding": None})
 
 

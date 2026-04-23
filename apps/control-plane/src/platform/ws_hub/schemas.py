@@ -46,6 +46,11 @@ class ConnectionEstablishedMessage(BaseModel):
     auto_subscriptions: list[SubscriptionInfo]
 
 
+class HeartbeatMessage(BaseModel):
+    type: Literal["heartbeat"] = "heartbeat"
+    server_time: datetime
+
+
 class SubscriptionConfirmedMessage(BaseModel):
     type: Literal["subscription_confirmed"] = "subscription_confirmed"
     channel: str
@@ -95,6 +100,7 @@ class ErrorMessage(BaseModel):
 
 type ServerMessage = (
     ConnectionEstablishedMessage
+    | HeartbeatMessage
     | SubscriptionConfirmedMessage
     | SubscriptionErrorMessage
     | SubscriptionRemovedMessage

@@ -22,21 +22,22 @@ common:
   wsHeartbeatTimeoutSeconds: 10
 
 connections:
-  postgresDsn: postgresql+asyncpg://postgres:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic
-  redisUrl: redis://:change-me@musematic-redis-redis-cluster.platform-data.svc.cluster.local:6379/0
+  postgresDsn: postgresql+asyncpg://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic
+  redisUrl: redis://:change-me@musematic-redis.platform.svc.cluster.local:6379
+  redisTestMode: cluster
   kafkaBrokers: musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092
-  qdrantHost: musematic-qdrant.platform-data.svc.cluster.local
+  qdrantHost: musematic-qdrant.platform.svc.cluster.local
   qdrantPort: 6333
   qdrantGrpcPort: 6334
-  neo4jUri: bolt://musematic-neo4j.platform-data.svc.cluster.local:7687
+  neo4jUri: bolt://musematic-neo4j.platform.svc.cluster.local:7687
   neo4jUser: neo4j
   neo4jPassword: neo4j
-  clickhouseHost: musematic-clickhouse.platform-data.svc.cluster.local
+  clickhouseHost: musematic-clickhouse.platform.svc.cluster.local
   clickhousePort: 8123
   clickhouseUser: default
   clickhousePassword: ""
   clickhouseDatabase: default
-  opensearchHosts: http://musematic-opensearch.platform-data.svc.cluster.local:9200
+  opensearchHosts: http://musematic-opensearch.platform.svc.cluster.local:9200
   opensearchUsername: admin
   opensearchPassword: admin
   s3EndpointUrl: http://musematic-minio.platform-data.svc.cluster.local:9000
@@ -51,11 +52,29 @@ connections:
   grpcSandboxManager: sandbox-manager.platform.svc.cluster.local:50053
   grpcSimulationController: musematic-simulation-controller.platform.svc.cluster.local:50055
   authJwtSecretKey: change-me
+  authMfaEncryptionKey: ""
   authJwtAlgorithm: HS256
+
+auth:
+  oauth:
+    google:
+      authorizeUrl: https://accounts.google.com/o/oauth2/v2/auth
+      tokenUrl: https://oauth2.googleapis.com/token
+      tokenInfoUrl: https://oauth2.googleapis.com/tokeninfo
+    github:
+      authorizeUrl: https://github.com/login/oauth/authorize
+      tokenUrl: https://github.com/login/oauth/access_token
+      userUrl: https://api.github.com/user
+      emailsUrl: https://api.github.com/user/emails
+      teamsUrl: https://api.github.com/user/teams
+      orgMembershipUrlTemplate: https://api.github.com/user/memberships/orgs/{org}
 
 migration:
   enabled: true
+  hook: pre-install,pre-upgrade
   backoffLimit: 3
+  retryAttempts: 1
+  retryDelaySeconds: 5
 
 api:
   enabled: true

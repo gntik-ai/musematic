@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "musematic-e2e"
 version = "0.1.0"
@@ -12,8 +16,26 @@ dependencies = [
   "aiokafka>=0.11",
   "asyncpg",
   "kubernetes",
+  "PyJWT>=2.9",
+  "pyotp>=2.9",
 ]
+
+[project.optional-dependencies]
+e2e = [
+  "pytest-xdist>=3.6",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["fixtures*", "journeys*", "seeders*"]
+exclude = ["cluster*", "chaos*", "performance*", "reports*", "suites*", "tests*"]
+
+[tool.setuptools.package-data]
+journeys = ["fixtures/*.tar.gz"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["suites", "chaos", "performance"]
+testpaths = ["journeys", "tests", "test_chart_identity.py", "test_cluster_bootstrap_contract.py"]

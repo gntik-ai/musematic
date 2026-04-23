@@ -19,7 +19,7 @@ spec:
       memory: {{ .memory | quote }}
     {{- end }}
   monitoring:
-    enabled: {{ and .Values.monitoring.enabled (eq .Values.environment "production") }}
+    enablePodMonitor: {{ and .Values.monitoring.enabled (eq .Values.environment "production") }}
   bootstrap:
     initdb:
       database: {{ .Values.credentials.database | quote }}
@@ -30,7 +30,6 @@ spec:
     highAvailability:
       enabled: {{ eq .Values.environment "production" }}
   postgresql:
-    version: "16"
     parameters:
       max_connections: {{ .Values.postgresql.maxConnections | quote }}
       shared_buffers: "256MB"

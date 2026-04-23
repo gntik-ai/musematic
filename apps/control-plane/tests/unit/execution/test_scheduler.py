@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from platform.common.llm.mock_provider import MockLLMProvider
 from platform.execution.models import ExecutionStatus
 from platform.execution.projector import ExecutionProjector
 from platform.execution.scheduler import PriorityScorer, SchedulerService
@@ -24,9 +25,10 @@ from tests.workflow_execution_support import (
 )
 
 
-def _build_scheduler() -> tuple[
-    WorkflowService, ExecutionService, SchedulerService, FakeRuntimeController
-]:
+def _build_scheduler(
+    settings: Any | None = None,
+) -> tuple[WorkflowService, ExecutionService, SchedulerService, FakeRuntimeController]:
+    resolved_settings = settings or make_settings()
     workflow_repository = FakeWorkflowRepository()
     execution_repository = FakeExecutionRepository()
     producer = FakeProducer()
@@ -35,12 +37,12 @@ def _build_scheduler() -> tuple[
     runtime_controller = FakeRuntimeController()
     workflow_service = WorkflowService(
         repository=cast(Any, workflow_repository),
-        settings=make_settings(),
+        settings=resolved_settings,
         producer=cast(Any, producer),
     )
     execution_service = ExecutionService(
         repository=cast(Any, execution_repository),
-        settings=make_settings(),
+        settings=resolved_settings,
         producer=cast(Any, producer),
         redis_client=cast(Any, redis_client),
         object_storage=cast(Any, object_storage),
@@ -54,7 +56,7 @@ def _build_scheduler() -> tuple[
         repository=cast(Any, execution_repository),
         execution_service=execution_service,
         projector=ExecutionProjector(),
-        settings=make_settings(),
+        settings=resolved_settings,
         producer=cast(Any, producer),
         redis_client=redis_client,
         object_storage=object_storage,
@@ -103,6 +105,52 @@ steps:
     task_plan = await execution_service.get_task_plan(execution.id, None)
     assert isinstance(task_plan, list)
     assert task_plan[0].step_id == "step_a"
+
+
+@pytest.mark.asyncio
+async def test_scheduler_e2e_mode_completes_without_runtime_pod_and_persists_trace() -> None:
+    settings = make_settings(feature_e2e_mode=True)
+    workflow_service, execution_service, scheduler, runtime_controller = _build_scheduler(settings)
+    actor_id = uuid4()
+    workspace_id = uuid4()
+    workflow = await workflow_service.create_workflow(
+        WorkflowCreate(
+            name="E2E Scheduler Workflow",
+            description=None,
+            yaml_source="""
+schema_version: 1
+steps:
+  - id: step_a
+    step_type: agent_task
+    agent_fqn: ns:e2e
+            """.strip(),
+            tags=[],
+            workspace_id=workspace_id,
+        ),
+        actor_id,
+    )
+    execution = await execution_service.create_execution(
+        ExecutionCreate(workflow_definition_id=workflow.id, workspace_id=workspace_id),
+        created_by=actor_id,
+    )
+    await MockLLMProvider(scheduler.redis_client).set_response(
+        "agent_response",
+        "E2E simulated completion",
+        ["E2E simulated", " completion"],
+    )
+
+    await scheduler.tick()
+    await scheduler.tick()
+
+    updated_execution = await execution_service.get_execution(execution.id)
+    trace = await execution_service.get_reasoning_trace(execution.id, "step_a")
+    producer = cast(Any, scheduler.producer)
+
+    assert updated_execution.status == ExecutionStatus.completed
+    assert runtime_controller.dispatch_calls == []
+    assert trace.steps[-1].content == "E2E simulated completion"
+    assert await scheduler.repository.get_active_dispatch_lease(execution.id, "step_a") is None
+    assert any(item["topic"] == "runtime.reasoning" for item in producer.messages)
 
 
 @pytest.mark.asyncio

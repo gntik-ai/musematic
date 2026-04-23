@@ -13,6 +13,7 @@ type Config struct {
 	HTTPPort                  int
 	PostgresDSN               string
 	RedisAddr                 string
+	RedisPassword             string
 	KafkaBrokers              []string
 	S3EndpointURL             string
 	S3Bucket                  string
@@ -39,6 +40,7 @@ func Load() (Config, error) {
 		HTTPPort:                  readInt("HTTP_PORT", 8080),
 		PostgresDSN:               strings.TrimSpace(os.Getenv("POSTGRES_DSN")),
 		RedisAddr:                 strings.TrimSpace(os.Getenv("REDIS_ADDR")),
+		RedisPassword:             strings.TrimSpace(os.Getenv("REDIS_PASSWORD")),
 		KafkaBrokers:              readList("KAFKA_BROKERS", "localhost:9092"),
 		S3EndpointURL:             readString("S3_ENDPOINT_URL", readString("MINIO_ENDPOINT", "http://musematic-minio.platform-data:9000")),
 		S3Bucket:                  readString("S3_BUCKET", readString("MINIO_BUCKET", "musematic-artifacts")),

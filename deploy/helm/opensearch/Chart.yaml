@@ -11,3 +11,4 @@ dependencies:
   - name: opensearch-dashboards
     repository: https://opensearch-project.github.io/helm-charts
     version: "~2.18.0"
+    condition: opensearch-dashboards.enabled

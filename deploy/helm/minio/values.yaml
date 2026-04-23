@@ -1,3 +1,5 @@
+createNamespace: true
+
 minio:
   enabled: true
 
@@ -34,6 +36,9 @@ resources:
     memory: 2Gi
 
 networkPolicy:
+  enabled: true
+
+bucketInit:
   enabled: true
 
 buckets:

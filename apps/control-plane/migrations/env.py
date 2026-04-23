@@ -82,7 +82,9 @@ def run_migrations_offline() -> None:
 
 
 async def run_migrations_online() -> None:
-    database_url = os.environ["DATABASE_URL"]
+    database_url = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_DSN")
+    if not database_url:
+        raise RuntimeError("DATABASE_URL or POSTGRES_DSN must be set for Alembic migrations.")
     connectable = create_async_engine(database_url, poolclass=pool.NullPool)
 
     async with connectable.begin() as connection:

@@ -1061,6 +1061,8 @@ class SessionStub:
         self.scalar_results = list(scalar_results or [])
         self.added: list[Any] = []
         self.flush_count = 0
+        self.commit_count = 0
+        self.committed = False
 
     def add(self, obj: Any) -> None:
         if getattr(obj, "id", None) is None:
@@ -1069,10 +1071,16 @@ class SessionStub:
             obj.created_at = _now()
         if getattr(obj, "updated_at", None) is None:
             obj.updated_at = obj.created_at
+        if hasattr(obj, "message_count") and getattr(obj, "message_count", None) is None:
+            obj.message_count = 0
         self.added.append(obj)
 
     async def flush(self) -> None:
         self.flush_count += 1
+
+    async def commit(self) -> None:
+        self.commit_count += 1
+        self.committed = True
 
     async def execute(self, query: Any) -> Any:
         del query

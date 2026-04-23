@@ -1,4 +1,6 @@
-FROM node:20.20.0-alpine3.23 AS deps
+ARG NODE_BASE=mirror.gcr.io/library/node:20.20.0-alpine3.23
+
+FROM ${NODE_BASE} AS deps
 
 ARG PNPM_VERSION=9.12.3
 
@@ -14,7 +16,7 @@ COPY apps/web/package.json apps/web/package.json
 
 RUN pnpm install --frozen-lockfile --filter @musematic/web...
 
-FROM node:20.20.0-alpine3.23 AS builder
+FROM ${NODE_BASE} AS builder
 
 ARG PNPM_VERSION=9.12.3
 
@@ -32,7 +34,7 @@ COPY . .
 
 RUN pnpm --filter @musematic/web build
 
-FROM node:20.20.0-alpine3.23 AS runner
+FROM ${NODE_BASE} AS runner
 
 ENV NODE_ENV=production
 ENV HOSTNAME=0.0.0.0

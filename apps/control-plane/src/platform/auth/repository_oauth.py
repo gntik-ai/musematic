@@ -5,7 +5,8 @@ from platform.auth.models import OAuthAuditEntry, OAuthLink, OAuthProvider, User
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, literal_column, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -42,38 +43,35 @@ class OAuthRepository:
         default_role: str,
         require_mfa: bool,
     ) -> tuple[OAuthProvider, bool]:
-        provider = await self.get_provider_by_type(provider_type)
-        created = provider is None
-        if provider is None:
-            provider = OAuthProvider(
-                provider_type=provider_type,
-                display_name=display_name,
-                enabled=enabled,
-                client_id=client_id,
-                client_secret_ref=client_secret_ref,
-                redirect_uri=redirect_uri,
-                scopes=list(scopes),
-                domain_restrictions=list(domain_restrictions),
-                org_restrictions=list(org_restrictions),
-                group_role_mapping=dict(group_role_mapping),
-                default_role=default_role,
-                require_mfa=require_mfa,
+        values = {
+            "provider_type": provider_type,
+            "display_name": display_name,
+            "enabled": enabled,
+            "client_id": client_id,
+            "client_secret_ref": client_secret_ref,
+            "redirect_uri": redirect_uri,
+            "scopes": list(scopes),
+            "domain_restrictions": list(domain_restrictions),
+            "org_restrictions": list(org_restrictions),
+            "group_role_mapping": dict(group_role_mapping),
+            "default_role": default_role,
+            "require_mfa": require_mfa,
+        }
+        created_expr: Any = literal_column("xmax = 0").label("created")
+        statement = (
+            insert(OAuthProvider)
+            .values(**values)
+            .on_conflict_do_update(
+                index_elements=[OAuthProvider.provider_type],
+                set_={key: value for key, value in values.items() if key != "provider_type"},
             )
-            self.session.add(provider)
-        else:
-            provider.display_name = display_name
-            provider.enabled = enabled
-            provider.client_id = client_id
-            provider.client_secret_ref = client_secret_ref
-            provider.redirect_uri = redirect_uri
-            provider.scopes = list(scopes)
-            provider.domain_restrictions = list(domain_restrictions)
-            provider.org_restrictions = list(org_restrictions)
-            provider.group_role_mapping = dict(group_role_mapping)
-            provider.default_role = default_role
-            provider.require_mfa = require_mfa
-        await self.session.flush()
-        return provider, created
+            .returning(OAuthProvider.id, created_expr)
+        )
+        row = (await self.session.execute(statement)).one()
+        provider = await self.session.get(OAuthProvider, row.id, populate_existing=True)
+        if provider is None:  # pragma: no cover - guarded by RETURNING
+            raise LookupError(f"OAuth provider {provider_type} disappeared after upsert")
+        return provider, bool(row.created)
 
     async def get_link_by_external(self, provider_id: UUID, external_id: str) -> OAuthLink | None:
         result = await self.session.execute(
@@ -119,18 +117,49 @@ class OAuthRepository:
         external_groups: list[str],
         last_login_at: datetime | None = None,
     ) -> OAuthLink:
-        link = OAuthLink(
-            user_id=user_id,
-            provider_id=provider_id,
-            external_id=external_id,
-            external_email=external_email,
-            external_name=external_name,
-            external_avatar_url=external_avatar_url,
-            external_groups=list(external_groups),
-            last_login_at=last_login_at,
-        )
-        self.session.add(link)
-        await self.session.flush()
+        inserted_link_id = (
+            await self.session.execute(
+                insert(OAuthLink)
+                .values(
+                    user_id=user_id,
+                    provider_id=provider_id,
+                    external_id=external_id,
+                    external_email=external_email,
+                    external_name=external_name,
+                    external_avatar_url=external_avatar_url,
+                    external_groups=list(external_groups),
+                    last_login_at=last_login_at,
+                )
+                .on_conflict_do_nothing(
+                    index_elements=[OAuthLink.provider_id, OAuthLink.external_id]
+                )
+                .returning(OAuthLink.id)
+            )
+        ).scalar_one_or_none()
+
+        if inserted_link_id is None:
+            existing = await self.get_link_by_external(provider_id, external_id)
+            if existing is None:  # pragma: no cover - guarded by unique link constraint
+                raise LookupError(
+                    f"OAuth link for provider={provider_id} external_id={external_id} "
+                    "disappeared after concurrent create"
+                )
+            if existing.user_id != user_id:
+                raise ValueError("OAuth link already belongs to a different user")
+            existing.external_email = external_email
+            existing.external_name = external_name
+            existing.external_avatar_url = external_avatar_url
+            existing.external_groups = list(external_groups)
+            existing.last_login_at = last_login_at
+            await self.session.flush()
+            return existing
+
+        link = await self.session.get(OAuthLink, inserted_link_id, populate_existing=True)
+        if link is None:  # pragma: no cover - guarded by RETURNING
+            raise LookupError(
+                f"OAuth link for provider={provider_id} external_id={external_id} "
+                "disappeared after insert"
+            )
         return link
 
     async def update_link(

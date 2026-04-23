@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import builtins
 import types
 from datetime import UTC, datetime
@@ -154,11 +155,26 @@ async def test_chaos_service_uses_kubernetes_clients_and_validates_namespaces(mo
     assert excinfo.value.code == "NAMESPACE_NOT_ALLOWED"
 
 
+class FakeTopicPartition:
+    def __init__(self, topic: str, partition: int) -> None:
+        self.topic = topic
+        self.partition = partition
+
+    def __hash__(self) -> int:
+        return hash((self.topic, self.partition))
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, FakeTopicPartition):
+            return False
+        return (self.topic, self.partition) == (other.topic, other.partition)
+
+
 class EmptyTopicConsumer:
     started = False
     stopped = False
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, *topics, **kwargs) -> None:
+        self.topics = topics
         self.kwargs = kwargs
 
     async def start(self) -> None:
@@ -167,8 +183,8 @@ class EmptyTopicConsumer:
     async def stop(self) -> None:
         type(self).stopped = True
 
-    async def partitions_for_topic(self, topic: str):
-        return set()
+    def assignment(self):
+        return []
 
 
 class RawRecordConsumer:
@@ -176,7 +192,8 @@ class RawRecordConsumer:
     stopped = False
     assigned = None
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, *topics, **kwargs) -> None:
+        self.topics = topics
         self.kwargs = kwargs
         self._done = False
 
@@ -186,11 +203,9 @@ class RawRecordConsumer:
     async def stop(self) -> None:
         type(self).stopped = True
 
-    async def partitions_for_topic(self, topic: str):
-        return {0}
-
-    def assign(self, partitions) -> None:
-        type(self).assigned = partitions
+    def assignment(self):
+        type(self).assigned = [FakeTopicPartition("execution.events", 0)]
+        return type(self).assigned
 
     async def offsets_for_times(self, timestamps):
         partition = next(iter(timestamps))
@@ -228,6 +243,14 @@ class RawRecordConsumer:
                 ),
             ]
         }
+
+
+class StopCancellingConsumer(RawRecordConsumer):
+    stopped = False
+
+    async def stop(self) -> None:
+        type(self).stopped = True
+        raise asyncio.CancelledError()
 
 
 @pytest.mark.asyncio
@@ -285,3 +308,26 @@ async def test_kafka_observer_handles_empty_topics_and_non_json_payloads(monkeyp
     assert raw_response.events[0].headers == {"attempt": "2"}
     assert raw_response.events[1].payload == {"value": "scalar"}
     assert raw_response.events[1].key == "keep-2"
+
+    def fake_import_stop_cancel(name, global_ns=None, local_ns=None, fromlist=(), level=0):
+        if name == "aiokafka":
+            return types.SimpleNamespace(
+                AIOKafkaConsumer=StopCancellingConsumer,
+                TopicPartition=lambda topic, partition: (topic, partition),
+            )
+        return original_import(name, global_ns, local_ns, fromlist, level)
+
+    StopCancellingConsumer.started = False
+    StopCancellingConsumer.stopped = False
+    StopCancellingConsumer.assigned = None
+    monkeypatch.setattr(builtins, "__import__", fake_import_stop_cancel)
+    stop_cancel_response = await observer.get_events(
+        topic="execution.events",
+        since=datetime(2026, 4, 21, 9, 0, tzinfo=UTC),
+        until=None,
+        limit=1,
+        key=None,
+    )
+
+    assert stop_cancel_response.count == 1
+    assert StopCancellingConsumer.stopped is True

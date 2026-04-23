@@ -64,7 +64,15 @@ func (f *fakeScannerStore) InsertRuntimeEvent(_ context.Context, event state.Run
 }
 
 func TestScanOnceMarksMissingHeartbeatFailedAndPublishes(t *testing.T) {
-	record := state.RuntimeRecord{RuntimeID: uuid.New(), ExecutionID: "exec-1", WorkspaceID: "ws-1"}
+	now := time.Date(2026, time.April, 22, 22, 40, 0, 0, time.UTC)
+	launchedAt := now.Add(-2 * time.Minute)
+	record := state.RuntimeRecord{
+		RuntimeID:   uuid.New(),
+		ExecutionID: "exec-1",
+		WorkspaceID: "ws-1",
+		LaunchedAt:  &launchedAt,
+		CreatedAt:   launchedAt,
+	}
 	store := &fakeScannerStore{runtimes: []state.RuntimeRecord{record}}
 	fanout := events.NewFanoutRegistry()
 	ch, unsubscribe := fanout.Subscribe("exec-1")
@@ -72,8 +80,10 @@ func TestScanOnceMarksMissingHeartbeatFailedAndPublishes(t *testing.T) {
 	scanner := &Scanner{
 		Redis:   &fakeRedisExists{values: map[string]int64{"heartbeat:exec-1": 0}},
 		Store:   store,
+		Timeout: time.Minute,
 		Fanout:  fanout,
 		Metrics: metrics.NewRegistry(),
+		Now:     func() time.Time { return now },
 	}
 
 	if err := scanner.ScanOnce(context.Background()); err != nil {
@@ -95,12 +105,48 @@ func TestScanOnceMarksMissingHeartbeatFailedAndPublishes(t *testing.T) {
 	}
 }
 
-func TestScanOnceSkipsActiveHeartbeat(t *testing.T) {
-	record := state.RuntimeRecord{RuntimeID: uuid.New(), ExecutionID: "exec-1", WorkspaceID: "ws-1"}
+func TestScanOnceKeepsRecentlyLaunchedRuntimeAliveWithoutHeartbeat(t *testing.T) {
+	now := time.Date(2026, time.April, 22, 22, 40, 0, 0, time.UTC)
+	launchedAt := now.Add(-30 * time.Second)
+	record := state.RuntimeRecord{
+		RuntimeID:   uuid.New(),
+		ExecutionID: "exec-1",
+		WorkspaceID: "ws-1",
+		LaunchedAt:  &launchedAt,
+		CreatedAt:   launchedAt,
+	}
 	store := &fakeScannerStore{runtimes: []state.RuntimeRecord{record}}
 	scanner := &Scanner{
-		Redis: &fakeRedisExists{values: map[string]int64{"heartbeat:exec-1": 1}},
-		Store: store,
+		Redis:   &fakeRedisExists{values: map[string]int64{"heartbeat:exec-1": 0}},
+		Store:   store,
+		Timeout: time.Minute,
+		Now:     func() time.Time { return now },
+	}
+
+	if err := scanner.ScanOnce(context.Background()); err != nil {
+		t.Fatalf("ScanOnce returned error: %v", err)
+	}
+	if len(store.updates) != 0 || len(store.events) != 0 {
+		t.Fatalf("expected no updates while heartbeat grace window is still open")
+	}
+}
+
+func TestScanOnceSkipsActiveHeartbeat(t *testing.T) {
+	now := time.Date(2026, time.April, 22, 22, 40, 0, 0, time.UTC)
+	launchedAt := now.Add(-2 * time.Minute)
+	record := state.RuntimeRecord{
+		RuntimeID:   uuid.New(),
+		ExecutionID: "exec-1",
+		WorkspaceID: "ws-1",
+		LaunchedAt:  &launchedAt,
+		CreatedAt:   launchedAt,
+	}
+	store := &fakeScannerStore{runtimes: []state.RuntimeRecord{record}}
+	scanner := &Scanner{
+		Redis:   &fakeRedisExists{values: map[string]int64{"heartbeat:exec-1": 1}},
+		Store:   store,
+		Timeout: time.Minute,
+		Now:     func() time.Time { return now },
 	}
 
 	if err := scanner.ScanOnce(context.Background()); err != nil {
@@ -114,7 +160,12 @@ func TestScanOnceSkipsActiveHeartbeat(t *testing.T) {
 func TestScanOncePropagatesErrors(t *testing.T) {
 	scanner := &Scanner{
 		Redis: &fakeRedisExists{err: errors.New("redis down")},
-		Store: &fakeScannerStore{runtimes: []state.RuntimeRecord{{RuntimeID: uuid.New(), ExecutionID: "exec-1"}}},
+		Store: &fakeScannerStore{runtimes: []state.RuntimeRecord{{
+			RuntimeID:   uuid.New(),
+			ExecutionID: "exec-1",
+			CreatedAt:   time.Now().UTC(),
+		}}},
+		Timeout: time.Minute,
 	}
 	if err := scanner.ScanOnce(context.Background()); err == nil {
 		t.Fatalf("expected redis error")
@@ -122,12 +173,21 @@ func TestScanOncePropagatesErrors(t *testing.T) {
 }
 
 func TestScanOncePropagatesStoreErrors(t *testing.T) {
+	now := time.Date(2026, time.April, 22, 22, 40, 0, 0, time.UTC)
+	launchedAt := now.Add(-2 * time.Minute)
 	scanner := &Scanner{
 		Redis: &fakeRedisExists{values: map[string]int64{"heartbeat:exec-1": 0}},
 		Store: &fakeScannerStore{
-			runtimes:  []state.RuntimeRecord{{RuntimeID: uuid.New(), ExecutionID: "exec-1"}},
+			runtimes: []state.RuntimeRecord{{
+				RuntimeID:   uuid.New(),
+				ExecutionID: "exec-1",
+				LaunchedAt:  &launchedAt,
+				CreatedAt:   launchedAt,
+			}},
 			updateErr: errors.New("update failed"),
 		},
+		Timeout: time.Minute,
+		Now:     func() time.Time { return now },
 	}
 	if err := scanner.ScanOnce(context.Background()); err == nil {
 		t.Fatalf("expected store update error")
@@ -149,7 +209,15 @@ func TestScannerRunStopsOnContextCancellation(t *testing.T) {
 }
 
 func TestScanOnceContinuesWhenEventPersistenceFails(t *testing.T) {
-	record := state.RuntimeRecord{RuntimeID: uuid.New(), ExecutionID: "exec-1", WorkspaceID: "ws-1"}
+	now := time.Date(2026, time.April, 22, 22, 40, 0, 0, time.UTC)
+	launchedAt := now.Add(-2 * time.Minute)
+	record := state.RuntimeRecord{
+		RuntimeID:   uuid.New(),
+		ExecutionID: "exec-1",
+		WorkspaceID: "ws-1",
+		LaunchedAt:  &launchedAt,
+		CreatedAt:   launchedAt,
+	}
 	store := &fakeScannerStore{
 		runtimes: []state.RuntimeRecord{record},
 		eventErr: errors.New("persist failed"),
@@ -158,9 +226,11 @@ func TestScanOnceContinuesWhenEventPersistenceFails(t *testing.T) {
 	ch, unsubscribe := fanout.Subscribe("exec-1")
 	defer unsubscribe()
 	scanner := &Scanner{
-		Redis:  &fakeRedisExists{values: map[string]int64{"heartbeat:exec-1": 0}},
-		Store:  store,
-		Fanout: fanout,
+		Redis:   &fakeRedisExists{values: map[string]int64{"heartbeat:exec-1": 0}},
+		Store:   store,
+		Timeout: time.Minute,
+		Fanout:  fanout,
+		Now:     func() time.Time { return now },
 	}
 
 	if err := scanner.ScanOnce(context.Background()); err != nil {

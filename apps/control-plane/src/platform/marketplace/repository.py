@@ -8,6 +8,7 @@ from platform.marketplace.models import (
     MarketplaceRecommendation,
     MarketplaceTrendingSnapshot,
 )
+from platform.trust.models import CertificationStatus, TrustCertification
 from typing import Any
 from uuid import UUID
 
@@ -80,6 +81,46 @@ class MarketplaceRepository:
         )
         items = list(result.scalars().all())
         return {item.agent_id: item for item in items}
+
+    async def get_active_certification_status(
+        self,
+        agent_id: UUID,
+    ) -> str | None:
+        result = await self.session.execute(
+            select(TrustCertification.status)
+            .where(
+                TrustCertification.agent_id == str(agent_id),
+                TrustCertification.status == CertificationStatus.active,
+            )
+            .order_by(TrustCertification.created_at.desc(), TrustCertification.id.desc())
+            .limit(1)
+        )
+        status = result.scalar_one_or_none()
+        return _stringify_certification_status(status)
+
+    async def get_active_certification_statuses(
+        self,
+        agent_ids: Sequence[UUID],
+    ) -> dict[UUID, str]:
+        if not agent_ids:
+            return {}
+        agent_ids_by_text = {str(agent_id): agent_id for agent_id in agent_ids}
+        result = await self.session.execute(
+            select(TrustCertification.agent_id, TrustCertification.status)
+            .where(
+                TrustCertification.agent_id.in_(list(agent_ids_by_text)),
+                TrustCertification.status == CertificationStatus.active,
+            )
+            .order_by(TrustCertification.created_at.desc(), TrustCertification.id.desc())
+        )
+        statuses: dict[UUID, str] = {}
+        for agent_id_text, status in result.all():
+            agent_uuid = agent_ids_by_text.get(str(agent_id_text))
+            rendered = _stringify_certification_status(status)
+            if agent_uuid is None or rendered is None or agent_uuid in statuses:
+                continue
+            statuses[agent_uuid] = rendered
+        return statuses
 
     async def update_quality_aggregate(
         self,
@@ -288,3 +329,12 @@ def _maybe_float(value: Any) -> float | None:
     if value is None:
         return None
     return float(value)
+
+
+def _stringify_certification_status(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, CertificationStatus):
+        return value.value
+    rendered = str(value).strip()
+    return rendered or None

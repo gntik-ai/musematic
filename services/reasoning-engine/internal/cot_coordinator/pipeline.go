@@ -23,6 +23,7 @@ type Pipeline struct {
 	metrics          *metrics.Metrics
 	bufferSize       int
 	payloadThreshold int
+	workerCount      int
 	now              func() time.Time
 }
 
@@ -63,12 +64,15 @@ func (p *Pipeline) ProcessStream(ctx context.Context, stream TraceStream) (*Trac
 	var mu sync.Mutex
 	var workers sync.WaitGroup
 
-	workerCount := runtime.NumCPU()
-	if workerCount > 8 {
-		workerCount = 8
-	}
+	workerCount := p.workerCount
 	if workerCount <= 0 {
-		workerCount = 1
+		workerCount = runtime.NumCPU()
+		if workerCount > 8 {
+			workerCount = 8
+		}
+		if workerCount <= 0 {
+			workerCount = 1
+		}
 	}
 
 	process := func(item queuedEvent) {

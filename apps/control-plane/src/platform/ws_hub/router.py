@@ -2,9 +2,13 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 from contextlib import suppress
 from datetime import UTC, datetime
 from importlib import import_module
+from platform.common import database
+from platform.common.events.envelope import CorrelationContext, make_envelope
+from platform.execution.repository import ExecutionRepository
 from platform.ws_hub.connection import ConnectionRegistry, WebSocketConnection
 from platform.ws_hub.dependencies import (
     get_connection_registry,
@@ -18,6 +22,7 @@ from platform.ws_hub.heartbeat import ConnectionHeartbeat
 from platform.ws_hub.schemas import (
     ConnectionEstablishedMessage,
     ErrorMessage,
+    EventMessage,
     ListSubscriptionsMessage,
     SubscribeMessage,
     SubscriptionConfirmedMessage,
@@ -45,6 +50,7 @@ from pydantic import ValidationError
 from starlette.websockets import WebSocketDisconnect
 
 router = APIRouter()
+LOGGER = logging.getLogger(__name__)
 
 
 class _RouterMetrics:
@@ -246,18 +252,92 @@ async def _handle_subscribe(
         return
 
     subscription = Subscription(channel=message.channel, resource_id=message.resource_id)
+    connection.pending_subscriptions.add(key)
     connection.subscriptions[key] = subscription
-    topics = subscription_registry.subscribe(connection.connection_id, subscription)
-    if message.channel in WORKSPACE_SCOPED_CHANNELS:
-        topics = list({*topics, "workspaces.events"})
-    await fanout.ensure_consuming(topics)
+    try:
+        topics = subscription_registry.subscribe(connection.connection_id, subscription)
+        if message.channel in WORKSPACE_SCOPED_CHANNELS:
+            topics = list({*topics, "workspaces.events"})
+        await fanout.ensure_consuming(topics)
 
-    confirmed = SubscriptionConfirmedMessage(
-        channel=message.channel.value,
-        resource_id=message.resource_id,
-        subscribed_at=subscription.subscribed_at,
-    )
-    await websocket.send_text(confirmed.model_dump_json())
+        confirmed = SubscriptionConfirmedMessage(
+            channel=message.channel.value,
+            resource_id=message.resource_id,
+            subscribed_at=subscription.subscribed_at,
+        )
+        await websocket.send_text(confirmed.model_dump_json())
+        await _send_subscription_snapshot(websocket, message)
+    finally:
+        connection.pending_subscriptions.discard(key)
+
+
+async def _send_subscription_snapshot(websocket: WebSocket, message: SubscribeMessage) -> None:
+    if message.channel not in {ChannelType.EXECUTION, ChannelType.REASONING}:
+        return
+    try:
+        execution_id = UUID(message.resource_id)
+    except ValueError:
+        return
+
+    try:
+        async with database.AsyncSessionLocal() as session:
+            repository = ExecutionRepository(session)
+            execution = await repository.get_execution_by_id(execution_id)
+            if execution is None:
+                return
+
+            if message.channel == ChannelType.EXECUTION:
+                event_type = "execution.status_changed"
+                payload = {
+                    "execution_id": str(execution.id),
+                    "status": _enum_value(execution.status),
+                    "snapshot": True,
+                }
+            else:
+                trace = await repository.get_reasoning_trace_record(execution_id, None)
+                if trace is None:
+                    return
+                event_type = "reasoning.trace_emitted"
+                payload = {
+                    "execution_id": str(execution.id),
+                    "step_id": trace.step_id,
+                    "technique": trace.technique,
+                    "status": trace.status,
+                    "storage_key": trace.storage_key,
+                    "snapshot": True,
+                }
+
+            envelope = make_envelope(
+                event_type=event_type,
+                source="platform.ws_hub.snapshot",
+                payload=payload,
+                correlation_context=CorrelationContext(
+                    workspace_id=execution.workspace_id,
+                    conversation_id=execution.correlation_conversation_id,
+                    interaction_id=execution.correlation_interaction_id,
+                    execution_id=execution.id,
+                    fleet_id=execution.correlation_fleet_id,
+                    goal_id=execution.correlation_goal_id,
+                    correlation_id=uuid4(),
+                ),
+            )
+            snapshot = EventMessage(
+                channel=message.channel.value,
+                resource_id=message.resource_id,
+                payload=envelope.model_dump(mode="json"),
+                gateway_received_at=datetime.now(UTC),
+            )
+            await websocket.send_text(snapshot.model_dump_json())
+    except Exception:
+        LOGGER.warning(
+            "ws-hub failed to send subscription snapshot",
+            exc_info=True,
+            extra={"channel": message.channel.value, "resource_id": message.resource_id},
+        )
+
+
+def _enum_value(value: object) -> object:
+    return getattr(value, "value", value)
 
 
 async def _handle_unsubscribe(
@@ -287,6 +367,7 @@ async def _handle_unsubscribe(
         return
 
     del connection.subscriptions[key]
+    connection.pending_subscriptions.discard(key)
     topics = subscription_registry.unsubscribe(connection.connection_id, key)
     if (
         message.channel in WORKSPACE_SCOPED_CHANNELS

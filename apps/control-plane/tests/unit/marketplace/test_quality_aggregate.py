@@ -83,6 +83,23 @@ async def test_quality_service_handlers_update_aggregate_state() -> None:
 
 
 @pytest.mark.asyncio
+async def test_quality_service_infers_trust_status_from_event_type_when_payload_omits_it() -> None:
+    service, repository, _producer = build_quality_service()
+    agent_id = uuid4()
+    envelope = EventEnvelope(
+        event_type="certification.activated",
+        payload={"agent_id": str(agent_id)},
+        source="tests.marketplace",
+        correlation_context=CorrelationContext(correlation_id=uuid4()),
+    )
+
+    await service.handle_trust_event(envelope)
+
+    aggregate = await repository.get_or_create_quality_aggregate(agent_id)
+    assert aggregate.certification_status == "active"
+
+
+@pytest.mark.asyncio
 async def test_quality_service_updates_satisfaction_from_ratings() -> None:
     service, repository, _producer = build_quality_service()
     agent_id = uuid4()

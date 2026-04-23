@@ -10,6 +10,7 @@ requires-python = ">=3.12"
 dependencies = [
   "fastapi>=0.115",
   "uvicorn>=0.30",
+  "websockets>=13.0",
   "pydantic>=2.8",
   "pydantic-settings>=2.4",
   "sqlalchemy[asyncio]>=2.0",
@@ -127,6 +128,10 @@ strict = true
 warn_unreachable = true
 plugins = ["pydantic.mypy"]
 mypy_path = ["src"]
+exclude = [
+  "^src/platform/common/clients/runtime_controller_pb2(_grpc)?\\.py$",
+  "^src/platform/grpc_stubs/runtime_controller_pb2(_grpc)?\\.py$",
+]
 
 [[tool.mypy.overrides]]
 module = [
@@ -170,6 +175,9 @@ omit = [
   "src/platform/common/clients/qdrant.py",
   "src/platform/common/clients/reasoning_engine.py",
   "src/platform/common/clients/runtime_controller.py",
+  "src/platform/common/clients/runtime_controller_pb2.py",
+  "src/platform/common/clients/runtime_controller_pb2_grpc.py",
+  "src/platform/grpc_stubs/*",
   "src/platform/common/clients/sandbox_manager.py",
   "src/platform/common/clients/simulation_controller.py",
   "src/platform/common/events/__init__.py",

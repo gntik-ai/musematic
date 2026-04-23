@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from platform.auth.exceptions import (
     AccountLockedError,
+    InactiveUserError,
+    InvalidAccessTokenError,
     InvalidCredentialsError,
     InvalidMfaCodeError,
     InvalidMfaTokenError,
@@ -29,31 +31,100 @@ class FakeAuthRepository:
     def __init__(self) -> None:
         self.user_id = uuid4()
         self.email = "user@example.com"
-        self.platform_user = SimpleNamespace(id=self.user_id, status="active")
+        self.account_user = SimpleNamespace(
+            id=self.user_id,
+            email=self.email,
+            display_name="User",
+            status="active",
+        )
+        self.platform_user = SimpleNamespace(
+            id=self.user_id,
+            email=self.email,
+            display_name="User",
+            status="active",
+        )
         self.credential = SimpleNamespace(
             user_id=self.user_id,
             password_hash=hash_password("SecureP@ss123"),
             is_active=True,
         )
         self.roles = [SimpleNamespace(role="viewer", workspace_id=None)]
+        self.assigned_roles: list[tuple[UUID, str, UUID | None]] = []
         self.mfa_enrollment = None
         self.auth_attempts: list[str] = []
+        self.created_credentials: list[SimpleNamespace] = []
+        self.password_reset_tokens: list[SimpleNamespace] = []
         self.service_accounts: dict[str, SimpleNamespace] = {}
         self.db = object()
+
+    async def get_account_user(self, user_id):
+        return self.account_user if user_id == self.user_id else None
+
+    async def get_account_user_by_email(self, email: str):
+        return self.account_user if email.lower() == self.email else None
+
+    async def ensure_account_user(self, user_id, email: str, display_name: str):
+        self.account_user = SimpleNamespace(
+            id=user_id,
+            email=email.lower(),
+            display_name=display_name,
+            status="active",
+        )
+        return self.account_user
 
     async def get_credential_by_email(self, email: str):
         return self.credential if email == self.email else None
 
+    async def get_credential_by_user_id(self, user_id):
+        return self.credential if user_id == self.user_id else None
+
+    async def ensure_credential(self, user_id, email: str, password_hash: str):
+        self.credential = SimpleNamespace(
+            user_id=user_id,
+            email=email.lower(),
+            password_hash=password_hash,
+            is_active=True,
+        )
+        return self.credential
+
     async def get_platform_user(self, user_id):
         return self.platform_user if user_id == self.user_id else None
+
+    async def get_platform_user_by_email(self, email: str):
+        return self.platform_user if email.lower() == self.email else None
+
+    async def create_platform_user(self, user_id, email: str, display_name: str):
+        self.platform_user = SimpleNamespace(
+            id=user_id,
+            email=email.lower(),
+            display_name=display_name,
+            status="active",
+        )
+        return self.platform_user
 
     async def update_password_hash(self, user_id, new_hash: str) -> None:
         assert user_id == self.user_id
         self.credential.password_hash = new_hash
 
+    async def create_credential(self, user_id, email: str, password_hash: str):
+        credential = SimpleNamespace(
+            user_id=user_id,
+            email=email.lower(),
+            password_hash=password_hash,
+            is_active=True,
+        )
+        self.created_credentials.append(credential)
+        return credential
+
     async def get_user_roles(self, user_id, workspace_id):
         del user_id, workspace_id
         return list(self.roles)
+
+    async def assign_user_role(self, user_id, role: str, workspace_id):
+        self.assigned_roles.append((user_id, role, workspace_id))
+        assignment = SimpleNamespace(user_id=user_id, role=role, workspace_id=workspace_id)
+        self.roles.append(assignment)
+        return assignment
 
     async def record_auth_attempt(
         self,
@@ -100,6 +171,17 @@ class FakeAuthRepository:
         assert self.mfa_enrollment is not None
         assert self.mfa_enrollment.id == enrollment_id
         self.mfa_enrollment.recovery_codes_hash = list(updated_hashes)
+
+    async def disable_mfa_enrollment(self, user_id) -> bool:
+        if self.mfa_enrollment is None or self.mfa_enrollment.user_id != user_id:
+            return False
+        self.mfa_enrollment.status = "disabled"
+        return True
+
+    async def create_password_reset_token(self, user_id, raw_token: str, expires_at):
+        token = SimpleNamespace(user_id=user_id, raw_token=raw_token, expires_at=expires_at)
+        self.password_reset_tokens.append(token)
+        return token
 
     async def get_active_service_accounts(self):
         return [
@@ -413,3 +495,139 @@ async def test_check_permission_delegates_to_rbac(monkeypatch, auth_settings) ->
     result = await service.check_permission(repository.user_id, "agent", "read", None)
 
     assert result == expected
+
+@pytest.mark.asyncio
+async def test_login_rejects_inactive_platform_user(auth_settings) -> None:
+    repository = FakeAuthRepository()
+    repository.platform_user.status = "pending"
+    service = AuthService(repository, FakeAsyncRedisClient(), auth_settings)
+
+    with pytest.raises(InvalidCredentialsError):
+        await service.login(repository.email, "SecureP@ss123", "127.0.0.1", "pytest")
+
+    assert repository.auth_attempts == ["failure_password"]
+
+
+@pytest.mark.asyncio
+async def test_validate_token_rejects_inactive_missing_and_malformed_users(auth_settings) -> None:
+    repository = FakeAuthRepository()
+    service = AuthService(repository, FakeAsyncRedisClient(), auth_settings)
+    token_pair = await service.login(repository.email, "SecureP@ss123", "127.0.0.1", "pytest")
+
+    payload = await service.validate_token(token_pair.access_token)
+    assert payload["sub"] == str(repository.user_id)
+
+    repository.platform_user.status = "suspended"
+    with pytest.raises(InactiveUserError):
+        await service.validate_token(token_pair.access_token)
+
+    repository.platform_user.status = "pending"
+    with pytest.raises(InvalidAccessTokenError):
+        await service.validate_token(token_pair.access_token)
+
+    repository.platform_user = None
+    with pytest.raises(InvalidAccessTokenError):
+        await service.validate_token(token_pair.access_token)
+
+    with pytest.raises(InvalidAccessTokenError):
+        await service.validate_token("not-a-jwt")
+
+
+@pytest.mark.asyncio
+async def test_verify_mfa_accepts_recovery_code_and_consumes_it(auth_settings) -> None:
+    repository = FakeAuthRepository()
+    redis_client = FakeAsyncRedisClient()
+    service = AuthService(repository, redis_client, auth_settings)
+    secret = generate_totp_secret()
+    recovery_codes, recovery_hashes = generate_recovery_codes()
+    repository.mfa_enrollment = SimpleNamespace(
+        id=uuid4(),
+        user_id=repository.user_id,
+        encrypted_secret=encrypt_secret(secret, auth_settings.auth.mfa_encryption_key),
+        recovery_codes_hash=list(recovery_hashes),
+        status="active",
+        expires_at=None,
+        enrolled_at=datetime.now(UTC),
+    )
+    mfa_token = await service._create_pending_mfa_token(
+        user_id=repository.user_id,
+        email=repository.email,
+        roles=[{"role": "viewer", "workspace_id": None}],
+        ip="127.0.0.1",
+        device="pytest",
+        session_id=uuid4(),
+    )
+
+    token_pair = await service.verify_mfa(mfa_token, recovery_codes[0])
+
+    assert token_pair.access_token
+    assert len(repository.mfa_enrollment.recovery_codes_hash) == len(recovery_hashes) - 1
+    assert await service._get_pending_mfa_token(mfa_token) is None
+
+
+@pytest.mark.asyncio
+async def test_ensure_user_records_creates_missing_rows_and_rejects_conflicts(
+    auth_settings,
+) -> None:
+    repository = FakeAuthRepository()
+    repository.account_user = None
+    repository.platform_user = None
+    repository.credential = None
+    service = AuthService(repository, FakeAsyncRedisClient(), auth_settings)
+
+    await service._ensure_user_records(user_id=repository.user_id, email="USER@Example.COM")
+
+    assert repository.account_user.email == "user@example.com"
+    assert repository.platform_user.email == "user@example.com"
+    assert repository.credential.email == "user@example.com"
+
+    conflicting_repository = FakeAuthRepository()
+    conflicting_repository.account_user.id = uuid4()
+    conflicting_service = AuthService(conflicting_repository, FakeAsyncRedisClient(), auth_settings)
+
+    with pytest.raises(InvalidAccessTokenError):
+        await conflicting_service._ensure_user_records(
+            user_id=uuid4(),
+            email=conflicting_repository.email,
+        )
+
+
+@pytest.mark.asyncio
+async def test_admin_auth_helpers_delegate_to_repository_and_session_store(auth_settings) -> None:
+    repository = FakeAuthRepository()
+    redis_client = FakeAsyncRedisClient()
+    service = AuthService(repository, redis_client, auth_settings)
+    user_id = uuid4()
+    workspace_id = uuid4()
+    repository.mfa_enrollment = SimpleNamespace(
+        id=uuid4(),
+        user_id=user_id,
+        status="active",
+    )
+
+    await service.create_user_credential(user_id, "New@Example.COM", "SecureP@ss123")
+    await service.assign_user_roles(user_id, ["viewer", "operator"], [workspace_id])
+    await service.assign_user_roles(user_id, ["viewer"])
+    invalidated = await service.invalidate_user_sessions(user_id)
+    mfa_cleared = await service.reset_mfa(user_id)
+    reset_token = await service.initiate_password_reset(user_id, force_change_on_login=False)
+    await service.clear_lockout(user_id)
+    challenge = await service.create_pending_mfa_challenge(
+        user_id=user_id,
+        email="new@example.com",
+        ip="127.0.0.1",
+        device="pytest",
+    )
+
+    assert repository.created_credentials[0].email == "new@example.com"
+    assert repository.assigned_roles == [
+        (user_id, "viewer", workspace_id),
+        (user_id, "operator", workspace_id),
+        (user_id, "viewer", None),
+    ]
+    assert invalidated == 0
+    assert mfa_cleared is True
+    assert reset_token
+    assert repository.password_reset_tokens[0].user_id == user_id
+    assert challenge.mfa_token
+

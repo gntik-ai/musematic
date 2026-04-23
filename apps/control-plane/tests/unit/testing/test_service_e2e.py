@@ -121,7 +121,8 @@ class FakeConsumer:
     started: ClassVar[bool] = False
     stopped: ClassVar[bool] = False
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, *topics, **kwargs) -> None:
+        self.topics = topics
         self.kwargs = kwargs
 
     async def start(self) -> None:
@@ -130,12 +131,10 @@ class FakeConsumer:
     async def stop(self) -> None:
         type(self).stopped = True
 
-    async def partitions_for_topic(self, topic: str):
-        assert topic == "execution.events"
-        return {0}
-
-    def assign(self, partitions) -> None:
-        type(self).assigned = partitions
+    def assignment(self):
+        assert self.topics == ("execution.events",)
+        type(self).assigned = [FakeTopicPartition("execution.events", 0)]
+        return type(self).assigned
 
     async def offsets_for_times(self, timestamps):
         type(self).requested_timestamps = timestamps

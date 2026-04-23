@@ -40,7 +40,10 @@ import pytest
 from tests.auth_support import RecordingProducer
 from tests.interactions_support import (
     InMemoryInteractionsRepo,
+    SessionStub,
     WorkspacesServiceStub,
+    build_conversation,
+    build_repository,
     build_service,
 )
 
@@ -74,6 +77,67 @@ class RaceTransitionRepo(InMemoryInteractionsRepo):
             started_at=started_at,
             completed_at=completed_at,
         )
+
+
+class _ScalarResultStub:
+    def __init__(self, value):
+        self.value = value
+
+    def scalar_one_or_none(self):
+        return self.value
+
+
+@pytest.mark.asyncio
+async def test_interactions_service_commits_conversation_creation_before_return() -> None:
+    session = SessionStub()
+    service = InteractionsService(
+        repository=build_repository(session),
+        settings=PlatformSettings(),
+        producer=RecordingProducer(),
+        workspaces_service=WorkspacesServiceStub(),
+        registry_service=None,
+    )
+
+    created = await service.create_conversation(
+        ConversationCreate(title="Committed conversation"),
+        "user-1",
+        uuid4(),
+    )
+
+    assert created.title == "Committed conversation"
+    assert session.flush_count == 1
+    assert session.commit_count == 1
+    assert session.committed is True
+
+
+@pytest.mark.asyncio
+async def test_interactions_service_commits_interaction_creation_before_return() -> None:
+    workspace_id = uuid4()
+    conversation = build_conversation(workspace_id=workspace_id)
+    session = SessionStub(
+        execute_results=[
+            _ScalarResultStub(conversation),
+            _ScalarResultStub(None),
+        ]
+    )
+    service = InteractionsService(
+        repository=build_repository(session),
+        settings=PlatformSettings(),
+        producer=RecordingProducer(),
+        workspaces_service=WorkspacesServiceStub(),
+        registry_service=None,
+    )
+
+    created = await service.create_interaction(
+        InteractionCreate(conversation_id=conversation.id),
+        "user-1",
+        workspace_id,
+    )
+
+    assert created.conversation_id == conversation.id
+    assert session.flush_count == 2
+    assert session.commit_count == 1
+    assert session.committed is True
 
 
 @pytest.mark.asyncio

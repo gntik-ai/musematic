@@ -1,4 +1,7 @@
-FROM golang:1.25-alpine3.23 AS builder
+ARG GO_BASE=mirror.gcr.io/library/golang:1.25-alpine3.23
+ARG ALPINE_BASE=mirror.gcr.io/library/alpine:3.23.3
+
+FROM ${GO_BASE} AS builder
 
 RUN apk add --no-cache build-base pkgconf
 
@@ -9,7 +12,7 @@ COPY . .
 ENV CGO_ENABLED=1 GOOS=linux GOARCH=amd64
 RUN go build -tags musl -ldflags="-s -w" -o /runtime-controller ./cmd/runtime-controller
 
-FROM alpine:3.23.3
+FROM ${ALPINE_BASE}
 
 RUN apk upgrade --no-cache \
     && apk add --no-cache ca-certificates libstdc++ \

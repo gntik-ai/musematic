@@ -18,6 +18,9 @@ class ResultStub:
     def scalar_one_or_none(self):
         return self._one
 
+    def one(self):
+        return self._one
+
     def scalar(self):
         return self._scalar
 
@@ -29,8 +32,9 @@ class ResultStub:
 
 
 class SessionStub:
-    def __init__(self, responses=None) -> None:
+    def __init__(self, responses=None, get_responses=None) -> None:
         self.responses = list(responses or [])
+        self.get_responses = list(get_responses or [])
         self.added: list[object] = []
         self.deleted: list[object] = []
         self.flush_calls = 0
@@ -38,6 +42,10 @@ class SessionStub:
     async def execute(self, statement):
         del statement
         return self.responses.pop(0) if self.responses else ResultStub()
+
+    async def get(self, model, key, **kwargs):
+        del model, key, kwargs
+        return self.get_responses.pop(0) if self.get_responses else None
 
     def add(self, item) -> None:
         self.added.append(item)
@@ -51,14 +59,30 @@ class SessionStub:
 
 @pytest.mark.asyncio
 async def test_repository_upserts_provider_and_writes_link_and_audit_records() -> None:
-    existing = SimpleNamespace(
+    provider_id = uuid4()
+    created_provider = OAuthProvider(
+        id=provider_id,
+        provider_type="google",
+        display_name="Google",
+        enabled=True,
+        client_id="client",
+        client_secret_ref="plain:secret",
+        redirect_uri="https://app.example.com/callback",
+        scopes=["openid", "email"],
+        domain_restrictions=["example.com"],
+        org_restrictions=[],
+        group_role_mapping={"admins": "platform_admin"},
+        default_role="viewer",
+        require_mfa=True,
+    )
+    existing = OAuthProvider(
         id=uuid4(),
         provider_type="google",
-        display_name="Old",
+        display_name="Google Workspace",
         enabled=False,
-        client_id="old",
-        client_secret_ref="plain:old",
-        redirect_uri="https://old",
+        client_id="client-2",
+        client_secret_ref="plain:secret-2",
+        redirect_uri="https://app.example.com/callback",
         scopes=["openid"],
         domain_restrictions=[],
         org_restrictions=[],
@@ -66,10 +90,28 @@ async def test_repository_upserts_provider_and_writes_link_and_audit_records() -
         default_role="viewer",
         require_mfa=False,
     )
-    session = SessionStub(responses=[ResultStub(one=None), ResultStub(one=existing)])
-    repository = OAuthRepository(session)
     user_id = uuid4()
-    provider_id = uuid4()
+    link_id = uuid4()
+    inserted_link = OAuthLink(
+        id=link_id,
+        user_id=user_id,
+        provider_id=provider_id,
+        external_id="external-1",
+        external_email="alex@example.com",
+        external_name="Alex",
+        external_avatar_url="https://images.example.com/alex.png",
+        external_groups=["admins"],
+        last_login_at=datetime.now(UTC),
+    )
+    session = SessionStub(
+        responses=[
+            ResultStub(one=SimpleNamespace(id=provider_id, created=True)),
+            ResultStub(one=SimpleNamespace(id=existing.id, created=False)),
+            ResultStub(one=link_id),
+        ],
+        get_responses=[created_provider, existing, inserted_link],
+    )
+    repository = OAuthRepository(session)
 
     created, created_flag = await repository.upsert_provider(
         "google",
@@ -140,7 +182,7 @@ async def test_repository_upserts_provider_and_writes_link_and_audit_records() -
     assert touched.external_email == "alex.updated@example.com"
     assert isinstance(audit, OAuthAuditEntry)
     assert session.deleted == [link]
-    assert session.flush_calls == 6
+    assert session.flush_calls == 3
 
 
 @pytest.mark.asyncio
@@ -177,3 +219,84 @@ async def test_repository_query_helpers_return_scalar_and_collection_results() -
     assert links == [link]
     assert auth_methods == 3
     assert audits == [audit]
+
+@pytest.mark.asyncio
+async def test_create_link_reuses_concurrent_insert_and_rejects_wrong_user() -> None:
+    user_id = uuid4()
+    provider_id = uuid4()
+    existing = OAuthLink(
+        id=uuid4(),
+        user_id=user_id,
+        provider_id=provider_id,
+        external_id="external-1",
+        external_email="old@example.com",
+        external_name="Old",
+        external_avatar_url=None,
+        external_groups=[],
+        last_login_at=None,
+    )
+    session = SessionStub(responses=[ResultStub(one=None), ResultStub(one=existing)])
+    repository = OAuthRepository(session)
+
+    link = await repository.create_link(
+        user_id=user_id,
+        provider_id=provider_id,
+        external_id="external-1",
+        external_email="new@example.com",
+        external_name="New",
+        external_avatar_url="https://images.example.com/new.png",
+        external_groups=["admins"],
+        last_login_at=datetime.now(UTC),
+    )
+
+    assert link is existing
+    assert link.external_email == "new@example.com"
+    assert link.external_groups == ["admins"]
+    assert session.flush_calls == 1
+
+    conflicting = OAuthLink(
+        id=uuid4(),
+        user_id=uuid4(),
+        provider_id=provider_id,
+        external_id="external-1",
+        external_email="new@example.com",
+        external_name="New",
+        external_avatar_url=None,
+        external_groups=[],
+        last_login_at=None,
+    )
+    conflict_session = SessionStub(
+        responses=[ResultStub(one=None), ResultStub(one=conflicting)]
+    )
+    conflict_repository = OAuthRepository(conflict_session)
+
+    with pytest.raises(ValueError, match="already belongs to a different user"):
+        await conflict_repository.create_link(
+            user_id=user_id,
+            provider_id=provider_id,
+            external_id="external-1",
+            external_email="new@example.com",
+            external_name="New",
+            external_avatar_url=None,
+            external_groups=[],
+        )
+
+
+@pytest.mark.asyncio
+async def test_list_audit_entries_applies_all_optional_filters() -> None:
+    audit = SimpleNamespace(action="sign_in_failed", created_at=datetime.now(UTC))
+    session = SessionStub(responses=[ResultStub(values=[audit])])
+    repository = OAuthRepository(session)
+    now = datetime.now(UTC)
+
+    audits = await repository.list_audit_entries(
+        provider_type="google",
+        user_id=uuid4(),
+        outcome="failure",
+        start_time=now,
+        end_time=now,
+        limit=5,
+    )
+
+    assert audits == [audit]
+

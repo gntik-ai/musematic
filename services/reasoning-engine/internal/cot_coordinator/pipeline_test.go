@@ -248,6 +248,7 @@ func TestPipelineUploadsLargePayloads(t *testing.T) {
 func TestPipelineDropsOldestWhenBufferOverflows(t *testing.T) {
 	repo := &fakeRepository{sleep: 20 * time.Millisecond}
 	pipeline := NewPipeline(repo, nil, nil, nil, 1, 64*1024)
+	pipeline.workerCount = 1
 
 	events := []*TraceEvent{
 		{ExecutionID: "exec-3", StepID: "step-1", EventID: "e1", EventType: "step", SequenceNum: 1, Payload: []byte("1"), OccurredAt: time.Now().UTC()},

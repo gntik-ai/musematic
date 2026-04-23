@@ -1,7 +1,9 @@
+{{- if .Values.createNamespace }}
 apiVersion: v1
 kind: Namespace
 metadata:
   name: platform-data
   annotations:
     helm.sh/resource-policy: keep
+{{- end }}
 

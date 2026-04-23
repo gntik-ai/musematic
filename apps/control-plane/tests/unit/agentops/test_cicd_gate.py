@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from platform.agentops.cicd.gate import CiCdGate, GateVerdict, _as_mapping, _coerce_tier
 from platform.agentops.models import CiCdGateResult
@@ -147,6 +148,123 @@ async def test_cicd_gate_all_passes_and_persists_result() -> None:
     assert repository.persisted_gate_results[0].overall_passed is True
     assert governance.calls[0]["event_type"] == "agentops.gate.checked"
     assert governance.calls[0]["payload"]["overall_passed"] is True
+
+
+class _CallTracker:
+    def __init__(self) -> None:
+        self.active = 0
+        self.max_active = 0
+
+    async def run(self, result: Any) -> Any:
+        self.active += 1
+        self.max_active = max(self.max_active, self.active)
+        await asyncio.sleep(0)
+        self.active -= 1
+        return result
+
+
+@pytest.mark.asyncio
+async def test_cicd_gate_evaluates_shared_dependencies_sequentially() -> None:
+    workspace_id = uuid4()
+    revision_id = uuid4()
+    requested_by = uuid4()
+    tracker = _CallTracker()
+    repository = _RepositoryStub()
+
+    class _TrackedPolicyService(_PolicyServiceStub):
+        async def evaluate_conformance(
+            self,
+            agent_fqn: str,
+            revision_id: UUID,
+            workspace_id: UUID,
+        ) -> Any:
+            del agent_fqn, revision_id, workspace_id
+            self.calls += 1
+            return await tracker.run(self.result)
+
+    class _TrackedEvalService(_EvalServiceStub):
+        async def get_latest_agent_score(self, agent_fqn: str, workspace_id: UUID) -> Any:
+            del agent_fqn, workspace_id
+            self.calls += 1
+            return await tracker.run(self.result)
+
+    class _TrackedTrustService(_TrustServiceStub):
+        async def is_agent_certified(self, agent_fqn: str, revision_id: UUID) -> Any:
+            del agent_fqn, revision_id
+            self.certification_calls += 1
+            return await tracker.run(self.certification)
+
+        async def get_agent_trust_tier(self, agent_fqn: str, workspace_id: UUID) -> Any:
+            del agent_fqn, workspace_id
+            self.tier_calls += 1
+            return await tracker.run(self.tier)
+
+    async def regression_provider(
+        agent_fqn: str,
+        revision_id: UUID,
+        workspace_id: UUID,
+    ) -> list[Any]:
+        del agent_fqn, revision_id, workspace_id
+        return await tracker.run([])
+
+    gate = CiCdGate(
+        repository=repository,  # type: ignore[arg-type]
+        governance_publisher=None,
+        trust_service=_TrackedTrustService(
+            certification={"status": "active"},
+            tier={"tier": 2, "score": 0.92},
+        ),
+        eval_suite_service=_TrackedEvalService(
+            {"aggregate_score": 0.91, "threshold": 0.8, "passed": True}
+        ),
+        policy_service=_TrackedPolicyService({"passed": True, "violations": []}),
+        regression_provider=regression_provider,
+    )
+
+    result = await gate.evaluate(
+        agent_fqn="finance:agent",
+        revision_id=revision_id,
+        workspace_id=workspace_id,
+        requested_by=requested_by,
+    )
+
+    assert result.overall_passed is True
+    assert tracker.max_active == 1
+
+
+@pytest.mark.asyncio
+async def test_cicd_gate_serializes_datetime_details_before_persisting() -> None:
+    workspace_id = uuid4()
+    revision_id = uuid4()
+    requested_by = uuid4()
+    repository = _RepositoryStub()
+    timestamp = datetime.now(UTC)
+    trust_service = _TrustServiceStub(
+        certification={"status": "active", "activated_at": timestamp},
+        tier={"tier": 2, "score": 0.92, "evaluated_at": timestamp},
+    )
+    gate = CiCdGate(
+        repository=repository,  # type: ignore[arg-type]
+        governance_publisher=None,
+        trust_service=trust_service,
+        eval_suite_service=_EvalServiceStub(
+            {"aggregate_score": 0.91, "threshold": 0.8, "passed": True}
+        ),
+        policy_service=_PolicyServiceStub({"passed": True, "violations": []}),
+        regression_provider=lambda *args: _resolved([]),
+    )
+
+    result = await gate.evaluate(
+        agent_fqn="finance:agent",
+        revision_id=revision_id,
+        workspace_id=workspace_id,
+        requested_by=requested_by,
+    )
+
+    assert result.overall_passed is True
+    persisted = repository.persisted_gate_results[0]
+    assert persisted.certification_gate_detail["activated_at"] == timestamp.isoformat()
+    assert persisted.trust_tier_gate_detail["evaluated_at"] == timestamp.isoformat()
 
 
 @pytest.mark.asyncio

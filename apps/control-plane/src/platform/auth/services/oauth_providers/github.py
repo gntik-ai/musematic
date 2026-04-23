@@ -1,16 +1,27 @@
 from __future__ import annotations
 
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 import httpx
 
 
 class GitHubOAuthProvider:
-    auth_endpoint = "https://github.com/login/oauth/authorize"
-    token_endpoint = "https://github.com/login/oauth/access_token"
-    user_endpoint = "https://api.github.com/user"
-    emails_endpoint = "https://api.github.com/user/emails"
-    teams_endpoint = "https://api.github.com/user/teams"
+    def __init__(
+        self,
+        *,
+        auth_endpoint: str = "https://github.com/login/oauth/authorize",
+        token_endpoint: str = "https://github.com/login/oauth/access_token",
+        user_endpoint: str = "https://api.github.com/user",
+        emails_endpoint: str = "https://api.github.com/user/emails",
+        teams_endpoint: str = "https://api.github.com/user/teams",
+        org_membership_endpoint_template: str = "https://api.github.com/user/memberships/orgs/{org}",
+    ) -> None:
+        self.auth_endpoint = auth_endpoint
+        self.token_endpoint = token_endpoint
+        self.user_endpoint = user_endpoint
+        self.emails_endpoint = emails_endpoint
+        self.teams_endpoint = teams_endpoint
+        self.org_membership_endpoint_template = org_membership_endpoint_template
 
     def get_auth_url(
         self,
@@ -87,9 +98,10 @@ class GitHubOAuthProvider:
         raise ValueError("github_primary_email_not_found")
 
     async def check_org_membership(self, *, access_token: str, org: str) -> bool:
+        endpoint = self.org_membership_endpoint_template.format(org=quote(org, safe=""))
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(
-                f"https://api.github.com/user/memberships/orgs/{org}",
+                endpoint,
                 headers={
                     "Accept": "application/vnd.github+json",
                     "Authorization": f"Bearer {access_token}",

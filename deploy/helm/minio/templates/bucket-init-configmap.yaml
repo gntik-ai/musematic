@@ -31,6 +31,7 @@ data:
 
     create_bucket agent-packages
     create_bucket execution-artifacts
+    create_bucket execution-task-plans
     create_bucket reasoning-traces
     create_bucket sandbox-outputs
     create_bucket evidence-bundles
@@ -39,13 +40,14 @@ data:
     create_bucket forensic-exports
 
     apply_expiry execution-artifacts {{ .Values.buckets.executionArtifactsRetentionDays }}
+    apply_expiry execution-task-plans 30
     apply_expiry reasoning-traces 90
     apply_expiry sandbox-outputs 30
     apply_expiry simulation-artifacts 30
     apply_expiry backups 30
     apply_expiry forensic-exports 90
 
-    for bucket in agent-packages execution-artifacts reasoning-traces sandbox-outputs evidence-bundles simulation-artifacts backups forensic-exports; do
+    for bucket in agent-packages execution-artifacts execution-task-plans reasoning-traces sandbox-outputs evidence-bundles simulation-artifacts backups forensic-exports; do
       apply_cleanup_rule "${bucket}"
     done
 
@@ -79,6 +81,8 @@ data:
             "arn:aws:s3:::agent-packages/*",
             "arn:aws:s3:::execution-artifacts",
             "arn:aws:s3:::execution-artifacts/*",
+            "arn:aws:s3:::execution-task-plans",
+            "arn:aws:s3:::execution-task-plans/*",
             "arn:aws:s3:::reasoning-traces",
             "arn:aws:s3:::reasoning-traces/*",
             "arn:aws:s3:::sandbox-outputs",

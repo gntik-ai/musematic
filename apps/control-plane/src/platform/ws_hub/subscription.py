@@ -23,7 +23,7 @@ class ChannelType(StrEnum):
 
 
 CHANNEL_TOPIC_MAP: Final[dict[ChannelType, Sequence[str]]] = {
-    ChannelType.EXECUTION: ("workflow.runtime", "runtime.lifecycle"),
+    ChannelType.EXECUTION: ("execution.events", "workflow.runtime", "runtime.lifecycle"),
     ChannelType.INTERACTION: ("interaction.events",),
     ChannelType.CONVERSATION: ("interaction.events",),
     ChannelType.WORKSPACE: ("workspaces.events",),

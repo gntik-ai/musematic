@@ -1,0 +1,45 @@
+dependencies:
+- name: musematic-postgresql
+  repository: file://../postgresql
+  version: 0.1.0
+- name: musematic-redis
+  repository: file://../redis
+  version: 0.1.0
+- name: musematic-kafka
+  repository: file://../kafka
+  version: 0.1.0
+- name: musematic-minio
+  repository: file://../minio
+  version: 0.1.0
+- name: musematic-qdrant
+  repository: file://../qdrant
+  version: 0.1.0
+- name: musematic-neo4j
+  repository: file://../neo4j
+  version: 0.1.0
+- name: musematic-clickhouse
+  repository: file://../clickhouse
+  version: 0.1.0
+- name: musematic-opensearch
+  repository: file://../opensearch
+  version: 0.1.0
+- name: musematic-control-plane
+  repository: file://../control-plane
+  version: 0.1.0
+- name: musematic-runtime-controller
+  repository: file://../runtime-controller
+  version: 0.1.0
+- name: reasoning-engine
+  repository: file://../reasoning-engine
+  version: 0.1.0
+- name: simulation-controller
+  repository: file://../simulation-controller
+  version: 0.1.0
+- name: sandbox-manager
+  repository: file://../../../services/sandbox-manager/deploy/helm/sandbox-manager
+  version: 0.1.0
+- name: musematic-ui
+  repository: file://../ui
+  version: 0.1.0
+digest: sha256:f6270a61529483ce2e705bf5921f44819d0486d212140175f6d7aa5df7011304
+generated: "2026-04-21T21:46:01.473430822+02:00"

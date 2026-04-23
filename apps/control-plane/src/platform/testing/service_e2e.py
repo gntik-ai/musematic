@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import inspect
 import json
 import sys
@@ -253,6 +254,7 @@ class KafkaObserver:
             fromlist=["AIOKafkaConsumer", "TopicPartition"],
         )
         consumer = aiokafka.AIOKafkaConsumer(
+            topic,
             bootstrap_servers=self.settings.KAFKA_BROKERS,
             enable_auto_commit=False,
             group_id=None,
@@ -261,14 +263,12 @@ class KafkaObserver:
         await consumer.start()
         events: list[KafkaEventRecord] = []
         try:
-            partitions = await consumer.partitions_for_topic(topic)
-            if not partitions:
+            topic_partitions = sorted(
+                consumer.assignment(),
+                key=lambda partition: partition.partition,
+            )
+            if not topic_partitions:
                 return KafkaEventsResponse(events=[], count=0)
-            topic_partitions = [
-                aiokafka.TopicPartition(topic, partition)
-                for partition in sorted(partitions)
-            ]
-            consumer.assign(topic_partitions)
             offsets = await consumer.offsets_for_times(
                 {
                     partition: int(since.timestamp() * 1000)
@@ -340,7 +340,10 @@ class KafkaObserver:
                         break
             return KafkaEventsResponse(events=events, count=len(events))
         finally:
-            await consumer.stop()
+            try:
+                await consumer.stop()
+            except asyncio.CancelledError:
+                pass
 
 
 def build_mock_llm_service(redis_client: AsyncRedisClient) -> MockLLMService:

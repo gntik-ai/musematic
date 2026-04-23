@@ -83,7 +83,10 @@ class CertificationService:
             ),
             make_correlation(),
         )
-        return CertificationResponse.model_validate(certification)
+        persisted = await self.repository.get_certification(certification.id)
+        if persisted is None:
+            raise CertificationNotFoundError(certification.id)
+        return CertificationResponse.model_validate(persisted)
 
     async def get(self, cert_id: UUID) -> CertificationResponse:
         certification = await self.repository.get_certification(cert_id)

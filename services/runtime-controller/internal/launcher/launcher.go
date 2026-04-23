@@ -86,14 +86,11 @@ func (l *Launcher) Launch(ctx context.Context, contract *runtimev1.RuntimeContra
 		AgentFQN:           contract.AgentRevision,
 		AgentRevision:      contract.AgentRevision,
 		ModelBinding:       json.RawMessage(contract.ModelBinding),
-		State:              "pending",
+		State:              "running",
 		PodNamespace:       l.Namespace,
 		CorrelationContext: mustJSON(contract.CorrelationContext),
 		ResourceLimits:     mustJSON(contract.ResourceLimits),
 		SecretRefs:         contract.SecretRefs,
-	}
-	if err := l.Store.InsertRuntime(ctx, runtimeRecord); err != nil {
-		return nil, false, err
 	}
 	if contract.TaskPlanJson != "" {
 		if err := l.Store.InsertTaskPlanRecord(ctx, state.TaskPlanRecord{
@@ -111,7 +108,10 @@ func (l *Launcher) Launch(ctx context.Context, contract *runtimev1.RuntimeContra
 			if err := l.Pods.PrepareWarmPod(ctx, podName, contract); err != nil {
 				return nil, false, err
 			}
-			if err := l.Store.UpdateRuntimeState(ctx, contract.CorrelationContext.ExecutionId, "running", ""); err != nil {
+			now := time.Now().UTC()
+			runtimeRecord.PodName = podName
+			runtimeRecord.LaunchedAt = &now
+			if err := l.Store.InsertRuntime(ctx, runtimeRecord); err != nil {
 				return nil, false, err
 			}
 			info := runtimeInfoFromRecord(runtimeRecord, "running", podName)
@@ -144,7 +144,10 @@ func (l *Launcher) Launch(ctx context.Context, contract *runtimev1.RuntimeContra
 	if err != nil {
 		return nil, false, err
 	}
-	if err := l.Store.UpdateRuntimeState(ctx, contract.CorrelationContext.ExecutionId, "running", ""); err != nil {
+	now := time.Now().UTC()
+	runtimeRecord.PodName = createdPod.Name
+	runtimeRecord.LaunchedAt = &now
+	if err := l.Store.InsertRuntime(ctx, runtimeRecord); err != nil {
 		return nil, false, err
 	}
 	l.publishLifecycle(ctx, runtimeID, contract, runtimev1.RuntimeEventType_RUNTIME_EVENT_LAUNCHED, runtimev1.RuntimeState_RUNTIME_STATE_RUNNING, "")

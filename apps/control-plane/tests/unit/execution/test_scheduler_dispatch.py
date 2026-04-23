@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from platform.workflows.ir import WorkflowIR
 
 import pytest
@@ -46,7 +47,17 @@ async def test_dispatch_uses_launch_runtime_with_prefer_warm() -> None:
 
     await scheduler._dispatch_to_runtime(execution, ir, step)
 
-    assert runtime_controller.launch_calls[0][1] is True
+    payload, prefer_warm = runtime_controller.launch_calls[0]
+    assert prefer_warm is True
+    assert payload["agent_revision"] == "ns:a"
+    assert payload["step_id"] == "step_a"
+    assert payload["model_binding"] == "{}"
+    assert payload["correlation_context"] == {
+        "execution_id": str(execution.id),
+        "trace_id": str(scheduler._runtime_correlation_payload(execution, step)["trace_id"]),
+        "workspace_id": str(execution.correlation_workspace_id),
+    }
+    assert json.loads(str(payload["task_plan_json"]))["selected_agent_fqn"] == "ns:a"
     assert runtime_controller.dispatch_calls == []
 
 
@@ -60,6 +71,7 @@ async def test_dispatch_falls_back_to_legacy_dispatch_when_launch_method_missing
     await scheduler._dispatch_to_runtime(execution, ir, step)
 
     assert runtime_controller.dispatch_calls[0]["step_id"] == "step_a"
+    assert runtime_controller.dispatch_calls[0]["agent_fqn"] == "ns:a"
 
 
 @pytest.mark.asyncio
@@ -85,6 +97,7 @@ async def test_dispatch_uses_fallback_dispatch_when_launch_runtime_errors() -> N
 
     assert runtime_controller.launch_calls[0][1] is True
     assert runtime_controller.dispatch_calls[0]["step_id"] == "step_a"
+    assert runtime_controller.dispatch_calls[0]["agent_fqn"] == "ns:a"
 
 
 @pytest.mark.asyncio
@@ -111,9 +124,11 @@ steps:
     await scheduler._dispatch_to_runtime(execution, ir, step)
 
     payload = runtime_controller.launch_calls[0][0]
-    assert payload["reasoning_mode"] == "deep"
-    assert payload["compute_budget"] == 0.4
-    assert payload["effective_budget_scope"] == "step"
+    assert json.loads(str(payload["reasoning_config_json"])) == {"reasoning_mode": "deep"}
+    assert json.loads(str(payload["reasoning_budget_envelope_json"])) == {
+        "compute_budget": 0.4,
+        "effective_budget_scope": "step",
+    }
 
 
 @pytest.mark.asyncio
@@ -139,8 +154,10 @@ steps:
     await scheduler._dispatch_to_runtime(execution, ir, step)
 
     payload = runtime_controller.launch_calls[0][0]
-    assert payload["compute_budget"] == 0.25
-    assert payload["effective_budget_scope"] == "workflow"
+    assert json.loads(str(payload["reasoning_budget_envelope_json"])) == {
+        "compute_budget": 0.25,
+        "effective_budget_scope": "workflow",
+    }
 
 
 async def _create_basic_execution(

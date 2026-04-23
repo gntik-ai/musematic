@@ -77,11 +77,12 @@ class MockLLMProvider:
             "response": response,
             "streaming_chunks": streaming_chunks or [],
         }
+        payload_json = json.dumps(payload)
         client = await self._redis()
         queue_key = self._queue_key(prompt_pattern)
         await client.sadd(self.PATTERNS_KEY, prompt_pattern)
-        await client.rpush(queue_key, json.dumps(payload))
-        await client.publish(self.BROADCAST_CHANNEL, json.dumps(payload))
+        await client.rpush(queue_key, payload_json)
+        await self._publish(client, self.BROADCAST_CHANNEL, payload_json)
         return await self.queue_depth()
 
     async def set_responses(self, responses: dict[str, list[str]]) -> dict[str, int]:
@@ -240,6 +241,17 @@ class MockLLMProvider:
         if not values:
             return []
         return sorted(str(value) for value in values)
+
+    async def _publish(self, client: Any, channel: str, payload: str) -> None:
+        publish = getattr(client, "publish", None)
+        if callable(publish):
+            await publish(channel, payload)
+            return
+        execute_command = getattr(client, "execute_command", None)
+        if callable(execute_command):
+            await execute_command("PUBLISH", channel, payload)
+            return
+        raise AttributeError("Redis client does not support publish semantics")
 
     @staticmethod
     def _queue_key(prompt_pattern: str) -> str:

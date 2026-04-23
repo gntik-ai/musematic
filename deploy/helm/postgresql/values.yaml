@@ -1,3 +1,5 @@
+createNamespace: true
+
 environment: production
 
 postgresql:
@@ -24,7 +26,7 @@ monitoring:
   enabled: true
 
 credentials:
-  username: postgres
+  username: musematic
   password: change-me
   database: musematic
   existingSecret: ""

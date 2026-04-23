@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+from platform.marketplace.exceptions import VisibilityDeniedError
 from platform.marketplace.schemas import MarketplaceSearchRequest
+from platform.registry.models import LifecycleStatus
 from types import SimpleNamespace
 from uuid import uuid4
 
+import httpx
 import pytest
 from tests.marketplace_support import (
     OpenSearchClientStub,
+    RegistryServiceStub,
     build_agent_document,
+    build_quality_aggregate,
     build_search_service,
 )
 
@@ -134,6 +139,246 @@ async def test_search_service_helper_methods_cover_visibility_fetch_and_embeddin
     )
     with pytest.raises(ValueError, match="Embedding response did not contain a vector"):
         await service._embed_text("visible")
+
+
+@pytest.mark.asyncio
+async def test_search_service_falls_back_when_semantic_search_is_unavailable() -> None:
+    workspace_id = uuid4()
+    agent_id = uuid4()
+    service = build_search_service(
+        documents=[build_agent_document(agent_id=agent_id, fqn="finance-ops:visible")],
+        visibility_by_workspace={workspace_id: ["finance-ops:*"]},
+    )[0]
+
+    async def _embed_text(_text: str) -> list[float]:
+        raise httpx.ConnectError("embedding service unavailable")
+
+    service._embed_text = _embed_text  # type: ignore[method-assign]
+
+    response = await service.search(
+        MarketplaceSearchRequest(query="visible", page=1, page_size=10),
+        workspace_id,
+        uuid4(),
+    )
+
+    assert [item.fqn for item in response.results] == ["finance-ops:visible"]
+    assert response.total == 1
+
+
+@pytest.mark.asyncio
+async def test_search_service_uses_registry_fallback_for_query_results_when_index_is_stale(
+) -> None:
+    workspace_id = uuid4()
+    agent_id = uuid4()
+    service, repository, _opensearch, _qdrant, _workspaces = build_search_service(
+        documents=[],
+        visibility_by_workspace={workspace_id: ["finance-ops:*"]},
+    )
+    service.registry_service.profiles_by_agent[agent_id] = SimpleNamespace(
+        id=agent_id,
+        workspace_id=workspace_id,
+        fqn="finance-ops:registry-search-fallback",
+        display_name="KYC Verifier",
+        purpose="KYC verification agent for marketplace fallback coverage.",
+        approach="Deterministic verification workflow.",
+        role_types=["financial_analysis"],
+        tags=["kyc", "verification"],
+        maturity_level=2,
+        status=LifecycleStatus.published,
+    )
+    repository.quality_by_agent[agent_id] = build_quality_aggregate(agent_id=agent_id)
+
+    response = await service.search(
+        MarketplaceSearchRequest(query="KYC verification", page=1, page_size=10),
+        workspace_id,
+        uuid4(),
+    )
+
+    assert [item.fqn for item in response.results] == ["finance-ops:registry-search-fallback"]
+    assert response.total == 1
+
+
+@pytest.mark.asyncio
+async def test_search_service_falls_back_to_registry_profile_when_index_document_is_missing(
+) -> None:
+    workspace_id = uuid4()
+    agent_id = uuid4()
+    registry_service = SimpleNamespace(
+        get_agent=lambda workspace_id_arg, agent_id_arg, requesting_agent_id=None: _get_agent(
+            workspace_id_arg,
+            agent_id_arg,
+            requesting_agent_id,
+        )
+    )
+
+    async def _get_agent(workspace_id_arg, agent_id_arg, requesting_agent_id):
+        del workspace_id_arg, requesting_agent_id
+        if agent_id_arg != agent_id:
+            return None
+        return SimpleNamespace(
+            id=agent_id,
+            fqn="finance-ops:registry-fallback",
+            display_name="Registry Fallback",
+            purpose="Registry-backed listing used when the marketplace index is stale.",
+            role_types=["financial_analysis"],
+            tags=["finance"],
+            maturity_level=2,
+            status=LifecycleStatus.published,
+        )
+
+    service, repository, _opensearch, _qdrant, _workspaces = build_search_service(
+        documents=[],
+        visibility_by_workspace={workspace_id: ["finance-ops:*"]},
+    )
+    service.registry_service = registry_service
+    repository.quality_by_agent[agent_id] = build_quality_aggregate(agent_id=agent_id)
+
+    listing = await service.get_listing(agent_id, workspace_id)
+
+    assert listing.agent_id == agent_id
+    assert listing.fqn == "finance-ops:registry-fallback"
+    assert listing.name == "Registry Fallback"
+
+
+@pytest.mark.asyncio
+async def test_search_service_prefers_live_registry_status_over_stale_index_document() -> None:
+    workspace_id = uuid4()
+    agent_id = uuid4()
+    service, repository, _opensearch, _qdrant, _workspaces = build_search_service(
+        documents=[
+            build_agent_document(
+                agent_id=agent_id,
+                fqn="finance-ops:stale-status",
+                status="draft",
+            )
+        ],
+        visibility_by_workspace={workspace_id: ["finance-ops:*"]},
+    )
+    service.registry_service.profiles_by_agent[agent_id] = SimpleNamespace(
+        id=agent_id,
+        workspace_id=workspace_id,
+        fqn="finance-ops:stale-status",
+        display_name="Stale Status",
+        purpose="Published agent whose marketplace index still carries a draft status.",
+        role_types=["financial_analysis"],
+        tags=["finance"],
+        maturity_level=2,
+        status=LifecycleStatus.published,
+    )
+    repository.quality_by_agent[agent_id] = build_quality_aggregate(agent_id=agent_id)
+
+    listing = await service.get_listing(agent_id, workspace_id)
+
+    assert listing.status == "published"
+    assert listing.invocable is True
+
+
+@pytest.mark.asyncio
+async def test_search_service_prefers_live_registry_status_for_fqn_listing() -> None:
+    workspace_id = uuid4()
+    agent_id = uuid4()
+    registry_profile = SimpleNamespace(
+        id=agent_id,
+        workspace_id=workspace_id,
+        fqn="finance-ops:stale-fqn-status",
+        display_name="Stale FQN Status",
+        purpose="Published agent resolved by FQN while the index still reports a draft status.",
+        role_types=["financial_analysis"],
+        tags=["finance"],
+        maturity_level=2,
+        status=LifecycleStatus.published,
+    )
+    registry_service = RegistryServiceStub()
+    registry_service.profiles_by_agent[agent_id] = registry_profile
+    registry_service.profiles_by_fqn[registry_profile.fqn] = registry_profile
+    service, repository, _opensearch, _qdrant, _workspaces = build_search_service(
+        documents=[
+            build_agent_document(
+                agent_id=agent_id,
+                fqn=registry_profile.fqn,
+                status="draft",
+            )
+        ],
+        visibility_by_workspace={workspace_id: ["finance-ops:*"]},
+        registry_service=registry_service,
+    )
+    repository.quality_by_agent[agent_id] = build_quality_aggregate(agent_id=agent_id)
+
+    listing = await service.get_listing_by_fqn("finance-ops", "stale-fqn-status", workspace_id)
+
+    assert listing.status == "published"
+    assert listing.invocable is True
+
+
+@pytest.mark.asyncio
+async def test_search_service_returns_visibility_denied_when_global_registry_fallback_is_hidden(
+) -> None:
+    workspace_id = uuid4()
+    agent_id = uuid4()
+    service, repository, _opensearch, _qdrant, _workspaces = build_search_service(
+        documents=[],
+        visibility_by_workspace={workspace_id: ["shadow:*"]},
+    )
+
+    class _Repository:
+        async def get_agent_by_id_any(self, agent_id_arg):
+            if agent_id_arg != agent_id:
+                return None
+            return SimpleNamespace(
+                id=agent_id,
+                fqn="finance-ops:hidden-from-shadow",
+                display_name="Hidden From Shadow",
+                purpose="Hidden agent used to verify visibility semantics during fallback.",
+                role_types=["financial_analysis"],
+                tags=["finance"],
+                maturity_level=2,
+                status=LifecycleStatus.published,
+            )
+
+    service.registry_service = SimpleNamespace(
+        get_agent=lambda workspace_id_arg, agent_id_arg, requesting_agent_id=None: _get_agent(
+            workspace_id_arg,
+            agent_id_arg,
+            requesting_agent_id,
+        ),
+        repository=_Repository(),
+    )
+
+    async def _get_agent(workspace_id_arg, agent_id_arg, requesting_agent_id):
+        del workspace_id_arg, agent_id_arg, requesting_agent_id
+        return None
+
+    repository.quality_by_agent[agent_id] = build_quality_aggregate(agent_id=agent_id)
+
+    with pytest.raises(VisibilityDeniedError):
+        await service.get_listing(agent_id, workspace_id)
+
+
+@pytest.mark.asyncio
+async def test_search_service_prefers_active_certification_fallback() -> None:
+    workspace_id = uuid4()
+    agent_id = uuid4()
+    service, repository, _opensearch, _qdrant, _workspaces = build_search_service(
+        documents=[
+            build_agent_document(
+                agent_id=agent_id,
+                fqn="finance-ops:visible",
+                certification_status="uncertified",
+            )
+        ],
+        visibility_by_workspace={workspace_id: ["finance-ops:*"]},
+    )
+    repository.quality_by_agent[agent_id] = build_quality_aggregate(
+        agent_id=agent_id,
+        certification_status="uncertified",
+    )
+    repository.active_certification_status_by_agent[agent_id] = "active"
+
+    listing = await service.get_listing(agent_id, workspace_id)
+
+    assert listing.certification_status == "active"
+    assert listing.quality_profile is not None
+    assert listing.quality_profile.certification_compliance == "active"
 
 
 @pytest.mark.asyncio

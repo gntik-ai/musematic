@@ -387,6 +387,33 @@ class WorkspacesRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_workspace_id_for_conversation(self, conversation_id: UUID) -> UUID | None:
+        from platform.interactions.models import Conversation
+
+        result = await self.session.execute(
+            select(Conversation.workspace_id).where(
+                Conversation.id == conversation_id,
+                Conversation.deleted_at.is_(None),
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_workspace_id_for_interaction(self, interaction_id: UUID) -> UUID | None:
+        from platform.interactions.models import Interaction
+
+        result = await self.session.execute(
+            select(Interaction.workspace_id).where(Interaction.id == interaction_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_workspace_id_for_execution(self, execution_id: UUID) -> UUID | None:
+        from platform.execution.models import Execution
+
+        result = await self.session.execute(
+            select(Execution.workspace_id).where(Execution.id == execution_id)
+        )
+        return result.scalar_one_or_none()
+
     async def get_workspace_id_for_fleet(self, fleet_id: UUID) -> UUID | None:
         result = await self.session.execute(
             select(WorkspaceSettings.workspace_id).where(

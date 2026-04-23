@@ -141,6 +141,7 @@ class NotificationsRepository:
         return int(total or 0)
 
     async def get_pending_webhook_deliveries(self) -> list[AlertDeliveryOutcome]:
+        retry_cutoff = datetime.now(UTC).replace(tzinfo=None)
         result = await self.session.execute(
             select(AlertDeliveryOutcome)
             .join(UserAlert, UserAlert.id == AlertDeliveryOutcome.alert_id)
@@ -150,7 +151,7 @@ class NotificationsRepository:
                 or_(
                     AlertDeliveryOutcome.outcome.is_(None),
                     AlertDeliveryOutcome.next_retry_at.is_(None),
-                    AlertDeliveryOutcome.next_retry_at <= datetime.now(UTC),
+                    AlertDeliveryOutcome.next_retry_at <= retry_cutoff,
                 ),
             )
             .order_by(AlertDeliveryOutcome.created_at.asc())

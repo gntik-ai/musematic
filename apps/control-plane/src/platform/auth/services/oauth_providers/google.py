@@ -6,9 +6,16 @@ import httpx
 
 
 class GoogleOAuthProvider:
-    auth_endpoint = "https://accounts.google.com/o/oauth2/v2/auth"
-    token_endpoint = "https://oauth2.googleapis.com/token"
-    token_info_endpoint = "https://oauth2.googleapis.com/tokeninfo"
+    def __init__(
+        self,
+        *,
+        auth_endpoint: str = "https://accounts.google.com/o/oauth2/v2/auth",
+        token_endpoint: str = "https://oauth2.googleapis.com/token",
+        token_info_endpoint: str = "https://oauth2.googleapis.com/tokeninfo",
+    ) -> None:
+        self.auth_endpoint = auth_endpoint
+        self.token_endpoint = token_endpoint
+        self.token_info_endpoint = token_info_endpoint
 
     def get_auth_url(
         self,

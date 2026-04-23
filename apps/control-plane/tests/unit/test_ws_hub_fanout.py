@@ -61,7 +61,7 @@ async def test_fanout_routes_matching_events_to_all_subscribers() -> None:
         payload={"status": "running"},
     )
 
-    await fanout._route_event("workflow.runtime", envelope.model_dump(mode="json"))
+    await fanout._route_event("execution.events", envelope.model_dump(mode="json"))
 
     first = await conn_one.send_queue.get()
     second = await conn_two.send_queue.get()
@@ -69,6 +69,54 @@ async def test_fanout_routes_matching_events_to_all_subscribers() -> None:
     assert isinstance(second, EventMessage)
     assert first.resource_id == str(execution_id)
     assert second.channel == ChannelType.EXECUTION.value
+
+
+@pytest.mark.asyncio
+async def test_fanout_waits_for_pending_subscription_confirmation_before_enqueuing() -> None:
+    execution_id = uuid4()
+    workspace_id = uuid4()
+    conn = build_connection(
+        user_id=uuid4(),
+        workspace_ids={workspace_id},
+        websocket=FakeWebSocket(SimpleNamespace()),
+    )
+    subscription = Subscription(channel=ChannelType.EXECUTION, resource_id=str(execution_id))
+    key = subscription_key(subscription.channel, subscription.resource_id)
+
+    connections = ConnectionRegistry()
+    subscriptions = SubscriptionRegistry()
+    connections.add(conn)
+    conn.subscriptions[key] = subscription
+    conn.pending_subscriptions.add(key)
+    subscriptions.subscribe(conn.connection_id, subscription)
+
+    visibility = _visibility_filter()
+    fanout = KafkaFanout(connections, subscriptions, PlatformSettings(), visibility)
+    envelope = EventEnvelope(
+        event_type="execution.updated",
+        source="tests",
+        correlation_context=CorrelationContext(
+            correlation_id=uuid4(),
+            workspace_id=workspace_id,
+            execution_id=execution_id,
+        ),
+        payload={"status": "running"},
+    )
+
+    async def _clear_pending() -> None:
+        await asyncio.sleep(0.05)
+        conn.pending_subscriptions.discard(key)
+
+    clear_task = asyncio.create_task(_clear_pending())
+    try:
+        await fanout._route_event("execution.events", envelope.model_dump(mode="json"))
+    finally:
+        await clear_task
+
+    delivered = await conn.send_queue.get()
+    assert isinstance(delivered, EventMessage)
+    assert delivered.resource_id == str(execution_id)
+    assert key not in conn.pending_subscriptions
 
 
 @pytest.mark.asyncio
@@ -184,6 +232,7 @@ async def test_fanout_ensure_consuming_starts_and_stops_consumers(monkeypatch) -
     await fanout.release_topics(["workflow.runtime"])
 
     assert created[0].started is True
+    assert created[0].kwargs["group_id"].endswith("-workflow-runtime")
     assert created[0].stopped is True
 
 
@@ -240,6 +289,9 @@ async def test_fanout_matches_topic_variants_and_loads_envelopes() -> None:
     }
 
     assert fanout._match_subscriptions(
+        "execution.events", {"correlation_context": corr, "payload": {}}
+    ) == [(ChannelType.EXECUTION, str(execution_id))]
+    assert fanout._match_subscriptions(
         "workflow.runtime", {"correlation_context": corr, "payload": {}}
     ) == [(ChannelType.EXECUTION, str(execution_id))]
     assert fanout._match_subscriptions(
@@ -285,6 +337,9 @@ async def test_fanout_matches_topic_variants_and_loads_envelopes() -> None:
     assert fanout._match_subscriptions(
         "interaction.attention", {"payload": {"target_id": str(target_id)}}
     ) == [(ChannelType.ATTENTION, str(target_id))]
+    assert fanout._match_subscriptions(
+        "interaction.attention", {"payload": {"target_identity": str(user_id)}}
+    ) == [(ChannelType.ATTENTION, str(user_id))]
 
     envelope = EventEnvelope(
         event_type="execution.updated",
@@ -299,6 +354,10 @@ async def test_fanout_matches_topic_variants_and_loads_envelopes() -> None:
     )
     assert (
         KafkaFanout._load_envelope(json.dumps(envelope.model_dump(mode="json"))).event_type
+        == envelope.event_type
+    )
+    assert (
+        KafkaFanout._load_envelope({"envelope": envelope.model_dump(mode="json")}).event_type
         == envelope.event_type
     )
     assert (
@@ -576,3 +635,45 @@ async def test_fanout_consumer_loop_accepts_sync_commit() -> None:
 
     assert routed == ["workflow.runtime"]
     assert consumer.committed is True
+
+
+@pytest.mark.asyncio
+async def test_fanout_consumer_loop_skips_poison_messages_and_keeps_committing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fanout = KafkaFanout(
+        ConnectionRegistry(),
+        SubscriptionRegistry(),
+        PlatformSettings(),
+        _visibility_filter(),
+    )
+    routed: list[str] = []
+
+    async def _route(topic: str, raw_message) -> None:
+        routed.append(topic)
+        if len(routed) == 1:
+            raise RuntimeError("boom")
+
+    monkeypatch.setattr(fanout, "_route_event", _route)
+
+    class PoisonConsumer:
+        def __init__(self) -> None:
+            self.commit_count = 0
+            self._messages = [SimpleNamespace(value={}), SimpleNamespace(value={})]
+
+        def __aiter__(self):
+            return self
+
+        async def __anext__(self):
+            if not self._messages:
+                raise StopAsyncIteration
+            return self._messages.pop(0)
+
+        async def commit(self) -> None:
+            self.commit_count += 1
+
+    consumer = PoisonConsumer()
+    await fanout._consumer_loop("workflow.runtime", consumer)
+
+    assert routed == ["workflow.runtime", "workflow.runtime"]
+    assert consumer.commit_count == 2

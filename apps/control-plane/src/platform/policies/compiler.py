@@ -84,6 +84,17 @@ class GovernanceCompiler:
                     str(item).strip() for item in raw_namespaces if str(item).strip()
                 ]
 
+            allowed_purposes.update(
+                str(item).strip()
+                for item in rules.get("allowed_purposes") or []
+                if str(item).strip()
+            )
+            denied_purposes.update(
+                str(item).strip()
+                for item in rules.get("denied_purposes") or []
+                if str(item).strip()
+            )
+
             for raw_scope in rules.get("purpose_scopes") or []:
                 allowed_purposes.update(
                     str(item).strip()

@@ -130,6 +130,8 @@ class AuthRepositoryStub:
     users_by_id: dict[UUID, Any] = field(default_factory=dict)
     roles_by_user: dict[UUID, list[Any]] = field(default_factory=dict)
     enrollments_by_user: dict[UUID, Any] = field(default_factory=dict)
+    credentials_by_user: dict[UUID, Any] = field(default_factory=dict)
+    credentials_by_email: dict[str, Any] = field(default_factory=dict)
     assigned_roles: list[tuple[UUID, str, UUID | None]] = field(default_factory=list)
 
     async def get_platform_user_by_email(self, email: str) -> Any | None:
@@ -150,6 +152,31 @@ class AuthRepositoryStub:
 
     async def get_mfa_enrollment(self, user_id: UUID) -> Any | None:
         return self.enrollments_by_user.get(user_id)
+
+    async def get_credential_by_user_id(self, user_id: UUID) -> Any | None:
+        return self.credentials_by_user.get(user_id)
+
+    async def get_credential_by_email(self, email: str) -> Any | None:
+        return self.credentials_by_email.get(email.lower())
+
+    async def ensure_credential(
+        self,
+        user_id: UUID,
+        email: str,
+        password_hash: str,
+    ) -> Any:
+        normalized_email = email.lower()
+        credential = self.credentials_by_user.get(user_id)
+        if credential is None:
+            credential = SimpleNamespace(
+                user_id=user_id,
+                email=normalized_email,
+                password_hash=password_hash,
+                is_active=True,
+            )
+            self.credentials_by_user[user_id] = credential
+            self.credentials_by_email[normalized_email] = credential
+        return credential
 
 
 @dataclass

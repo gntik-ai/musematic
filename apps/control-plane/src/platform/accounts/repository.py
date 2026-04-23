@@ -17,6 +17,7 @@ from platform.common.models.user import User as PlatformUser
 from uuid import UUID, uuid4
 
 from sqlalchemy import func, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -32,24 +33,47 @@ class AccountsRepository:
         signup_source: SignupSource,
         invitation_id: UUID | None = None,
     ) -> User:
+        normalized_email = email.lower()
+        resolved_display_name = display_name or normalized_email.split("@", 1)[0]
         user_id = uuid4()
-        account_user = User(
-            id=user_id,
-            email=email.lower(),
-            display_name=display_name,
-            status=status,
-            signup_source=signup_source,
-            invitation_id=invitation_id,
+
+        inserted_user_id = (
+            await self.session.execute(
+                insert(User)
+                .values(
+                    id=user_id,
+                    email=normalized_email,
+                    display_name=resolved_display_name,
+                    status=status,
+                    signup_source=signup_source,
+                    invitation_id=invitation_id,
+                )
+                .on_conflict_do_nothing(index_elements=[User.email])
+                .returning(User.id)
+            )
+        ).scalar_one_or_none()
+
+        if inserted_user_id is None:
+            account_user = await self.get_user_by_email(normalized_email)
+            if account_user is None:  # pragma: no cover - guarded by unique email constraint
+                raise LookupError(f"User {normalized_email} disappeared after concurrent create")
+            platform_user_id = account_user.id
+        else:
+            account_user = await self.session.get(User, inserted_user_id)
+            if account_user is None:  # pragma: no cover - guarded by RETURNING
+                raise LookupError(f"User {normalized_email} disappeared after insert")
+            platform_user_id = inserted_user_id
+
+        await self.session.execute(
+            insert(PlatformUser)
+            .values(
+                id=platform_user_id,
+                email=normalized_email,
+                display_name=resolved_display_name,
+                status=status.value,
+            )
+            .on_conflict_do_nothing(index_elements=[PlatformUser.email])
         )
-        platform_user = PlatformUser(
-            id=user_id,
-            email=email.lower(),
-            display_name=display_name,
-            status=status.value,
-        )
-        self.session.add(account_user)
-        self.session.add(platform_user)
-        await self.session.flush()
         return account_user
 
     async def get_user_by_email(self, email: str) -> User | None:

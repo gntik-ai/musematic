@@ -1,4 +1,4 @@
-apiVersion: kafka.strimzi.io/v1beta2
+apiVersion: kafka.strimzi.io/v1
 kind: Kafka
 metadata:
   name: {{ .Values.clusterName }}
@@ -16,7 +16,7 @@ spec:
         type: internal
         tls: false
       - name: internal
-        port: 9091
+        port: 9093
         type: internal
         tls: false
     config:
@@ -24,7 +24,7 @@ spec:
       offsets.topic.replication.factor: {{ .Values.replicationFactor }}
       transaction.state.log.replication.factor: {{ .Values.replicationFactor }}
       min.insync.replicas: {{ .Values.minInsyncReplicas }}
-      log.retention.ms: {{ .Values.logRetentionMs | quote }}
+      log.retention.ms: {{ .Values.logRetentionMs | int64 | quote }}
     metricsConfig:
       type: jmxPrometheusExporter
       valueFrom:

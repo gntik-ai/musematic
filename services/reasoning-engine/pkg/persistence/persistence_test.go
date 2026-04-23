@@ -67,12 +67,16 @@ func TestSplitCSVAndRedisClient(t *testing.T) {
 	}
 
 	t.Setenv("REDIS_TEST_MODE", "standalone")
+	t.Setenv("REDIS_PASSWORD", "cluster-secret")
 	client := NewRedisClient("127.0.0.1:6379")
 	if client == nil {
 		t.Fatal("expected redis client for non-empty address")
 	}
 	if client.Options().ClusterSlots == nil {
 		t.Fatal("expected standalone cluster slots override")
+	}
+	if client.Options().Password != "cluster-secret" {
+		t.Fatalf("expected redis password to be propagated, got %q", client.Options().Password)
 	}
 	_ = client.Close()
 

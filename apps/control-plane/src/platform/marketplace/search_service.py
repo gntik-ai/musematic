@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import re
 from fnmatch import fnmatch
 from platform.common.clients.opensearch import AsyncOpenSearchClient
 from platform.common.clients.qdrant import AsyncQdrantClient
@@ -21,10 +23,14 @@ from platform.marketplace.schemas import (
     MarketplaceSearchResponse,
     QualityProfileSchema,
 )
+from platform.registry.models import LifecycleStatus
+from types import SimpleNamespace
 from typing import Any
 from uuid import UUID
 
 import httpx
+
+LOGGER = logging.getLogger(__name__)
 
 
 class MarketplaceSearchService:
@@ -53,7 +59,6 @@ class MarketplaceSearchService:
         user_id: UUID,
         requesting_agent_id: UUID | None = None,
     ) -> MarketplaceSearchResponse:
-        del user_id
         visibility_patterns = await self._get_visibility_patterns(
             workspace_id,
             requesting_agent_id=requesting_agent_id,
@@ -74,6 +79,13 @@ class MarketplaceSearchService:
         qdrant_task = self._query_qdrant(request, visibility_patterns)
         opensearch_hits, qdrant_hits = await asyncio.gather(opensearch_task, qdrant_task)
         merged = self._rrf_merge(opensearch_hits, qdrant_hits)
+        if not merged:
+            return await self._search_with_registry_fallback(
+                request,
+                workspace_id,
+                user_id,
+                requesting_agent_id=requesting_agent_id,
+            )
         total = len(merged)
         start = (request.page - 1) * request.page_size
         stop = request.page * request.page_size
@@ -88,6 +100,13 @@ class MarketplaceSearchService:
                 if UUID(item["agent_id"]) in documents_by_id
             ]
         )
+        if not listings:
+            return await self._search_with_registry_fallback(
+                request,
+                workspace_id,
+                user_id,
+                requesting_agent_id=requesting_agent_id,
+            )
         return MarketplaceSearchResponse(
             results=listings,
             total=total,
@@ -108,8 +127,17 @@ class MarketplaceSearchService:
             requesting_agent_id=requesting_agent_id,
         )
         document = await self._fetch_document(agent_id)
+        profile = await self._resolve_registry_profile_by_id(
+            agent_id,
+            workspace_id,
+            requesting_agent_id=requesting_agent_id,
+        )
         if document is None:
-            raise AgentNotFoundError(agent_id)
+            if profile is None:
+                raise AgentNotFoundError(agent_id)
+            document = self._build_document_from_profile(profile)
+        else:
+            document = self._merge_document_with_profile_status(document, profile)
         if not self._is_operational_status(document.get("status")):
             raise AgentNotFoundError(agent_id)
         if not self._is_visible(document.get("fqn"), visibility_patterns):
@@ -143,26 +171,11 @@ class MarketplaceSearchService:
 
         document = await self._fetch_document(profile.id)
         if document is None:
-            document = {
-                "agent_profile_id": str(profile.id),
-                "fqn": profile.fqn,
-                "display_name": profile.display_name,
-                "name": profile.display_name or profile.fqn,
-                "description": profile.purpose,
-                "purpose": profile.purpose,
-                "capabilities": list(profile.role_types),
-                "role_types": list(profile.role_types),
-                "tags": list(profile.tags),
-                "maturity_level": int(profile.maturity_level),
-                "certification_status": "uncertified",
-                "cost_tier": "free",
-                "status": profile.status.value,
-            }
+            document = self._build_document_from_profile(profile)
         else:
-            document = dict(document)
-            document.setdefault("status", profile.status.value)
+            document = self._merge_document_with_profile_status(document, profile)
         listing = await self._assemble_listing(document)
-        if profile.status.value == "decommissioned":
+        if self._profile_status_value(profile) == "decommissioned":
             listing = listing.model_copy(update={"status": "decommissioned", "invocable": False})
         return listing
 
@@ -337,13 +350,31 @@ class MarketplaceSearchService:
         request: MarketplaceSearchRequest,
         visibility_patterns: list[str],
     ) -> list[dict[str, Any]]:
-        vector = await self._embed_text(request.query)
-        results = await self.qdrant.search_vectors(
-            self.settings.registry.embeddings_collection,
-            query_vector=vector,
-            limit=50,
-            filter=None,
-        )
+        try:
+            vector = await self._embed_text(request.query)
+        except (httpx.HTTPError, ValueError) as exc:
+            LOGGER.warning(
+                "Marketplace semantic search disabled for query %r: %s",
+                request.query,
+                exc,
+            )
+            return []
+
+        try:
+            results = await self.qdrant.search_vectors(
+                self.settings.registry.embeddings_collection,
+                query_vector=vector,
+                limit=50,
+                filter=None,
+            )
+        except Exception as exc:
+            LOGGER.warning(
+                "Marketplace vector search disabled for query %r: %s",
+                request.query,
+                exc,
+            )
+            return []
+
         filtered = [
             item
             for item in results
@@ -400,34 +431,43 @@ class MarketplaceSearchService:
         if not documents:
             return []
         agent_ids = [self._extract_agent_id(document) for document in documents]
-        quality_by_agent, rating_by_agent = await asyncio.gather(
+        quality_by_agent, rating_by_agent, certification_by_agent = await asyncio.gather(
             self.repository.get_quality_aggregates(agent_ids),
             self.repository.get_rating_summaries(agent_ids),
+            self.repository.get_active_certification_statuses(agent_ids),
         )
         return [
             self._assemble_listing_from_cache(
                 document,
                 quality_by_agent.get(self._extract_agent_id(document)),
                 rating_by_agent.get(self._extract_agent_id(document)),
+                certification_by_agent.get(self._extract_agent_id(document)),
             )
             for document in documents
         ]
 
     async def _assemble_listing(self, document: dict[str, Any]) -> AgentListingProjection:
         agent_id = self._extract_agent_id(document)
-        quality, rating = await asyncio.gather(
+        quality, rating, certification_status = await asyncio.gather(
             self.repository.get_quality_aggregate(agent_id),
             self.repository.get_rating_summary(agent_id),
+            self.repository.get_active_certification_status(agent_id),
         )
-        return self._assemble_listing_from_cache(document, quality, rating)
+        return self._assemble_listing_from_cache(document, quality, rating, certification_status)
 
     def _assemble_listing_from_cache(
         self,
         document: dict[str, Any],
         quality: Any | None,
         rating: dict[str, Any] | None,
+        certification_status: str | None = None,
     ) -> AgentListingProjection:
         agent_id = self._extract_agent_id(document)
+        effective_certification_status = self._effective_certification_status(
+            certification_status,
+            document.get("certification_status"),
+            quality.certification_status if quality is not None else None,
+        )
         quality_profile = None
         if quality is not None:
             quality_profile = QualityProfileSchema(
@@ -438,7 +478,7 @@ class MarketplaceSearchService:
                 self_correction_rate=quality.self_correction_rate if quality.has_data else None,
                 satisfaction_avg=quality.satisfaction_avg if quality.has_data else None,
                 satisfaction_count=quality.satisfaction_count,
-                certification_compliance=quality.certification_status,
+                certification_compliance=effective_certification_status,
                 last_updated_at=quality.data_source_last_updated_at,
                 source_unavailable=quality.source_unavailable_since is not None,
             )
@@ -466,10 +506,7 @@ class MarketplaceSearchService:
             tags=list(document.get("tags") or []),
             maturity_level=int(document.get("maturity_level") or 0),
             trust_tier=str(document.get("trust_tier") or "unverified"),
-            certification_status=str(
-                document.get("certification_status")
-                or (quality.certification_status if quality is not None else "uncertified")
-            ),
+            certification_status=effective_certification_status,
             cost_tier=str(document.get("cost_tier") or "free"),
             status=status,
             invocable=status != "decommissioned",
@@ -477,6 +514,106 @@ class MarketplaceSearchService:
             aggregate_rating=aggregate_rating,
             relevance_score=_as_float(document.get("_relevance_score")),
         )
+
+    async def _search_with_registry_fallback(
+        self,
+        request: MarketplaceSearchRequest,
+        workspace_id: UUID,
+        user_id: UUID,
+        *,
+        requesting_agent_id: UUID | None = None,
+    ) -> MarketplaceSearchResponse:
+        documents, total = await self._search_registry_profiles(
+            request,
+            workspace_id,
+            user_id,
+            requesting_agent_id=requesting_agent_id,
+        )
+        listings = await self._assemble_listings(documents)
+        return MarketplaceSearchResponse(
+            results=listings,
+            total=total,
+            page=request.page,
+            page_size=request.page_size,
+            query=request.query,
+            has_results=bool(listings),
+        )
+
+    async def _search_registry_profiles(
+        self,
+        request: MarketplaceSearchRequest,
+        workspace_id: UUID,
+        user_id: UUID,
+        *,
+        requesting_agent_id: UUID | None = None,
+    ) -> tuple[list[dict[str, Any]], int]:
+        if self.registry_service is None or not hasattr(self.registry_service, "list_agents"):
+            return [], 0
+        params = SimpleNamespace(
+            workspace_id=workspace_id,
+            fqn_pattern=None,
+            keyword=None,
+            maturity_min=request.maturity_level_min or 0,
+            status=LifecycleStatus.published,
+            limit=200,
+            offset=0,
+        )
+        try:
+            response = await self.registry_service.list_agents(
+                params,
+                requesting_agent_id=requesting_agent_id,
+                actor_id=user_id,
+            )
+        except Exception:
+            LOGGER.warning(
+                "Registry search fallback failed for query %r", request.query, exc_info=True
+            )
+            return [], 0
+
+        ranked_documents: list[dict[str, Any]] = []
+        for profile in getattr(response, "items", []):
+            score = self._registry_query_score(profile, request.query)
+            if score <= 0:
+                continue
+            document = self._build_document_from_profile(profile)
+            if not self._matches_facets(document, request):
+                continue
+            ranked_documents.append(dict(document, _relevance_score=score))
+
+        ranked_documents.sort(
+            key=lambda item: (
+                -(_as_float(item.get("_relevance_score")) or 0.0),
+                str(item.get("name") or item.get("display_name") or item.get("fqn") or ""),
+            )
+        )
+        total = len(ranked_documents)
+        start = (request.page - 1) * request.page_size
+        stop = request.page * request.page_size
+        return ranked_documents[start:stop], total
+
+    def _registry_query_score(self, profile: Any, query: str) -> float:
+        normalized_query = query.strip().lower()
+        if not normalized_query:
+            return 0.0
+        tokens = [token for token in re.split(r"[^a-z0-9]+", normalized_query) if token]
+        if not tokens:
+            return 0.0
+        haystacks = [
+            str(getattr(profile, "fqn", "") or ""),
+            str(getattr(profile, "display_name", "") or ""),
+            str(getattr(profile, "purpose", "") or ""),
+            str(getattr(profile, "approach", "") or ""),
+            " ".join(str(item) for item in getattr(profile, "tags", []) or []),
+            " ".join(str(item) for item in getattr(profile, "role_types", []) or []),
+        ]
+        combined = " ".join(haystacks).lower()
+        if not combined:
+            return 0.0
+        score = 0.0
+        if normalized_query in combined:
+            score += 5.0
+        score += sum(1.0 for token in tokens if token in combined)
+        return score
 
     async def _fetch_document(self, agent_id: UUID) -> dict[str, Any] | None:
         documents = await self._fetch_documents([agent_id])
@@ -499,6 +636,68 @@ class MarketplaceSearchService:
             source["_id"] = hit.get("_id")
             docs[self._extract_agent_id(source)] = source
         return docs
+
+    async def _resolve_registry_profile_by_id(
+        self,
+        agent_id: UUID,
+        workspace_id: UUID,
+        *,
+        requesting_agent_id: UUID | None = None,
+    ) -> Any | None:
+        if self.registry_service is None:
+            return None
+        if hasattr(self.registry_service, "get_agent"):
+            try:
+                profile = await self.registry_service.get_agent(
+                    workspace_id,
+                    agent_id,
+                    requesting_agent_id=requesting_agent_id,
+                )
+            except Exception:
+                profile = None
+            if profile is not None:
+                return profile
+        repository = getattr(self.registry_service, "repository", None)
+        if repository is None or not hasattr(repository, "get_agent_by_id_any"):
+            return None
+        try:
+            return await repository.get_agent_by_id_any(agent_id)
+        except Exception:
+            return None
+
+    def _build_document_from_profile(self, profile: Any) -> dict[str, Any]:
+        return {
+            "agent_profile_id": str(profile.id),
+            "fqn": profile.fqn,
+            "display_name": profile.display_name,
+            "name": profile.display_name or profile.fqn,
+            "description": profile.purpose,
+            "purpose": profile.purpose,
+            "capabilities": list(getattr(profile, "role_types", [])),
+            "role_types": list(getattr(profile, "role_types", [])),
+            "tags": list(getattr(profile, "tags", [])),
+            "maturity_level": int(getattr(profile, "maturity_level", 0) or 0),
+            "certification_status": "uncertified",
+            "cost_tier": "free",
+            "status": self._profile_status_value(profile),
+        }
+
+    def _merge_document_with_profile_status(
+        self,
+        document: dict[str, Any],
+        profile: Any | None,
+    ) -> dict[str, Any]:
+        if profile is None:
+            return document
+        merged = dict(document)
+        merged["status"] = self._profile_status_value(profile)
+        return merged
+
+    def _profile_status_value(self, profile: Any) -> str:
+        status = getattr(profile, "status", None)
+        if status is not None and hasattr(status, "value"):
+            return str(status.value)
+        return str(status or "published")
 
     async def _get_visibility_patterns(
         self,
@@ -619,6 +818,17 @@ class MarketplaceSearchService:
         differs = len(set(normalized)) > 1
         return ComparisonAttribute(value=values[index], differs=differs)
 
+    def _effective_certification_status(self, *candidates: Any) -> str:
+        normalized = [
+            item
+            for item in (_normalize_certification_status(candidate) for candidate in candidates)
+            if item is not None
+        ]
+        for item in normalized:
+            if item != "uncertified":
+                return item
+        return normalized[0] if normalized else "uncertified"
+
     def _normalize_for_compare(self, value: Any) -> str:
         if isinstance(value, list):
             return "|".join(sorted(str(item) for item in value))
@@ -646,3 +856,10 @@ def _as_float(value: Any) -> float | None:
     if value is None:
         return None
     return float(value)
+
+
+def _normalize_certification_status(value: Any) -> str | None:
+    if value is None:
+        return None
+    rendered = str(value).strip()
+    return rendered or None

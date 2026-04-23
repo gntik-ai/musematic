@@ -28,6 +28,7 @@ from platform.auth.exceptions import (
     OAuthStateInvalidError,
     OAuthUnlinkLastMethodError,
 )
+from platform.auth.password import hash_password
 from platform.auth.repository import AuthRepository
 from platform.auth.repository_oauth import OAuthRepository
 from platform.auth.schemas import (
@@ -386,6 +387,7 @@ class OAuthService:
                 last_login_at=datetime.now(UTC),
             )
 
+        await self._ensure_oauth_credential(user_id, identity.email)
         platform_user = await self.auth_repository.get_platform_user(user_id)
         if platform_user is None or platform_user.status != "active":
             error = InactiveUserError()
@@ -573,6 +575,15 @@ class OAuthService:
         )
         await self.auth_repository.assign_user_role(user.id, role, None)
         return user.id
+
+    async def _ensure_oauth_credential(self, user_id: UUID, email: str) -> None:
+        if await self.auth_repository.get_credential_by_user_id(user_id) is not None:
+            return
+        await self.auth_repository.ensure_credential(
+            user_id=user_id,
+            email=email,
+            password_hash=hash_password(secrets.token_urlsafe(48)),
+        )
 
     async def _resolve_identity(
         self,
