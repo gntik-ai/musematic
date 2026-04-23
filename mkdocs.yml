@@ -1,0 +1,137 @@
+site_name: musematic
+site_description: Multi-tenant agent orchestration platform — agent lifecycle, workflow execution, fleet coordination, trust governance.
+site_url: https://gntik-ai.github.io/musematic/
+repo_url: https://github.com/gntik-ai/musematic
+repo_name: gntik-ai/musematic
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; musematic contributors
+
+docs_dir: docs
+site_dir: site
+exclude_docs: |
+  README.md
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - navigation.indexes
+    - navigation.path
+    - toc.follow
+    - search.highlight
+    - search.share
+    - search.suggest
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - content.tooltips
+    - announce.dismiss
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    repo: fontawesome/brands/github
+    logo: material/graph-outline
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.betterem
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.snippets
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+
+plugins:
+  - search:
+      separator: '[\s\-\.]+'
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/gntik-ai/musematic
+  generator: false
+
+# Navigation reflects the three-audience split: end users (Agents, Flows),
+# platform administrators (Administration), operators/SREs (Operations).
+nav:
+  - Home: index.md
+  - Getting Started:
+      - getting-started.md
+      - installation.md
+  - For End Users:
+      - Agents: agents.md
+      - Flows: flows.md
+  - Features:
+      - features/index.md
+  - Administration:
+      - administration/index.md
+      - Enabling Features: administration/enabling-features.md
+      - RBAC & Permissions: administration/rbac-and-permissions.md
+      - Quotas & Limits: administration/quotas-and-limits.md
+      - Integrations & Credentials: administration/integrations-and-credentials.md
+      - Multi-Tenancy: administration/multi-tenancy.md
+      - Observability: administration/observability.md
+      - Audit & Compliance: administration/audit-and-compliance.md
+      - Backup & Restore: administration/backup-and-restore.md
+      - Upgrades: administration/upgrades.md
+  - Reference:
+      - Configuration: reference/configuration.md
+      - Architecture:
+          - System Architecture: system-architecture-v3.md
+          - Software Architecture: software-architecture-v3.md
+          - Functional Requirements: functional-requirements-revised-v4.md
+  - FAQ: faq.md
+  - Roadmap: roadmap.md
