@@ -416,6 +416,64 @@ class CompositionSettings(BaseSettings):
     validation_timeout_seconds: float = 10.0
 
 
+class ModelCatalogSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="MODEL_ROUTER_",
+        extra="ignore",
+        populate_by_name=True,
+    )
+
+    router_enabled: bool = Field(
+        default=False,
+        description="Enable the model catalogue router for LLM dispatch.",
+        validation_alias=AliasChoices("FEATURE_MODEL_ROUTER_ENABLED", "MODEL_ROUTER_ENABLED"),
+    )
+    auto_deprecation_interval_seconds: int = Field(
+        default=3600,
+        description="Interval in seconds for the model catalogue auto-deprecation scanner.",
+    )
+    default_recovery_window_seconds: int = Field(
+        default=300,
+        description="Default sticky fallback recovery window in seconds.",
+    )
+    router_primary_timeout_seconds: float = Field(
+        default=25.0,
+        description="Timeout in seconds for primary model provider calls.",
+        validation_alias=AliasChoices(
+            "MODEL_ROUTER_PRIMARY_TIMEOUT_SECONDS",
+            "MODEL_ROUTER_ROUTER_PRIMARY_TIMEOUT_SECONDS",
+        ),
+    )
+    openai_base_url: str = Field(
+        default="https://api.openai.com/v1/chat/completions",
+        description="OpenAI-compatible chat completion endpoint for OpenAI models.",
+    )
+    anthropic_base_url: str = Field(
+        default="https://api.anthropic.com/v1/messages",
+        description="Anthropic messages endpoint used by the model router.",
+    )
+    google_base_url: str = Field(
+        default="https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        description="OpenAI-compatible Google Gemini endpoint used by the model router.",
+    )
+    mistral_base_url: str = Field(
+        default="https://api.mistral.ai/v1/chat/completions",
+        description="OpenAI-compatible Mistral endpoint used by the model router.",
+    )
+    injection_input_sanitizer_enabled: bool = Field(
+        default=False,
+        description="Enable input sanitization before model router provider dispatch.",
+    )
+    injection_system_prompt_hardener_enabled: bool = Field(
+        default=False,
+        description="Enable system prompt hardening for untrusted user text.",
+    )
+    injection_output_validator_enabled: bool = Field(
+        default=False,
+        description="Enable output validation and redaction after provider responses.",
+    )
+
+
 class DiscoverySettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DISCOVERY_", extra="ignore")
 
@@ -552,6 +610,7 @@ class PlatformSettings(BaseSettings):
     trust: TrustSettings = Field(default_factory=TrustSettings)
     agentops: AgentOpsSettings = Field(default_factory=AgentOpsSettings)
     composition: CompositionSettings = Field(default_factory=CompositionSettings)
+    model_catalog: ModelCatalogSettings = Field(default_factory=ModelCatalogSettings)
     discovery: DiscoverySettings = Field(default_factory=DiscoverySettings)
     simulation: SimulationSettings = Field(default_factory=SimulationSettings)
     audit: AuditSettings = Field(default_factory=AuditSettings)
@@ -855,6 +914,39 @@ class PlatformSettings(BaseSettings):
             "EVALUATION_CALIBRATION_VARIANCE_ENVELOPE": (
                 "evaluation",
                 "calibration_variance_envelope",
+            ),
+            "FEATURE_MODEL_ROUTER_ENABLED": ("model_catalog", "router_enabled"),
+            "MODEL_ROUTER_ENABLED": ("model_catalog", "router_enabled"),
+            "MODEL_ROUTER_AUTO_DEPRECATION_INTERVAL_SECONDS": (
+                "model_catalog",
+                "auto_deprecation_interval_seconds",
+            ),
+            "MODEL_ROUTER_DEFAULT_RECOVERY_WINDOW_SECONDS": (
+                "model_catalog",
+                "default_recovery_window_seconds",
+            ),
+            "MODEL_ROUTER_PRIMARY_TIMEOUT_SECONDS": (
+                "model_catalog",
+                "router_primary_timeout_seconds",
+            ),
+            "MODEL_ROUTER_OPENAI_BASE_URL": ("model_catalog", "openai_base_url"),
+            "MODEL_ROUTER_ANTHROPIC_BASE_URL": (
+                "model_catalog",
+                "anthropic_base_url",
+            ),
+            "MODEL_ROUTER_GOOGLE_BASE_URL": ("model_catalog", "google_base_url"),
+            "MODEL_ROUTER_MISTRAL_BASE_URL": ("model_catalog", "mistral_base_url"),
+            "MODEL_ROUTER_INJECTION_INPUT_SANITIZER_ENABLED": (
+                "model_catalog",
+                "injection_input_sanitizer_enabled",
+            ),
+            "MODEL_ROUTER_INJECTION_SYSTEM_PROMPT_HARDENER_ENABLED": (
+                "model_catalog",
+                "injection_system_prompt_hardener_enabled",
+            ),
+            "MODEL_ROUTER_INJECTION_OUTPUT_VALIDATOR_ENABLED": (
+                "model_catalog",
+                "injection_output_validator_enabled",
             ),
             "CONNECTOR_INGRESS_TOPIC": ("connectors", "ingress_topic"),
             "CONNECTOR_DELIVERY_TOPIC": ("connectors", "delivery_topic"),

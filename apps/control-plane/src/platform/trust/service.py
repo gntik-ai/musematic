@@ -3,6 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 from platform.common.exceptions import ValidationError
+from platform.model_catalog.models import ModelCard, ModelCatalogEntry
+from platform.registry.models import AgentProfile
 from platform.trust.contract_schemas import (
     CertifierCreate,
     CertifierListResponse,
@@ -34,6 +36,7 @@ from platform.trust.models import (
     ReassessmentRecord,
     TrustCertification,
     TrustCertificationEvidenceRef,
+    TrustRecertificationRequest,
     TrustSignal,
 )
 from platform.trust.repository import TrustRepository
@@ -45,6 +48,8 @@ from platform.trust.schemas import (
 )
 from typing import Any
 from uuid import UUID
+
+from sqlalchemy import select
 
 
 class CertificationService:
@@ -60,6 +65,7 @@ class CertificationService:
         self.events = TrustEventPublisher(producer)
 
     async def create(self, data: CertificationCreate, issuer_id: str) -> CertificationResponse:
+        await self._ensure_bound_model_has_card(data.agent_id)
         certification = await self.repository.create_certification(
             TrustCertification(
                 agent_id=data.agent_id,
@@ -436,6 +442,60 @@ class CertificationService:
     async def is_agent_certified(self, agent_id: str, revision_id: str) -> bool:
         certifications = await self.repository.list_active_certifications_for_agent(agent_id)
         return any(item.agent_revision_id == revision_id for item in certifications)
+
+    async def flag_affected_certifications_for_rereview(self, catalog_entry_id: UUID) -> int:
+        entry = await self.repository.session.get(ModelCatalogEntry, catalog_entry_id)
+        if entry is None:
+            return 0
+        binding = f"{entry.provider}:{entry.model_id}"
+        result = await self.repository.session.execute(
+            select(AgentProfile).where(AgentProfile.default_model_binding == binding)
+        )
+        flagged = 0
+        for profile in result.scalars().all():
+            certifications = await self.repository.get_active_or_expiring_certifications_for_agent(
+                str(profile.id),
+            )
+            for certification in certifications:
+                await self.repository.create_recertification_request(
+                    TrustRecertificationRequest(
+                        certification_id=certification.id,
+                        trigger_type="model_card_material_change",
+                        trigger_reference=str(catalog_entry_id),
+                        resolution_status="pending",
+                    )
+                )
+                flagged += 1
+        await self.repository.session.flush()
+        return flagged
+
+    async def _ensure_bound_model_has_card(self, agent_id: str) -> None:
+        try:
+            agent_uuid = UUID(str(agent_id))
+        except ValueError:
+            return
+        profile = await self.repository.session.get(AgentProfile, agent_uuid)
+        binding = getattr(profile, "default_model_binding", None)
+        if not isinstance(binding, str) or ":" not in binding:
+            return
+        provider, model_id = binding.split(":", 1)
+        result = await self.repository.session.execute(
+            select(ModelCatalogEntry)
+            .where(ModelCatalogEntry.provider == provider)
+            .where(ModelCatalogEntry.model_id == model_id)
+        )
+        entry = result.scalar_one_or_none()
+        if entry is None:
+            return
+        card_result = await self.repository.session.execute(
+            select(ModelCard).where(ModelCard.catalog_entry_id == entry.id)
+        )
+        if card_result.scalar_one_or_none() is None:
+            raise ValidationError(
+                "CERTIFICATION_BLOCKED",
+                "Certification blocked because the bound model is missing a model card.",
+                {"reason": "model_card_missing", "catalog_entry_id": str(entry.id)},
+            )
 
     @staticmethod
     def _to_uuid_or_none(value: str | UUID | None) -> UUID | None:

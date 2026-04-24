@@ -91,6 +91,9 @@ topics:
   - name: memory.events
     partitions: 6
     retentionMs: 604800000
+  - name: model.catalog.events
+    partitions: 6
+    retentionMs: 604800000
   - name: monitor.alerts
     partitions: 6
     retentionMs: 1209600000

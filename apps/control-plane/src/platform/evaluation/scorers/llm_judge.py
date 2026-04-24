@@ -5,6 +5,7 @@ import json
 from datetime import UTC, datetime
 from difflib import SequenceMatcher
 from json import JSONDecodeError
+from platform.common.clients.model_router import ModelRouter
 from platform.common.config import PlatformSettings
 from platform.common.config import settings as default_settings
 from platform.evaluation.schemas import LLMJudgeConfig, RubricConfig, RubricCriterion
@@ -116,6 +117,13 @@ RUBRIC_TEMPLATES: dict[str, dict[str, Any]] = {
 RUBRIC_TEMPLATES["faithfulness_to_source"] = RUBRIC_TEMPLATES["faithfulness"]
 
 
+def _payload_from_content(content: str) -> dict[str, Any]:
+    parsed = json.loads(content)
+    if not isinstance(parsed, dict):
+        raise ValueError("Judge router response content must be a JSON object")
+    return parsed
+
+
 class LLMJudgeScorer:
     def __init__(
         self,
@@ -123,10 +131,16 @@ class LLMJudgeScorer:
         settings: PlatformSettings | None = None,
         api_url: str | None = None,
         rubric_service: Any | None = None,
+        model_router: ModelRouter | None = None,
+        workspace_id: UUID | None = None,
+        model_binding: str | None = None,
     ) -> None:
         self.settings = settings or default_settings
         self.api_url = api_url
         self.rubric_service = rubric_service
+        self.model_router = model_router
+        self.workspace_id = workspace_id
+        self.model_binding = model_binding
 
     async def score(self, actual: str, expected: str, config: dict[str, Any]) -> ScoreResult:
         judge_model = str(config.get("judge_model") or self.settings.evaluation.llm_judge_model)
@@ -304,6 +318,18 @@ class LLMJudgeScorer:
         endpoint: str,
     ) -> dict[str, Any]:
         prompt = self._build_prompt(actual=actual, expected=expected, criteria=criteria)
+        if self.settings.model_catalog.router_enabled:
+            if self.model_router is None or self.workspace_id is None:
+                raise RuntimeError("Model router is enabled but no router/workspace was configured")
+            routed = await self.model_router.complete(
+                workspace_id=self.workspace_id,
+                step_binding=self.model_binding or judge_model,
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_object"},
+                timeout_seconds=float(self.settings.evaluation.llm_judge_timeout_seconds),
+            )
+            return self._parse_provider_result(_payload_from_content(routed.content), criteria)
+
         async with httpx.AsyncClient(
             timeout=float(self.settings.evaluation.llm_judge_timeout_seconds)
         ) as client:

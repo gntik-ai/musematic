@@ -4,6 +4,7 @@ import sys
 from datetime import UTC, datetime, timedelta
 from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
+from platform.security_compliance import dependencies as sc_dependencies
 from platform.security_compliance.consumers import (
     SECURITY_TOPICS,
     ComplianceEvidenceConsumer,
@@ -133,6 +134,17 @@ class FakeScheduler:
         self.jobs.append({"func": func, "trigger": trigger, **kwargs})
 
 
+class DependencyRepositoryMarker:
+    def __init__(self, session: object) -> None:
+        self.session = session
+
+
+class DependencySecretProviderMarker:
+    def __init__(self, settings: PlatformSettings, redis_client: object | None) -> None:
+        self.settings = settings
+        self.redis_client = redis_client
+
+
 def _install_fake_scheduler(monkeypatch: pytest.MonkeyPatch) -> None:
     apscheduler = ModuleType("apscheduler")
     schedulers = ModuleType("apscheduler.schedulers")
@@ -149,6 +161,65 @@ def _with_id(item: Any) -> Any:
 
 
 @pytest.mark.asyncio
+async def test_security_compliance_dependency_factories_wire_app_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = PlatformSettings(profile="test")
+    kafka = object()
+    redis = object()
+    object_storage = object()
+    audit_chain = object()
+    session = object()
+    request = SimpleNamespace(
+        app=SimpleNamespace(
+            state=SimpleNamespace(
+                settings=settings,
+                clients={"kafka": kafka, "redis": redis, "object_storage": object_storage},
+            )
+        )
+    )
+
+    monkeypatch.setattr(sc_dependencies, "SecurityComplianceRepository", DependencyRepositoryMarker)
+    monkeypatch.setattr(sc_dependencies, "RotatableSecretProvider", DependencySecretProviderMarker)
+    monkeypatch.setattr(
+        sc_dependencies,
+        "build_audit_chain_service",
+        lambda built_session, built_settings, built_producer: (
+            audit_chain,
+            built_session,
+            built_settings,
+            built_producer,
+        ),
+    )
+
+    assert sc_dependencies._settings(request) is settings  # type: ignore[arg-type]
+    assert sc_dependencies._producer(request) is kafka  # type: ignore[arg-type]
+    assert sc_dependencies._redis(request) is redis  # type: ignore[arg-type]
+
+    sbom = await sc_dependencies.get_sbom_service(request, session)  # type: ignore[arg-type]
+    vuln = await sc_dependencies.get_vuln_scan_service(request, session)  # type: ignore[arg-type]
+    rotation = await sc_dependencies.get_rotation_service(request, session)  # type: ignore[arg-type]
+    jit = await sc_dependencies.get_jit_service(request, session)  # type: ignore[arg-type]
+    pentest = await sc_dependencies.get_pentest_service(request, session)  # type: ignore[arg-type]
+    compliance = await sc_dependencies.get_compliance_service(request, session)  # type: ignore[arg-type]
+
+    assert sbom.repository.session is session
+    assert sbom.producer is kafka
+    assert sbom.audit_chain[0] is audit_chain  # type: ignore[index]
+    assert vuln.repository.session is session
+    assert vuln.producer is kafka
+    assert rotation.provider.settings is settings
+    assert rotation.provider.redis_client is redis
+    assert rotation.audit_chain[0] is audit_chain  # type: ignore[index]
+    assert jit.settings is settings
+    assert jit.redis_client is redis
+    assert pentest.repository.session is session
+    assert compliance.settings is settings
+    assert compliance.object_storage is object_storage
+    assert compliance.audit_chain[0] is audit_chain  # type: ignore[index]
+
+
+@pytest.mark.asyncio
 async def test_rotatable_secret_provider_reads_cache_env_vault_and_writes_state(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -161,10 +232,15 @@ async def test_rotatable_secret_provider_reads_cache_env_vault_and_writes_state(
 
     assert await provider.get_current("db-password") == "cached-current"
     assert await provider.get_previous("db-password") == "cached-old"
+    assert await provider.validate_either("db-password", "cached-current") is True
     assert await provider.validate_either("db-password", "cached-old") is True
 
     await provider.cache_rotation_state("db-password", {"current": "next"}, ttl_seconds=7)
     assert redis.writes == [("rotation-state", "db-password", {"current": "next"}, 7)]
+    await RotatableSecretProvider(
+        PlatformSettings(profile="dev"),
+        vault=VaultStub(),  # type: ignore[arg-type]
+    ).cache_rotation_state("api-key", {"current": "next"})
 
     monkeypatch.setenv("ROTATING_SECRET_API_KEY_CURRENT", "env-current")
     env_provider = RotatableSecretProvider(
@@ -179,6 +255,11 @@ async def test_rotatable_secret_provider_reads_cache_env_vault_and_writes_state(
             PlatformSettings(profile="dev"),
             vault=VaultStub(),  # type: ignore[arg-type]
         ).get_current("missing")
+    with pytest.raises(RuntimeError):
+        await RotatableSecretProvider(
+            PlatformSettings(profile="dev"),
+            vault=SimpleNamespace(resolve=lambda path, field: None),  # type: ignore[arg-type]
+        ).get_current("none-secret")
 
 
 @pytest.mark.asyncio
@@ -385,6 +466,9 @@ async def test_security_compliance_workers_and_scheduler_builders(
         "security-compliance-overlap-expirer",
         "security-compliance-pentest-overdue",
     ]
+
+    for scheduler in schedulers:
+        await scheduler.jobs[0]["func"]()
 
 
 async def _async_value(value: Any) -> Any:

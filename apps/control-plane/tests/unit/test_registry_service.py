@@ -2,8 +2,12 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from platform.common import database
 from platform.common.exceptions import ObjectStorageError
+from platform.common.exceptions import ValidationError as PlatformValidationError
+from platform.model_catalog.models import ModelCatalogEntry
 from platform.registry.exceptions import (
     AgentNotFoundError,
     InvalidTransitionError,
@@ -51,6 +55,7 @@ def _service(
     opensearch: AsyncOpenSearchStub | None = None,
     qdrant: AsyncQdrantStub | None = None,
     workspaces_service: WorkspacesServiceStub | None = None,
+    model_catalog_repository: object | None = None,
 ) -> tuple[
     RegistryService,
     RegistryRepoStub,
@@ -68,11 +73,68 @@ def _service(
         object_storage=resolved_storage,
         opensearch=resolved_opensearch,
         qdrant=resolved_qdrant,
+        model_catalog_repository=model_catalog_repository,  # type: ignore[arg-type]
         workspaces_service=resolved_workspaces,
         event_producer=build_recording_producer(),
         settings=build_registry_settings(),
     )
     return service, resolved_repo, resolved_storage, resolved_opensearch, resolved_qdrant
+
+
+class ModelCatalogRepoStub:
+    def __init__(self, entries: list[ModelCatalogEntry]) -> None:
+        self.entries = entries
+        self.lookups: list[tuple[str, str]] = []
+
+    async def get_entry_by_provider_model(
+        self,
+        provider: str,
+        model_id: str,
+    ) -> ModelCatalogEntry | None:
+        self.lookups.append((provider, model_id))
+        for entry in self.entries:
+            if entry.provider == provider and entry.model_id == model_id:
+                return entry
+        return None
+
+    async def list_entries(
+        self,
+        *,
+        provider: str | None = None,
+        status: str | None = None,
+    ) -> list[ModelCatalogEntry]:
+        return [
+            entry
+            for entry in self.entries
+            if (provider is None or entry.provider == provider)
+            and (status is None or entry.status == status)
+        ]
+
+
+def _catalog_entry(
+    provider: str,
+    model_id: str,
+    *,
+    quality_tier: str = "tier1",
+    status: str = "approved",
+    use_cases: list[str] | None = None,
+) -> ModelCatalogEntry:
+    return ModelCatalogEntry(
+        id=uuid4(),
+        provider=provider,
+        model_id=model_id,
+        display_name=model_id,
+        approved_use_cases=use_cases or ["compliance", "document analysis"],
+        prohibited_use_cases=[],
+        context_window=128000,
+        input_cost_per_1k_tokens=Decimal("0.005"),
+        output_cost_per_1k_tokens=Decimal("0.015"),
+        quality_tier=quality_tier,
+        approved_by=uuid4(),
+        approved_at=datetime.now(UTC),
+        approval_expires_at=datetime.now(UTC) + timedelta(days=365),
+        status=status,
+    )
 
 
 @pytest.mark.asyncio
@@ -318,6 +380,7 @@ async def test_patch_transition_maturity_and_audit_flows() -> None:
             visibility_tools=["tools:*"],
             role_types=["custom"],
             custom_role_description="Owns orchestration",
+            default_model_binding="openai:gpt-4o",
         ),
         actor_id,
     )
@@ -336,6 +399,8 @@ async def test_patch_transition_maturity_and_audit_flows() -> None:
     audit = await service.list_lifecycle_audit(workspace_id, profile.id, actor_id)
 
     assert patched.display_name == "Updated"
+    assert patched.default_model_binding == "openai:gpt-4o"
+    assert profile.default_model_binding == "openai:gpt-4o"
     assert transitioned.status == LifecycleStatus.validated
     assert matured.maturity_level == 2
     assert audit.total == 1
@@ -353,6 +418,59 @@ async def test_patch_transition_maturity_and_audit_flows() -> None:
             LifecycleTransitionRequest(target_status=LifecycleStatus.archived),
             actor_id,
         )
+
+
+@pytest.mark.asyncio
+async def test_patch_agent_validates_default_model_binding_and_suggests_alternatives() -> None:
+    workspace_id = uuid4()
+    actor_id = uuid4()
+    namespace = build_namespace(workspace_id=workspace_id, created_by=actor_id)
+    profile = build_profile(
+        workspace_id=workspace_id,
+        namespace=namespace,
+        purpose="Summarize compliance documents and financial evidence.",
+        status=LifecycleStatus.draft,
+    )
+    repo = RegistryRepoStub()
+    repo.profiles_by_id[profile.id] = profile
+    repo.profiles_by_fqn[(workspace_id, profile.fqn)] = profile
+    workspaces = WorkspacesServiceStub(workspace_ids_by_user={actor_id: [workspace_id]})
+    catalog = ModelCatalogRepoStub(
+        [
+            _catalog_entry("openai", "gpt-4o", use_cases=["compliance", "finance"]),
+            _catalog_entry("anthropic", "claude-sonnet-4-6", use_cases=["general"]),
+            _catalog_entry("google", "gemini-2.0-pro", quality_tier="tier2"),
+            _catalog_entry("openai", "unsafe-model", status="blocked"),
+        ]
+    )
+    service, _repo, _storage, _opensearch, _qdrant = _service(
+        repo,
+        workspaces_service=workspaces,
+        model_catalog_repository=catalog,
+    )
+
+    patched = await service.patch_agent(
+        workspace_id,
+        profile.id,
+        AgentPatch(default_model_binding="openai:gpt-4o"),
+        actor_id,
+    )
+
+    assert patched.default_model_binding == "openai:gpt-4o"
+    assert profile.default_model_binding == "openai:gpt-4o"
+    with pytest.raises(PlatformValidationError) as exc_info:
+        await service.patch_agent(
+            workspace_id,
+            profile.id,
+            AgentPatch(default_model_binding="openai:unsafe-model"),
+            actor_id,
+        )
+    assert exc_info.value.code == "MODEL_BINDING_BLOCKED"
+    assert [item["binding"] for item in exc_info.value.details["alternatives"]] == [
+        "openai:gpt-4o",
+        "google:gemini-2.0-pro",
+        "anthropic:claude-sonnet-4-6",
+    ]
 
 
 @pytest.mark.asyncio

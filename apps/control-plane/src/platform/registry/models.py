@@ -152,6 +152,7 @@ class AgentProfile(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     )
     decommission_reason: Mapped[str | None] = mapped_column(Text(), nullable=True)
     decommissioned_by: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+    default_model_binding: Mapped[str | None] = mapped_column(String(length=128), nullable=True)
 
     namespace: Mapped[AgentNamespace] = relationship(
         "platform.registry.models.AgentNamespace",
