@@ -109,7 +109,11 @@ async def test_protected_route_requires_auth(monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_valid_and_expired_jwts(monkeypatch) -> None:
     secret = "a" * 32
-    settings = PlatformSettings(AUTH_JWT_SECRET_KEY=secret, AUTH_JWT_ALGORITHM="HS256")
+    settings = PlatformSettings(
+        AUTH_JWT_SECRET_KEY=secret,
+        AUTH_JWT_ALGORITHM="HS256",
+        api_governance={"rate_limiting_enabled": False},
+    )
     app = _app(monkeypatch, settings)
     valid_token = jwt.encode({"sub": "user-1"}, secret, algorithm="HS256")
     expired_token = jwt.encode(
