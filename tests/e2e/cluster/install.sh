@@ -104,6 +104,33 @@ install_strimzi_operator() {
   kubectl wait --for=condition=Available deployment/strimzi-cluster-operator -n strimzi-system --timeout=300s
 }
 
+adopt_existing_kafka_topics() {
+  local selector="strimzi.io/cluster=${KAFKA_CLUSTER_NAME}"
+  local topics
+
+  if ! kubectl get kafkatopic -n "${KAFKA_NAMESPACE}" >/dev/null 2>&1; then
+    return
+  fi
+
+  mapfile -t topics < <(
+    kubectl get kafkatopic -n "${KAFKA_NAMESPACE}" -l "$selector" -o name 2>/dev/null || true
+  )
+  if [[ "${#topics[@]}" -eq 0 ]]; then
+    return
+  fi
+
+  echo "[e2e] adopting existing KafkaTopic resources into Helm release ${RELEASE_NAME}"
+  for topic in "${topics[@]}"; do
+    kubectl label -n "${KAFKA_NAMESPACE}" "$topic" \
+      app.kubernetes.io/managed-by=Helm \
+      --overwrite
+    kubectl annotate -n "${KAFKA_NAMESPACE}" "$topic" \
+      meta.helm.sh/release-name="${RELEASE_NAME}" \
+      meta.helm.sh/release-namespace="${NAMESPACE}" \
+      --overwrite
+  done
+}
+
 install_platform() {
   if [[ ! -f "${COMPOSITE_CHART_DIR}/Chart.yaml" ]]; then
     echo "[e2e] missing Helm chart: ${COMPOSITE_CHART_DIR}/Chart.yaml" >&2
@@ -197,7 +224,7 @@ metadata:
   name: ${job_name}
   namespace: ${PLATFORM_DATA_NAMESPACE}
 spec:
-  ttlSecondsAfterFinished: 300
+  ttlSecondsAfterFinished: 3600
   backoffLimit: 0
   template:
     spec:
@@ -260,7 +287,7 @@ metadata:
   name: ${job_name}
   namespace: ${CLICKHOUSE_NAMESPACE}
 spec:
-  ttlSecondsAfterFinished: 300
+  ttlSecondsAfterFinished: 3600
   backoffLimit: 0
   template:
     spec:
@@ -329,7 +356,7 @@ metadata:
   name: ${job_name}
   namespace: ${NEO4J_NAMESPACE}
 spec:
-  ttlSecondsAfterFinished: 300
+  ttlSecondsAfterFinished: 3600
   backoffLimit: 0
   template:
     spec:
@@ -393,7 +420,7 @@ metadata:
   name: ${job_name}
   namespace: ${NAMESPACE}
 spec:
-  ttlSecondsAfterFinished: 300
+  ttlSecondsAfterFinished: 3600
   backoffLimit: 0
   template:
     spec:
@@ -547,6 +574,7 @@ main() {
   ensure_supporting_namespaces
   install_cnpg_operator
   install_strimzi_operator
+  adopt_existing_kafka_topics
   if [[ "${SKIP_LOAD_IMAGES}" != "true" ]]; then
     "${CLUSTER_DIR}/load-images.sh"
   fi

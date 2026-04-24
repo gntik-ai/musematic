@@ -146,6 +146,8 @@ from platform.memory.embedding_worker import EmbeddingWorker
 from platform.memory.events import register_memory_event_types
 from platform.memory.memory_setup import setup_memory_collections
 from platform.memory.router import router as memory_router
+from platform.model_catalog.events import register_model_catalog_event_types
+from platform.model_catalog.router import router as model_catalog_router
 from platform.notifications.consumers.attention_consumer import AttentionConsumer
 from platform.notifications.consumers.state_change_consumer import StateChangeConsumer
 from platform.notifications.dependencies import build_notifications_service
@@ -222,7 +224,6 @@ OPENAPI_PUBLIC_PATHS: frozenset[str] = frozenset(
         "/api/v1/auth/oauth/providers",
         "/api/v1/auth/oauth/{provider}/authorize",
         "/api/v1/auth/oauth/{provider}/callback",
-        "/api/v1/security/audit-chain/public-key",
         "/.well-known/agent.json",
     }
 )
@@ -414,6 +415,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_a2a_event_types()
     register_mcp_event_types()
     register_debug_logging_event_types()
+    register_model_catalog_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -581,6 +583,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     a2a_idle_timeout_scheduler = getattr(app.state, "a2a_idle_timeout_scheduler", None)
     mcp_catalog_refresh_scheduler = getattr(app.state, "mcp_catalog_refresh_scheduler", None)
+    model_catalog_auto_deprecation_scheduler = getattr(
+        app.state,
+        "model_catalog_auto_deprecation_scheduler",
+        None,
+    )
     ibor_sync_scheduler = getattr(app.state, "ibor_sync_scheduler", None)
     connectors_worker_scheduler = getattr(app.state, "connectors_worker_scheduler", None)
     workflow_execution_scheduler = getattr(app.state, "workflow_execution_scheduler", None)
@@ -676,6 +683,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["mcp_catalog_refresh_scheduler"] = str(exc)
             LOGGER.warning("Failed to start MCP catalog refresh scheduler: %s", exc)
+    if model_catalog_auto_deprecation_scheduler is not None:
+        try:
+            model_catalog_auto_deprecation_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["model_catalog_auto_deprecation_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start model catalog auto-deprecation scheduler: %s", exc)
     if connectors_worker_scheduler is not None:
         try:
             connectors_worker_scheduler.start()
@@ -797,6 +811,14 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                 mcp_catalog_refresh_scheduler.shutdown(wait=False)
             except Exception as exc:
                 LOGGER.warning("Failed to stop MCP catalog refresh scheduler cleanly: %s", exc)
+        if model_catalog_auto_deprecation_scheduler is not None:
+            try:
+                model_catalog_auto_deprecation_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning(
+                    "Failed to stop model catalog auto-deprecation scheduler cleanly: %s",
+                    exc,
+                )
         if ibor_sync_scheduler is not None:
             try:
                 ibor_sync_scheduler.shutdown(wait=False)
@@ -994,6 +1016,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.debug_logging_capture_gc_scheduler = None
     app.state.a2a_idle_timeout_scheduler = None
     app.state.mcp_catalog_refresh_scheduler = None
+    app.state.model_catalog_auto_deprecation_scheduler = None
     if resolved.profile == "api":
         app.state.ibor_sync_scheduler = _build_ibor_sync_scheduler(app)
         app.state.refresh_ibor_sync_scheduler = lambda: _refresh_ibor_sync_scheduler(app)
@@ -1036,6 +1059,9 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         )
         app.state.a2a_idle_timeout_scheduler = _build_a2a_idle_timeout_scheduler(app)
         app.state.mcp_catalog_refresh_scheduler = _build_mcp_catalog_refresh_scheduler(app)
+        app.state.model_catalog_auto_deprecation_scheduler = (
+            _build_model_catalog_auto_deprecation_scheduler(app)
+        )
         app.state.security_rotation_scheduler = _build_security_rotation_scheduler(app)
         app.state.security_overlap_expirer = _build_security_overlap_expirer(app)
         app.state.security_pentest_overdue_scheduler = _build_security_pentest_overdue_scheduler(
@@ -1063,6 +1089,9 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         )
         app.state.a2a_idle_timeout_scheduler = _build_a2a_idle_timeout_scheduler(app)
         app.state.mcp_catalog_refresh_scheduler = _build_mcp_catalog_refresh_scheduler(app)
+        app.state.model_catalog_auto_deprecation_scheduler = (
+            _build_model_catalog_auto_deprecation_scheduler(app)
+        )
     exception_handler = cast(
         Callable[[Request, Exception], Response | Awaitable[Response]],
         platform_exception_handler,
@@ -1246,6 +1275,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(oauth_router)
         app.include_router(a2a_gateway_router)
         app.include_router(mcp_router)
+        app.include_router(model_catalog_router)
         app.include_router(debug_logging_router)
         app.include_router(accounts_router)
         app.include_router(workspaces_router)
@@ -1879,6 +1909,61 @@ def _build_mcp_catalog_refresh_scheduler(app: FastAPI) -> Any | None:
     return scheduler
 
 
+def _build_model_catalog_auto_deprecation_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+    from platform.audit.dependencies import build_audit_chain_service
+    from platform.model_catalog.repository import ModelCatalogRepository
+    from platform.model_catalog.workers.auto_deprecation_scanner import (
+        run_auto_deprecation_scan,
+    )
+    from platform.security_compliance.repository import SecurityComplianceRepository
+    from platform.security_compliance.services.compliance_service import ComplianceService
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run() -> None:
+        async with database.AsyncSessionLocal() as session:
+            settings = cast(PlatformSettings, app.state.settings)
+            producer = cast(EventProducer | None, app.state.clients.get("kafka"))
+            try:
+                compliance = ComplianceService(
+                    SecurityComplianceRepository(session),
+                    settings,
+                    object_storage=cast(
+                        AsyncObjectStorageClient | None,
+                        app.state.clients.get("object_storage"),
+                    ),
+                    audit_chain=build_audit_chain_service(session, settings, producer),
+                )
+                await run_auto_deprecation_scan(
+                    repository=ModelCatalogRepository(session),
+                    producer=producer,
+                    audit_chain=build_audit_chain_service(session, settings, producer),
+                    compliance_service=compliance,
+                )
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Model catalog auto-deprecation scheduler failed")
+
+    scheduler.add_job(
+        _run,
+        "interval",
+        seconds=app.state.settings.model_catalog.auto_deprecation_interval_seconds,
+        id="model-catalog-auto-deprecation",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    return scheduler
+
+
 def _build_goal_auto_completion_scheduler(app: FastAPI) -> Any | None:
     if not app.state.settings.FEATURE_GOAL_AUTO_COMPLETE:
         return None
@@ -2418,12 +2503,13 @@ def _build_workflow_runtime_handler(app: FastAPI) -> Callable[[Any], Awaitable[N
                 "runtime_started": ExecutionStatus.running,
             }
             event_enum = ExecutionEventType(str(event_type))
+            runtime_payload = _workflow_runtime_event_payload(dict(payload))
             try:
                 await service.record_runtime_event(
                     UUID(str(execution_id)),
-                    step_id=payload.get("step_id"),
+                    step_id=runtime_payload.get("step_id"),
                     event_type=event_enum,
-                    payload=dict(payload),
+                    payload=runtime_payload,
                     status=status_map.get(event_enum.value),
                 )
                 await session.commit()
@@ -2432,6 +2518,35 @@ def _build_workflow_runtime_handler(app: FastAPI) -> Callable[[Any], Awaitable[N
                 LOGGER.exception("Workflow runtime consumer failed")
 
     return _handle
+
+
+def _workflow_runtime_event_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(payload)
+    if "fallback_taken" in normalized:
+        normalized["fallback_taken"] = _jsonable_runtime_value(normalized["fallback_taken"])
+        return normalized
+
+    router_response = normalized.get("model_router_response")
+    fallback_taken: Any | None = None
+    if isinstance(router_response, dict):
+        fallback_taken = router_response.get("fallback_taken")
+    elif router_response is not None:
+        fallback_taken = getattr(router_response, "fallback_taken", None)
+
+    if fallback_taken is not None:
+        normalized["fallback_taken"] = _jsonable_runtime_value(fallback_taken)
+    return normalized
+
+
+def _jsonable_runtime_value(value: Any) -> Any:
+    model_dump = getattr(value, "model_dump", None)
+    if callable(model_dump):
+        return model_dump(mode="json")
+    if isinstance(value, dict):
+        return {str(key): _jsonable_runtime_value(item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return [_jsonable_runtime_value(item) for item in value]
+    return value
 
 
 def _build_discovery_workflow_runtime_handler(app: FastAPI) -> Callable[[Any], Awaitable[None]]:

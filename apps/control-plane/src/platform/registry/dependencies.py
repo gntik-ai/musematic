@@ -7,6 +7,7 @@ from platform.common.clients.qdrant import AsyncQdrantClient
 from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_db
 from platform.common.events.producer import EventProducer
+from platform.model_catalog.repository import ModelCatalogRepository
 from platform.registry.package_validator import PackageValidator
 from platform.registry.repository import RegistryRepository
 from platform.registry.service import RegistryService
@@ -57,6 +58,7 @@ def build_registry_service(
         object_storage=object_storage,
         opensearch=opensearch,
         qdrant=qdrant,
+        model_catalog_repository=ModelCatalogRepository(session),
         workspaces_service=workspaces_service,
         event_producer=producer,
         settings=settings,

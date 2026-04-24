@@ -4,10 +4,12 @@ import json
 from asyncio import gather
 from datetime import UTC, datetime
 from hashlib import sha256
+from platform.audit import dependencies as audit_dependencies
 from platform.audit.models import AuditChainEntry
 from platform.audit.service import GENESIS_HASH, AuditChainService, compute_entry_hash
 from platform.audit.signing import AuditChainSigning
 from platform.common.config import PlatformSettings
+from types import SimpleNamespace
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -75,6 +77,25 @@ class RecordingProducer:
 
 def _settings(seed: str = "1" * 64) -> PlatformSettings:
     return PlatformSettings(audit={"signing_key_hex": seed})
+
+
+@pytest.mark.asyncio
+async def test_audit_chain_dependency_factory_uses_request_state() -> None:
+    settings = _settings()
+    producer = object()
+    session = object()
+    request = SimpleNamespace(
+        app=SimpleNamespace(state=SimpleNamespace(settings=settings, clients={"kafka": producer}))
+    )
+
+    service = await audit_dependencies.get_audit_chain_service(
+        request,  # type: ignore[arg-type]
+        session,  # type: ignore[arg-type]
+    )
+
+    assert isinstance(service, AuditChainService)
+    assert service.settings is settings
+    assert service.producer is producer
 
 
 @pytest.mark.asyncio

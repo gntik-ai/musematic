@@ -283,6 +283,77 @@ async def test_run_governance_retention_gc_deletes_and_commits(monkeypatch) -> N
     assert session_stub.rolled_back is False
 
 
+@pytest.mark.asyncio
+async def test_workflow_runtime_handler_copies_router_fallback_into_event(monkeypatch) -> None:
+    recorded: list[dict[str, object]] = []
+
+    class FallbackRecord:
+        def model_dump(self, *, mode: str) -> dict[str, object]:
+            assert mode == "json"
+            return {
+                "primary_model_id": "primary",
+                "fallback_model_used": "fallback",
+                "chain_index": 0,
+            }
+
+    class ServiceStub:
+        async def record_runtime_event(self, execution_id, **kwargs) -> None:
+            recorded.append({"execution_id": execution_id, **kwargs})
+
+    class SessionStub:
+        committed = False
+        rolled_back = False
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return None
+
+        async def commit(self) -> None:
+            self.committed = True
+
+        async def rollback(self) -> None:
+            self.rolled_back = True
+
+    session = SessionStub()
+    app = SimpleNamespace(
+        state=SimpleNamespace(
+            settings=PlatformSettings(),
+            clients={
+                "kafka": None,
+                "redis": object(),
+                "object_storage": object(),
+                "runtime_controller": None,
+                "reasoning_engine": None,
+            },
+        )
+    )
+    handler = main_module._build_workflow_runtime_handler(app)
+    monkeypatch.setattr(main_module.database, "AsyncSessionLocal", lambda: session)
+    monkeypatch.setattr(main_module, "build_execution_service", lambda **_kwargs: ServiceStub())
+
+    await handler(
+        SimpleNamespace(
+            payload={
+                "execution_id": str(uuid4()),
+                "step_id": "step-a",
+                "event_type": "completed",
+                "model_router_response": SimpleNamespace(fallback_taken=FallbackRecord()),
+            }
+        )
+    )
+
+    assert recorded[0]["step_id"] == "step-a"
+    assert recorded[0]["payload"]["fallback_taken"] == {
+        "primary_model_id": "primary",
+        "fallback_model_used": "fallback",
+        "chain_index": 0,
+    }
+    assert session.committed is True
+    assert session.rolled_back is False
+
+
 def test_build_a2a_idle_timeout_scheduler_registers_job() -> None:
     app = SimpleNamespace(
         state=SimpleNamespace(settings=PlatformSettings(), clients={"kafka": None})

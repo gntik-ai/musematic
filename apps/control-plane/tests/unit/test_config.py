@@ -118,3 +118,25 @@ def test_platform_settings_reads_api_governance_overrides(monkeypatch) -> None:
     assert settings.api_governance.principal_cache_ttl_seconds == 30
     assert settings.api_governance.anonymous_tier_name == "public"
     assert settings.api_governance.default_tier_name == "starter"
+
+
+def test_platform_settings_reads_model_catalog_overrides(monkeypatch) -> None:
+    monkeypatch.setenv("FEATURE_MODEL_ROUTER_ENABLED", "true")
+    monkeypatch.setenv("MODEL_ROUTER_AUTO_DEPRECATION_INTERVAL_SECONDS", "600")
+    monkeypatch.setenv("MODEL_ROUTER_DEFAULT_RECOVERY_WINDOW_SECONDS", "120")
+    monkeypatch.setenv("MODEL_ROUTER_PRIMARY_TIMEOUT_SECONDS", "7.5")
+    monkeypatch.setenv("MODEL_ROUTER_OPENAI_BASE_URL", "https://openai.example/v1/chat")
+    monkeypatch.setenv("MODEL_ROUTER_ANTHROPIC_BASE_URL", "https://anthropic.example/v1/messages")
+    monkeypatch.setenv("MODEL_ROUTER_GOOGLE_BASE_URL", "https://google.example/v1/models")
+    monkeypatch.setenv("MODEL_ROUTER_MISTRAL_BASE_URL", "https://mistral.example/v1/chat")
+
+    settings = PlatformSettings()
+
+    assert settings.model_catalog.router_enabled is True
+    assert settings.model_catalog.auto_deprecation_interval_seconds == 600
+    assert settings.model_catalog.default_recovery_window_seconds == 120
+    assert settings.model_catalog.router_primary_timeout_seconds == 7.5
+    assert settings.model_catalog.openai_base_url == "https://openai.example/v1/chat"
+    assert settings.model_catalog.anthropic_base_url == "https://anthropic.example/v1/messages"
+    assert settings.model_catalog.google_base_url == "https://google.example/v1/models"
+    assert settings.model_catalog.mistral_base_url == "https://mistral.example/v1/chat"

@@ -61,6 +61,7 @@ def test_discovery_params_and_patch_defaults() -> None:
             "display_name": "  Registry  ",
             "tags": [" finance ", "", "ops"],
             "visibility_agents": ["finance:*", ""],
+            "default_model_binding": " openai:gpt-4o ",
         }
     )
 
@@ -71,6 +72,7 @@ def test_discovery_params_and_patch_defaults() -> None:
     assert patch.display_name == "Registry"
     assert patch.tags == ["finance", "ops"]
     assert patch.visibility_agents == ["finance:*"]
+    assert patch.default_model_binding == "openai:gpt-4o"
 
 
 def test_patch_requires_custom_role_description_when_custom_role_present() -> None:
