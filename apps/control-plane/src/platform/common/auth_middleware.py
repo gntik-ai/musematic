@@ -1,27 +1,44 @@
 from __future__ import annotations
 
+import hashlib
 from platform.auth.dependencies import resolve_api_key_identity
 from platform.common.config import settings as default_settings
+from typing import Any
 
 import jwt
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-EXEMPT_PATHS: set[str] = {
-    "/health",
-    "/healthz",
-    "/api/v1/healthz",
-    "/docs",
-    "/openapi.json",
-    "/redoc",
-    "/api/v1/accounts/register",
-    "/api/v1/accounts/verify-email",
-    "/api/v1/accounts/resend-verification",
-    "/api/v1/auth/login",
-    "/api/v1/auth/refresh",
-    "/api/v1/auth/mfa/verify",
-}
+EXEMPT_PATHS: frozenset[str] = frozenset(
+    {
+        "/health",
+        "/healthz",
+        "/api/v1/healthz",
+        "/api/openapi.json",
+        "/api/docs",
+        "/api/redoc",
+        "/openapi.json",
+        "/docs",
+        "/redoc",
+        "/api/v1/accounts/register",
+        "/api/v1/accounts/verify-email",
+        "/api/v1/accounts/resend-verification",
+        "/api/v1/auth/login",
+        "/api/v1/auth/refresh",
+        "/api/v1/auth/mfa/verify",
+    }
+)
+
+EXTERNAL_A2A_CERT_HEADERS: tuple[str, ...] = (
+    "X-Client-Cert-Fingerprint",
+    "X-SSL-Client-SHA1",
+    "X-Forwarded-Client-Cert",
+    "X-Client-Cert",
+    "X-SSL-Client-Cert",
+    "Ssl-Client-Cert",
+    "X-ARR-ClientCert",
+)
 
 
 def _unauthorized_response(code: str, message: str) -> JSONResponse:
@@ -35,6 +52,38 @@ def _unauthorized_response(code: str, message: str) -> JSONResponse:
             }
         },
     )
+
+
+def _with_principal_type(identity: dict[str, Any], principal_type: str) -> dict[str, Any]:
+    payload = dict(identity)
+    payload["principal_type"] = principal_type
+    payload.setdefault("identity_type", principal_type)
+
+    if principal_type == "service_account":
+        principal_id = payload.get("service_account_id") or payload.get("sub")
+        if isinstance(principal_id, str):
+            payload.setdefault("principal_id", principal_id)
+    elif principal_type == "user":
+        principal_id = payload.get("sub")
+        if isinstance(principal_id, str):
+            payload.setdefault("principal_id", principal_id)
+
+    return payload
+
+
+def _resolve_external_a2a_identity(request: Request) -> dict[str, str] | None:
+    for header_name in EXTERNAL_A2A_CERT_HEADERS:
+        header_value = request.headers.get(header_name, "").strip()
+        if not header_value:
+            continue
+        principal_id = hashlib.sha256(header_value.encode("utf-8")).hexdigest()
+        return {
+            "principal_type": "external_a2a",
+            "identity_type": "external_a2a",
+            "principal_id": principal_id,
+            "auth_mechanism": "mtls",
+        }
+    return None
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -53,6 +102,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
             and path.endswith(("/authorize", "/callback"))
         )
         public_a2a_endpoint = path == "/.well-known/agent.json" or path.startswith("/api/v1/a2a/")
+        if public_a2a_endpoint:
+            external_a2a_identity = _resolve_external_a2a_identity(request)
+            if external_a2a_identity is not None:
+                request.state.user = external_a2a_identity
         if (
             path in EXEMPT_PATHS
             or public_invitation_endpoint
@@ -66,7 +119,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             identity = await resolve_api_key_identity(request, api_key)
             if identity is None:
                 return _unauthorized_response("INVALID_API_KEY", "Invalid API key")
-            request.state.user = identity
+            request.state.user = _with_principal_type(identity, "service_account")
             return await call_next(request)
 
         header = request.headers.get("Authorization", "")
@@ -88,5 +141,5 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if not isinstance(payload, dict) or payload.get("type") not in {None, "access"}:
             return _unauthorized_response("UNAUTHORIZED", "Invalid authentication token")
 
-        request.state.user = payload
+        request.state.user = _with_principal_type(payload, "user")
         return await call_next(request)

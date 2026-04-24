@@ -97,6 +97,24 @@ During installation, the system shall:
 - display that password in the CLI exactly once;
 - require the admin to change the password at first login.
 
+Additionally, the installer shall support **environment-variable-driven super admin provisioning** as an alternative to CLI bootstrap. When the following environment variables are present at install time, the installer provisions a `superadmin` user non-interactively:
+- `PLATFORM_SUPERADMIN_USERNAME` (required) — the username of the super admin account.
+- `PLATFORM_SUPERADMIN_EMAIL` (required) — the email address of the super admin.
+- `PLATFORM_SUPERADMIN_PASSWORD` (optional) — the initial password. If absent, the installer generates a secure random password and writes it to stdout exactly once and to a Kubernetes Secret (`platform-superadmin-bootstrap`) that the installer flags for one-time retrieval and immediate deletion.
+- `PLATFORM_SUPERADMIN_PASSWORD_FILE` (optional, alternative to `PLATFORM_SUPERADMIN_PASSWORD`) — path to a file containing the password, for compatibility with Docker secrets, sealed-secrets, and CI/CD secret stores.
+- `PLATFORM_SUPERADMIN_MFA_ENROLLMENT` (optional, default `required_on_first_login`) — one of `required_on_first_login`, `required_before_first_login` (install fails if MFA cannot be enrolled), or `disabled` (not permitted in production; dev/test only with explicit `ALLOW_INSECURE=true`).
+- `PLATFORM_SUPERADMIN_FORCE_PASSWORD_CHANGE` (optional, default `true`) — whether the super admin must change the password at first login.
+- `PLATFORM_INSTANCE_NAME` (optional) — a display name for the platform instance, stored in platform settings and visible in the admin workbench.
+- `PLATFORM_TENANT_MODE` (optional, default `single`) — one of `single` or `multi`; governs whether the super admin can create additional tenants.
+
+The installer shall reject conflicting configurations (e.g., both `PASSWORD` and `PASSWORD_FILE`), refuse to run in production with `ALLOW_INSECURE=true`, and emit an audit chain entry recording the bootstrap method (CLI or env-var) and timestamp without logging any secret values.
+
+### FR-004a Super Admin Distinction from Regular Admin
+The platform shall distinguish between `admin` (tenant-scoped administrator — default role created on install) and `superadmin` (platform-wide administrator with cross-tenant visibility and the exclusive ability to: manage tenant lifecycle, configure platform-level settings, perform maintenance operations, rotate platform-level secrets, trigger failover, approve emergency JIT credentials at platform scope). A super admin can delegate or remove any administrator role in any tenant. A regular admin cannot escalate to super admin without explicit provisioning.
+
+### FR-004b Bootstrap Idempotency and Safety
+The installer's super-admin provisioning step shall be idempotent: running it multiple times with identical inputs shall not create duplicate users nor overwrite an existing super admin's password without an explicit `--force-reset-superadmin` flag. The `--force-reset-superadmin` flag shall require confirmation and shall emit a critical audit chain entry. In production deployments, the flag shall be rejected unless `ALLOW_SUPERADMIN_RESET=true` is also set, preventing accidental resets during routine reinstalls.
+
 ### FR-005 Installation Validation
 The installer shall validate:
 - selected deployment backend availability;
@@ -1924,6 +1942,380 @@ Authorized operators shall be able to pause, resume, cancel, or roll back eligib
 ### FR-299 Diagnostics and Troubleshooting Views
 The platform shall provide diagnostics and troubleshooting views with drill-down capability by agent, fleet, user, interaction, execution, or task type.
 
+## 109. Administrator Workbench
+
+### FR-546 Administrator Workbench
+The platform shall provide a dedicated administrator workbench at `/admin` accessible only to users holding the `admin` or `superadmin` role. The workbench shall provide a structured navigation covering all administrative concerns grouped into logical sections: **Identity & Access**, **Tenancy & Workspaces**, **System Configuration**, **Security & Compliance**, **Operations & Health**, **Cost & Billing**, **Observability**, **Integrations**, **Platform Lifecycle**, and **Audit & Logs**. The workbench shall be navigable entirely via keyboard, fully internationalized per FR-489, and WCAG AA compliant per FR-488. The workbench shall display the current platform instance name (from `PLATFORM_INSTANCE_NAME`), the signed-in administrator's identity and role scope, and the platform version.
+
+### FR-547 Admin Dashboard Landing Page
+The `/admin` landing page shall display a high-level operational summary: total users / workspaces / agents / fleets counts, pending approvals counter, active incidents counter (linked to UPD-031), active maintenance windows indicator, recent audit chain integrity check status, observability stack health (Prometheus / Grafana / Loki reachability), last successful backup timestamp, and any critical alerts from the last 24 hours. Each counter and indicator shall link to the corresponding detail page within the workbench.
+
+### FR-548 Identity & Access Pages
+The workbench shall include an Identity & Access section with the following pages:
+- **Users** (`/admin/users`): list, filter, and paginate all users; bulk actions (approve, reject, suspend, force-MFA-enrollment, force-password-reset, delete); detail drawer showing profile, sessions, OAuth links, MFA status, role assignments, recent audit entries, active API keys.
+- **Roles** (`/admin/roles`): manage built-in and custom roles; edit role permissions (read, write, admin per resource type); clone roles; assign roles to users or groups.
+- **Groups** (`/admin/groups`): manage user groups imported via IBOR (LDAP / OIDC / SCIM) and local groups; map groups to roles.
+- **Sessions** (`/admin/sessions`): view active sessions platform-wide; revoke individual sessions; bulk-revoke all sessions for a user (force re-login); view session geolocation metadata where available.
+- **OAuth Providers** (`/admin/oauth-providers`): enable, disable, configure Google / GitHub / additional providers; rotate client secrets via vault; test provider connectivity.
+- **IBOR Connectors** (`/admin/ibor`): configure LDAP / OIDC / SCIM connectors for user/agent sync; trigger manual sync; view sync history and error logs.
+- **API Keys** (`/admin/api-keys`): list all service-account API keys platform-wide; rotate, revoke, view last-used timestamp and scope.
+
+### FR-549 Tenancy & Workspaces Pages
+The workbench shall include a Tenancy & Workspaces section with the following pages:
+- **Tenants** (`/admin/tenants`) — super admin only: list tenants, create new tenant, suspend tenant, delete tenant (with cascade preview and confirmation), configure per-tenant quotas, isolation level, region assignment, data residency policy.
+- **Workspaces** (`/admin/workspaces`): list all workspaces across tenants (super admin) or within current tenant (admin); create workspace; configure owners, members, quotas, visibility policies, region residency, DLP rules; archive or delete workspaces with cascade preview.
+- **Workspace Quotas** (`/admin/workspaces/{id}/quotas`): configure max agents, max fleets, max executions per period, max storage, max cost per period; apply templates (small / medium / large) and override individual limits.
+- **Namespace Management** (`/admin/namespaces`): create, rename, archive FQN namespaces within a workspace; set visibility defaults; reassign ownership.
+
+### FR-550 System Configuration Pages
+The workbench shall include a System Configuration section:
+- **Platform Settings** (`/admin/settings`): instance name, default locale, default timezone, default currency (acknowledging the single-currency limitation), signup policy, approval policy, password policy, MFA policy, session timeout, rate-limit tier definitions.
+- **Feature Flags** (`/admin/feature-flags`): view and toggle platform-wide feature flags (see FR-584); scope flag changes per tenant or per workspace; view flag change history.
+- **Model Catalog** (`/admin/model-catalog`): list approved models; add / update / deprecate entries; upload model cards; configure fallback policies; test provider connectivity; view per-model usage and cost.
+- **Policies** (`/admin/policies`): create and edit platform-wide policies; attach to tenants or workspaces; preview policy evaluation against sample executions.
+- **Connector Plugins** (`/admin/connectors`): enable, disable, configure connector implementations (Slack, Telegram, Webhook, Email); rotate credentials via vault; test connectivity.
+
+### FR-551 Security & Compliance Pages
+The workbench shall include a Security & Compliance section:
+- **Audit Chain Integrity** (`/admin/audit-chain`): view chain verification status; trigger ad-hoc verification; export signed audit log for regulatory periods; view chain anomalies history.
+- **SBOM & Vulnerabilities** (`/admin/security/sbom`): view SBOMs for current and past releases; filter CVEs by severity; track remediation status; link findings to incidents.
+- **Penetration Tests** (`/admin/security/pentests`): schedule, view status, upload attestation reports; track findings.
+- **Secret Rotation** (`/admin/security/rotations`): view rotation schedules; trigger manual rotation; view rotation history; configure default rotation intervals per secret type.
+- **JIT Credentials** (`/admin/security/jit`): view active JIT grants; approve pending requests; revoke credentials; view detailed usage audit.
+- **Privacy & DSR** (`/admin/privacy/dsr`): queue of pending data subject requests; approve, execute, or deny; view cascade deletion preview; issue tombstones; notify subjects.
+- **DLP Rules** (`/admin/privacy/dlp`): manage data loss prevention patterns; view DLP events; configure per-workspace overrides.
+- **PIA Approvals** (`/admin/privacy/pia`): review privacy impact assessments; approve or request changes.
+- **Compliance Evidence** (`/admin/compliance`): SOC2 / ISO27001 / HIPAA / PCI control mapping; evidence collection status; export evidence bundles.
+- **Consent Records** (`/admin/privacy/consent`): view aggregated consent status; revoke consent on behalf of user with justification.
+
+### FR-552 Operations & Health Pages
+The workbench shall include an Operations & Health section:
+- **System Health** (`/admin/health`): real-time status of all platform services and satellites; color-coded state; links to service logs in the Observability section.
+- **Incidents** (`/admin/incidents`): active and historical incidents; create manual incident; link to runbooks; generate post-mortem draft with timeline reconstruction.
+- **Runbooks** (`/admin/runbooks`): library of runbooks; create, edit, assign to incidents; track runbook execution history.
+- **Maintenance Mode** (`/admin/maintenance`): schedule maintenance windows; start/stop maintenance mode immediately; view in-flight work drain status; configure user-facing maintenance message.
+- **Multi-Region Operations** (`/admin/regions`) — super admin only: view regions, replication lag per data store and component, RPO/RTO status, trigger failover test (requires two-person authorization), initiate failback.
+- **Queue Health** (`/admin/queues`): Kafka consumer lag by topic, DLQ sizes, throughput metrics; ability to replay from DLQ or purge with confirmation.
+- **Warm Pool** (`/admin/warm-pool`): view per-agent-type pool size, hit rate, cold-start latency; adjust pool sizes per workspace.
+- **Execution Controls** (`/admin/executions`): pause, resume, cancel, or rollback any execution platform-wide; view execution status across tenants.
+
+### FR-553 Cost & Billing Pages
+The workbench shall include a Cost & Billing section:
+- **Cost Overview** (`/admin/costs/overview`): platform-wide cost view (super admin) or tenant-scoped; drill down by workspace / agent / user / model.
+- **Budgets** (`/admin/costs/budgets`): manage workspace budgets; view threshold breaches; approve admin overrides.
+- **Chargeback Reports** (`/admin/costs/chargeback`): generate and export chargeback reports per period.
+- **Anomalies** (`/admin/costs/anomalies`): review and acknowledge cost anomalies; mark false positives.
+- **Forecasts** (`/admin/costs/forecasts`): platform and per-workspace forecasts with confidence intervals.
+- **Provider Cost Rates** (`/admin/costs/rates`): configure cost rates per model provider, per compute type, per storage tier; apply overrides for negotiated contracts.
+
+### FR-554 Observability Admin Pages
+The workbench shall include an Observability section linking to the Grafana deployment:
+- **Dashboards** (`/admin/observability/dashboards`): link to each of the 21 Grafana dashboards; embed thumbnails.
+- **Alert Rules** (`/admin/observability/alerts`): view Prometheus and Loki alert rules; enable, disable, silence; view alert history.
+- **Log Retention** (`/admin/observability/log-retention`): configure hot/cold retention per tenant.
+- **Dashboard Registry** (`/admin/observability/registry`): view all provisioned dashboards; trigger reload on ConfigMap change.
+
+### FR-555 Integrations Admin Pages
+The workbench shall include an Integrations section:
+- **Outbound Webhooks** (`/admin/integrations/webhooks`): manage outbound webhook registrations; view delivery status; retry failed deliveries; rotate signing secrets.
+- **Incident Integrations** (`/admin/integrations/incidents`): configure PagerDuty / OpsGenie / VictorOps endpoints.
+- **Notification Channels** (`/admin/integrations/notifications`): manage platform-level notification templates; test delivery per channel.
+- **A2A Directory** (`/admin/integrations/a2a`): when A2A gateway is implemented, register and manage external agent card URLs; view federation topology.
+- **MCP Catalog** (`/admin/integrations/mcp`): when MCP integration is implemented, register MCP servers and tools; approve or revoke.
+
+### FR-556 Platform Lifecycle Pages
+The workbench shall include a Platform Lifecycle section — super admin only:
+- **Version & Upgrade** (`/admin/lifecycle/version`): view current platform version per component; view pending upgrade; launch rolling upgrade with dry-run option.
+- **Database Migrations** (`/admin/lifecycle/migrations`): view applied and pending Alembic migrations; launch migration with confirmation; view migration history.
+- **Backup & Restore** (`/admin/lifecycle/backup`): trigger manual backup; view backup history; initiate restore to a point-in-time with confirmation.
+- **Installer State** (`/admin/lifecycle/installer`): view initial install metadata (date, method, environment variables used, excluding secrets); view any pending post-install steps.
+
+### FR-557 Audit & Logs Admin Pages
+The workbench shall include an Audit & Logs section:
+- **Audit Log** (`/admin/audit`): unified query interface over the audit chain; filter by event type, actor, resource, time range; export signed selection.
+- **Admin Activity** (`/admin/audit/admin-activity`): filtered view of administrator actions only.
+- **Log Explorer** (`/admin/logs`): embedded Grafana Explore filtered to the platform's Loki logs; preserves admin scope.
+- **Debug Logging Sessions** (`/admin/debug-logging`): create, monitor, and stop time-bounded debug logging sessions per FR-500.
+
+### FR-558 Admin Workbench Search
+The admin workbench shall include a universal search (Cmd/Ctrl+K command palette scoped to admin) that queries users by name / email / ID, workspaces by name / ID, agents by FQN, executions by ID, audit entries by keyword, and configuration keys. Results shall be role-aware (super admin sees all tenants; admin sees their tenant only).
+
+### FR-559 Admin Bulk Actions
+All list pages in the workbench shall support multi-select and bulk actions where meaningful: bulk user actions (approve / reject / suspend / force-reset / delete), bulk workspace actions (archive / export / apply quota template), bulk incident actions (acknowledge / close / reassign). Bulk actions shall have confirmation dialogs with action summaries and shall emit a single consolidated audit chain entry per batch.
+
+### FR-560 Admin Change Preview and Dry-Run
+Destructive or impactful admin actions (tenant deletion, workspace archiving, policy changes affecting >N existing executions, model catalog deprecation, failover, large-scale quota changes) shall show a change preview describing: affected entities with counts, expected side effects (cascade implications), irreversibility classification (reversible / partially reversible / irreversible), and estimated execution duration. Super admin shall be able to enforce a dry-run step before apply.
+
+### FR-561 Two-Person Authorization for Critical Admin Actions
+Critical admin actions shall require two-person authorization (2PA): super admin password reset, tenant deletion, platform-wide failover, mass secret rotation, audit chain truncation (if ever implemented), `--force-reset-superadmin` via CLI. The initiating admin enters credentials; a second authorized admin must approve within a configurable window (default 15 minutes) from a separate session. 2PA events shall emit critical audit chain entries.
+
+### FR-562 Admin Impersonation with Full Audit
+Super admins shall be able to impersonate a user for a time-bounded session (max 30 minutes) for troubleshooting purposes. Impersonation requires justification, emits an audit chain entry, triggers a notification to the impersonated user, and watermarks the impersonated UI session with a clear "Impersonating {username}" banner. Actions performed during impersonation shall be audited as `impersonation_user=<admin>, effective_user=<target>`.
+
+### FR-563 Admin Read-Only Mode
+The workbench shall support a read-only mode per admin session, activated by a header toggle. In read-only mode all write actions (including bulk) are hidden or disabled. The toggle state persists per session and is visible in the header. Useful for safe exploration and for running training sessions.
+
+### FR-564 Admin Workbench Real-Time Updates
+Key counters and indicators on the admin dashboard landing (FR-547) and on the Incidents, Queue Health, Warm Pool, Maintenance, and Multi-Region pages shall update in real time via WebSocket subscription (no page refresh required). Connection status indicator shall be visible.
+
+### FR-565 Admin API Endpoints
+Every admin UI page shall have corresponding admin REST endpoints under `/api/v1/admin/*`. Endpoints shall require `admin` or `superadmin` role and shall be segregated from non-admin endpoints in the OpenAPI specification. Endpoints include at minimum:
+- `/api/v1/admin/users/*` — user lifecycle
+- `/api/v1/admin/roles/*` — role management
+- `/api/v1/admin/groups/*` — group management
+- `/api/v1/admin/sessions/*` — session management and revocation
+- `/api/v1/admin/oauth-providers/*` — OAuth provider CRUD
+- `/api/v1/admin/ibor-connectors/*` — IBOR CRUD and trigger
+- `/api/v1/admin/api-keys/*` — service-account API keys
+- `/api/v1/admin/tenants/*` — tenant lifecycle (super admin only)
+- `/api/v1/admin/workspaces/*` — workspace lifecycle and quotas
+- `/api/v1/admin/namespaces/*` — namespace CRUD
+- `/api/v1/admin/settings` — platform settings GET/PUT
+- `/api/v1/admin/feature-flags/*` — feature flag CRUD
+- `/api/v1/admin/policies/*` — platform policies
+- `/api/v1/admin/connectors/*` — connector plugin config
+- `/api/v1/admin/health` — real-time health
+- `/api/v1/admin/incidents/*` — incident management
+- `/api/v1/admin/runbooks/*` — runbook library
+- `/api/v1/admin/maintenance/*` — maintenance mode control
+- `/api/v1/admin/queues/*` — queue health and DLQ operations
+- `/api/v1/admin/warm-pool/*` — warm pool management
+- `/api/v1/admin/executions/*` — execution control
+- `/api/v1/admin/dsr/*` — data subject requests (admin scope)
+- `/api/v1/admin/dlp/*` — DLP rule management
+- `/api/v1/admin/pia/*` — PIA review
+- `/api/v1/admin/compliance/*` — compliance evidence
+- `/api/v1/admin/consent/*` — consent records
+- `/api/v1/admin/sbom/*` — SBOM management
+- `/api/v1/admin/scans/*` — vulnerability scans
+- `/api/v1/admin/pentests/*` — pen test management
+- `/api/v1/admin/rotations/*` — rotation schedules
+- `/api/v1/admin/jit/*` — JIT credentials
+- `/api/v1/admin/audit/*` — audit query and export
+- `/api/v1/admin/costs/*` — cost admin endpoints
+- `/api/v1/admin/model-catalog/*` — model catalog admin endpoints
+- `/api/v1/admin/regions/*` — multi-region operations
+- `/api/v1/admin/integrations/*` — integrations
+- `/api/v1/admin/lifecycle/*` — platform lifecycle
+- `/api/v1/admin/impersonation` — impersonation session management
+- `/api/v1/admin/2pa/*` — two-person authorization tokens
+
+### FR-566 Admin API Rate Limits
+Admin API endpoints shall have rate limits distinct from and generally more generous than user-facing endpoints. Super admin actions on platform-lifecycle endpoints shall have lower per-minute limits with explicit rationale (these are destructive operations, not high-frequency operations).
+
+### FR-567 Admin Activity Feed
+The workbench shall display an admin activity feed (`/admin/audit/admin-activity` and embedded on the landing page) showing: who did what, when, with diff of before/after where relevant (role assignment, setting change), and a link to the underlying audit chain entry. Admins see their own tenant's activity; super admins see all tenants.
+
+### FR-568 Admin Workbench Tour and Onboarding
+On first login, a new admin (but not super admin on bootstrap) shall be offered a guided tour covering: navigation, key pages (Users / Workspaces / Settings / Audit), where to find help, and how to contact super admin. The tour shall be dismissible and repeatable. For super admin on bootstrap, a first-install checklist shall be presented: verify instance settings, invite other admins, configure OAuth providers, install observability stack, run first backup, review security settings.
+
+### FR-569 Admin Help Context
+Every admin page shall include inline help context: a collapsible panel explaining the purpose of the page, linking to runbooks where relevant, and linking to the FR or architecture section for deeper reference. Help content shall be authored alongside the page and localized per FR-489.
+
+### FR-570 Admin Workbench Accessibility and i18n
+The admin workbench shall fully comply with WCAG 2.1 AA (per FR-488) and shall be fully internationalized across the six supported languages (per FR-489). All destructive action dialogs shall clearly describe consequences in the user's locale.
+
+### FR-571 Admin Workbench Theming
+The admin workbench shall honor the user theme preference (light / dark / system / high-contrast per FR-490). The admin workbench shall additionally offer an optional visual distinction (e.g., thin red top border or distinct accent color) to signal to admins that they are operating in an elevated privilege context, reducing accidental misuse.
+
+### FR-572 Admin Export of Configuration
+Admins shall be able to export platform and tenant configuration (settings, policies, quotas, roles, connectors, feature flags, model catalog entries — excluding secrets) as a signed YAML bundle. Super admins shall be able to import such a bundle to bootstrap a new environment from an existing one. Imports shall produce a diff preview and require explicit confirmation.
+
+### FR-573 Admin Session Security
+Admin sessions shall enforce stricter security requirements than regular user sessions: shorter idle timeout (default 30 minutes, configurable down to 5 minutes), mandatory MFA step-up for destructive actions (e.g., tenant deletion, 2PA initiation), IP allowlisting option at tenant and platform level, session binding to IP + user-agent (new combination requires re-authentication).
+
+### FR-574 Admin Notifications Preferences
+Admins shall have distinct notification preferences from regular users: default notification channels for incidents, budget breaches, security events, certification expiries, maintenance windows affecting their tenants. Super admins shall additionally receive platform-wide events (failover, bootstrap complete, upgrade complete).
+
+### FR-575 Admin Page URL Scheme
+Admin pages shall use a consistent URL scheme under `/admin/` with predictable hierarchy, such that deep-linking and bookmarking to specific resources (e.g., `/admin/workspaces/abc123/quotas`) works reliably. Breadcrumbs shall render at the top of every admin page.
+
+### FR-576 Admin Data Table Standards
+All admin list pages shall use a consistent data-table pattern: server-side pagination (default 50 per page, configurable up to 500), sortable columns, column-level filters, free-text search, column visibility toggle, CSV export of current result set, saved views per user (per FR-512).
+
+### FR-577 Admin Action Confirmation Rules
+Confirmation dialog requirements scale with impact:
+- No-confirmation: read-only and low-impact actions.
+- Simple-confirmation (one click): reversible actions affecting one entity.
+- Typed-confirmation (user types entity name or specific phrase like `DELETE`): irreversible or high-impact actions.
+- 2PA: critical actions per FR-561.
+
+### FR-578 Admin Feature Flag Granularity
+The Feature Flags admin page (FR-550) shall support: global flags (platform-wide), tenant-scoped overrides, workspace-scoped overrides, per-user overrides (for gradual rollout to specific admins). Flag changes shall emit audit chain entries including the diff and rationale.
+
+### FR-579 Super Admin Break-Glass Access
+A super admin shall have a documented break-glass procedure for recovery when other super admins are unavailable: console-level CLI access via `platform-cli superadmin recover` which requires physical cluster access and a second-factor present on the cluster (e.g., a sealed emergency key). Use of break-glass access shall emit a critical audit chain entry and notify any remaining super admins via all configured channels.
+
+### FR-580 Admin Monitoring Integration
+The admin workbench Operations & Health and Observability sections shall embed live Grafana panels from the 21 platform dashboards where contextually useful, without requiring the admin to leave the workbench. Embedded panels shall respect the admin's scope (tenant-scoped for admins, platform-wide for super admin).
+
+### FR-581 Admin Workbench E2E Coverage
+The admin workbench shall be covered by two E2E user journeys: the existing **J01 Platform Administrator** journey (extended to cover new admin pages) and a new **J18 Super Admin Platform-Lifecycle** journey exercising tenant creation, platform settings, maintenance mode, failover test, break-glass simulation, 2PA, and audit export. Both journeys shall exercise keyboard-only navigation and axe-core scanning per FR-526.
+
+### FR-582 Admin Workbench Mobile Layout
+The admin workbench shall be usable on tablet (≥ 768 px wide) for read-mostly admin tasks (check health, acknowledge alerts, review DSRs). Full admin workflows require a desktop viewport. An information banner shall indicate when certain workflows are desktop-only.
+
+### FR-583 Admin Error Handling and Diagnostics
+All admin API errors shall return structured error responses with: machine-readable error code, human-readable message, suggested action, and a correlation ID linking to the full audit trail. The workbench shall surface errors inline with the action that triggered them, not as page-level toasts that scroll off screen.
+
+### FR-584 Admin Feature Flag Inventory (Admin-Controlled)
+In addition to flags defined in prior FRs, the admin workbench shall expose the following admin-visible and admin-controlled flags: `FEATURE_SIGNUP_ENABLED`, `FEATURE_SIGNUP_REQUIRES_APPROVAL`, `FEATURE_SOCIAL_LOGIN_ENABLED`, `FEATURE_MAINTENANCE_MODE`, `FEATURE_API_RATE_LIMITING`, `FEATURE_DLP_ENABLED`, `FEATURE_COST_HARD_CAPS`, `FEATURE_CONTENT_MODERATION`, `FEATURE_IMPERSONATION_ENABLED`, `FEATURE_TWO_PERSON_AUTHORIZATION`, `FEATURE_READ_ONLY_ADMIN_MODE`. All flag defaults are documented in the constitution and installer.
+
+### FR-585 Super Admin Platform Tenant Mode
+When `PLATFORM_TENANT_MODE=single` (the default), the Tenants page (FR-549) is hidden and all tenant-scoping UI elements are suppressed; the platform operates as a single-tenant deployment. When `PLATFORM_TENANT_MODE=multi`, the full tenancy UX is exposed. Switching modes after installation requires a super admin decision, 2PA approval, and emits a critical audit chain entry. Downgrading from `multi` to `single` is blocked if more than one tenant exists.
+
+## 110. Public Signup, Account Activation, and OAuth UI
+
+### FR-586 Public Signup Page
+The platform shall provide a public signup page at `/signup` where anonymous users can create a local account with email and password, when self-signup is enabled via platform setting (FR-015). The page shall require email (validated against RFC 5322), full name, password, and explicit consent checkbox for AI interaction disclosure (per FR-510) and terms of service. The page shall be reachable from the login page and vice versa. When self-signup is disabled, the page shall show a clear message and a link to contact the administrator, never a 404.
+
+### FR-587 Signup Password Policy Enforcement
+The signup form shall enforce the platform password policy client-side for fast feedback (minimum length, character classes, common-password rejection via client-side wordlist), AND re-validate server-side as the authoritative check. Client-side validation is a UX optimization only; the server rejects weak passwords regardless of client validation.
+
+### FR-588 Signup Rate Limiting and Bot Protection
+The signup endpoint and page shall apply stricter rate limiting than general API endpoints: per-IP limit (default 5 attempts per hour), per-email limit (default 3 attempts per 24h against the same email), optional CAPTCHA (hCaptcha or Turnstile) activatable by admin via platform setting. Rate-limit responses return HTTP 429 with `Retry-After`.
+
+### FR-589 Email Verification Flow
+On successful signup, the platform shall send an email-verification message containing a time-bounded, single-use token (default 24h expiry). The message template is localized per user's browser `Accept-Language`. The user clicks the link, which routes to `/verify-email?token=…`; the page validates the token and transitions the account from `pending_verification` to `pending_approval` (if approval required per FR-016) or directly to `active`. Expired or already-used tokens produce a clear error with a "resend verification" action.
+
+### FR-590 Verification Email Resend
+The platform shall provide a page at `/verify-email/pending` shown immediately after signup that: informs the user the email has been sent, allows them to enter an email to resend the verification (rate-limited per FR-588), links to contact support. A resend invalidates the previous token. The user cannot log in until verification completes.
+
+### FR-591 Admin Approval Waiting Page
+When the platform is configured to require administrator approval (FR-016), after email verification the user lands on `/waiting-approval` showing: current status, estimated review time (configurable per tenant), contact administrator link. The user receives an email notification when approval is granted or rejected. The user cannot log in until approved.
+
+### FR-592 Signup via OAuth (Google / GitHub)
+The signup page shall display "Sign up with Google" and "Sign up with GitHub" buttons when those providers are enabled via admin (FR-449, FR-450). Clicking initiates the OAuth authorization flow; the callback handler auto-provisions a local account (per FR-448) and applies: the same approval requirement as local signup (if FR-016 is enabled, OAuth-provisioned users also await approval); MFA enrollment requirement consistent with local users; domain/org restrictions (FR-449, FR-450) validated before auto-provisioning. A user who attempts OAuth signup from an unauthorized domain/org sees a clear error page explaining the restriction and linking to administrator contact.
+
+### FR-593 OAuth Callback Page
+The platform shall have a dedicated frontend page at `/auth/oauth/{provider}/callback` handling OAuth callbacks with a loading state, error state with retry, and success handoff. The callback page receives auth material from the backend (via secure fragment, not query string) and completes the session establishment without exposing tokens in browser history. This replaces the previous implicit-redirect-to-login-with-fragment pattern with an explicit, auditable page.
+
+### FR-594 OAuth Link Management UI
+The platform shall provide a page at `/settings/account/connections` where authenticated users can: view which OAuth providers are currently linked to their account, link a new provider (initiating OAuth from settings, not signup), unlink a provider (blocked if it's the only authentication method available to the account without a local password). Linking/unlinking emits audit entries.
+
+### FR-595 OAuth Admin UI Configuration
+The admin workbench (FR-550, `/admin/oauth-providers`) shall surface full configuration of Google and GitHub providers: enable/disable toggle, client ID field, client secret reference to vault (secret input is write-only, never displayed), authorized redirect URI, domain restrictions (Google Workspace) / org restrictions (GitHub), group/team-to-role mapping table, test-connectivity button that performs a dry-run authorization flow. All admin changes emit audit chain entries.
+
+### FR-596 First-Time OAuth Login Profile Completion
+On a user's first successful OAuth login, if the external profile is missing platform-required fields (locale, timezone, display name preference), the platform shall present a lightweight profile completion page before granting full access. This is a one-time form; after completion the user proceeds normally.
+
+### FR-597 Login Page OAuth Integration
+The login page shall display OAuth provider buttons above or alongside the email/password form (per product design choice), each labeled with provider brand guidelines ("Continue with Google", "Continue with GitHub"). Provider buttons are hidden when no provider is enabled. Button styling complies with Google and GitHub brand guidelines.
+
+### FR-598 Account Recovery via Linked OAuth
+When a user has forgotten their password AND has an OAuth provider linked, the "Forgot password?" flow shall offer OAuth login as an alternative recovery path ("Sign in with Google to regain access"). After OAuth authentication, the user can set a new local password. This reduces support burden for lost passwords while maintaining security.
+
+### FR-599 Signup E2E Coverage
+E2E journey tests shall cover the full signup lifecycle: local email+password signup → email verification → admin approval (when enabled) → first login → workspace onboarding; Google OAuth signup → domain restriction check → auto-provisioning → first login; GitHub OAuth signup → org restriction check → auto-provisioning → first login. These scenarios extend the J02 Creator journey and the J03 Consumer journey, plus a new J19 New User Signup journey.
+
+## 111. Multilingual README
+
+### FR-600 Multilingual Repository README
+The repository shall include a primary `README.md` at the root plus six localized variants: `README.md` (English, canonical and linked from GitHub), `README.es.md` (Spanish), `README.it.md` (Italian), `README.de.md` (German), `README.fr.md` (French), `README.zh.md` (Simplified Chinese). Each README shall be a full, self-contained introduction to the project — not a stub. The English README shall have a top-section "Read in other languages" bar linking to each localized variant, and each localized README shall have a link back to English.
+
+### FR-601 README Content Structure
+Each README shall contain the following sections, consistent across languages:
+1. Project tagline and one-paragraph description
+2. Badges (build status, license, supported Kubernetes versions, current version)
+3. "What is Musematic?" — accessible description of the platform's purpose
+4. Core capabilities (bullet list with short descriptions)
+5. Quick start — 5-minute path to a running local install (kind-based)
+6. Installation options overview (kind / k3s / Hetzner / managed K8s) with links to detailed guides
+7. Architecture at a glance (single diagram + 3-4 paragraphs)
+8. Documentation index (links to user guides, admin guides, API reference, architecture)
+9. Contributing (linking to CONTRIBUTING.md)
+10. License (linking to LICENSE)
+11. Community and support (GitHub issues, discussions, security disclosure)
+
+### FR-602 README Translation Management
+README translations shall be treated as production artifacts: changes to the canonical English README require corresponding updates to all six variants within the same PR (or a documented grace period of 7 days during which the discrepancy is tracked as a GitHub issue). A CI check shall flag English-vs-localized drift by comparing section headings and link integrity.
+
+### FR-603 README Asset Localization
+Embedded diagrams, screenshots, and code blocks in the README shall either be language-neutral (architecture diagrams labeled in English, which all six variants can reuse) OR be localized per variant (screenshots of the UI in the target language where the UI is shown). The choice shall favor reusability; only UI screenshots require variants per language.
+
+### FR-604 README Rendering Quality
+Each README variant shall render correctly on GitHub (Markdown Flavor + GFM extensions), on GitLab (compatible subset), and in common markdown renderers (pandoc, MkDocs). Links to GitHub-specific pages (issues, discussions) remain valid even when the repo is mirrored to GitLab.
+
+## 112. Comprehensive Documentation and Installation Guides
+
+### FR-605 Documentation Site Structure
+The platform shall publish a comprehensive documentation site structured into the following top-level sections:
+- **Getting Started** — 5-minute demos, glossary, first tutorial
+- **User Guide** — consumer workflows, creator workflows, workspace collaboration, workbenches
+- **Administrator Guide** — admin workbench pages explained, platform settings, identity management, tenancy, compliance, incident response
+- **Operator Guide** — runbooks, observability, incident response, capacity planning, backup/restore
+- **Developer Guide** — building agents, SDK usage, contract authoring, MCP, A2A
+- **API Reference** — auto-generated from OpenAPI 3.1 (per FR-497)
+- **Architecture** — system architecture, software architecture, bounded contexts, data stores, event topology
+- **Installation Guides** — kind, k3s, Hetzner with load balancer, managed K8s (GKE / EKS / AKS)
+- **Configuration Reference** — all environment variables, all Helm values, all feature flags
+- **Security Guide** — threat model, compliance, best practices, disclosure policy
+- **Release Notes** — versioned changelog
+
+### FR-606 Installation Guide — kind (Local Development)
+The Kind installation guide shall walk through: prerequisites (Docker, Kind, Helm, kubectl versions), step-by-step cluster creation with `kind-config.yaml`, platform Helm install with `values-e2e.yaml`, observability stack install per UPD-035, seed data, accessing the UI at `localhost:8080`, uninstall/reset. Target time to completion: 15 minutes.
+
+### FR-607 Installation Guide — k3s
+The k3s installation guide shall cover a single-node k3s install suitable for small production or lab use: OS prerequisites (Ubuntu 22.04+, kernel modules), k3s install with appropriate arguments, storage class selection (local-path by default, longhorn optional), ingress controller (Traefik bundled), platform install via Helm, observability install, TLS via cert-manager + Let's Encrypt or provided certificate.
+
+### FR-608 Installation Guide — Hetzner with Load Balancer
+The Hetzner installation guide shall document a full production-grade install using Hetzner Cloud with load balancer. The guide shall cover:
+- **Infrastructure provisioning** using Terraform (reusing the existing Hetzner Terraform modules): 1 control plane + 3 worker nodes on dedicated servers, private network, firewall rules, Hetzner Cloud Load Balancer in front of the ingress.
+- **Kubernetes install via kubeadm** with containerd as runtime (per the existing Hetzner Terraform project).
+- **Cluster networking**: MetalLB for `LoadBalancer` service type in addition to Hetzner's managed LB, Cilium or Calico for NetworkPolicy enforcement.
+- **Ingress**: NGINX Ingress Controller with cert-manager issuing Let's Encrypt certificates.
+- **Storage**: Longhorn for StatefulSets requiring persistent volumes.
+- **Observability**: full stack via UPD-035 Helm bundle.
+- **Platform install**: Helm with `values-hetzner-production.yaml` overlay.
+- **DNS configuration**:
+  - Development environment: `dev.musematic.ai` → frontend, `dev.api.musematic.ai` → backend API, `dev.grafana.musematic.ai` → Grafana.
+  - Production environment: `app.musematic.ai` → frontend, `api.musematic.ai` → backend API, `grafana.musematic.ai` → Grafana.
+- **TLS termination** at the ingress layer, with Let's Encrypt DNS-01 challenge for wildcard coverage.
+- **Backup strategy** using the S3-compatible backup to Hetzner Storage Box or external S3.
+- **Monitoring alarms** tied to Hetzner Cloud resource utilization (disk, CPU, memory).
+- **Operational runbooks**: scaling nodes up, replacing a failed worker, rotating TLS certificates, running platform upgrades, multi-region add-on.
+
+### FR-609 Installation Guide — Managed Kubernetes (GKE / EKS / AKS)
+The managed Kubernetes installation guide shall document prerequisites for each cloud (IAM roles, VPC setup, node pool sizing), cloud-specific storage classes, cloud-native load balancers (GCP LB / AWS ALB / Azure Application Gateway), cloud-native DNS (Cloud DNS / Route 53 / Azure DNS), platform Helm install with cloud-specific overlays, observability install with cloud-native logging optional integration.
+
+### FR-610 Environment Variables Reference
+The Configuration Reference section shall contain an exhaustive table of every environment variable recognized by every platform component, with columns: variable name, service/component, required/optional, default value, description, security sensitivity classification. This table shall be machine-generated from the codebase (via a `scripts/generate-env-docs.py` pass over the code) to prevent drift.
+
+### FR-611 Helm Values Reference
+The Configuration Reference section shall contain an exhaustive reference of every Helm value in every chart (`deploy/helm/platform/values.yaml`, `deploy/helm/observability/values.yaml`, and sizing preset overlays), with default values, accepted types, and descriptions. This reference shall be machine-generated using `helm-docs` from YAML annotations.
+
+### FR-612 Feature Flag Reference
+The Configuration Reference section shall list every feature flag with: flag name, default, scope (platform / tenant / workspace / user), controlled by (role), description, related FRs, and rollout history.
+
+### FR-613 URL and Domain Scheme Documentation
+The documentation shall publish the canonical URL and domain scheme:
+- **Development**: `dev.musematic.ai` (frontend), `dev.api.musematic.ai` (backend API), `dev.grafana.musematic.ai` (Grafana / observability).
+- **Production**: `app.musematic.ai` (frontend), `api.musematic.ai` (backend API), `grafana.musematic.ai` (Grafana / observability).
+- **Per-environment** patterns for additional environments: `{env}.musematic.ai` / `{env}.api.musematic.ai` / `{env}.grafana.musematic.ai`.
+- **CORS policy**: frontend calls backend on its sibling domain; no cross-environment calls.
+- **Cookie domain**: `.musematic.ai` for shared sessions across subdomains; separated for `.dev.musematic.ai` vs `.musematic.ai` to prevent dev sessions leaking into production.
+
+### FR-614 TLS and Certificate Strategy Documentation
+The documentation shall describe the TLS strategy: Let's Encrypt issuance via cert-manager using DNS-01 for wildcard certificates (one per environment: `*.musematic.ai`, `*.dev.musematic.ai`), certificate renewal on k-days-before-expiry basis, alerting on renewal failure, emergency manual renewal runbook.
+
+### FR-615 Documentation Site Technology
+The documentation site shall be built using a static-site generator (Docusaurus, MkDocs Material, or equivalent) with: search (Algolia or built-in), versioning (per platform version), language toggle for sections that support translation, dark-mode support consistent with the platform UI, accessibility AA compliance.
+
+### FR-616 Documentation Review and Staleness Detection
+Every FR and every architecture decision shall be linked from the documentation. A CI check shall flag documentation that references a FR number that no longer exists, or that hasn't been updated in the same PR that modifies the referenced FR. This check runs on every PR touching `docs/` or FR files.
+
+### FR-617 Admin and Operator Runbook Library
+The Operator Guide section shall include a runbook library covering at least: platform upgrade procedure, database migration rollback, disaster recovery (restore from backup), multi-region failover and failback (from UPD-025), secret rotation (from UPD-024), capacity expansion (adding worker nodes), emergency access (super admin break-glass per FR-579), incident response procedures (linked to UPD-031 runbooks), log query cookbook (LogQL examples for UPD-034 dashboards).
+
+### FR-618 Security and Compliance Documentation
+The Security Guide section shall include: threat model (with trust boundaries across planes), compliance mapping to SOC2 / ISO27001 / GDPR / HIPAA / PCI (with evidence substrate per UPD-024), responsible disclosure policy (SECURITY.md at repo root), PGP key for security reports, security contact email, expected response time.
+
+### FR-619 API Reference Quality
+The auto-generated API reference shall include: OpenAPI 3.1 spec download, interactive Swagger UI, interactive Redoc, code samples for each endpoint in Python/Go/TypeScript/curl (generated from OpenAPI), authentication guide, rate-limit documentation, error code catalog with remediation guidance, changelog of API changes per version with backward-compatibility annotations.
+
+### FR-620 Documentation Localization Policy
+User-facing documentation (Getting Started, User Guide, Administrator Guide) shall be localized into the six supported languages (English, Spanish, Italian, German, French, Simplified Chinese). Technical documentation (Developer Guide, Architecture, API Reference) remains English-only due to translation cost and audience expectations. The documentation site clearly labels which sections are localized and which are English-only.
+
 ## 55. Agent and Fleet Factory Capabilities
 
 ### FR-300 Agent Templates and Starter Kits
@@ -2903,6 +3295,327 @@ Loki label cardinality shall be bounded. Labels permitted: `service`, `bounded_c
 
 ### FR-545 Log Volume Observability
 Log ingestion rate (lines per second per service, bytes per second per service, rejected-log count) shall be exposed as Prometheus metrics from both Promtail (client-side) and Loki (server-side). An operator dashboard panel shall surface these rates and alert on sustained flooding (a service exceeding 1 MB/s sustained triggers operator review).
+
+## 113. HashiCorp Vault Integration
+
+### FR-621 Vault as the Primary Secret Backend
+The platform shall support HashiCorp Vault as a first-class secret backend for all credentials, API keys, OAuth client secrets, database passwords, model-provider API keys, webhook signing secrets, and encryption keys at rest. The current `VaultResolver` with its `mock` mode is retained for development but the `vault` mode must be fully implemented, not a placeholder that raises `CredentialUnavailableError`. All code paths that call `VaultResolver.resolve()` must transparently work against a real Vault server when configured.
+
+### FR-622 Vault Deployment Modes
+The platform shall support three Vault deployment modes selectable via configuration:
+- **`mock`** (dev default): in-process file-backed resolver (existing behavior), suitable for kind and local development.
+- **`vault`** (production): real HashiCorp Vault cluster accessed via HTTP API. This is the mode documented and recommended for production.
+- **`kubernetes`** (transitional): Kubernetes Secrets as the backend, preserving current behavior for installations that have not yet migrated to Vault.
+
+Mode selection is set via `PLATFORM_VAULT_MODE` environment variable.
+
+### FR-623 Vault Helm Sub-Chart
+The platform's unified Helm distribution shall include a Vault sub-chart (HashiCorp official chart, version-pinned) installable via `deploy/helm/platform/` or as a separate chart `deploy/helm/vault/`. Installation shall support: dev-mode single-node Vault (not for production), standalone production Vault (single replica with persistent storage), HA production Vault with Raft storage and three replicas. Sub-chart is optional — operators using an external managed Vault (HCP Vault, etc.) skip the sub-chart install and configure `PLATFORM_VAULT_ADDR` to point at the external endpoint.
+
+### FR-624 Vault Authentication Methods
+The platform shall support the following Vault authentication methods, selectable via configuration:
+- **Kubernetes auth** (recommended for in-cluster deployments): the platform's Kubernetes ServiceAccount authenticates to Vault using its projected token. Vault validates against the cluster API and returns a Vault token bound to a role.
+- **AppRole** (recommended for out-of-cluster or cross-cluster deployments): the platform holds a RoleID (non-sensitive, config) and authenticates using a periodically-rotated SecretID (sensitive, from Vault-side wrapping).
+- **Token** (development / CI only): a static Vault token set via `PLATFORM_VAULT_TOKEN`. Not permitted in production per constitution rule 10.
+
+### FR-625 Vault Secret Engines
+The platform shall use the following Vault secret engines:
+- **KV v2** (`secret/` mount): primary store for static secrets (OAuth client secrets, webhook signing secrets, API keys). Versioning enabled so rotation preserves history with rollback.
+- **Database secrets engine** (`database/` mount, optional): dynamic short-lived database credentials issued on demand. When enabled, the platform requests ephemeral PostgreSQL credentials per pod or per session rather than using a static password.
+- **Transit engine** (`transit/` mount, optional): envelope encryption for application-level encryption at rest. Used by the audit chain (UPD-024) for signing audit log exports.
+- **PKI engine** (`pki/` mount, optional): issuing internal mTLS certificates for service-to-service traffic within the platform.
+
+### FR-626 Vault Path Conventions
+All secret reads shall use a consistent path scheme: `secret/data/musematic/{environment}/{domain}/{resource}`. Examples:
+- `secret/data/musematic/production/oauth/google/client-secret`
+- `secret/data/musematic/production/database/postgres/password`
+- `secret/data/musematic/production/model-providers/openai/api-key`
+- `secret/data/musematic/production/webhooks/{webhook-id}/signing-secret`
+
+The `{environment}` component is derived from `PLATFORM_ENVIRONMENT` (one of `dev`, `staging`, `production`). Vault policies scope tokens to the environment prefix, preventing cross-environment access.
+
+### FR-627 Vault Configuration Environment Variables
+The platform shall recognize the following Vault-related environment variables:
+- `PLATFORM_VAULT_MODE`: one of `mock`, `vault`, `kubernetes` (default: `mock`).
+- `PLATFORM_VAULT_ADDR`: Vault HTTP endpoint URL (e.g., `https://vault.platform-observability.svc.cluster.local:8200`).
+- `PLATFORM_VAULT_NAMESPACE`: Vault Enterprise namespace, if applicable.
+- `PLATFORM_VAULT_CACERT`: path to a CA certificate file when Vault is served over HTTPS with a private CA.
+- `PLATFORM_VAULT_SKIP_VERIFY`: `true`/`false` to skip TLS verification (dev only; blocked in production per constitution rule 10).
+- `PLATFORM_VAULT_AUTH_METHOD`: one of `kubernetes`, `approle`, `token` (default: `kubernetes`).
+- `PLATFORM_VAULT_KUBE_ROLE`: the Vault Kubernetes auth role name the pod authenticates as.
+- `PLATFORM_VAULT_KUBE_SA_TOKEN_PATH`: path to the projected ServiceAccount token (default: `/var/run/secrets/tokens/vault-token`).
+- `PLATFORM_VAULT_APPROLE_ROLE_ID`: AppRole role ID.
+- `PLATFORM_VAULT_APPROLE_SECRET_ID`: AppRole secret ID (should be wrapped or short-lived).
+- `PLATFORM_VAULT_APPROLE_SECRET_ID_FILE`: path to a file containing the SecretID (alternative to the variable, for secret-mounted delivery).
+- `PLATFORM_VAULT_TOKEN`: static token (dev/CI only).
+- `PLATFORM_VAULT_KV_MOUNT`: KV v2 mount path (default: `secret`).
+- `PLATFORM_VAULT_KV_PREFIX`: common prefix for all secret paths (default: `musematic/{PLATFORM_ENVIRONMENT}`).
+- `PLATFORM_VAULT_CACHE_TTL`: client-side cache TTL for secret lookups (default: 60 seconds; respects Vault-side TTL as the upper bound).
+- `PLATFORM_VAULT_RETRY_ATTEMPTS`: retry attempts on transient Vault errors (default: 3).
+- `PLATFORM_VAULT_TIMEOUT`: HTTP timeout in seconds (default: 10).
+- `PLATFORM_VAULT_LEASE_RENEWAL_THRESHOLD`: fraction of lease TTL at which the client renews (default: 0.5).
+
+### FR-628 Vault Client Library Selection
+The platform's Python control plane shall use `hvac` (the official Python Vault client) for all Vault interactions. The Go satellite services shall use `vault/api` from `github.com/hashicorp/vault/api`. Both clients shall be wrapped in a platform-specific `SecretProvider` abstraction so that migration to alternative secret stores (AWS Secrets Manager, GCP Secret Manager) remains possible without rewriting business logic.
+
+### FR-629 Vault Token and Lease Lifecycle Management
+The platform shall implement full lifecycle management of Vault tokens and leases:
+- Token renewal before expiry (at `PLATFORM_VAULT_LEASE_RENEWAL_THRESHOLD` of the TTL).
+- Re-authentication on token revocation or expiry.
+- Lease revocation on pod shutdown (via SIGTERM handler).
+- Lease metrics exposed to Prometheus (lease count, time-to-expiry distribution, renewal success rate, authentication failures).
+- Structured log entries on every token/lease event (via UPD-034's logging discipline).
+
+### FR-630 Vault Caching and Performance
+The Vault client shall cache secret reads with a short TTL (default 60s, configurable per secret type) to minimize Vault API load. Cache is in-memory per pod; cross-pod consistency is the Vault server's responsibility. Cache invalidation occurs on: TTL expiry, explicit refresh (e.g., after a rotation event), and application signals (SIGHUP triggers cache flush).
+
+### FR-631 Vault Failure Handling
+On Vault unreachability:
+- For non-critical reads (e.g., cached metadata), the client serves stale data up to a configured maximum age.
+- For critical reads (e.g., login verification, OAuth callback), the request fails with an explicit, safe error — the platform never falls back to hardcoded credentials or bypasses authentication.
+- Vault unreachability triggers a platform-level alert with severity `critical`.
+- Read-heavy operations continue to function within the cache TTL window; write operations (secret rotation, new JIT credentials) fail until Vault returns.
+
+### FR-632 Vault Migration From Kubernetes Secrets
+The platform shall provide a migration CLI command (`platform-cli vault migrate-from-k8s`) that reads existing Kubernetes Secrets used by the platform and writes them into Vault at the canonical paths. The command is idempotent, produces a migration report, and leaves the Kubernetes Secrets in place (operator manually removes them after validation). After migration, a `PLATFORM_VAULT_MODE=vault` rollout cutover completes the transition.
+
+### FR-633 Vault Policies and Least Privilege
+The platform shall ship a set of Vault policies (as HCL files in `deploy/vault/policies/`) that implement least-privilege access per bounded context. Examples: the `auth` bounded context can read `secret/data/musematic/{env}/oauth/*` but not `secret/data/musematic/{env}/database/*`. The `runtime-controller` can read secrets for specific agents but not cross-tenant. Policies are version-controlled and applied via `vault policy write` during Helm install.
+
+### FR-634 Vault Secret Rotation Integration (UPD-024 alignment)
+The secret rotation scheduler from UPD-024 shall issue rotations directly against Vault when `PLATFORM_VAULT_MODE=vault`, using the KV v2 versioning to retain rotation history. Dual-credential windows are implemented by writing the new secret version while the old version remains readable by the read-through cache; after a configurable window, the old version is destroyed via `vault kv metadata delete`.
+
+### FR-635 Vault Admin Workbench Page
+The admin workbench (per UPD-036) shall include a new page at `/admin/security/vault` (super admin only) showing: Vault connection status, configured auth method, active token expiry, active lease count, recent authentication failures, secret read rates per bounded context, cache hit rate. From this page, a super admin can trigger: manual token renewal, cache flush, connectivity test, policy reload. All actions emit audit chain entries.
+
+### FR-636 Vault Audit Chain Integration
+Every Vault interaction (secret read, secret write, authentication, lease renewal, revocation) by the platform shall be logged as a structured event. Vault's own audit log is the authoritative source; the platform's audit chain captures only the platform-side decision to perform the operation, with a correlation ID matching a Vault audit log entry. Regulatory audit exports combine both sources.
+
+### FR-637 Vault Compatibility With Existing Code Paths
+Every existing code path referencing secrets via opaque `*_ref` fields (`client_secret_ref`, `vault_path`, `vault_ref`, `signing_secret_ref`) shall resolve through the `SecretProvider` abstraction rather than ad-hoc resolution. A CI check shall fail on any direct environment-variable lookup for a secret value outside the `SecretProvider` abstraction.
+
+### FR-638 Vault E2E Test Infrastructure
+The kind-based E2E test environment (UPD-021, UPD-035) shall support an in-cluster dev Vault deployed alongside the platform for E2E testing in `vault` mode. Journey tests shall run in both `mock` mode (fast, no Vault pod) and `vault` mode (slower, real Vault) to catch mode-specific regressions. A new bounded-context suite `tests/e2e/suites/secrets/` shall exercise Vault reads, writes, rotations, and failure handling.
+
+## 114. OAuth Provider Environment-Variable Bootstrap and Super Admin UI
+
+### FR-639 OAuth Provider Environment-Variable Seeding
+The platform installer shall support provisioning OAuth providers (Google, GitHub) non-interactively via environment variables, mirroring the super-admin-bootstrap pattern from FR-004. When the following variables are present at install time, the installer creates and enables the corresponding provider without requiring a super admin to configure it later via the UI:
+
+**Google OAuth:**
+- `PLATFORM_OAUTH_GOOGLE_ENABLED`: `true`/`false` (default: `false`).
+- `PLATFORM_OAUTH_GOOGLE_CLIENT_ID`: Google OAuth client ID (non-sensitive).
+- `PLATFORM_OAUTH_GOOGLE_CLIENT_SECRET`: Google OAuth client secret. Written to Vault at `secret/data/musematic/{env}/oauth/google/client-secret`.
+- `PLATFORM_OAUTH_GOOGLE_CLIENT_SECRET_FILE`: alternative path to a file containing the secret.
+- `PLATFORM_OAUTH_GOOGLE_REDIRECT_URI`: full callback URL (e.g., `https://app.musematic.ai/auth/oauth/google/callback`).
+- `PLATFORM_OAUTH_GOOGLE_ALLOWED_DOMAINS`: comma-separated list of Google Workspace domains permitted to sign up (e.g., `company.com,subsidiary.com`). Empty list permits any domain.
+- `PLATFORM_OAUTH_GOOGLE_GROUP_ROLE_MAPPINGS`: JSON mapping of Workspace groups to platform roles (e.g., `{"admins@company.com":"admin","users@company.com":"user"}`).
+- `PLATFORM_OAUTH_GOOGLE_REQUIRE_MFA`: `true`/`false` whether Google-authenticated users must additionally enroll platform MFA.
+- `PLATFORM_OAUTH_GOOGLE_DEFAULT_ROLE`: role assigned to auto-provisioned users when no group mapping applies (default: `user`).
+
+**GitHub OAuth:**
+- `PLATFORM_OAUTH_GITHUB_ENABLED`: `true`/`false` (default: `false`).
+- `PLATFORM_OAUTH_GITHUB_CLIENT_ID`: GitHub OAuth app client ID.
+- `PLATFORM_OAUTH_GITHUB_CLIENT_SECRET`: GitHub OAuth client secret, written to Vault.
+- `PLATFORM_OAUTH_GITHUB_CLIENT_SECRET_FILE`: alternative path to a secret file.
+- `PLATFORM_OAUTH_GITHUB_REDIRECT_URI`: full callback URL.
+- `PLATFORM_OAUTH_GITHUB_ALLOWED_ORGS`: comma-separated list of GitHub organizations whose members may sign up.
+- `PLATFORM_OAUTH_GITHUB_TEAM_ROLE_MAPPINGS`: JSON mapping of GitHub team slugs (`org/team-slug`) to platform roles.
+- `PLATFORM_OAUTH_GITHUB_REQUIRE_MFA`: `true`/`false`.
+- `PLATFORM_OAUTH_GITHUB_DEFAULT_ROLE`: fallback role (default: `user`).
+
+### FR-640 OAuth Bootstrap Idempotency
+The OAuth provider seeder shall be idempotent, following the same pattern as FR-004b:
+- If a provider with the given type already exists, the seeder updates its configuration to match the environment variables (merge semantics, preserving any runtime-adjusted fields not set via env vars).
+- If a provider exists AND `PLATFORM_OAUTH_{PROVIDER}_FORCE_UPDATE=false` (the default), the seeder skips the update to avoid overriding manual configuration.
+- If `PLATFORM_OAUTH_{PROVIDER}_FORCE_UPDATE=true`, the seeder overwrites existing configuration and emits a critical audit chain entry.
+
+### FR-641 OAuth Bootstrap Validation
+The installer shall validate OAuth provider configuration before persisting:
+- Redirect URI must be a valid HTTPS URL (HTTP permitted only when `ALLOW_INSECURE=true`).
+- Client ID format validated per provider (Google: ends in `.apps.googleusercontent.com`; GitHub: alphanumeric).
+- Client secret minimum length enforced per provider.
+- When `ALLOWED_DOMAINS` or `ALLOWED_ORGS` is empty, the installer emits a warning in the log (security best practice is to restrict).
+- Group/team role mappings validated as parseable JSON with known role names.
+
+### FR-642 Helm Values for OAuth Bootstrap
+The platform Helm chart shall expose OAuth bootstrap values:
+
+```yaml
+oauth:
+  google:
+    enabled: false
+    clientId: ""
+    clientSecretRef:              # ExistingSecret reference (preferred)
+      name: ""
+      key: ""
+    clientSecretVaultPath: ""     # Alternative: path in Vault
+    redirectUri: ""
+    allowedDomains: []
+    groupRoleMappings: {}
+    requireMfa: false
+    defaultRole: user
+  github:
+    enabled: false
+    clientId: ""
+    clientSecretRef:
+      name: ""
+      key: ""
+    clientSecretVaultPath: ""
+    redirectUri: ""
+    allowedOrgs: []
+    teamRoleMappings: {}
+    requireMfa: false
+    defaultRole: user
+```
+
+When `clientSecretRef` is set (Kubernetes Secret reference) the installer reads the secret at startup. When `clientSecretVaultPath` is set AND Vault mode is active, the installer references the Vault path directly without copying the secret. At least one of the two must be set per enabled provider.
+
+### FR-643 OAuth Provider Super Admin Configuration Page (Extended)
+The super admin page at `/admin/oauth-providers` (introduced in UPD-036 FR-548, FR-595) shall be extended to expose the full set of configuration options per provider. For each provider the page shall display:
+- Current status: enabled/disabled, last edited by / when, last successful authentication.
+- Client ID (editable).
+- Client secret: write-only input with "Rotate" action; current secret never displayed. Rotation writes a new Vault version and retains history per FR-625.
+- Redirect URI (editable with URL validation).
+- Allowed domains (Google) or allowed orgs (GitHub) — editable list with add/remove.
+- Group/team role mappings — editable table with validation.
+- Require MFA toggle.
+- Default role selector.
+- Source badge indicating how the provider was originally configured: `env_var` (bootstrap), `manual` (via UI), `imported` (via config export/import per FR-572).
+- **Test connectivity** button performing a mock OAuth dry-run against the provider's discovery endpoint, returning success/failure with diagnostic info.
+- **Reseed from environment** button (super admin only) that re-reads the `PLATFORM_OAUTH_*` variables and updates the provider — useful for GitOps flows where env vars change.
+
+### FR-644 OAuth Provider Configuration History
+All changes to OAuth provider configuration shall be stored as an append-only history table with: who changed what, when, and why (change justification required). The admin page shall include a "History" tab showing recent changes with diffs.
+
+### FR-645 OAuth Provider Configuration Export/Import
+OAuth provider configuration shall be included in the configuration export bundle (FR-572) with sensitive fields (client secrets) referenced by Vault path only, never inline. Import of a bundle restores provider configuration minus the secrets, which must be present in Vault at the canonical paths before import succeeds.
+
+### FR-646 OAuth Per-Provider Rate Limiting
+Per-provider rate limits on OAuth flows (authorize redirects, callback exchanges, group fetches) shall be configurable via the admin page: requests per minute per IP, requests per minute per user, global quota per provider. Exceeded limits return HTTP 429 with Retry-After.
+
+### FR-647 OAuth Environment Variable CI Validation
+A CI check shall validate that every `PLATFORM_OAUTH_*` variable referenced in code or documentation is present in the environment variables reference (auto-generated per FR-610). Drift between code and documentation fails the build.
+
+### FR-648 OAuth Bootstrap E2E Coverage
+The new E2E journey **J19 New User Signup** (UPD-037) and the existing **J01 Platform Administrator** journey shall be extended to cover env-var OAuth bootstrap:
+- Install the platform with `PLATFORM_OAUTH_GOOGLE_ENABLED=true` and valid credentials.
+- Verify Google provider exists in the registry on first startup.
+- Verify secret is retrievable from Vault at the canonical path.
+- Verify the login page shows "Continue with Google" button.
+- Verify super admin's `/admin/oauth-providers` page displays the provider with source badge `env_var`.
+- Verify a Google OAuth login flow succeeds end-to-end.
+- Repeat for GitHub.
+
+## 115. User-Facing Notification Center and Self-Service Security
+
+### FR-649 Notification Center Inbox
+The platform shall provide a user-facing notification center at `/notifications` where authenticated users can see all notifications addressed to them (in-app, email, webhook, Slack, Teams, SMS deliveries routed to the user). The inbox shall support: filtering by channel / severity / event type / date range / read state, full-text search, pagination (default 50 per page, configurable up to 200), bulk mark-as-read / delete, individual drill-down to the originating event with links to the related resource (execution, goal, incident, alert, agent). Notifications shall be retained for a configurable period (default 90 days) after which they are archived and purged.
+
+### FR-650 Global Notification Bell
+The platform shell (navigation bar) shall include a `<NotificationBell>` component with: unread count badge updated in real time via WebSocket subscription (UPD-034 correlation channel), quick-preview dropdown showing the 5 most recent notifications with action links, "See all" link to `/notifications`, sound indicator (user-configurable) when a critical notification arrives, visual state (normal / unread / attention) reflecting urgency.
+
+### FR-651 Notification Preferences per User
+Users shall have a preferences page at `/settings/notifications` controlling: which event types they subscribe to, which channels deliver each event type (granular matrix: event × channel), digest mode per channel (immediate / hourly / daily), quiet hours per channel (do-not-disturb window with timezone awareness), per-workspace notification opt-out, mute rules with expiry. Admin-configured mandatory notifications (incidents, security events) cannot be fully disabled but frequency can be reduced to digest.
+
+### FR-652 Self-Service API Keys and Personal Access Tokens
+Authenticated users shall have a page at `/settings/api-keys` where they can: list their own service-account API keys and personal access tokens, create new ones with scope restrictions and expiry (default 90 days, max 1 year configurable per tenant), rotate existing keys, revoke individual keys with immediate effect, view last-used timestamp and source IP (truncated for privacy). The page shall show the created key value exactly once with a prominent copy action and a warning that the value cannot be retrieved later. Key creation requires MFA step-up when MFA is enabled.
+
+### FR-653 MFA Self-Service Enrollment
+Users shall have a page at `/settings/security/mfa` for managing multi-factor authentication: view enrollment status (enrolled / not enrolled / pending), enroll a TOTP authenticator with QR code and secret display, regenerate and view (once) a set of one-time backup/recovery codes, disable MFA with password + current TOTP step-up (blocked when admin policy enforces MFA), switch between TOTP providers. Enrollment events emit audit chain entries. The page shall comply with WCAG AA and be localized in all six supported languages.
+
+### FR-654 User Session Management Self-Service
+Users shall have a page at `/settings/security/sessions` showing their own active sessions with: device type / user-agent summary, IP address geolocation (city-level, privacy-preserving), session creation timestamp, last-active timestamp, MFA status at creation, revoke action per session and "Revoke all other sessions" bulk action. Current session shall be visually distinguished. Revocation takes effect within 60 seconds across all pods.
+
+### FR-655 Consent Management Self-Service
+Users shall have a page at `/settings/privacy/consent` showing: all consents granted (AI disclosure, terms of service version, marketing, analytics, data-sharing with external processors), consent granted-at timestamp and version, consent revocation action per individual consent (with consequences explained — e.g., revoking AI disclosure consent may limit feature availability), consent history. Consent events are written to the audit chain. When a policy change occurs (new terms version), users see a consent-refresh prompt on next login.
+
+### FR-656 Self-Service Data Subject Request Submission
+Users shall have a page at `/settings/privacy/dsr` to submit their own data-subject requests per FR-466 and UPD-023: access (download a ZIP of my data), rectification (request correction), erasure (right to be forgotten with clear explanation of irreversibility), portability (export in machine-readable format), restriction of processing, objection to automated decisions. Submission triggers the same workflow as admin-initiated DSRs, with the subject field pre-filled. Users can view their pending and past requests with status.
+
+### FR-657 Self-Service Security Page Audit Chain Integration
+Every self-service security action (key creation / rotation / revocation, MFA enrollment / disablement, session revocation, consent changes, DSR submission) emits an audit chain entry linked to the user principal. The user shall be able to view their own audit trail at `/settings/security/activity` filtered to their account actions only; admin impersonation events shall be shown to the impersonated user.
+
+## 116. Workspace Owner Workbench and Connector Self-Service
+
+### FR-658 Workspace Owner Dashboard
+The platform shall provide a workspace owner dashboard at `/workspaces/{id}` accessible to users with `workspace_owner` or `workspace_admin` role on that workspace. The dashboard shall display: workspace health summary (active goals, executions in flight, agent count, member count), budget consumption gauge with forecast (reusing UPD-027 cost primitives scoped to this workspace), quota usage per resource (agents, fleets, executions, storage), tag/label summary, recent audit activity scoped to the workspace, DLP violations count (if FR-469 is enabled for the workspace). All metrics respect workspace visibility rules (per FR-002) and the owner cannot see resources shared from outside their workspace.
+
+### FR-659 Workspace Members Management
+The workspace owner dashboard shall include a members page at `/workspaces/{id}/members` where the owner can: invite new members by email or by selecting existing platform users, assign workspace roles (owner, admin, member, viewer), remove members, configure per-member visibility overrides, view each member's recent activity, transfer ownership to another member (with 2PA confirmation per FR-561). Member changes emit audit chain entries.
+
+### FR-660 Workspace Settings Page
+The workspace owner dashboard shall include a settings page at `/workspaces/{id}/settings` where the owner can configure: workspace name, description, region residency (FR-468), visibility defaults (zero-trust or explicit grants), tag restrictions, archival policy, data retention policy per resource type, per-workspace DLP rules activation, per-workspace budget and hard caps (FR-503). Destructive actions (archive, delete, region change) use typed confirmation per FR-577 and emit audit chain entries.
+
+### FR-661 Workspace-Owned Connectors
+Workspace owners shall be able to configure connectors (Slack, Telegram, Email, Webhook) scoped to their workspace at `/workspaces/{id}/connectors`. The platform shall clearly distinguish: **platform-owned connectors** (configured by super admin in `/admin/connectors`, shared across tenants) and **workspace-owned connectors** (configured by workspace owner, scoped to the workspace only). Agents in the workspace can use either based on policy. Workspace-owned connector credentials are stored in Vault at `secret/data/musematic/{env}/workspaces/{workspace_id}/connectors/{connector_id}`.
+
+### FR-662 Connector Setup Wizards
+Each connector type shall have a dedicated setup wizard guiding the workspace owner through: (1) prerequisites check (e.g., Slack app created in Slack workspace, Telegram bot created via BotFather, webhook URL chosen); (2) credential entry with inline validation; (3) test connectivity action that attempts a real connection without sending user-visible messages; (4) scope configuration (which agents / fleets can use the connector, which events trigger outbound messages); (5) activation. Setup wizards are localized in all six supported languages.
+
+### FR-663 Connector Activity and Diagnostics
+The connectors page shall show per-connector activity logs: recent deliveries (success / failure counts 24h / 7d), failed deliveries with error detail and retry action, DLQ inspection for the webhook connector, audit trail of configuration changes. Rotation of connector credentials follows the same dual-credential window pattern as UPD-024 secret rotation.
+
+### FR-664 IBOR Connector Management for Admins
+The admin workbench (UPD-036 `/admin/ibor`) shall be extended with a full-featured configuration UI for LDAP, OIDC, and SCIM connectors. Each connector form shall support: connection test with diagnostics (DNS resolution, TLS handshake, bind/auth attempt, sample query), mapping wizard from external attributes to platform user fields (email, name, groups, custom claims), sync schedule configuration (cron expression with validation), sync trigger with real-time progress, sync history with per-sync metrics (users added / updated / deactivated, errors, duration), error detail drill-down. IBOR connector secrets are stored in Vault at `secret/data/musematic/{env}/ibor/{connector_id}/credentials`.
+
+### FR-665 Workspace Visibility Explorer
+The workspace owner dashboard shall include a visibility explorer at `/workspaces/{id}/visibility` showing: graph of what the workspace's agents can see (other agents, tools, workspaces), grants received from other workspaces, grants given to other workspaces, visibility audit log. The explorer supports filtering and search. This surfaces the zero-trust visibility model (FR-002) in a comprehensible way.
+
+### FR-666 Workspace Owner Workbench E2E Coverage
+A new E2E journey **J20 Workspace Owner** shall exercise the owner workbench end-to-end: invite a member, configure a workspace-owned Slack connector, test connectivity, set a budget with hard cap, adjust quota, archive a no-longer-needed goal, review visibility grants, transfer ownership with 2PA. Journey crosses workspaces, notifications, connectors, auth, policies, cost_governance, audit bounded contexts with 20+ assertion points.
+
+## 117. Creator-Side UIs — Context Engineering and Agent Contracts
+
+### FR-667 Context Engineering Profile Editor
+The creator workbench shall include a context engineering profile editor at `/agent-management/{fqn}/context-profile` where authorized users can: create a new profile, edit profile sources (list of data sources the agent can pull from — memory, knowledge graph, execution history, tool outputs, external APIs), configure retrieval strategies (semantic similarity with Qdrant, graph traversal with Neo4j, FTS with OpenSearch, hybrid), set reranking rules, define context budget (max tokens, max documents), configure provenance tagging, test with sample queries showing which sources contributed. The editor shall validate against the platform's context profile JSON schema before save.
+
+### FR-668 Context Profile Provenance Viewer
+The profile editor shall include a provenance viewer showing, for a test query or past execution: which sources returned results, their relevance scores, whether they were included in the final context, their provenance tags, sensitivity classifications (PII, PHI, financial per UPD-023). The viewer links each source to its origin (memory entry, graph node, execution trace) for deep inspection.
+
+### FR-669 Context Profile Version Management
+Context profiles shall be versioned. The editor shall show version history with diffs, support rollback to a previous version, and allow comparing two versions side-by-side. When an agent's revision is promoted, its context profile version is pinned to that revision for reproducibility.
+
+### FR-670 Agent Contract Authoring Page
+The creator workbench shall include a contract authoring page at `/agent-management/{fqn}/contract` where authorized users can: create a contract with scope (tools allowed, resources allowed, budget limits), expected outputs (schema, quality thresholds), behavioral constraints (forbidden actions, required approvals), escalation rules (when to request human attention, per FR-432 and UPD-009), and failure modes (what the agent does on contract violation). The editor shall support both YAML and JSON syntax, live schema validation, and auto-completion.
+
+### FR-671 Contract Preview and Test
+The contract page shall include a preview step that simulates a sample execution against the contract, showing: which contract clauses were triggered, which were satisfied, which were violated, and the resulting action (continue / warn / throttle / escalate / terminate). Users can run preview with saved sample inputs or provide ad-hoc inputs. Previews are non-destructive (no real LLM calls unless explicitly enabled) using the mock LLM provider (FR-458).
+
+### FR-672 Contract Library and Templates
+The contract page shall offer a library of starter templates (e.g., "Customer support agent contract", "Code review agent contract", "Research agent contract") authored by the platform team and trusted creators. Templates are forkable; users start from a template and adjust. Templates are versioned independently and can be updated centrally with notification to users who forked from them.
+
+### FR-673 Contract Attachment and Enforcement
+Contracts attached to agents or fleets shall be enforced at runtime per FR-420 (contract monitor). The creator page shall show, for an attached contract: its enforcement status (enforced / advisory / disabled), its attachment scope (per agent revision, per workspace, platform-wide), and a link to observe recent enforcement events in the governance dashboard (D21 from UPD-034).
+
+### FR-674 Creator-Side UI E2E Coverage
+The J02 Creator journey (UPD-022, extended in UPD-035, UPD-036, UPD-037) shall be further extended to cover context engineering profile creation and contract authoring as part of the publication flow. A creator must successfully: author a profile, test it, attach it to the agent revision, author a contract, preview it, attach it, and proceed to certification. Journey assertion points increase to at least 25 for the full Creator flow.
+
+## 118. Public Status Page, Maintenance Banner, and User-Visible Platform State
+
+### FR-675 Public Platform Status Page
+The platform shall publish a public status page at `status.musematic.ai` (or `{env}.status.musematic.ai` for non-production) showing: current overall platform status (operational / degraded / partial outage / full outage), per-component status (API, WebSocket, workflow execution, reasoning engine, marketplace, observability, Vault), active incidents with last update timestamp, scheduled maintenance windows, recent resolved incidents (7-day history), historical uptime per component (30-day rolling view), subscribe-to-updates via email / RSS / webhook / Atom. The page is static (generated from health endpoints via a scheduled job) and does not require login.
+
+### FR-676 Platform Status Banner for Logged-In Users
+The main application shell shall include a `<PlatformStatusBanner>` component that renders at the top of every authenticated page when platform state is anything other than operational. Banner variants: maintenance window scheduled (info), maintenance in progress (warning with blocking indicator on affected features), incident active (warning or critical per severity), degraded performance (info). Banner shows a concise title, link to the incident detail on the status page, optional ETA, and a dismiss-for-this-session action that re-surfaces on next navigation. Severity determines color and prominence per accessibility best practices (not color alone).
+
+### FR-677 Maintenance-Mode User Experience
+When maintenance mode (FR-502) is active, the UI shall NOT show generic errors. Instead: the status banner shows maintenance in progress, affected actions are disabled with clear tooltips ("This action will be available again after the maintenance window ends at HH:MM"), read-only operations remain functional, attempts to submit blocked actions show a graceful modal explaining the state and offering to retry later. The user is never left to guess what happened.
+
+### FR-678 Incident Subscription Management
+Users and anonymous visitors to the public status page shall be able to subscribe to platform-level status updates via: email subscription (confirm-opt-in), RSS / Atom feed URLs, outbound webhook for integration with their own monitoring, Slack incoming webhook URL. Subscriptions can be limited to specific components (e.g., only API status). Management UI for authenticated users lives at `/settings/status-subscriptions`.
+
+### FR-679 Simulation Scenario Editor
+The evaluation and testing workbench shall include a simulation scenario editor at `/evaluation-testing/simulations/scenarios/{id}` where authorized users can: define scenario parameters (agents involved, workflow template, tool mock set, input distributions), configure digital twin fidelity (which subsystems are mocked, which are real), set success criteria and assertions, schedule runs. The editor complements the existing simulation pages (new / compare / [runId]) with a missing creation surface for reusable scenarios.
+
+### FR-680 Digital Twin Visualization
+The simulation detail page (`/evaluation-testing/simulations/[runId]`) shall be extended with a digital twin visualization panel showing: which components ran as mocks vs real, divergence points between simulation and production, simulated time vs wall-clock time, trace comparison to a reference production execution if available. This surfaces the digital twin concept (§14 in system architecture) for operators and creators.
+
+### FR-681 Scientific Discovery Session Detail
+The scientific discovery workbench (`/discovery/`) shall be extended with: a session detail page at `/discovery/{session_id}` beyond the network view (currently the only page), a hypothesis library browser at `/discovery/{session_id}/hypotheses` with ranking and filtering, an experiment launcher at `/discovery/{session_id}/experiments/new` to propose and run an experiment testing a hypothesis, an evidence inspector at `/discovery/{session_id}/evidence/{evidence_id}` for deep-inspection of supporting data. These complete the discovery workbench surface that today is limited to a single network view.
+
+### FR-682 Status Page and Platform State E2E Coverage
+A new E2E journey **J21 Platform State** shall exercise the visibility layer: trigger a synthetic incident, verify public status page reflects it within 60 seconds, verify logged-in users see the banner, verify subscribed user receives email notification, verify RSS feed contains the entry, resolve the incident, verify all surfaces update. The simulation scenario editor and discovery session detail are covered by extensions to J07 Evaluator and J09 Scientific Discovery journeys respectively.
 
 ## 71. Final Comprehensive Acceptance Criteria
 

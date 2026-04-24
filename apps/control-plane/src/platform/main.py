@@ -6,6 +6,8 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from fnmatch import fnmatch
+from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as package_version
 from platform.a2a_gateway.events import (
     A2AEventPayload,
     A2AEventPublisher,
@@ -39,6 +41,7 @@ from platform.auth.repository import AuthRepository
 from platform.auth.router import router as auth_router
 from platform.auth.router_oauth import oauth_router
 from platform.common import database
+from platform.common.api_versioning.registry import clear_markers, mark_deprecated
 from platform.common.auth_middleware import AuthMiddleware
 from platform.common.clients.clickhouse import AsyncClickHouseClient
 from platform.common.clients.neo4j import AsyncNeo4jClient
@@ -53,11 +56,17 @@ from platform.common.clients.simulation_controller import SimulationControllerCl
 from platform.common.config import PlatformSettings
 from platform.common.config import settings as default_settings
 from platform.common.correlation import CorrelationMiddleware
+from platform.common.debug_logging.capture import DebugCaptureMiddleware
+from platform.common.debug_logging.events import register_debug_logging_event_types
+from platform.common.debug_logging.router import router as debug_logging_router
+from platform.common.debug_logging.service import purge_debug_captures
 from platform.common.dependencies import get_current_user
 from platform.common.events.consumer import EventConsumerManager
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import PlatformError, platform_exception_handler
+from platform.common.middleware.api_versioning_middleware import ApiVersioningMiddleware
+from platform.common.middleware.rate_limit_middleware import RateLimitMiddleware
 from platform.common.telemetry import setup_telemetry
 from platform.composition.events import register_composition_event_types
 from platform.composition.router import router as composition_router
@@ -180,10 +189,175 @@ from typing import Any, cast
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, FastAPI
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import Response
+from fastapi.routing import APIRoute
 from starlette.requests import Request
 
 LOGGER = logging.getLogger(__name__)
+
+OPENAPI_PUBLIC_PATHS: frozenset[str] = frozenset(
+    {
+        "/health",
+        "/healthz",
+        "/api/v1/healthz",
+        "/api/openapi.json",
+        "/api/docs",
+        "/api/redoc",
+        "/openapi.json",
+        "/docs",
+        "/redoc",
+        "/api/v1/accounts/register",
+        "/api/v1/accounts/verify-email",
+        "/api/v1/accounts/resend-verification",
+        "/api/v1/accounts/invitations/{token}",
+        "/api/v1/accounts/invitations/{token}/accept",
+        "/api/v1/auth/login",
+        "/api/v1/auth/refresh",
+        "/api/v1/auth/mfa/verify",
+        "/api/v1/auth/oauth/providers",
+        "/api/v1/auth/oauth/{provider}/authorize",
+        "/api/v1/auth/oauth/{provider}/callback",
+        "/.well-known/agent.json",
+    }
+)
+
+DEFAULT_OPENAPI_SECURITY: tuple[dict[str, list[str]], ...] = (
+    {"session": []},
+    {"oauth2": []},
+    {"apiKey": []},
+)
+
+
+def _platform_release_version() -> str:
+    try:
+        return package_version("musematic-control-plane")
+    except PackageNotFoundError:
+        return "0.1.0"
+
+
+def _dedupe_tags(tags: list[str]) -> list[str]:
+    return list(dict.fromkeys(tag for tag in tags if tag))
+
+
+def _infer_openapi_tags(path: str) -> list[str]:
+    if path in {"/health", "/healthz", "/api/v1/healthz"}:
+        return ["health"]
+    if path == "/api/v1/protected":
+        return ["auth"]
+    if path == "/.well-known/agent.json" or path.startswith("/api/v1/a2a/"):
+        return ["a2a-gateway"]
+    if path.startswith("/api/v1/mcp/protocol/"):
+        return ["mcp"]
+    if path.startswith("/api/v1/admin/"):
+        segments = [segment for segment in path.split("/") if segment]
+        if len(segments) >= 4:
+            return ["admin", segments[3]]
+        return ["admin"]
+    segments = [segment for segment in path.split("/") if segment]
+    if len(segments) >= 3 and segments[0] == "api" and segments[1] == "v1":
+        tag_map = {"me": "notifications"}
+        return [tag_map.get(segments[2], segments[2])]
+    return ["platform"]
+
+
+def _is_public_openapi_operation(path: str) -> bool:
+    return path in OPENAPI_PUBLIC_PATHS
+
+
+def _openapi_security_requirement() -> list[dict[str, list[str]]]:
+    return [dict(requirement) for requirement in DEFAULT_OPENAPI_SECURITY]
+
+
+def _register_deprecated_routes(app: FastAPI) -> None:
+    clear_markers()
+    for route in app.routes:
+        if not isinstance(route, APIRoute):
+            continue
+        marker = getattr(route.endpoint, "__deprecated_marker__", None)
+        if marker is None:
+            continue
+        sunset, successor = marker
+        mark_deprecated(route.unique_id, sunset=sunset, successor=successor)
+        route.deprecated = True
+
+
+def _install_openapi_factory(app: FastAPI) -> None:
+    def _custom_openapi() -> dict[str, Any]:
+        if app.openapi_schema is not None:
+            return app.openapi_schema
+
+        schema = get_openapi(
+            title=app.title,
+            version=app.version,
+            openapi_version=app.openapi_version,
+            description=app.description,
+            routes=app.routes,
+            summary=app.summary,
+        )
+        info = schema.setdefault("info", {})
+        info.setdefault(
+            "contact",
+            {
+                "name": "musematic platform",
+                "email": "platform@musematic.ai",
+            },
+        )
+        components = schema.setdefault("components", {})
+        security_schemes = components.setdefault("securitySchemes", {})
+        security_schemes.setdefault(
+            "session",
+            {
+                "type": "apiKey",
+                "in": "cookie",
+                "name": "session",
+                "description": "Session cookie returned after interactive authentication.",
+            },
+        )
+        security_schemes.setdefault(
+            "oauth2",
+            {
+                "type": "oauth2",
+                "description": (
+                    "OAuth2 login via configured providers. Start the flow from "
+                    "/api/v1/auth/oauth/{provider}/authorize."
+                ),
+                "flows": {
+                    "authorizationCode": {
+                        "authorizationUrl": app.state.settings.auth.oauth_google_authorize_url,
+                        "tokenUrl": app.state.settings.auth.oauth_google_token_url,
+                        "scopes": {},
+                    }
+                },
+            },
+        )
+        security_schemes.setdefault(
+            "apiKey",
+            {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-API-Key",
+                "description": "Service-account API key.",
+            },
+        )
+
+        for path, methods in schema.get("paths", {}).items():
+            if not isinstance(methods, dict):
+                continue
+            for method, operation in methods.items():
+                if method.startswith("x-") or not isinstance(operation, dict):
+                    continue
+                tags = list(operation.get("tags") or _infer_openapi_tags(path))
+                if path.startswith("/api/v1/admin/") and "admin" not in tags:
+                    tags.insert(0, "admin")
+                operation["tags"] = _dedupe_tags(tags)
+                if not _is_public_openapi_operation(path) and not operation.get("security"):
+                    operation["security"] = _openapi_security_requirement()
+
+        app.openapi_schema = schema
+        return schema
+
+    app.openapi = _custom_openapi  # type: ignore[method-assign]
 
 
 def _build_clients(settings: PlatformSettings) -> dict[str, Any]:
@@ -233,6 +407,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_governance_event_types()
     register_a2a_event_types()
     register_mcp_event_types()
+    register_debug_logging_event_types()
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -393,6 +568,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         None,
     )
     checkpoint_gc_scheduler = getattr(app.state, "checkpoint_gc_scheduler", None)
+    debug_logging_capture_gc_scheduler = getattr(
+        app.state,
+        "debug_logging_capture_gc_scheduler",
+        None,
+    )
     a2a_idle_timeout_scheduler = getattr(app.state, "a2a_idle_timeout_scheduler", None)
     mcp_catalog_refresh_scheduler = getattr(app.state, "mcp_catalog_refresh_scheduler", None)
     ibor_sync_scheduler = getattr(app.state, "ibor_sync_scheduler", None)
@@ -462,6 +642,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["checkpoint_gc_scheduler"] = str(exc)
             LOGGER.warning("Failed to start checkpoint GC scheduler: %s", exc)
+    if debug_logging_capture_gc_scheduler is not None:
+        try:
+            debug_logging_capture_gc_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["debug_logging_capture_gc_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start debug logging capture GC scheduler: %s", exc)
     if a2a_idle_timeout_scheduler is not None:
         try:
             a2a_idle_timeout_scheduler.start()
@@ -566,6 +753,14 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                 checkpoint_gc_scheduler.shutdown(wait=False)
             except Exception as exc:
                 LOGGER.warning("Failed to stop checkpoint GC scheduler cleanly: %s", exc)
+        if debug_logging_capture_gc_scheduler is not None:
+            try:
+                debug_logging_capture_gc_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning(
+                    "Failed to stop debug logging capture GC scheduler cleanly: %s",
+                    exc,
+                )
         if a2a_idle_timeout_scheduler is not None:
             try:
                 a2a_idle_timeout_scheduler.shutdown(wait=False)
@@ -716,7 +911,18 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
 
     database.configure_database(resolved)
 
-    app = FastAPI(lifespan=_lifespan)
+    app = FastAPI(
+        lifespan=_lifespan,
+        title="musematic Control Plane API",
+        version=_platform_release_version(),
+        openapi_url="/api/openapi.json",
+        docs_url="/api/docs",
+        redoc_url="/api/redoc",
+        contact={
+            "name": "musematic platform",
+            "email": "platform@musematic.ai",
+        },
+    )
     app.state.settings = resolved
     app.state.clients = _build_clients(resolved)
     app.state.analytics_repository = AnalyticsRepository(
@@ -745,6 +951,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.trust_certifier_scheduler = None
     app.state.governance_retention_gc_scheduler = None
     app.state.checkpoint_gc_scheduler = None
+    app.state.debug_logging_capture_gc_scheduler = None
     app.state.a2a_idle_timeout_scheduler = None
     app.state.mcp_catalog_refresh_scheduler = None
     if resolved.profile == "api":
@@ -779,6 +986,9 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.goal_auto_completion_scheduler = _build_goal_auto_completion_scheduler(app)
         app.state.governance_retention_gc_scheduler = _build_governance_retention_gc_scheduler(app)
         app.state.checkpoint_gc_scheduler = _build_checkpoint_gc_scheduler(app)
+        app.state.debug_logging_capture_gc_scheduler = _build_debug_logging_capture_gc_scheduler(
+            app
+        )
         app.state.a2a_idle_timeout_scheduler = _build_a2a_idle_timeout_scheduler(app)
         app.state.mcp_catalog_refresh_scheduler = _build_mcp_catalog_refresh_scheduler(app)
     if resolved.profile == "agentops":
@@ -798,6 +1008,9 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.goal_auto_completion_scheduler = _build_goal_auto_completion_scheduler(app)
         app.state.governance_retention_gc_scheduler = _build_governance_retention_gc_scheduler(app)
         app.state.checkpoint_gc_scheduler = _build_checkpoint_gc_scheduler(app)
+        app.state.debug_logging_capture_gc_scheduler = _build_debug_logging_capture_gc_scheduler(
+            app
+        )
         app.state.a2a_idle_timeout_scheduler = _build_a2a_idle_timeout_scheduler(app)
         app.state.mcp_catalog_refresh_scheduler = _build_mcp_catalog_refresh_scheduler(app)
     exception_handler = cast(
@@ -805,6 +1018,9 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         platform_exception_handler,
     )
     app.add_exception_handler(PlatformError, exception_handler)
+    app.add_middleware(ApiVersioningMiddleware)
+    app.add_middleware(DebugCaptureMiddleware)
+    app.add_middleware(RateLimitMiddleware)
     app.add_middleware(AuthMiddleware)
     app.add_middleware(CorrelationMiddleware)
     app.include_router(health_router)
@@ -964,7 +1180,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
 
     api_router = APIRouter(prefix="/api/v1")
 
-    @api_router.get("/protected")
+    @api_router.get("/protected", tags=["auth"])
     async def protected_endpoint(
         current_user: dict[str, Any] = Depends(get_current_user),
     ) -> dict[str, Any]:
@@ -976,6 +1192,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(oauth_router)
         app.include_router(a2a_gateway_router)
         app.include_router(mcp_router)
+        app.include_router(debug_logging_router)
         app.include_router(accounts_router)
         app.include_router(workspaces_router)
         app.include_router(analytics_router)
@@ -1003,6 +1220,9 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(composition_router)
         app.include_router(discovery_router)
         app.include_router(simulation_router)
+
+    _register_deprecated_routes(app)
+    _install_openapi_factory(app)
 
     setup_telemetry(
         service_name=f"{resolved.otel.service_name}-{resolved.profile}",
@@ -1233,9 +1453,7 @@ async def _run_checkpoint_gc(app: FastAPI) -> None:
             producer=cast(EventProducer | None, app.state.clients.get("kafka")),
         )
         try:
-            await checkpoint_service.gc_expired(
-                app.state.settings.checkpoint_retention_days
-            )
+            await checkpoint_service.gc_expired(app.state.settings.checkpoint_retention_days)
             await session.commit()
         except Exception:
             await session.rollback()
@@ -1261,6 +1479,39 @@ def _build_checkpoint_gc_scheduler(app: FastAPI) -> Any | None:
         "interval",
         hours=24,
         id="execution-checkpoint-gc",
+    )
+    return scheduler
+
+
+async def _run_debug_logging_capture_gc(app: FastAPI) -> None:
+    await purge_debug_captures(
+        session_factory=database.AsyncSessionLocal,
+        redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+        settings=cast(PlatformSettings, app.state.settings),
+        producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+    )
+
+
+def _build_debug_logging_capture_gc_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run() -> None:
+        await _run_debug_logging_capture_gc(app)
+
+    scheduler.add_job(
+        _run,
+        "cron",
+        hour=2,
+        minute=0,
+        id="debug-logging-capture-gc",
     )
     return scheduler
 

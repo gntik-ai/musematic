@@ -166,7 +166,11 @@ async def oauth_callback(
     return response
 
 
-@oauth_router.get("/api/v1/admin/oauth/providers", response_model=OAuthProviderAdminListResponse)
+@oauth_router.get(
+    "/api/v1/admin/oauth/providers",
+    response_model=OAuthProviderAdminListResponse,
+    tags=["admin"],
+)
 async def list_admin_oauth_providers(
     current_user: dict[str, Any] = Depends(get_current_user),
     oauth_service: OAuthService = Depends(get_oauth_service),
@@ -178,6 +182,7 @@ async def list_admin_oauth_providers(
 @oauth_router.put(
     "/api/v1/admin/oauth/providers/{provider}",
     response_model=OAuthProviderAdminResponse,
+    tags=["admin"],
 )
 async def upsert_oauth_provider(
     provider: str,
@@ -210,6 +215,7 @@ async def upsert_oauth_provider(
 @oauth_router.get(
     "/api/v1/admin/oauth/audit",
     response_model=OAuthAuditEntryListResponse,
+    tags=["admin"],
 )
 async def list_oauth_audit_entries(
     provider_type: str | None = Query(default=None),

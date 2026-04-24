@@ -1,0 +1,47 @@
+extends:
+  - spectral:oas
+
+rules:
+  musematic-operation-tags:
+    description: Every OpenAPI operation must declare at least one tag.
+    message: Operation is missing tags.
+    severity: error
+    given: $.paths[*][get,put,post,delete,options,head,patch,trace]
+    then:
+      field: tags
+      function: truthy
+
+  musematic-operation-security:
+    description: Every non-public operation must declare a non-empty security requirement.
+    message: Non-public operation must declare security.
+    severity: error
+    given: >-
+      $.paths[?(@property != "/health" && @property != "/healthz" && @property != "/api/v1/healthz" && @property != "/api/openapi.json" && @property != "/api/docs" && @property != "/api/redoc" && @property != "/openapi.json" && @property != "/docs" && @property != "/redoc" && @property != "/api/v1/accounts/register" && @property != "/api/v1/accounts/verify-email" && @property != "/api/v1/accounts/resend-verification" && @property != "/api/v1/accounts/invitations/{token}" && @property != "/api/v1/accounts/invitations/{token}/accept" && @property != "/api/v1/auth/login" && @property != "/api/v1/auth/refresh" && @property != "/api/v1/auth/mfa/verify" && @property != "/api/v1/auth/oauth/providers" && @property != "/api/v1/auth/oauth/{provider}/authorize" && @property != "/api/v1/auth/oauth/{provider}/callback" && @property != "/.well-known/agent.json")][get,put,post,delete,options,head,patch,trace]
+    then:
+      field: security
+      function: truthy
+
+  musematic-admin-tag:
+    description: Admin operations must carry the admin tag.
+    message: Admin operation is missing the admin tag.
+    severity: error
+    given: $.paths[?(@property.match(/^\/api\/v1\/admin\//))][get,put,post,delete,options,head,patch,trace]
+    then:
+      field: tags
+      function: schema
+      functionOptions:
+        schema:
+          type: array
+          contains:
+            const: admin
+
+  musematic-deprecated-sunset:
+    description: Deprecated operations must mention a sunset date in the description.
+    message: Deprecated operation description must mention sunset date.
+    severity: error
+    given: $.paths[*][get,put,post,delete,options,head,patch,trace][?(@.deprecated == true)]
+    then:
+      field: description
+      function: pattern
+      functionOptions:
+        match: (?i)sunset\s+(on|date)\s+\d{4}-\d{2}-\d{2}

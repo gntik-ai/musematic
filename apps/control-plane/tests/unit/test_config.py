@@ -100,3 +100,21 @@ def test_platform_settings_reads_e2e_mode_from_flat_environment(monkeypatch) -> 
     settings = PlatformSettings()
 
     assert settings.feature_e2e_mode is True
+
+
+def test_platform_settings_reads_api_governance_overrides(monkeypatch) -> None:
+    monkeypatch.setenv("FEATURE_API_RATE_LIMITING", "false")
+    monkeypatch.setenv("FEATURE_API_RATE_LIMITING_FAIL_OPEN", "true")
+    monkeypatch.setenv("API_TIER_CACHE_TTL_SECONDS", "120")
+    monkeypatch.setenv("API_PRINCIPAL_CACHE_TTL_SECONDS", "30")
+    monkeypatch.setenv("API_ANONYMOUS_TIER_NAME", "public")
+    monkeypatch.setenv("API_DEFAULT_TIER_NAME", "starter")
+
+    settings = PlatformSettings()
+
+    assert settings.api_governance.rate_limiting_enabled is False
+    assert settings.api_governance.rate_limiting_fail_open is True
+    assert settings.api_governance.tier_cache_ttl_seconds == 120
+    assert settings.api_governance.principal_cache_ttl_seconds == 30
+    assert settings.api_governance.anonymous_tier_name == "public"
+    assert settings.api_governance.default_tier_name == "starter"

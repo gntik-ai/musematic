@@ -1,6 +1,6 @@
 # musematic Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-21
+Auto-generated from all feature plans. Last updated: 2026-04-23
 
 ## Active Technologies
 - Python 3.12+ (control plane client), Go 1.22+ (reasoning engine client) + `redis-py 5.x` (Python async), `go-redis/redis/v9` (Go), Bitnami `redis-cluster` Helm chart (002-redis-cache-hot-state)
@@ -118,6 +118,7 @@ Auto-generated from all feature plans. Last updated: 2026-04-21
 - None directly owned — the harness orchestrates existing data stores (PostgreSQL via CloudNativePG chart dependency, Redis, Kafka/Strimzi, MinIO, Qdrant, Neo4j, ClickHouse, OpenSearch) installed by the existing platform Helm chart (056-ibor-integration-and)
 - Python 3.12+ (test harness only); YAML (Helm values additions for mock OAuth servers + CI workflow extensions); Bash (Makefile additions) + pytest 8.x (already in feature 071 harness), pytest-asyncio, pytest-html, pytest-timeout, pytest-xdist (NEW — parallel journey execution for SC-005), httpx 0.27+, websockets, aiokafka 0.11+, asyncpg — all reused from feature 071's `tests/e2e/pyproject.toml`. No new runtime dependencies on the control plane. (056-ibor-integration-and)
 - None directly owned — journey tests assert against existing platform data stores (PostgreSQL, Redis, Kafka, MinIO, ClickHouse) via feature 071's `db`, `kafka_consumer`, and `http_client` fixtures. (056-ibor-integration-and)
+- Python 3.12+ (control plane); Go, TypeScript, Rust (056-ibor-integration-and)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -137,9 +138,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 056-ibor-integration-and: Added Python 3.12+ (control plane); Go, TypeScript, Rust
 - 056-ibor-integration-and: Added Python 3.12+ (test harness only); YAML (Helm values additions for mock OAuth servers + CI workflow extensions); Bash (Makefile additions) + pytest 8.x (already in feature 071 harness), pytest-asyncio, pytest-html, pytest-timeout, pytest-xdist (NEW — parallel journey execution for SC-005), httpx 0.27+, websockets, aiokafka 0.11+, asyncpg — all reused from feature 071's `tests/e2e/pyproject.toml`. No new runtime dependencies on the control plane.
 - 056-ibor-integration-and: Added Python 3.12+ (test harness + platform dev-only endpoints); YAML (Helm overlay + kind-config + GitHub Actions); Bash (Makefile + image-load scripts) + kind ≥ 0.23, kubectl ≥ 1.28, helm ≥ 3.14, Docker ≥ 24 (host prerequisites); pytest 8.x, pytest-asyncio, pytest-html, pytest-timeout, httpx 0.27+, websockets, aiokafka 0.11+, asyncpg (direct DB assertion path distinct from SQLAlchemy), python-on-whales (optional, for container inspection); existing Helm chart at `deploy/helm/platform/` — no fork
-- 056-ibor-integration-and: Added TypeScript 5.x (strict), React 18+ + Next.js 14+ App Router, shadcn/ui (ALL UI primitives), Tailwind CSS 3.4+, TanStack Query v5, Zustand 5.x, React Hook Form 7.x + Zod 3.x, Recharts 2.x, date-fns 4.x, Lucide React — all already in `apps/web/package.json`; **no new packages**
 
 
 <!-- MANUAL ADDITIONS START -->
