@@ -626,13 +626,16 @@ jobs:
           cache-dependency-path: apps/control-plane/pyproject.toml
 
       - name: Install scanner
-        run: python -m pip install --upgrade pip pip-audit
+        run: python -m pip install --upgrade "pip>=26.0.1" pip-audit
 
       - name: Run pip-audit
         run: |
           mkdir -p scan-results
-          python -m pip install -e ./apps/control-plane || true
-          pip-audit -f json -o scan-results/pip-audit.json || true
+          pip-audit ./apps/control-plane \
+            --cache-dir "${RUNNER_TEMP}/pip-audit-cache" \
+            --progress-spinner off \
+            -f json \
+            -o scan-results/pip-audit.json || true
           test -s scan-results/pip-audit.json || echo '{"dependencies":[]}' > scan-results/pip-audit.json
 
       - name: Upload scan artifact
