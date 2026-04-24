@@ -16,16 +16,19 @@ from redis.asyncio.cluster import RedisCluster
 from redis.exceptions import RedisError
 
 
-def _resolve_lua_dir() -> Path:
+def _resolve_lua_dirs() -> tuple[Path, ...]:
     current = Path(__file__).resolve()
+    candidates: list[Path] = []
     for parent in current.parents:
         candidate = parent / "lua"
-        if candidate.is_dir():
-            return candidate
-    raise RuntimeError(f"unable to locate lua directory from {current}")
+        if candidate.is_dir() and candidate not in candidates:
+            candidates.append(candidate)
+    if candidates:
+        return tuple(candidates)
+    raise RuntimeError(f"unable to locate lua directories from {current}")
 
 
-LUA_DIR = _resolve_lua_dir()
+LUA_DIRS = _resolve_lua_dirs()
 
 
 @dataclass(slots=True)
@@ -49,6 +52,15 @@ class BudgetResult:
 class RateLimitResult:
     allowed: bool
     remaining: int
+    retry_after_ms: int
+
+
+@dataclass(slots=True)
+class MultiWindowRateLimitResult:
+    allowed: bool
+    remaining_minute: int
+    remaining_hour: int
+    remaining_day: int
     retry_after_ms: int
 
 
@@ -112,6 +124,7 @@ class AsyncRedisClient:
             for script_name in (
                 "budget_decrement.lua",
                 "rate_limit_check.lua",
+                "rate_limit_multi_window.lua",
                 "lock_acquire.lua",
                 "lock_release.lua",
             ):
@@ -156,6 +169,11 @@ class AsyncRedisClient:
     async def delete(self, key: str) -> None:
         client = await self._get_client()
         await client.delete(key)
+
+    async def pttl(self, key: str) -> int:
+        client = await self._get_client()
+        ttl_ms = await client.pttl(key)
+        return int(ttl_ms) if ttl_ms is not None else -1
 
     async def hgetall(self, key: str) -> dict[Any, Any]:
         client = await self._get_client()
@@ -273,6 +291,40 @@ class AsyncRedisClient:
             allowed=bool(int(result[0])),
             remaining=int(result[1]),
             retry_after_ms=int(result[2]),
+        )
+
+    async def check_multi_window_rate_limit(
+        self,
+        principal_kind: str,
+        principal_key: str,
+        requests_per_minute: int,
+        requests_per_hour: int,
+        requests_per_day: int,
+        *,
+        minute_ttl_seconds: int = 60,
+        hour_ttl_seconds: int = 3600,
+        day_ttl_seconds: int = 86400,
+    ) -> MultiWindowRateLimitResult:
+        client = await self._get_client()
+        result = await self._eval_script(
+            client,
+            "rate_limit_multi_window.lua",
+            list(self._multi_window_rate_limit_keys(principal_kind, principal_key)),
+            [
+                requests_per_minute,
+                requests_per_hour,
+                requests_per_day,
+                minute_ttl_seconds,
+                hour_ttl_seconds,
+                day_ttl_seconds,
+            ],
+        )
+        return MultiWindowRateLimitResult(
+            allowed=bool(int(result[0])),
+            remaining_minute=int(result[1]),
+            remaining_hour=int(result[2]),
+            remaining_day=int(result[3]),
+            retry_after_ms=int(result[4]),
         )
 
     async def acquire_lock(self, resource: str, id: str, ttl_seconds: int = 10) -> LockResult:
@@ -395,7 +447,12 @@ class AsyncRedisClient:
         return sha
 
     def _script_source(self, script_name: str) -> str:
-        return (LUA_DIR / script_name).read_text(encoding="utf-8")
+        for lua_dir in LUA_DIRS:
+            candidate = lua_dir / script_name
+            if candidate.is_file():
+                return candidate.read_text(encoding="utf-8")
+        search_path = ", ".join(str(lua_dir) for lua_dir in LUA_DIRS)
+        raise FileNotFoundError(f"unable to locate {script_name} in {search_path}")
 
     @staticmethod
     def _session_key(user_id: str, session_id: str) -> str:
@@ -408,6 +465,15 @@ class AsyncRedisClient:
     @staticmethod
     def _rate_limit_key(resource: str, key: str) -> str:
         return f"ratelimit:{resource}:{key}"
+
+    @staticmethod
+    def _multi_window_rate_limit_keys(
+        principal_kind: str,
+        principal_key: str,
+    ) -> tuple[str, str, str]:
+        cluster_key = f"{principal_kind}:{principal_key}"
+        base = f"ratelimit:{{{cluster_key}}}"
+        return (f"{base}:min", f"{base}:hour", f"{base}:day")
 
     @staticmethod
     def _lock_key(resource: str, id: str) -> str:

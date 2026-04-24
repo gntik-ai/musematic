@@ -57,6 +57,9 @@ topics:
   - name: discovery.events
     partitions: 6
     retentionMs: 604800000
+  - name: debug_logging.events
+    partitions: 6
+    retentionMs: 604800000
   - name: evaluation.events
     partitions: 6
     retentionMs: 2592000000

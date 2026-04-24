@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from platform.common.auth_middleware import AuthMiddleware
 from platform.common.config import PlatformSettings
 from platform.main import create_app
+from typing import Any
 from uuid import UUID
 
 import httpx
@@ -108,7 +109,11 @@ async def test_protected_route_requires_auth(monkeypatch) -> None:
 @pytest.mark.asyncio
 async def test_valid_and_expired_jwts(monkeypatch) -> None:
     secret = "a" * 32
-    settings = PlatformSettings(AUTH_JWT_SECRET_KEY=secret, AUTH_JWT_ALGORITHM="HS256")
+    settings = PlatformSettings(
+        AUTH_JWT_SECRET_KEY=secret,
+        AUTH_JWT_ALGORITHM="HS256",
+        api_governance={"rate_limiting_enabled": False},
+    )
     app = _app(monkeypatch, settings)
     valid_token = jwt.encode({"sub": "user-1"}, secret, algorithm="HS256")
     expired_token = jwt.encode(
@@ -131,6 +136,8 @@ async def test_valid_and_expired_jwts(monkeypatch) -> None:
 
     assert success.status_code == 200
     assert success.json()["user"]["sub"] == "user-1"
+    assert success.json()["user"]["principal_type"] == "user"
+    assert success.json()["user"]["principal_id"] == "user-1"
     assert expired.status_code == 401
     assert expired.json()["error"]["code"] == "TOKEN_EXPIRED"
 
@@ -247,6 +254,8 @@ async def test_api_key_and_invitation_paths_in_auth_middleware(monkeypatch) -> N
     assert accepted.status_code == 200
     assert api_key_ok.status_code == 200
     assert api_key_ok.json()["user"]["sub"] == "api-key-user"
+    assert api_key_ok.json()["user"]["principal_type"] == "service_account"
+    assert api_key_ok.json()["user"]["principal_id"] == "api-key-user"
     assert api_key_bad.status_code == 401
     assert api_key_bad.json()["error"]["code"] == "INVALID_API_KEY"
 
@@ -301,3 +310,63 @@ async def test_a2a_paths_are_auth_exempt_in_middleware() -> None:
     assert card.status_code == 200
     assert task.status_code == 200
     assert stream.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_new_openapi_paths_are_auth_exempt() -> None:
+    settings = PlatformSettings(AUTH_JWT_SECRET_KEY="secret", AUTH_JWT_ALGORITHM="HS256")
+    app = FastAPI()
+    app.state.settings = settings
+    app.add_middleware(AuthMiddleware)
+
+    @app.get("/api/openapi.json")
+    async def openapi_json() -> dict[str, str]:
+        return {"schema": "ok"}
+
+    @app.get("/api/docs")
+    async def docs() -> dict[str, str]:
+        return {"docs": "ok"}
+
+    @app.get("/api/redoc")
+    async def redoc() -> dict[str, str]:
+        return {"redoc": "ok"}
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://testserver",
+    ) as client:
+        openapi_response = await client.get("/api/openapi.json")
+        docs_response = await client.get("/api/docs")
+        redoc_response = await client.get("/api/redoc")
+
+    assert openapi_response.status_code == 200
+    assert docs_response.status_code == 200
+    assert redoc_response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_a2a_paths_capture_external_principal_type_when_client_cert_present() -> None:
+    settings = PlatformSettings(AUTH_JWT_SECRET_KEY="secret", AUTH_JWT_ALGORITHM="HS256")
+    app = FastAPI()
+    app.state.settings = settings
+    app.add_middleware(AuthMiddleware)
+
+    @app.post("/api/v1/a2a/tasks")
+    async def create_task(
+        request: Request,
+    ) -> dict[str, Any] | None:
+        return getattr(request.state, "user", None)
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://testserver",
+    ) as client:
+        response = await client.post(
+            "/api/v1/a2a/tasks",
+            headers={"X-Forwarded-Client-Cert": "demo-cert"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["principal_type"] == "external_a2a"
+    assert response.json()["identity_type"] == "external_a2a"
+    assert response.json()["principal_id"]

@@ -65,7 +65,7 @@ The architecture below treats the following as fixed decisions:
 5. **gRPC** is the canonical internal protocol for high-value service-to-service control paths.
 6. **Kafka** is the durable event backbone.
 7. **MCP and A2A** are first-class from version 1.
-8. The following capabilities are in-scope in the initial target architecture: marketplace, registry, monitor, interactions server, consumer/creator/trust/operator workbenches, certification/trust framework, agent factory, fleet factory, context engineering, reasoning orchestration, self-correction engine, resource-aware optimization, agent composition, scientific discovery, privacy-preserving collaboration, marketplace intelligence, fleet-level learning, agent simulation, AgentOps, and semantic/behavioral testing.
+8. The following capabilities are in-scope in the initial target architecture: marketplace, registry, monitor, interactions server, consumer/creator/trust/operator/**administrator** workbenches, certification/trust framework, agent factory, fleet factory, context engineering, reasoning orchestration, self-correction engine, resource-aware optimization, agent composition, scientific discovery, privacy-preserving collaboration, marketplace intelligence, fleet-level learning, agent simulation, AgentOps, and semantic/behavioral testing.
 9. High-privilege operational capabilities are allowed even in **shared multi-tenant mode**, but only under strict governance, approval, isolation, and audit controls.
 10. The primary physical deployment view in this document is **Kubernetes**.
 11. **Dedicated purpose-built data stores from day 1**: PostgreSQL for relational truth, **Qdrant** for vector search, **Neo4j** for knowledge graph, **ClickHouse** for analytics/OLAP, **Redis** for caching and ephemeral state, **OpenSearch** for full-text marketplace discovery. Each store is justified by workload characteristics, not premature optimization.
@@ -375,7 +375,7 @@ The experience plane contains all human-facing and API-consumer-facing entry poi
 - MCP exposure endpoint where applicable
 - Authentication entry points
 - Marketplace search and browsing surfaces with intelligent recommendation
-- Consumer, creator, trust, and operator workbenches
+- Consumer, creator, trust, operator, and **administrator** workbenches
 - Evaluation and testing workbench
 
 ### Responsibilities
@@ -1378,6 +1378,14 @@ sequenceDiagram
   - `/mcp/*` for MCP exposure
 - WAF or policy layer if the environment requires it.
 
+**Canonical URL and domain scheme** (documented in UPD-039 FR-613):
+- **Development environment**: `dev.musematic.ai` (frontend), `dev.api.musematic.ai` (backend API + WebSocket), `dev.grafana.musematic.ai` (Grafana / observability behind admin SSO).
+- **Production environment**: `app.musematic.ai` (frontend), `api.musematic.ai` (backend API + WebSocket), `grafana.musematic.ai` (Grafana / observability behind admin SSO).
+- **Per-environment pattern**: `{env}.musematic.ai` / `{env}.api.musematic.ai` / `{env}.grafana.musematic.ai` for additional environments.
+- **TLS**: Let's Encrypt DNS-01 wildcard certificates, one per environment (`*.musematic.ai` for production, `*.dev.musematic.ai` for dev). Renewal managed by cert-manager with k-days-before-expiry triggers and alerting.
+- **CORS**: frontend calls backend on its sibling API domain; no cross-environment CORS.
+- **Cookie domain**: scoped to its environment subdomain tree to prevent dev session bleed into production.
+
 ## 11.4 Stateful foundation services
 
 ### PostgreSQL 16+
@@ -1711,7 +1719,11 @@ Authorization is a compound model:
 - certification-aware access rules;
 - maturity-gated capability access;
 - **zero-trust default visibility** — new agents see zero agents and zero tools until explicitly granted via FQN-pattern-based visibility configuration;
-- **workspace-level visibility grants** — supplement per-agent visibility for all agents in a workspace.
+- **workspace-level visibility grants** — supplement per-agent visibility for all agents in a workspace;
+- **administrator vs super-administrator distinction** — `admin` is tenant-scoped (manages users, workspaces, quotas, policies, settings within a tenant); `superadmin` is platform-scoped (manages tenant lifecycle, platform-wide settings, multi-region operations, platform upgrades, and can impersonate any user with audit). Cross-tenant visibility and platform-lifecycle powers are exclusive to `superadmin`.
+- **workspace owner role** — `workspace_owner` and `workspace_admin` manage members, connectors, budgets, quotas, settings, and visibility for THEIR workspace only (per UPD-043). The workspace owner workbench (`/workspaces/{id}`) is distinct from the platform administrator workbench (`/admin`). Workspace-owned resources (e.g., connectors at `secret/data/musematic/{env}/workspaces/{id}/connectors/*`) are clearly distinguished from platform-owned resources. Cross-workspace leakage is a security bug and enforced server-side.
+- **two-person authorization for critical actions** — tenant deletion, platform failover, mass secret rotation, and `--force-reset-superadmin` require two distinct authorized principals from separate sessions within a bounded approval window.
+- **impersonation with dual-principal audit** — super admin can impersonate a user for a time-bounded session; every action emits an audit entry tagging both the acting admin and the effective user.
 
 Visibility filtering is enforced at registry query time — invisible entities are never returned, not even as redacted entries.
 
@@ -1857,6 +1869,21 @@ Chain-of-thought traces and tree-of-thought branching data are stored as:
 - metadata and indexes in PostgreSQL;
 - large trace payloads in object storage;
 - linked to execution journal entries through correlation identifiers.
+
+## 13.8 Secret backend (HashiCorp Vault)
+
+Per UPD-040, HashiCorp Vault is the first-class secret backend for OAuth client secrets, model-provider API keys, database passwords (when dynamic credentials are enabled), webhook signing secrets, encryption keys at rest, and internal mTLS PKI material.
+
+The platform supports three deployment modes:
+- **`mock`**: file + env-var resolver, for development (kind, local, CI) only.
+- **`kubernetes`**: Kubernetes Secrets as a transitional backend preserving canonical path scheme.
+- **`vault`**: real HashiCorp Vault accessed via `hvac` (Python) / `vault/api` (Go) behind a `SecretProvider` abstraction.
+
+Canonical path scheme: `secret/data/musematic/{environment}/{domain}/{resource}` (e.g., `secret/data/musematic/production/oauth/google/client-secret`).
+
+Authentication methods: Kubernetes ServiceAccount projected token (recommended in-cluster), AppRole (cross-cluster), Token (dev/CI only, blocked in production). All use KV v2 with versioning; rotation (UPD-024) writes new versions with dual-credential retention windows.
+
+Fail-safe behavior: cached reads survive Vault unreachability up to a bounded staleness window; critical-path operations (authentication, OAuth callback) refuse to proceed when Vault is unreachable and cache is cold — hardcoded-credential fallbacks are never permitted. A dedicated super admin page `/admin/security/vault` surfaces connection status, token expiry, cache hit rate, auth failures, and provides manual cache flush, connectivity test, and policy reload actions.
 
 ## 13.8 Self-correction data
 

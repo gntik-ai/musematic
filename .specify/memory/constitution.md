@@ -1,31 +1,44 @@
 <!--
   Sync Impact Report
   ==================
-  Version change: 1.1.0 → 1.2.0
-  Bump rationale: MINOR — audit-driven completeness pass adds 20
-    new domain-specific rules (9–28), 7 new architecture decisions
-    (AD-17 through AD-23), 29 new Kafka topics, and new sections for
-    REST endpoint prefixes, integration constraints, feature flags,
-    and 15 new critical reminders. No existing principles removed or
-    redefined. Governs UPD-023 through UPD-035 only.
+  Version change: 1.2.0 → 1.3.0
+  Bump rationale: MINOR — audit-driven completeness pass expanded
+    to 23 features by adding UPD-036 (Administrator Workbench and
+    Super Admin Bootstrap), UPD-037 (Public Signup + OAuth UI
+    completion), UPD-038 (Multilingual README), UPD-039
+    (Comprehensive Documentation and Installation Guides), UPD-040
+    (HashiCorp Vault Integration), UPD-041 (OAuth Provider Env-Var
+    Bootstrap), and four user-surface completion features UPD-042
+    (User-Facing Notification Center + Self-Service Security),
+    UPD-043 (Workspace Owner Workbench + Connector Self-Service),
+    UPD-044 (Creator-Side UIs — Context Engineering and Agent
+    Contracts), and UPD-045 (Public Status Page, Maintenance
+    Banner, and Remaining Workbench UIs). Adds 22 new
+    domain-specific rules (29–50). No new bounded contexts,
+    Kafka topics, REST endpoint prefixes, or feature flags versus
+    v1.2.0 — the additions are in the rules surface and the
+    feature catalogue. No existing principles removed or
+    redefined.
   Modified principles:
     - None renamed or removed
     - Core Principles I–XVI preserved verbatim
   Added sections:
-    - Brownfield Rules § "Domain-Specific Rules (Audit Pass)" —
-      rules 9–28 (privacy, security, cost, model routing, i18n,
-      tagging, logging, observability, accessibility)
-    - Architecture Decisions (Audit Pass) — AD-17 to AD-23
-    - New Bounded Contexts (Audit Pass) — 7 new BCs
-    - REST Endpoint Prefixes (Audit Pass)
-    - Integration Constraints (Audit Pass) — §§ 9.1–9.8
-    - Feature Flag Inventory (Audit Pass)
+    - Brownfield Rules § "Domain-Specific Rules (Audit Pass)"
+      extended with rules 29–50 (admin endpoint segregation,
+      admin role gates, super-admin bootstrap secret handling,
+      bootstrap idempotence, 2PA enforcement, impersonation
+      double-audit, email-enumeration prohibition, documentation
+      coupling, auto-documentation, multi-language parity,
+      SecretProvider-only secret resolution, Vault token logging
+      ban, Vault failure-closed critical path, OAuth env-var
+      idempotence, OAuth-secrets-in-Vault-only, rotation response
+      opacity, backend-to-UI coverage, self-service scoping,
+      workspace-vs-platform scope distinction, user-visible
+      platform state, status-page independence, mock LLM for
+      creator previews)
   Removed sections: None
-  New Kafka topics: 29 (privacy.*, security.*, cost.*, region.*,
-    maintenance.*, model.*, incident.*, content.*)
-  New critical reminders: 27–41 (hash-chain durability, cost
-    cumulative, model governance, region failover, i18n assets,
-    logs-not-traces, dashboard sprawl, + 8 more)
+  New Kafka topics: 0 (UPD-036–UPD-045 reuse existing topics plus
+    per-feature audit chain entries)
   Templates requiring updates:
     - .specify/templates/plan-template.md ✅ compatible
       (Constitution Check section is principle-number-agnostic)
@@ -84,11 +97,23 @@
    zero-trust visibility) MUST be behind a feature flag for gradual
    rollout.
 
-### Domain-Specific Rules (Audit Pass — UPD-023 through UPD-035)
+### Domain-Specific Rules (Audit Pass — UPD-023 through UPD-045)
 
-> The audit-driven completeness pass introduces 20 domain-specific
-> rules. They apply to features UPD-023 through UPD-035 only.
-> Rules 1–8 continue to apply to all brownfield work.
+> The audit-driven completeness pass introduces 42 domain-specific
+> rules across v1.2.0 and v1.3.0. They apply to features UPD-023
+> through UPD-045 only. Rules 1–8 continue to apply to all
+> brownfield work.
+>
+> - Rules 9–28 govern the original 13-feature scope (UPD-023
+>   through UPD-035): privacy, security, cost, model routing,
+>   i18n, tagging, logging, observability, accessibility.
+> - Rules 29–50 govern the 10 additions (UPD-036 through UPD-045):
+>   admin endpoint segregation, super-admin bootstrap,
+>   2PA + impersonation, documentation coupling,
+>   SecretProvider + Vault lifecycle, OAuth env-var bootstrap,
+>   backend-to-UI coverage, self-service scoping,
+>   workspace-vs-platform scope, platform state visibility,
+>   status-page independence, mock LLM for creator previews.
 
 9. **Every PII operation emits an audit chain entry.** The audit
    chain is append-only with hash linkage; tampering MUST be
@@ -165,6 +190,100 @@
 28. **Accessibility is tested, not promised.** The Accessibility
     User journey (J15) runs axe-core in headless browser
     automation and fails the build on any WCAG AA violation.
+29. **Admin endpoints are segregated.** All admin-only REST
+    endpoints live under `/api/v1/admin/*`, are tagged separately
+    in OpenAPI, and have their own rate-limit group. Mixing
+    admin and non-admin behaviour on a single endpoint is a
+    constitution violation.
+30. **Every admin endpoint declares a role gate.** Every method
+    in every `admin_router.py` module MUST depend on either
+    `require_admin` or `require_superadmin`. A CI static-analysis
+    check shall fail the build if any method is missing the
+    gate.
+31. **Super-admin bootstrap never logs secrets.** Code paths for
+    `PLATFORM_SUPERADMIN_PASSWORD` /
+    `PLATFORM_SUPERADMIN_PASSWORD_FILE` MUST be reviewed for
+    logging. Structured logger fields containing these values
+    are forbidden.
+32. **Bootstrap is idempotent.** Running the installer twice
+    with identical inputs MUST NOT overwrite a super admin's
+    credentials without the explicit `--force-reset-superadmin`
+    flag, itself gated by `ALLOW_SUPERADMIN_RESET=true` in
+    production.
+33. **2PA is enforced server-side.** The client is informed that
+    an action requires two-person authorisation but never
+    enforces it alone. Servers validate the 2PA token freshly
+    on apply.
+34. **Impersonation always double-audits.** Every action
+    performed during impersonation emits audit chain entries
+    tagging BOTH the acting admin AND the effective user.
+    Single-principal audits during impersonation are a
+    data-integrity bug.
+35. **Email enumeration is never permitted.** Signup, password
+    reset, and OAuth flows MUST return neutral responses that
+    do not reveal whether an email is already registered.
+36. **Every new FR with UX impact must be documented.** PRs
+    that add or modify FRs MUST also update the documentation
+    site; CI flags undocumented FRs.
+37. **Env vars, Helm values, and feature flags are
+    auto-documented.** Developers annotate inline; CI
+    regenerates the reference docs; drift fails the build.
+    Never hand-edit the generated references.
+38. **Multi-language parity is enforced, not hoped.** Canonical
+    English content can lead translation by at most 7 days.
+    Beyond that, CI blocks merges touching affected sections.
+39. **Every secret resolves via SecretProvider.** Code MUST NOT
+    call `os.getenv` / `os.Getenv` directly for names matching
+    secret patterns (`*_SECRET`, `*_PASSWORD`, `*_API_KEY`,
+    `*_TOKEN`) outside `SecretProvider` implementation files.
+    A CI static-analysis check enforces this.
+40. **Vault token value never appears in logs.** Structured log
+    fields carrying the token, child tokens, AppRole SecretIDs,
+    Kubernetes SA tokens, or OAuth client secrets are
+    forbidden. Review + CI checks enforce.
+41. **Vault failure does not bypass authentication.**
+    Critical-path operations (login verification, OAuth
+    callback) fail explicitly when Vault is unreachable and
+    cache is cold. Hardcoded-credential fallbacks are never
+    permitted.
+42. **OAuth env-var bootstrap is idempotent.** Reinstall
+    preserves manual UI changes unless `FORCE_UPDATE=true` is
+    set. Force overwrite emits a critical audit chain entry.
+43. **OAuth client secrets live in Vault, never in the
+    database.** The database stores only the Vault path
+    reference. Rotation happens in Vault via KV v2 versioning.
+44. **Rotation responses never return the new secret.** Admin
+    submits a secret for rotation; the API response confirms
+    rotation but does not echo back any secret value.
+45. **Every user-facing backend capability has a user-facing
+    UI.** If a backend endpoint is user-accessible, a UI
+    surface MUST exist for it — either a dedicated page or
+    integration into an existing workbench. Admin-only UIs are
+    not a substitute for user self-service.
+46. **Self-service endpoints are scoped to `current_user`.**
+    Endpoints under `/api/v1/me/*` accept no `user_id`
+    parameter and always operate on the authenticated
+    principal's own data. Cross-user access attempts return
+    403 without information leakage.
+47. **Workspace-scoped resources clearly distinguish from
+    platform-scoped.** When a resource type can be both
+    workspace-owned and platform-owned (connectors, quotas,
+    policies, visibility grants), the UI MUST visually
+    distinguish scope and the backend MUST enforce it on every
+    operation. Cross-scope leakage is a security bug.
+48. **Platform state is user-visible.** Maintenance mode,
+    incidents, and degraded performance are never invisible
+    errors from the user's perspective. The shell always shows
+    explanatory context via `<PlatformStatusBanner>`.
+49. **Public status page is operationally independent.** The
+    status page MUST remain reachable during a full platform
+    outage. Its deployment topology MUST NOT share a single
+    point of failure with the main platform.
+50. **Mock LLM provider for creator previews.** Context profile
+    previews, contract previews, and any test-time execution
+    that could otherwise cost money or produce side effects
+    MUST default to the mock LLM provider. Real-LLM preview is
+    an explicit opt-in with a clear cost indicator.
 
 ## Core Principles
 
@@ -318,7 +437,7 @@ Wasabi) works. MinIO is a dev/self-hosted option only — never a hard
 dependency. Application code MUST NOT reference MinIO directly.
 MinIO appears only in optional Helm charts and docker-compose.dev.
 
-## Architecture Decisions (Audit Pass — UPD-023 through UPD-035)
+## Architecture Decisions (Audit Pass — UPD-023 through UPD-045)
 
 > AD-1 through AD-13 are embedded in Core Principles I–XVI above.
 > AD-14 through AD-16 are formalized by Principle XIV, XV, XVI.
@@ -351,12 +470,19 @@ MinIO appears only in optional Helm charts and docker-compose.dev.
   linked by shared label conventions (`trace_id`, `service`,
   `correlation_id`). No single-backend consolidation is planned.
 
-## New Bounded Contexts (Audit Pass — UPD-023 through UPD-035)
+## New Bounded Contexts (Audit Pass — UPD-023 through UPD-045)
 
-The audit pass introduces 7 new bounded contexts. All live under
-`apps/control-plane/src/platform/` and follow the standard bounded
-context structure (`models.py`, `schemas.py`, `service.py`,
-`repository.py`, `router.py`, `events.py`, `exceptions.py`).
+The audit pass introduces 7 new bounded contexts from v1.2.0
+(UPD-023 through UPD-035). v1.3.0 (UPD-036 through UPD-045)
+adds no new bounded contexts — those features extend existing
+ones (`auth/`, `accounts/`, `connectors/security.py`) and add
+new frontend surfaces (`/admin/*`, `/signup`, `/notifications`,
+`/workspaces/{id}`, `/settings/*`, `status.musematic.ai`,
+creator workbench pages). All Python BCs live under
+`apps/control-plane/src/platform/` and follow the standard
+bounded context structure (`models.py`, `schemas.py`,
+`service.py`, `repository.py`, `router.py`, `events.py`,
+`exceptions.py`).
 
 | Bounded Context | Owning Feature | Scope |
 |---|---|---|
@@ -652,7 +778,7 @@ Subtypes: `NotFoundError` → 404, `AuthorizationError` → 403,
 | `incident.resolved` | incident_id | incident_response | post-mortem service |
 | `content.moderation.event` | workspace_id | trust (moderator) | privacy_compliance, audit |
 
-## REST Endpoint Prefixes (Audit Pass — UPD-023 through UPD-035)
+## REST Endpoint Prefixes (Audit Pass — UPD-023 through UPD-045)
 
 | Prefix | Owner | Purpose |
 |---|---|---|
@@ -945,4 +1071,4 @@ Subtypes: `NotFoundError` → 404, `AuthorizationError` → 403,
   redefinition, MINOR for new principle or material expansion, PATCH
   for clarifications and wording fixes.
 
-**Version**: 1.2.0 | **Ratified**: 2026-04-09 | **Last Amended**: 2026-04-23
+**Version**: 1.3.0 | **Ratified**: 2026-04-09 | **Last Amended**: 2026-04-23

@@ -34,7 +34,7 @@ from fastapi import APIRouter, Depends, Request, status
 from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-router = APIRouter()
+router = APIRouter(tags=["a2a-gateway"])
 
 
 async def _authenticate_principal(
@@ -221,7 +221,7 @@ async def delete_external_endpoint(
     return await _handle(_action)
 
 
-@router.post("/api/v1/mcp/protocol/initialize")
+@router.post("/api/v1/mcp/protocol/initialize", tags=["mcp"])
 async def mcp_initialize(
     payload: MCPInitializeRequest,
     principal: dict[str, Any] = Depends(_authenticate_principal),
@@ -237,7 +237,7 @@ def _mcp_workspace_id(principal: dict[str, Any]) -> UUID:
     return UUID(workspace_id)
 
 
-@router.post("/api/v1/mcp/protocol/tools/list")
+@router.post("/api/v1/mcp/protocol/tools/list", tags=["mcp"])
 async def mcp_tools_list(
     principal: dict[str, Any] = Depends(_authenticate_principal),
     server_service: MCPServerService = Depends(get_mcp_server_service),
@@ -246,7 +246,7 @@ async def mcp_tools_list(
     return await _handle_mcp(lambda: server_service.handle_tools_list(principal, workspace_id))
 
 
-@router.post("/api/v1/mcp/protocol/tools/call")
+@router.post("/api/v1/mcp/protocol/tools/call", tags=["mcp"])
 async def mcp_tools_call(
     payload: MCPToolCallRequest,
     principal: dict[str, Any] = Depends(_authenticate_principal),

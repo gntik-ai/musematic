@@ -115,10 +115,21 @@ repo/
     control-plane/
       src/platform/
         api/
-        auth/
+        admin/                     # NEW (UPD-036): composition layer for /api/v1/admin/*
+                                   #   (NOT a bounded context — composes admin_router.py from each BC)
+                                   #   Contains: router.py, rbac.py, 2pa_service.py, impersonation_service.py,
+                                   #   read_only_middleware.py, change_preview.py, activity_feed.py,
+                                   #   installer_state.py, bootstrap.py
+        common/
+          secret_provider.py        # NEW (UPD-040): SecretProvider Protocol + Mock / Kubernetes / Vault impls
+          logging.py                # Structured logger (UPD-034)
+          config.py
+          ...
+        auth/                      # + admin_router.py (users, roles, groups, sessions, oauth, ibor, api-keys)
+                                   # + services/oauth_bootstrap.py (UPD-041: env-var seeding)
         accounts/
-        workspaces/
-        connectors/
+        workspaces/                # + admin_router.py (tenants, workspaces, namespaces, quotas)
+        connectors/                # + admin_router.py (plugin config)
         registry/
         marketplace/
         interactions/
@@ -171,6 +182,62 @@ repo/
         agentops_main.py           # NEW
     ui/
       nextjs-app/
+        app/
+          (auth)/                   # Auth-shell routes
+            login/                  # existing
+            forgot-password/        # existing
+            reset-password/         # existing
+            signup/                 # NEW (UPD-037): public signup page
+            verify-email/           # NEW (UPD-037): pending + token validation pages
+            waiting-approval/       # NEW (UPD-037): admin-approval waiting page
+            auth/oauth/[provider]/callback/  # NEW (UPD-037): dedicated OAuth callback page
+            auth/oauth/error/       # NEW (UPD-037): OAuth error page
+            profile-completion/     # NEW (UPD-037): first-time OAuth profile completion
+          (main)/                   # Public/user-facing routes
+            marketplace/
+            workbenches/
+            notifications/          # NEW (UPD-042): user notification inbox
+            settings/
+              notifications/        # NEW (UPD-042): preferences matrix
+              api-keys/             # NEW (UPD-042): self-service tokens
+              security/             # NEW (UPD-042): mfa / sessions / activity
+              privacy/              # NEW (UPD-042): consent / dsr
+              account/connections/  # NEW (UPD-037): OAuth link management
+              status-subscriptions/ # NEW (UPD-045): public status subscription prefs
+            workspaces/             # NEW (UPD-043): workspace owner workbench
+              [id]/                 # members, settings, connectors, visibility, quotas, tags
+            agent-management/
+              [fqn]/
+                context-profile/    # NEW (UPD-044): editor + history
+                contract/           # NEW (UPD-044): authoring + history
+              contracts/library/    # NEW (UPD-044): template library
+            discovery/              # EXISTING network view, extended in UPD-045
+              [session_id]/         # session detail with tabs, hypotheses, experiments, evidence
+            evaluation-testing/
+              simulations/
+                scenarios/          # NEW (UPD-045): scenario editor + library
+            ...
+          (admin)/                  # UPD-036 admin workbench tree (40+ pages)
+            security/vault/         # NEW (UPD-040): Vault ops panel
+            oauth-providers/        # UPD-036 extended by UPD-041
+            ...
+          api/log/client-error/     # UPD-034 client error ingest
+    ops-cli/
+      cli/
+          (admin)/                  # NEW (UPD-036): admin workbench route tree
+            layout.tsx              # Role gate + admin shell
+            page.tsx                # Landing dashboard (FR-547)
+            users/, roles/, groups/, sessions/, oauth-providers/, ibor/, api-keys/   # Identity & Access (FR-548)
+            tenants/, workspaces/, namespaces/                                         # Tenancy (FR-549) — tenants super admin only
+            settings/, feature-flags/, model-catalog/, policies/, connectors/          # System Config (FR-550)
+            audit-chain/, security/, privacy/, compliance/                             # Security & Compliance (FR-551)
+            health/, incidents/, runbooks/, maintenance/, regions/, queues/, warm-pool/, executions/   # Operations (FR-552)
+            costs/                  # Cost & Billing (FR-553)
+            observability/          # Observability admin (FR-554)
+            integrations/           # Integrations (FR-555)
+            lifecycle/              # Platform Lifecycle (FR-556) — super admin only
+            audit/                  # Audit & Logs (FR-557)
+          api/log/client-error/     # UPD-034 client error ingest
     ops-cli/
       cli/
   services/

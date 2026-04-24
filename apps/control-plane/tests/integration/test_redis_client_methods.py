@@ -1,13 +1,12 @@
 from __future__ import annotations
 
+from platform.common.clients.redis import AsyncRedisClient, BudgetConfig
+from platform.common.config import PlatformSettings
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from redis.exceptions import RedisError
-
-from platform.common.clients.redis import AsyncRedisClient, BudgetConfig
-from platform.common.config import PlatformSettings
 
 
 def _build_client() -> SimpleNamespace:
@@ -23,7 +22,15 @@ def _build_client() -> SimpleNamespace:
         hset=AsyncMock(),
         ping=AsyncMock(return_value=True),
         scan=AsyncMock(return_value=(0, [])),
-        script_load=AsyncMock(side_effect=["sha-budget", "sha-rate", "sha-lock-a", "sha-lock-r"]),
+        script_load=AsyncMock(
+            side_effect=[
+                "sha-budget",
+                "sha-rate",
+                "sha-rate-multi",
+                "sha-lock-a",
+                "sha-lock-r",
+            ]
+        ),
         set=AsyncMock(),
         zadd=AsyncMock(),
         zrem=AsyncMock(return_value=1),
@@ -67,7 +74,9 @@ def test_from_settings_falls_back_to_redis_url_when_nodes_are_missing() -> None:
 
 
 @pytest.mark.asyncio
-async def test_initialize_uses_standalone_url_and_preloads_scripts(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_initialize_uses_standalone_url_and_preloads_scripts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     fake_client = _build_client()
     from_url = MagicMock(return_value=fake_client)
 
@@ -87,7 +96,7 @@ async def test_initialize_uses_standalone_url_and_preloads_scripts(monkeypatch: 
 
     assert client.client is fake_client
     from_url.assert_called_once_with("redis://localhost:6379", decode_responses=True)
-    assert fake_client.script_load.await_count == 4
+    assert fake_client.script_load.await_count == 5
 
 
 @pytest.mark.asyncio
@@ -122,7 +131,9 @@ async def test_initialize_uses_standalone_host_and_port_without_url(
 
 
 @pytest.mark.asyncio
-async def test_initialize_uses_cluster_when_not_in_standalone(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_initialize_uses_cluster_when_not_in_standalone(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     fake_client = _build_client()
     from_url = MagicMock(return_value=fake_client)
 
@@ -336,16 +347,28 @@ async def test_rate_limit_and_lock_helpers(monkeypatch: pytest.MonkeyPatch) -> N
 
     monkeypatch.setattr("platform.common.clients.redis.time.time", lambda: 200.0)
     monkeypatch.setattr("platform.common.clients.redis.uuid.uuid4", lambda: "token-123")
-    eval_script = AsyncMock(side_effect=[["0", "1", "250"], "1", "0"])
+    eval_script = AsyncMock(side_effect=[["0", "1", "250"], ["1", "4", "9", "99", "0"], "1", "0"])
     monkeypatch.setattr(client, "_eval_script", eval_script)
 
     rate_result = await client.check_rate_limit("workspace", "abc", limit=5, window_ms=5000)
+    multi_window_result = await client.check_multi_window_rate_limit(
+        "user",
+        "principal-1",
+        5,
+        10,
+        100,
+    )
     lock_result = await client.acquire_lock("workflow", "run-1", ttl_seconds=15)
     released = await client.release_lock("workflow", "run-1", "token-123")
 
     assert rate_result.allowed is False
     assert rate_result.remaining == 1
     assert rate_result.retry_after_ms == 250
+    assert multi_window_result.allowed is True
+    assert multi_window_result.remaining_minute == 4
+    assert multi_window_result.remaining_hour == 9
+    assert multi_window_result.remaining_day == 99
+    assert multi_window_result.retry_after_ms == 0
     assert lock_result.success is True
     assert lock_result.token == "token-123"
     assert released is False
@@ -354,6 +377,16 @@ async def test_rate_limit_and_lock_helpers(monkeypatch: pytest.MonkeyPatch) -> N
         "rate_limit_check.lua",
         ["ratelimit:workspace:abc"],
         [200000, 5000, 5],
+    )
+    assert eval_script.await_args_list[1].args == (
+        fake_client,
+        "rate_limit_multi_window.lua",
+        [
+            "ratelimit:{user:principal-1}:min",
+            "ratelimit:{user:principal-1}:hour",
+            "ratelimit:{user:principal-1}:day",
+        ],
+        [5, 10, 100, 60, 3600, 86400],
     )
 
 
@@ -468,6 +501,11 @@ def test_script_source_and_key_builders_use_expected_paths() -> None:
     assert AsyncRedisClient._session_key("u1", "s1") == "session:u1:s1"
     assert AsyncRedisClient._budget_key("exec-1", "step-1") == "budget:exec-1:step-1"
     assert AsyncRedisClient._rate_limit_key("workspace", "abc") == "ratelimit:workspace:abc"
+    assert AsyncRedisClient._multi_window_rate_limit_keys("user", "abc") == (
+        "ratelimit:{user:abc}:min",
+        "ratelimit:{user:abc}:hour",
+        "ratelimit:{user:abc}:day",
+    )
     assert AsyncRedisClient._lock_key("workflow", "run-1") == "lock:workflow:run-1"
     assert AsyncRedisClient._leaderboard_key("tour-1") == "leaderboard:tour-1"
     assert AsyncRedisClient._cache_key("goals", "g1") == "cache:goals:g1"

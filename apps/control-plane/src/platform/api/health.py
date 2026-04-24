@@ -8,7 +8,7 @@ from typing import Any
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
-router = APIRouter()
+router = APIRouter(tags=["health"])
 
 
 class DependencyHealth(BaseModel):

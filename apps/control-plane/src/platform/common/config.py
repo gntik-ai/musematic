@@ -210,6 +210,43 @@ class VisibilitySettings(BaseSettings):
     zero_trust_enabled: bool = False
 
 
+class ApiGovernanceSettings(BaseSettings):
+    model_config = SettingsConfigDict(extra="ignore", populate_by_name=True)
+
+    rate_limiting_enabled: bool = Field(
+        default=True,
+        description="Master switch controlling whether API rate limiting is enforced.",
+        validation_alias="FEATURE_API_RATE_LIMITING",
+    )
+    rate_limiting_fail_open: bool = Field(
+        default=False,
+        description=(
+            "Incident-only override that allows requests through when Redis is unavailable."
+        ),
+        validation_alias="FEATURE_API_RATE_LIMITING_FAIL_OPEN",
+    )
+    tier_cache_ttl_seconds: int = Field(
+        default=60,
+        description="TTL in seconds for cached subscription-tier budget documents.",
+        validation_alias="API_TIER_CACHE_TTL_SECONDS",
+    )
+    principal_cache_ttl_seconds: int = Field(
+        default=60,
+        description="TTL in seconds for cached principal-to-tier bindings.",
+        validation_alias="API_PRINCIPAL_CACHE_TTL_SECONDS",
+    )
+    anonymous_tier_name: str = Field(
+        default="anonymous",
+        description="Subscription-tier name applied to anonymous or auth-exempt traffic.",
+        validation_alias="API_ANONYMOUS_TIER_NAME",
+    )
+    default_tier_name: str = Field(
+        default="default",
+        description="Subscription-tier name applied when a principal has no explicit override.",
+        validation_alias="API_DEFAULT_TIER_NAME",
+    )
+
+
 class RegistrySettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="REGISTRY_", extra="ignore")
 
@@ -449,6 +486,7 @@ class PlatformSettings(BaseSettings):
     ws_hub: WsHubSettings = Field(default_factory=WsHubSettings)
     analytics: AnalyticsSettings = Field(default_factory=AnalyticsSettings)
     visibility: VisibilitySettings = Field(default_factory=VisibilitySettings)
+    api_governance: ApiGovernanceSettings = Field(default_factory=ApiGovernanceSettings)
     registry: RegistrySettings = Field(default_factory=RegistrySettings)
     context_engineering: ContextEngineeringSettings = Field(
         default_factory=ContextEngineeringSettings
@@ -583,6 +621,12 @@ class PlatformSettings(BaseSettings):
             "CHECKPOINT_MAX_SIZE_BYTES": ("checkpoint_max_size_bytes",),
             "ANALYTICS_BUDGET_THRESHOLD_USD": ("analytics", "budget_threshold_usd"),
             "VISIBILITY_ZERO_TRUST_ENABLED": ("visibility", "zero_trust_enabled"),
+            "FEATURE_API_RATE_LIMITING": ("api_governance", "rate_limiting_enabled"),
+            "FEATURE_API_RATE_LIMITING_FAIL_OPEN": ("api_governance", "rate_limiting_fail_open"),
+            "API_TIER_CACHE_TTL_SECONDS": ("api_governance", "tier_cache_ttl_seconds"),
+            "API_PRINCIPAL_CACHE_TTL_SECONDS": ("api_governance", "principal_cache_ttl_seconds"),
+            "API_ANONYMOUS_TIER_NAME": ("api_governance", "anonymous_tier_name"),
+            "API_DEFAULT_TIER_NAME": ("api_governance", "default_tier_name"),
             "REGISTRY_PACKAGE_BUCKET": ("registry", "package_bucket"),
             "REGISTRY_PACKAGE_SIZE_LIMIT_MB": ("registry", "package_size_limit_mb"),
             "REGISTRY_MAX_FILE_COUNT": ("registry", "max_file_count"),

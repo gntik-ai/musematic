@@ -258,6 +258,46 @@ jobs:
           name: python-coverage
           path: apps/control-plane/coverage.xml
 
+  openapi-lint:
+    name: OpenAPI lint
+    needs:
+      - changes
+      - test-python
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/control-plane/pyproject.toml
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: python -m pip install -e "./apps/control-plane[dev]"
+
+      - name: Generate OpenAPI doc
+        run: |
+          cd apps/control-plane
+          PYTHONPATH=src python -c "from platform.main import create_app; import json; print(json.dumps(create_app().openapi()))" > /tmp/openapi.json
+
+      - name: Lint with Spectral
+        env:
+          NPM_CONFIG_CACHE: /tmp/.npm
+        run: >
+          npx --yes @stoplight/spectral-cli@6.15.0 lint /tmp/openapi.json
+          --ruleset .spectral.yaml
+          --fail-severity error
+          --display-only-failures
+
   lint-go:
     name: Lint Go (${{ matrix.service }})
     needs: changes

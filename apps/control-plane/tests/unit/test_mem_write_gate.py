@@ -164,6 +164,7 @@ async def test_memory_write_gate_flags_contradictions_and_applies_privacy(
             "MEMORY_DIFFERENTIAL_PRIVACY_EPSILON": 0.5,
         },
     )
+    monkeypatch.setattr(gate, "_laplace_noise", lambda scale: -30.0)
 
     async def _fake_embedding(*, api_url: str, model: str, content: str) -> list[float]:
         del api_url, model, content

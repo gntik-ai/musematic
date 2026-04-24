@@ -69,6 +69,7 @@ async def test_router_e2e_paths_return_404_when_flag_off(monkeypatch) -> None:
     settings = PlatformSettings(
         feature_e2e_mode=False,
         auth={'jwt_secret_key': 'e2e-secret-key-with-minimum-length-32', 'jwt_algorithm': 'HS256'},
+        api_governance={'rate_limiting_enabled': False},
     )
     app = create_app(profile='api', settings=settings)
     candidate_paths = sorted({route.path for route in e2e_router.routes})
