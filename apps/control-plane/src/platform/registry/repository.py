@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from platform.audit.service import AuditChainService
+from platform.common.audit_hook import audit_chain_hook
 from platform.common.clients.opensearch import AsyncOpenSearchClient
 from platform.registry.exceptions import DecommissionImmutableError
 from platform.registry.models import (
@@ -31,9 +33,11 @@ class RegistryRepository:
         self,
         session: AsyncSession,
         opensearch: AsyncOpenSearchClient | None = None,
+        audit_chain: AuditChainService | None = None,
     ) -> None:
         self.session = session
         self.opensearch = opensearch
+        self.audit_chain = audit_chain
 
     async def create_namespace(
         self,
@@ -367,6 +371,21 @@ class RegistryRepository:
         )
         self.session.add(entry)
         await self.session.flush()
+        if self.audit_chain is not None:
+            await audit_chain_hook(
+                self.audit_chain,
+                entry.id,
+                "registry",
+                {
+                    "workspace_id": entry.workspace_id,
+                    "agent_profile_id": entry.agent_profile_id,
+                    "previous_status": entry.previous_status.value,
+                    "new_status": entry.new_status.value,
+                    "actor_id": entry.actor_id,
+                    "reason": entry.reason,
+                    "created_at": entry.created_at,
+                },
+            )
         return entry
 
     async def list_lifecycle_audit(self, agent_profile_id: UUID) -> list[LifecycleAuditEntry]:

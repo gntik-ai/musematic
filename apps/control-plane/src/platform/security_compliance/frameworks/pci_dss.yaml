@@ -1,0 +1,15 @@
+framework: pci_dss
+controls:
+  - control_id: "6.3"
+    description: Security vulnerabilities are identified and addressed.
+    evidence_requirements: [vulnerability_scan_completed]
+  - control_id: "6.5"
+    description: Software changes are managed through secure processes.
+    evidence_requirements: [sbom_generated]
+  - control_id: "8.2"
+    description: User identification and authentication are managed.
+    evidence_requirements: [jit_grant]
+  - control_id: "11.3"
+    description: External and internal penetration testing is performed.
+    evidence_requirements: [pentest_finding]
+

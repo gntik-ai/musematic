@@ -35,6 +35,7 @@ from platform.analytics.router import router as analytics_router
 from platform.api.evaluations import router as evaluations_router
 from platform.api.health import router as health_router
 from platform.api.testing import router as testing_router
+from platform.audit.router import router as audit_router
 from platform.auth.events import register_auth_event_types
 from platform.auth.ibor_sync import IBORSyncService
 from platform.auth.repository import AuthRepository
@@ -159,6 +160,9 @@ from platform.registry.index_worker import RegistryIndexWorker
 from platform.registry.registry_opensearch_setup import create_marketplace_agents_index
 from platform.registry.registry_qdrant_setup import create_agent_embeddings_collection
 from platform.registry.router import router as registry_router
+from platform.security_compliance.consumers import ComplianceEvidenceConsumer
+from platform.security_compliance.events import register_security_compliance_event_types
+from platform.security_compliance.router import router as security_compliance_router
 from platform.simulation.dependencies import build_simulation_service
 from platform.simulation.events import register_simulation_event_types
 from platform.simulation.router import router as simulation_router
@@ -218,6 +222,7 @@ OPENAPI_PUBLIC_PATHS: frozenset[str] = frozenset(
         "/api/v1/auth/oauth/providers",
         "/api/v1/auth/oauth/{provider}/authorize",
         "/api/v1/auth/oauth/{provider}/callback",
+        "/api/v1/security/audit-chain/public-key",
         "/.well-known/agent.json",
     }
 )
@@ -386,6 +391,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_accounts_event_types()
     register_workspaces_event_types()
     register_analytics_event_types()
+    register_security_compliance_event_types()
     register_registry_event_types()
     register_context_engineering_event_types()
     register_memory_event_types()
@@ -578,6 +584,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     ibor_sync_scheduler = getattr(app.state, "ibor_sync_scheduler", None)
     connectors_worker_scheduler = getattr(app.state, "connectors_worker_scheduler", None)
     workflow_execution_scheduler = getattr(app.state, "workflow_execution_scheduler", None)
+    security_rotation_scheduler = getattr(app.state, "security_rotation_scheduler", None)
+    security_overlap_expirer = getattr(app.state, "security_overlap_expirer", None)
+    security_pentest_overdue_scheduler = getattr(
+        app.state,
+        "security_pentest_overdue_scheduler",
+        None,
+    )
     marketplace_scheduler = getattr(app.state, "marketplace_scheduler", None)
     fleet_learning_scheduler = getattr(app.state, "fleet_learning_scheduler", None)
     agentops_lifecycle_scheduler = getattr(app.state, "agentops_lifecycle_scheduler", None)
@@ -677,6 +690,19 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["workflow_execution_scheduler"] = str(exc)
             LOGGER.warning("Failed to start workflow execution scheduler: %s", exc)
+    for scheduler_name, scheduler in (
+        ("security_rotation_scheduler", security_rotation_scheduler),
+        ("security_overlap_expirer", security_overlap_expirer),
+        ("security_pentest_overdue_scheduler", security_pentest_overdue_scheduler),
+    ):
+        if scheduler is None:
+            continue
+        try:
+            scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors[scheduler_name] = str(exc)
+            LOGGER.warning("Failed to start %s: %s", scheduler_name, exc)
     if marketplace_scheduler is not None:
         try:
             marketplace_scheduler.start()
@@ -822,6 +848,17 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                     "Failed to stop workflow execution scheduler cleanly: %s",
                     exc,
                 )
+        for scheduler_name, scheduler in (
+            ("security_rotation_scheduler", security_rotation_scheduler),
+            ("security_overlap_expirer", security_overlap_expirer),
+            ("security_pentest_overdue_scheduler", security_pentest_overdue_scheduler),
+        ):
+            if scheduler is None:
+                continue
+            try:
+                scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop %s cleanly: %s", scheduler_name, exc)
         if connectors_worker_scheduler is not None:
             try:
                 connectors_worker_scheduler.shutdown(wait=False)
@@ -941,6 +978,9 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.connectors_worker_scheduler = None
     app.state.workflow_execution_scheduler = None
     app.state.workflow_scheduler = None
+    app.state.security_rotation_scheduler = None
+    app.state.security_overlap_expirer = None
+    app.state.security_pentest_overdue_scheduler = None
     app.state.marketplace_scheduler = None
     app.state.fleet_learning_scheduler = None
     app.state.agentops_lifecycle_scheduler = None
@@ -981,6 +1021,11 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
             app.state.connectors_worker_scheduler = _build_connectors_worker_scheduler(app)
         app.state.workflow_execution_scheduler = _build_workflow_execution_scheduler(app)
         app.state.workflow_scheduler = app.state.workflow_execution_scheduler
+        app.state.security_rotation_scheduler = _build_security_rotation_scheduler(app)
+        app.state.security_overlap_expirer = _build_security_overlap_expirer(app)
+        app.state.security_pentest_overdue_scheduler = _build_security_pentest_overdue_scheduler(
+            app
+        )
         app.state.marketplace_scheduler = _build_marketplace_scheduler(app)
         app.state.fleet_learning_scheduler = _build_fleet_learning_scheduler(app)
         app.state.goal_auto_completion_scheduler = _build_goal_auto_completion_scheduler(app)
@@ -991,6 +1036,11 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         )
         app.state.a2a_idle_timeout_scheduler = _build_a2a_idle_timeout_scheduler(app)
         app.state.mcp_catalog_refresh_scheduler = _build_mcp_catalog_refresh_scheduler(app)
+        app.state.security_rotation_scheduler = _build_security_rotation_scheduler(app)
+        app.state.security_overlap_expirer = _build_security_overlap_expirer(app)
+        app.state.security_pentest_overdue_scheduler = _build_security_pentest_overdue_scheduler(
+            app
+        )
     if resolved.profile == "agentops":
         app.state.agentops_lifecycle_scheduler = _build_agentops_lifecycle_scheduler(app)
     if resolved.profile == "agentops-testing":
@@ -1102,6 +1152,10 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
                 settings=resolved,
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 session_factory=database.AsyncSessionLocal,
+            ).register(consumer_manager)
+            ComplianceEvidenceConsumer(
+                settings=resolved,
+                object_storage=app.state.clients.get("object_storage"),
             ).register(consumer_manager)
             register_execution_consumers(
                 consumer_manager,
@@ -1220,6 +1274,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(composition_router)
         app.include_router(discovery_router)
         app.include_router(simulation_router)
+        app.include_router(audit_router)
+        app.include_router(security_compliance_router)
 
     _register_deprecated_routes(app)
     _install_openapi_factory(app)
@@ -1231,6 +1287,157 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         engine=database.engine,
     )
     return app
+
+
+def _build_security_rotation_service(app: FastAPI, session: Any) -> Any:
+    from platform.audit.dependencies import build_audit_chain_service
+    from platform.security_compliance.providers.rotatable_secret_provider import (
+        RotatableSecretProvider,
+    )
+    from platform.security_compliance.repository import SecurityComplianceRepository
+    from platform.security_compliance.services.secret_rotation_service import (
+        SecretRotationService,
+    )
+
+    settings = cast(PlatformSettings, app.state.settings)
+    return SecretRotationService(
+        SecurityComplianceRepository(session),
+        RotatableSecretProvider(
+            settings,
+            cast(AsyncRedisClient | None, app.state.clients.get("redis")),
+        ),
+        producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+        audit_chain=build_audit_chain_service(
+            session,
+            settings,
+            cast(EventProducer | None, app.state.clients.get("kafka")),
+        ),
+    )
+
+
+def _build_security_pentest_service(app: FastAPI, session: Any) -> Any:
+    from platform.audit.dependencies import build_audit_chain_service
+    from platform.security_compliance.repository import SecurityComplianceRepository
+    from platform.security_compliance.services.pentest_service import PentestService
+
+    settings = cast(PlatformSettings, app.state.settings)
+    return PentestService(
+        SecurityComplianceRepository(session),
+        producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+        audit_chain=build_audit_chain_service(
+            session,
+            settings,
+            cast(EventProducer | None, app.state.clients.get("kafka")),
+        ),
+    )
+
+
+def _build_security_rotation_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except ImportError:
+        return None
+    from platform.security_compliance.workers.rotation_scheduler import run_due_rotations
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run_due_rotations() -> None:
+        async with database.AsyncSessionLocal() as session:
+            try:
+                service = _build_security_rotation_service(app, session)
+                await run_due_rotations(service)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Security rotation scheduler failed")
+
+    scheduler.add_job(
+        _run_due_rotations,
+        "interval",
+        seconds=app.state.settings.security_compliance.rotation_scheduler_interval_seconds,
+        id="security-compliance-rotation-scheduler",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    return scheduler
+
+
+def _build_security_overlap_expirer(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except ImportError:
+        return None
+    from platform.security_compliance.workers.overlap_expirer import run_overlap_expiry
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run_overlap_expiry() -> None:
+        async with database.AsyncSessionLocal() as session:
+            try:
+                service = _build_security_rotation_service(app, session)
+                await run_overlap_expiry(service)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Security rotation overlap expirer failed")
+
+    scheduler.add_job(
+        _run_overlap_expiry,
+        "interval",
+        seconds=30,
+        id="security-compliance-overlap-expirer",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    return scheduler
+
+
+def _build_security_pentest_overdue_scheduler(app: FastAPI) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+        trigger_module = __import__("apscheduler.triggers.cron", fromlist=["CronTrigger"])
+    except ImportError:
+        return None
+    from platform.security_compliance.workers.pentest_overdue_scanner import (
+        run_pentest_overdue_scan,
+    )
+
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+    trigger = trigger_module.CronTrigger.from_crontab(
+        app.state.settings.security_compliance.pentest_overdue_scan_cron,
+        timezone="UTC",
+    )
+
+    async def _run_overdue_scan() -> None:
+        async with database.AsyncSessionLocal() as session:
+            try:
+                service = _build_security_pentest_service(app, session)
+                await run_pentest_overdue_scan(service)
+                await session.commit()
+            except Exception:
+                await session.rollback()
+                LOGGER.exception("Security pentest overdue scanner failed")
+
+    scheduler.add_job(
+        _run_overdue_scan,
+        trigger=trigger,
+        id="security-compliance-pentest-overdue",
+        replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+    )
+    return scheduler
 
 
 async def _refresh_ibor_sync_scheduler(app: FastAPI) -> None:
