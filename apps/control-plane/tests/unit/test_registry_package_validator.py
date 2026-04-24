@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import io
 import shutil
+import tarfile
 import tempfile
+import zipfile
 from pathlib import Path
 from platform.common.config import PlatformSettings
 from platform.registry.exceptions import PackageValidationError
@@ -171,3 +174,37 @@ def test_package_validator_rejects_extracted_symlink_and_non_object_manifest() -
         assert invalid_exc.value.error_type == "manifest_invalid"
     finally:
         shutil.rmtree(manifest_dir, ignore_errors=True)
+
+
+def test_package_validator_rejects_unsupported_tar_entries() -> None:
+    validator = PackageValidator(PlatformSettings())
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
+        character_device = tarfile.TarInfo(name="device")
+        character_device.type = tarfile.CHRTYPE
+        archive.addfile(character_device)
+
+    temp_dir = Path(tempfile.mkdtemp(prefix="registry-special-"))
+    try:
+        with pytest.raises(PackageValidationError) as exc_info:
+            validator._extract_tar(buffer.getvalue(), temp_dir)
+        assert exc_info.value.error_type == "unsupported_archive_entry"
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def test_package_validator_rejects_unsupported_zip_entries() -> None:
+    validator = PackageValidator(PlatformSettings())
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, mode="w") as archive:
+        fifo = zipfile.ZipInfo("fifo")
+        fifo.external_attr = (0o10000 | 0o644) << 16
+        archive.writestr(fifo, "")
+
+    temp_dir = Path(tempfile.mkdtemp(prefix="registry-special-zip-"))
+    try:
+        with pytest.raises(PackageValidationError) as exc_info:
+            validator._extract_zip(buffer.getvalue(), temp_dir)
+        assert exc_info.value.error_type == "unsupported_archive_entry"
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
