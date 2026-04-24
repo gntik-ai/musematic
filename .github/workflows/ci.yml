@@ -287,7 +287,7 @@ jobs:
       - name: Generate OpenAPI doc
         run: |
           cd apps/control-plane
-          python -c "from platform.main import create_app; import json; print(json.dumps(create_app().openapi()))" > /tmp/openapi.json
+          PYTHONPATH=src python -c "from platform.main import create_app; import json; print(json.dumps(create_app().openapi()))" > /tmp/openapi.json
 
       - name: Lint with Spectral
         env:
