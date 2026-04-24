@@ -693,31 +693,25 @@ jobs:
         run: |
           mkdir -p scan-results
           : > scan-results/govulncheck.jsonl
+          : > scan-results/govulncheck.stderr.log
           for mod in services/*/go.mod; do
             service_dir="$(dirname "$mod")"
-            (cd "$service_dir" && govulncheck -json ./...) >> scan-results/govulncheck.jsonl || true
+            (cd "$service_dir" && govulncheck -json ./...) >> scan-results/govulncheck.jsonl 2>> scan-results/govulncheck.stderr.log || true
           done
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          vulns = []
-          for line in Path("scan-results/govulncheck.jsonl").read_text().splitlines():
-              if not line.strip():
-                  continue
-              item = json.loads(line)
-              vuln = item.get("finding") or item.get("osv")
-              if vuln:
-                  vulns.append(vuln)
-          Path("scan-results/govulncheck.json").write_text(json.dumps({"vulns": vulns}))
-          PY
+          python ci/normalize_govulncheck.py \
+            scan-results/govulncheck.jsonl \
+            --output scan-results/govulncheck.json \
+            --invalid-output scan-results/govulncheck-invalid.log
 
       - name: Upload scan artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: scan-results-govulncheck
-          path: scan-results/govulncheck.json
+          path: |
+            scan-results/govulncheck.json
+            scan-results/govulncheck-invalid.log
+            scan-results/govulncheck.stderr.log
 
   security-gosec:
     name: gosec
