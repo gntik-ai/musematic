@@ -27,6 +27,7 @@ EXEMPT_PATHS: frozenset[str] = frozenset(
         "/api/v1/auth/login",
         "/api/v1/auth/refresh",
         "/api/v1/auth/mfa/verify",
+        "/api/v1/security/audit-chain/public-key",
     }
 )
 
@@ -140,6 +141,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return _unauthorized_response("UNAUTHORIZED", "Invalid authentication token")
         if not isinstance(payload, dict) or payload.get("type") not in {None, "access"}:
             return _unauthorized_response("UNAUTHORIZED", "Invalid authentication token")
+        jti = payload.get("jti")
+        if isinstance(jti, str) and jti:
+            redis_client = getattr(request.app.state, "clients", {}).get("redis")
+            get = getattr(redis_client, "get", None)
+            if callable(get):
+                revoked = await get(f"jit:revoked:{jti}")
+                if revoked is not None:
+                    return _unauthorized_response("JIT_REVOKED", "JIT credential revoked")
 
         request.state.user = _with_principal_type(payload, "user")
         return await call_next(request)

@@ -21,6 +21,9 @@ common:
   wsHeartbeatIntervalSeconds: 30
   wsHeartbeatTimeoutSeconds: 10
 
+securityCompliance:
+  manualEvidenceBucket: compliance-evidence
+
 connections:
   postgresDsn: postgresql+asyncpg://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic
   redisUrl: redis://:change-me@musematic-redis.platform.svc.cluster.local:6379
@@ -54,6 +57,7 @@ connections:
   authJwtSecretKey: change-me
   authMfaEncryptionKey: ""
   authJwtAlgorithm: HS256
+  rotatingSecrets: {}
 
 auth:
   oauth:

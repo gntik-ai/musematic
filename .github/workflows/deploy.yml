@@ -87,6 +87,9 @@ jobs:
           - sandbox-manager
           - simulation-controller
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
@@ -94,18 +97,78 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Generate SBOM
+      - name: Generate CycloneDX SBOM
         uses: anchore/sbom-action@v0
         with:
           image: ghcr.io/${{ github.repository }}/${{ matrix.image }}:${{ github.ref_name }}
           format: cyclonedx-json
-          output-file: sbom-${{ matrix.image }}.cdx.json
+          output-file: sbom-${{ matrix.image }}.cyclonedx.json
+
+      - name: Generate SPDX SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ghcr.io/${{ github.repository }}/${{ matrix.image }}:${{ github.ref_name }}
+          format: spdx-json
+          output-file: sbom-${{ matrix.image }}.spdx.json
+
+      - name: Canonicalize SBOMs
+        run: |
+          python ci/normalize_sbom.py \
+            sbom-${{ matrix.image }}.cyclonedx.json \
+            sbom-${{ matrix.image }}.spdx.json \
+            --output-dir canonical-sbom
+
+      - name: Upload SBOMs to platform
+        env:
+          PLATFORM_API_URL: ${{ secrets.PLATFORM_API_URL }}
+          PLATFORM_JWT: ${{ secrets.PLATFORM_RELEASE_PUBLISHER_JWT }}
+          RELEASE_VERSION: ${{ github.ref_name }}-${{ matrix.image }}
+        run: |
+          if [ -z "$PLATFORM_API_URL" ] || [ -z "$PLATFORM_JWT" ]; then
+            echo "Skipping platform SBOM upload; PLATFORM_API_URL or token is not configured."
+            exit 0
+          fi
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+          from pathlib import Path
+
+          api_url = os.environ["PLATFORM_API_URL"].rstrip("/")
+          token = os.environ["PLATFORM_JWT"]
+          release_version = os.environ["RELEASE_VERSION"]
+          files = {
+              "canonical-sbom/sbom-${{ matrix.image }}.cyclonedx.json": "cyclonedx",
+              "canonical-sbom/sbom-${{ matrix.image }}.spdx.json": "spdx",
+          }
+          for path, sbom_format in files.items():
+              payload = {
+                  "release_version": release_version,
+                  "format": sbom_format,
+                  "content": Path(path).read_text(encoding="utf-8"),
+              }
+              request = urllib.request.Request(
+                  f"{api_url}/api/v1/security/sbom",
+                  data=json.dumps(payload).encode("utf-8"),
+                  method="POST",
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Content-Type": "application/json",
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  if response.status >= 400:
+                      raise RuntimeError(f"SBOM upload failed: HTTP {response.status}")
+          PY
 
       - name: Upload SBOM
         uses: actions/upload-artifact@v4
         with:
           name: sbom-${{ matrix.image }}
-          path: sbom-${{ matrix.image }}.cdx.json
+          path: |
+            sbom-${{ matrix.image }}.cyclonedx.json
+            sbom-${{ matrix.image }}.spdx.json
+            canonical-sbom/*.json
 
   create-release:
     name: Create release
@@ -123,5 +186,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: sbom-files/*.cdx.json
+          files: sbom-files/*.json
           fail_on_unmatched_files: true

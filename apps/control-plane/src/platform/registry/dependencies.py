@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from platform.audit.dependencies import build_audit_chain_service
 from platform.common.clients.object_storage import AsyncObjectStorageClient
 from platform.common.clients.opensearch import AsyncOpenSearchClient
 from platform.common.clients.qdrant import AsyncQdrantClient
@@ -48,7 +49,11 @@ def build_registry_service(
     producer: EventProducer | None,
 ) -> RegistryService:
     return RegistryService(
-        repository=RegistryRepository(session, opensearch),
+        repository=RegistryRepository(
+            session,
+            opensearch,
+            build_audit_chain_service(session, settings, producer),
+        ),
         object_storage=object_storage,
         opensearch=opensearch,
         qdrant=qdrant,

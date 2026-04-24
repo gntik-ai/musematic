@@ -141,7 +141,9 @@ class AuthSettings(BaseSettings):
     oauth_github_user_url: str = "https://api.github.com/user"
     oauth_github_emails_url: str = "https://api.github.com/user/emails"
     oauth_github_teams_url: str = "https://api.github.com/user/teams"
-    oauth_github_org_membership_url_template: str = "https://api.github.com/user/memberships/orgs/{org}"
+    oauth_github_org_membership_url_template: str = (
+        "https://api.github.com/user/memberships/orgs/{org}"
+    )
 
     @property
     def signing_key(self) -> str:
@@ -447,6 +449,56 @@ class SimulationSettings(BaseSettings):
     prediction_worker_interval_seconds: int = 30
 
 
+class AuditSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="AUDIT_CHAIN_", extra="ignore")
+
+    signing_key_hex: str = Field(
+        default="0" * 64,
+        description="Hex-encoded 32-byte Ed25519 seed used to sign audit attestations.",
+    )
+    verifying_key_hex: str = Field(
+        default="",
+        description="Hex-encoded 32-byte Ed25519 public key; derived from signing key when empty.",
+    )
+    fail_closed_on_append_error: bool = Field(
+        default=True,
+        description="Fail originating audit writes when audit-chain append fails.",
+    )
+
+
+class SecurityComplianceSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="SECURITY_COMPLIANCE_", extra="ignore")
+
+    vuln_gate_enabled: bool = Field(
+        default=True,
+        description="Enable release blocking when vulnerability scan policy fails.",
+    )
+    rotation_scheduler_interval_seconds: int = Field(
+        default=300,
+        description="Interval in seconds for scanning due secret rotations.",
+    )
+    rotation_overlap_min_hours: int = Field(
+        default=24,
+        description="Minimum allowed dual-credential overlap window in hours.",
+    )
+    rotation_overlap_max_hours: int = Field(
+        default=168,
+        description="Maximum allowed dual-credential overlap window in hours.",
+    )
+    pentest_overdue_scan_cron: str = Field(
+        default="0 3 * * *",
+        description="Cron expression for the pentest overdue scanner.",
+    )
+    manual_evidence_bucket: str = Field(
+        default="compliance-evidence",
+        description="S3 bucket used for manually uploaded compliance evidence.",
+    )
+    jit_max_expiry_minutes_floor: int = Field(
+        default=1440,
+        description="Maximum JIT credential lifetime in minutes.",
+    )
+
+
 class PlatformSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="PLATFORM_",
@@ -502,6 +554,10 @@ class PlatformSettings(BaseSettings):
     composition: CompositionSettings = Field(default_factory=CompositionSettings)
     discovery: DiscoverySettings = Field(default_factory=DiscoverySettings)
     simulation: SimulationSettings = Field(default_factory=SimulationSettings)
+    audit: AuditSettings = Field(default_factory=AuditSettings)
+    security_compliance: SecurityComplianceSettings = Field(
+        default_factory=SecurityComplianceSettings
+    )
     checkpoint_retention_days: int = 30
     checkpoint_max_size_bytes: int = 10_485_760
     profile: str = "api"
@@ -713,6 +769,34 @@ class PlatformSettings(BaseSettings):
                 "session_cleaner_interval_minutes",
             ),
             "MEMORY_RECENCY_DECAY": ("memory", "recency_decay"),
+            "AUDIT_CHAIN_SIGNING_KEY": ("audit", "signing_key_hex"),
+            "AUDIT_CHAIN_VERIFYING_KEY": ("audit", "verifying_key_hex"),
+            "FEATURE_AUDIT_CHAIN_STRICT": ("audit", "fail_closed_on_append_error"),
+            "FEATURE_VULN_GATE_ENABLED": ("security_compliance", "vuln_gate_enabled"),
+            "SECURITY_COMPLIANCE_ROTATION_SCHEDULER_INTERVAL_SECONDS": (
+                "security_compliance",
+                "rotation_scheduler_interval_seconds",
+            ),
+            "SECURITY_COMPLIANCE_ROTATION_OVERLAP_MIN_HOURS": (
+                "security_compliance",
+                "rotation_overlap_min_hours",
+            ),
+            "SECURITY_COMPLIANCE_ROTATION_OVERLAP_MAX_HOURS": (
+                "security_compliance",
+                "rotation_overlap_max_hours",
+            ),
+            "SECURITY_COMPLIANCE_PENTEST_OVERDUE_SCAN_CRON": (
+                "security_compliance",
+                "pentest_overdue_scan_cron",
+            ),
+            "SECURITY_COMPLIANCE_MANUAL_EVIDENCE_BUCKET": (
+                "security_compliance",
+                "manual_evidence_bucket",
+            ),
+            "SECURITY_COMPLIANCE_JIT_MAX_EXPIRY_MINUTES_FLOOR": (
+                "security_compliance",
+                "jit_max_expiry_minutes_floor",
+            ),
             "INTERACTIONS_MAX_MESSAGES_PER_CONVERSATION": (
                 "interactions",
                 "max_messages_per_conversation",
@@ -1400,6 +1484,22 @@ class PlatformSettings(BaseSettings):
     @property
     def MEMORY_RECENCY_DECAY(self) -> float:
         return self.memory.recency_decay
+
+    @property
+    def AUDIT_CHAIN_SIGNING_KEY(self) -> str:
+        return self.audit.signing_key_hex
+
+    @property
+    def AUDIT_CHAIN_VERIFYING_KEY(self) -> str:
+        return self.audit.verifying_key_hex
+
+    @property
+    def FEATURE_AUDIT_CHAIN_STRICT(self) -> bool:
+        return self.audit.fail_closed_on_append_error
+
+    @property
+    def FEATURE_VULN_GATE_ENABLED(self) -> bool:
+        return self.security_compliance.vuln_gate_enabled
 
     @property
     def INTERACTIONS_MAX_MESSAGES_PER_CONVERSATION(self) -> int:

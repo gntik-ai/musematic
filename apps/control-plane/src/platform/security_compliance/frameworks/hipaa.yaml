@@ -1,0 +1,15 @@
+framework: hipaa
+controls:
+  - control_id: "164.308(a)(1)"
+    description: Security management process identifies and manages risk.
+    evidence_requirements: [vulnerability_scan_completed]
+  - control_id: "164.308(a)(5)"
+    description: Workforce security procedures govern privileged access.
+    evidence_requirements: [jit_grant]
+  - control_id: "164.312(a)"
+    description: Technical access controls protect electronic PHI.
+    evidence_requirements: [secret_rotation]
+  - control_id: "164.312(b)"
+    description: Audit controls record and examine system activity.
+    evidence_requirements: [audit_chain_attestation]
+

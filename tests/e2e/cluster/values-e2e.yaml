@@ -245,6 +245,8 @@ controlPlane:
     mockLlmEnabled: true
     zeroTrustVisibility: true
     otelResourceAttributes: deployment.environment=e2e
+  securityCompliance:
+    manualEvidenceBucket: evidence-bundles
   auth:
     oauth:
       google:
@@ -263,6 +265,8 @@ controlPlane:
     redisTestMode: cluster
     # E2E-only deterministic Fernet key; not used outside local kind tests.
     authMfaEncryptionKey: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+    rotatingSecrets:
+      ROTATING_SECRET_TEST_DB_PASSWORD_CURRENT: test-db-current
   api:
     replicaCount: 1
     service:
@@ -432,4 +436,3 @@ mockOAuth:
         id: 1002
         login: j-creator
         email: j-creator@e2e.test
-

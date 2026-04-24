@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from platform.audit.dependencies import build_audit_chain_service
+from platform.common.audit_hook import audit_chain_hook
 from platform.common.clients.redis import AsyncRedisClient, RateLimitResult
 from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
@@ -52,6 +54,7 @@ class MCPService:
         self.producer = producer
         self.redis_client = redis_client
         self.tool_registry: Any | None = None
+        self.audit_chain = build_audit_chain_service(repository.session, settings, producer)
 
     async def register_server(
         self,
@@ -297,12 +300,15 @@ class MCPService:
     async def check_rate_limit(self, principal_id: UUID) -> RateLimitResult:
         checker = getattr(self.redis_client, "check_rate_limit", None)
         if callable(checker):
-            result = await cast(Any, checker(
-                "mcp",
-                str(principal_id),
-                self.settings.MCP_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE,
-                60_000,
-            ))
+            result = await cast(
+                Any,
+                checker(
+                    "mcp",
+                    str(principal_id),
+                    self.settings.MCP_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE,
+                    60_000,
+                ),
+            )
             return cast(RateLimitResult, result)
         return RateLimitResult(
             allowed=True,
@@ -341,6 +347,26 @@ class MCPService:
                 error_code=error_code,
                 error_classification=error_classification,
             )
+        )
+        await audit_chain_hook(
+            self.audit_chain,
+            record.id,
+            "mcp",
+            {
+                "workspace_id": record.workspace_id,
+                "principal_id": record.principal_id,
+                "agent_id": record.agent_id,
+                "agent_fqn": record.agent_fqn,
+                "server_id": record.server_id,
+                "tool_identifier": record.tool_identifier,
+                "direction": record.direction.value,
+                "outcome": record.outcome.value,
+                "policy_decision": record.policy_decision,
+                "payload_size_bytes": record.payload_size_bytes,
+                "error_code": record.error_code,
+                "error_classification": record.error_classification,
+                "timestamp": record.timestamp,
+            },
         )
         await self._commit()
         return record
