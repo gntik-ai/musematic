@@ -144,7 +144,15 @@ async def list_invitations(
 
 
 @router.delete(
-    "/invitations/{invitation_id}", response_model=RevokeInvitationResponse, status_code=200
+    "/invitations/{invitation_id}",
+    response_model=RevokeInvitationResponse,
+    status_code=200,
+    include_in_schema=False,
+)
+@router.delete(
+    "/invitations/{invitation_id}/revoke",
+    response_model=RevokeInvitationResponse,
+    status_code=200,
 )
 async def revoke_invitation(
     invitation_id: UUID,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import platform.main as main_module
+import re
 from platform.common.config import PlatformSettings
 from platform.main import create_app
 from typing import Any
@@ -87,3 +88,16 @@ def test_openapi_info_and_security_metadata(monkeypatch: pytest.MonkeyPatch) -> 
             assert "admin" in operation["tags"], f"{path} is missing the admin tag"
         if path not in PUBLIC_OPENAPI_PATHS:
             assert operation.get("security"), f"{path} is missing security requirements"
+
+
+def test_openapi_path_templates_are_unique(monkeypatch: pytest.MonkeyPatch) -> None:
+    app = _build_app(monkeypatch)
+    spec = app.openapi()
+    normalized_paths: dict[str, str] = {}
+
+    for path in spec["paths"]:
+        normalized = re.sub(r"\{[^}/]+\}", "{}", path)
+        assert normalized not in normalized_paths, (
+            f"{path} conflicts with {normalized_paths[normalized]}"
+        )
+        normalized_paths[normalized] = path

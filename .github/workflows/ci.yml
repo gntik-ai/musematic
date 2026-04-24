@@ -276,6 +276,11 @@ jobs:
           cache: pip
           cache-dependency-path: apps/control-plane/pyproject.toml
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       - name: Install dependencies
         run: python -m pip install -e "./apps/control-plane[dev]"
 
@@ -285,10 +290,13 @@ jobs:
           python -c "from platform.main import create_app; import json; print(json.dumps(create_app().openapi()))" > /tmp/openapi.json
 
       - name: Lint with Spectral
-        uses: stoplightio/spectral-action@v0.8.1
-        with:
-          file_glob: /tmp/openapi.json
-          spectral_ruleset: '.spectral.yaml'
+        env:
+          NPM_CONFIG_CACHE: /tmp/.npm
+        run: >
+          npx --yes @stoplight/spectral-cli@6.15.0 lint /tmp/openapi.json
+          --ruleset .spectral.yaml
+          --fail-severity error
+          --display-only-failures
 
   lint-go:
     name: Lint Go (${{ matrix.service }})
