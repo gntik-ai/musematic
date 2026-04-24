@@ -98,6 +98,7 @@ class MemoryWriteGate:
             request.execution_id,
             request.ttl_seconds,
         )
+        raw_content = request.content
         content, privacy_applied = await self._apply_differential_privacy(
             request.content,
             workspace_id,
@@ -109,7 +110,7 @@ class MemoryWriteGate:
         except Exception:
             embedding_failed = True
         contradiction = await self._find_contradiction(
-            content=content,
+            content=raw_content,
             scope=request.scope,
             agent_fqn=agent_fqn,
             workspace_id=workspace_id,
