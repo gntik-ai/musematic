@@ -453,9 +453,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -475,8 +472,6 @@ jobs:
           load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   helm-lint:
     name: Helm lint
@@ -579,9 +574,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Build scan target
         uses: docker/build-push-action@v6
         with:
@@ -590,8 +582,6 @@ jobs:
           load: true
           push: false
           tags: scan-target:${{ matrix.image }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Trivy scan
         uses: aquasecurity/trivy-action@master

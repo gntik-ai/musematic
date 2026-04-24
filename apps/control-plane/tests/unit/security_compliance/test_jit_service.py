@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from platform.common.config import PlatformSettings
-from platform.common.exceptions import AuthorizationError
+from platform.common.exceptions import AuthorizationError, ValidationError
 from platform.security_compliance.models import JitApproverPolicy, JitCredentialGrant
 from platform.security_compliance.services.jit_service import JitService
 from uuid import UUID, uuid4
@@ -54,6 +54,14 @@ def _service(repository: FakeRepository) -> JitService:
         auth={"jwt_secret_key": "a" * 32, "jwt_algorithm": "HS256"},
     )
     return JitService(repository, settings)  # type: ignore[arg-type]
+
+
+class FakeRedis:
+    def __init__(self) -> None:
+        self.values: dict[str, tuple[bytes, int | None]] = {}
+
+    async def set(self, key: str, value: bytes, ttl: int | None = None) -> None:
+        self.values[key] = (value, ttl)
 
 
 @pytest.mark.asyncio
@@ -156,3 +164,43 @@ async def test_customer_data_policy_requires_two_approvers() -> None:
     assert first_token == ""
     assert second.status == "approved"
     assert second_token
+
+
+@pytest.mark.asyncio
+async def test_jit_reject_lists_policy_errors_and_redis_revocation() -> None:
+    repository = FakeRepository()
+    redis = FakeRedis()
+    settings = PlatformSettings(
+        auth={"jwt_secret_key": "a" * 32, "jwt_algorithm": "HS256"},
+    )
+    service = JitService(repository, settings, redis_client=redis)  # type: ignore[arg-type]
+    requester = uuid4()
+
+    with pytest.raises(ValidationError):
+        await service.request_grant(
+            user_id=requester,
+            operation="deploy:prod",
+            purpose="Deploy production hotfix SEC-1234",
+            requested_expiry_minutes=600,
+        )
+    with pytest.raises(ValidationError):
+        await service.resolve_policy("unknown:operation")
+
+    grant, _ = await service.request_grant(
+        user_id=requester,
+        operation="deploy:prod",
+        purpose="Deploy production hotfix SEC-1234",
+        requested_expiry_minutes=30,
+    )
+    rejected = await service.reject_grant(grant.id, reason="insufficient context")
+    revoked = await service.revoke_grant(grant.id, revoked_by=uuid4())
+
+    assert rejected.status == "revoked"
+    assert revoked.status == "revoked"
+    assert await service.list_grants(requester) == [grant]
+    assert await service.list_policies() == repository.policies
+    assert redis.values[f"jit:revoked:{grant.id}"] == (b"1", 86400)
+
+    grant.expires_at = None
+    with pytest.raises(ValidationError):
+        service._jwt(grant)

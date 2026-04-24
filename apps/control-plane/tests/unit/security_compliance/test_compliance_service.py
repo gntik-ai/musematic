@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from platform.common.config import PlatformSettings
+from platform.common.exceptions import NotFoundError
 from platform.security_compliance.models import (
     ComplianceControl,
     ComplianceEvidence,
@@ -180,3 +181,37 @@ async def test_manual_upload_and_signed_bundle() -> None:
     assert bundle["url"].startswith("https://storage.test/")
     assert len(bundle["manifest_hash"]) == 64
     assert bundle["signature"]
+
+
+@pytest.mark.asyncio
+async def test_compliance_list_paths_no_storage_bundle_and_missing_control() -> None:
+    repository = FakeRepository()
+    service = _service(repository, object_storage=None)
+    control_id = next(iter(repository.controls))
+    await service.on_security_event(
+        evidence_type="security.scan.completed",
+        source="platform.security_compliance",
+        entity_id="scan-2",
+        payload={"scanner": "bandit"},
+    )
+
+    frameworks = await service.list_frameworks()
+    evidence = await service.list_evidence(control_id)
+    bundle = await service.generate_bundle(
+        framework="soc2",
+        window_start=datetime.now(UTC) - timedelta(minutes=1),
+        window_end=datetime.now(UTC) + timedelta(minutes=1),
+    )
+
+    assert frameworks == ["soc2"]
+    assert evidence == repository.evidence
+    assert bundle["url"].startswith("s3://")
+
+    with pytest.raises(NotFoundError):
+        await service.upload_manual_evidence(
+            control_id=uuid4(),
+            description="missing",
+            filename="missing.txt",
+            content=b"missing",
+            content_type="text/plain",
+        )

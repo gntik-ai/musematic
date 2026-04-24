@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from platform.common.exceptions import AuthorizationError
+from platform.common.exceptions import AuthorizationError, ValidationError
 from platform.security_compliance.models import VulnerabilityException, VulnerabilityScanResult
 from platform.security_compliance.services.vuln_scan_service import VulnScanService
 from uuid import uuid4
@@ -140,5 +140,41 @@ async def test_exception_create_requires_two_person_approval() -> None:
             justification="Temporary exception with ticket SEC-1234",
             approved_by=requester,
             requester_id=requester,
+            expires_at=datetime.now(UTC) + timedelta(days=1),
+        )
+
+
+@pytest.mark.asyncio
+async def test_vuln_scan_explicit_gating_list_exceptions_and_validation_paths() -> None:
+    service = VulnScanService(FakeRepository())  # type: ignore[arg-type]
+    scan = await service.ingest_scan(
+        release_version="1.0.0",
+        scanner="custom",
+        findings=[],
+        max_severity="info",
+        gating_result="passed",
+    )
+    exception = await service.create_exception(
+        scanner="custom",
+        vulnerability_id="CVE-1",
+        component_pattern="*",
+        justification="Temporary exception with ticket SEC-1234",
+        approved_by=uuid4(),
+        requester_id=uuid4(),
+        expires_at=datetime.now(UTC) + timedelta(days=1),
+    )
+    active = await service.list_active_exceptions()
+
+    assert scan.max_severity == "info"
+    assert active == [exception]
+
+    with pytest.raises(ValidationError):
+        await service.create_exception(
+            scanner="custom",
+            vulnerability_id="CVE-2",
+            component_pattern="*",
+            justification="too short",
+            approved_by=uuid4(),
+            requester_id=uuid4(),
             expires_at=datetime.now(UTC) + timedelta(days=1),
         )

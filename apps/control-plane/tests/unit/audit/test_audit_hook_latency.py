@@ -16,6 +16,14 @@ class FakeAuditChainService:
         }
 
 
+class FakeRepositoryBackedAuditChainService:
+    repository = type("Repository", (), {"session": object()})()
+
+    async def append(self, audit_event_id, source, canonical_payload):
+        del audit_event_id, source, canonical_payload
+        raise AssertionError("fake repository-backed services without execute are not appendable")
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("source", ["auth", "a2a_gateway", "registry", "mcp"])
 async def test_audit_chain_hook_is_under_five_milliseconds(source: str) -> None:
@@ -29,3 +37,15 @@ async def test_audit_chain_hook_is_under_five_milliseconds(source: str) -> None:
     )
 
     assert (time.perf_counter() - started) * 1000 <= 5
+
+
+@pytest.mark.asyncio
+async def test_audit_chain_hook_skips_repository_backed_unit_test_fakes() -> None:
+    result = await audit_chain_hook(
+        FakeRepositoryBackedAuditChainService(),
+        uuid4(),
+        "unit-test",
+        {"event": "test"},
+    )
+
+    assert result is None

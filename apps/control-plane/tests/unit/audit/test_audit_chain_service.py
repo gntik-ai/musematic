@@ -191,3 +191,14 @@ def test_audit_signing_does_not_log_private_seed(caplog: pytest.LogCaptureFixtur
 
     assert len(signing.public_key_hex) == 64
     assert private_seed not in caplog.text
+
+
+def test_audit_signing_validation_and_failed_verify() -> None:
+    with pytest.raises(ValueError, match="32-byte hex-encoded"):
+        AuditChainSigning(_settings("1" * 62).audit)
+
+    signing = AuditChainSigning(_settings("6" * 64).audit)
+    signature = signing.sign(b"document")
+
+    assert signing.verify(b"document", signature, signing.public_key_hex) is True
+    assert signing.verify(b"tampered", signature, signing.public_key_hex) is False
