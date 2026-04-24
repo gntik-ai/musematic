@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import ParamSpec, TypeVar
+from typing import Any, ParamSpec, TypeVar, cast
 
 P = ParamSpec("P")
 R = TypeVar("R")
@@ -34,7 +34,7 @@ def deprecated_route(
     note = _deprecation_note(sunset_dt, successor)
 
     def decorator(fn: Callable[P, R]) -> Callable[P, R]:
-        fn.__deprecated_marker__ = sunset_dt, successor
+        cast(Any, fn).__deprecated_marker__ = sunset_dt, successor
         existing_doc = (fn.__doc__ or "").strip()
         fn.__doc__ = f"{note}\n\n{existing_doc}" if existing_doc else note
         return fn

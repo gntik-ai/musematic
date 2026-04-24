@@ -20,7 +20,7 @@ class ApiVersioningMiddleware(BaseHTTPMiddleware):
         marker = self._resolve_marker(request)
         now = datetime.now(UTC)
         if marker is not None and now >= marker.sunset:
-            response = JSONResponse(
+            response: Response = JSONResponse(
                 status_code=410,
                 content={
                     "error": "endpoint_sunset",

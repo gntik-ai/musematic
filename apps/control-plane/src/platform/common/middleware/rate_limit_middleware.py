@@ -10,8 +10,12 @@ from platform.common.auth_middleware import EXEMPT_PATHS
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.rate_limiter.repository import RateLimiterRepository
-from platform.common.rate_limiter.service import RateLimiterService, RateLimitEvaluation
-from typing import Any
+from platform.common.rate_limiter.service import (
+    RateLimiterService,
+    RateLimitEvaluation,
+    ResolvedRateLimitPolicy,
+)
+from typing import Any, cast
 
 from fastapi.responses import JSONResponse, Response
 from redis.exceptions import RedisError
@@ -177,7 +181,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         anonymous: bool,
         *,
         use_cache: bool = True,
-    ):
+    ) -> ResolvedRateLimitPolicy:
         if anonymous:
             return await service.resolve_anonymous_policy(principal_key, use_cache=use_cache)
         return await service.resolve_policy_for_principal(
@@ -188,11 +192,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     @staticmethod
     def _settings(request: Request) -> PlatformSettings:
-        return request.app.state.settings
+        return cast(PlatformSettings, request.app.state.settings)
 
     @staticmethod
     def _redis(request: Request) -> AsyncRedisClient:
-        return request.app.state.clients["redis"]
+        return cast(AsyncRedisClient, request.app.state.clients["redis"])
 
     @staticmethod
     def _source_ip(request: Request) -> str:
