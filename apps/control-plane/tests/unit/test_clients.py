@@ -309,6 +309,8 @@ async def test_object_storage_client_methods(monkeypatch) -> None:
         async def create_bucket(self, **kwargs) -> None:
             self.created_bucket = True
 
+        async def generate_presigned_url(self, **kwargs) -> str:
+            return f"https://storage.test/{kwargs['Params']['Bucket']}/{kwargs['Params']['Key']}"
 
     fake_s3 = FakeS3()
     client = AsyncObjectStorageClient(PlatformSettings(S3_ENDPOINT_URL="http://minio:9000"))
@@ -323,6 +325,7 @@ async def test_object_storage_client_methods(monkeypatch) -> None:
     await client.put_object("bucket", "key", b"payload")
     assert await client.get_object("bucket", "key") == b"payload"
     assert await client.list_objects("bucket") == ["a.txt"]
+    assert await client.get_presigned_url("bucket", "key") == "https://storage.test/bucket/key"
     await client.create_bucket_if_not_exists("bucket")
     fake_s3.created_bucket = True
     assert fake_s3.created_bucket is True

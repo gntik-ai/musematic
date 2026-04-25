@@ -120,6 +120,7 @@ Auto-generated from all feature plans. Last updated: 2026-04-25
 - None directly owned — journey tests assert against existing platform data stores (PostgreSQL, Redis, Kafka, MinIO, ClickHouse) via feature 071's `db`, `kafka_consumer`, and `http_client` fixtures. (056-ibor-integration-and)
 - Python 3.12+ (control plane); Go, TypeScript, Rust (056-ibor-integration-and)
 - Python 3.12+ (control plane). No Go changes. (076-privacy-compliance)
+- Python 3.12+ (control plane). No Go changes — (075-model-catalog-fallback)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -140,6 +141,8 @@ Python 3.12+ (application), PostgreSQL 16 (database): Follow standard convention
 
 ## Recent Changes
 - 076-privacy-compliance: Added Python 3.12+ (control plane). No Go changes.
+- 075-model-catalog-fallback: Added Python 3.12+ (control plane). No Go changes —
+- 074-security-compliance: Added Python 3.12+ (control plane); Go, TypeScript, Rust
 - 056-ibor-integration-and: Added Python 3.12+ (control plane); Go, TypeScript, Rust
 - 056-ibor-integration-and: Added Python 3.12+ (test harness only); YAML (Helm values additions for mock OAuth servers + CI workflow extensions); Bash (Makefile additions) + pytest 8.x (already in feature 071 harness), pytest-asyncio, pytest-html, pytest-timeout, pytest-xdist (NEW — parallel journey execution for SC-005), httpx 0.27+, websockets, aiokafka 0.11+, asyncpg — all reused from feature 071's `tests/e2e/pyproject.toml`. No new runtime dependencies on the control plane.
 

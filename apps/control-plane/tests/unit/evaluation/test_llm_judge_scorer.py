@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from platform.common.config import PlatformSettings
 from platform.evaluation.scorers.llm_judge import LLMJudgeScorer
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -8,6 +9,16 @@ from uuid import uuid4
 import httpx
 import pytest
 from tests.evaluation_testing_support import make_settings
+
+
+class RouterStub:
+    def __init__(self, content: str) -> None:
+        self.content = content
+        self.calls: list[dict[str, object]] = []
+
+    async def complete(self, **kwargs: object) -> object:
+        self.calls.append(kwargs)
+        return SimpleNamespace(content=self.content)
 
 
 @pytest.mark.asyncio
@@ -94,6 +105,40 @@ async def test_llm_judge_retries_transient_provider_failures(
     assert result.error is None
     assert result.score == 4.0
     assert result.extra["raw_judge_output"] == {"attempt": 2}
+
+
+@pytest.mark.asyncio
+async def test_llm_judge_delegates_to_model_router_when_feature_flag_enabled() -> None:
+    router = RouterStub(
+        '{"score": 4.5, "criteria_scores": {"factual_accuracy": 4.5}, "rationale": "ok"}'
+    )
+    workspace_id = uuid4()
+    scorer = LLMJudgeScorer(
+        settings=PlatformSettings(model_catalog={"router_enabled": True}),
+        model_router=router,  # type: ignore[arg-type]
+        workspace_id=workspace_id,
+        model_binding="openai:gpt-4o",
+    )
+
+    result = await scorer._judge_once_provider(
+        actual="actual",
+        expected="expected",
+        judge_model="judge-v1",
+        criteria=[
+            {
+                "name": "factual_accuracy",
+                "description": "Correctness",
+                "scale_min": 1,
+                "scale_max": 5,
+            }
+        ],
+        endpoint="https://legacy.example",
+    )
+
+    assert result["score"] == 4.5
+    assert router.calls[0]["workspace_id"] == workspace_id
+    assert router.calls[0]["step_binding"] == "openai:gpt-4o"
+    assert router.calls[0]["response_format"] == {"type": "json_object"}
 
 
 @pytest.mark.asyncio

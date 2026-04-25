@@ -22,12 +22,14 @@ from platform.a2a_gateway.schemas import (
     A2ATaskStatusResponse,
     A2ATaskSubmitRequest,
 )
+from platform.audit.dependencies import build_audit_chain_service
 from platform.auth.exceptions import (
     AccessTokenExpiredError,
     InactiveUserError,
     InvalidAccessTokenError,
 )
 from platform.auth.service import AuthService
+from platform.common.audit_hook import audit_chain_hook
 from platform.common.clients.redis import AsyncRedisClient, RateLimitResult
 from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
@@ -560,7 +562,7 @@ class A2AServerService:
         error_code: str | None = None,
         policy_decision: dict[str, Any] | None = None,
     ) -> A2AAuditRecord:
-        return await self.repository.create_audit_record(
+        record = await self.repository.create_audit_record(
             A2AAuditRecord(
                 task_id=task.id if task is not None else None,
                 direction=direction,
@@ -573,6 +575,24 @@ class A2AServerService:
                 error_code=error_code,
             )
         )
+        audit_chain = build_audit_chain_service(self.session, self.settings)
+        await audit_chain_hook(
+            audit_chain,
+            record.id,
+            "a2a_gateway",
+            {
+                "task_id": record.task_id,
+                "direction": record.direction.value,
+                "principal_id": record.principal_id,
+                "agent_fqn": record.agent_fqn,
+                "action": record.action,
+                "result": record.result,
+                "policy_decision": record.policy_decision,
+                "workspace_id": record.workspace_id,
+                "error_code": record.error_code,
+            },
+        )
+        return record
 
     def _validate_protocol(self, protocol_version: str | None) -> None:
         if protocol_version is None:

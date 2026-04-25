@@ -4,6 +4,7 @@ from platform.common.config import PlatformSettings
 from platform.composition.exceptions import LLMServiceUnavailableError
 from platform.composition.llm.client import LLMCompositionClient
 from typing import Any, ClassVar
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
@@ -44,6 +45,16 @@ class FakeAsyncClient:
         return response
 
 
+class RouterStub:
+    def __init__(self, content: str) -> None:
+        self.content = content
+        self.calls: list[dict[str, Any]] = []
+
+    async def complete(self, **kwargs: Any) -> object:
+        self.calls.append(kwargs)
+        return type("RouterResponse", (), {"content": self.content})()
+
+
 def _settings() -> PlatformSettings:
     return PlatformSettings(
         COMPOSITION_LLM_API_URL="http://llm.local/chat",
@@ -69,6 +80,36 @@ async def test_generate_success_parses_json_string() -> None:
     assert FakeAsyncClient.calls[0]["url"] == "http://llm.local/chat"
     assert FakeAsyncClient.calls[0]["json"]["model"] == "test-model"
     assert FakeAsyncClient.calls[0]["json"]["response_format"] == {"type": "json_object"}
+
+
+@pytest.mark.asyncio
+async def test_generate_delegates_to_model_router_when_feature_flag_enabled() -> None:
+    FakeAsyncClient.calls = []
+    router = RouterStub('{"value": "routed"}')
+    workspace_id: UUID = uuid4()
+    settings = PlatformSettings(
+        model_catalog={"router_enabled": True},
+        COMPOSITION_LLM_MODEL="openai:gpt-4o",
+        COMPOSITION_LLM_TIMEOUT_SECONDS=4.0,
+    )
+    client = LLMCompositionClient(
+        settings,
+        http_client_factory=FakeAsyncClient,
+        model_router=router,  # type: ignore[arg-type]
+        workspace_id=workspace_id,
+    )
+
+    result = await client.generate("system", "user", ParsedPayload)
+
+    assert result.value == "routed"
+    assert FakeAsyncClient.calls == []
+    assert router.calls[0]["workspace_id"] == workspace_id
+    assert router.calls[0]["step_binding"] == "openai:gpt-4o"
+    assert router.calls[0]["messages"] == [
+        {"role": "system", "content": "system"},
+        {"role": "user", "content": "user"},
+    ]
+    assert router.calls[0]["response_format"] == {"type": "json_object"}
 
 
 @pytest.mark.asyncio

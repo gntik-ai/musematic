@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from platform.audit.dependencies import build_audit_chain_service
 from platform.common.clients.object_storage import AsyncObjectStorageClient
 from platform.common.clients.opensearch import AsyncOpenSearchClient
 from platform.common.clients.qdrant import AsyncQdrantClient
 from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_db
 from platform.common.events.producer import EventProducer
+from platform.model_catalog.repository import ModelCatalogRepository
 from platform.privacy_compliance.dependencies import build_pia_service
 from platform.registry.package_validator import PackageValidator
 from platform.registry.repository import RegistryRepository
@@ -49,10 +51,15 @@ def build_registry_service(
     producer: EventProducer | None,
 ) -> RegistryService:
     return RegistryService(
-        repository=RegistryRepository(session, opensearch),
+        repository=RegistryRepository(
+            session,
+            opensearch,
+            build_audit_chain_service(session, settings, producer),
+        ),
         object_storage=object_storage,
         opensearch=opensearch,
         qdrant=qdrant,
+        model_catalog_repository=ModelCatalogRepository(session),
         workspaces_service=workspaces_service,
         event_producer=producer,
         settings=settings,

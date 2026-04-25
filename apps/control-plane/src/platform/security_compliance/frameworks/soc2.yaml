@@ -1,0 +1,14 @@
+framework: soc2
+controls:
+  - control_id: CC1.1
+    description: Control environment demonstrates integrity and ethical values.
+    evidence_requirements: [audit_chain_attestation]
+  - control_id: CC6.1
+    description: Logical access security controls restrict unauthorized access.
+    evidence_requirements: [jit_grant, secret_rotation]
+  - control_id: CC7.1
+    description: System operations detect and monitor security events.
+    evidence_requirements: [vulnerability_scan_completed, pentest_finding]
+  - control_id: CC9.1
+    description: Risk management includes vendor and supply-chain controls.
+    evidence_requirements: [sbom_generated]

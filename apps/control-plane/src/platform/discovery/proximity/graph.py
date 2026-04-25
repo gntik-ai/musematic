@@ -342,17 +342,23 @@ class ProximityGraphService:
     ) -> list[EdgeEntry]:
         if not vector_by_id or self.embedder.qdrant is None:
             return []
-        models = import_module("qdrant_client.models")
         extra_filter = None
         if session_id is not None:
-            extra_filter = models.Filter(
-                must=[
-                    models.FieldCondition(
-                        key="session_id",
-                        match=models.MatchValue(value=str(session_id)),
-                    )
-                ]
-            )
+            try:
+                models = import_module("qdrant_client.models")
+            except ModuleNotFoundError:
+                extra_filter = {
+                    "must": [{"key": "session_id", "match": {"value": str(session_id)}}]
+                }
+            else:
+                extra_filter = models.Filter(
+                    must=[
+                        models.FieldCondition(
+                            key="session_id",
+                            match=models.MatchValue(value=str(session_id)),
+                        )
+                    ]
+                )
         query_filter = workspace_filter(str(workspace_id), extra=extra_filter)
         edges: dict[tuple[UUID, UUID], EdgeEntry] = {}
         for source_id, vector in vector_by_id.items():

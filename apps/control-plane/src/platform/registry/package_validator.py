@@ -85,29 +85,79 @@ class PackageValidator:
             members = archive.getmembers()
             self._validate_archive_members([member.name for member in members])
             for member in members:
-                self._validate_member_path(temp_dir, member.name)
+                target_path = self._validate_member_path(temp_dir, member.name)
                 if member.issym() or member.islnk():
                     raise PackageValidationError(
                         "symlink_rejected",
                         f"Package contains symlink entry: {member.name}",
                     )
-            archive.extractall(path=temp_dir, filter="data")
+                self._extract_tar_member(archive, member, target_path)
         self._validate_extracted_tree(temp_dir)
+
+    def _extract_tar_member(
+        self,
+        archive: tarfile.TarFile,
+        member: tarfile.TarInfo,
+        target_path: Path,
+    ) -> None:
+        if member.isdir():
+            target_path.mkdir(parents=True, exist_ok=True)
+            return
+        if not member.isfile():
+            raise PackageValidationError(
+                "unsupported_archive_entry",
+                f"Package contains unsupported tar entry: {member.name}",
+            )
+
+        source = archive.extractfile(member)
+        if source is None:
+            raise PackageValidationError(
+                "archive_read_error",
+                f"Package member could not be read: {member.name}",
+            )
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        with source, target_path.open("wb") as destination:
+            shutil.copyfileobj(source, destination)
+        target_path.chmod(member.mode & 0o777)
 
     def _extract_zip(self, package_bytes: bytes, temp_dir: Path) -> None:
         with zipfile.ZipFile(io.BytesIO(package_bytes)) as archive:
             members = archive.infolist()
             self._validate_archive_members([member.filename for member in members])
             for member in members:
-                self._validate_member_path(temp_dir, member.filename)
+                target_path = self._validate_member_path(temp_dir, member.filename)
                 mode = member.external_attr >> 16
                 if stat.S_ISLNK(mode):
                     raise PackageValidationError(
                         "symlink_rejected",
                         f"Package contains symlink entry: {member.filename}",
                     )
-            archive.extractall(temp_dir)
+                self._extract_zip_member(archive, member, target_path)
         self._validate_extracted_tree(temp_dir)
+
+    def _extract_zip_member(
+        self,
+        archive: zipfile.ZipFile,
+        member: zipfile.ZipInfo,
+        target_path: Path,
+    ) -> None:
+        if member.is_dir():
+            target_path.mkdir(parents=True, exist_ok=True)
+            return
+
+        mode = member.external_attr >> 16
+        file_type = stat.S_IFMT(mode)
+        if file_type and not stat.S_ISREG(mode):
+            raise PackageValidationError(
+                "unsupported_archive_entry",
+                f"Package contains unsupported zip entry: {member.filename}",
+            )
+
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        with archive.open(member) as source, target_path.open("wb") as destination:
+            shutil.copyfileobj(source, destination)
+        if mode:
+            target_path.chmod(mode & 0o777)
 
     def _validate_archive_members(self, members: list[str]) -> None:
         if len(members) > self.max_file_count:
@@ -116,7 +166,7 @@ class PackageValidator:
                 f"Package contains {len(members)} entries; maximum is {self.max_file_count}",
             )
 
-    def _validate_member_path(self, temp_dir: Path, member_name: str) -> None:
+    def _validate_member_path(self, temp_dir: Path, member_name: str) -> Path:
         try:
             resolved = (temp_dir / member_name).resolve()
             resolved.relative_to(temp_dir.resolve())
@@ -132,6 +182,7 @@ class PackageValidator:
                 "depth_limit",
                 f"Package member exceeds directory depth limit: {member_name}",
             )
+        return resolved
 
     def _validate_extracted_tree(self, temp_dir: Path) -> None:
         extracted_paths = list(temp_dir.rglob("*"))

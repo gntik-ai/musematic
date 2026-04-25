@@ -178,6 +178,9 @@ jobs:
         working-directory: .
         run: python ci/lint_privacy_cascade_coverage.py
 
+      - name: Lint direct LLM calls
+        run: python ../../ci/lint_llm_calls.py --root ../..
+
   typecheck-python:
     name: Type-check Python
     needs: changes
@@ -457,9 +460,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -479,8 +479,6 @@ jobs:
           load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   helm-lint:
     name: Helm lint
@@ -583,9 +581,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Buildx
-        uses: docker/setup-buildx-action@v3
-
       - name: Build scan target
         uses: docker/build-push-action@v6
         with:
@@ -594,8 +589,6 @@ jobs:
           load: true
           push: false
           tags: scan-target:${{ matrix.image }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
       - name: Trivy scan
         uses: aquasecurity/trivy-action@master
@@ -607,11 +600,248 @@ jobs:
           exit-code: "0"
 
       - name: Upload SARIF
-        if: always()
+        if: ${{ always() && hashFiles(format('trivy-{0}.sarif', matrix.image)) != '' }}
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-${{ matrix.image }}.sarif
           category: trivy-${{ matrix.image }}
+
+      - name: Upload scan artifact
+        if: ${{ always() && hashFiles(format('trivy-{0}.sarif', matrix.image)) != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-results-trivy-${{ matrix.image }}
+          path: trivy-${{ matrix.image }}.sarif
+
+  security-pip-audit:
+    name: pip-audit
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/control-plane/pyproject.toml
+
+      - name: Install scanner
+        run: python -m pip install --upgrade "pip>=26.0.1" pip-audit
+
+      - name: Run pip-audit
+        run: |
+          mkdir -p scan-results
+          pip-audit ./apps/control-plane \
+            --cache-dir "${RUNNER_TEMP}/pip-audit-cache" \
+            --progress-spinner off \
+            -f json \
+            -o scan-results/pip-audit.json || true
+          test -s scan-results/pip-audit.json || echo '{"dependencies":[]}' > scan-results/pip-audit.json
+
+      - name: Upload scan artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-results-pip-audit
+          path: scan-results/pip-audit.json
+
+  security-bandit:
+    name: Bandit
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/control-plane/pyproject.toml
+
+      - name: Install scanner
+        run: python -m pip install "bandit[toml]"
+
+      - name: Run Bandit
+        run: |
+          mkdir -p scan-results
+          bandit -r apps/control-plane/src -f json -o scan-results/bandit.json || true
+          test -s scan-results/bandit.json || echo '{"results":[]}' > scan-results/bandit.json
+
+      - name: Upload scan artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-results-bandit
+          path: scan-results/bandit.json
+
+  security-govulncheck:
+    name: govulncheck
+    needs: changes
+    if: needs.changes.outputs.go-any == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25.x"
+          cache: true
+
+      - name: Install scanner
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Run govulncheck
+        run: |
+          mkdir -p scan-results
+          : > scan-results/govulncheck.jsonl
+          : > scan-results/govulncheck.stderr.log
+          for mod in services/*/go.mod; do
+            service_dir="$(dirname "$mod")"
+            (cd "$service_dir" && govulncheck -json ./...) >> scan-results/govulncheck.jsonl 2>> scan-results/govulncheck.stderr.log || true
+          done
+          python ci/normalize_govulncheck.py \
+            scan-results/govulncheck.jsonl \
+            --output scan-results/govulncheck.json \
+            --invalid-output scan-results/govulncheck-invalid.log
+
+      - name: Upload scan artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-results-govulncheck
+          path: |
+            scan-results/govulncheck.json
+            scan-results/govulncheck-invalid.log
+            scan-results/govulncheck.stderr.log
+
+  security-gosec:
+    name: gosec
+    needs: changes
+    if: needs.changes.outputs.go-any == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "1.25.x"
+          cache: true
+
+      - name: Install scanner
+        run: go install github.com/securego/gosec/v2/cmd/gosec@latest
+
+      - name: Run gosec
+        run: |
+          mkdir -p scan-results
+          gosec -fmt=json -out=scan-results/gosec.json ./services/... || true
+          test -s scan-results/gosec.json || echo '{"Issues":[]}' > scan-results/gosec.json
+
+      - name: Upload scan artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-results-gosec
+          path: scan-results/gosec.json
+
+  security-npm-audit:
+    name: npm audit
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.12.3
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run npm audit
+        run: |
+          mkdir -p ../../scan-results
+          pnpm audit --json > ../../scan-results/npm-audit.json || true
+          test -s ../../scan-results/npm-audit.json || echo '{"vulnerabilities":{}}' > ../../scan-results/npm-audit.json
+
+      - name: Upload scan artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-results-npm-audit
+          path: scan-results/npm-audit.json
+
+  upload-security-artefacts:
+    name: Upload security artefacts
+    needs:
+      - changes
+      - security-trivy
+      - security-pip-audit
+      - security-bandit
+      - security-govulncheck
+      - security-gosec
+      - security-npm-audit
+    if: >
+      always() &&
+      (needs.changes.outputs.image-any == 'true' ||
+       needs.changes.outputs.python == 'true' ||
+       needs.changes.outputs.go-any == 'true' ||
+       needs.changes.outputs.frontend == 'true')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download scan artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: scan-results-*
+          merge-multiple: true
+          path: scan-results
+
+      - name: Normalize and upload scan results
+        env:
+          PLATFORM_API_URL: ${{ secrets.PLATFORM_API_URL }}
+          PLATFORM_JWT: ${{ secrets.PLATFORM_RELEASE_PUBLISHER_JWT }}
+          PLATFORM_OIDC_EXCHANGE_URL: ${{ secrets.PLATFORM_OIDC_EXCHANGE_URL }}
+        run: |
+          python ci/normalize_scan_results.py scan-results \
+            --release-version "${GITHUB_SHA}" \
+            --metadata scan-metadata.json \
+            --output scan-results/normalized.json
+
+      - name: Upload normalized scan artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-results-normalized
+          path: scan-results/normalized.json
 
   proto-check:
     name: Proto lint

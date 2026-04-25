@@ -1,0 +1,14 @@
+framework: iso27001
+controls:
+  - control_id: A.5.15
+    description: Access control rules are implemented and reviewed.
+    evidence_requirements: [jit_grant]
+  - control_id: A.8.8
+    description: Technical vulnerabilities are managed and remediated.
+    evidence_requirements: [vulnerability_scan_completed]
+  - control_id: A.8.9
+    description: Configuration management includes approved changes.
+    evidence_requirements: [secret_rotation]
+  - control_id: A.5.37
+    description: Documented procedures support operating security.
+    evidence_requirements: [manual_evidence]

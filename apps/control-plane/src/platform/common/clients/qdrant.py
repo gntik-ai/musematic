@@ -16,21 +16,39 @@ class PointStruct:
 
 
 def workspace_filter(workspace_id: str, extra: Any | None = None) -> Any:
-    models = import_module("qdrant_client.models")
-    must = [
+    try:
+        models = import_module("qdrant_client.models")
+    except ModuleNotFoundError:
+        must: list[Any] = [{"key": "workspace_id", "match": {"value": workspace_id}}]
+        if extra is not None:
+            must.extend(_filter_values(extra, "must"))
+            return {
+                "must": must,
+                "should": _filter_values(extra, "should"),
+                "must_not": _filter_values(extra, "must_not"),
+            }
+        return {"must": must}
+
+    native_must = [
         models.FieldCondition(
             key="workspace_id",
             match=models.MatchValue(value=workspace_id),
         )
     ]
     if extra is not None:
-        must.extend(list(getattr(extra, "must", []) or []))
+        native_must.extend(_filter_values(extra, "must"))
         return models.Filter(
-            must=must,
-            should=list(getattr(extra, "should", []) or []),
-            must_not=list(getattr(extra, "must_not", []) or []),
+            must=native_must,
+            should=_filter_values(extra, "should"),
+            must_not=_filter_values(extra, "must_not"),
         )
-    return models.Filter(must=must)
+    return models.Filter(must=native_must)
+
+
+def _filter_values(filter_obj: Any, field: str) -> list[Any]:
+    if isinstance(filter_obj, dict):
+        return list(filter_obj.get(field, []) or [])
+    return list(getattr(filter_obj, field, []) or [])
 
 
 class AsyncQdrantClient:

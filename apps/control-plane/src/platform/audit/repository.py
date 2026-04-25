@@ -1,0 +1,86 @@
+from __future__ import annotations
+
+from platform.audit.models import AuditChainEntry
+from uuid import UUID
+
+from sqlalchemy import Select, func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
+
+AUDIT_CHAIN_APPEND_LOCK_ID = 740_740_001
+
+
+class AuditChainRepository:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def acquire_append_lock(self) -> None:
+        await self.session.execute(select(func.pg_advisory_xact_lock(AUDIT_CHAIN_APPEND_LOCK_ID)))
+
+    async def next_sequence_number(self) -> int:
+        result = await self.session.execute(select(func.max(AuditChainEntry.sequence_number)))
+        latest = result.scalar_one_or_none()
+        return int(latest or 0) + 1
+
+    async def insert_entry(
+        self,
+        *,
+        sequence_number: int,
+        previous_hash: str,
+        entry_hash: str,
+        audit_event_id: UUID | None,
+        audit_event_source: str,
+        canonical_payload_hash: str,
+    ) -> AuditChainEntry:
+        entry = AuditChainEntry(
+            sequence_number=sequence_number,
+            previous_hash=previous_hash,
+            entry_hash=entry_hash,
+            audit_event_id=audit_event_id,
+            audit_event_source=audit_event_source,
+            canonical_payload_hash=canonical_payload_hash,
+        )
+        self.session.add(entry)
+        await self.session.flush()
+        return entry
+
+    async def get_latest_entry(self) -> AuditChainEntry | None:
+        result = await self.session.execute(
+            select(AuditChainEntry).order_by(AuditChainEntry.sequence_number.desc()).limit(1)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_sequence_range(
+        self,
+        start_seq: int,
+        end_seq: int,
+    ) -> list[AuditChainEntry]:
+        statement: Select[tuple[AuditChainEntry]] = (
+            select(AuditChainEntry)
+            .where(AuditChainEntry.sequence_number >= start_seq)
+            .where(AuditChainEntry.sequence_number <= end_seq)
+            .order_by(AuditChainEntry.sequence_number.asc())
+        )
+        result = await self.session.execute(statement)
+        return list(result.scalars().all())
+
+    async def get_by_sequence(self, sequence_number: int) -> AuditChainEntry | None:
+        result = await self.session.execute(
+            select(AuditChainEntry).where(AuditChainEntry.sequence_number == sequence_number)
+        )
+        return result.scalar_one_or_none()
+
+    async def null_audit_event_reference(self, audit_event_id: UUID) -> int:
+        result = await self.session.execute(
+            update(AuditChainEntry)
+            .where(AuditChainEntry.audit_event_id == audit_event_id)
+            .values(audit_event_id=None)
+        )
+        await self.session.flush()
+        rowcount = getattr(result, "rowcount", 0)
+        return int(rowcount or 0)
+
+    async def update(self, *_args: object, **_kwargs: object) -> None:
+        raise NotImplementedError("audit_chain_entries is append-only")
+
+    async def delete(self, *_args: object, **_kwargs: object) -> None:
+        raise NotImplementedError("audit_chain_entries is append-only")

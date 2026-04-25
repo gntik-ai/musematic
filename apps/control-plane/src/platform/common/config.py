@@ -141,7 +141,9 @@ class AuthSettings(BaseSettings):
     oauth_github_user_url: str = "https://api.github.com/user"
     oauth_github_emails_url: str = "https://api.github.com/user/emails"
     oauth_github_teams_url: str = "https://api.github.com/user/teams"
-    oauth_github_org_membership_url_template: str = "https://api.github.com/user/memberships/orgs/{org}"
+    oauth_github_org_membership_url_template: str = (
+        "https://api.github.com/user/memberships/orgs/{org}"
+    )
 
     @property
     def signing_key(self) -> str:
@@ -464,6 +466,64 @@ class CompositionSettings(BaseSettings):
     validation_timeout_seconds: float = 10.0
 
 
+class ModelCatalogSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="MODEL_ROUTER_",
+        extra="ignore",
+        populate_by_name=True,
+    )
+
+    router_enabled: bool = Field(
+        default=False,
+        description="Enable the model catalogue router for LLM dispatch.",
+        validation_alias=AliasChoices("FEATURE_MODEL_ROUTER_ENABLED", "MODEL_ROUTER_ENABLED"),
+    )
+    auto_deprecation_interval_seconds: int = Field(
+        default=3600,
+        description="Interval in seconds for the model catalogue auto-deprecation scanner.",
+    )
+    default_recovery_window_seconds: int = Field(
+        default=300,
+        description="Default sticky fallback recovery window in seconds.",
+    )
+    router_primary_timeout_seconds: float = Field(
+        default=25.0,
+        description="Timeout in seconds for primary model provider calls.",
+        validation_alias=AliasChoices(
+            "MODEL_ROUTER_PRIMARY_TIMEOUT_SECONDS",
+            "MODEL_ROUTER_ROUTER_PRIMARY_TIMEOUT_SECONDS",
+        ),
+    )
+    openai_base_url: str = Field(
+        default="https://api.openai.com/v1/chat/completions",
+        description="OpenAI-compatible chat completion endpoint for OpenAI models.",
+    )
+    anthropic_base_url: str = Field(
+        default="https://api.anthropic.com/v1/messages",
+        description="Anthropic messages endpoint used by the model router.",
+    )
+    google_base_url: str = Field(
+        default="https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+        description="OpenAI-compatible Google Gemini endpoint used by the model router.",
+    )
+    mistral_base_url: str = Field(
+        default="https://api.mistral.ai/v1/chat/completions",
+        description="OpenAI-compatible Mistral endpoint used by the model router.",
+    )
+    injection_input_sanitizer_enabled: bool = Field(
+        default=False,
+        description="Enable input sanitization before model router provider dispatch.",
+    )
+    injection_system_prompt_hardener_enabled: bool = Field(
+        default=False,
+        description="Enable system prompt hardening for untrusted user text.",
+    )
+    injection_output_validator_enabled: bool = Field(
+        default=False,
+        description="Enable output validation and redaction after provider responses.",
+    )
+
+
 class DiscoverySettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="DISCOVERY_", extra="ignore")
 
@@ -495,6 +555,56 @@ class SimulationSettings(BaseSettings):
     comparison_significance_alpha: float = 0.05
     default_strict_isolation: bool = True
     prediction_worker_interval_seconds: int = 30
+
+
+class AuditSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="AUDIT_CHAIN_", extra="ignore")
+
+    signing_key_hex: str = Field(
+        default="0" * 64,
+        description="Hex-encoded 32-byte Ed25519 seed used to sign audit attestations.",
+    )
+    verifying_key_hex: str = Field(
+        default="",
+        description="Hex-encoded 32-byte Ed25519 public key; derived from signing key when empty.",
+    )
+    fail_closed_on_append_error: bool = Field(
+        default=True,
+        description="Fail originating audit writes when audit-chain append fails.",
+    )
+
+
+class SecurityComplianceSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="SECURITY_COMPLIANCE_", extra="ignore")
+
+    vuln_gate_enabled: bool = Field(
+        default=True,
+        description="Enable release blocking when vulnerability scan policy fails.",
+    )
+    rotation_scheduler_interval_seconds: int = Field(
+        default=300,
+        description="Interval in seconds for scanning due secret rotations.",
+    )
+    rotation_overlap_min_hours: int = Field(
+        default=24,
+        description="Minimum allowed dual-credential overlap window in hours.",
+    )
+    rotation_overlap_max_hours: int = Field(
+        default=168,
+        description="Maximum allowed dual-credential overlap window in hours.",
+    )
+    pentest_overdue_scan_cron: str = Field(
+        default="0 3 * * *",
+        description="Cron expression for the pentest overdue scanner.",
+    )
+    manual_evidence_bucket: str = Field(
+        default="compliance-evidence",
+        description="S3 bucket used for manually uploaded compliance evidence.",
+    )
+    jit_max_expiry_minutes_floor: int = Field(
+        default=1440,
+        description="Maximum JIT credential lifetime in minutes.",
+    )
 
 
 class PlatformSettings(BaseSettings):
@@ -553,8 +663,13 @@ class PlatformSettings(BaseSettings):
     trust: TrustSettings = Field(default_factory=TrustSettings)
     agentops: AgentOpsSettings = Field(default_factory=AgentOpsSettings)
     composition: CompositionSettings = Field(default_factory=CompositionSettings)
+    model_catalog: ModelCatalogSettings = Field(default_factory=ModelCatalogSettings)
     discovery: DiscoverySettings = Field(default_factory=DiscoverySettings)
     simulation: SimulationSettings = Field(default_factory=SimulationSettings)
+    audit: AuditSettings = Field(default_factory=AuditSettings)
+    security_compliance: SecurityComplianceSettings = Field(
+        default_factory=SecurityComplianceSettings
+    )
     checkpoint_retention_days: int = 30
     checkpoint_max_size_bytes: int = 10_485_760
     profile: str = "api"
@@ -796,6 +911,34 @@ class PlatformSettings(BaseSettings):
                 "session_cleaner_interval_minutes",
             ),
             "MEMORY_RECENCY_DECAY": ("memory", "recency_decay"),
+            "AUDIT_CHAIN_SIGNING_KEY": ("audit", "signing_key_hex"),
+            "AUDIT_CHAIN_VERIFYING_KEY": ("audit", "verifying_key_hex"),
+            "FEATURE_AUDIT_CHAIN_STRICT": ("audit", "fail_closed_on_append_error"),
+            "FEATURE_VULN_GATE_ENABLED": ("security_compliance", "vuln_gate_enabled"),
+            "SECURITY_COMPLIANCE_ROTATION_SCHEDULER_INTERVAL_SECONDS": (
+                "security_compliance",
+                "rotation_scheduler_interval_seconds",
+            ),
+            "SECURITY_COMPLIANCE_ROTATION_OVERLAP_MIN_HOURS": (
+                "security_compliance",
+                "rotation_overlap_min_hours",
+            ),
+            "SECURITY_COMPLIANCE_ROTATION_OVERLAP_MAX_HOURS": (
+                "security_compliance",
+                "rotation_overlap_max_hours",
+            ),
+            "SECURITY_COMPLIANCE_PENTEST_OVERDUE_SCAN_CRON": (
+                "security_compliance",
+                "pentest_overdue_scan_cron",
+            ),
+            "SECURITY_COMPLIANCE_MANUAL_EVIDENCE_BUCKET": (
+                "security_compliance",
+                "manual_evidence_bucket",
+            ),
+            "SECURITY_COMPLIANCE_JIT_MAX_EXPIRY_MINUTES_FLOOR": (
+                "security_compliance",
+                "jit_max_expiry_minutes_floor",
+            ),
             "INTERACTIONS_MAX_MESSAGES_PER_CONVERSATION": (
                 "interactions",
                 "max_messages_per_conversation",
@@ -854,6 +997,39 @@ class PlatformSettings(BaseSettings):
             "EVALUATION_CALIBRATION_VARIANCE_ENVELOPE": (
                 "evaluation",
                 "calibration_variance_envelope",
+            ),
+            "FEATURE_MODEL_ROUTER_ENABLED": ("model_catalog", "router_enabled"),
+            "MODEL_ROUTER_ENABLED": ("model_catalog", "router_enabled"),
+            "MODEL_ROUTER_AUTO_DEPRECATION_INTERVAL_SECONDS": (
+                "model_catalog",
+                "auto_deprecation_interval_seconds",
+            ),
+            "MODEL_ROUTER_DEFAULT_RECOVERY_WINDOW_SECONDS": (
+                "model_catalog",
+                "default_recovery_window_seconds",
+            ),
+            "MODEL_ROUTER_PRIMARY_TIMEOUT_SECONDS": (
+                "model_catalog",
+                "router_primary_timeout_seconds",
+            ),
+            "MODEL_ROUTER_OPENAI_BASE_URL": ("model_catalog", "openai_base_url"),
+            "MODEL_ROUTER_ANTHROPIC_BASE_URL": (
+                "model_catalog",
+                "anthropic_base_url",
+            ),
+            "MODEL_ROUTER_GOOGLE_BASE_URL": ("model_catalog", "google_base_url"),
+            "MODEL_ROUTER_MISTRAL_BASE_URL": ("model_catalog", "mistral_base_url"),
+            "MODEL_ROUTER_INJECTION_INPUT_SANITIZER_ENABLED": (
+                "model_catalog",
+                "injection_input_sanitizer_enabled",
+            ),
+            "MODEL_ROUTER_INJECTION_SYSTEM_PROMPT_HARDENER_ENABLED": (
+                "model_catalog",
+                "injection_system_prompt_hardener_enabled",
+            ),
+            "MODEL_ROUTER_INJECTION_OUTPUT_VALIDATOR_ENABLED": (
+                "model_catalog",
+                "injection_output_validator_enabled",
             ),
             "CONNECTOR_INGRESS_TOPIC": ("connectors", "ingress_topic"),
             "CONNECTOR_DELIVERY_TOPIC": ("connectors", "delivery_topic"),
@@ -1495,6 +1671,22 @@ class PlatformSettings(BaseSettings):
     @property
     def MEMORY_RECENCY_DECAY(self) -> float:
         return self.memory.recency_decay
+
+    @property
+    def AUDIT_CHAIN_SIGNING_KEY(self) -> str:
+        return self.audit.signing_key_hex
+
+    @property
+    def AUDIT_CHAIN_VERIFYING_KEY(self) -> str:
+        return self.audit.verifying_key_hex
+
+    @property
+    def FEATURE_AUDIT_CHAIN_STRICT(self) -> bool:
+        return self.audit.fail_closed_on_append_error
+
+    @property
+    def FEATURE_VULN_GATE_ENABLED(self) -> bool:
+        return self.security_compliance.vuln_gate_enabled
 
     @property
     def INTERACTIONS_MAX_MESSAGES_PER_CONVERSATION(self) -> int:

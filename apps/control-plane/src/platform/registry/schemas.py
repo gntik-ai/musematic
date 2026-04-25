@@ -98,6 +98,7 @@ class AgentPatch(BaseModel):
     data_categories: list[str] | None = None
     role_types: list[AgentRoleType] | None = None
     custom_role_description: str | None = None
+    default_model_binding: str | None = Field(default=None, max_length=128)
 
     @field_validator("display_name", "purpose", "approach", "custom_role_description")
     @classmethod
@@ -126,6 +127,11 @@ class AgentPatch(BaseModel):
                 "custom_role_description is required when role_types contains 'custom'"
             )
         return self
+
+    @field_validator("default_model_binding")
+    @classmethod
+    def normalize_model_binding(cls, value: str | None) -> str | None:
+        return _normalize_optional_text(value)
 
 
 class AgentDecommissionRequest(BaseModel):
@@ -239,6 +245,7 @@ class AgentProfileResponse(BaseModel):
     workspace_id: UUID
     created_at: datetime
     current_revision: AgentRevisionResponse | None = None
+    default_model_binding: str | None = None
 
 
 class AgentUploadResponse(BaseModel):

@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from importlib import import_module
+from inspect import isawaitable
 from pathlib import Path
 from platform.common.config import Settings
 from platform.common.config import settings as default_settings
@@ -269,12 +270,15 @@ class AsyncObjectStorageClient:
         params = {"Bucket": bucket, "Key": key}
         try:
             async with self._client() as s3:
-                return await asyncio.to_thread(
+                url = await asyncio.to_thread(
                     s3.generate_presigned_url,
                     ClientMethod=operation,
                     Params=params,
                     ExpiresIn=expires_in_seconds,
                 )
+                if isawaitable(url):
+                    url = await url
+                return str(url)
         except ClientError as exc:
             raise self._translate_client_error(exc, bucket=bucket, key=key) from exc
         except Exception as exc:  # pragma: no cover - network dependent
