@@ -3,10 +3,16 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 CLUSTER_NAME="${CLUSTER_NAME:-amp-e2e}"
-DOCKER_CONFIG="${DOCKER_CONFIG:-/tmp/musematic-docker-config}"
-BUILDX_CONFIG="${BUILDX_CONFIG:-${DOCKER_CONFIG}/buildx}"
-export DOCKER_CONFIG BUILDX_CONFIG
-mkdir -p "${DOCKER_CONFIG}" "${BUILDX_CONFIG}/activity"
+DOCKER_BUILD_CACHE_DIR="${DOCKER_BUILD_CACHE_DIR:-}"
+DOCKER_BUILD_CACHE_MODE="${DOCKER_BUILD_CACHE_MODE:-min}"
+DOCKER_BUILD_PROGRESS="${DOCKER_BUILD_PROGRESS:-auto}"
+
+if [[ -z "${DOCKER_BUILD_CACHE_DIR}" ]]; then
+  DOCKER_CONFIG="${DOCKER_CONFIG:-/tmp/musematic-docker-config}"
+  BUILDX_CONFIG="${BUILDX_CONFIG:-${DOCKER_CONFIG}/buildx}"
+  export DOCKER_CONFIG BUILDX_CONFIG
+  mkdir -p "${DOCKER_CONFIG}" "${BUILDX_CONFIG}/activity"
+fi
 
 images=(
   "ghcr.io/musematic/control-plane:local|apps/control-plane/Dockerfile|apps/control-plane"
@@ -20,9 +26,6 @@ images=(
 )
 PRUNE_DOCKER_CACHE="${PRUNE_DOCKER_CACHE:-1}"
 IMAGE_FILTER="${IMAGE_FILTER:-}"
-DOCKER_BUILD_CACHE_DIR="${DOCKER_BUILD_CACHE_DIR:-}"
-DOCKER_BUILD_CACHE_MODE="${DOCKER_BUILD_CACHE_MODE:-min}"
-DOCKER_BUILD_PROGRESS="${DOCKER_BUILD_PROGRESS:-auto}"
 
 build_image() {
   local image="$1"
