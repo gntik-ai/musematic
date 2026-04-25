@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from platform.common.clients.qdrant import AsyncQdrantClient
 from platform.common.events.envelope import CorrelationContext
@@ -113,6 +114,11 @@ class InteractionsService:
         workspaces_service: Any | None,
         registry_service: Any | None,
         consent_service: Any | None = None,
+        attention_alert_handler: Callable[
+            [AttentionRequestedPayload],
+            Awaitable[Any],
+        ]
+        | None = None,
     ) -> None:
         self.repository = repository
         self.settings = settings
@@ -121,6 +127,7 @@ class InteractionsService:
         self.workspaces_service = workspaces_service
         self.registry_service = registry_service
         self.consent_service = consent_service
+        self.attention_alert_handler = attention_alert_handler
         self.goal_lifecycle = GoalLifecycleService(producer)
         self.decision_engine = ResponseDecisionEngine(settings=settings, qdrant=qdrant)
 
@@ -851,18 +858,27 @@ class InteractionsService:
             related_interaction_id=request.related_interaction_id,
             related_goal_id=request.related_goal_id,
         )
+        payload = AttentionRequestedPayload(
+            request_id=created.id,
+            workspace_id=workspace_id,
+            source_agent_fqn=created.source_agent_fqn,
+            target_identity=created.target_identity,
+            urgency=created.urgency,
+            related_interaction_id=created.related_interaction_id,
+            related_goal_id=created.related_goal_id,
+            context_summary=created.context_summary,
+        )
+        alert_already_created = False
+        if self.attention_alert_handler is not None:
+            try:
+                alert_already_created = await self.attention_alert_handler(payload) is not None
+            except Exception:
+                LOGGER.exception("Failed to create synchronous attention alert")
+        if alert_already_created:
+            payload = payload.model_copy(update={"alert_already_created": True})
         await publish_attention_requested(
             self.producer,
-            AttentionRequestedPayload(
-                request_id=created.id,
-                workspace_id=workspace_id,
-                source_agent_fqn=created.source_agent_fqn,
-                target_identity=created.target_identity,
-                urgency=created.urgency,
-                related_interaction_id=created.related_interaction_id,
-                related_goal_id=created.related_goal_id,
-                context_summary=created.context_summary,
-            ),
+            payload,
             self._correlation(
                 workspace_id=workspace_id,
                 interaction_id=created.related_interaction_id,

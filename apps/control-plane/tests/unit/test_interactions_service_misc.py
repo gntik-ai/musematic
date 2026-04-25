@@ -510,7 +510,7 @@ async def test_interactions_service_goal_branch_attention_and_subscription_edges
 
 @pytest.mark.asyncio
 async def test_interactions_service_attention_success_paths_and_goal_message_views() -> None:
-    service, repo, workspaces, _producer = build_service()
+    service, _repo, workspaces, _producer = build_service()
     workspace_id = uuid4()
     member_id = uuid4()
     workspaces.add_member(workspace_id, member_id)
@@ -592,3 +592,33 @@ async def test_interactions_service_attention_success_paths_and_goal_message_vie
     assert resolved_item.resolved_at is not None
     assert dismissed_item.status == AttentionStatus.dismissed
     assert dismissed_item.resolved_at is not None
+
+
+@pytest.mark.asyncio
+async def test_create_attention_request_marks_event_when_alert_is_created() -> None:
+    handled_payloads = []
+
+    async def _handle_attention_alert(payload):
+        handled_payloads.append(payload)
+        return object()
+
+    service, _repo, _workspaces, producer = build_service(
+        attention_alert_handler=_handle_attention_alert,
+    )
+    workspace_id = uuid4()
+    member_id = uuid4()
+
+    created = await service.create_attention_request(
+        AttentionRequestCreate(
+            target_identity=str(member_id),
+            urgency=AttentionUrgency.high,
+            context_summary="Needs action",
+        ),
+        "ops:agent",
+        workspace_id,
+    )
+
+    assert created.target_identity == str(member_id)
+    assert handled_payloads[0].request_id == created.id
+    assert producer.events[-1]["event_type"] == "attention.requested"
+    assert producer.events[-1]["payload"]["alert_already_created"] is True
