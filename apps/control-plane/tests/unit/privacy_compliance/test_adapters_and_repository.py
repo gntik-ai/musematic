@@ -63,7 +63,11 @@ class QueryResult:
         return self.scalar
 
     def scalar_one(self) -> object:
-        return 1 if self.scalar is None else self.scalar
+        if self.scalar is not None:
+            return self.scalar
+        if self.items:
+            return self.items[0]
+        return 1
 
 
 class SessionStub:
@@ -108,6 +112,14 @@ async def test_repository_crud_and_state_helpers_cover_all_entities() -> None:
         granted=True,
         granted_at=now,
     )
+    ai_consent = PrivacyConsentRecord(
+        id=uuid4(),
+        user_id=user_id,
+        consent_type=ConsentType.ai_interaction.value,
+        granted=True,
+        granted_at=now,
+        workspace_id=workspace_id,
+    )
     rule = PrivacyDLPRule(
         id=uuid4(),
         name="rule",
@@ -144,7 +156,7 @@ async def test_repository_crud_and_state_helpers_cover_all_entities() -> None:
             QueryResult([SimpleNamespace(id=uuid4())]),
             QueryResult([pia]),
             QueryResult([pia]),
-            QueryResult(scalar=None),
+            QueryResult([ai_consent]),
             QueryResult([consent]),
             QueryResult([consent]),
             QueryResult([consent]),

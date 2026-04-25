@@ -13,10 +13,11 @@ from platform.privacy_compliance.models import (
     PrivacyImpactAssessment,
     PrivacyResidencyConfig,
 )
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import delete, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -229,30 +230,30 @@ class PrivacyComplianceRepository:
         workspace_id: UUID | None = None,
         now: datetime | None = None,
     ) -> PrivacyConsentRecord:
+        timestamp = now or utcnow()
+        revoked_at = None if granted else timestamp
         result = await self.session.execute(
-            select(PrivacyConsentRecord).where(
-                PrivacyConsentRecord.user_id == user_id,
-                PrivacyConsentRecord.consent_type == consent_type,
-            )
-        )
-        record = result.scalar_one_or_none()
-        if record is None:
-            record = PrivacyConsentRecord(
+            insert(PrivacyConsentRecord)
+            .values(
                 user_id=user_id,
                 consent_type=consent_type,
                 granted=granted,
-                granted_at=now or utcnow(),
-                revoked_at=None if granted else now or utcnow(),
+                granted_at=timestamp,
+                revoked_at=revoked_at,
                 workspace_id=workspace_id,
             )
-            self.session.add(record)
-        else:
-            record.granted = granted
-            record.granted_at = now or utcnow()
-            record.revoked_at = None if granted else now or utcnow()
-            record.workspace_id = workspace_id
-        await self.session.flush()
-        return record
+            .on_conflict_do_update(
+                constraint="uq_privacy_consent_user_type",
+                set_={
+                    "granted": granted,
+                    "granted_at": timestamp,
+                    "revoked_at": revoked_at,
+                    "workspace_id": workspace_id,
+                },
+            )
+            .returning(PrivacyConsentRecord)
+        )
+        return cast(PrivacyConsentRecord, result.scalar_one())
 
     async def get_consent_records(self, user_id: UUID) -> list[PrivacyConsentRecord]:
         result = await self.session.execute(

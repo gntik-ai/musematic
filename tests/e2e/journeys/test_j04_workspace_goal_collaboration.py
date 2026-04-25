@@ -308,6 +308,15 @@ async def test_j04_workspace_goal_collaboration(
 
         with journey_step("Collaborator clears unread alerts and opens websocket auto-subscriptions"):
             await _mark_all_alerts_read(consumer_workspace_admin)
+            alert_settings = await consumer_workspace_admin.put(
+                "/api/v1/me/alert-settings",
+                json={
+                    "state_transitions": ["working_to_pending", "any_to_complete", "any_to_failed"],
+                    "delivery_method": "in_app",
+                    "webhook_url": None,
+                },
+            )
+            alert_settings.raise_for_status()
             websocket = await JourneyWsClient(
                 platform_ws_url,
                 access_token=consumer_workspace_admin.access_token,
