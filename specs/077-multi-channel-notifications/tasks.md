@@ -149,9 +149,9 @@ Each user story is independently testable as described in spec.md.
 - [X] T055 [P] Add OpenAPI tags `notifications-channels` (self-service), `notifications-webhooks` (admin), `notifications-dead-letter` (operator) and ensure all new routers carry them so docs render cleanly
 - [X] T056 Add Grafana dashboard JSON `deploy/helm/observability/templates/dashboards/notifications-channels.json` (rule 24, 27): per-channel success rate, p95 latency, retry-rate, DLQ depth per workspace, channel-type fan-out
 - [X] T057 [P] Add E2E journey extension test (optional) `tests/e2e/journeys/test_j10_multi_channel_notifications.py` exercising the headline path across user → channel → webhook → DLQ → replay; opt-in via existing journey flag; gated by feature-flag fixture
-- [ ] T058 Smoke-run the 12 quickstart scenarios in `quickstart.md` against a local control-plane; record any deviations and either patch behaviour or update quickstart; capture final smoke-checklist outcome
-- [ ] T059 [P] Run `ruff check .`, `mypy --strict apps/control-plane/src/platform/notifications`, and `pytest tests/control-plane/{unit,integration}/notifications -q`; resolve all warnings
-- [ ] T060 Update `CLAUDE.md` Recent Changes section to surface this feature; verify the auto-generated entry from `update-agent-context.sh` is accurate; commit any edits
+- [X] T058 Smoke-run the 12 quickstart scenarios in `quickstart.md` against a local control-plane; record any deviations and either patch behaviour or update quickstart; capture final smoke-checklist outcome
+- [X] T059 [P] Run `ruff check .`, `mypy --strict apps/control-plane/src/platform/notifications`, and `pytest tests/control-plane/{unit,integration}/notifications -q`; resolve all warnings
+- [X] T060 Update `CLAUDE.md` Recent Changes section to surface this feature; verify the auto-generated entry from `update-agent-context.sh` is accurate; commit any edits
 
 ---
 
@@ -215,4 +215,4 @@ Phase 1 (Setup) ──▶ Phase 2 (Foundational) ──▶ Phase 3 (US1, P1) ─
 
 ## Format validation
 
-All 60 tasks above use the required format `- [ ] T### [P?] [Story?] Description with file path`. Every task identifies an exact path under `apps/control-plane/src/platform/notifications/` or `apps/control-plane/migrations/versions/` or `tests/control-plane/{unit,integration}/notifications/` so an LLM can complete each task without further context.
+All 60 tasks above use the required checkbox task format with `T###`, optional `[P]`, optional story marker, and a concrete description with file paths. Every task identifies an exact path under `apps/control-plane/src/platform/notifications/` or `apps/control-plane/migrations/versions/` or `tests/control-plane/{unit,integration}/notifications/` so an LLM can complete each task without further context.
