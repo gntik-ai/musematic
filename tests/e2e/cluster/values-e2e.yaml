@@ -255,6 +255,8 @@ controlPlane:
     manualEvidenceBucket: evidence-bundles
   auth:
     oauth:
+      rateLimitMax: 100
+      rateLimitWindow: 60
       google:
         authorizeUrl: http://mock-google-oidc.platform.svc.cluster.local:8080/authorize
         tokenUrl: http://mock-google-oidc.platform.svc.cluster.local:8080/token

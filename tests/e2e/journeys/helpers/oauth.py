@@ -60,9 +60,14 @@ async def oauth_login(client, provider: str, mock_server: str, login: str):
         raise AssertionError(f"{provider} mock authorize response missing redirect location")
 
     callback = await client.raw_client.get(callback_url, follow_redirects=False)
-    if callback.status_code not in _REDIRECT_STATUSES and callback.status_code < 400:
+    if callback.status_code not in _REDIRECT_STATUSES:
         callback.raise_for_status()
+        raise AssertionError(
+            f"{provider} callback expected a redirect response, got {callback.status_code}"
+        )
     redirect_location = callback.headers.get("location", "")
+    if not redirect_location:
+        raise AssertionError(f"{provider} callback redirect response missing location header")
     payload = _decode_oauth_session_payload(redirect_location)
 
     token_pair = payload.get("token_pair")
