@@ -1128,5 +1128,7 @@ def pytest_configure(config) -> None:
         ("j07_evaluator", "evaluator improvement loop journey"),
         ("j08_external", "external A2A and MCP journey"),
         ("j09_discovery", "scientific discovery journey"),
+        ("j10_notifications", "multi-channel notifications journey"),
+        ("j10_multi_channel_notifications", "full multi-channel notifications journey"),
     ):
         config.addinivalue_line("markers", f"{marker}: {description}")

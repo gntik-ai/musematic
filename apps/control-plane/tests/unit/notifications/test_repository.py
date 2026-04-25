@@ -294,7 +294,9 @@ def test_repository_additional_edges_cover_filters_and_missing_records() -> None
             delivery_method=DeliveryMethod.in_app,
         )
     )
-    read_items, _, read_total = __import__("asyncio").run(repo.list_alerts(user_id, "read", None, 5))
+    read_items, _, read_total = __import__("asyncio").run(
+        repo.list_alerts(user_id, "read", None, 5)
+    )
     unread_items, _, unread_total = __import__("asyncio").run(
         repo.list_alerts(user_id, "unread", None, 5)
     )

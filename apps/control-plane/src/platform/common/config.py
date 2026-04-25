@@ -364,13 +364,55 @@ class InteractionsSettings(BaseSettings):
 
 
 class NotificationsSettings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="NOTIFICATIONS_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="NOTIFICATIONS_",
+        extra="ignore",
+        populate_by_name=True,
+    )
 
     rate_limit_per_source_per_minute: int = 20
     alert_retention_days: int = 90
     webhook_max_retries: int = 5
     retry_scan_interval_seconds: int = 30
     gc_interval_hours: int = 24
+    multi_channel_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "FEATURE_MULTI_CHANNEL_NOTIFICATIONS",
+            "NOTIFICATIONS_MULTI_CHANNEL_ENABLED",
+        ),
+    )
+    webhook_default_backoff_seconds: list[int] = Field(default_factory=lambda: [60, 300, 1800])
+    webhook_max_retry_window_seconds: int = 86_400
+    webhook_replay_window_seconds: int = 300
+    channels_per_user_max: int = 6
+    webhooks_per_workspace_max: int = 50
+    dead_letter_retention_days: int = 30
+    dead_letter_warning_threshold: int = 100
+    sms_default_severity_floor: str = "critical"
+    sms_provider: str = "twilio"
+    sms_workspace_monthly_cost_cap_eur: float = 50.0
+    allow_http_webhooks: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "FEATURE_ALLOW_HTTP_WEBHOOKS",
+            "NOTIFICATIONS_ALLOW_HTTP_WEBHOOKS",
+        ),
+    )
+    quiet_hours_default_severity_bypass: str = "critical"
+
+    @model_validator(mode="after")
+    def _reject_http_webhooks_in_production(self) -> NotificationsSettings:
+        env = (
+            os.getenv("ENV")
+            or os.getenv("ENVIRONMENT")
+            or os.getenv("PLATFORM_ENV")
+            or os.getenv("APP_ENV")
+            or ""
+        ).lower()
+        if self.allow_http_webhooks and env == "production":
+            raise ValueError("FEATURE_ALLOW_HTTP_WEBHOOKS cannot be enabled when ENV=production")
+        return self
 
 
 class GovernanceSettings(BaseSettings):
@@ -964,6 +1006,66 @@ class PlatformSettings(BaseSettings):
                 "notifications",
                 "gc_interval_hours",
             ),
+            "FEATURE_MULTI_CHANNEL_NOTIFICATIONS": (
+                "notifications",
+                "multi_channel_enabled",
+            ),
+            "NOTIFICATIONS_MULTI_CHANNEL_ENABLED": (
+                "notifications",
+                "multi_channel_enabled",
+            ),
+            "NOTIFICATIONS_WEBHOOK_DEFAULT_BACKOFF_SECONDS": (
+                "notifications",
+                "webhook_default_backoff_seconds",
+            ),
+            "NOTIFICATIONS_WEBHOOK_MAX_RETRY_WINDOW_SECONDS": (
+                "notifications",
+                "webhook_max_retry_window_seconds",
+            ),
+            "NOTIFICATIONS_WEBHOOK_REPLAY_WINDOW_SECONDS": (
+                "notifications",
+                "webhook_replay_window_seconds",
+            ),
+            "NOTIFICATIONS_CHANNELS_PER_USER_MAX": (
+                "notifications",
+                "channels_per_user_max",
+            ),
+            "NOTIFICATIONS_WEBHOOKS_PER_WORKSPACE_MAX": (
+                "notifications",
+                "webhooks_per_workspace_max",
+            ),
+            "NOTIFICATIONS_DEAD_LETTER_RETENTION_DAYS": (
+                "notifications",
+                "dead_letter_retention_days",
+            ),
+            "NOTIFICATIONS_DEAD_LETTER_WARNING_THRESHOLD": (
+                "notifications",
+                "dead_letter_warning_threshold",
+            ),
+            "NOTIFICATIONS_SMS_DEFAULT_SEVERITY_FLOOR": (
+                "notifications",
+                "sms_default_severity_floor",
+            ),
+            "NOTIFICATIONS_SMS_PROVIDER": (
+                "notifications",
+                "sms_provider",
+            ),
+            "NOTIFICATIONS_SMS_WORKSPACE_MONTHLY_COST_CAP_EUR": (
+                "notifications",
+                "sms_workspace_monthly_cost_cap_eur",
+            ),
+            "FEATURE_ALLOW_HTTP_WEBHOOKS": (
+                "notifications",
+                "allow_http_webhooks",
+            ),
+            "NOTIFICATIONS_ALLOW_HTTP_WEBHOOKS": (
+                "notifications",
+                "allow_http_webhooks",
+            ),
+            "NOTIFICATIONS_QUIET_HOURS_DEFAULT_SEVERITY_BYPASS": (
+                "notifications",
+                "quiet_hours_default_severity_bypass",
+            ),
             "GOVERNANCE_RATE_LIMIT_PER_OBSERVER_PER_MINUTE": (
                 "governance",
                 "rate_limit_per_observer_per_minute",
@@ -1223,6 +1325,14 @@ class PlatformSettings(BaseSettings):
     @property
     def PLATFORM_PROFILE(self) -> str:
         return self.profile
+
+    @property
+    def FEATURE_MULTI_CHANNEL_NOTIFICATIONS(self) -> bool:
+        return self.notifications.multi_channel_enabled
+
+    @property
+    def FEATURE_ALLOW_HTTP_WEBHOOKS(self) -> bool:
+        return self.notifications.allow_http_webhooks
 
     @property
     def POSTGRES_DSN(self) -> str:

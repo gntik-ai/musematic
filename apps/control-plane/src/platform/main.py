@@ -151,9 +151,26 @@ from platform.model_catalog.events import register_model_catalog_event_types
 from platform.model_catalog.router import router as model_catalog_router
 from platform.notifications.consumers.attention_consumer import AttentionConsumer
 from platform.notifications.consumers.state_change_consumer import StateChangeConsumer
-from platform.notifications.dependencies import build_notifications_service
+from platform.notifications.deliverers.webhook_deliverer import WebhookDeliverer
+from platform.notifications.dependencies import InMemorySecretProvider, build_notifications_service
 from platform.notifications.events import register_notifications_event_types
+from platform.notifications.repository import NotificationsRepository
 from platform.notifications.router import router as notifications_router
+from platform.notifications.routers.deadletter_router import (
+    router as notifications_deadletter_router,
+)
+from platform.notifications.routers.webhooks_router import router as notifications_webhooks_router
+from platform.notifications.workers.channel_verification_worker import (
+    build_channel_verification_scheduler,
+    expire_unverified_channels,
+)
+from platform.notifications.workers.deadletter_threshold_worker import (
+    build_dead_letter_threshold_scheduler,
+    run_dead_letter_threshold_scan,
+)
+from platform.notifications.workers.webhook_retry_worker import (
+    run_webhook_retry_scan as run_workspace_webhook_retry_scan,
+)
 from platform.policies.dependencies import build_policy_service
 from platform.policies.events import PolicyEventConsumer, register_policies_event_types
 from platform.policies.router import router as policies_router
@@ -576,6 +593,16 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         "notifications_retention_gc_scheduler",
         None,
     )
+    notifications_channel_verification_scheduler = getattr(
+        app.state,
+        "notifications_channel_verification_scheduler",
+        None,
+    )
+    notifications_deadletter_threshold_scheduler = getattr(
+        app.state,
+        "notifications_deadletter_threshold_scheduler",
+        None,
+    )
     governance_retention_gc_scheduler = getattr(
         app.state,
         "governance_retention_gc_scheduler",
@@ -654,6 +681,20 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["notifications_retention_gc_scheduler"] = str(exc)
             LOGGER.warning("Failed to start notifications retention GC scheduler: %s", exc)
+    if notifications_channel_verification_scheduler is not None:
+        try:
+            notifications_channel_verification_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["notifications_channel_verification_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start notifications verification scheduler: %s", exc)
+    if notifications_deadletter_threshold_scheduler is not None:
+        try:
+            notifications_deadletter_threshold_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["notifications_deadletter_threshold_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start notifications DLQ threshold scheduler: %s", exc)
     if governance_retention_gc_scheduler is not None:
         try:
             governance_retention_gc_scheduler.start()
@@ -921,6 +962,22 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                     "Failed to stop notifications retention GC scheduler cleanly: %s",
                     exc,
                 )
+        if notifications_channel_verification_scheduler is not None:
+            try:
+                notifications_channel_verification_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning(
+                    "Failed to stop notifications verification scheduler cleanly: %s",
+                    exc,
+                )
+        if notifications_deadletter_threshold_scheduler is not None:
+            try:
+                notifications_deadletter_threshold_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning(
+                    "Failed to stop notifications DLQ threshold scheduler cleanly: %s",
+                    exc,
+                )
         if governance_retention_gc_scheduler is not None:
             try:
                 governance_retention_gc_scheduler.shutdown(wait=False)
@@ -1001,6 +1058,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.goal_auto_completion_scheduler = None
     app.state.notifications_webhook_retry_scheduler = None
     app.state.notifications_retention_gc_scheduler = None
+    app.state.notifications_channel_verification_scheduler = None
+    app.state.notifications_deadletter_threshold_scheduler = None
     app.state.ibor_sync_scheduler = None
     app.state.refresh_ibor_sync_scheduler = None
     app.state.connectors_worker_scheduler = None
@@ -1026,11 +1085,18 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     if resolved.profile == "api":
         app.state.ibor_sync_scheduler = _build_ibor_sync_scheduler(app)
         app.state.refresh_ibor_sync_scheduler = lambda: _refresh_ibor_sync_scheduler(app)
+    if resolved.profile in {"api", "worker"}:
         app.state.notifications_webhook_retry_scheduler = (
             _build_notifications_webhook_retry_scheduler(app)
         )
         app.state.notifications_retention_gc_scheduler = (
             _build_notifications_retention_gc_scheduler(app)
+        )
+        app.state.notifications_channel_verification_scheduler = (
+            _build_notifications_channel_verification_scheduler(app)
+        )
+        app.state.notifications_deadletter_threshold_scheduler = (
+            _build_notifications_deadletter_threshold_scheduler(app)
         )
     if resolved.profile == "worker":
         app.state.analytics_consumer = AnalyticsPipelineConsumer(
@@ -1294,6 +1360,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(marketplace_router)
         app.include_router(interactions_router)
         app.include_router(notifications_router, prefix="/api/v1")
+        app.include_router(notifications_webhooks_router, prefix="/api/v1")
+        app.include_router(notifications_deadletter_router, prefix="/api/v1")
         app.include_router(governance_router, prefix="/api/v1")
         app.include_router(connectors_router)
         app.include_router(policies_router)
@@ -1585,9 +1653,18 @@ async def _run_notifications_webhook_retry_scan(app: FastAPI) -> None:
             redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
             producer=cast(EventProducer | None, app.state.clients.get("kafka")),
             workspaces_service=workspaces_service,
+            secret_provider=getattr(app.state, "secret_provider", InMemorySecretProvider()),
         )
         try:
             await service.run_webhook_retry_scan()
+            await run_workspace_webhook_retry_scan(
+                repo=NotificationsRepository(session),
+                redis=cast(AsyncRedisClient, app.state.clients["redis"]),
+                secrets=getattr(app.state, "secret_provider", InMemorySecretProvider()),
+                deliverer=WebhookDeliverer(),
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
             await session.commit()
         except Exception:
             await session.rollback()
@@ -1602,9 +1679,39 @@ async def _run_notifications_retention_gc(app: FastAPI) -> None:
             redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
             producer=cast(EventProducer | None, app.state.clients.get("kafka")),
             workspaces_service=None,
+            secret_provider=getattr(app.state, "secret_provider", InMemorySecretProvider()),
         )
         try:
             await service.run_retention_gc()
+            await service.run_dead_letter_retention_gc()
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+async def _run_notifications_channel_verification(app: FastAPI) -> None:
+    async with database.AsyncSessionLocal() as session:
+        try:
+            await expire_unverified_channels(
+                NotificationsRepository(session),
+                cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+
+
+async def _run_notifications_deadletter_threshold_scan(app: FastAPI) -> None:
+    async with database.AsyncSessionLocal() as session:
+        try:
+            await run_dead_letter_threshold_scan(
+                repo=NotificationsRepository(session),
+                redis=cast(AsyncRedisClient, app.state.clients["redis"]),
+                settings=cast(PlatformSettings, app.state.settings),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
             await session.commit()
         except Exception:
             await session.rollback()
@@ -1655,6 +1762,20 @@ def _build_notifications_retention_gc_scheduler(app: FastAPI) -> Any | None:
         id="notifications-retention-gc",
     )
     return scheduler
+
+
+def _build_notifications_channel_verification_scheduler(app: FastAPI) -> Any | None:
+    async def _run() -> None:
+        await _run_notifications_channel_verification(app)
+
+    return build_channel_verification_scheduler(_run)
+
+
+def _build_notifications_deadletter_threshold_scheduler(app: FastAPI) -> Any | None:
+    async def _run() -> None:
+        await _run_notifications_deadletter_threshold_scan(app)
+
+    return build_dead_letter_threshold_scheduler(_run)
 
 
 async def _run_governance_retention_gc(app: FastAPI) -> None:

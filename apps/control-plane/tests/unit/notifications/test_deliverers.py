@@ -85,8 +85,14 @@ class _AsyncClientStub:
     async def __aexit__(self, exc_type, exc, tb) -> None:
         return None
 
-    async def post(self, url: str, json: dict[str, object]) -> httpx.Response:
-        self.calls.append((url, json))
+    async def post(
+        self,
+        url: str,
+        json: dict[str, object] | None = None,
+        content: bytes | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> httpx.Response:
+        self.calls.append((url, {"json": json, "content": content, "headers": headers or {}}))
         if self.exc is not None:
             raise self.exc
         assert self.response is not None
@@ -109,7 +115,7 @@ async def test_webhook_deliverer_handles_success_and_failures(
     assert outcome == DeliveryOutcome.success
     assert detail is None
     assert success_client.calls[0][0] == "https://hooks.example.com/alert"
-    assert success_client.calls[0][1]["id"] == str(alert.id)
+    assert success_client.calls[0][1]["json"]["id"] == str(alert.id)
 
     timeout_client = _AsyncClientStub(exc=httpx.TimeoutException("timed out"))
     monkeypatch.setattr(
@@ -176,3 +182,76 @@ async def test_email_and_webhook_deliverers_cover_additional_failure_paths(
     outcome, detail = await webhook_deliverer.send(alert, "https://hooks.example.com/alert")
     assert outcome == DeliveryOutcome.timed_out
     assert detail == "retry later"
+
+
+@pytest.mark.asyncio
+async def test_webhook_deliverer_signed_delivery_uses_canonical_body_and_hmac_headers(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    deliverer = WebhookDeliverer()
+    client = _AsyncClientStub(response=httpx.Response(204))
+    monkeypatch.setattr(
+        "platform.notifications.deliverers.webhook_deliverer.httpx.AsyncClient",
+        lambda timeout=10.0, follow_redirects=False: client,
+    )
+    webhook_id = uuid4()
+    event_id = uuid4()
+
+    outcome, detail, idempotency_key = await deliverer.send_signed(
+        webhook_id=webhook_id,
+        event_id=event_id,
+        webhook_url="https://hooks.example.com/events",
+        payload={"z": 1, "a": "é"},
+        secret=b"secret",
+        platform_version="test",
+    )
+
+    assert outcome == DeliveryOutcome.success
+    assert detail is None
+    assert client.calls[0][1]["content"] == b'{"a":"\xc3\xa9","z":1}'
+    headers = client.calls[0][1]["headers"]
+    assert headers["X-Musematic-Signature"].startswith("sha256=")
+    assert headers["X-Musematic-Idempotency-Key"] == str(idempotency_key)
+    assert headers["User-Agent"] == "musematic-webhook/test"
+
+
+@pytest.mark.asyncio
+async def test_webhook_deliverer_signed_delivery_classifies_retryable_and_permanent_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    deliverer = WebhookDeliverer()
+    rate_limit_client = _AsyncClientStub(
+        response=httpx.Response(429, text="slow", headers={"Retry-After": "30"})
+    )
+    monkeypatch.setattr(
+        "platform.notifications.deliverers.webhook_deliverer.httpx.AsyncClient",
+        lambda timeout=10.0, follow_redirects=False: rate_limit_client,
+    )
+
+    outcome, detail, _ = await deliverer.send_signed(
+        webhook_id=uuid4(),
+        event_id=uuid4(),
+        webhook_url="https://hooks.example.com/events",
+        payload={"event": "test"},
+        secret="secret",
+        platform_version="test",
+    )
+
+    assert outcome == DeliveryOutcome.timed_out
+    assert detail == "rate_limited; retry_after=30"
+
+    permanent_client = _AsyncClientStub(response=httpx.Response(400, text="bad request"))
+    monkeypatch.setattr(
+        "platform.notifications.deliverers.webhook_deliverer.httpx.AsyncClient",
+        lambda timeout=10.0, follow_redirects=False: permanent_client,
+    )
+    outcome, detail, _ = await deliverer.send_signed(
+        webhook_id=uuid4(),
+        event_id=uuid4(),
+        webhook_url="https://hooks.example.com/events",
+        payload={"event": "test"},
+        secret="secret",
+        platform_version="test",
+    )
+    assert outcome == DeliveryOutcome.failed
+    assert detail == "4xx_permanent"

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from platform.common.dependencies import get_current_user
 from platform.notifications.dependencies import get_notifications_service
+from platform.notifications.routers.channels_router import router as channels_router
 from platform.notifications.schemas import (
     AlertListResponse,
     UnreadCountResponse,
@@ -17,6 +18,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 
 router = APIRouter(prefix="/me", tags=["notifications"])
+router.include_router(channels_router)
 
 
 def _user_id(current_user: dict[str, Any]) -> UUID:
