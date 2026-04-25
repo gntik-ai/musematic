@@ -4,9 +4,21 @@ from datetime import UTC, datetime, timedelta
 from platform.common.config import PlatformSettings
 from platform.common.exceptions import ValidationError
 from platform.interactions.events import AttentionRequestedPayload, InteractionStateChangedPayload
-from platform.notifications.exceptions import AlertAuthorizationError, AlertNotFoundError
+from platform.notifications.exceptions import (
+    AlertAuthorizationError,
+    AlertNotFoundError,
+    ChannelNotFoundError,
+    ChannelVerificationError,
+    QuotaExceededError,
+)
 from platform.notifications.models import DeliveryMethod, DeliveryOutcome
-from platform.notifications.schemas import UserAlertSettingsRead, UserAlertSettingsUpdate
+from platform.notifications.schemas import (
+    ChannelConfigCreate,
+    ChannelConfigUpdate,
+    QuietHoursConfig,
+    UserAlertSettingsRead,
+    UserAlertSettingsUpdate,
+)
 from platform.notifications.service import AlertService
 from types import SimpleNamespace
 from uuid import UUID, uuid4
@@ -77,6 +89,15 @@ class WebhookDelivererStub:
         return self.responses.pop(0) if self.responses else (DeliveryOutcome.success, None)
 
 
+class SmsDelivererStub:
+    def __init__(self) -> None:
+        self.calls: list[tuple[object, str, object]] = []
+
+    async def send(self, alert, target: str, config: object) -> tuple[DeliveryOutcome, str | None]:
+        self.calls.append((alert, target, config))
+        return DeliveryOutcome.success, None
+
+
 class RepoStub:
     def __init__(self) -> None:
         self.settings_by_user: dict[UUID, object] = {}
@@ -86,6 +107,7 @@ class RepoStub:
         self.updated: list[tuple[UUID, dict[str, object]]] = []
         self.pending: list[SimpleNamespace] = []
         self.deleted_retention_days: list[int] = []
+        self.channel_configs: dict[UUID, SimpleNamespace] = {}
 
     async def get_settings(self, user_id: UUID):
         return self.settings_by_user.get(user_id)
@@ -206,6 +228,59 @@ class RepoStub:
         self.deleted_retention_days.append(retention_days)
         return 3
 
+    async def list_user_channel_configs(self, user_id: UUID):
+        return [config for config in self.channel_configs.values() if config.user_id == user_id]
+
+    async def get_channel_config(self, channel_config_id: UUID, user_id: UUID | None = None):
+        config = self.channel_configs.get(channel_config_id)
+        if config is None:
+            return None
+        if user_id is not None and config.user_id != user_id:
+            return None
+        return config
+
+    async def create_channel_config(self, **fields: object):
+        now = datetime.now(UTC)
+        config = SimpleNamespace(
+            id=uuid4(),
+            signing_secret_ref=None,
+            created_at=now,
+            updated_at=now,
+            **fields,
+        )
+        self.channel_configs[config.id] = config
+        return config
+
+    async def update_channel_config(self, channel_config_id: UUID, **fields: object):
+        config = self.channel_configs.get(channel_config_id)
+        if config is None:
+            return None
+        for key, value in fields.items():
+            setattr(config, key, value)
+        config.updated_at = datetime.now(UTC)
+        return config
+
+    async def delete_channel_config(self, channel_config_id: UUID) -> bool:
+        return self.channel_configs.pop(channel_config_id, None) is not None
+
+    async def get_channel_config_by_token_hash(self, token_hash: str):
+        for config in self.channel_configs.values():
+            if config.verification_token_hash == token_hash:
+                return config
+        return None
+
+    async def count_user_channels(
+        self,
+        user_id: UUID,
+        channel_type: DeliveryMethod | None = None,
+    ) -> int:
+        return sum(
+            1
+            for config in self.channel_configs.values()
+            if config.user_id == user_id
+            and (channel_type is None or config.channel_type == channel_type)
+        )
+
 
 def _settings(
     user_id: UUID,
@@ -237,6 +312,7 @@ def build_service(
     producer: RecordingProducer | None = None,
     email_deliverer: EmailDelivererStub | None = None,
     webhook_deliverer: WebhookDelivererStub | None = None,
+    sms_deliverer: SmsDelivererStub | None = None,
     settings: PlatformSettings | None = None,
 ) -> tuple[
     AlertService,
@@ -259,6 +335,7 @@ def build_service(
         settings=settings or PlatformSettings(),
         email_deliverer=email_deliverer or EmailDelivererStub(),
         webhook_deliverer=webhook_deliverer or WebhookDelivererStub(),
+        sms_deliverer=sms_deliverer,
     )
     return service, repo, accounts, workspaces, redis, producer
 
@@ -834,3 +911,135 @@ async def test_dispatch_webhook_exhausted_attempts_do_not_schedule_retry() -> No
     assert repo.updated[-1][1]["outcome"] == DeliveryOutcome.failed
     assert repo.updated[-1][1]["next_retry_at"] is None
     assert repo.updated[-1][1]["error_detail"] == "permanent failure"
+
+
+@pytest.mark.asyncio
+async def test_channel_config_crud_verification_and_quota_edges() -> None:
+    user_id = uuid4()
+    other_user = uuid4()
+    sms_deliverer = SmsDelivererStub()
+    service, repo, _, _, _, _ = build_service(sms_deliverer=sms_deliverer)
+
+    created = await service.create_channel_config(
+        user_id,
+        ChannelConfigCreate(
+            channel_type=DeliveryMethod.sms,
+            target="+34666123456",
+            quiet_hours=QuietHoursConfig(start="23:00", end="06:00", timezone="UTC"),
+        ),
+    )
+    listed = await service.list_channel_configs(user_id)
+    resolved = await service.get_channel_config_for_user(user_id, created.id)
+    updated = await service.update_channel_config(
+        user_id,
+        created.id,
+        ChannelConfigUpdate(
+            display_name="Critical SMS",
+            quiet_hours=QuietHoursConfig(start="22:00", end="07:00", timezone="UTC"),
+        ),
+    )
+    resent = await service.resend_channel_verification(user_id, created.id)
+
+    assert created.severity_floor == service.settings.notifications.sms_default_severity_floor
+    assert listed[0].id == created.id
+    assert resolved.id == created.id
+    assert updated.display_name == "Critical SMS"
+    assert updated.quiet_hours == {"start": "22:00", "end": "07:00", "timezone": "UTC"}
+    assert resent.verification_expires_at is not None
+    assert len(sms_deliverer.calls) == 2
+
+    with pytest.raises(ChannelVerificationError):
+        await service.verify_channel_config(user_id, created.id, "wrong-token")
+
+    token = "valid-token"
+    config = repo.channel_configs[created.id]
+    config.verification_token_hash = service._hash_token(token)
+    config.verification_expires_at = datetime.now(UTC) + timedelta(minutes=5)
+    verified = await service.verify_channel_config(user_id, created.id, token)
+    assert verified.verified_at is not None
+    assert repo.channel_configs[created.id].verification_token_hash is None
+
+    config.verification_token_hash = service._hash_token(token)
+    config.verification_expires_at = datetime.now(UTC) - timedelta(minutes=1)
+    with pytest.raises(ChannelVerificationError, match="expired"):
+        await service.verify_channel_config(user_id, created.id, token)
+
+    with pytest.raises(AlertAuthorizationError):
+        await service.get_channel_config_for_user(other_user, created.id)
+    with pytest.raises(ChannelNotFoundError):
+        await service.get_channel_config_for_user(user_id, uuid4())
+
+    await service.delete_channel_config(user_id, created.id)
+    assert created.id not in repo.channel_configs
+
+    quota_settings = PlatformSettings(NOTIFICATIONS_CHANNELS_PER_USER_MAX=0)
+    quota_service, _, _, _, _, _ = build_service(settings=quota_settings)
+    with pytest.raises(QuotaExceededError):
+        await quota_service.create_channel_config(
+            user_id,
+            ChannelConfigCreate(channel_type=DeliveryMethod.email, target="user@example.com"),
+        )
+
+
+@pytest.mark.asyncio
+async def test_channel_dispatch_uses_router_and_verification_email_noop_paths() -> None:
+    user_id = uuid4()
+    routed: list[tuple[object, object, object, str]] = []
+
+    class ChannelRouterStub:
+        async def route(self, alert, user, *, workspace_id=None, severity="medium"):
+            routed.append((alert, user, workspace_id, severity))
+
+    settings = PlatformSettings()
+    settings.notifications.multi_channel_enabled = True
+    email_deliverer = EmailDelivererStub()
+    service, repo, accounts, _, _, _ = build_service(
+        settings=settings,
+        email_deliverer=email_deliverer,
+    )
+    service.channel_router = ChannelRouterStub()  # type: ignore[assignment]
+    accounts.by_id[user_id] = SimpleNamespace(id=user_id, email="person@example.com")
+    alert = await repo.create_alert(
+        user_id=user_id,
+        interaction_id=None,
+        source_reference={"type": "attention_request", "id": str(uuid4())},
+        alert_type="attention_request",
+        title="Attention requested",
+        body="Review needed",
+        urgency="critical",
+    )
+
+    await service._dispatch_for_settings(
+        alert,
+        _settings(user_id),
+        accounts.by_id[user_id],
+        workspace_id=uuid4(),
+    )
+
+    now = datetime.now(UTC)
+    email_config = SimpleNamespace(
+        id=uuid4(),
+        user_id=user_id,
+        channel_type=DeliveryMethod.email,
+        target="person@example.com",
+        created_at=now,
+        updated_at=now,
+    )
+    webhook_config = SimpleNamespace(
+        id=uuid4(),
+        user_id=user_id,
+        channel_type=DeliveryMethod.webhook,
+        target="https://hooks.example.com",
+        created_at=now,
+        updated_at=now,
+    )
+    await service._send_channel_verification(email_config, "email-token")
+    await service._send_channel_verification(webhook_config, "webhook-token")
+    raw, token_hash, expires_at = service._verification_challenge(DeliveryMethod.email)
+
+    assert routed[0][0] is alert
+    assert routed[0][3] == "critical"
+    assert email_deliverer.calls[0][1] == "person@example.com"
+    assert raw
+    assert token_hash == service._hash_token(raw)
+    assert expires_at > datetime.now(UTC)
