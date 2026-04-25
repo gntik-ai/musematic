@@ -716,6 +716,7 @@ async def creator_client(
     http_client: AuthenticatedAsyncClient,
     mock_github_oauth: str,
     ensure_journey_personas: dict[str, str],
+    journey_context: JourneyContext,
 ) -> AuthenticatedAsyncClient:
     del ensure_journey_personas
     client = http_client.clone()
@@ -723,7 +724,7 @@ async def creator_client(
         client,
         provider="github",
         mock_server=mock_github_oauth,
-        login=_env("JOURNEY_CREATOR_GITHUB_LOGIN", "j-creator-gh"),
+        login=_env("JOURNEY_CREATOR_GITHUB_LOGIN", f"{journey_context.journey_id}-creator-gh"),
     )
     await _grant_required_consents(authenticated)
     return authenticated
@@ -734,6 +735,7 @@ async def consumer_client(
     http_client: AuthenticatedAsyncClient,
     mock_google_oidc: str,
     ensure_journey_personas: dict[str, str],
+    journey_context: JourneyContext,
 ) -> AuthenticatedAsyncClient:
     del ensure_journey_personas
     client = http_client.clone()
@@ -741,7 +743,7 @@ async def consumer_client(
         client,
         provider="google",
         mock_server=mock_google_oidc,
-        login=_env("JOURNEY_CONSUMER_GOOGLE_LOGIN", "j-consumer"),
+        login=_env("JOURNEY_CONSUMER_GOOGLE_LOGIN", f"{journey_context.journey_id}-consumer"),
     )
     await _grant_required_consents(authenticated)
     return authenticated

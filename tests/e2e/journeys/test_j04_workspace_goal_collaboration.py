@@ -311,7 +311,8 @@ async def test_j04_workspace_goal_collaboration(
             alert_settings = await consumer_workspace_admin.put(
                 "/api/v1/me/alert-settings",
                 json={
-                    "state_transitions": ["working_to_pending", "any_to_complete", "any_to_failed"],
+                    # This journey asserts attention alerts; transition alerts add WS/inbox noise.
+                    "state_transitions": ["ready_to_failed"],
                     "delivery_method": "in_app",
                     "webhook_url": None,
                 },
