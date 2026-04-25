@@ -8,6 +8,9 @@ from platform.policies.schemas import (
     SanitizationResult,
     ValidationManifest,
 )
+from platform.privacy_compliance.dlp.scanner import DLPEventInput, DLPScanResult
+from platform.privacy_compliance.exceptions import ToolOutputBlocked
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -74,6 +77,42 @@ class SanitizerStub:
             redaction_count=1,
             redacted_types=["api_key"],
         )
+
+
+class DLPServiceStub:
+    def __init__(self, blocked: bool) -> None:
+        self.blocked = blocked
+        self.emitted: list[DLPEventInput] = []
+
+    async def scan_and_apply(self, output: str, workspace_id) -> DLPScanResult:
+        del output
+        return DLPScanResult(
+            output_text="[dlp]",
+            blocked=self.blocked,
+            events=[
+                DLPEventInput(
+                    rule_id=uuid4(),
+                    rule_name="internal_project_alpha",
+                    classification="confidential",
+                    action_taken="block",
+                    match_summary="confidential:internal_project_alpha",
+                    workspace_id=workspace_id,
+                )
+            ],
+        )
+
+    async def emit_events(self, events: list[DLPEventInput], *, execution_id=None):
+        del execution_id
+        self.emitted.extend(events)
+        return events
+
+
+class SessionCommitStub:
+    def __init__(self) -> None:
+        self.commits = 0
+
+    async def commit(self) -> None:
+        self.commits += 1
 
 
 class FailingPolicyService:
@@ -308,3 +347,87 @@ async def test_tool_gateway_uses_redis_budget_and_sanitizer_and_memory_gate_extr
         None,
     )
     assert failure_block.block_reason == "policy_resolution_failure"
+
+
+@pytest.mark.asyncio
+async def test_tool_gateway_commits_dlp_events_before_blocking() -> None:
+    workspace_id = uuid4()
+    execution_id = uuid4()
+    dlp_service = DLPServiceStub(blocked=True)
+    session = SessionCommitStub()
+    gateway = ToolGatewayService(
+        policy_service=PolicyServiceStub(build_bundle()),
+        sanitizer=SanitizerStub(),
+        reasoning_client=None,
+        registry_service=None,
+        dlp_service=dlp_service,
+        settings=SimpleNamespace(privacy_compliance=SimpleNamespace(dlp_enabled=True)),
+    )
+
+    with pytest.raises(ToolOutputBlocked):
+        await gateway.sanitize_tool_output(
+            "Project Alpha",
+            uuid4(),
+            "finance:agent",
+            "finance:read",
+            execution_id,
+            session,
+            workspace_id=workspace_id,
+        )
+
+    assert session.commits == 1
+    assert [event.match_summary for event in dlp_service.emitted] == [
+        "confidential:internal_project_alpha"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_tool_gateway_applies_non_blocking_dlp_output() -> None:
+    workspace_id = uuid4()
+    dlp_service = DLPServiceStub(blocked=False)
+    gateway = ToolGatewayService(
+        policy_service=PolicyServiceStub(build_bundle()),
+        sanitizer=SanitizerStub(),
+        reasoning_client=None,
+        registry_service=None,
+        dlp_service=dlp_service,
+        settings=SimpleNamespace(privacy_compliance=SimpleNamespace(dlp_enabled=True)),
+    )
+
+    sanitized = await gateway.sanitize_tool_output(
+        "Project Alpha",
+        uuid4(),
+        "finance:agent",
+        "finance:read",
+        None,
+        None,
+        workspace_id=workspace_id,
+    )
+
+    assert sanitized.output == "[dlp]"
+    assert [event.match_summary for event in dlp_service.emitted] == [
+        "confidential:internal_project_alpha"
+    ]
+
+
+@pytest.mark.asyncio
+async def test_tool_gateway_blocks_dlp_without_explicit_commit_handle() -> None:
+    gateway = ToolGatewayService(
+        policy_service=PolicyServiceStub(build_bundle()),
+        sanitizer=SanitizerStub(),
+        reasoning_client=None,
+        registry_service=None,
+        dlp_service=DLPServiceStub(blocked=True),
+        settings=SimpleNamespace(privacy_compliance=SimpleNamespace(dlp_enabled=True)),
+    )
+
+    with pytest.raises(ToolOutputBlocked):
+        await gateway.sanitize_tool_output(
+            "Project Alpha",
+            uuid4(),
+            "finance:agent",
+            "finance:read",
+            None,
+            object(),
+            workspace_id=uuid4(),
+        )

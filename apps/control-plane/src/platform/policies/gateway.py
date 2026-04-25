@@ -9,6 +9,7 @@ from platform.policies.models import EnforcementComponent
 from platform.policies.sanitizer import OutputSanitizer
 from platform.policies.schemas import GateResult, SanitizationResult
 from platform.policies.service import PolicyService
+from platform.privacy_compliance.exceptions import ToolOutputBlocked
 from typing import Any
 from uuid import UUID
 
@@ -22,12 +23,16 @@ class ToolGatewayService:
         reasoning_client: Any | None,
         registry_service: Any | None,
         settings: PlatformSettings | None = None,
+        dlp_service: Any | None = None,
+        residency_service: Any | None = None,
     ) -> None:
         self.policy_service = policy_service
         self.sanitizer = sanitizer
         self.reasoning_client = reasoning_client
         self.registry_service = registry_service
         self.settings = settings
+        self.dlp_service = dlp_service
+        self.residency_service = residency_service
 
     async def validate_tool_invocation(
         self,
@@ -39,9 +44,18 @@ class ToolGatewayService:
         workspace_id: UUID,
         session: Any,
     ) -> GateResult:
-        del session
+        origin_region = getattr(session, "origin_region", None)
         started = time.perf_counter()
         try:
+            if (
+                self.settings is not None
+                and self.settings.privacy_compliance.residency_enforcement_enabled
+                and self.residency_service is not None
+            ):
+                await self.residency_service.enforce(
+                    workspace_id,
+                    origin_region,
+                )
             if (
                 self.settings is not None
                 and self.settings.visibility.zero_trust_enabled
@@ -195,7 +209,7 @@ class ToolGatewayService:
         *,
         workspace_id: UUID | None = None,
     ) -> SanitizationResult:
-        return await self.sanitizer.sanitize(
+        sanitized = await self.sanitizer.sanitize(
             output,
             agent_id=agent_id,
             agent_fqn=agent_fqn,
@@ -204,6 +218,25 @@ class ToolGatewayService:
             workspace_id=workspace_id,
             session=session,
         )
+        if (
+            self.settings is not None
+            and self.settings.privacy_compliance.dlp_enabled
+            and self.dlp_service is not None
+            and workspace_id is not None
+        ):
+            scan_result = await self.dlp_service.scan_and_apply(sanitized.output, workspace_id)
+            await self.dlp_service.emit_events(scan_result.events, execution_id=execution_id)
+            if scan_result.blocked:
+                commit = getattr(session, "commit", None)
+                if callable(commit):
+                    await commit()
+                raise ToolOutputBlocked([event.match_summary for event in scan_result.events])
+            return SanitizationResult(
+                output=scan_result.output_text,
+                redaction_count=sanitized.redaction_count,
+                redacted_types=sanitized.redacted_types,
+            )
+        return sanitized
 
     def _permission_ref(self, bundle: Any, tool_fqn: str) -> dict[str, Any] | None:
         if any(

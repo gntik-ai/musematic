@@ -28,7 +28,7 @@ spec:
               if [ -n "${S3_ENDPOINT_URL:-}" ]; then
                 endpoint_args="--endpoint-url ${S3_ENDPOINT_URL}"
               fi
-              for bucket in agent-packages execution-artifacts execution-task-plans reasoning-traces sandbox-outputs evidence-bundles simulation-artifacts backups forensic-exports; do
+              for bucket in agent-packages connector-dead-letters execution-artifacts execution-task-plans reasoning-traces sandbox-outputs evidence-bundles simulation-artifacts backups forensic-exports; do
                 aws s3 mb "s3://${S3_BUCKET_PREFIX}-${bucket}" ${endpoint_args} || true
               done
           env:

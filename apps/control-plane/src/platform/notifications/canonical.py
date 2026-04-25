@@ -70,4 +70,3 @@ def _jsonable(value: object) -> Any:
     if isinstance(value, bytes):
         return value.decode("utf-8")
     return value
-

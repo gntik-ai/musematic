@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from platform.audit.service import AuditChainService
 from platform.auth.models import OAuthAuditEntry, OAuthLink, OAuthProvider, UserCredential
+from platform.common.audit_hook import audit_chain_hook
 from typing import Any
 from uuid import UUID
 
@@ -12,8 +14,9 @@ from sqlalchemy.orm import selectinload
 
 
 class OAuthRepository:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, audit_chain: AuditChainService | None = None) -> None:
         self.session = session
+        self.audit_chain = audit_chain
 
     async def get_provider_by_type(self, provider_type: str) -> OAuthProvider | None:
         result = await self.session.execute(
@@ -227,6 +230,25 @@ class OAuthRepository:
         )
         self.session.add(entry)
         await self.session.flush()
+        if self.audit_chain is not None:
+            await audit_chain_hook(
+                self.audit_chain,
+                entry.id,
+                "auth",
+                {
+                    "provider_type": entry.provider_type,
+                    "provider_id": entry.provider_id,
+                    "user_id": entry.user_id,
+                    "external_id": entry.external_id,
+                    "action": entry.action,
+                    "outcome": entry.outcome,
+                    "failure_reason": entry.failure_reason,
+                    "source_ip": entry.source_ip,
+                    "actor_id": entry.actor_id,
+                    "changed_fields": entry.changed_fields,
+                    "created_at": entry.created_at,
+                },
+            )
         return entry
 
     async def list_audit_entries(

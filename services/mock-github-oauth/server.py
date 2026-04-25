@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 import uuid
 from http import HTTPStatus
@@ -33,6 +34,17 @@ def _resolve_seed(login: str) -> dict[str, object] | None:
     for item in SEED_USERS.values():
         if str(item.get("login", "")) == login:
             return item
+    if _DYNAMIC_LOGIN_RE.fullmatch(login):
+        normalized = login.lower()
+        user_uuid = uuid.uuid5(uuid.NAMESPACE_URL, f"mock-github-oauth:{normalized}")
+        return {
+            "key": login,
+            "id": user_uuid.int % 2_000_000_000,
+            "login": normalized,
+            "email": f"{normalized}@e2e.test",
+            "teams": [],
+            "org_memberships": {},
+        }
     return None
 
 
@@ -40,6 +52,7 @@ SEED_USERS = _load_seed_users()
 CODES: dict[str, dict[str, object]] = {}
 ACCESS_TOKENS: dict[str, dict[str, object]] = {}
 BASE_URL = os.getenv("MOCK_BASE_URL", DEFAULT_BASE_URL).rstrip("/")
+_DYNAMIC_LOGIN_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,80}$")
 
 
 def _cleanup_store(store: dict[str, dict[str, object]]) -> None:
@@ -110,7 +123,9 @@ class Handler(BaseHTTPRequestHandler):
             payload = ACCESS_TOKENS.get(access_token or "")
             if payload is None:
                 return _json(self, HTTPStatus.UNAUTHORIZED, {"error": "invalid_token"})
-            seed = SEED_USERS[str(payload["seed_key"])]
+            seed = _resolve_seed(str(payload["seed_key"]))
+            if seed is None:
+                return _json(self, HTTPStatus.UNAUTHORIZED, {"error": "invalid_token"})
             return _json(
                 self,
                 HTTPStatus.OK,
@@ -127,7 +142,9 @@ class Handler(BaseHTTPRequestHandler):
             payload = ACCESS_TOKENS.get(access_token or "")
             if payload is None:
                 return _json(self, HTTPStatus.UNAUTHORIZED, {"error": "invalid_token"})
-            seed = SEED_USERS[str(payload["seed_key"])]
+            seed = _resolve_seed(str(payload["seed_key"]))
+            if seed is None:
+                return _json(self, HTTPStatus.UNAUTHORIZED, {"error": "invalid_token"})
             return _json(
                 self,
                 HTTPStatus.OK,
@@ -145,7 +162,9 @@ class Handler(BaseHTTPRequestHandler):
             payload = ACCESS_TOKENS.get(access_token or "")
             if payload is None:
                 return _json(self, HTTPStatus.UNAUTHORIZED, {"error": "invalid_token"})
-            seed = SEED_USERS[str(payload["seed_key"])]
+            seed = _resolve_seed(str(payload["seed_key"]))
+            if seed is None:
+                return _json(self, HTTPStatus.UNAUTHORIZED, {"error": "invalid_token"})
             teams = []
             for team in seed.get("teams", []) or []:
                 if isinstance(team, dict):
@@ -157,7 +176,9 @@ class Handler(BaseHTTPRequestHandler):
             if payload is None:
                 return _json(self, HTTPStatus.UNAUTHORIZED, {"error": "invalid_token"})
             org = parsed.path.rsplit("/", 1)[-1]
-            seed = SEED_USERS[str(payload["seed_key"])]
+            seed = _resolve_seed(str(payload["seed_key"]))
+            if seed is None:
+                return _json(self, HTTPStatus.UNAUTHORIZED, {"error": "invalid_token"})
             orgs = set(seed.get("orgs", []) or [])
             if org not in orgs:
                 return _json(self, HTTPStatus.NOT_FOUND, {"message": "Not Found"})

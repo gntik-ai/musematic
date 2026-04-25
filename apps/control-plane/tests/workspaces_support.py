@@ -149,6 +149,10 @@ class WorkspacesRepoStub:
         self.goals: dict[tuple[UUID, UUID], WorkspaceGoal] = {}
         self.settings_by_workspace: dict[UUID, WorkspaceSettings] = {}
         self.visibility_by_workspace: dict[UUID, WorkspaceVisibilityGrant] = {}
+        self.conversation_workspaces: dict[UUID, UUID] = {}
+        self.interaction_workspaces: dict[UUID, UUID] = {}
+        self.execution_workspaces: dict[UUID, UUID] = {}
+        self.fleet_workspaces: dict[UUID, UUID] = {}
         self.existing_users: set[UUID] = set()
 
     async def create_workspace(
@@ -373,6 +377,24 @@ class WorkspacesRepoStub:
             if member_id == user_id
             and self.workspaces[workspace_id].status == WorkspaceStatus.active
         ]
+
+    async def get_goal_by_gid(self, goal_gid: UUID) -> WorkspaceGoal | None:
+        for goal in self.goals.values():
+            if goal.gid == goal_gid:
+                return goal
+        return None
+
+    async def get_workspace_id_for_conversation(self, conversation_id: UUID) -> UUID | None:
+        return self.conversation_workspaces.get(conversation_id)
+
+    async def get_workspace_id_for_interaction(self, interaction_id: UUID) -> UUID | None:
+        return self.interaction_workspaces.get(interaction_id)
+
+    async def get_workspace_id_for_execution(self, execution_id: UUID) -> UUID | None:
+        return self.execution_workspaces.get(execution_id)
+
+    async def get_workspace_id_for_fleet(self, fleet_id: UUID) -> UUID | None:
+        return self.fleet_workspaces.get(fleet_id)
 
 
 class RouterServiceStub:

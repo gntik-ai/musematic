@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import json
+from platform.common.clients.model_router import ModelRouter
 from platform.common.config import PlatformSettings
 from platform.composition.exceptions import LLMServiceUnavailableError
 from platform.composition.schemas import LLMChatResponse
 from typing import Any, TypeVar
+from uuid import UUID
 
 import httpx
 from pydantic import BaseModel, ValidationError
@@ -20,9 +22,15 @@ class LLMCompositionClient:
         settings: PlatformSettings,
         *,
         http_client_factory: type[httpx.AsyncClient] = httpx.AsyncClient,
+        model_router: ModelRouter | None = None,
+        workspace_id: UUID | None = None,
+        model_binding: str | None = None,
     ) -> None:
         self.settings = settings
         self.http_client_factory = http_client_factory
+        self.model_router = model_router
+        self.workspace_id = workspace_id
+        self.model_binding = model_binding
 
     async def generate(
         self,
@@ -31,16 +39,38 @@ class LLMCompositionClient:
         response_schema: type[T],
     ) -> T:
         """Generate and parse a structured LLM response."""
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+        response_format = {"type": "json_object"}
+        if self.settings.model_catalog.router_enabled:
+            if self.model_router is None or self.workspace_id is None:
+                raise LLMServiceUnavailableError(
+                    "Model router is enabled but no router/workspace was configured"
+                )
+            try:
+                routed = await self.model_router.complete(
+                    workspace_id=self.workspace_id,
+                    step_binding=self.model_binding or self.settings.composition.llm_model,
+                    messages=messages,
+                    response_format=response_format,
+                    timeout_seconds=self.settings.composition.llm_timeout_seconds,
+                )
+                return _parse_llm_response(
+                    {"choices": [{"message": {"content": routed.content}}]},
+                    response_schema,
+                )
+            except Exception as exc:
+                raise LLMServiceUnavailableError(f"Model router failed: {exc}") from exc
+
         last_error: Exception | None = None
         for attempt in range(self.settings.composition.llm_max_retries + 1):
             try:
                 payload = {
                     "model": self.settings.composition.llm_model,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    "response_format": {"type": "json_object"},
+                    "messages": messages,
+                    "response_format": response_format,
                 }
                 async with self.http_client_factory(
                     timeout=self.settings.composition.llm_timeout_seconds

@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from importlib import import_module
+from inspect import isawaitable
 from pathlib import Path
 from platform.common.config import Settings
 from platform.common.config import settings as default_settings
@@ -116,6 +117,25 @@ class AsyncObjectStorageClient:
         except Exception as exc:  # pragma: no cover - network dependent
             raise ObjectStorageError(
                 f"Failed to delete object '{key}' from bucket '{bucket}': {exc}"
+            ) from exc
+
+    async def delete_objects_matching_prefix(self, bucket: str, prefix: str) -> int:
+        try:
+            async with self._client() as s3:
+                paginator = s3.get_paginator("list_objects_v2")
+                deleted = 0
+                async for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+                    objects = [{"Key": item["Key"]} for item in page.get("Contents", [])]
+                    if not objects:
+                        continue
+                    await s3.delete_objects(Bucket=bucket, Delete={"Objects": objects})
+                    deleted += len(objects)
+                return deleted
+        except ClientError as exc:
+            raise self._translate_client_error(exc, bucket=bucket) from exc
+        except Exception as exc:  # pragma: no cover - network dependent
+            raise ObjectStorageError(
+                f"Failed to delete objects with prefix '{prefix}' in bucket '{bucket}': {exc}"
             ) from exc
 
     async def object_exists(self, bucket: str, key: str, version_id: str | None = None) -> bool:
@@ -250,12 +270,15 @@ class AsyncObjectStorageClient:
         params = {"Bucket": bucket, "Key": key}
         try:
             async with self._client() as s3:
-                return await asyncio.to_thread(
+                url = await asyncio.to_thread(
                     s3.generate_presigned_url,
                     ClientMethod=operation,
                     Params=params,
                     ExpiresIn=expires_in_seconds,
                 )
+                if isawaitable(url):
+                    url = await url
+                return str(url)
         except ClientError as exc:
             raise self._translate_client_error(exc, bucket=bucket, key=key) from exc
         except Exception as exc:  # pragma: no cover - network dependent

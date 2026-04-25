@@ -61,6 +61,8 @@ importlib.import_module("platform.discovery.models")
 importlib.import_module("platform.simulation.models")
 importlib.import_module("platform.a2a_gateway.models")
 importlib.import_module("platform.mcp.models")
+importlib.import_module("platform.audit.models")
+importlib.import_module("platform.security_compliance.models")
 
 config = context.config
 

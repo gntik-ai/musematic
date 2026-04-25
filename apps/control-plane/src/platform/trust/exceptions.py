@@ -67,6 +67,17 @@ class CertificationStateError(TrustError):
         super().__init__("TRUST_CERTIFICATION_STATE_ERROR", message, details)
 
 
+class CertificationBlockedError(TrustError):
+    status_code = 403
+
+    def __init__(self, reason: str, detail: str) -> None:
+        super().__init__(
+            "TRUST_CERTIFICATION_BLOCKED",
+            "Certification request is blocked",
+            {"reason": reason, "detail": detail},
+        )
+
+
 class InvalidStateTransitionError(TrustError):
     def __init__(self, current_state: str, target_state: str) -> None:
         super().__init__(

@@ -91,6 +91,9 @@ topics:
   - name: memory.events
     partitions: 6
     retentionMs: 604800000
+  - name: model.catalog.events
+    partitions: 6
+    retentionMs: 604800000
   - name: monitor.alerts
     partitions: 6
     retentionMs: 1209600000
@@ -104,6 +107,54 @@ topics:
     partitions: 6
     retentionMs: 604800000
   - name: policy.gate.blocked
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.consent.revoked
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.deletion.cascaded
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.dlp.event
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.dsr.completed
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.dsr.failed
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.dsr.in_progress
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.dsr.received
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.dsr.scheduled_with_hold
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.pia.approved
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.pia.drafted
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.pia.rejected
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.pia.submitted_for_review
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.pia.superseded
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.residency.configured
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.residency.removed
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.residency.violated
     partitions: 6
     retentionMs: 604800000
   - name: registry.events
@@ -121,6 +172,27 @@ topics:
   - name: sandbox.events
     partitions: 6
     retentionMs: 259200000
+  - name: security.audit.chain.verified
+    partitions: 6
+    retentionMs: 2592000000
+  - name: security.jit.issued
+    partitions: 6
+    retentionMs: 2592000000
+  - name: security.jit.revoked
+    partitions: 6
+    retentionMs: 2592000000
+  - name: security.pentest.finding.raised
+    partitions: 6
+    retentionMs: 2592000000
+  - name: security.sbom.published
+    partitions: 6
+    retentionMs: 2592000000
+  - name: security.scan.completed
+    partitions: 6
+    retentionMs: 2592000000
+  - name: security.secret.rotated
+    partitions: 6
+    retentionMs: 2592000000
   - name: simulation.events
     partitions: 6
     retentionMs: 259200000

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import hashlib
 import logging
+import secrets
 from collections.abc import Mapping
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from platform.accounts.models import User
 from platform.accounts.repository import AccountsRepository
 from platform.common.clients.redis import AsyncRedisClient
@@ -13,7 +15,11 @@ from platform.common.exceptions import ValidationError
 from platform.common.models.user import User as PlatformUser
 from platform.connectors.retry import compute_next_retry_at
 from platform.interactions.events import AttentionRequestedPayload, InteractionStateChangedPayload
+from platform.notifications.channel_router import ChannelRouter
 from platform.notifications.deliverers.email_deliverer import EmailDeliverer
+from platform.notifications.deliverers.slack_deliverer import SlackDeliverer
+from platform.notifications.deliverers.sms_deliverer import SmsDeliverer
+from platform.notifications.deliverers.teams_deliverer import TeamsDeliverer
 from platform.notifications.deliverers.webhook_deliverer import WebhookDeliverer
 from platform.notifications.events import (
     AlertCreatedPayload,
@@ -21,16 +27,26 @@ from platform.notifications.events import (
     publish_alert_created,
     publish_alert_read,
 )
-from platform.notifications.exceptions import AlertAuthorizationError, AlertNotFoundError
+from platform.notifications.exceptions import (
+    AlertAuthorizationError,
+    AlertNotFoundError,
+    ChannelNotFoundError,
+    ChannelVerificationError,
+    QuotaExceededError,
+)
 from platform.notifications.models import (
     AlertDeliveryOutcome,
     DeliveryMethod,
     DeliveryOutcome,
+    NotificationChannelConfig,
     UserAlert,
 )
 from platform.notifications.repository import NotificationsRepository
 from platform.notifications.schemas import (
     AlertListResponse,
+    ChannelConfigCreate,
+    ChannelConfigRead,
+    ChannelConfigUpdate,
     UnreadCountResponse,
     UserAlertDetail,
     UserAlertRead,
@@ -80,6 +96,8 @@ class AlertService:
         settings: PlatformSettings,
         email_deliverer: EmailDeliverer,
         webhook_deliverer: WebhookDeliverer,
+        channel_router: ChannelRouter | None = None,
+        sms_deliverer: SmsDeliverer | None = None,
     ) -> None:
         self.repo = repo
         self.accounts_repo = accounts_repo
@@ -89,6 +107,8 @@ class AlertService:
         self.settings = settings
         self.email_deliverer = email_deliverer
         self.webhook_deliverer = webhook_deliverer
+        self.channel_router = channel_router
+        self.sms_deliverer = sms_deliverer
 
     @classmethod
     def matches_transition_pattern(cls, pattern: str, from_state: str, to_state: str) -> bool:
@@ -226,7 +246,12 @@ class AlertService:
                     else None
                 ),
             )
-            await self._dispatch_for_settings(alert, alert_settings, user)
+            await self._dispatch_for_settings(
+                alert,
+                alert_settings,
+                user,
+                workspace_id=workspace_id,
+            )
             created.append(alert)
         return created
 
@@ -281,6 +306,106 @@ class AlertService:
     async def get_unread_count(self, user_id: UUID) -> UnreadCountResponse:
         return UnreadCountResponse(count=await self.repo.get_unread_count(user_id))
 
+    async def list_channel_configs(self, user_id: UUID) -> list[ChannelConfigRead]:
+        return [
+            ChannelConfigRead.model_validate(item)
+            for item in await self.repo.list_user_channel_configs(user_id)
+        ]
+
+    async def get_channel_config_for_user(
+        self,
+        user_id: UUID,
+        channel_config_id: UUID,
+    ) -> ChannelConfigRead:
+        return ChannelConfigRead.model_validate(
+            await self._authorize_channel_access(user_id, channel_config_id)
+        )
+
+    async def create_channel_config(
+        self,
+        user_id: UUID,
+        data: ChannelConfigCreate,
+    ) -> ChannelConfigRead:
+        total = await self.repo.count_user_channels(user_id)
+        if total >= self.settings.notifications.channels_per_user_max:
+            raise QuotaExceededError("Maximum notification channels per user exceeded")
+        token, token_hash, expires_at = self._verification_challenge(data.channel_type)
+        severity_floor = data.severity_floor
+        if data.channel_type == DeliveryMethod.sms and severity_floor is None:
+            severity_floor = self.settings.notifications.sms_default_severity_floor
+        config = await self.repo.create_channel_config(
+            user_id=user_id,
+            channel_type=data.channel_type,
+            target=data.target,
+            display_name=data.display_name,
+            enabled=True,
+            verified_at=None,
+            verification_token_hash=token_hash,
+            verification_expires_at=expires_at,
+            quiet_hours=None if data.quiet_hours is None else data.quiet_hours.model_dump(),
+            alert_type_filter=data.alert_type_filter,
+            severity_floor=severity_floor,
+            extra=data.extra,
+        )
+        await self._send_channel_verification(config, token)
+        return ChannelConfigRead.model_validate(config)
+
+    async def update_channel_config(
+        self,
+        user_id: UUID,
+        channel_config_id: UUID,
+        data: ChannelConfigUpdate,
+    ) -> ChannelConfigRead:
+        await self._authorize_channel_access(user_id, channel_config_id)
+        fields = data.model_dump(exclude_unset=True)
+        if "quiet_hours" in fields and fields["quiet_hours"] is not None:
+            fields["quiet_hours"] = data.quiet_hours.model_dump() if data.quiet_hours else None
+        config = await self.repo.update_channel_config(channel_config_id, **fields)
+        assert config is not None
+        return ChannelConfigRead.model_validate(config)
+
+    async def delete_channel_config(self, user_id: UUID, channel_config_id: UUID) -> None:
+        await self._authorize_channel_access(user_id, channel_config_id)
+        await self.repo.delete_channel_config(channel_config_id)
+
+    async def verify_channel_config(
+        self,
+        user_id: UUID,
+        channel_config_id: UUID,
+        token: str,
+    ) -> ChannelConfigRead:
+        token_hash = self._hash_token(token)
+        config = await self.repo.get_channel_config_by_token_hash(token_hash)
+        if config is None or config.id != channel_config_id or config.user_id != user_id:
+            raise ChannelVerificationError("Verification token is invalid")
+        if config.verification_expires_at and config.verification_expires_at < datetime.now(UTC):
+            raise ChannelVerificationError("Verification token has expired")
+        updated = await self.repo.update_channel_config(
+            channel_config_id,
+            verified_at=datetime.now(UTC),
+            verification_token_hash=None,
+            verification_expires_at=None,
+        )
+        assert updated is not None
+        return ChannelConfigRead.model_validate(updated)
+
+    async def resend_channel_verification(
+        self,
+        user_id: UUID,
+        channel_config_id: UUID,
+    ) -> ChannelConfigRead:
+        await self._authorize_channel_access(user_id, channel_config_id)
+        config = await self._authorize_channel_access(user_id, channel_config_id)
+        token, token_hash, expires_at = self._verification_challenge(config.channel_type)
+        updated = await self.repo.update_channel_config(
+            channel_config_id,
+            verification_token_hash=token_hash,
+            verification_expires_at=expires_at,
+        )
+        assert updated is not None
+        await self._send_channel_verification(updated, token)
+        return ChannelConfigRead.model_validate(updated)
+
     async def run_webhook_retry_scan(self) -> int:
         retried = 0
         outcomes = await self.repo.get_pending_webhook_deliveries()
@@ -303,12 +428,28 @@ class AlertService:
             self.settings.notifications.alert_retention_days
         )
 
+    async def run_dead_letter_retention_gc(self) -> int:
+        cutoff = datetime.now(UTC) - timedelta(
+            days=self.settings.notifications.dead_letter_retention_days
+        )
+        return await self.repo.delete_dead_letter_older_than(cutoff)
+
     async def _dispatch_for_settings(
         self,
         alert: UserAlert,
         alert_settings: UserAlertSettingsRead,
         user: User | PlatformUser,
+        *,
+        workspace_id: UUID | None = None,
     ) -> None:
+        if self.settings.notifications.multi_channel_enabled and self.channel_router is not None:
+            await self.channel_router.route(
+                alert,
+                user,
+                workspace_id=workspace_id,
+                severity=alert.urgency,
+            )
+            return
         if alert_settings.delivery_method == DeliveryMethod.in_app:
             await self._publish_in_app(alert)
             return
@@ -436,3 +577,84 @@ class AlertService:
             "password": getattr(self.settings, "SMTP_PASSWORD", None),
             "from_address": getattr(self.settings, "SMTP_FROM", None),
         }
+
+    def _verification_challenge(
+        self,
+        channel_type: DeliveryMethod = DeliveryMethod.email,
+    ) -> tuple[str, str, datetime]:
+        if channel_type == DeliveryMethod.sms:
+            raw_token = f"{secrets.randbelow(1_000_000):06d}"
+            return raw_token, self._hash_token(raw_token), datetime.now(UTC) + timedelta(
+                minutes=10
+            )
+        raw_token = secrets.token_urlsafe(32)
+        return raw_token, self._hash_token(raw_token), datetime.now(UTC) + timedelta(hours=24)
+
+    @staticmethod
+    def _hash_token(token: str) -> str:
+        return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+    async def _send_channel_verification(
+        self,
+        config: NotificationChannelConfig,
+        token: str,
+    ) -> None:
+        if config.channel_type not in {
+            DeliveryMethod.email,
+            DeliveryMethod.slack,
+            DeliveryMethod.teams,
+            DeliveryMethod.sms,
+        }:
+            return
+        alert = UserAlert(
+            id=uuid4(),
+            user_id=config.user_id,
+            interaction_id=None,
+            source_reference={"type": "notification_channel_verification"},
+            alert_type="notification_channel_verification",
+            title="Verify your notification channel",
+            body=(
+                "Use this verification token to activate your notification channel: "
+                f"{token}"
+            ),
+            urgency="medium",
+            read=False,
+        )
+        alert.created_at = datetime.now(UTC)
+        alert.updated_at = alert.created_at
+        if config.channel_type == DeliveryMethod.email:
+            await self.email_deliverer.send(alert, config.target, self._smtp_settings())
+            return
+        if config.channel_type == DeliveryMethod.slack:
+            await SlackDeliverer().send(alert, config.target, config)
+            return
+        if config.channel_type == DeliveryMethod.teams:
+            await TeamsDeliverer().send(alert, config.target, config)
+            return
+        if config.channel_type == DeliveryMethod.sms and self.sms_deliverer is not None:
+            sms_alert = UserAlert(
+                id=alert.id,
+                user_id=alert.user_id,
+                interaction_id=None,
+                source_reference=alert.source_reference,
+                alert_type=alert.alert_type,
+                title="Musematic verification",
+                body=f"Your Musematic verification code is {token}.",
+                urgency="critical",
+                read=False,
+            )
+            sms_alert.created_at = alert.created_at
+            sms_alert.updated_at = alert.updated_at
+            await self.sms_deliverer.send(sms_alert, config.target, config)
+
+    async def _authorize_channel_access(
+        self,
+        user_id: UUID,
+        channel_config_id: UUID,
+    ) -> NotificationChannelConfig:
+        config = await self.repo.get_channel_config(channel_config_id)
+        if config is None:
+            raise ChannelNotFoundError(channel_config_id)
+        if config.user_id != user_id:
+            raise AlertAuthorizationError()
+        return config

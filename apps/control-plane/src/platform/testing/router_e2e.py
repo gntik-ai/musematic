@@ -3,13 +3,15 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
-from platform.common.dependencies import get_current_user
+from platform.common.dependencies import get_current_user, get_db
 from platform.common.exceptions import AuthorizationError
 from platform.testing.schemas_e2e import (
     ChaosKillPodRequest,
     ChaosKillPodResponse,
     ChaosPartitionRequest,
     ChaosPartitionResponse,
+    E2EUserProvisionRequest,
+    E2EUserProvisionResponse,
     KafkaEventsResponse,
     MockLLMSetRequest,
     MockLLMSetResponse,
@@ -28,6 +30,8 @@ from platform.testing.service_e2e import (
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, Query, Request
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/v1/_e2e", tags=["_e2e"])
 
@@ -93,6 +97,35 @@ async def reset(
         payload.scope,
         include_baseline=payload.include_baseline,
     )
+
+
+@router.post("/users", response_model=E2EUserProvisionResponse)
+async def provision_user(
+    payload: E2EUserProvisionRequest,
+    current_user: dict[str, Any] = Depends(require_admin_or_e2e_scope),
+    session: AsyncSession = Depends(get_db),
+) -> E2EUserProvisionResponse:
+    del current_user
+    await session.execute(
+        text(
+            """
+            INSERT INTO users (id, email, display_name, status)
+            VALUES (:id, :email, :display_name, :status)
+            ON CONFLICT (id) DO UPDATE SET
+                email = EXCLUDED.email,
+                display_name = EXCLUDED.display_name,
+                status = EXCLUDED.status,
+                updated_at = now()
+            """
+        ),
+        {
+            "id": str(payload.id),
+            "email": payload.email,
+            "display_name": payload.display_name or payload.email.split("@", 1)[0],
+            "status": payload.status,
+        },
+    )
+    return E2EUserProvisionResponse(id=payload.id, email=payload.email, status=payload.status)
 
 
 @router.post("/chaos/kill-pod", response_model=ChaosKillPodResponse)

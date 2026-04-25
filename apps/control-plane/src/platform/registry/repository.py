@@ -3,6 +3,8 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 from datetime import UTC, datetime
+from platform.audit.service import AuditChainService
+from platform.common.audit_hook import audit_chain_hook
 from platform.common.clients.opensearch import AsyncOpenSearchClient
 from platform.registry.exceptions import DecommissionImmutableError
 from platform.registry.models import (
@@ -31,9 +33,11 @@ class RegistryRepository:
         self,
         session: AsyncSession,
         opensearch: AsyncOpenSearchClient | None = None,
+        audit_chain: AuditChainService | None = None,
     ) -> None:
         self.session = session
         self.opensearch = opensearch
+        self.audit_chain = audit_chain
 
     async def create_namespace(
         self,
@@ -108,11 +112,13 @@ class RegistryRepository:
         custom_role_description: str | None,
         tags: list[str],
         mcp_server_refs: list[str] | None = None,
+        data_categories: list[str] | None = None,
         maturity_level: int,
         actor_id: UUID,
     ) -> tuple[AgentProfile, bool]:
         fqn = f"{namespace.name}:{local_name}"
         resolved_mcp_server_refs = list(mcp_server_refs or [])
+        resolved_data_categories = list(data_categories or [])
         existing = await self.get_agent_by_fqn(workspace_id, fqn)
         if existing is None:
             profile = AgentProfile(
@@ -129,6 +135,7 @@ class RegistryRepository:
                 visibility_tools=[],
                 tags=tags,
                 mcp_server_refs=resolved_mcp_server_refs,
+                data_categories=resolved_data_categories,
                 status=LifecycleStatus.draft,
                 maturity_level=maturity_level,
                 embedding_status=EmbeddingStatus.pending,
@@ -146,6 +153,7 @@ class RegistryRepository:
         existing.custom_role_description = custom_role_description
         existing.tags = tags
         existing.mcp_server_refs = resolved_mcp_server_refs
+        existing.data_categories = resolved_data_categories
         existing.maturity_level = maturity_level
         existing.embedding_status = EmbeddingStatus.pending
         await self.session.flush()
@@ -367,6 +375,21 @@ class RegistryRepository:
         )
         self.session.add(entry)
         await self.session.flush()
+        if self.audit_chain is not None:
+            await audit_chain_hook(
+                self.audit_chain,
+                entry.id,
+                "registry",
+                {
+                    "workspace_id": entry.workspace_id,
+                    "agent_profile_id": entry.agent_profile_id,
+                    "previous_status": entry.previous_status.value,
+                    "new_status": entry.new_status.value,
+                    "actor_id": entry.actor_id,
+                    "reason": entry.reason,
+                    "created_at": entry.created_at,
+                },
+            )
         return entry
 
     async def list_lifecycle_audit(self, agent_profile_id: UUID) -> list[LifecycleAuditEntry]:

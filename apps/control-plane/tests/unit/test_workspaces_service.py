@@ -28,6 +28,7 @@ from platform.workspaces.schemas import (
     UpdateWorkspaceRequest,
 )
 from platform.workspaces.service import WorkspacesService
+from platform.ws_hub.subscription import ChannelType
 from uuid import uuid4
 
 import pytest
@@ -520,3 +521,15 @@ async def test_internal_visibility_interface_returns_none() -> None:
 
     assert await service.get_workspace_visibility_grant(workspace.id) is not None
     assert await service.get_workspace_visibility_grant(uuid4()) is None
+
+
+@pytest.mark.asyncio
+async def test_get_workspace_id_for_resource_resolves_execution_backed_channels() -> None:
+    repo = WorkspacesRepoStub()
+    service, _accounts_service, _producer = _service(repo)
+    workspace_id = uuid4()
+    execution_id = uuid4()
+    repo.execution_workspaces[execution_id] = workspace_id
+
+    for channel in (ChannelType.EXECUTION, ChannelType.REASONING, ChannelType.CORRECTION):
+        assert await service.get_workspace_id_for_resource(channel, execution_id) == workspace_id

@@ -1,6 +1,8 @@
 ARG PYTHON_BASE=mirror.gcr.io/library/python:3.12-slim
+ARG PIP_VERSION=26.0.1
 
 FROM ${PYTHON_BASE} AS builder
+ARG PIP_VERSION
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -15,7 +17,7 @@ COPY entrypoints ./entrypoints
 COPY migrations ./migrations
 COPY lua ./lua
 
-RUN python -m pip install --upgrade pip \
+RUN python -m pip install --upgrade "pip==${PIP_VERSION}" \
     && pip install --no-cache-dir -e .
 
 FROM ${PYTHON_BASE} AS runner

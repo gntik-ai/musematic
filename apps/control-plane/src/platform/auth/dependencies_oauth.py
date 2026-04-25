@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from platform.accounts.repository import AccountsRepository
+from platform.audit.dependencies import build_audit_chain_service
 from platform.auth.dependencies import (
     _get_producer,
     _get_redis_client,
@@ -23,7 +24,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 def build_oauth_service(request: Request, db: AsyncSession) -> OAuthService:
     settings = _get_settings(request)
     return OAuthService(
-        repository=OAuthRepository(db),
+        repository=OAuthRepository(
+            db,
+            build_audit_chain_service(db, settings, _get_producer(request)),
+        ),
         auth_repository=AuthRepository(db),
         accounts_repository=AccountsRepository(db),
         redis_client=_get_redis_client(request),

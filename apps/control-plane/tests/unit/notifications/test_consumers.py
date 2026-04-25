@@ -103,6 +103,42 @@ async def test_attention_consumer_registers_and_processes_events(
 
 
 @pytest.mark.asyncio
+async def test_attention_consumer_skips_events_with_existing_alert(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def _fail_session() -> object:
+        raise AssertionError("session should not be opened")
+
+    monkeypatch.setattr(
+        "platform.notifications.consumers.attention_consumer.database.AsyncSessionLocal",
+        _fail_session,
+    )
+    consumer = AttentionConsumer(
+        settings=SimpleNamespace(KAFKA_CONSUMER_GROUP_ID="platform"),
+        redis_client=RedisStub(),  # type: ignore[arg-type]
+        producer=None,
+    )
+    envelope = EventEnvelope(
+        event_type="attention.requested",
+        source="pytest",
+        correlation_context=CorrelationContext(correlation_id=uuid4()),
+        payload={
+            "request_id": str(uuid4()),
+            "workspace_id": str(uuid4()),
+            "source_agent_fqn": "ops:reviewer",
+            "target_identity": "user@example.com",
+            "urgency": "high",
+            "related_interaction_id": None,
+            "related_goal_id": None,
+            "context_summary": "Need review",
+            "alert_already_created": True,
+        },
+    )
+
+    await consumer.handle_event(envelope)
+
+
+@pytest.mark.asyncio
 async def test_state_change_consumer_skips_invalid_states_and_processes_valid_events(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

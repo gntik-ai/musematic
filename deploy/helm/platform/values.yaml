@@ -100,6 +100,14 @@ controlPlane:
     wsClientBufferSize: 1000
     wsHeartbeatIntervalSeconds: 30
     wsHeartbeatTimeoutSeconds: 10
+  privacy:
+    dsrEnabled: false
+    dlpEnabled: false
+    residencyEnforcementEnabled: false
+    clickhousePiiTables:
+      - execution_metrics
+      - agent_performance
+      - token_usage
   connections:
     postgresDsn: postgresql+asyncpg://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic
     redisUrl: redis://:change-me@musematic-redis.platform.svc.cluster.local:6379

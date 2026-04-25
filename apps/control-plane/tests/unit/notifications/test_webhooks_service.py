@@ -4,12 +4,14 @@ from datetime import UTC, datetime
 from platform.common.config import PlatformSettings
 from platform.notifications.exceptions import (
     InvalidWebhookUrlError,
+    QuotaExceededError,
     ResidencyViolationError,
     WebhookInactiveError,
+    WebhookNotFoundError,
 )
 from platform.notifications.models import DeliveryOutcome
-from platform.notifications.schemas import OutboundWebhookCreate
-from platform.notifications.webhooks_service import OutboundWebhookService
+from platform.notifications.schemas import OutboundWebhookCreate, OutboundWebhookUpdate
+from platform.notifications.webhooks_service import OutboundWebhookService, _retry_delay_seconds
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -38,7 +40,8 @@ class RepoStub:
         return self.created
 
     async def update_outbound_webhook(self, webhook_id, **fields):
-        assert self.created is not None
+        if self.created is None:
+            return None
         self.updated.append((webhook_id, fields))
         for key, value in fields.items():
             setattr(self.created, key, value)
@@ -47,6 +50,10 @@ class RepoStub:
     async def get_outbound_webhook(self, webhook_id):
         del webhook_id
         return self.created
+
+    async def list_outbound_webhooks(self, workspace_id):
+        del workspace_id
+        return [] if self.created is None else [self.created]
 
     async def insert_delivery(self, **fields):
         now = datetime.now(UTC)
@@ -105,6 +112,15 @@ class DlpStub:
     async def scan_outbound(self, **kwargs):
         del kwargs
         return {"action": self.action}
+
+
+class DlpObjectStub:
+    def __init__(self, action: str = "allow") -> None:
+        self.action = action
+
+    async def scan_outbound(self, **kwargs):
+        del kwargs
+        return SimpleNamespace(action=self.action)
 
 
 class WebhookDelivererStub:
@@ -287,3 +303,98 @@ async def test_send_test_event_honours_retry_after_on_transient_failure() -> Non
     assert delivery.status == "failed"
     assert delivery.next_attempt_at is not None
     assert 0 <= (delivery.next_attempt_at - delivery.last_attempt_at).total_seconds() <= 31
+
+
+@pytest.mark.asyncio
+async def test_service_list_get_update_deactivate_and_not_found_edges() -> None:
+    repo = RepoStub()
+    service = _service(repo=repo)
+    webhook_id = uuid4()
+
+    with pytest.raises(WebhookNotFoundError):
+        await service.get(webhook_id)
+    with pytest.raises(WebhookNotFoundError):
+        await service.update(webhook_id, OutboundWebhookUpdate(active=False))
+    with pytest.raises(WebhookNotFoundError):
+        await service.rotate_secret(webhook_id)
+    with pytest.raises(WebhookNotFoundError):
+        await service.deactivate(webhook_id)
+    with pytest.raises(WebhookNotFoundError):
+        await service.send_test_event(webhook_id, actor_id=uuid4())
+
+    settings = PlatformSettings()
+    settings.notifications.webhooks_per_workspace_max = 0
+    with pytest.raises(QuotaExceededError):
+        await _service(repo=repo, settings=settings).create(
+            OutboundWebhookCreate(
+                workspace_id=uuid4(),
+                name="Too many",
+                url="https://hooks.example.com/events",
+                event_types=["execution.failed"],
+            ),
+            actor_id=uuid4(),
+        )
+
+    created = await service.create(
+        OutboundWebhookCreate(
+            workspace_id=uuid4(),
+            name="CRM",
+            url="https://hooks.example.com/events",
+            event_types=["execution.failed"],
+        ),
+        actor_id=uuid4(),
+    )
+    listed = await service.list(created.workspace_id)
+    resolved = await service.get(created.id)
+    updated = await service.update(
+        created.id,
+        OutboundWebhookUpdate(
+            url="https://hooks.example.com/updated",
+            event_types=["execution.completed"],
+        ),
+    )
+    deactivated = await service.deactivate(created.id)
+
+    assert listed[0].id == created.id
+    assert resolved.id == created.id
+    assert updated.url == "https://hooks.example.com/updated"
+    assert updated.event_types == ["execution.completed"]
+    assert deactivated.active is False
+
+
+@pytest.mark.asyncio
+async def test_send_test_event_dead_letters_deliverer_failure_and_region_policy() -> None:
+    repo = RepoStub()
+    created = await _service(repo=repo).create(
+        OutboundWebhookCreate(
+            workspace_id=uuid4(),
+            name="CRM",
+            url="https://hooks.example.com/events",
+            event_types=["execution.failed"],
+            region_pinned_to="eu",
+        ),
+        actor_id=uuid4(),
+    )
+
+    failed = await _service(
+        repo=repo,
+        deliverer=WebhookDelivererStub(DeliveryOutcome.failed, "4xx_permanent"),
+    ).send_test_event(created.id, actor_id=uuid4())
+    assert failed.status == "dead_letter"
+    assert failed.failure_reason == "4xx_permanent"
+
+    region_blocked = await _service(
+        repo=repo,
+        dlp=DlpObjectStub("allow"),
+        residency=ResidencyStub(False),
+    ).send_test_event(created.id, actor_id=uuid4())
+    assert region_blocked.status == "dead_letter"
+    assert region_blocked.failure_reason == "residency_violation"
+
+
+def test_webhook_retry_delay_helper_handles_bad_retry_after_and_empty_policy() -> None:
+    settings = PlatformSettings()
+
+    assert _retry_delay_seconds("retry_after=bad", {"backoff_seconds": [7]}, settings) == 7
+    assert _retry_delay_seconds(None, {"backoff_seconds": []}, settings) == 60
+    assert _retry_delay_seconds("retry_after=-5", {"backoff_seconds": [7]}, settings) == 0

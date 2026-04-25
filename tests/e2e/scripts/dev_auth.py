@@ -6,7 +6,6 @@ import base64
 import hashlib
 import hmac
 import json
-import sys
 import time
 import uuid
 from http import HTTPStatus
@@ -34,7 +33,10 @@ def _b64url_decode(data: str) -> bytes:
     return base64.urlsafe_b64decode((data + padding).encode('ascii'))
 
 
-def _normalize_roles(role_names: list[str], workspace_id: str | None = None) -> list[dict[str, str | None]]:
+def _normalize_roles(
+    role_names: list[str],
+    workspace_id: str | None = None,
+) -> list[dict[str, str | None]]:
     normalized: list[dict[str, str | None]] = []
     seen: set[tuple[str, str | None]] = set()
     for role_name in role_names:
@@ -56,7 +58,11 @@ def _jwt_encode(payload: dict[str, Any], secret: str, algorithm: str) -> str:
             _b64url_encode(json.dumps(payload, separators=(',', ':')).encode('utf-8')),
         )
     )
-    signature = hmac.new(secret.encode('utf-8'), signing_input.encode('ascii'), hashlib.sha256).digest()
+    signature = hmac.new(
+        secret.encode('utf-8'),
+        signing_input.encode('ascii'),
+        hashlib.sha256,
+    ).digest()
     return f'{signing_input}.{_b64url_encode(signature)}'
 
 
@@ -96,7 +102,14 @@ def _mint_access_token(
     return _jwt_encode(payload, secret=secret, algorithm=algorithm)
 
 
-def _read_response(url: str, *, method: str = 'GET', payload: dict[str, Any] | None = None, headers: dict[str, str] | None = None, follow_redirects: bool = True) -> tuple[int, dict[str, str], str]:
+def _read_response(
+    url: str,
+    *,
+    method: str = 'GET',
+    payload: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+    follow_redirects: bool = True,
+) -> tuple[int, dict[str, str], str]:
     request_headers = dict(headers or {})
     data = None
     if payload is not None:
@@ -113,7 +126,13 @@ def _read_response(url: str, *, method: str = 'GET', payload: dict[str, Any] | N
         return exc.code, dict(exc.headers.items()), body
 
 
-def _json_request(url: str, *, method: str = 'GET', payload: dict[str, Any] | None = None, headers: dict[str, str] | None = None) -> dict[str, Any]:
+def _json_request(
+    url: str,
+    *,
+    method: str = 'GET',
+    payload: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+) -> dict[str, Any]:
     status, _, body = _read_response(url, method=method, payload=payload, headers=headers)
     if status >= HTTPStatus.BAD_REQUEST:
         raise SystemExit(f'{method} {url} failed with {status}: {body}')
@@ -184,7 +203,17 @@ def cmd_mint(args: argparse.Namespace) -> int:
         algorithm=args.algorithm,
     )
     if args.json:
-        print(json.dumps({'access_token': token, 'sub': user_id, 'email': args.email, 'roles': list(args.role)}, indent=2))
+        print(
+            json.dumps(
+                {
+                    'access_token': token,
+                    'sub': user_id,
+                    'email': args.email,
+                    'roles': list(args.role),
+                },
+                indent=2,
+            )
+        )
     else:
         print(token)
     return 0
@@ -204,6 +233,39 @@ def cmd_decode(args: argparse.Namespace) -> int:
             print(value)
         return 0
     print(json.dumps(payload, indent=2))
+    return 0
+
+
+def cmd_provision_user(args: argparse.Namespace) -> int:
+    user_id = args.user_id or _persona_user_id(args.persona, args.email)
+    if not args.no_api:
+        admin_token = args.admin_token or _mint_access_token(
+            user_id=_persona_user_id('admin', 'e2e-provisioner@e2e.test'),
+            email='e2e-provisioner@e2e.test',
+            role_names=['superadmin'],
+            secret=args.secret,
+            algorithm=args.algorithm,
+        )
+        _json_request(
+            f"{args.api_base.rstrip('/')}/api/v1/_e2e/users",
+            method='POST',
+            payload={
+                'id': user_id,
+                'email': args.email,
+                'display_name': args.display_name or args.email.split('@', 1)[0],
+                'status': args.status,
+            },
+            headers={'Authorization': f'Bearer {admin_token}'},
+        )
+    if args.json:
+        print(
+            json.dumps(
+                {'id': user_id, 'email': args.email, 'status': args.status},
+                indent=2,
+            )
+        )
+    else:
+        print(user_id)
     return 0
 
 
@@ -241,7 +303,12 @@ def cmd_oauth(args: argparse.Namespace) -> int:
         cmd_bootstrap_providers(bootstrap_args)
     authorize = _json_request(f'{api_base}/api/v1/auth/oauth/{args.provider}/authorize')
     redirect_url = str(authorize['redirect_url'])
-    mock_authorize = _mock_authorize_url(args.provider, args.mock_base.rstrip('/'), redirect_url, args.login)
+    mock_authorize = _mock_authorize_url(
+        args.provider,
+        args.mock_base.rstrip('/'),
+        redirect_url,
+        args.login,
+    )
 
     status, headers, body = _read_response(mock_authorize, follow_redirects=False)
     if status not in _REDIRECT_STATUSES and status >= HTTPStatus.BAD_REQUEST:
@@ -295,7 +362,44 @@ def build_parser() -> argparse.ArgumentParser:
     decode.add_argument('--field')
     decode.set_defaults(func=cmd_decode)
 
-    bootstrap = subparsers.add_parser('bootstrap-providers', help='Configure the mock Google and GitHub OAuth providers.')
+    provision = subparsers.add_parser(
+        'provision-user',
+        help='Upsert an e2e user in the dev API and print its UUID.',
+    )
+    provision.add_argument('--persona', default='admin')
+    provision.add_argument('--email', required=True)
+    provision.add_argument('--user-id')
+    provision.add_argument('--display-name')
+    provision.add_argument('--status', default='active')
+    provision.add_argument('--api-base', default='http://localhost:8081')
+    provision.add_argument('--admin-token')
+    provision.add_argument('--secret', default=_DEFAULT_SECRET)
+    provision.add_argument('--algorithm', default=_DEFAULT_ALGORITHM)
+    provision.add_argument('--no-api', action='store_true')
+    provision.add_argument('--json', action='store_true')
+    provision.set_defaults(func=cmd_provision_user)
+
+    subject = subparsers.add_parser(
+        'provision-subject',
+        help='Upsert an e2e data subject and print its UUID.',
+    )
+    subject.add_argument('--persona', default='subject')
+    subject.add_argument('--email', required=True)
+    subject.add_argument('--user-id')
+    subject.add_argument('--display-name')
+    subject.add_argument('--status', default='active')
+    subject.add_argument('--api-base', default='http://localhost:8081')
+    subject.add_argument('--admin-token')
+    subject.add_argument('--secret', default=_DEFAULT_SECRET)
+    subject.add_argument('--algorithm', default=_DEFAULT_ALGORITHM)
+    subject.add_argument('--no-api', action='store_true')
+    subject.add_argument('--json', action='store_true')
+    subject.set_defaults(func=cmd_provision_user)
+
+    bootstrap = subparsers.add_parser(
+        'bootstrap-providers',
+        help='Configure the mock Google and GitHub OAuth providers.',
+    )
     bootstrap.add_argument('--api-base', default='http://localhost:8081')
     bootstrap.add_argument('--admin-email', default='j-admin@e2e.test')
     bootstrap.add_argument('--admin-token')
@@ -303,7 +407,10 @@ def build_parser() -> argparse.ArgumentParser:
     bootstrap.add_argument('--algorithm', default=_DEFAULT_ALGORITHM)
     bootstrap.set_defaults(func=cmd_bootstrap_providers)
 
-    oauth = subparsers.add_parser('oauth', help='Execute the mock OAuth login flow and print an access token.')
+    oauth = subparsers.add_parser(
+        'oauth',
+        help='Execute the mock OAuth login flow and print an access token.',
+    )
     oauth.add_argument('--provider', choices=('google', 'github'), required=True)
     oauth.add_argument('--login', required=True)
     oauth.add_argument('--api-base', default='http://localhost:8081')

@@ -12,7 +12,10 @@ from platform.common.clients.qdrant import AsyncQdrantClient, PointStruct
 from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
-from platform.common.exceptions import BucketNotFoundError, ObjectStorageError
+from platform.common.exceptions import BucketNotFoundError, ObjectStorageError, ValidationError
+from platform.model_catalog.models import ModelCatalogEntry
+from platform.model_catalog.repository import ModelCatalogRepository
+from platform.privacy_compliance.services.pia_service import DATA_CATEGORIES_REQUIRING_PIA
 from platform.registry.events import (
     AgentCreatedPayload,
     AgentDecommissionedPayload,
@@ -99,6 +102,7 @@ def build_search_document(
         "approach": profile.approach,
         "tags": list(profile.tags),
         "role_types": list(profile.role_types),
+        "data_categories": list(getattr(profile, "data_categories", []) or []),
         "maturity_level": profile.maturity_level,
         "status": profile.status.value,
         "workspace_id": str(profile.workspace_id),
@@ -147,15 +151,19 @@ class RegistryService:
         workspaces_service: Any | None,
         event_producer: EventProducer | None,
         settings: PlatformSettings,
+        model_catalog_repository: ModelCatalogRepository | None = None,
+        pia_service: Any | None = None,
         package_validator: PackageValidator | None = None,
     ) -> None:
         self.repository = repository
         self.object_storage = object_storage
         self.opensearch = opensearch
         self.qdrant = qdrant
+        self.model_catalog_repository = model_catalog_repository
         self.workspaces_service = workspaces_service
         self.event_producer = event_producer
         self.settings = settings
+        self.pia_service = pia_service
         self.package_validator = package_validator or PackageValidator(settings)
         self._background_tasks: set[asyncio.Task[None]] = set()
 
@@ -240,6 +248,13 @@ class RegistryService:
             raise RegistryStoreUnavailableError("object_storage", str(exc)) from exc
 
         try:
+            existing_profile = await self.repository.get_agent_by_fqn(
+                workspace_id,
+                f"{namespace_name}:{manifest.local_name}",
+            )
+            old_data_categories = self._normalized_categories(
+                getattr(existing_profile, "data_categories", []) if existing_profile else []
+            )
             profile, created = await self.repository.upsert_agent_profile(
                 workspace_id=workspace_id,
                 namespace=namespace,
@@ -251,9 +266,16 @@ class RegistryService:
                 custom_role_description=manifest.custom_role_description,
                 tags=manifest.tags,
                 mcp_server_refs=list(manifest.mcp_servers),
+                data_categories=manifest.data_categories,
                 maturity_level=int(manifest.maturity_level),
                 actor_id=actor_id,
             )
+            if not created:
+                await self._check_pia_material_change(
+                    profile,
+                    old_data_categories,
+                    manifest.data_categories,
+                )
             revision = await self.repository.insert_revision(
                 revision_id=revision_id,
                 workspace_id=workspace_id,
@@ -470,6 +492,7 @@ class RegistryService:
             (profile.custom_role_description, 2),
             (" ".join(profile.tags), 3),
             (" ".join(profile.role_types), 2),
+            (" ".join(getattr(profile, "data_categories", []) or []), 3),
         )
         score = 0
         for value, weight in weighted_fields:
@@ -486,6 +509,87 @@ class RegistryService:
 
     def _normalize_keyword_text(self, value: str) -> str:
         return " ".join(self._keyword_terms(value))
+
+    async def _validate_model_binding(self, profile: AgentProfile, binding: str | None) -> None:
+        if not binding or self.model_catalog_repository is None:
+            return
+
+        provider, separator, model_id = binding.partition(":")
+        if not separator or not provider or not model_id:
+            alternatives = await self._model_binding_alternatives(profile)
+            raise ValidationError(
+                "MODEL_BINDING_INVALID",
+                "Model binding must be formatted as provider:model_id.",
+                {"binding": binding, "alternatives": alternatives},
+            )
+
+        entry = await self.model_catalog_repository.get_entry_by_provider_model(
+            provider,
+            model_id,
+        )
+        if entry is not None and entry.status != "blocked":
+            return
+
+        alternatives = await self._model_binding_alternatives(profile, entry)
+        code = "MODEL_BINDING_BLOCKED" if entry is not None else "MODEL_BINDING_NOT_FOUND"
+        reason = "blocked" if entry is not None else "not present in the approved catalogue"
+        raise ValidationError(
+            code,
+            f"Model binding {binding!r} is {reason}.",
+            {"binding": binding, "alternatives": alternatives},
+        )
+
+    async def _model_binding_alternatives(
+        self,
+        profile: AgentProfile,
+        target_entry: ModelCatalogEntry | None = None,
+    ) -> list[dict[str, str]]:
+        if self.model_catalog_repository is None:
+            return []
+
+        purpose_text = " ".join(
+            value
+            for value in (
+                profile.purpose,
+                profile.approach or "",
+                " ".join(profile.tags),
+                " ".join(profile.role_types),
+            )
+            if value
+        )
+        terms = set(self._keyword_terms(purpose_text))
+        target_tier = target_entry.quality_tier if target_entry is not None else None
+        entries = await self.model_catalog_repository.list_entries(status="approved")
+
+        scored: list[tuple[int, str, ModelCatalogEntry]] = []
+        for entry in entries:
+            entry_terms = self._normalize_keyword_text(
+                " ".join(
+                    str(value)
+                    for value in (
+                        entry.provider,
+                        entry.model_id,
+                        entry.display_name or "",
+                        entry.quality_tier,
+                        " ".join(entry.approved_use_cases or []),
+                    )
+                    if value
+                )
+            )
+            score = sum(3 for term in terms if term in entry_terms)
+            if target_tier is not None and entry.quality_tier == target_tier:
+                score += 2
+            scored.append((score, f"{entry.provider}:{entry.model_id}", entry))
+
+        scored.sort(key=lambda item: (-item[0], item[1]))
+        return [
+            {
+                "binding": binding,
+                "quality_tier": entry.quality_tier,
+                "provider": entry.provider,
+            }
+            for _score, binding, entry in scored[:3]
+        ]
 
     async def patch_agent(
         self,
@@ -517,9 +621,23 @@ class RegistryService:
             updates["custom_role_description"] = patch.custom_role_description
         if "mcp_servers" in patch.model_fields_set and patch.mcp_servers is not None:
             updates["mcp_server_refs"] = patch.mcp_servers
+        old_data_categories = self._normalized_categories(
+            getattr(profile, "data_categories", []) or []
+        )
+        if "data_categories" in patch.model_fields_set and patch.data_categories is not None:
+            updates["data_categories"] = patch.data_categories
+        if "default_model_binding" in patch.model_fields_set:
+            await self._validate_model_binding(profile, patch.default_model_binding)
+            updates["default_model_binding"] = patch.default_model_binding
 
         if updates:
             await self.repository.update_agent_profile(profile, **updates)
+            if "data_categories" in updates:
+                await self._check_pia_material_change(
+                    profile,
+                    old_data_categories,
+                    updates["data_categories"],
+                )
             await self._commit()
             await self._index_or_flag(profile.id)
         return await self._build_profile_response(profile)
@@ -769,6 +887,7 @@ class RegistryService:
             visibility_tools=list(profile.visibility_tools),
             tags=list(profile.tags),
             mcp_servers=list(profile.mcp_server_refs or []),
+            data_categories=list(getattr(profile, "data_categories", []) or []),
             status=profile.status,
             maturity_level=int(profile.maturity_level),
             embedding_status=profile.embedding_status,
@@ -777,6 +896,7 @@ class RegistryService:
             current_revision=(
                 self._revision_response(current_revision) if current_revision is not None else None
             ),
+            default_model_binding=profile.default_model_binding,
         )
 
     def _namespace_response(self, namespace: AgentNamespace) -> NamespaceResponse:
@@ -811,6 +931,33 @@ class RegistryService:
             reason=entry.reason,
             created_at=entry.created_at,
         )
+
+    async def _check_pia_material_change(
+        self,
+        profile: AgentProfile,
+        old_categories: list[str],
+        new_categories: list[str],
+    ) -> None:
+        normalized_old = self._normalized_categories(old_categories)
+        normalized_new = self._normalized_categories(new_categories)
+        if set(normalized_old) == set(normalized_new):
+            return
+        if not set(normalized_new) & DATA_CATEGORIES_REQUIRING_PIA:
+            return
+        checker = getattr(self.pia_service, "check_material_change", None)
+        if callable(checker):
+            await checker("agent", profile.id, normalized_new)
+
+    @staticmethod
+    def _normalized_categories(categories: list[str] | tuple[str, ...] | None) -> list[str]:
+        seen: set[str] = set()
+        normalized: list[str] = []
+        for category in categories or []:
+            value = str(category).strip().casefold()
+            if value and value not in seen:
+                seen.add(value)
+                normalized.append(value)
+        return normalized
 
     async def _assert_decommission_permission(
         self,

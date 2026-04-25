@@ -63,6 +63,7 @@ class GuardrailLayer(StrEnum):
     input_sanitization = "input_sanitization"
     prompt_injection = "prompt_injection"
     output_moderation = "output_moderation"
+    dlp_scan = "dlp_scan"
     tool_control = "tool_control"
     memory_write = "memory_write"
     action_commit = "action_commit"

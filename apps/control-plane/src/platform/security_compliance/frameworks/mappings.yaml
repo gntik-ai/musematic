@@ -1,0 +1,33 @@
+mappings:
+  - evidence_type: sbom_generated
+    controls:
+      - soc2:CC9.1
+      - pci_dss:6.5
+  - evidence_type: vulnerability_scan_completed
+    controls:
+      - soc2:CC7.1
+      - iso27001:A.8.8
+      - hipaa:164.308(a)(1)
+      - pci_dss:6.3
+  - evidence_type: pentest_finding
+    controls:
+      - soc2:CC7.1
+      - pci_dss:11.3
+  - evidence_type: secret_rotation
+    controls:
+      - soc2:CC6.1
+      - iso27001:A.8.9
+      - hipaa:164.312(a)
+  - evidence_type: jit_grant
+    controls:
+      - soc2:CC6.1
+      - iso27001:A.5.15
+      - hipaa:164.308(a)(5)
+      - pci_dss:8.2
+  - evidence_type: audit_chain_attestation
+    controls:
+      - soc2:CC1.1
+      - hipaa:164.312(b)
+  - evidence_type: manual_evidence
+    controls:
+      - iso27001:A.5.37

@@ -1,0 +1,42 @@
+rules:
+  - name: ssn_us
+    classification: pii
+    pattern: "\\b\\d{3}-\\d{2}-\\d{4}\\b"
+    action: redact
+  - name: phone_us
+    classification: pii
+    pattern: "\\b\\d{3}[-.\\s]?\\d{3}[-.\\s]?\\d{4}\\b"
+    action: flag
+  - name: email
+    classification: pii
+    pattern: "[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}"
+    action: redact
+  - name: iban
+    classification: pii
+    pattern: "\\b[A-Z]{2}\\d{2}[A-Z0-9]{11,30}\\b"
+    action: flag
+  - name: credit_card
+    classification: financial
+    pattern: "\\b(?:\\d[ -]*?){13,16}\\b"
+    action: block
+  - name: us_routing_number
+    classification: financial
+    pattern: "\\b\\d{9}\\b"
+    action: flag
+  - name: jwt
+    classification: confidential
+    pattern: "eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+"
+    action: redact
+  - name: platform_api_key
+    classification: confidential
+    pattern: "msk_[A-Za-z0-9]{32,}"
+    action: redact
+  - name: bearer_token
+    classification: confidential
+    pattern: "Bearer\\s+[A-Za-z0-9_\\-.=]+"
+    action: redact
+  - name: openai_api_key
+    classification: confidential
+    pattern: "sk-[A-Za-z0-9]{48}"
+    action: redact
+

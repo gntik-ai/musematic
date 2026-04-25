@@ -1,0 +1,2 @@
+"""Cascade deletion adapters."""
+

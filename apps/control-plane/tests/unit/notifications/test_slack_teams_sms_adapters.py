@@ -9,6 +9,12 @@ from platform.notifications.deliverers.sms_deliverer import (
     SmsDeliverer,
     SmsDeliveryResult,
     TwilioSmsProvider,
+    _get_cost_counter,
+    _increment_cost_counter,
+    _int_value,
+    _read_secret,
+    _sender,
+    _sms_cost_units,
     build_sms_body,
 )
 from platform.notifications.deliverers.teams_deliverer import TeamsDeliverer
@@ -20,7 +26,7 @@ from platform.notifications.models import (
     UserAlert,
     UserAlertSettings,
 )
-from platform.notifications.schemas import ChannelConfigCreate
+from platform.notifications.schemas import ChannelConfigCreate, QuietHoursConfig
 from platform.notifications.service import AlertService
 from types import SimpleNamespace
 from uuid import uuid4
@@ -61,6 +67,21 @@ class _TwilioClientStub:
         return self.response
 
 
+class _TwilioExceptionClientStub:
+    def __init__(self, exc: Exception) -> None:
+        self.exc = exc
+
+    async def __aenter__(self) -> _TwilioExceptionClientStub:
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        return None
+
+    async def post(self, url: str, **kwargs: object) -> httpx.Response:
+        del url, kwargs
+        raise self.exc
+
+
 class _SmsProviderStub:
     def __init__(self, result: SmsDeliveryResult | None = None) -> None:
         self.result = result or SmsDeliveryResult(DeliveryOutcome.success)
@@ -82,6 +103,53 @@ class _RedisStub:
     async def set(self, key: str, value: bytes | str, ttl: int | None = None) -> None:
         del ttl
         self.values[key] = value.decode() if isinstance(value, bytes) else value
+
+
+class _RawRedisClientStub:
+    def __init__(self, value: object | None = None) -> None:
+        self.value = value
+        self.increments: list[tuple[str, int]] = []
+        self.expired: list[tuple[str, int]] = []
+
+    async def get(self, key: str) -> object | None:
+        del key
+        return self.value
+
+    async def incrby(self, key: str, amount: int) -> None:
+        self.increments.append((key, amount))
+
+    async def expire(self, key: str, ttl: int) -> None:
+        self.expired.append((key, ttl))
+
+
+class _RedisWithRawClient:
+    def __init__(self, client: _RawRedisClientStub | None) -> None:
+        self.client = client
+
+
+class _RedisSetTypeErrorStub:
+    def __init__(self) -> None:
+        self.value: bytes | None = None
+
+    async def get(self, key: str) -> bytes | None:
+        del key
+        return self.value
+
+    async def set(self, key: str, value: bytes | str, ttl: int | None = None) -> None:
+        del key, ttl
+        if isinstance(value, str):
+            raise TypeError
+        self.value = value
+
+
+class _SecretStub:
+    def __init__(self, value: object) -> None:
+        self.value = value
+        self.paths: list[str] = []
+
+    async def read_secret(self, path: str) -> object:
+        self.paths.append(path)
+        return self.value
 
 
 class _RepoStub:
@@ -300,6 +368,15 @@ def test_sms_channel_create_schema_requires_e164_and_high_or_critical_floor() ->
         == "+34666123456"
     )
 
+    with pytest.raises(ValueError, match="timezone"):
+        QuietHoursConfig(start="09:00", end="18:00", timezone="Not/AZone")
+
+    with pytest.raises(ValueError, match="24-hour"):
+        QuietHoursConfig(start="99:00", end="18:00", timezone="UTC")
+
+    with pytest.raises(ValueError, match="targets must be URLs"):
+        ChannelConfigCreate(channel_type=DeliveryMethod.slack, target="not-a-url")
+
 
 @pytest.mark.asyncio
 async def test_sms_cost_cap_exceeded_returns_fallback_without_incrementing_or_sending() -> None:
@@ -373,6 +450,124 @@ async def test_sms_twilio_errors_do_not_expose_secrets(monkeypatch: pytest.Monke
     assert result.error_detail == "sms_provider_rejected"
     assert sid not in str(result.error_detail)
     assert token not in str(result.error_detail)
+
+
+@pytest.mark.asyncio
+async def test_twilio_provider_classifies_success_retry_and_transport_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    success_client = _TwilioClientStub(httpx.Response(201))
+    monkeypatch.setattr(
+        "platform.notifications.deliverers.sms_deliverer.httpx.AsyncClient",
+        lambda timeout=10.0: success_client,
+    )
+    success = await TwilioSmsProvider("ACsid", "token", "+15551230000").send_sms(
+        to="+34666123456",
+        body="Critical alert",
+        sender="+15559990000",
+    )
+    assert success.outcome == DeliveryOutcome.success
+    assert success.last_response_status == 201
+    assert success_client.calls[0]["data"]["From"] == "+15559990000"
+
+    rate_limited_client = _TwilioClientStub(httpx.Response(429))
+    monkeypatch.setattr(
+        "platform.notifications.deliverers.sms_deliverer.httpx.AsyncClient",
+        lambda timeout=10.0: rate_limited_client,
+    )
+    rate_limited = await TwilioSmsProvider("ACsid", "token", "+15551230000").send_sms(
+        to="+34666123456",
+        body="Critical alert",
+        sender=None,
+    )
+    assert rate_limited.outcome == DeliveryOutcome.timed_out
+    assert rate_limited.failure_reason == "rate_limited"
+
+    unavailable_client = _TwilioClientStub(httpx.Response(503))
+    monkeypatch.setattr(
+        "platform.notifications.deliverers.sms_deliverer.httpx.AsyncClient",
+        lambda timeout=10.0: unavailable_client,
+    )
+    unavailable = await TwilioSmsProvider("ACsid", "token", "+15551230000").send_sms(
+        to="+34666123456",
+        body="Critical alert",
+        sender=None,
+    )
+    assert unavailable.outcome == DeliveryOutcome.timed_out
+    assert unavailable.error_detail == "sms_provider_unavailable"
+
+    monkeypatch.setattr(
+        "platform.notifications.deliverers.sms_deliverer.httpx.AsyncClient",
+        lambda timeout=10.0: _TwilioExceptionClientStub(httpx.TimeoutException("slow")),
+    )
+    timed_out = await TwilioSmsProvider("ACsid", "token", "+15551230000").send_sms(
+        to="+34666123456",
+        body="Critical alert",
+        sender=None,
+    )
+    assert timed_out.failure_reason == "timeout"
+
+    monkeypatch.setattr(
+        "platform.notifications.deliverers.sms_deliverer.httpx.AsyncClient",
+        lambda timeout=10.0: _TwilioExceptionClientStub(httpx.TransportError("down")),
+    )
+    transport_error = await TwilioSmsProvider("ACsid", "token", "+15551230000").send_sms(
+        to="+34666123456",
+        body="Critical alert",
+        sender=None,
+    )
+    assert transport_error.failure_reason == "provider_unavailable"
+
+
+@pytest.mark.asyncio
+async def test_sms_provider_secret_fallbacks_and_cost_counter_edges() -> None:
+    settings = PlatformSettings()
+    secrets = _SecretStub(
+        {
+            "account_sid": "ACsid",
+            "auth_token": "token",
+            "sender": "+15551230000",
+        }
+    )
+    deliverer = SmsDeliverer(redis=None, secrets=secrets, settings=settings, deployment="prod")
+    provider = await deliverer._provider()
+
+    assert isinstance(provider, TwilioSmsProvider)
+    assert secrets.paths == ["secret/data/notifications/sms-providers/prod"]
+    assert await _read_secret(None, "secret/path") == {}
+    assert await _read_secret(object(), "secret/path") == {}
+    assert await _read_secret(_SecretStub(["not", "dict"]), "secret/path") == {}
+
+    key = "notifications:sms_cost:test"
+    raw_client = _RawRedisClientStub(b"17")
+    assert await _get_cost_counter(_RedisWithRawClient(raw_client), key) == 17
+    assert await _get_cost_counter(_RedisWithRawClient(None), key) == 0
+    assert await _get_cost_counter(object(), key) == 0
+
+    await _increment_cost_counter(_RedisWithRawClient(raw_client), key, 8)
+    assert raw_client.increments == [(key, 8)]
+    assert raw_client.expired == [(key, 35 * 24 * 60 * 60)]
+
+    fallback = _RedisSetTypeErrorStub()
+    await _increment_cost_counter(fallback, key, 9)
+    assert fallback.value == b"9"
+    assert _sms_cost_units(SimpleNamespace(extra={"sms_cost_eur": "bad"})) == 8
+    assert _sms_cost_units(SimpleNamespace(extra={"sms_cost_eur": 0.12})) == 12
+    assert _sender(SimpleNamespace(extra={"sender": "+15551230000"})) == "+15551230000"
+    assert _int_value("not-an-int") == 0
+
+    plain_redis = _RedisStub({"cost": "3"})
+    await _increment_cost_counter(plain_redis, "cost", 4)
+    assert plain_redis.values["cost"] == "7"
+
+    zero_cap_settings = PlatformSettings()
+    zero_cap_settings.notifications.sms_workspace_monthly_cost_cap_eur = 0
+    assert await SmsDeliverer(
+        redis=_RedisStub(),
+        secrets=SimpleNamespace(),
+        settings=zero_cap_settings,
+        provider=_SmsProviderStub(),
+    )._cost_cap_exceeded(uuid4(), 1)
 
 
 @pytest.mark.asyncio

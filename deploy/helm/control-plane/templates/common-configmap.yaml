@@ -38,6 +38,10 @@ data:
   WS_CLIENT_BUFFER_SIZE: {{ .Values.common.wsClientBufferSize | quote }}
   WS_HEARTBEAT_INTERVAL_SECONDS: {{ .Values.common.wsHeartbeatIntervalSeconds | quote }}
   WS_HEARTBEAT_TIMEOUT_SECONDS: {{ .Values.common.wsHeartbeatTimeoutSeconds | quote }}
+  FEATURE_PRIVACY_DSR_ENABLED: {{ ternary "true" "false" .Values.privacy.dsrEnabled | quote }}
+  FEATURE_DLP_ENABLED: {{ ternary "true" "false" .Values.privacy.dlpEnabled | quote }}
+  FEATURE_RESIDENCY_ENFORCEMENT: {{ ternary "true" "false" .Values.privacy.residencyEnforcementEnabled | quote }}
+  PRIVACY_CLICKHOUSE_PII_TABLES: {{ .Values.privacy.clickhousePiiTables | toJson | quote }}
   AUTH_JWT_ALGORITHM: {{ .Values.connections.authJwtAlgorithm | quote }}
   AUTH_OAUTH_GOOGLE_AUTHORIZE_URL: {{ .Values.auth.oauth.google.authorizeUrl | quote }}
   AUTH_OAUTH_GOOGLE_TOKEN_URL: {{ .Values.auth.oauth.google.tokenUrl | quote }}
@@ -48,3 +52,4 @@ data:
   AUTH_OAUTH_GITHUB_EMAILS_URL: {{ .Values.auth.oauth.github.emailsUrl | quote }}
   AUTH_OAUTH_GITHUB_TEAMS_URL: {{ .Values.auth.oauth.github.teamsUrl | quote }}
   AUTH_OAUTH_GITHUB_ORG_MEMBERSHIP_URL_TEMPLATE: {{ .Values.auth.oauth.github.orgMembershipUrlTemplate | quote }}
+  SECURITY_COMPLIANCE_MANUAL_EVIDENCE_BUCKET: {{ .Values.securityCompliance.manualEvidenceBucket | quote }}

@@ -1,2 +1,1 @@
 """Notification background workers."""
-

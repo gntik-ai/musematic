@@ -36,9 +36,6 @@ dev-load-images:
 	@$(MAKE) -C tests/e2e load-images $(DEV_E2E_ARGS)
 
 dev-up: dev-check
-	@if [ "$(SKIP_LOAD_IMAGES)" != "true" ]; then \
-		$(MAKE) -C tests/e2e load-images $(DEV_E2E_ARGS); \
-	fi
 	@SKIP_LOAD_IMAGES=$(SKIP_LOAD_IMAGES) $(MAKE) -C tests/e2e e2e-up $(DEV_E2E_ARGS)
 
 dev-down:

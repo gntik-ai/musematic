@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from dataclasses import dataclass
 from importlib import import_module
 from platform.common.config import Settings
@@ -33,6 +34,7 @@ class AsyncClickHouseClient:
         sql: str,
         params: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
+        sql = self._apply_tombstone_filter(sql)
         client = await self._get_client()
         try:
             result = await client.query(sql, parameters=params or {})
@@ -42,6 +44,23 @@ class AsyncClickHouseClient:
             dict(zip(result.column_names, row, strict=False))
             for row in cast(list[tuple[Any, ...]], result.result_rows)
         ]
+
+    def _apply_tombstone_filter(self, sql: str) -> str:
+        tables = set(getattr(self._settings.privacy_compliance, "clickhouse_pii_tables", []))
+        if not tables or "is_deleted" in sql.lower():
+            return sql
+        lowered = sql.lower()
+        if not lowered.lstrip().startswith("select"):
+            return sql
+        table_matched = any(
+            re.search(rf"\bfrom\s+{re.escape(table.lower())}\b", lowered)
+            for table in tables
+        )
+        if not table_matched:
+            return sql
+        if " where " in lowered:
+            return f"{sql} AND NOT is_deleted"
+        return f"{sql} WHERE NOT is_deleted"
 
     async def execute_command(
         self,

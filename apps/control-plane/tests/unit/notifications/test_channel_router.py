@@ -2,7 +2,15 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from platform.common.config import PlatformSettings
-from platform.notifications.channel_router import ChannelDelivererRegistry, ChannelRouter
+from platform.notifications.channel_router import (
+    ChannelDelivererRegistry,
+    ChannelRouter,
+    _event_payload,
+    _first_backoff,
+    _jsonable_payload,
+    _retry_delay_seconds,
+    _verdict_action,
+)
 from platform.notifications.models import (
     AlertDeliveryOutcome,
     DeliveryMethod,
@@ -57,14 +65,24 @@ class RepoStub:
 
 
 class WorkspaceEventRepoStub(RepoStub):
-    def __init__(self, webhooks: list[SimpleNamespace]) -> None:
+    def __init__(
+        self,
+        webhooks: list[SimpleNamespace],
+        *,
+        existing_delivery: SimpleNamespace | None = None,
+    ) -> None:
         super().__init__()
         self.webhooks = webhooks
+        self.existing_delivery = existing_delivery
         self.deliveries: list[dict[str, object]] = []
 
     async def list_active_outbound_webhooks(self, workspace_id, event_type):
         del workspace_id
         return [webhook for webhook in self.webhooks if event_type in webhook.event_types]
+
+    async def get_webhook_delivery_by_idempotency(self, webhook_id, idempotency_key):
+        del webhook_id, idempotency_key
+        return self.existing_delivery
 
     async def insert_delivery(self, **fields):
         delivery = SimpleNamespace(id=uuid4(), **fields)
@@ -107,7 +125,13 @@ class EmailDelivererStub:
 
 
 class WebhookDelivererStub:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        signed_outcome: DeliveryOutcome = DeliveryOutcome.success,
+        signed_error: str | None = None,
+    ) -> None:
+        self.signed_outcome = signed_outcome
+        self.signed_error = signed_error
         self.calls: list[tuple[UserAlert, str]] = []
 
     async def send(self, alert, webhook_url):
@@ -116,7 +140,16 @@ class WebhookDelivererStub:
 
     async def send_signed(self, **kwargs):
         self.calls.append((kwargs["payload"], kwargs["webhook_url"]))
-        return DeliveryOutcome.success, None, kwargs["event_id"]
+        return self.signed_outcome, self.signed_error, kwargs["event_id"]
+
+
+class SmsDelivererStub:
+    def __init__(self) -> None:
+        self.calls: list[tuple[UserAlert, str, object, object]] = []
+
+    async def send(self, alert, target, config, *, workspace_id=None):
+        self.calls.append((alert, target, config, workspace_id))
+        return DeliveryOutcome.success, None
 
 
 class SecretsStub:
@@ -186,8 +219,10 @@ def _router(
     residency: ResidencyStub | None = None,
     email: EmailDelivererStub | None = None,
     webhook: WebhookDelivererStub | None = None,
+    sms: SmsDelivererStub | None = None,
     producer: ProducerStub | None = None,
 ) -> ChannelRouter:
+    extras = {DeliveryMethod.sms: sms} if sms is not None else None
     return ChannelRouter(
         repo=repo,
         accounts_repo=SimpleNamespace(),
@@ -201,6 +236,7 @@ def _router(
         deliverers=ChannelDelivererRegistry(
             email=email or EmailDelivererStub(),
             webhook=webhook or WebhookDelivererStub(),
+            extras=extras,
         ),
     )
 
@@ -317,6 +353,36 @@ async def test_route_feature_flag_fallback_paths() -> None:
     assert [call[1] for call in email.calls] == ["row@example.com"]
     assert webhook.calls == []
 
+    in_app_repo = RepoStub(configs=[], legacy_method=DeliveryMethod.in_app)
+    producer = ProducerStub()
+    result = await _router(in_app_repo, producer=producer).route(_alert(), recipient)
+    assert result.attempts[0].channel_type == DeliveryMethod.in_app
+    assert producer.events[0]["event_type"] == "notifications.alert_created"
+
+
+@pytest.mark.asyncio
+async def test_route_sms_and_missing_deliverer_edges() -> None:
+    sms = SmsDelivererStub()
+    workspace_id = uuid4()
+    repo = RepoStub(configs=[_config(DeliveryMethod.sms, "+34666123456")])
+
+    routed = await _router(repo, sms=sms).route(
+        _alert(),
+        _recipient(),
+        workspace_id=workspace_id,
+        severity="critical",
+    )
+
+    assert routed.attempts[0].outcome == "success"
+    assert sms.calls[0][1] == "+34666123456"
+    assert sms.calls[0][3] == workspace_id
+
+    with pytest.raises(KeyError):
+        ChannelDelivererRegistry(
+            email=EmailDelivererStub(),
+            webhook=WebhookDelivererStub(),
+        ).get(DeliveryMethod.sms)
+
 
 @pytest.mark.asyncio
 async def test_route_workspace_event_creates_pending_and_policy_dead_letter_deliveries() -> None:
@@ -347,3 +413,63 @@ async def test_route_workspace_event_creates_pending_and_policy_dead_letter_deli
     )
     assert blocked[0].status == "dead_letter"
     assert blocked_repo.deliveries[0]["failure_reason"] == "dlp_blocked"
+
+    existing_delivery = SimpleNamespace(id=uuid4(), status="delivered")
+    existing_repo = WorkspaceEventRepoStub([subscribed], existing_delivery=existing_delivery)
+    existing = await _router(existing_repo).route_workspace_event(
+        SimpleNamespace(
+            event_id=uuid4(),
+            event_type="execution.failed",
+            model_dump=lambda mode="json": {
+                "event_id": str(uuid4()),
+                "event_type": "execution.failed",
+            },
+        ),
+        workspace_id,
+    )
+    assert existing[0].delivery_id == existing_delivery.id
+    assert existing_repo.deliveries == []
+
+    pinned = SimpleNamespace(
+        **{**subscribed.__dict__, "id": uuid4(), "region_pinned_to": "us"}
+    )
+    residency_repo = WorkspaceEventRepoStub([pinned])
+    residency = await _router(residency_repo, residency=ResidencyStub(False)).route_workspace_event(
+        {"event_id": uuid4(), "event_type": "execution.failed"},
+        workspace_id,
+    )
+    assert residency[0].status == "dead_letter"
+    assert residency_repo.deliveries[0]["failure_reason"] == "residency_violation"
+
+    failed_repo = WorkspaceEventRepoStub([subscribed])
+    failed = await _router(
+        failed_repo,
+        webhook=WebhookDelivererStub(DeliveryOutcome.failed, "4xx_permanent"),
+    ).route_workspace_event(
+        {"event_id": uuid4(), "event_type": "execution.failed"},
+        workspace_id,
+    )
+    assert failed[0].status == "dead_letter"
+    assert failed_repo.outcomes[0]["failure_reason"] == "4xx_permanent"
+
+    timed_out_repo = WorkspaceEventRepoStub([subscribed])
+    timed_out = await _router(
+        timed_out_repo,
+        webhook=WebhookDelivererStub(DeliveryOutcome.timed_out, "retry_after=15"),
+    ).route_workspace_event(
+        {"event_id": uuid4(), "event_type": "execution.failed"},
+        workspace_id,
+    )
+    assert timed_out[0].status == "failed"
+    assert timed_out_repo.outcomes[0]["next_attempt_at"] is not None
+
+
+def test_channel_router_private_helpers_cover_default_and_object_edges() -> None:
+    settings = PlatformSettings()
+
+    assert _first_backoff({}, settings) == 60
+    assert _first_backoff({"backoff_seconds": []}, settings) == 60
+    assert _retry_delay_seconds("bad; retry_after=oops", {"backoff_seconds": [9]}, settings) == 9
+    assert _verdict_action(SimpleNamespace(action="redact")) == "redact"
+    assert _event_payload(SimpleNamespace(value=uuid4()))["value"]
+    assert _jsonable_payload((uuid4(), datetime.now(UTC)))
