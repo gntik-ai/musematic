@@ -150,12 +150,29 @@ async def _wait_for_ws_event_set(
 
 
 
-async def _mark_all_alerts_read(client: AuthenticatedAsyncClient) -> None:
-    response = await client.get("/api/v1/me/alerts", params={"read": "unread", "limit": 20})
-    response.raise_for_status()
-    for item in response.json().get("items", []):
-        mark_read = await client.patch(f"/api/v1/me/alerts/{item['id']}/read")
-        mark_read.raise_for_status()
+async def _mark_all_alerts_read(
+    client: AuthenticatedAsyncClient,
+    *,
+    timeout: float = 30.0,
+) -> None:
+    deadline = monotonic() + timeout
+    while True:
+        response = await client.get("/api/v1/me/alerts", params={"read": "unread", "limit": 100})
+        response.raise_for_status()
+        for item in response.json().get("items", []):
+            mark_read = await client.patch(f"/api/v1/me/alerts/{item['id']}/read")
+            mark_read.raise_for_status()
+
+        count_response = await client.get("/api/v1/me/alerts/unread-count")
+        count_response.raise_for_status()
+        if int(count_response.json()["count"]) == 0:
+            return
+        if monotonic() >= deadline:
+            raise AssertionError(
+                f"unread alerts did not clear within {timeout:.0f}s; "
+                f"last count={count_response.json()['count']}"
+            )
+        await asyncio.sleep(1.0)
 
 
 
