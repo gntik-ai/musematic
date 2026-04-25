@@ -5,8 +5,12 @@ from platform.notifications.models import (
     AlertDeliveryOutcome,
     DeliveryMethod,
     DeliveryOutcome,
+    NotificationChannelConfig,
+    OutboundWebhook,
     UserAlert,
     UserAlertSettings,
+    WebhookDelivery,
+    WebhookDeliveryStatus,
 )
 from platform.notifications.repository import (
     NotificationsRepository,
@@ -27,10 +31,12 @@ class ExecuteResultStub:
         *,
         scalar_one=None,
         scalars_all: list[object] | None = None,
+        rows: list[tuple[object, ...]] | None = None,
         rowcount: int | None = None,
     ) -> None:
         self._scalar_one = scalar_one
         self._scalars_all = list(scalars_all or [])
+        self._rows = list(rows or [])
         self.rowcount = rowcount
 
     def scalar_one_or_none(self):
@@ -38,6 +44,9 @@ class ExecuteResultStub:
 
     def scalars(self):
         return SimpleNamespace(all=lambda: list(self._scalars_all))
+
+    def all(self):
+        return list(self._rows)
 
 
 class SessionStub:
@@ -52,6 +61,7 @@ class SessionStub:
         self.scalar_results = list(scalar_results or [])
         self.get_results = dict(get_results or {})
         self.added: list[object] = []
+        self.deleted: list[object] = []
         self.flush_count = 0
 
     async def execute(self, query):
@@ -68,6 +78,9 @@ class SessionStub:
 
     def add(self, value: object) -> None:
         self.added.append(value)
+
+    async def delete(self, value: object) -> None:
+        self.deleted.append(value)
 
     async def flush(self) -> None:
         self.flush_count += 1
@@ -294,7 +307,9 @@ def test_repository_additional_edges_cover_filters_and_missing_records() -> None
             delivery_method=DeliveryMethod.in_app,
         )
     )
-    read_items, _, read_total = __import__("asyncio").run(repo.list_alerts(user_id, "read", None, 5))
+    read_items, _, read_total = __import__("asyncio").run(
+        repo.list_alerts(user_id, "read", None, 5)
+    )
     unread_items, _, unread_total = __import__("asyncio").run(
         repo.list_alerts(user_id, "unread", None, 5)
     )
@@ -330,3 +345,207 @@ def test_repository_mark_read_update_missing_and_cursor_helpers_edges() -> None:
     assert missing_outcome is None
     assert page == [already_read]
     assert next_cursor is None
+
+
+def test_repository_channel_config_crud_counts_and_expiry() -> None:
+    user_id = uuid4()
+    channel_id = uuid4()
+    now = datetime.now(UTC)
+    config = NotificationChannelConfig(
+        id=channel_id,
+        user_id=user_id,
+        channel_type=DeliveryMethod.email,
+        target="user@example.com",
+        enabled=True,
+        verified_at=now,
+        verification_token_hash="hash",
+        verification_expires_at=now - timedelta(minutes=1),
+    )
+    session = SessionStub(
+        execute_results=[
+            ExecuteResultStub(scalars_all=[config]),
+            ExecuteResultStub(scalars_all=[config]),
+            ExecuteResultStub(scalar_one=config),
+            ExecuteResultStub(scalars_all=[config]),
+            ExecuteResultStub(scalar_one=config),
+        ],
+        scalar_results=[2, 1],
+        get_results={channel_id: config},
+    )
+    repo = NotificationsRepository(session)
+
+    enabled = __import__("asyncio").run(repo.list_enabled_channel_configs(user_id))
+    listed = __import__("asyncio").run(repo.list_user_channel_configs(user_id))
+    resolved = __import__("asyncio").run(repo.get_channel_config(channel_id, user_id))
+    created = __import__("asyncio").run(
+        repo.create_channel_config(
+            user_id=user_id,
+            channel_type=DeliveryMethod.sms,
+            target="+34666123456",
+            severity_floor="critical",
+        )
+    )
+    updated = __import__("asyncio").run(repo.update_channel_config(channel_id, enabled=False))
+    deleted = __import__("asyncio").run(repo.delete_channel_config(channel_id))
+    missing_delete = __import__("asyncio").run(repo.delete_channel_config(uuid4()))
+    expired = __import__("asyncio").run(repo.expire_channel_verifications(now))
+    by_token = __import__("asyncio").run(repo.get_channel_config_by_token_hash("hash"))
+    total = __import__("asyncio").run(repo.count_user_channels(user_id))
+    sms_total = __import__("asyncio").run(repo.count_user_channels(user_id, DeliveryMethod.sms))
+
+    assert enabled == [config]
+    assert listed == [config]
+    assert resolved is config
+    assert created.channel_type == DeliveryMethod.sms
+    assert session.added[-1] is created
+    assert updated is config
+    assert deleted is True
+    assert missing_delete is False
+    assert session.deleted == [config]
+    assert expired == [config]
+    assert config.enabled is False
+    assert config.verification_token_hash is None
+    assert by_token is config
+    assert total == 2
+    assert sms_total == 1
+
+
+def test_repository_outbound_webhooks_deliveries_and_dead_letters() -> None:
+    workspace_id = uuid4()
+    actor_id = uuid4()
+    webhook_id = uuid4()
+    delivery_id = uuid4()
+    now = datetime.now(UTC)
+    webhook = OutboundWebhook(
+        id=webhook_id,
+        workspace_id=workspace_id,
+        name="CRM",
+        url="https://hooks.example.com/events",
+        event_types=["execution.failed"],
+        signing_secret_ref="secret/ref",
+        active=True,
+        retry_policy={"backoff_seconds": [60]},
+        created_by=actor_id,
+    )
+    inactive = OutboundWebhook(
+        id=uuid4(),
+        workspace_id=workspace_id,
+        name="Inactive",
+        url="https://hooks.example.com/inactive",
+        event_types=["execution.failed"],
+        signing_secret_ref="secret/ref/2",
+        active=False,
+        retry_policy={"backoff_seconds": [60]},
+        created_by=actor_id,
+    )
+    delivery = WebhookDelivery(
+        id=delivery_id,
+        webhook_id=webhook_id,
+        idempotency_key=uuid4(),
+        event_id=uuid4(),
+        event_type="execution.failed",
+        payload={"ok": True},
+        status=WebhookDeliveryStatus.dead_letter.value,
+        failure_reason="4xx_permanent",
+        attempts=3,
+        dead_lettered_at=now,
+    )
+    delivery.webhook = webhook
+    session = SessionStub(
+        execute_results=[
+            ExecuteResultStub(scalars_all=[webhook, inactive]),
+            ExecuteResultStub(scalars_all=[webhook, inactive]),
+            ExecuteResultStub(scalar_one=delivery),
+            ExecuteResultStub(scalars_all=[delivery]),
+            ExecuteResultStub(scalar_one=delivery),
+            ExecuteResultStub(scalars_all=[delivery]),
+            ExecuteResultStub(rows=[(workspace_id, 2)]),
+            ExecuteResultStub(rowcount=4),
+        ],
+        scalar_results=[1],
+        get_results={webhook_id: webhook, delivery_id: delivery},
+    )
+    repo = NotificationsRepository(session)
+
+    listed = __import__("asyncio").run(repo.list_outbound_webhooks(workspace_id))
+    active = __import__("asyncio").run(
+        repo.list_active_outbound_webhooks(workspace_id, "execution.failed")
+    )
+    created_webhook = __import__("asyncio").run(
+        repo.create_outbound_webhook(
+            workspace_id=workspace_id,
+            name="Created",
+            url="https://hooks.example.com/created",
+            event_types=["execution.failed"],
+            signing_secret_ref="secret/ref/new",
+            created_by=actor_id,
+        )
+    )
+    updated_webhook = __import__("asyncio").run(
+        repo.update_outbound_webhook(webhook_id, active=False)
+    )
+    missing_webhook = __import__("asyncio").run(repo.update_outbound_webhook(uuid4(), active=True))
+    resolved_webhook = __import__("asyncio").run(repo.get_outbound_webhook(webhook_id))
+    by_idempotency = __import__("asyncio").run(
+        repo.get_webhook_delivery_by_idempotency(webhook_id, delivery.idempotency_key)
+    )
+    active_count = __import__("asyncio").run(repo.count_active_webhooks(workspace_id))
+    inserted_delivery = __import__("asyncio").run(
+        repo.insert_delivery(
+            webhook_id=webhook_id,
+            idempotency_key=uuid4(),
+            event_id=uuid4(),
+            event_type="execution.failed",
+            payload={"ok": True},
+        )
+    )
+    due = __import__("asyncio").run(repo.list_due_deliveries(now, 10))
+    updated_delivery = __import__("asyncio").run(
+        repo.update_delivery_status(delivery_id, status=WebhookDeliveryStatus.delivered.value)
+    )
+    missing_delivery = __import__("asyncio").run(
+        repo.update_delivery_status(uuid4(), status=WebhookDeliveryStatus.failed.value)
+    )
+    delivery_without_webhook = __import__("asyncio").run(repo.get_delivery(delivery_id))
+    delivery_with_webhook = __import__("asyncio").run(
+        repo.get_delivery(delivery_id, include_webhook=True)
+    )
+    dead_letters = __import__("asyncio").run(
+        repo.list_dead_letters(
+            workspace_id,
+            {
+                "webhook_id": webhook_id,
+                "failure_reason": "4xx_permanent",
+                "since": now - timedelta(hours=1),
+                "until": now + timedelta(hours=1),
+                "limit": 5,
+            },
+        )
+    )
+    replay = __import__("asyncio").run(
+        repo.replay_dead_letter(delivery, actor_id=actor_id, now=now)
+    )
+    depth = __import__("asyncio").run(repo.aggregate_dead_letter_depth_by_workspace())
+    deleted = __import__("asyncio").run(repo.delete_dead_letter_older_than(now))
+
+    assert listed == [webhook, inactive]
+    assert active == [webhook]
+    assert created_webhook.name == "Created"
+    assert updated_webhook is webhook
+    assert webhook.active is False
+    assert missing_webhook is None
+    assert resolved_webhook is webhook
+    assert by_idempotency is delivery
+    assert active_count == 1
+    assert inserted_delivery.event_type == "execution.failed"
+    assert due == [delivery]
+    assert updated_delivery is delivery
+    assert delivery.status == WebhookDeliveryStatus.delivered.value
+    assert missing_delivery is None
+    assert delivery_without_webhook is delivery
+    assert delivery_with_webhook is delivery
+    assert dead_letters == [delivery]
+    assert replay.replayed_from == delivery.id
+    assert replay.replayed_by == actor_id
+    assert depth == {workspace_id: 2}
+    assert deleted == 4

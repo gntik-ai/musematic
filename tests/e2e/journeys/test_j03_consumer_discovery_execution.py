@@ -146,12 +146,29 @@ async def _wait_for_ws_event(
 
 
 
-async def _mark_all_alerts_read(client: AuthenticatedAsyncClient) -> None:
-    response = await client.get("/api/v1/me/alerts", params={"read": "unread", "limit": 20})
-    response.raise_for_status()
-    for item in response.json().get("items", []):
-        mark_read = await client.patch(f"/api/v1/me/alerts/{item['id']}/read")
-        mark_read.raise_for_status()
+async def _mark_all_alerts_read(
+    client: AuthenticatedAsyncClient,
+    *,
+    timeout: float = 30.0,
+) -> None:
+    deadline = monotonic() + timeout
+    while True:
+        response = await client.get("/api/v1/me/alerts", params={"read": "unread", "limit": 100})
+        response.raise_for_status()
+        for item in response.json().get("items", []):
+            mark_read = await client.patch(f"/api/v1/me/alerts/{item['id']}/read")
+            mark_read.raise_for_status()
+
+        count_response = await client.get("/api/v1/me/alerts/unread-count")
+        count_response.raise_for_status()
+        if int(count_response.json()["count"]) == 0:
+            return
+        if monotonic() >= deadline:
+            raise AssertionError(
+                f"unread alerts did not clear within {timeout:.0f}s; "
+                f"last count={count_response.json()['count']}"
+            )
+        await asyncio.sleep(1.0)
 
 
 
@@ -588,8 +605,6 @@ async def test_j03_consumer_discovery_execution(
             )
 
         with journey_step("Consumer configures completion-only alerts, runs the second task, and receives a notification"):
-            await _mark_all_alerts_read(consumer_workspace)
-            before_unread = await consumer_workspace.get("/api/v1/me/alerts/unread-count")
             settings = await consumer_workspace.put(
                 "/api/v1/me/alert-settings",
                 json={
@@ -597,6 +612,13 @@ async def test_j03_consumer_discovery_execution(
                     "delivery_method": "in_app",
                     "webhook_url": None,
                 },
+            )
+            settings.raise_for_status()
+            await _mark_all_alerts_read(consumer_workspace)
+            before_unread_count = await _wait_for_unread_count(
+                consumer_workspace,
+                expected=0,
+                timeout=30.0,
             )
             second_mock = await admin_client.post(
                 "/api/v1/_e2e/mock-llm/set-response",
@@ -617,8 +639,6 @@ async def test_j03_consumer_discovery_execution(
                     "correlation_interaction_id": second_interaction["id"],
                 },
             )
-            before_unread.raise_for_status()
-            settings.raise_for_status()
             second_mock.raise_for_status()
             second_execution.raise_for_status()
             second_execution_payload = await wait_for_execution(
@@ -650,7 +670,7 @@ async def test_j03_consumer_discovery_execution(
                 params={"read": "unread", "limit": 5},
             )
             alerts.raise_for_status()
-            assert before_unread.json() == {"count": 0}
+            assert before_unread_count == 0
             assert settings.json()["state_transitions"] == ["any_to_complete"]
             assert second_execution_payload["status"] == "completed"
             assert unread_count == 1
