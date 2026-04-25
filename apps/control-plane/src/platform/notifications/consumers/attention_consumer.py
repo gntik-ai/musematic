@@ -36,6 +36,8 @@ class AttentionConsumer:
         if envelope.event_type != InteractionsEventType.attention_requested.value:
             return
         payload = AttentionRequestedPayload.model_validate(envelope.payload)
+        if payload.alert_already_created:
+            return
         async with database.AsyncSessionLocal() as session:
             service = build_notifications_service(
                 session=session,

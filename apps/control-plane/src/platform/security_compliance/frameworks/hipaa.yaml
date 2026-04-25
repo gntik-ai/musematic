@@ -12,4 +12,3 @@ controls:
   - control_id: "164.312(b)"
     description: Audit controls record and examine system activity.
     evidence_requirements: [audit_chain_attestation]
-

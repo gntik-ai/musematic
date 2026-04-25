@@ -48,7 +48,9 @@ def test_makefile_renders_cluster_specific_kind_config() -> None:
 def test_load_images_uses_repo_root_context_for_ui_build() -> None:
     load_images = (ROOT / 'tests/e2e/cluster/load-images.sh').read_text()
     assert 'ghcr.io/musematic/ui:local|apps/web/Dockerfile|.' in load_images
-    assert 'docker build --rm --force-rm -t "${image}" -f "${ROOT_DIR}/${dockerfile}" "${ROOT_DIR}/${context}"' in load_images
+    assert 'local context_path="${ROOT_DIR}/${context}"' in load_images
+    assert 'docker buildx build \\' in load_images
+    assert 'DOCKER_BUILDKIT=1 docker build --rm --force-rm -t "${image}" -f "${dockerfile_path}" "${context_path}"' in load_images
 
 
 def test_cluster_scripts_have_valid_bash_shebangs() -> None:

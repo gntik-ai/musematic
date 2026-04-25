@@ -245,6 +245,12 @@ controlPlane:
     mockLlmEnabled: true
     zeroTrustVisibility: true
     otelResourceAttributes: deployment.environment=e2e
+  privacy:
+    dsrEnabled: true
+    dlpEnabled: true
+    residencyEnforcementEnabled: true
+    clickhousePiiTables: []
+
   securityCompliance:
     manualEvidenceBucket: evidence-bundles
   auth:

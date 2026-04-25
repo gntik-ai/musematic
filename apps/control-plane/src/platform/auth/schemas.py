@@ -27,6 +27,7 @@ class RoleType(StrEnum):
     OPERATOR = "operator"
     VIEWER = "viewer"
     AUDITOR = "auditor"
+    PRIVACY_OFFICER = "privacy_officer"
     AGENT = "agent"
     SERVICE_ACCOUNT = "service_account"
 

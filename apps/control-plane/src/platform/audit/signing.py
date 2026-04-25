@@ -23,6 +23,9 @@ class AuditChainSigning:
     def public_key_hex(self) -> str:
         return self._public_key_hex
 
+    def current_key_version(self) -> str:
+        return "1"
+
     def sign(self, document: bytes) -> bytes:
         return self._private_key.sign(document)
 

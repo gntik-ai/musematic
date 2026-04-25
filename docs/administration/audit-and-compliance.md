@@ -34,3 +34,22 @@ Release pipelines produce two evidence streams:
 - Scanner results from Trivy, pip-audit, Bandit, govulncheck, gosec, and npm audit.
 
 Findings at or above the scanner gate severity block release unless they are marked dev-only or covered by an active vulnerability exception. Exceptions require two-person approval.
+
+## Privacy Compliance
+
+Privacy compliance records are linked to the platform audit chain by event type. DSR
+lifecycle transitions, deletion cascades, PIA transitions, DLP events, residency
+changes, residency violations, and consent revocations all emit typed privacy
+events.
+
+Primary operator surfaces:
+
+- `POST /api/v1/privacy/dsr` for data-subject requests and tombstone export.
+- `GET /api/v1/privacy/dsr/{dsr_id}/tombstone/signed` for signed erasure proofs.
+- `POST /api/v1/privacy/pia` for privacy impact assessments and approval workflow.
+- `GET /api/v1/privacy/dlp/rules` and `GET /api/v1/privacy/dlp/events` for DLP operations.
+- `PUT /api/v1/privacy/residency/{workspace_id}` for regional policy configuration.
+- `GET /api/v1/privacy/consents?user_id=` for consent history review.
+
+Signed deletion tombstones can be verified without platform imports using
+`tests/e2e/scripts/verify_signed_tombstone.py`.

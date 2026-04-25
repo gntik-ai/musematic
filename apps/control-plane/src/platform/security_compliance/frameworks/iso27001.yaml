@@ -12,4 +12,3 @@ controls:
   - control_id: A.5.37
     description: Documented procedures support operating security.
     evidence_requirements: [manual_evidence]
-

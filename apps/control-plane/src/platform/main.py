@@ -36,6 +36,7 @@ from platform.api.evaluations import router as evaluations_router
 from platform.api.health import router as health_router
 from platform.api.testing import router as testing_router
 from platform.audit.router import router as audit_router
+from platform.audit.signing import AuditChainSigning
 from platform.auth.events import register_auth_event_types
 from platform.auth.ibor_sync import IBORSyncService
 from platform.auth.repository import AuthRepository
@@ -156,6 +157,9 @@ from platform.notifications.router import router as notifications_router
 from platform.policies.dependencies import build_policy_service
 from platform.policies.events import PolicyEventConsumer, register_policies_event_types
 from platform.policies.router import router as policies_router
+from platform.privacy_compliance.events import register_privacy_event_types
+from platform.privacy_compliance.router import router as privacy_router
+from platform.privacy_compliance.router_self_service import router as privacy_self_service_router
 from platform.registry.dependencies import build_registry_service
 from platform.registry.events import register_registry_event_types
 from platform.registry.index_worker import RegistryIndexWorker
@@ -380,6 +384,7 @@ def _build_clients(settings: PlatformSettings) -> dict[str, Any]:
         "reasoning_engine": ReasoningEngineClient.from_settings(settings),
         "sandbox_manager": SandboxManagerClient.from_settings(settings),
         "simulation_controller": SimulationControllerClient.from_settings(settings),
+        "audit_signer": AuditChainSigning(settings.audit),
     }
 
 
@@ -415,6 +420,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_a2a_event_types()
     register_mcp_event_types()
     register_debug_logging_event_types()
+    register_privacy_event_types()
     register_model_catalog_event_types()
 
     for name, client in app.state.clients.items():
@@ -1031,6 +1037,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
             settings=resolved,
             clickhouse_client=cast(AsyncClickHouseClient, app.state.clients["clickhouse"]),
             producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
         )
         app.state.analytics_budget_scheduler = _build_analytics_budget_scheduler(app)
         app.state.memory_scheduler = _build_memory_scheduler(app)
@@ -1113,7 +1120,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         PolicyEventConsumer(
             invalidate_bundle_by_revision=_build_policy_bundle_invalidator(app),
         ).register(consumer_manager)
-        if resolved.profile == "api":
+        if resolved.profile in {"api", "worker"}:
             AttentionConsumer(
                 settings=resolved,
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
@@ -1304,6 +1311,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(composition_router)
         app.include_router(discovery_router)
         app.include_router(simulation_router)
+        app.include_router(privacy_router)
+        app.include_router(privacy_self_service_router)
         app.include_router(audit_router)
         app.include_router(security_compliance_router)
 

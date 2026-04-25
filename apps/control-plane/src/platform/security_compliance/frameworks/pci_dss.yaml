@@ -12,4 +12,3 @@ controls:
   - control_id: "11.3"
     description: External and internal penetration testing is performed.
     evidence_requirements: [pentest_finding]
-

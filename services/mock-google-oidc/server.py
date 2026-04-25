@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 import uuid
 from http import HTTPStatus
@@ -31,6 +32,22 @@ CODES: dict[str, dict[str, object]] = {}
 ACCESS_TOKENS: dict[str, dict[str, object]] = {}
 ID_TOKENS: dict[str, dict[str, object]] = {}
 ISSUER = os.getenv("MOCK_ISSUER", DEFAULT_ISSUER).rstrip("/")
+_DYNAMIC_LOGIN_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,80}$")
+
+
+def _resolve_seed(login_hint: str) -> dict[str, object] | None:
+    seed = SEED_USERS.get(login_hint)
+    if seed is not None:
+        return seed
+    if not _DYNAMIC_LOGIN_RE.fullmatch(login_hint):
+        return None
+    normalized = login_hint.lower()
+    return {
+        "key": login_hint,
+        "sub": str(uuid.uuid5(uuid.NAMESPACE_URL, f"mock-google-oidc:{normalized}")),
+        "email": f"{normalized}@e2e.test",
+        "email_verified": True,
+    }
 
 
 def _cleanup_store(store: dict[str, dict[str, object]]) -> None:
@@ -85,7 +102,7 @@ class Handler(BaseHTTPRequestHandler):
             state = query.get("state", [""])[-1]
             client_id = query.get("client_id", [""])[-1]
             nonce = query.get("nonce", [""])[-1]
-            seed = SEED_USERS.get(login_hint)
+            seed = _resolve_seed(login_hint)
             if seed is None:
                 return _json(self, HTTPStatus.BAD_REQUEST, {"error": "invalid_login_hint"})
             code = uuid.uuid4().hex
@@ -108,7 +125,9 @@ class Handler(BaseHTTPRequestHandler):
             payload = ID_TOKENS.get(token)
             if payload is None:
                 return _json(self, HTTPStatus.BAD_REQUEST, {"error": "invalid_token"})
-            seed = SEED_USERS[str(payload["seed_key"])]
+            seed = _resolve_seed(str(payload["seed_key"]))
+            if seed is None:
+                return _json(self, HTTPStatus.BAD_REQUEST, {"error": "invalid_login_hint"})
             return _json(
                 self,
                 HTTPStatus.OK,
@@ -129,7 +148,9 @@ class Handler(BaseHTTPRequestHandler):
             payload = ACCESS_TOKENS.get(access_token or "")
             if payload is None:
                 return _json(self, HTTPStatus.UNAUTHORIZED, {"error": "invalid_token"})
-            seed = SEED_USERS[str(payload["seed_key"])]
+            seed = _resolve_seed(str(payload["seed_key"]))
+            if seed is None:
+                return _json(self, HTTPStatus.BAD_REQUEST, {"error": "invalid_login_hint"})
             return _json(
                 self,
                 HTTPStatus.OK,

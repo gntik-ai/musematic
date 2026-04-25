@@ -109,6 +109,54 @@ topics:
   - name: policy.gate.blocked
     partitions: 6
     retentionMs: 604800000
+  - name: privacy.consent.revoked
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.deletion.cascaded
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.dlp.event
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.dsr.completed
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.dsr.failed
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.dsr.in_progress
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.dsr.received
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.dsr.scheduled_with_hold
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.pia.approved
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.pia.drafted
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.pia.rejected
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.pia.submitted_for_review
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.pia.superseded
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.residency.configured
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.residency.removed
+    partitions: 6
+    retentionMs: 604800000
+  - name: privacy.residency.violated
+    partitions: 6
+    retentionMs: 604800000
   - name: registry.events
     partitions: 6
     retentionMs: 604800000

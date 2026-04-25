@@ -93,6 +93,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: RequestResponseEndpoint,
     ) -> Response:
+        request.state.origin_region = request.headers.get("X-Origin-Region") or "unknown"
         path = request.url.path
         public_invitation_endpoint = path.startswith("/api/v1/accounts/invitations/") and (
             request.method == "GET" or (request.method == "POST" and path.endswith("/accept"))
@@ -150,5 +151,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 if revoked is not None:
                     return _unauthorized_response("JIT_REVOKED", "JIT credential revoked")
 
+        if request.state.origin_region == "unknown" and payload.get("region_hint"):
+            request.state.origin_region = str(payload["region_hint"])
         request.state.user = _with_principal_type(payload, "user")
         return await call_next(request)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import logging
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -13,6 +14,7 @@ from platform.common.config import PlatformSettings
 from platform.common.events.envelope import EventEnvelope
 from platform.common.events.producer import EventProducer
 from platform.common.events.retry import RetryHandler
+from platform.privacy_compliance.redis_keys import DATA_COLLECTION_DISABLED_USERS_KEY
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -26,10 +28,12 @@ class AnalyticsPipelineConsumer:
         settings: PlatformSettings,
         clickhouse_client: AsyncClickHouseClient,
         producer: EventProducer | None = None,
+        redis_client: Any | None = None,
     ) -> None:
         self.settings = settings
         self.repository = AnalyticsRepository(clickhouse_client)
         self.producer = producer
+        self.redis_client = redis_client
         self._consumer: Any | None = None
         self._consume_task: asyncio.Task[None] | None = None
         self._flush_task: asyncio.Task[None] | None = None
@@ -103,6 +107,8 @@ class AnalyticsPipelineConsumer:
             raise
 
     async def _buffer_event(self, topic: str, envelope: EventEnvelope) -> None:
+        if await self._data_collection_disabled(envelope):
+            return
         if topic == "evaluation.events":
             usage_row = None
             quality_row = self._extract_quality_event(envelope)
@@ -120,6 +126,16 @@ class AnalyticsPipelineConsumer:
                 quality_trigger = len(self._quality_buffer) >= 100
         if usage_trigger or quality_trigger:
             await self._flush_buffers()
+
+    async def _data_collection_disabled(self, envelope: EventEnvelope) -> bool:
+        user_id = _payload_user_id(envelope.payload)
+        if user_id is None or self.redis_client is None:
+            return False
+        return await _redis_sismember(
+            self.redis_client,
+            DATA_COLLECTION_DISABLED_USERS_KEY,
+            user_id,
+        )
 
     async def _flush_buffers(self) -> None:
         async with self._buffer_lock:
@@ -329,3 +345,34 @@ class AnalyticsPipelineConsumer:
         if lowered.startswith("gemini"):
             return "google"
         return "unknown"
+
+
+def _payload_user_id(payload: dict[str, Any]) -> str | None:
+    for key in ("user_id", "subject_user_id", "principal_id"):
+        value = payload.get(key)
+        if value:
+            return str(value)
+    return None
+
+
+async def _redis_sismember(redis_client: Any, key: str, member: str) -> bool:
+    sismember = getattr(redis_client, "sismember", None)
+    if callable(sismember):
+        result = sismember(key, member)
+        if inspect.isawaitable(result):
+            result = await result
+        return bool(result)
+
+    get_client = getattr(redis_client, "_get_client", None)
+    if not callable(get_client):
+        return False
+    client = get_client()
+    if inspect.isawaitable(client):
+        client = await client
+    client_sismember = getattr(client, "sismember", None)
+    if not callable(client_sismember):
+        return False
+    result = client_sismember(key, member)
+    if inspect.isawaitable(result):
+        result = await result
+    return bool(result)

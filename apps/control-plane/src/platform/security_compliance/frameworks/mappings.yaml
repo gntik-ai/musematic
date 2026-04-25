@@ -31,4 +31,3 @@ mappings:
   - evidence_type: manual_evidence
     controls:
       - iso27001:A.5.37
-

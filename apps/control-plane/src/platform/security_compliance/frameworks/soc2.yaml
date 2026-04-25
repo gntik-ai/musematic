@@ -12,4 +12,3 @@ controls:
   - control_id: CC9.1
     description: Risk management includes vendor and supply-chain controls.
     evidence_requirements: [sbom_generated]
-

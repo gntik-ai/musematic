@@ -72,6 +72,7 @@ def build_manifest_payload(**overrides: Any) -> dict[str, Any]:
         "reasoning_modes": ["deterministic"],
         "tags": ["kyc", "finance"],
         "display_name": "KYC Verifier",
+        "data_categories": [],
     }
     payload.update(overrides)
     return payload
@@ -169,6 +170,7 @@ def build_profile(
     visibility_tools: list[str] | None = None,
     tags: list[str] | None = None,
     mcp_server_refs: list[str] | None = None,
+    data_categories: list[str] | None = None,
     status: LifecycleStatus = LifecycleStatus.draft,
     maturity_level: int = 1,
     embedding_status: EmbeddingStatus = EmbeddingStatus.pending,
@@ -193,6 +195,7 @@ def build_profile(
         visibility_tools=visibility_tools or [],
         tags=tags or ["kyc", "finance"],
         mcp_server_refs=mcp_server_refs or [],
+        data_categories=data_categories or [],
         status=status,
         maturity_level=maturity_level,
         embedding_status=embedding_status,
@@ -326,6 +329,7 @@ def build_profile_response(
         visibility_agents=list(profile.visibility_agents),
         visibility_tools=list(profile.visibility_tools),
         tags=list(profile.tags),
+        data_categories=list(getattr(profile, "data_categories", []) or []),
         status=profile.status,
         maturity_level=profile.maturity_level,
         embedding_status=profile.embedding_status,
@@ -622,6 +626,7 @@ class RegistryRepoStub:
         custom_role_description: str | None,
         tags: list[str],
         mcp_server_refs: list[str] | None = None,
+        data_categories: list[str] | None = None,
         maturity_level: int,
         actor_id: UUID,
     ) -> tuple[AgentProfile, bool]:
@@ -635,6 +640,7 @@ class RegistryRepoStub:
             existing.custom_role_description = custom_role_description
             existing.tags = tags
             existing.mcp_server_refs = list(mcp_server_refs or [])
+            existing.data_categories = list(data_categories or [])
             existing.maturity_level = maturity_level
             existing.embedding_status = EmbeddingStatus.pending
             return existing, False
@@ -650,6 +656,7 @@ class RegistryRepoStub:
             custom_role_description=custom_role_description,
             tags=tags,
             mcp_server_refs=list(mcp_server_refs or []),
+            data_categories=list(data_categories or []),
             maturity_level=maturity_level,
             created_by=actor_id,
         )

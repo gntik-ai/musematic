@@ -38,3 +38,9 @@ test-results
 **/playwright-report
 **/test-results
 **/*.tsbuildinfo
+docs/
+specs/
+.specify/
+.idea/
+.agents/
+.claude/

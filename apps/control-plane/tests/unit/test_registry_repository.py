@@ -86,6 +86,7 @@ async def test_repository_upsert_and_profile_accessors() -> None:
         custom_role_description=None,
         tags=["kyc"],
         mcp_server_refs=[],
+        data_categories=["pii"],
         maturity_level=1,
         actor_id=uuid4(),
     )
@@ -99,6 +100,7 @@ async def test_repository_upsert_and_profile_accessors() -> None:
         role_types=["planner"],
         custom_role_description="Owns orchestration",
         tags=["ops"],
+        data_categories=["financial"],
         maturity_level=2,
         actor_id=uuid4(),
     )
@@ -123,6 +125,7 @@ async def test_repository_upsert_and_profile_accessors() -> None:
     assert updated.role_types == ["planner"]
     assert updated.custom_role_description == "Owns orchestration"
     assert updated.approach == "Updated approach"
+    assert updated.data_categories == ["financial"]
     assert fetched_by_fqn == existing
     assert fetched_alias == existing
     assert listed == [existing, other]

@@ -21,6 +21,15 @@ common:
   wsHeartbeatIntervalSeconds: 30
   wsHeartbeatTimeoutSeconds: 10
 
+privacy:
+  dsrEnabled: false
+  dlpEnabled: false
+  residencyEnforcementEnabled: false
+  clickhousePiiTables:
+    - execution_metrics
+    - agent_performance
+    - token_usage
+
 securityCompliance:
   manualEvidenceBucket: compliance-evidence
 

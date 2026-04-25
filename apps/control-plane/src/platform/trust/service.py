@@ -23,6 +23,7 @@ from platform.trust.events import (
     utcnow,
 )
 from platform.trust.exceptions import (
+    CertificationBlockedError,
     CertificationNotFoundError,
     CertificationStateError,
     CertifierNotFoundError,
@@ -65,6 +66,7 @@ class CertificationService:
         self.events = TrustEventPublisher(producer)
 
     async def create(self, data: CertificationCreate, issuer_id: str) -> CertificationResponse:
+        await self._assert_pia_gate(data)
         await self._ensure_bound_model_has_card(data.agent_id)
         certification = await self.repository.create_certification(
             TrustCertification(
@@ -99,6 +101,29 @@ class CertificationService:
         if certification is None:
             raise CertificationNotFoundError(cert_id)
         return CertificationResponse.model_validate(certification)
+
+    async def _assert_pia_gate(self, data: CertificationCreate) -> None:
+        if not data.data_categories:
+            return
+        from platform.privacy_compliance.repository import PrivacyComplianceRepository
+        from platform.privacy_compliance.services.pia_service import DATA_CATEGORIES_REQUIRING_PIA
+
+        categories = {category.casefold() for category in data.data_categories}
+        if categories.isdisjoint(DATA_CATEGORIES_REQUIRING_PIA):
+            return
+        try:
+            subject_id = UUID(data.agent_id)
+        except ValueError:
+            return
+        pia = await PrivacyComplianceRepository(self.repository.session).get_approved_pia(
+            "agent",
+            subject_id,
+        )
+        if pia is None:
+            raise CertificationBlockedError(
+                "pia_required",
+                f"Agent {data.agent_id} declares privacy-sensitive data categories.",
+            )
 
     async def list_for_agent(self, agent_id: str) -> list[CertificationResponse]:
         certifications = await self.repository.list_certifications_for_agent(agent_id)
