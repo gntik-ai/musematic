@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime, timedelta
-from platform.analytics.consumer import AnalyticsPipelineConsumer
+from platform.analytics.consumer import AnalyticsPipelineConsumer, _redis_sismember
 from platform.common.config import PlatformSettings
 from types import SimpleNamespace
 from uuid import uuid4
@@ -19,11 +19,16 @@ from tests.analytics_support import (
 from tests.auth_support import RecordingProducer
 
 
-def _consumer(*, producer: RecordingProducer | None = None) -> AnalyticsPipelineConsumer:
+def _consumer(
+    *,
+    producer: RecordingProducer | None = None,
+    redis_client: object | None = None,
+) -> AnalyticsPipelineConsumer:
     return AnalyticsPipelineConsumer(
         settings=PlatformSettings(),
         clickhouse_client=ClickHouseClientStub(),  # type: ignore[arg-type]
         producer=producer,
+        redis_client=redis_client,
     )
 
 
@@ -60,6 +65,98 @@ async def test_buffer_event_routes_usage_and_quality(monkeypatch) -> None:
     assert flushed == ["flush"]
     assert len(consumer._usage_buffer) == 100
     assert len(consumer._quality_buffer) == 1
+
+
+@pytest.mark.asyncio
+async def test_buffer_event_skips_users_with_data_collection_disabled() -> None:
+    user_id = uuid4()
+
+    class RedisStub:
+        async def sismember(self, key: str, value: str) -> bool:
+            assert key == "privacy:data_collection_disabled_users"
+            assert value == str(user_id)
+            return True
+
+    consumer = _consumer(redis_client=RedisStub())
+
+    await consumer._buffer_event(
+        "workflow.runtime",
+        build_envelope(
+            workspace_id=uuid4(),
+            payload={
+                "agent_fqn": "planner:daily",
+                "model_id": "gpt-4o",
+                "user_id": str(user_id),
+            },
+        ),
+    )
+
+    assert consumer._usage_buffer == []
+
+
+@pytest.mark.asyncio
+async def test_redis_sismember_supports_wrapped_redis_client() -> None:
+    class InnerRedis:
+        async def sismember(self, key: str, value: str) -> bool:
+            assert key == "privacy:data_collection_disabled_users"
+            assert value == "user-1"
+            return True
+
+    class WrappedRedis:
+        async def _get_client(self) -> InnerRedis:
+            return InnerRedis()
+
+    assert await _redis_sismember(
+        WrappedRedis(),
+        "privacy:data_collection_disabled_users",
+        "user-1",
+    )
+    assert (
+        await _redis_sismember(object(), "privacy:data_collection_disabled_users", "user-1")
+        is False
+    )
+
+
+@pytest.mark.asyncio
+async def test_redis_sismember_supports_sync_clients_and_missing_membership() -> None:
+    class SyncRedis:
+        def sismember(self, key: str, value: str) -> bool:
+            assert key == "privacy:data_collection_disabled_users"
+            assert value == "user-1"
+            return False
+
+    class WrappedSyncRedis:
+        def _get_client(self) -> SyncRedis:
+            return SyncRedis()
+
+    class WrappedMissingMembership:
+        def _get_client(self) -> object:
+            return object()
+
+    assert (
+        await _redis_sismember(
+            SyncRedis(),
+            "privacy:data_collection_disabled_users",
+            "user-1",
+        )
+        is False
+    )
+    assert (
+        await _redis_sismember(
+            WrappedSyncRedis(),
+            "privacy:data_collection_disabled_users",
+            "user-1",
+        )
+        is False
+    )
+    assert (
+        await _redis_sismember(
+            WrappedMissingMembership(),
+            "privacy:data_collection_disabled_users",
+            "user-1",
+        )
+        is False
+    )
 
 
 @pytest.mark.asyncio

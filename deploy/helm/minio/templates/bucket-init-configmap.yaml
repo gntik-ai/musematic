@@ -30,6 +30,7 @@ data:
     }
 
     create_bucket agent-packages
+    create_bucket connector-dead-letters
     create_bucket execution-artifacts
     create_bucket execution-task-plans
     create_bucket reasoning-traces
@@ -47,7 +48,7 @@ data:
     apply_expiry backups 30
     apply_expiry forensic-exports 90
 
-    for bucket in agent-packages execution-artifacts execution-task-plans reasoning-traces sandbox-outputs evidence-bundles simulation-artifacts backups forensic-exports; do
+    for bucket in agent-packages connector-dead-letters execution-artifacts execution-task-plans reasoning-traces sandbox-outputs evidence-bundles simulation-artifacts backups forensic-exports; do
       apply_cleanup_rule "${bucket}"
     done
 
@@ -79,6 +80,8 @@ data:
           "Resource": [
             "arn:aws:s3:::agent-packages",
             "arn:aws:s3:::agent-packages/*",
+            "arn:aws:s3:::connector-dead-letters",
+            "arn:aws:s3:::connector-dead-letters/*",
             "arn:aws:s3:::execution-artifacts",
             "arn:aws:s3:::execution-artifacts/*",
             "arn:aws:s3:::execution-task-plans",

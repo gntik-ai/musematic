@@ -39,6 +39,7 @@ class AgentManifest(BaseModel):
     display_name: str | None = None
     custom_role_description: str | None = None
     mcp_servers: list[str] = Field(default_factory=list)
+    data_categories: list[str] = Field(default_factory=list)
 
     @field_validator("purpose")
     @classmethod
@@ -50,9 +51,11 @@ class AgentManifest(BaseModel):
     def normalize_optional_text(cls, value: str | None) -> str | None:
         return _normalize_optional_text(value)
 
-    @field_validator("reasoning_modes", "tags", "mcp_servers")
+    @field_validator("reasoning_modes", "tags", "mcp_servers", "data_categories", mode="before")
     @classmethod
-    def normalize_list_fields(cls, value: list[str]) -> list[str]:
+    def normalize_list_fields(cls, value: list[str] | None) -> list[str]:
+        if value is None:
+            return []
         return [item.strip() for item in value if item.strip()]
 
     @model_validator(mode="after")
@@ -92,6 +95,7 @@ class AgentPatch(BaseModel):
     visibility_agents: list[str] | None = None
     visibility_tools: list[str] | None = None
     mcp_servers: list[str] | None = None
+    data_categories: list[str] | None = None
     role_types: list[AgentRoleType] | None = None
     custom_role_description: str | None = None
 
@@ -100,7 +104,13 @@ class AgentPatch(BaseModel):
     def normalize_optional_text(cls, value: str | None) -> str | None:
         return _normalize_optional_text(value)
 
-    @field_validator("tags", "visibility_agents", "visibility_tools", "mcp_servers")
+    @field_validator(
+        "tags",
+        "visibility_agents",
+        "visibility_tools",
+        "mcp_servers",
+        "data_categories",
+    )
     @classmethod
     def normalize_list_fields(cls, value: list[str] | None) -> list[str] | None:
         return _normalize_string_list(value)
@@ -222,6 +232,7 @@ class AgentProfileResponse(BaseModel):
     visibility_tools: list[str]
     tags: list[str]
     mcp_servers: list[str] = Field(default_factory=list)
+    data_categories: list[str] = Field(default_factory=list)
     status: LifecycleStatus
     maturity_level: int
     embedding_status: EmbeddingStatus

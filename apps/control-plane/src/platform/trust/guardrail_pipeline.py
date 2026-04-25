@@ -60,6 +60,7 @@ class GuardrailPipelineService:
         GuardrailLayer.input_sanitization,
         GuardrailLayer.prompt_injection,
         GuardrailLayer.output_moderation,
+        GuardrailLayer.dlp_scan,
         GuardrailLayer.tool_control,
         GuardrailLayer.memory_write,
         GuardrailLayer.action_commit,
@@ -73,12 +74,14 @@ class GuardrailPipelineService:
         producer: Any | None,
         policy_engine: Any | None,
         pre_screener: Any | None = None,
+        dlp_service: Any | None = None,
     ) -> None:
         self.repository = repository
         self.settings = settings
         self.events = TrustEventPublisher(producer)
         self.policy_engine = policy_engine
         self.pre_screener = pre_screener
+        self.dlp_service = dlp_service
 
     async def evaluate_full_pipeline(
         self,
@@ -122,6 +125,8 @@ class GuardrailPipelineService:
                 )
             elif layer == GuardrailLayer.output_moderation:
                 basis = await self._moderate_output(payload)
+            elif layer == GuardrailLayer.dlp_scan:
+                basis = await self._evaluate_dlp(payload, context)
             elif layer == GuardrailLayer.tool_control:
                 basis = await self._evaluate_tool_access(payload, context)
             elif layer == GuardrailLayer.memory_write:
@@ -199,6 +204,27 @@ class GuardrailPipelineService:
             )
         )
         return record
+
+    async def _evaluate_dlp(
+        self,
+        payload: dict[str, Any],
+        context: dict[str, Any],
+    ) -> str | None:
+        if self.dlp_service is None:
+            return None
+        text = str(payload.get("output") or payload.get("text") or payload.get("content") or "")
+        if not text:
+            return None
+        workspace_id = context.get("workspace_id")
+        scan_result = await self.dlp_service.scan_and_apply(text, workspace_id)
+        await self.dlp_service.emit_events(
+            scan_result.events,
+            execution_id=context.get("execution_id"),
+        )
+        if scan_result.blocked:
+            return "privacy_dlp_blocked"
+        payload["output"] = scan_result.output_text
+        return None
 
     async def get_config(
         self,

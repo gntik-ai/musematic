@@ -40,6 +40,7 @@ class CertificationCreate(BaseModel):
     agent_id: str = Field(min_length=1, max_length=255)
     agent_fqn: str = Field(min_length=1, max_length=512)
     agent_revision_id: str = Field(min_length=1, max_length=255)
+    data_categories: list[str] = Field(default_factory=list)
     expires_at: datetime | None = None
 
 

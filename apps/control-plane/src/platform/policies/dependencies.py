@@ -9,6 +9,10 @@ from platform.policies.gateway import MemoryWriteGateService, ToolGatewayService
 from platform.policies.repository import PolicyRepository
 from platform.policies.sanitizer import OutputSanitizer
 from platform.policies.service import PolicyService
+from platform.privacy_compliance.events import PrivacyEventPublisher
+from platform.privacy_compliance.repository import PrivacyComplianceRepository
+from platform.privacy_compliance.services.dlp_service import DLPService
+from platform.privacy_compliance.services.residency_service import ResidencyService
 from platform.registry.dependencies import get_registry_service
 from platform.registry.service import RegistryService
 from platform.workspaces.dependencies import get_workspaces_service
@@ -99,6 +103,15 @@ def build_tool_gateway_service(
         reasoning_client=reasoning_client,
         registry_service=registry_service,
         settings=settings,
+        dlp_service=DLPService(
+            repository=PrivacyComplianceRepository(session),
+            event_publisher=PrivacyEventPublisher(producer),
+        ),
+        residency_service=ResidencyService(
+            repository=PrivacyComplianceRepository(session),
+            event_publisher=PrivacyEventPublisher(producer),
+            redis_client=redis_client,
+        ),
     )
 
 

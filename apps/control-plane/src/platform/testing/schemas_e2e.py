@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any, Literal
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -40,6 +41,20 @@ class ResetResponse(BaseModel):
     deleted: dict[str, int] = Field(default_factory=dict)
     preserved_baseline: bool = True
     duration_ms: int = 0
+
+
+class E2EUserProvisionRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    id: UUID
+    email: str = Field(pattern=r'^[^@\s]+@e2e\.test$')
+    display_name: str | None = None
+    status: str = 'active'
+
+
+class E2EUserProvisionResponse(BaseModel):
+    id: UUID
+    email: str
+    status: str
 
 
 class ChaosKillPodRequest(BaseModel):

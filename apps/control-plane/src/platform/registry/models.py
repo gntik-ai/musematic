@@ -134,6 +134,12 @@ class AgentProfile(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
         default=list,
         server_default=text("'[]'::jsonb"),
     )
+    data_categories: Mapped[list[str]] = mapped_column(
+        JSONB(none_as_null=False),
+        nullable=False,
+        default=list,
+        server_default=text("'[]'::jsonb"),
+    )
     status: Mapped[LifecycleStatus] = mapped_column(
         SAEnum(LifecycleStatus, name="registry_lifecycle_status"),
         nullable=False,

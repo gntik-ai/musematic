@@ -210,6 +210,56 @@ class VisibilitySettings(BaseSettings):
     zero_trust_enabled: bool = False
 
 
+class PrivacyComplianceSettings(BaseSettings):
+    model_config = SettingsConfigDict(extra="ignore", populate_by_name=True)
+
+    dsr_enabled: bool = Field(
+        default=False,
+        description="Enables data-subject request endpoints and workers.",
+        validation_alias="FEATURE_PRIVACY_DSR_ENABLED",
+    )
+    erasure_hold_hours_default: int = Field(
+        default=0,
+        description="Default hold window in hours before erasure cascades begin.",
+        validation_alias="PRIVACY_ERASURE_HOLD_HOURS_DEFAULT",
+    )
+    erasure_hold_hours_max: int = Field(
+        default=72,
+        description="Maximum allowed hold window in hours for erasure DSRs.",
+        validation_alias="PRIVACY_ERASURE_HOLD_HOURS_MAX",
+    )
+    dlp_enabled: bool = Field(
+        default=False,
+        description="Enables privacy DLP scanning for outputs and guardrails.",
+        validation_alias="FEATURE_DLP_ENABLED",
+    )
+    residency_enforcement_enabled: bool = Field(
+        default=False,
+        description="Enables request-time workspace data residency enforcement.",
+        validation_alias="FEATURE_RESIDENCY_ENFORCEMENT",
+    )
+    dlp_event_retention_days: int = Field(
+        default=90,
+        description="Retention period for full-fidelity DLP event records.",
+        validation_alias="PRIVACY_DLP_EVENT_RETENTION_DAYS",
+    )
+    consent_propagator_interval_seconds: int = Field(
+        default=60,
+        description="Cadence for propagating consent revocations to runtime caches.",
+        validation_alias="PRIVACY_CONSENT_PROPAGATOR_INTERVAL_SECONDS",
+    )
+    salt_vault_path: str = Field(
+        default="secret/data/musematic/local/privacy/subject-hash-salt",
+        description="Vault path containing subject-hash salt history.",
+        validation_alias="PRIVACY_SUBJECT_HASH_SALT_VAULT_PATH",
+    )
+    clickhouse_pii_tables: list[str] = Field(
+        default_factory=lambda: ["execution_metrics", "agent_performance", "token_usage"],
+        description="ClickHouse tables that contain user identifiers and support tombstones.",
+        validation_alias="PRIVACY_CLICKHOUSE_PII_TABLES",
+    )
+
+
 class ApiGovernanceSettings(BaseSettings):
     model_config = SettingsConfigDict(extra="ignore", populate_by_name=True)
 
@@ -486,6 +536,9 @@ class PlatformSettings(BaseSettings):
     ws_hub: WsHubSettings = Field(default_factory=WsHubSettings)
     analytics: AnalyticsSettings = Field(default_factory=AnalyticsSettings)
     visibility: VisibilitySettings = Field(default_factory=VisibilitySettings)
+    privacy_compliance: PrivacyComplianceSettings = Field(
+        default_factory=PrivacyComplianceSettings
+    )
     api_governance: ApiGovernanceSettings = Field(default_factory=ApiGovernanceSettings)
     registry: RegistrySettings = Field(default_factory=RegistrySettings)
     context_engineering: ContextEngineeringSettings = Field(
@@ -621,6 +674,36 @@ class PlatformSettings(BaseSettings):
             "CHECKPOINT_MAX_SIZE_BYTES": ("checkpoint_max_size_bytes",),
             "ANALYTICS_BUDGET_THRESHOLD_USD": ("analytics", "budget_threshold_usd"),
             "VISIBILITY_ZERO_TRUST_ENABLED": ("visibility", "zero_trust_enabled"),
+            "FEATURE_PRIVACY_DSR_ENABLED": ("privacy_compliance", "dsr_enabled"),
+            "PRIVACY_ERASURE_HOLD_HOURS_DEFAULT": (
+                "privacy_compliance",
+                "erasure_hold_hours_default",
+            ),
+            "PRIVACY_ERASURE_HOLD_HOURS_MAX": (
+                "privacy_compliance",
+                "erasure_hold_hours_max",
+            ),
+            "FEATURE_DLP_ENABLED": ("privacy_compliance", "dlp_enabled"),
+            "FEATURE_RESIDENCY_ENFORCEMENT": (
+                "privacy_compliance",
+                "residency_enforcement_enabled",
+            ),
+            "PRIVACY_DLP_EVENT_RETENTION_DAYS": (
+                "privacy_compliance",
+                "dlp_event_retention_days",
+            ),
+            "PRIVACY_CONSENT_PROPAGATOR_INTERVAL_SECONDS": (
+                "privacy_compliance",
+                "consent_propagator_interval_seconds",
+            ),
+            "PRIVACY_SUBJECT_HASH_SALT_VAULT_PATH": (
+                "privacy_compliance",
+                "salt_vault_path",
+            ),
+            "PRIVACY_CLICKHOUSE_PII_TABLES": (
+                "privacy_compliance",
+                "clickhouse_pii_tables",
+            ),
             "FEATURE_API_RATE_LIMITING": ("api_governance", "rate_limiting_enabled"),
             "FEATURE_API_RATE_LIMITING_FAIL_OPEN": ("api_governance", "rate_limiting_fail_open"),
             "API_TIER_CACHE_TTL_SECONDS": ("api_governance", "tier_cache_ttl_seconds"),
@@ -1264,6 +1347,18 @@ class PlatformSettings(BaseSettings):
     @property
     def ANALYTICS_BUDGET_THRESHOLD_USD(self) -> float:
         return self.analytics.budget_threshold_usd
+
+    @property
+    def FEATURE_PRIVACY_DSR_ENABLED(self) -> bool:
+        return self.privacy_compliance.dsr_enabled
+
+    @property
+    def FEATURE_DLP_ENABLED(self) -> bool:
+        return self.privacy_compliance.dlp_enabled
+
+    @property
+    def FEATURE_RESIDENCY_ENFORCEMENT(self) -> bool:
+        return self.privacy_compliance.residency_enforcement_enabled
 
     @property
     def REGISTRY_PACKAGE_BUCKET(self) -> str:

@@ -6,6 +6,7 @@ from platform.common.dependencies import get_db
 from platform.common.events.producer import EventProducer
 from platform.interactions.repository import InteractionsRepository
 from platform.interactions.service import InteractionsService
+from platform.privacy_compliance.dependencies import build_consent_service
 from platform.registry.dependencies import get_registry_service
 from platform.registry.service import RegistryService
 from platform.workspaces.dependencies import get_workspaces_service
@@ -28,6 +29,11 @@ def _get_qdrant(request: Request) -> AsyncQdrantClient | None:
     return cast(AsyncQdrantClient | None, request.app.state.clients.get("qdrant"))
 
 
+def _privacy_dsr_enabled(settings: PlatformSettings) -> bool:
+    privacy = getattr(settings, "privacy_compliance", None)
+    return bool(getattr(privacy, "dsr_enabled", False))
+
+
 def build_interactions_service(
     *,
     session: AsyncSession,
@@ -44,6 +50,9 @@ def build_interactions_service(
         qdrant=qdrant,
         workspaces_service=workspaces_service,
         registry_service=registry_service,
+        consent_service=build_consent_service(session=session, producer=producer)
+        if _privacy_dsr_enabled(settings)
+        else None,
     )
 
 

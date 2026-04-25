@@ -85,6 +85,7 @@ from platform.interactions.schemas import (
     ParticipantResponse,
 )
 from platform.interactions.state_machine import validate_transition
+from platform.privacy_compliance.exceptions import ConsentRequired
 from platform.registry.service import fqn_matches
 from platform.workspaces.exceptions import GoalNotFoundError
 from platform.workspaces.models import (
@@ -95,6 +96,7 @@ from platform.workspaces.models import (
 from typing import Any, cast
 from uuid import UUID, uuid4
 
+from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 LOGGER = logging.getLogger(__name__)
@@ -110,6 +112,7 @@ class InteractionsService:
         qdrant: AsyncQdrantClient | None = None,
         workspaces_service: Any | None,
         registry_service: Any | None,
+        consent_service: Any | None = None,
     ) -> None:
         self.repository = repository
         self.settings = settings
@@ -117,6 +120,7 @@ class InteractionsService:
         self.qdrant = qdrant
         self.workspaces_service = workspaces_service
         self.registry_service = registry_service
+        self.consent_service = consent_service
         self.goal_lifecycle = GoalLifecycleService(producer)
         self.decision_engine = ResponseDecisionEngine(settings=settings, qdrant=qdrant)
 
@@ -126,6 +130,20 @@ class InteractionsService:
         created_by: str,
         workspace_id: UUID,
     ) -> ConversationResponse:
+        if self.consent_service is not None:
+            try:
+                await self.consent_service.require_or_prompt(UUID(str(created_by)), workspace_id)
+            except ConsentRequired as exc:
+                raise HTTPException(
+                    status_code=428,
+                    detail={
+                        "error": "consent_required",
+                        "missing_consents": exc.missing_types,
+                        "disclosure_text_ref": "/api/v1/me/consents/disclosure",
+                    },
+                ) from exc
+            except ValueError:
+                pass
         conversation = await self.repository.create_conversation(
             workspace_id=workspace_id,
             title=request.title,

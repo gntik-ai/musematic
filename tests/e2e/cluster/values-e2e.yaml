@@ -245,6 +245,11 @@ controlPlane:
     mockLlmEnabled: true
     zeroTrustVisibility: true
     otelResourceAttributes: deployment.environment=e2e
+  privacy:
+    dsrEnabled: true
+    dlpEnabled: true
+    residencyEnforcementEnabled: true
+    clickhousePiiTables: []
   auth:
     oauth:
       google:
@@ -432,4 +437,3 @@ mockOAuth:
         id: 1002
         login: j-creator
         email: j-creator@e2e.test
-

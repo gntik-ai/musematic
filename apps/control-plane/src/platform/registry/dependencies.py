@@ -6,6 +6,7 @@ from platform.common.clients.qdrant import AsyncQdrantClient
 from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_db
 from platform.common.events.producer import EventProducer
+from platform.privacy_compliance.dependencies import build_pia_service
 from platform.registry.package_validator import PackageValidator
 from platform.registry.repository import RegistryRepository
 from platform.registry.service import RegistryService
@@ -55,6 +56,7 @@ def build_registry_service(
         workspaces_service=workspaces_service,
         event_producer=producer,
         settings=settings,
+        pia_service=build_pia_service(session=session, producer=producer),
         package_validator=PackageValidator(settings),
     )
 

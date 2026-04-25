@@ -51,6 +51,7 @@ def _service(
     opensearch: AsyncOpenSearchStub | None = None,
     qdrant: AsyncQdrantStub | None = None,
     workspaces_service: WorkspacesServiceStub | None = None,
+    pia_service: object | None = None,
 ) -> tuple[
     RegistryService,
     RegistryRepoStub,
@@ -71,6 +72,7 @@ def _service(
         workspaces_service=resolved_workspaces,
         event_producer=build_recording_producer(),
         settings=build_registry_settings(),
+        pia_service=pia_service,
     )
     return service, resolved_repo, resolved_storage, resolved_opensearch, resolved_qdrant
 
@@ -353,6 +355,45 @@ async def test_patch_transition_maturity_and_audit_flows() -> None:
             LifecycleTransitionRequest(target_status=LifecycleStatus.archived),
             actor_id,
         )
+
+
+@pytest.mark.asyncio
+async def test_patch_agent_material_data_category_change_supersedes_pia() -> None:
+    workspace_id = uuid4()
+    actor_id = uuid4()
+    namespace = build_namespace(workspace_id=workspace_id, created_by=actor_id)
+    profile = build_profile(
+        workspace_id=workspace_id,
+        namespace=namespace,
+        data_categories=["analytics"],
+    )
+    repo = RegistryRepoStub()
+    repo.profiles_by_id[profile.id] = profile
+    repo.profiles_by_fqn[(workspace_id, profile.fqn)] = profile
+    repo.revisions_by_profile[profile.id] = []
+    workspaces = WorkspacesServiceStub(workspace_ids_by_user={actor_id: [workspace_id]})
+    pia_service = SimpleNamespace(calls=[])
+
+    async def _check_material_change(subject_type, subject_id, new_categories):
+        pia_service.calls.append((subject_type, subject_id, new_categories))
+
+    pia_service.check_material_change = _check_material_change
+    service, _repo, _storage, _opensearch, _qdrant = _service(
+        repo,
+        workspaces_service=workspaces,
+        pia_service=pia_service,
+    )
+
+    patched = await service.patch_agent(
+        workspace_id,
+        profile.id,
+        AgentPatch(data_categories=["PII", " financial ", "pii"]),
+        actor_id,
+    )
+
+    assert patched.data_categories == ["PII", "financial", "pii"]
+    assert profile.data_categories == ["PII", "financial", "pii"]
+    assert pia_service.calls == [("agent", profile.id, ["pii", "financial"])]
 
 
 @pytest.mark.asyncio

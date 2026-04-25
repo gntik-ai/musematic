@@ -108,11 +108,13 @@ class RegistryRepository:
         custom_role_description: str | None,
         tags: list[str],
         mcp_server_refs: list[str] | None = None,
+        data_categories: list[str] | None = None,
         maturity_level: int,
         actor_id: UUID,
     ) -> tuple[AgentProfile, bool]:
         fqn = f"{namespace.name}:{local_name}"
         resolved_mcp_server_refs = list(mcp_server_refs or [])
+        resolved_data_categories = list(data_categories or [])
         existing = await self.get_agent_by_fqn(workspace_id, fqn)
         if existing is None:
             profile = AgentProfile(
@@ -129,6 +131,7 @@ class RegistryRepository:
                 visibility_tools=[],
                 tags=tags,
                 mcp_server_refs=resolved_mcp_server_refs,
+                data_categories=resolved_data_categories,
                 status=LifecycleStatus.draft,
                 maturity_level=maturity_level,
                 embedding_status=EmbeddingStatus.pending,
@@ -146,6 +149,7 @@ class RegistryRepository:
         existing.custom_role_description = custom_role_description
         existing.tags = tags
         existing.mcp_server_refs = resolved_mcp_server_refs
+        existing.data_categories = resolved_data_categories
         existing.maturity_level = maturity_level
         existing.embedding_status = EmbeddingStatus.pending
         await self.session.flush()
