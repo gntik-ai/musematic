@@ -154,6 +154,10 @@ async def export_signed_tombstone(
         from platform.privacy_compliance.exceptions import TombstoneNotFoundError
 
         raise TombstoneNotFoundError(dsr_id)
+    if service.orchestrator is None:
+        from platform.privacy_compliance.exceptions import TombstoneNotFoundError
+
+        raise TombstoneNotFoundError(dsr.tombstone_id)
     signed = await service.orchestrator.export_signed(dsr.tombstone_id)
     return SignedTombstoneResponse(
         tombstone=signed.tombstone,

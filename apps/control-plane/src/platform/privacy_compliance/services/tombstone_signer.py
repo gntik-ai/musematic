@@ -16,8 +16,12 @@ class TombstoneSigner:
         if callable(sign):
             result = sign(payload)
             if hasattr(result, "__await__"):
-                return await result
-            return result
+                awaited = await result
+                if isinstance(awaited, bytes):
+                    return awaited
+            elif isinstance(result, bytes):
+                return result
+            raise TypeError("Tombstone signer must return bytes")
         return self._fallback_key.sign(payload)
 
     async def current_key_version(self) -> str:

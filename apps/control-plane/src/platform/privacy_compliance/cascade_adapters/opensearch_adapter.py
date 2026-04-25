@@ -9,6 +9,8 @@ from platform.privacy_compliance.cascade_adapters.base import (
 from typing import Any
 from uuid import UUID
 
+OpenSearchDeleteResponse = dict[str, Any] | int
+
 
 class OpenSearchCascadeAdapter(CascadeAdapter):
     store_name = "opensearch"
@@ -45,30 +47,40 @@ class OpenSearchCascadeAdapter(CascadeAdapter):
         raw_client_factory = getattr(self.client, "_ensure_client", None)
         if callable(raw_client_factory):
             raw_client = await raw_client_factory()
-            return await raw_client.delete_by_query(
+            response = await raw_client.delete_by_query(
                 index=self.index,
                 body=payload,
                 conflicts="proceed",
                 ignore_unavailable=True,
             )
+            return _delete_response(response)
 
         delete_by_query = getattr(self.client, "delete_by_query", None)
         if not callable(delete_by_query):
             return 0
 
         try:
-            return await delete_by_query(index=self.index, body=payload)
+            response = await delete_by_query(index=self.index, body=payload)
         except TypeError as exc:
             if "body" not in str(exc):
                 raise
-            return await delete_by_query(
+            response = await delete_by_query(
                 index=self.index,
                 query=payload["query"],
                 workspace_id="",
             )
+        return _delete_response(response)
 
     @staticmethod
     def _is_missing_index(exc: Exception) -> bool:
         status = getattr(exc, "status_code", None) or getattr(exc, "status", None)
         message = str(exc).lower()
         return status == 404 or "index_not_found" in message or "no such index" in message
+
+
+def _delete_response(response: object) -> OpenSearchDeleteResponse:
+    if isinstance(response, int):
+        return response
+    if isinstance(response, dict):
+        return response
+    return 0

@@ -76,7 +76,9 @@ class SaltHistoryProvider:
                 if isinstance(value, dict):
                     return value
                 if isinstance(value, str):
-                    return json.loads(value)
+                    payload = json.loads(value)
+                    if isinstance(payload, dict):
+                        return payload
         return {"current_salt": os.getenv(self.env_var, "local-dev-salt"), "salt_version": 1}
 
 
@@ -86,4 +88,3 @@ def _decode_salt(value: str) -> bytes:
         return bytes.fromhex(normalized)
     except ValueError:
         return normalized.encode("utf-8")
-

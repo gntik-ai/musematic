@@ -13,7 +13,7 @@ from platform.privacy_compliance.schemas import (
 )
 from platform.privacy_compliance.services.consent_service import DISCLOSURE_TEXT, ConsentService
 from platform.privacy_compliance.services.dsr_service import DSRService
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
@@ -76,9 +76,10 @@ async def put_own_consents(
     current_user: dict[str, Any] = Depends(get_current_user),
     service: ConsentService = Depends(get_consent_service),
 ) -> list[ConsentRecordResponse]:
+    choices = cast(dict[ConsentType | str, bool], payload.choices)
     records = await service.record_consents(
         _user_id(current_user),
-        payload.choices,
+        choices,
         payload.workspace_id,
     )
     return [ConsentRecordResponse.model_validate(record) for record in records]

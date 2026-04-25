@@ -170,7 +170,7 @@ class PostgreSQLCascadeAdapter(CascadeAdapter):
                 text(f"DELETE FROM {table} WHERE {predicates}"),
                 {"uid": str(subject_user_id)},
             )
-            return int(result.rowcount or 0)
+            return _rowcount(result)
 
         assignments = ", ".join(f"{column} = :sentinel" for column in columns)
         predicates = " OR ".join(f"{column} = :uid" for column in columns)
@@ -178,4 +178,9 @@ class PostgreSQLCascadeAdapter(CascadeAdapter):
             text(f"UPDATE {table} SET {assignments} WHERE {predicates}"),
             {"uid": str(subject_user_id), "sentinel": DELETED_SUBJECT_UUID},
         )
-        return int(result.rowcount or 0)
+        return _rowcount(result)
+
+
+def _rowcount(result: object) -> int:
+    value = getattr(result, "rowcount", 0)
+    return int(value or 0)

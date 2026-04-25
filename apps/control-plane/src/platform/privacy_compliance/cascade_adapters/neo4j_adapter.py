@@ -58,7 +58,7 @@ class Neo4jCascadeAdapter(CascadeAdapter):
                     ),
                     {"uid": str(subject_user_id)},
                 )
-                counts["graph_edges"] = int(edge_result.rowcount or 0)
+                counts["graph_edges"] = _rowcount(edge_result)
             node_result = await self.session.execute(
                 text(
                     """
@@ -68,7 +68,7 @@ class Neo4jCascadeAdapter(CascadeAdapter):
                 ),
                 {"uid": str(subject_user_id)},
             )
-            counts["graph_nodes"] = int(node_result.rowcount or 0)
+            counts["graph_nodes"] = _rowcount(node_result)
             await self.session.flush()
         except Exception as exc:
             errors.append(str(exc))
@@ -89,3 +89,8 @@ class Neo4jCascadeAdapter(CascadeAdapter):
             )
             self._table_cache[table] = result.scalar_one() is not None
         return self._table_cache[table]
+
+
+def _rowcount(result: object) -> int:
+    value = getattr(result, "rowcount", 0)
+    return int(value or 0)

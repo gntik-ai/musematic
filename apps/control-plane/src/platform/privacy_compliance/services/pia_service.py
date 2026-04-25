@@ -10,6 +10,7 @@ from platform.privacy_compliance.events import (
 from platform.privacy_compliance.exceptions import PIAApprovalError
 from platform.privacy_compliance.models import PIAStatus, PrivacyImpactAssessment
 from platform.privacy_compliance.repository import PrivacyComplianceRepository
+from typing import Any
 from uuid import UUID
 
 DATA_CATEGORIES_REQUIRING_PIA = {"pii", "phi", "financial", "confidential"}
@@ -33,8 +34,8 @@ class PIAService:
         data_categories: list[str],
         legal_basis: str,
         retention_policy: str | None,
-        risks: list[dict],
-        mitigations: list[dict],
+        risks: list[dict[str, Any]],
+        mitigations: list[dict[str, Any]],
         submitted_by: UUID,
     ) -> PrivacyImpactAssessment:
         pia = await self.repository.create_pia(
@@ -129,4 +130,3 @@ class PIAService:
             ),
             key=str(pia.subject_id),
         )
-

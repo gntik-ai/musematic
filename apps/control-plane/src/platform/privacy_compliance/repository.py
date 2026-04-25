@@ -134,7 +134,7 @@ class PrivacyComplianceRepository:
             )
         )
         await self.session.flush()
-        return bool(result.rowcount)
+        return _rowcount(result) > 0
 
     async def create_dlp_rule(self, rule: PrivacyDLPRule) -> PrivacyDLPRule:
         self.session.add(rule)
@@ -299,3 +299,8 @@ class PrivacyComplianceRepository:
         consent_records = await self.get_consent_records(user_id)
         records = {ConsentType(item.consent_type): item for item in consent_records}
         return {consent_type: records.get(consent_type) for consent_type in ConsentType}
+
+
+def _rowcount(result: object) -> int:
+    value = getattr(result, "rowcount", 0)
+    return int(value or 0)
