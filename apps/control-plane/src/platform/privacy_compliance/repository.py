@@ -13,7 +13,7 @@ from platform.privacy_compliance.models import (
     PrivacyImpactAssessment,
     PrivacyResidencyConfig,
 )
-from typing import Any, cast
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import delete, select
@@ -253,7 +253,7 @@ class PrivacyComplianceRepository:
             )
             .returning(PrivacyConsentRecord)
         )
-        return cast(PrivacyConsentRecord, result.scalar_one())
+        return result.scalar_one()
 
     async def get_consent_records(self, user_id: UUID) -> list[PrivacyConsentRecord]:
         result = await self.session.execute(
