@@ -123,7 +123,9 @@ class Handler(BaseHTTPRequestHandler):
             payload = ACCESS_TOKENS.get(access_token or "")
             if payload is None:
                 return _json(self, HTTPStatus.UNAUTHORIZED, {"error": "invalid_token"})
-            seed = SEED_USERS[str(payload["seed_key"])]
+            seed = _resolve_seed(str(payload["seed_key"]))
+            if seed is None:
+                return _json(self, HTTPStatus.UNAUTHORIZED, {"error": "invalid_token"})
             return _json(
                 self,
                 HTTPStatus.OK,
@@ -140,7 +142,9 @@ class Handler(BaseHTTPRequestHandler):
             payload = ACCESS_TOKENS.get(access_token or "")
             if payload is None:
                 return _json(self, HTTPStatus.UNAUTHORIZED, {"error": "invalid_token"})
-            seed = SEED_USERS[str(payload["seed_key"])]
+            seed = _resolve_seed(str(payload["seed_key"]))
+            if seed is None:
+                return _json(self, HTTPStatus.UNAUTHORIZED, {"error": "invalid_token"})
             return _json(
                 self,
                 HTTPStatus.OK,
@@ -158,7 +162,9 @@ class Handler(BaseHTTPRequestHandler):
             payload = ACCESS_TOKENS.get(access_token or "")
             if payload is None:
                 return _json(self, HTTPStatus.UNAUTHORIZED, {"error": "invalid_token"})
-            seed = SEED_USERS[str(payload["seed_key"])]
+            seed = _resolve_seed(str(payload["seed_key"]))
+            if seed is None:
+                return _json(self, HTTPStatus.UNAUTHORIZED, {"error": "invalid_token"})
             teams = []
             for team in seed.get("teams", []) or []:
                 if isinstance(team, dict):
@@ -170,7 +176,9 @@ class Handler(BaseHTTPRequestHandler):
             if payload is None:
                 return _json(self, HTTPStatus.UNAUTHORIZED, {"error": "invalid_token"})
             org = parsed.path.rsplit("/", 1)[-1]
-            seed = SEED_USERS[str(payload["seed_key"])]
+            seed = _resolve_seed(str(payload["seed_key"]))
+            if seed is None:
+                return _json(self, HTTPStatus.UNAUTHORIZED, {"error": "invalid_token"})
             orgs = set(seed.get("orgs", []) or [])
             if org not in orgs:
                 return _json(self, HTTPStatus.NOT_FOUND, {"message": "Not Found"})

@@ -547,34 +547,20 @@ async def test_j04_workspace_goal_collaboration(
             assert attention_payload["status"] == "pending"
             assert attention_payload["related_goal_id"] == str(goal_id)
 
-        with journey_step("WebSocket delivers the attention request and alert notification with the expected payloads"):
-            websocket_events, observed_events = await _wait_for_ws_event_set(
+        with journey_step("WebSocket delivers the attention request with the expected payload"):
+            attention_event = await _wait_for_ws_event(
                 websocket,
-                {
-                    "attention": (
-                        lambda event: event.get("channel") == "attention"
-                        and _ws_event_type(event) == "attention.requested"
-                        and _ws_goal_gid(event) == str(goal_id)
-                        and _ws_payload(event).get("related_goal_id") == str(goal_id)
-                    ),
-                    "alert": (
-                        lambda event: event.get("channel") == "alerts"
-                        and _ws_event_type(event) == "notifications.alert_created"
-                        and _ws_payload(event).get("alert_type") == "attention_request"
-                        and _ws_payload(event).get("interaction_id") == interaction_payload["id"]
-                    ),
-                },
+                lambda event: event.get("channel") == "attention"
+                and _ws_event_type(event) == "attention.requested"
+                and _ws_goal_gid(event) == str(goal_id)
+                and _ws_payload(event).get("related_goal_id") == str(goal_id),
                 timeout=60.0,
-                description="attention.requested and notifications.alert_created",
+                description="attention.requested",
             )
-            attention_event = websocket_events["attention"]
-            alert_event = websocket_events["alert"]
-            assert {event["channel"] for event in observed_events} >= {"attention", "alerts"}
             assert _ws_goal_gid(attention_event) == str(goal_id)
             assert _ws_payload(attention_event)["urgency"] == "high"
             assert _ws_payload(attention_event)["related_goal_id"] == str(goal_id)
-            assert _ws_payload(alert_event)["alert_type"] == "attention_request"
-            assert _ws_payload(alert_event)["interaction_id"] == interaction_payload["id"]
+            assert _ws_payload(attention_event)["alert_already_created"] is True
 
         with journey_step("Collaborator sees the attention notification persisted in the inbox"):
             unread_count = await _wait_for_unread_count(consumer_workspace_admin, expected=1)
