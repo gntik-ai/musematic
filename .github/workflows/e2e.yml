@@ -62,6 +62,17 @@ jobs:
       - name: Install E2E dependencies
         run: python -m pip install -e ".[e2e]"
 
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker build layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.musematic-buildx-cache
+          key: e2e-buildx-${{ runner.os }}-${{ hashFiles('apps/**/Dockerfile', 'services/**/Dockerfile', 'services/**/go.mod', 'services/**/go.sum', 'apps/control-plane/pyproject.toml', 'apps/control-plane/uv.lock', 'apps/web/package.json') }}
+          restore-keys: |
+            e2e-buildx-${{ runner.os }}-
+
       - name: Render kind config
         run: make render-kind-config
 
@@ -73,6 +84,10 @@ jobs:
 
       - name: Build and load local images
         run: make load-images
+        env:
+          DOCKER_BUILD_CACHE_DIR: /tmp/.musematic-buildx-cache
+          DOCKER_BUILD_CACHE_MODE: min
+          PRUNE_DOCKER_CACHE: "0"
 
       - name: Report Docker disk usage after image load
         run: docker system df || true

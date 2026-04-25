@@ -1120,7 +1120,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         PolicyEventConsumer(
             invalidate_bundle_by_revision=_build_policy_bundle_invalidator(app),
         ).register(consumer_manager)
-        if resolved.profile == "api":
+        if resolved.profile in {"api", "worker"}:
             AttentionConsumer(
                 settings=resolved,
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),

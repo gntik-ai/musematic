@@ -494,7 +494,10 @@ jobs:
 
       - name: Install kubeconform
         run: |
-          curl -sSL -o kubeconform.tar.gz https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
+          curl --fail --location --silent --show-error --retry 5 --retry-delay 5 --retry-all-errors \
+            -o kubeconform.tar.gz \
+            https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz
+          gzip -t kubeconform.tar.gz
           tar -xzf kubeconform.tar.gz kubeconform
           sudo install -m 0755 kubeconform /usr/local/bin/kubeconform
 

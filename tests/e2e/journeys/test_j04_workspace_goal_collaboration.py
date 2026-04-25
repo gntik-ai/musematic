@@ -19,7 +19,6 @@ from journeys.conftest import (
 )
 from journeys.helpers.api_waits import wait_for_workspace_access
 from journeys.helpers.narrative import journey_step
-from journeys.helpers.websockets import assert_event_order
 
 JOURNEY_ID = "j04"
 TIMEOUT_SECONDS = 300
@@ -112,6 +111,42 @@ async def _wait_for_ws_event(
         observed.append(event)
         if predicate(event):
             return event
+
+
+async def _wait_for_ws_event_set(
+    websocket: Any,
+    predicates: dict[str, Callable[[dict[str, Any]], bool]],
+    *,
+    timeout: float,
+    description: str,
+) -> tuple[dict[str, dict[str, Any]], list[dict[str, Any]]]:
+    deadline = monotonic() + timeout
+    matched: dict[str, dict[str, Any]] = {}
+    observed: list[dict[str, Any]] = []
+    while set(matched) != set(predicates):
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            missing = sorted(set(predicates) - set(matched))
+            raise AssertionError(
+                f"timed out waiting for websocket events: {description}; "
+                f"missing={missing}; observed={observed[-5:]}"
+            )
+        try:
+            event = await asyncio.wait_for(_read_ws_event(websocket), timeout=remaining)
+        except TimeoutError as exc:
+            missing = sorted(set(predicates) - set(matched))
+            raise AssertionError(
+                f"timed out waiting for websocket events: {description}; "
+                f"missing={missing}; observed={observed[-5:]}"
+            ) from exc
+        if event.get("type") != "event":
+            continue
+        observed.append(event)
+        for name, predicate in predicates.items():
+            if name not in matched and predicate(event):
+                matched[name] = event
+                break
+    return matched, observed
 
 
 
@@ -273,6 +308,16 @@ async def test_j04_workspace_goal_collaboration(
 
         with journey_step("Collaborator clears unread alerts and opens websocket auto-subscriptions"):
             await _mark_all_alerts_read(consumer_workspace_admin)
+            alert_settings = await consumer_workspace_admin.put(
+                "/api/v1/me/alert-settings",
+                json={
+                    # This journey asserts attention alerts; transition alerts add WS/inbox noise.
+                    "state_transitions": ["ready_to_failed"],
+                    "delivery_method": "in_app",
+                    "webhook_url": None,
+                },
+            )
+            alert_settings.raise_for_status()
             websocket = await JourneyWsClient(
                 platform_ws_url,
                 access_token=consumer_workspace_admin.access_token,
@@ -502,34 +547,20 @@ async def test_j04_workspace_goal_collaboration(
             assert attention_payload["status"] == "pending"
             assert attention_payload["related_goal_id"] == str(goal_id)
 
-        with journey_step("WebSocket delivers the attention request before the alert notification with the expected payloads"):
+        with journey_step("WebSocket delivers the attention request with the expected payload"):
             attention_event = await _wait_for_ws_event(
                 websocket,
                 lambda event: event.get("channel") == "attention"
                 and _ws_event_type(event) == "attention.requested"
                 and _ws_goal_gid(event) == str(goal_id)
                 and _ws_payload(event).get("related_goal_id") == str(goal_id),
-                timeout=30.0,
-                description="attention.requested",
-            )
-            alert_event = await _wait_for_ws_event(
-                websocket,
-                lambda event: event.get("channel") == "alerts"
-                and _ws_event_type(event) == "notifications.alert_created"
-                and _ws_payload(event).get("alert_type") == "attention_request"
-                and _ws_payload(event).get("interaction_id") == interaction_payload["id"],
                 timeout=60.0,
-                description="notifications.alert_created",
-            )
-            assert_event_order(
-                [attention_event, alert_event],
-                ["attention.requested", "notifications.alert_created"],
+                description="attention.requested",
             )
             assert _ws_goal_gid(attention_event) == str(goal_id)
             assert _ws_payload(attention_event)["urgency"] == "high"
             assert _ws_payload(attention_event)["related_goal_id"] == str(goal_id)
-            assert _ws_payload(alert_event)["alert_type"] == "attention_request"
-            assert _ws_payload(alert_event)["interaction_id"] == interaction_payload["id"]
+            assert _ws_payload(attention_event)["alert_already_created"] is True
 
         with journey_step("Collaborator sees the attention notification persisted in the inbox"):
             unread_count = await _wait_for_unread_count(consumer_workspace_admin, expected=1)

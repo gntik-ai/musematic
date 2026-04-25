@@ -9,6 +9,7 @@ NAMESPACE ?= platform
 
 PYTEST ?= python3 -m pytest
 E2E_TEST_PATHS ?= tests test_*.py
+E2E_JOURNEY_WORKERS ?= 4
 KIND_CONFIG_TEMPLATE := cluster/kind-config.yaml
 KIND_CONFIG_RENDERED := /tmp/kind-config-$(CLUSTER_NAME).yaml
 
@@ -45,7 +46,7 @@ e2e-test:
 
 e2e-journeys:
 	@mkdir -p reports
-	@$(PYTEST) journeys/ -n 3 --dist=loadfile -v -m journey --junitxml=reports/journeys-junit.xml --html=reports/journeys-report.html
+	@$(PYTEST) journeys/ -n $(E2E_JOURNEY_WORKERS) --dist=loadfile -v -m journey --junitxml=reports/journeys-junit.xml --html=reports/journeys-report.html
 
 e2e-j01:
 	@mkdir -p reports

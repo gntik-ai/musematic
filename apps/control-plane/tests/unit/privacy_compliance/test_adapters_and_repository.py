@@ -63,7 +63,11 @@ class QueryResult:
         return self.scalar
 
     def scalar_one(self) -> object:
-        return 1 if self.scalar is None else self.scalar
+        if self.scalar is not None:
+            return self.scalar
+        if self.items:
+            return self.items[0]
+        return 1
 
 
 class SessionStub:
@@ -108,6 +112,14 @@ async def test_repository_crud_and_state_helpers_cover_all_entities() -> None:
         granted=True,
         granted_at=now,
     )
+    ai_consent = PrivacyConsentRecord(
+        id=uuid4(),
+        user_id=user_id,
+        consent_type=ConsentType.ai_interaction.value,
+        granted=True,
+        granted_at=now,
+        workspace_id=workspace_id,
+    )
     rule = PrivacyDLPRule(
         id=uuid4(),
         name="rule",
@@ -144,7 +156,7 @@ async def test_repository_crud_and_state_helpers_cover_all_entities() -> None:
             QueryResult([SimpleNamespace(id=uuid4())]),
             QueryResult([pia]),
             QueryResult([pia]),
-            QueryResult(scalar=None),
+            QueryResult([ai_consent]),
             QueryResult([consent]),
             QueryResult([consent]),
             QueryResult([consent]),
@@ -260,6 +272,15 @@ async def test_repository_remaining_branches_and_getters() -> None:
         granted=True,
         granted_at=now,
     )
+    updated_consent = PrivacyConsentRecord(
+        id=consent.id,
+        user_id=user_id,
+        consent_type=ConsentType.ai_interaction.value,
+        granted=False,
+        granted_at=now,
+        revoked_at=now,
+        workspace_id=workspace_id,
+    )
     session = SessionStub(
         [
             QueryResult([dsr]),
@@ -267,7 +288,7 @@ async def test_repository_remaining_branches_and_getters() -> None:
             QueryResult([rule]),
             QueryResult([event]),
             QueryResult([pia]),
-            QueryResult(scalar=consent),
+            QueryResult(scalar=updated_consent),
         ]
     )
     repo = PrivacyComplianceRepository(session)  # type: ignore[arg-type]
@@ -302,7 +323,15 @@ async def test_repository_remaining_branches_and_getters() -> None:
     )
     assert updated.granted is False
 
-    fallback_session = SessionStub([QueryResult([]), QueryResult(scalar=None)])
+    fallback_revoked = PrivacyConsentRecord(
+        id=uuid4(),
+        user_id=user_id,
+        consent_type=ConsentType.training_use.value,
+        granted=False,
+        granted_at=now,
+        revoked_at=now,
+    )
+    fallback_session = SessionStub([QueryResult([]), QueryResult(scalar=fallback_revoked)])
     fallback_repo = PrivacyComplianceRepository(fallback_session)  # type: ignore[arg-type]
     revoked = await fallback_repo.revoke_consent(
         user_id=user_id,

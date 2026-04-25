@@ -114,6 +114,7 @@ class AttentionRequestedPayload(BaseModel):
     related_interaction_id: UUID | None
     related_goal_id: UUID | None
     context_summary: str | None = None
+    alert_already_created: bool = False
 
 
 INTERACTIONS_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {

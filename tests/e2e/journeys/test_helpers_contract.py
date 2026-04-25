@@ -7,7 +7,14 @@ import httpx
 import jwt
 import pytest
 
-from journeys.conftest import _mint_access_token, _oauth_provider_payload, _persona_email, _persona_roles, _persona_user_id
+from journeys.conftest import (
+    _grant_required_consents,
+    _mint_access_token,
+    _oauth_provider_payload,
+    _persona_email,
+    _persona_roles,
+    _persona_user_id,
+)
 from journeys.helpers.governance import create_governance_chain
 from journeys.helpers.websockets import subscribe_ws
 
@@ -151,6 +158,38 @@ async def test_create_governance_chain_rejects_wrong_agent_role() -> None:
             judge_fqn="journey:judge",
             enforcer_fqn="journey:enforcer",
         )
+
+
+@pytest.mark.asyncio
+async def test_grant_required_consents_records_all_privacy_choices() -> None:
+    workspace_id = uuid4()
+    client = _FakeClient(
+        {
+            ("PUT", "/api/v1/me/consents"): _json_response(
+                "PUT",
+                "/api/v1/me/consents",
+                {"items": []},
+            )
+        }
+    )
+
+    await _grant_required_consents(client, workspace_id=workspace_id)
+
+    assert client.calls == [
+        (
+            "PUT",
+            "/api/v1/me/consents",
+            None,
+            {
+                "choices": {
+                    "ai_interaction": True,
+                    "data_collection": True,
+                    "training_use": True,
+                },
+                "workspace_id": str(workspace_id),
+            },
+        )
+    ]
 
 
 class _FakeWebSocket:
