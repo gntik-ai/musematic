@@ -22,6 +22,11 @@ from journeys.helpers.oauth import oauth_login
 pytest_plugins = ["journeys.plugins.narrative_report"]
 
 _SESSION_ADMIN_BEARER_TOKEN: str | None = None
+_REQUIRED_CONSENT_CHOICES = {
+    "ai_interaction": True,
+    "data_collection": True,
+    "training_use": True,
+}
 
 _PERSONA_SPECS: dict[str, dict[str, Any]] = {
     "admin": {
@@ -317,8 +322,20 @@ async def _password_login_client(
         _env(password_env, default_password),
         totp_code=_env(totp_env, "") if totp_env else None,
     )
+    await _grant_required_consents(client)
     return client
 
+
+async def _grant_required_consents(
+    client: AuthenticatedAsyncClient,
+    *,
+    workspace_id: UUID | None = None,
+) -> None:
+    payload: dict[str, Any] = {"choices": dict(_REQUIRED_CONSENT_CHOICES)}
+    if workspace_id is not None:
+        payload["workspace_id"] = str(workspace_id)
+    response = await client.put("/api/v1/me/consents", json=payload)
+    response.raise_for_status()
 
 
 def _minted_persona_client(
@@ -622,6 +639,7 @@ async def admin_client(
     )
     client = http_client.clone()
     client.set_bearer_token(token)
+    await _grant_required_consents(client)
     return client
 
 
@@ -701,12 +719,14 @@ async def creator_client(
 ) -> AuthenticatedAsyncClient:
     del ensure_journey_personas
     client = http_client.clone()
-    return await oauth_login(
+    authenticated = await oauth_login(
         client,
         provider="github",
         mock_server=mock_github_oauth,
         login=_env("JOURNEY_CREATOR_GITHUB_LOGIN", "j-creator-gh"),
     )
+    await _grant_required_consents(authenticated)
+    return authenticated
 
 
 @pytest_asyncio.fixture
@@ -717,12 +737,14 @@ async def consumer_client(
 ) -> AuthenticatedAsyncClient:
     del ensure_journey_personas
     client = http_client.clone()
-    return await oauth_login(
+    authenticated = await oauth_login(
         client,
         provider="google",
         mock_server=mock_google_oidc,
         login=_env("JOURNEY_CONSUMER_GOOGLE_LOGIN", "j-consumer"),
     )
+    await _grant_required_consents(authenticated)
+    return authenticated
 
 
 @pytest.fixture
