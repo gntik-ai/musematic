@@ -77,6 +77,7 @@ class WorkspacesService:
         *,
         accounts_service: Any | None = None,
         cost_governance_service: Any | None = None,
+        incident_response_service: Any | None = None,
     ) -> None:
         self.repo = repo
         self.platform_settings = settings
@@ -84,6 +85,7 @@ class WorkspacesService:
         self.kafka_producer = kafka_producer
         self.accounts_service = accounts_service
         self.cost_governance_service = cost_governance_service
+        self.incident_response_service = incident_response_service
 
     async def create_workspace(
         self,
@@ -230,6 +232,8 @@ class WorkspacesService:
         )
         if self.cost_governance_service is not None:
             await self.cost_governance_service.handle_workspace_archived(archived.id)
+        if self.incident_response_service is not None:
+            await self.incident_response_service.handle_workspace_archived(archived.id)
         return self._workspace_response(archived)
 
     async def restore_workspace(

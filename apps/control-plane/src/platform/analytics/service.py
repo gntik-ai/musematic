@@ -32,10 +32,16 @@ from platform.analytics.schemas import (
 from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
+from platform.incident_response.schemas import IncidentSeverity, IncidentSignal
+from platform.incident_response.trigger_interface import get_incident_trigger
 from typing import Any, cast
 from uuid import UUID, uuid4
 
 LOGGER = logging.getLogger(__name__)
+INCIDENT_ALERT_RULE_CLASS = "budget_threshold_crossed"
+# Brownfield planning named analytics/services/alert_rules.py, which does not exist in
+# this codebase. The incident-response trigger hook lives at the existing threshold
+# firing site and calls the in-process IncidentTriggerInterface instead.
 
 
 class AnalyticsService:
@@ -255,7 +261,48 @@ class AnalyticsService:
                     correlation_id=uuid4(),
                 ),
             )
+            await self._maybe_fire_incident_for_budget_threshold(
+                workspace_id=workspace_id,
+                total_cost=total_cost,
+                threshold=threshold,
+            )
         return crossed
+
+    async def _maybe_fire_incident_for_budget_threshold(
+        self,
+        *,
+        workspace_id: UUID,
+        total_cost: float,
+        threshold: float,
+    ) -> None:
+        scenario = self.settings.incident_response.alert_rule_class_to_scenario.get(
+            INCIDENT_ALERT_RULE_CLASS
+        )
+        if scenario is None:
+            return
+        try:
+            await get_incident_trigger().fire(
+                IncidentSignal(
+                    alert_rule_class=INCIDENT_ALERT_RULE_CLASS,
+                    severity=IncidentSeverity.warning,
+                    title="Budget threshold crossed",
+                    description=(
+                        f"Workspace {workspace_id} spent ${total_cost:.2f}, "
+                        f"above the configured ${threshold:.2f} threshold."
+                    ),
+                    condition_fingerprint=(f"{INCIDENT_ALERT_RULE_CLASS}:workspace:{workspace_id}"),
+                    runbook_scenario=scenario,
+                    correlation_context=CorrelationContext(
+                        workspace_id=workspace_id,
+                        correlation_id=uuid4(),
+                    ),
+                )
+            )
+        except Exception:
+            LOGGER.exception(
+                "Failed to fire incident for analytics budget threshold",
+                extra={"workspace_id": str(workspace_id)},
+            )
 
     async def _assert_workspace_access(self, workspace_id: UUID, user_id: UUID) -> None:
         if self.workspaces_service is None:

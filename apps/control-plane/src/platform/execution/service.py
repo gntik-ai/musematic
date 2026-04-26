@@ -33,6 +33,7 @@ from platform.execution.models import (
     CompensationOutcome,
     Execution,
     ExecutionCompensationRecord,
+    ExecutionEvent,
     ExecutionEventType,
     ExecutionStatus,
 )
@@ -304,6 +305,15 @@ class ExecutionService:
             items=[ExecutionEventResponse.model_validate(event) for event in events],
             total=len(events),
         )
+
+    async def get_journal_in_window(
+        self,
+        execution_ids: list[UUID],
+        start_ts: datetime,
+        end_ts: datetime,
+    ) -> list[ExecutionEvent]:
+        """Return execution journal rows across executions for timeline assembly."""
+        return await self.repository.list_journal_in_window(execution_ids, start_ts, end_ts)
 
     async def replay_execution(self, execution_id: UUID) -> ExecutionStateResponse:
         """Replay execution."""

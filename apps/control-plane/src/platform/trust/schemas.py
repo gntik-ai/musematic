@@ -217,6 +217,7 @@ class CertificationResponse(BaseModel):
     external_certifier_id: UUID | None = None
     reassessment_schedule: str | None = None
     evidence_refs: list[EvidenceRefResponse] = Field(default_factory=list)
+    post_mortems: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class CertificationListResponse(BaseModel):
