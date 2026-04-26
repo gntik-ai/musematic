@@ -1,0 +1,32 @@
+global:
+  environment: production
+
+multi_region:
+  enabled: true
+  role: secondary
+  primaryRegion: eu-west
+  secondaryRegion: us-east
+  featureFlags:
+    FEATURE_MULTI_REGION: "true"
+    FEATURE_MAINTENANCE_MODE: "true"
+  endpointRefs:
+    postgresReplicaDsnRef: secret/data/multi-region/postgres/replica-dsn
+    kafkaAdminBrokersRef: secret/data/multi-region/kafka/admin-brokers
+    s3EndpointUrlRef: secret/data/multi-region/s3/endpoint-url
+    s3AccessKeyRef: secret/data/multi-region/s3/access-key
+    s3SecretKeyRef: secret/data/multi-region/s3/secret-key
+    qdrantApiKeyRef: secret/data/multi-region/qdrant/api-key
+    neo4jUriRef: secret/data/multi-region/neo4j/uri
+    neo4jUserRef: secret/data/multi-region/neo4j/user
+    neo4jPasswordRef: secret/data/multi-region/neo4j/password
+    opensearchApiKeyRef: secret/data/multi-region/opensearch/api-key
+  images:
+    tools: ghcr.io/musematic/platform-tools:latest
+    kafkaMirrorMaker: quay.io/strimzi/kafka:0.43.0-kafka-3.8.0
+
+controlPlane:
+  common:
+    extraEnv:
+      FEATURE_MULTI_REGION: "true"
+      FEATURE_MAINTENANCE_MODE: "true"
+

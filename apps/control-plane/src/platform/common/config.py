@@ -223,6 +223,21 @@ class CostGovernanceSettings(BaseSettings):
     attribution_fail_open: bool = True
 
 
+class MultiRegionOpsSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="MULTI_REGION_OPS_", extra="ignore")
+
+    replication_probe_interval_seconds: int = 60
+    replication_probe_request_timeout_seconds: float = 5.0
+    rpo_alert_sustained_intervals: int = 3
+    failover_lock_max_seconds: int = 3600
+    capacity_projection_interval_seconds: int = 3600
+    capacity_default_utilization_threshold: float = 0.8
+    capacity_saturation_horizon_days: int = 7
+    maintenance_announcement_lead_minutes: int = 60
+    replication_status_retention_days: int = 730
+    failover_plan_rehearsal_staleness_days: int = 90
+
+
 class IncidentResponseSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="INCIDENT_RESPONSE_",
@@ -749,6 +764,14 @@ class PlatformSettings(BaseSettings):
         default=False,
         validation_alias=AliasChoices("FEATURE_COST_HARD_CAPS", "PLATFORM_FEATURE_COST_HARD_CAPS"),
     )
+    feature_maintenance_mode: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("FEATURE_MAINTENANCE_MODE", "feature_maintenance_mode"),
+    )
+    feature_multi_region: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("FEATURE_MULTI_REGION", "feature_multi_region"),
+    )
     A2A_PROTOCOL_VERSION: str = "1.0"
     A2A_MAX_PAYLOAD_BYTES: int = 10_485_760
     A2A_TASK_IDLE_TIMEOUT_MINUTES: int = 30
@@ -776,6 +799,7 @@ class PlatformSettings(BaseSettings):
     ws_hub: WsHubSettings = Field(default_factory=WsHubSettings)
     analytics: AnalyticsSettings = Field(default_factory=AnalyticsSettings)
     cost_governance: CostGovernanceSettings = Field(default_factory=CostGovernanceSettings)
+    multi_region_ops: MultiRegionOpsSettings = Field(default_factory=MultiRegionOpsSettings)
     incident_response: IncidentResponseSettings = Field(default_factory=IncidentResponseSettings)
     visibility: VisibilitySettings = Field(default_factory=VisibilitySettings)
     privacy_compliance: PrivacyComplianceSettings = Field(default_factory=PrivacyComplianceSettings)
@@ -920,6 +944,8 @@ class PlatformSettings(BaseSettings):
             "CHECKPOINT_MAX_SIZE_BYTES": ("checkpoint_max_size_bytes",),
             "ANALYTICS_BUDGET_THRESHOLD_USD": ("analytics", "budget_threshold_usd"),
             "FEATURE_COST_HARD_CAPS": ("feature_cost_hard_caps",),
+            "FEATURE_MAINTENANCE_MODE": ("feature_maintenance_mode",),
+            "FEATURE_MULTI_REGION": ("feature_multi_region",),
             "COST_GOVERNANCE_ANOMALY_EVALUATION_INTERVAL_SECONDS": (
                 "cost_governance",
                 "anomaly_evaluation_interval_seconds",
@@ -964,6 +990,46 @@ class PlatformSettings(BaseSettings):
             "COST_GOVERNANCE_ATTRIBUTION_FAIL_OPEN": (
                 "cost_governance",
                 "attribution_fail_open",
+            ),
+            "MULTI_REGION_OPS_REPLICATION_PROBE_INTERVAL_SECONDS": (
+                "multi_region_ops",
+                "replication_probe_interval_seconds",
+            ),
+            "MULTI_REGION_OPS_REPLICATION_PROBE_REQUEST_TIMEOUT_SECONDS": (
+                "multi_region_ops",
+                "replication_probe_request_timeout_seconds",
+            ),
+            "MULTI_REGION_OPS_RPO_ALERT_SUSTAINED_INTERVALS": (
+                "multi_region_ops",
+                "rpo_alert_sustained_intervals",
+            ),
+            "MULTI_REGION_OPS_FAILOVER_LOCK_MAX_SECONDS": (
+                "multi_region_ops",
+                "failover_lock_max_seconds",
+            ),
+            "MULTI_REGION_OPS_CAPACITY_PROJECTION_INTERVAL_SECONDS": (
+                "multi_region_ops",
+                "capacity_projection_interval_seconds",
+            ),
+            "MULTI_REGION_OPS_CAPACITY_DEFAULT_UTILIZATION_THRESHOLD": (
+                "multi_region_ops",
+                "capacity_default_utilization_threshold",
+            ),
+            "MULTI_REGION_OPS_CAPACITY_SATURATION_HORIZON_DAYS": (
+                "multi_region_ops",
+                "capacity_saturation_horizon_days",
+            ),
+            "MULTI_REGION_OPS_MAINTENANCE_ANNOUNCEMENT_LEAD_MINUTES": (
+                "multi_region_ops",
+                "maintenance_announcement_lead_minutes",
+            ),
+            "MULTI_REGION_OPS_REPLICATION_STATUS_RETENTION_DAYS": (
+                "multi_region_ops",
+                "replication_status_retention_days",
+            ),
+            "MULTI_REGION_OPS_FAILOVER_PLAN_REHEARSAL_STALENESS_DAYS": (
+                "multi_region_ops",
+                "failover_plan_rehearsal_staleness_days",
             ),
             "INCIDENT_RESPONSE_DELIVERY_RETRY_INITIAL_SECONDS": (
                 "incident_response",
@@ -1554,6 +1620,14 @@ class PlatformSettings(BaseSettings):
     @property
     def FEATURE_COST_HARD_CAPS(self) -> bool:
         return self.feature_cost_hard_caps
+
+    @property
+    def FEATURE_MAINTENANCE_MODE(self) -> bool:
+        return self.feature_maintenance_mode
+
+    @property
+    def FEATURE_MULTI_REGION(self) -> bool:
+        return self.feature_multi_region
 
     @property
     def POSTGRES_DSN(self) -> str:

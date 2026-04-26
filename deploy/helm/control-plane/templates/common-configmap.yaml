@@ -55,3 +55,6 @@ data:
   AUTH_OAUTH_GITHUB_TEAMS_URL: {{ .Values.auth.oauth.github.teamsUrl | quote }}
   AUTH_OAUTH_GITHUB_ORG_MEMBERSHIP_URL_TEMPLATE: {{ .Values.auth.oauth.github.orgMembershipUrlTemplate | quote }}
   SECURITY_COMPLIANCE_MANUAL_EVIDENCE_BUCKET: {{ .Values.securityCompliance.manualEvidenceBucket | quote }}
+{{- range $name, $value := .Values.common.extraEnv }}
+  {{ $name }}: {{ $value | quote }}
+{{- end }}

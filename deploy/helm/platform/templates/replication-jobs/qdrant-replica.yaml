@@ -1,0 +1,22 @@
+{{- if .Values.multi_region.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-qdrant-replica
+  namespace: {{ .Release.Namespace }}
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: configure
+          image: {{ .Values.multi_region.images.tools | quote }}
+          command: ["/bin/sh", "-ec"]
+          args:
+            - echo "Configure Qdrant cluster replication"
+          env:
+            - name: QDRANT_API_KEY_REF
+              value: {{ .Values.multi_region.endpointRefs.qdrantApiKeyRef | quote }}
+{{- end }}
+

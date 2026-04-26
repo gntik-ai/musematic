@@ -1,0 +1,26 @@
+{{- if .Values.multi_region.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-neo4j-replica
+  namespace: {{ .Release.Namespace }}
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: configure
+          image: {{ .Values.multi_region.images.tools | quote }}
+          command: ["/bin/sh", "-ec"]
+          args:
+            - echo "Configure Neo4j cluster replica"
+          env:
+            - name: NEO4J_URI_REF
+              value: {{ .Values.multi_region.endpointRefs.neo4jUriRef | quote }}
+            - name: NEO4J_USER_REF
+              value: {{ .Values.multi_region.endpointRefs.neo4jUserRef | quote }}
+            - name: NEO4J_PASSWORD_REF
+              value: {{ .Values.multi_region.endpointRefs.neo4jPasswordRef | quote }}
+{{- end }}
+

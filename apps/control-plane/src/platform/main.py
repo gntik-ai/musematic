@@ -166,6 +166,18 @@ from platform.memory.memory_setup import setup_memory_collections
 from platform.memory.router import router as memory_router
 from platform.model_catalog.events import register_model_catalog_event_types
 from platform.model_catalog.router import router as model_catalog_router
+from platform.multi_region_ops.events import register_multi_region_ops_event_types
+from platform.multi_region_ops.jobs.capacity_projection_runner import (
+    build_capacity_projection_scheduler,
+)
+from platform.multi_region_ops.jobs.maintenance_window_runner import (
+    build_maintenance_window_scheduler,
+)
+from platform.multi_region_ops.jobs.replication_probe_runner import (
+    build_replication_probe_scheduler,
+)
+from platform.multi_region_ops.middleware.maintenance_gate import MaintenanceGateMiddleware
+from platform.multi_region_ops.router import router as multi_region_ops_router
 from platform.notifications.consumers.attention_consumer import AttentionConsumer
 from platform.notifications.consumers.state_change_consumer import StateChangeConsumer
 from platform.notifications.deliverers.webhook_deliverer import WebhookDeliverer
@@ -458,6 +470,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_privacy_event_types()
     register_model_catalog_event_types()
     register_incident_response_event_types()
+    register_multi_region_ops_event_types()
     register_incident_trigger(AppIncidentTrigger(app))
 
     for name, client in app.state.clients.items():
@@ -692,6 +705,21 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         "incident_response_runbook_freshness_scheduler",
         None,
     )
+    multi_region_replication_probe_scheduler = getattr(
+        app.state,
+        "multi_region_replication_probe_scheduler",
+        None,
+    )
+    multi_region_maintenance_window_scheduler = getattr(
+        app.state,
+        "multi_region_maintenance_window_scheduler",
+        None,
+    )
+    multi_region_capacity_projection_scheduler = getattr(
+        app.state,
+        "multi_region_capacity_projection_scheduler",
+        None,
+    )
     robustness_orchestrator_scheduler = getattr(
         app.state,
         "robustness_orchestrator_scheduler",
@@ -892,6 +920,19 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["incident_response_runbook_freshness_scheduler"] = str(exc)
             LOGGER.warning("Failed to start incident response runbook freshness scheduler: %s", exc)
+    for scheduler_name, scheduler in (
+        ("multi_region_replication_probe_scheduler", multi_region_replication_probe_scheduler),
+        ("multi_region_maintenance_window_scheduler", multi_region_maintenance_window_scheduler),
+        ("multi_region_capacity_projection_scheduler", multi_region_capacity_projection_scheduler),
+    ):
+        if scheduler is None:
+            continue
+        try:
+            scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors[scheduler_name] = str(exc)
+            LOGGER.warning("Failed to start %s: %s", scheduler_name, exc)
     try:
         await _load_trust_runtime_assets(app)
     except Exception as exc:
@@ -931,6 +972,23 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                     "Failed to stop incident response runbook freshness scheduler cleanly: %s",
                     exc,
                 )
+        for scheduler_name, scheduler in (
+            ("multi_region_replication_probe_scheduler", multi_region_replication_probe_scheduler),
+            (
+                "multi_region_maintenance_window_scheduler",
+                multi_region_maintenance_window_scheduler,
+            ),
+            (
+                "multi_region_capacity_projection_scheduler",
+                multi_region_capacity_projection_scheduler,
+            ),
+        ):
+            if scheduler is None:
+                continue
+            try:
+                scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop %s cleanly: %s", scheduler_name, exc)
         if cost_forecast_scheduler is not None:
             try:
                 cost_forecast_scheduler.shutdown(wait=False)
@@ -1201,6 +1259,9 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.model_catalog_auto_deprecation_scheduler = None
     app.state.incident_response_delivery_retry_scheduler = None
     app.state.incident_response_runbook_freshness_scheduler = None
+    app.state.multi_region_replication_probe_scheduler = None
+    app.state.multi_region_maintenance_window_scheduler = None
+    app.state.multi_region_capacity_projection_scheduler = None
     if resolved.profile == "api":
         app.state.ibor_sync_scheduler = _build_ibor_sync_scheduler(app)
         app.state.refresh_ibor_sync_scheduler = lambda: _refresh_ibor_sync_scheduler(app)
@@ -1282,6 +1343,13 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.incident_response_runbook_freshness_scheduler = build_runbook_freshness_scheduler(
             app
         )
+        app.state.multi_region_replication_probe_scheduler = build_replication_probe_scheduler(app)
+        app.state.multi_region_maintenance_window_scheduler = build_maintenance_window_scheduler(
+            app
+        )
+        app.state.multi_region_capacity_projection_scheduler = build_capacity_projection_scheduler(
+            app
+        )
         app.state.debug_logging_capture_gc_scheduler = _build_debug_logging_capture_gc_scheduler(
             app
         )
@@ -1298,6 +1366,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.add_middleware(ApiVersioningMiddleware)
     app.add_middleware(DebugCaptureMiddleware)
     app.add_middleware(RateLimitMiddleware)
+    app.add_middleware(MaintenanceGateMiddleware)
     app.add_middleware(AuthMiddleware)
     app.add_middleware(CorrelationMiddleware)
     app.include_router(health_router)
@@ -1510,6 +1579,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(audit_router)
         app.include_router(security_compliance_router)
         app.include_router(incident_response_router)
+        app.include_router(multi_region_ops_router)
 
     _register_deprecated_routes(app)
     _install_openapi_factory(app)
