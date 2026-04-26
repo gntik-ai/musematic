@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from platform.common.exceptions import ValidationError
 from platform.trust.contract_schemas import ReassessmentCreate
 from platform.trust.exceptions import (
+    CertificationBlockedError,
     CertificationNotFoundError,
     CertificationStateError,
     CertifierNotFoundError,
@@ -14,6 +15,7 @@ from platform.trust.exceptions import (
 from platform.trust.models import CertificationStatus, TrustRecertificationRequest
 from platform.trust.schemas import EvidenceRefCreate
 from platform.trust.service import CertificationService, ensure_active_certification
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -158,6 +160,91 @@ async def test_certification_service_certified_checks_and_uuid_coercion() -> Non
 
 def test_ensure_active_certification_accepts_active_state() -> None:
     ensure_active_certification(build_certification(status=CertificationStatus.active))
+
+
+class FairnessGateStub:
+    def __init__(self, latest: object | None, any_age: object | None = None) -> None:
+        self.latest = latest
+        self.any_age = any_age
+        self.calls: list[dict[str, Any]] = []
+
+    async def get_latest_passing_evaluation(self, **kwargs: Any) -> object | None:
+        self.calls.append(kwargs)
+        return self.latest
+
+    async def get_latest_passing_evaluation_any_age(self, **kwargs: Any) -> object | None:
+        self.calls.append({"any_age": True, **kwargs})
+        return self.any_age
+
+
+@pytest.mark.asyncio
+async def test_certification_fairness_gate_blocks_high_impact_without_eval() -> None:
+    bundle = build_trust_bundle()
+    service = bundle.certification_service
+    gate = FairnessGateStub(None)
+    service.fairness_gate = gate
+    agent_id = uuid4()
+
+    with pytest.raises(CertificationBlockedError) as exc_info:
+        await service._assert_fairness_gate(
+            build_certification_create().model_copy(
+                update={
+                    "agent_id": str(agent_id),
+                    "agent_revision_id": "rev-fairness",
+                    "high_impact_use": True,
+                }
+            )
+        )
+
+    assert exc_info.value.details["reason"] == "fairness_evaluation_required"
+    assert gate.calls[0]["agent_id"] == agent_id
+    assert gate.calls[0]["agent_revision_id"] == "rev-fairness"
+
+
+@pytest.mark.asyncio
+async def test_certification_fairness_gate_passes_with_recent_eval() -> None:
+    bundle = build_trust_bundle()
+    service = bundle.certification_service
+    gate = FairnessGateStub(object())
+    service.fairness_gate = gate
+    agent_id = uuid4()
+
+    await service._assert_fairness_gate(
+        build_certification_create().model_copy(
+            update={
+                "agent_id": str(agent_id),
+                "agent_revision_id": "rev-fairness",
+                "high_impact_use": True,
+            }
+        )
+    )
+    await service._assert_fairness_gate(
+        build_certification_create().model_copy(update={"high_impact_use": False})
+    )
+
+    assert len(gate.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_certification_fairness_gate_blocks_stale_eval() -> None:
+    bundle = build_trust_bundle()
+    service = bundle.certification_service
+    gate = FairnessGateStub(None, any_age=object())
+    service.fairness_gate = gate
+    agent_id = uuid4()
+
+    with pytest.raises(CertificationBlockedError) as exc_info:
+        await service._assert_fairness_gate(
+            build_certification_create().model_copy(
+                update={
+                    "agent_id": str(agent_id),
+                    "agent_revision_id": "rev-fairness",
+                    "high_impact_use": True,
+                }
+            )
+        )
+
+    assert exc_info.value.details["reason"] == "fairness_evaluation_stale"
 
 
 @pytest.mark.asyncio

@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import statistics
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from platform.audit.repository import AuditChainRepository
+from platform.audit.service import AuditChainService
+from platform.common.audit_hook import audit_chain_hook
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import NotFoundError
@@ -12,6 +15,7 @@ from platform.evaluation.events import (
     CalibrationCompletedPayload,
     CalibrationStartedPayload,
     EvaluationEventType,
+    FairnessEvaluationCompletedPayload,
     RubricArchivedPayload,
     RubricCreatedPayload,
     RubricUpdatedPayload,
@@ -36,6 +40,7 @@ from platform.evaluation.models import (
     CalibrationRunStatus,
     EvalSet,
     EvaluationRun,
+    FairnessEvaluation,
     JudgeVerdict,
     Rubric,
     RubricStatus,
@@ -59,6 +64,10 @@ from platform.evaluation.schemas import (
     EvaluationRunCreate,
     EvaluationRunListResponse,
     EvaluationRunResponse,
+    FairnessEvaluationSummary,
+    FairnessMetricRow,
+    FairnessRunRequest,
+    FairnessRunResponse,
     JudgeVerdictListResponse,
     JudgeVerdictResponse,
     RubricCreate,
@@ -67,6 +76,7 @@ from platform.evaluation.schemas import (
     RubricUpdate,
 )
 from platform.evaluation.scorers.base import ScoreResult
+from platform.evaluation.scorers.fairness import FairnessScorer
 from platform.evaluation.scorers.registry import ScorerRegistry
 from typing import Any, cast
 from uuid import UUID, uuid4
@@ -1130,3 +1140,191 @@ class EvalRunnerService:
     @traced_async("evaluation.eval_runner.commit")
     async def _commit(self) -> None:
         await self.repository.session.commit()
+
+
+class FairnessEvaluationService:
+    def __init__(
+        self,
+        *,
+        repository: EvaluationRepository,
+        settings: Any,
+        producer: EventProducer | None = None,
+        scorer: FairnessScorer | None = None,
+    ) -> None:
+        self.repository = repository
+        self.settings = settings
+        self.producer = producer
+        self.scorer = scorer or FairnessScorer()
+
+    async def run_fairness_evaluation(
+        self,
+        request: FairnessRunRequest,
+        *,
+        evaluated_by: UUID | None = None,
+    ) -> FairnessRunResponse:
+        evaluation_run_id = request.evaluation_run_id or uuid4()
+        result = await self.scorer.score_suite(
+            evaluation_run_id=evaluation_run_id,
+            agent_id=request.agent_id,
+            agent_revision_id=request.agent_revision_id,
+            suite_id=request.suite_id,
+            cases=request.cases,
+            config=request.config,
+            evaluated_by=evaluated_by,
+        )
+        if request.config.preview:
+            result.notes.append("preview_uses_mock_llm_outputs")
+        rows = [
+            FairnessEvaluation(
+                evaluation_run_id=row.evaluation_run_id,
+                agent_id=row.agent_id,
+                agent_revision_id=row.agent_revision_id,
+                suite_id=row.suite_id,
+                metric_name=row.metric_name,
+                group_attribute=row.group_attribute,
+                per_group_scores=row.per_group_scores,
+                spread=row.spread,
+                fairness_band=row.fairness_band,
+                passed=row.passed,
+                coverage=row.coverage,
+                notes=row.notes,
+                evaluated_by=row.evaluated_by,
+            )
+            for row in result.rows
+        ]
+        await self.repository.insert_fairness_evaluation_rows(rows)
+        for row in result.rows:
+            await self._append_metric_audit(row, request.workspace_id)
+        await self.repository.session.commit()
+        await publish_evaluation_event(
+            self.producer,
+            EvaluationEventType.fairness_completed,
+            FairnessEvaluationCompletedPayload(
+                evaluation_run_id=evaluation_run_id,
+                agent_id=request.agent_id,
+                agent_revision_id=request.agent_revision_id,
+                suite_id=request.suite_id,
+                overall_passed=result.overall_passed,
+                metric_count=len(result.rows),
+            ),
+            CorrelationContext(
+                correlation_id=uuid4(),
+                workspace_id=request.workspace_id,
+            ),
+        )
+        return FairnessRunResponse(
+            evaluation_run_id=evaluation_run_id,
+            status="completed",
+            rows=result.rows,
+            overall_passed=result.overall_passed,
+            notes=result.notes,
+        )
+
+    async def get_fairness_run(self, evaluation_run_id: UUID) -> FairnessRunResponse:
+        rows = await self.repository.get_fairness_evaluation_run(evaluation_run_id)
+        return FairnessRunResponse(
+            evaluation_run_id=evaluation_run_id,
+            status="completed" if rows else "not_found",
+            rows=[
+                FairnessMetricRow(
+                    evaluation_run_id=row.evaluation_run_id,
+                    agent_id=row.agent_id,
+                    agent_revision_id=row.agent_revision_id,
+                    suite_id=row.suite_id,
+                    metric_name=row.metric_name,
+                    group_attribute=row.group_attribute,
+                    per_group_scores=row.per_group_scores,
+                    spread=row.spread,
+                    fairness_band=row.fairness_band,
+                    passed=row.passed,
+                    coverage=row.coverage,
+                    notes=row.notes,
+                    evaluated_by=row.evaluated_by,
+                    computed_at=row.computed_at,
+                )
+                for row in rows
+            ],
+            overall_passed=all(row.passed for row in rows) if rows else None,
+        )
+
+    async def get_latest_passing_evaluation(
+        self,
+        *,
+        agent_id: UUID,
+        agent_revision_id: str,
+        staleness_days: int,
+    ) -> FairnessEvaluationSummary | None:
+        cutoff = datetime.now(UTC) - timedelta(days=staleness_days)
+        row = await self.repository.get_latest_passing_fairness_evaluation(
+            agent_id,
+            agent_revision_id,
+            cutoff,
+        )
+        if row is None:
+            return None
+        run_rows = await self.repository.get_fairness_evaluation_run(row.evaluation_run_id)
+        return FairnessEvaluationSummary(
+            evaluation_run_id=row.evaluation_run_id,
+            agent_id=row.agent_id,
+            agent_revision_id=row.agent_revision_id,
+            suite_id=row.suite_id,
+            overall_passed=all(item.passed for item in run_rows),
+            metric_count=len(run_rows),
+            computed_at=row.computed_at,
+        )
+
+    async def get_latest_passing_evaluation_any_age(
+        self,
+        *,
+        agent_id: UUID,
+        agent_revision_id: str,
+    ) -> FairnessEvaluationSummary | None:
+        row = await self.repository.get_latest_passing_fairness_evaluation_any_age(
+            agent_id,
+            agent_revision_id,
+        )
+        if row is None:
+            return None
+        run_rows = await self.repository.get_fairness_evaluation_run(row.evaluation_run_id)
+        return FairnessEvaluationSummary(
+            evaluation_run_id=row.evaluation_run_id,
+            agent_id=row.agent_id,
+            agent_revision_id=row.agent_revision_id,
+            suite_id=row.suite_id,
+            overall_passed=all(item.passed for item in run_rows),
+            metric_count=len(run_rows),
+            computed_at=row.computed_at,
+        )
+
+    async def _append_metric_audit(
+        self,
+        row: FairnessMetricRow,
+        workspace_id: UUID | None,
+    ) -> None:
+        if not hasattr(self.settings, "audit") or not callable(
+            getattr(self.repository.session, "execute", None)
+        ):
+            return
+        audit_chain = AuditChainService(
+            AuditChainRepository(self.repository.session),
+            self.settings,
+            producer=self.producer,
+        )
+        await audit_chain_hook(
+            audit_chain,
+            None,
+            "evaluation.fairness.metric",
+            {
+                "workspace_id": workspace_id,
+                "evaluation_run_id": row.evaluation_run_id,
+                "agent_id": row.agent_id,
+                "agent_revision_id": row.agent_revision_id,
+                "suite_id": row.suite_id,
+                "metric_name": row.metric_name,
+                "group_attribute": row.group_attribute,
+                "spread": row.spread,
+                "fairness_band": row.fairness_band,
+                "passed": row.passed,
+                "computed_at": datetime.now(UTC),
+            },
+        )

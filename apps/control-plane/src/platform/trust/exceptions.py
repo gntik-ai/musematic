@@ -68,7 +68,7 @@ class CertificationStateError(TrustError):
 
 
 class CertificationBlockedError(TrustError):
-    status_code = 403
+    status_code = 409
 
     def __init__(self, reason: str, detail: str) -> None:
         super().__init__(
@@ -141,3 +141,61 @@ class ContractConflictError(TrustError):
 
     def __init__(self, code: str, message: str, details: dict[str, object] | None = None) -> None:
         super().__init__(code, message, details)
+
+
+class ModerationProviderError(TrustError):
+    status_code = 502
+
+    def __init__(self, provider: str, message: str = "Moderation provider failed") -> None:
+        super().__init__(
+            "TRUST_MODERATION_PROVIDER_ERROR",
+            message,
+            {"provider": provider},
+        )
+
+
+class ModerationProviderTimeoutError(ModerationProviderError):
+    status_code = 504
+
+    def __init__(self, provider: str) -> None:
+        super().__init__(provider, "Moderation provider timed out")
+
+
+class ModerationPolicyNotFoundError(TrustError):
+    status_code = 404
+
+    def __init__(self, policy_id: object) -> None:
+        super().__init__(
+            "TRUST_MODERATION_POLICY_NOT_FOUND",
+            "Moderation policy not found",
+            {"policy_id": str(policy_id)},
+        )
+
+
+class ModerationCostCapExceededError(TrustError):
+    status_code = 429
+
+    def __init__(self, workspace_id: object) -> None:
+        super().__init__(
+            "TRUST_MODERATION_COST_CAP_EXCEEDED",
+            "Content moderation monthly cost cap exceeded",
+            {"workspace_id": str(workspace_id)},
+        )
+
+
+class ResidencyDisallowedProviderError(TrustError):
+    status_code = 403
+
+    def __init__(self, provider: str) -> None:
+        super().__init__(
+            "TRUST_MODERATION_RESIDENCY_DISALLOWED",
+            "Provider egress is disallowed by residency policy",
+            {"provider": provider},
+        )
+
+
+class InvalidModerationPolicyError(TrustError):
+    status_code = 400
+
+    def __init__(self, message: str) -> None:
+        super().__init__("TRUST_MODERATION_POLICY_INVALID", message)

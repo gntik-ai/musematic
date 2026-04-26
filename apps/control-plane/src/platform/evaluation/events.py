@@ -27,6 +27,7 @@ class EvaluationEventType(StrEnum):
     calibration_started = "evaluation.calibration.started"
     calibration_completed = "evaluation.calibration.completed"
     judge_adhoc = "evaluation.judge.adhoc"
+    fairness_completed = "evaluation.fairness.completed"
 
 
 class RunStartedPayload(BaseModel):
@@ -143,6 +144,15 @@ class AdHocJudgePayload(BaseModel):
     duration_ms: int
 
 
+class FairnessEvaluationCompletedPayload(BaseModel):
+    evaluation_run_id: UUID
+    agent_id: UUID
+    agent_revision_id: str
+    suite_id: UUID
+    overall_passed: bool
+    metric_count: int
+
+
 EVALUATION_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     EvaluationEventType.run_started.value: RunStartedPayload,
     EvaluationEventType.run_completed.value: RunCompletedPayload,
@@ -160,6 +170,7 @@ EVALUATION_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     EvaluationEventType.calibration_started.value: CalibrationStartedPayload,
     EvaluationEventType.calibration_completed.value: CalibrationCompletedPayload,
     EvaluationEventType.judge_adhoc.value: AdHocJudgePayload,
+    EvaluationEventType.fairness_completed.value: FairnessEvaluationCompletedPayload,
 }
 
 
@@ -203,6 +214,7 @@ async def publish_evaluation_event(
         or getattr(payload, "grade_id", None)
         or getattr(payload, "rubric_id", None)
         or getattr(payload, "principal_id", None)
+        or getattr(payload, "evaluation_run_id", None)
         or correlation_ctx.correlation_id
     )
     await _publish(

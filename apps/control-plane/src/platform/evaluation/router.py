@@ -25,6 +25,7 @@ from platform.evaluation.dependencies import (
     get_calibration_service,
     get_eval_runner_service,
     get_eval_suite_service,
+    get_fairness_service,
     get_human_grading_service,
     get_robustness_service,
     get_rubric_service,
@@ -62,6 +63,8 @@ from platform.evaluation.schemas import (
     EvaluationRunCreate,
     EvaluationRunListResponse,
     EvaluationRunResponse,
+    FairnessRunRequest,
+    FairnessRunResponse,
     HumanAiGradeResponse,
     HumanGradeSubmit,
     HumanGradeUpdate,
@@ -82,6 +85,7 @@ from platform.evaluation.service import (
     CalibrationService,
     EvalRunnerService,
     EvalSuiteService,
+    FairnessEvaluationService,
     RubricService,
 )
 from platform.execution.dependencies import build_execution_service
@@ -133,6 +137,38 @@ def _workspace_id(
     if payload_workspace_id is not None and workspace_id != payload_workspace_id:
         raise ValidationError("WORKSPACE_MISMATCH", "Payload workspace_id does not match request")
     return workspace_id
+
+
+@router.post(
+    "/fairness/run",
+    response_model=FairnessRunResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    tags=["evaluation-fairness"],
+)
+async def run_fairness_evaluation(
+    payload: FairnessRunRequest,
+    request: Request,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    service: FairnessEvaluationService = Depends(get_fairness_service),
+) -> FairnessRunResponse:
+    _require_roles(current_user, {"evaluator", "workspace_admin", "superadmin"})
+    workspace_id = _workspace_id(request, current_user, payload.workspace_id)
+    payload.workspace_id = workspace_id
+    return await service.run_fairness_evaluation(payload, evaluated_by=_actor_id(current_user))
+
+
+@router.get(
+    "/fairness/runs/{evaluation_run_id}",
+    response_model=FairnessRunResponse,
+    tags=["evaluation-fairness"],
+)
+async def get_fairness_run(
+    evaluation_run_id: UUID,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    service: FairnessEvaluationService = Depends(get_fairness_service),
+) -> FairnessRunResponse:
+    _require_roles(current_user, {"evaluator", "workspace_admin", "superadmin"})
+    return await service.get_fairness_run(evaluation_run_id)
 
 
 def _build_execution_query(app: FastAPI, session: Any) -> Any:

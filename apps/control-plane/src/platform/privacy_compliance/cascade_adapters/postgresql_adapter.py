@@ -69,6 +69,8 @@ USER_IDENTITY_COLUMNS: dict[str, list[str]] = {
     "privacy_impact_assessments": ["submitted_by", "approved_by"],
     "privacy_consent_records": ["user_id"],
     "a2a_external_endpoints": ["created_by"],
+    "content_moderation_policies": ["created_by"],
+    "fairness_evaluations": ["evaluated_by"],
 }
 
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from platform.evaluation.scorers.base import Scorer
 from platform.evaluation.scorers.exact_match import ExactMatchScorer
+from platform.evaluation.scorers.fairness import FairnessScorer
 from platform.evaluation.scorers.json_schema import JsonSchemaScorer
 from platform.evaluation.scorers.llm_judge import LLMJudgeScorer
 from platform.evaluation.scorers.regex import RegexScorer
@@ -36,3 +37,4 @@ default_scorer_registry.register("json_schema", JsonSchemaScorer())
 default_scorer_registry.register("semantic", SemanticSimilarityScorer())
 default_scorer_registry.register("llm_judge", LLMJudgeScorer())
 default_scorer_registry.register("trajectory", TrajectoryScorer())
+default_scorer_registry.register("fairness", FairnessScorer())

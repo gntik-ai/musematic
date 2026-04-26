@@ -475,6 +475,30 @@ class TrustSettings(BaseSettings):
     default_workspace_id: str = "00000000-0000-0000-0000-000000000000"
 
 
+class ContentModerationSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="CONTENT_MODERATION_",
+        extra="ignore",
+        populate_by_name=True,
+    )
+
+    enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "FEATURE_CONTENT_MODERATION",
+            "CONTENT_MODERATION_ENABLED",
+        ),
+    )
+    default_per_call_timeout_ms: int = 2000
+    default_per_execution_budget_ms: int = 5000
+    default_monthly_cost_cap_eur: float = 50.0
+    default_fairness_band: float = 0.10
+    default_min_group_size: int = 5
+    default_fairness_staleness_days: int = 90
+    audit_all_evaluations: bool = False
+    self_hosted_model_name: str = "unitary/multilingual-toxic-xlm-roberta"
+
+
 class AgentOpsSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="AGENTOPS_", extra="ignore")
 
@@ -688,9 +712,7 @@ class PlatformSettings(BaseSettings):
     ws_hub: WsHubSettings = Field(default_factory=WsHubSettings)
     analytics: AnalyticsSettings = Field(default_factory=AnalyticsSettings)
     visibility: VisibilitySettings = Field(default_factory=VisibilitySettings)
-    privacy_compliance: PrivacyComplianceSettings = Field(
-        default_factory=PrivacyComplianceSettings
-    )
+    privacy_compliance: PrivacyComplianceSettings = Field(default_factory=PrivacyComplianceSettings)
     api_governance: ApiGovernanceSettings = Field(default_factory=ApiGovernanceSettings)
     registry: RegistrySettings = Field(default_factory=RegistrySettings)
     context_engineering: ContextEngineeringSettings = Field(
@@ -708,6 +730,7 @@ class PlatformSettings(BaseSettings):
     model_catalog: ModelCatalogSettings = Field(default_factory=ModelCatalogSettings)
     discovery: DiscoverySettings = Field(default_factory=DiscoverySettings)
     simulation: SimulationSettings = Field(default_factory=SimulationSettings)
+    content_moderation: ContentModerationSettings = Field(default_factory=ContentModerationSettings)
     audit: AuditSettings = Field(default_factory=AuditSettings)
     security_compliance: SecurityComplianceSettings = Field(
         default_factory=SecurityComplianceSettings
@@ -1181,6 +1204,40 @@ class PlatformSettings(BaseSettings):
             ),
             "TRUST_ATTENTION_TARGET_IDENTITY": ("trust", "attention_target_identity"),
             "TRUST_DEFAULT_WORKSPACE_ID": ("trust", "default_workspace_id"),
+            "FEATURE_CONTENT_MODERATION": ("content_moderation", "enabled"),
+            "CONTENT_MODERATION_ENABLED": ("content_moderation", "enabled"),
+            "CONTENT_MODERATION_DEFAULT_PER_CALL_TIMEOUT_MS": (
+                "content_moderation",
+                "default_per_call_timeout_ms",
+            ),
+            "CONTENT_MODERATION_DEFAULT_PER_EXECUTION_BUDGET_MS": (
+                "content_moderation",
+                "default_per_execution_budget_ms",
+            ),
+            "CONTENT_MODERATION_DEFAULT_MONTHLY_COST_CAP_EUR": (
+                "content_moderation",
+                "default_monthly_cost_cap_eur",
+            ),
+            "CONTENT_MODERATION_DEFAULT_FAIRNESS_BAND": (
+                "content_moderation",
+                "default_fairness_band",
+            ),
+            "CONTENT_MODERATION_DEFAULT_MIN_GROUP_SIZE": (
+                "content_moderation",
+                "default_min_group_size",
+            ),
+            "CONTENT_MODERATION_DEFAULT_FAIRNESS_STALENESS_DAYS": (
+                "content_moderation",
+                "default_fairness_staleness_days",
+            ),
+            "CONTENT_MODERATION_AUDIT_ALL_EVALUATIONS": (
+                "content_moderation",
+                "audit_all_evaluations",
+            ),
+            "CONTENT_MODERATION_SELF_HOSTED_MODEL_NAME": (
+                "content_moderation",
+                "self_hosted_model_name",
+            ),
             "AGENTOPS_HEALTH_SCORING_INTERVAL_MINUTES": (
                 "agentops",
                 "health_scoring_interval_minutes",
@@ -1333,6 +1390,10 @@ class PlatformSettings(BaseSettings):
     @property
     def FEATURE_ALLOW_HTTP_WEBHOOKS(self) -> bool:
         return self.notifications.allow_http_webhooks
+
+    @property
+    def FEATURE_CONTENT_MODERATION(self) -> bool:
+        return self.content_moderation.enabled
 
     @property
     def POSTGRES_DSN(self) -> str:

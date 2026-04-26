@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 import json
-from datetime import datetime
-from platform.common.dependencies import get_current_user
+from datetime import UTC, datetime
+from platform.audit.dependencies import build_audit_chain_service
+from platform.common.audit_hook import audit_chain_hook
+from platform.common.dependencies import get_current_user, get_db
 from platform.common.exceptions import AuthorizationError, ValidationError
 from platform.trust.ate_service import ATEService
 from platform.trust.circuit_breaker import CircuitBreakerService
@@ -45,6 +48,8 @@ from platform.trust.oje_pipeline import OJEPipelineService
 from platform.trust.prescreener import SafetyPreScreenerService
 from platform.trust.privacy_assessment import PrivacyAssessmentService
 from platform.trust.recertification import RecertificationService
+from platform.trust.routers.moderation_events_router import router as moderation_events_router
+from platform.trust.routers.moderation_policies_router import router as moderation_policies_router
 from platform.trust.schemas import (
     ATEConfigCreate,
     ATEConfigListResponse,
@@ -89,8 +94,11 @@ from uuid import UUID
 
 import yaml
 from fastapi import APIRouter, Body, Depends, Query, Request, Response, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(tags=["trust"])
+router.include_router(moderation_policies_router)
+router.include_router(moderation_events_router)
 
 
 def _role_names(current_user: dict[str, Any]) -> set[str]:
@@ -120,6 +128,62 @@ def _workspace_id(current_user: dict[str, Any]) -> UUID:
         return UUID(str(raw))
     except ValueError as exc:
         raise ValidationError("WORKSPACE_INVALID", "Authenticated workspace_id is invalid") from exc
+
+
+@router.post("/disclosure/version", tags=["trust-content-moderation"])
+async def update_disclosure_version(
+    request: Request,
+    payload: dict[str, Any] = Body(...),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    _require_roles(current_user, {"workspace_admin", "platform_admin", "superadmin"})
+    text = str(payload.get("text") or "").strip()
+    if not text:
+        raise ValidationError("DISCLOSURE_TEXT_REQUIRED", "Disclosure text is required")
+    await _append_disclosure_audit(
+        request,
+        session,
+        current_user,
+        text,
+        bool(payload.get("material")),
+    )
+    return {
+        "disclosure_text_ref": "/api/v1/me/consents/disclosure",
+        "material": bool(payload.get("material")),
+        "updated": True,
+    }
+
+
+async def _append_disclosure_audit(
+    request: Request,
+    session: AsyncSession,
+    current_user: dict[str, Any],
+    text: str,
+    material: bool,
+) -> None:
+    settings = getattr(request.app.state, "settings", None)
+    if settings is None or not hasattr(settings, "audit") or not callable(
+        getattr(session, "execute", None)
+    ):
+        return
+    clients = getattr(request.app.state, "clients", {})
+    audit_chain = build_audit_chain_service(
+        session=session,
+        settings=settings,
+        producer=clients.get("kafka") if hasattr(clients, "get") else None,
+    )
+    await audit_chain_hook(
+        audit_chain,
+        None,
+        "trust.disclosure.version",
+        {
+            "actor_id": current_user.get("sub"),
+            "material": material,
+            "text_hash": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            "occurred_at": datetime.now(UTC),
+        },
+    )
 
 
 @router.post(

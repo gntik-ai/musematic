@@ -181,6 +181,9 @@ jobs:
       - name: Lint direct LLM calls
         run: python ../../ci/lint_llm_calls.py --root ../..
 
+      - name: Lint sensitive log leakage
+        run: python ../../ci/check_sensitive_logs.py tests src
+
   typecheck-python:
     name: Type-check Python
     needs: changes

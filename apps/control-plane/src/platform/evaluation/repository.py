@@ -9,6 +9,7 @@ from platform.evaluation.models import (
     CalibrationRun,
     EvalSet,
     EvaluationRun,
+    FairnessEvaluation,
     HumanAiGrade,
     JudgeVerdict,
     RobustnessTestRun,
@@ -26,6 +27,61 @@ from sqlalchemy.orm import selectinload
 class EvaluationRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+
+    async def insert_fairness_evaluation_rows(
+        self,
+        rows: list[FairnessEvaluation],
+    ) -> list[FairnessEvaluation]:
+        self.session.add_all(rows)
+        await self.session.flush()
+        return rows
+
+    async def get_fairness_evaluation_run(
+        self,
+        evaluation_run_id: UUID,
+    ) -> list[FairnessEvaluation]:
+        result = await self.session.execute(
+            select(FairnessEvaluation)
+            .where(FairnessEvaluation.evaluation_run_id == evaluation_run_id)
+            .order_by(
+                FairnessEvaluation.metric_name.asc(), FairnessEvaluation.group_attribute.asc()
+            )
+        )
+        return list(result.scalars().all())
+
+    async def get_latest_passing_fairness_evaluation(
+        self,
+        agent_id: UUID,
+        agent_revision_id: str,
+        staleness_cutoff: datetime,
+    ) -> FairnessEvaluation | None:
+        result = await self.session.execute(
+            select(FairnessEvaluation)
+            .where(
+                FairnessEvaluation.agent_id == agent_id,
+                FairnessEvaluation.agent_revision_id == agent_revision_id,
+                FairnessEvaluation.passed.is_(True),
+                FairnessEvaluation.computed_at >= staleness_cutoff,
+            )
+            .order_by(FairnessEvaluation.computed_at.desc(), FairnessEvaluation.id.desc())
+        )
+        return result.scalars().first()
+
+    async def get_latest_passing_fairness_evaluation_any_age(
+        self,
+        agent_id: UUID,
+        agent_revision_id: str,
+    ) -> FairnessEvaluation | None:
+        result = await self.session.execute(
+            select(FairnessEvaluation)
+            .where(
+                FairnessEvaluation.agent_id == agent_id,
+                FairnessEvaluation.agent_revision_id == agent_revision_id,
+                FairnessEvaluation.passed.is_(True),
+            )
+            .order_by(FairnessEvaluation.computed_at.desc(), FairnessEvaluation.id.desc())
+        )
+        return result.scalars().first()
 
     async def create_eval_set(self, eval_set: EvalSet) -> EvalSet:
         self.session.add(eval_set)

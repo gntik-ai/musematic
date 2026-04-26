@@ -308,9 +308,11 @@ class ContractService:
         )
         total = int(stats["total_contract_attached"])
         compliance_rate = None if total == 0 else float(stats["compliant"]) / float(total)
-        trend = [] if total == 0 else [
-            ComplianceTrendPoint.model_validate(item) for item in stats.get("trend", [])
-        ]
+        trend = (
+            []
+            if total == 0
+            else [ComplianceTrendPoint.model_validate(item) for item in stats.get("trend", [])]
+        )
         return ComplianceRateResponse(
             scope=query.scope,
             scope_id=query.scope_id,
