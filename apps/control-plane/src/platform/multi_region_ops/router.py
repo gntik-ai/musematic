@@ -131,9 +131,9 @@ async def get_replication_status(
                         ReplicationStatusResponse(
                             source_region=primary.region_code,
                             target_region=target.region_code,
-                            component=component,  # type: ignore[arg-type]
+                            component=component,
                             lag_seconds=None,
-                            health="unhealthy",  # type: ignore[arg-type]
+                            health="unhealthy",
                             error_detail="replication status missing",
                             threshold_seconds=target.rpo_target_minutes * 60,
                             missing_probe=True,

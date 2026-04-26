@@ -28,7 +28,7 @@ from platform.multi_region_ops.schemas import (
     MaintenanceWindowCreateRequest,
     MaintenanceWindowUpdateRequest,
 )
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID, uuid4
 
 
@@ -160,7 +160,7 @@ class MaintenanceModeService:
         window_id: UUID,
         *,
         by_user_id: UUID | None = None,
-        disable_kind: str = "manual",
+        disable_kind: Literal["manual", "scheduled", "failed"] = "manual",
     ) -> MaintenanceWindow:
         window = await self.repository.get_window(window_id)
         if window is None:
@@ -192,7 +192,7 @@ class MaintenanceModeService:
             MaintenanceModeDisabledPayload(
                 window_id=window.id,
                 disabled_at=disabled_at,
-                disable_kind=disable_kind,  # type: ignore[arg-type]
+                disable_kind=disable_kind,
             ),
             correlation_ctx,
         )
