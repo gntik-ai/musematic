@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from sqlalchemy import column, literal_column, table
-from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.dialects.postgresql import JSONB, insert
 from sqlalchemy.sql.selectable import TableClause
 
 RUNBOOKS_V1: tuple[dict[str, Any], ...] = (
@@ -189,7 +189,7 @@ def _runbooks_table() -> TableClause:
         column("scenario"),
         column("title"),
         column("symptoms"),
-        column("diagnostic_commands"),
+        column("diagnostic_commands", JSONB()),
         column("remediation_steps"),
         column("escalation_path"),
         column("status"),
