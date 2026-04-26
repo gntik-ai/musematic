@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import StrEnum
 from platform.trust.models import (
     CertificationStatus,
     EvidenceType,
@@ -13,7 +14,156 @@ from platform.trust.models import (
 from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+class Category(StrEnum):
+    toxicity = "toxicity"
+    hate_speech = "hate_speech"
+    violence_self_harm = "violence_self_harm"
+    sexually_explicit = "sexually_explicit"
+    pii_leakage = "pii_leakage"
+
+
+class ModerationAction(StrEnum):
+    block = "block"
+    redact = "redact"
+    flag = "flag"
+
+
+class ModerationProviderName(StrEnum):
+    openai = "openai"
+    anthropic = "anthropic"
+    google_perspective = "google_perspective"
+    self_hosted = "self_hosted"
+
+
+class TieBreakRule(StrEnum):
+    max_score = "max_score"
+    min_score = "min_score"
+    primary_only = "primary_only"
+
+
+class ProviderFailureAction(StrEnum):
+    fail_closed = "fail_closed"
+    fail_open = "fail_open"
+
+
+class AgentAllowlistEntry(BaseModel):
+    agent_id: UUID | None = None
+    agent_fqn: str | None = Field(default=None, max_length=512)
+    categories: list[Category] = Field(default_factory=list)
+    action: ModerationAction | None = None
+
+
+class ProviderVerdict(BaseModel):
+    provider: str
+    scores: dict[Category | str, float] = Field(default_factory=dict)
+    triggered_categories: list[Category | str] = Field(default_factory=list)
+    language: str | None = None
+    latency_ms: int | None = None
+
+
+class ModerationVerdict(BaseModel):
+    action: str
+    content: str
+    original_content_preserved_in_audit: bool = False
+    triggered_categories: list[str] = Field(default_factory=list)
+    scores: dict[str, float] = Field(default_factory=dict)
+    provider: str | None = None
+    policy_id: UUID | None = None
+    event_id: UUID | None = None
+    audit_chain_ref: str | None = None
+    reason: str | None = None
+
+
+class ModerationPolicyCreateRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    categories: list[Category] = Field(default_factory=lambda: list(Category))
+    thresholds: dict[Category | str, float] = Field(default_factory=dict)
+    action_map: dict[Category | str, ModerationAction] = Field(default_factory=dict)
+    default_action: ModerationAction = ModerationAction.flag
+    primary_provider: ModerationProviderName | str
+    fallback_provider: ModerationProviderName | str | None = None
+    tie_break_rule: TieBreakRule = TieBreakRule.max_score
+    provider_failure_action: ProviderFailureAction = ProviderFailureAction.fail_closed
+    language_pins: dict[str, ModerationProviderName | str] = Field(default_factory=dict)
+    agent_allowlist: list[AgentAllowlistEntry] = Field(default_factory=list)
+    monthly_cost_cap_eur: float = Field(default=50.0, ge=0)
+    per_call_timeout_ms: int = Field(default=2000, gt=0)
+    per_execution_budget_ms: int = Field(default=5000, gt=0)
+
+    @model_validator(mode="after")
+    def validate_categories(self) -> ModerationPolicyCreateRequest:
+        category_values = {
+            str(item.value if isinstance(item, Category) else item) for item in self.categories
+        }
+        for mapping_name, mapping in (
+            ("thresholds", self.thresholds),
+            ("action_map", self.action_map),
+        ):
+            unknown = {
+                str(key.value if isinstance(key, Category) else key) for key in mapping
+            } - category_values
+            if unknown:
+                raise ValueError(f"{mapping_name} references unknown categories: {sorted(unknown)}")
+        return self
+
+
+class ModerationPolicyResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    workspace_id: UUID
+    version: int
+    active: bool
+    categories: list[str]
+    thresholds: dict[str, float]
+    action_map: dict[str, str]
+    default_action: str
+    primary_provider: str
+    fallback_provider: str | None
+    tie_break_rule: str
+    provider_failure_action: str
+    language_pins: dict[str, str]
+    agent_allowlist: list[dict[str, Any]]
+    monthly_cost_cap_eur: float
+    per_call_timeout_ms: int
+    per_execution_budget_ms: int
+    created_by: UUID | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ModerationPolicyTestRequest(BaseModel):
+    content: str = Field(min_length=1, max_length=10000)
+    language: str | None = Field(default=None, max_length=32)
+    agent_id: UUID | None = None
+    agent_fqn: str | None = Field(default=None, max_length=512)
+
+
+class ModerationPolicyTestResponse(BaseModel):
+    verdict: ModerationVerdict
+    persisted: bool = False
+
+
+class ModerationEventResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    workspace_id: UUID
+    execution_id: UUID | None
+    agent_id: UUID | None
+    policy_id: UUID | None
+    provider: str
+    triggered_categories: list[str]
+    scores: dict[str, float]
+    action_taken: str
+    language_detected: str | None
+    latency_ms: int | None
+    audit_chain_ref: str | None
+    created_at: datetime
 
 
 class EvidenceRefCreate(BaseModel):
@@ -41,6 +191,7 @@ class CertificationCreate(BaseModel):
     agent_fqn: str = Field(min_length=1, max_length=512)
     agent_revision_id: str = Field(min_length=1, max_length=255)
     data_categories: list[str] = Field(default_factory=list)
+    high_impact_use: bool = False
     expires_at: datetime | None = None
 
 

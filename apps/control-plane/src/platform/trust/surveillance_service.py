@@ -132,10 +132,7 @@ class SurveillanceService:
             item
             for item in certifications
             if item.status in {CertificationStatus.active, CertificationStatus.expiring}
-            and (
-                item.expires_at is not None
-                or item.reassessment_schedule is not None
-            )
+            and (item.expires_at is not None or item.reassessment_schedule is not None)
         ]
 
     async def handle_material_change(self, envelope: Any) -> None:

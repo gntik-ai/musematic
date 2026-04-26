@@ -1,5 +1,7 @@
 .git
 .gitignore
+.dockerignore
+Dockerfile*
 .idea
 .vscode
 .pytest_cache
@@ -7,6 +9,7 @@
 __pycache__
 *.pyc
 *.log
+*.log*
 *.tmp
 .env
 .env.*

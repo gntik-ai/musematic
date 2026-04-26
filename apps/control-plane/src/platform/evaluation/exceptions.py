@@ -84,3 +84,28 @@ class CooperationModeTooFewAgentsError(EvaluationError):
             "EVALUATION_COOPERATION_TOO_FEW_AGENTS",
             "Cooperation mode requires at least two execution ids",
         )
+
+
+class InsufficientGroupsError(EvaluationError):
+    status_code = 400
+
+    def __init__(self, group_attribute: str) -> None:
+        super().__init__(
+            "EVALUATION_FAIRNESS_INSUFFICIENT_GROUPS",
+            "At least two sufficiently-sized groups are required",
+            {"group_attribute": group_attribute},
+        )
+
+
+class FairnessRunFailedError(EvaluationError):
+    status_code = 500
+
+    def __init__(self, message: str) -> None:
+        super().__init__("EVALUATION_FAIRNESS_RUN_FAILED", message)
+
+
+class FairnessConfigError(EvaluationError):
+    status_code = 400
+
+    def __init__(self, message: str) -> None:
+        super().__init__("EVALUATION_FAIRNESS_CONFIG_INVALID", message)

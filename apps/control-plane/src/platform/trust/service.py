@@ -1,8 +1,12 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from platform.audit.repository import AuditChainRepository
+from platform.audit.service import AuditChainService
+from platform.common.audit_hook import audit_chain_hook
 from platform.common.exceptions import ValidationError
+from platform.evaluation.repository import EvaluationRepository
 from platform.model_catalog.models import ModelCard, ModelCatalogEntry
 from platform.registry.models import AgentProfile
 from platform.trust.contract_schemas import (
@@ -47,7 +51,7 @@ from platform.trust.schemas import (
     EvidenceRefCreate,
     EvidenceRefResponse,
 )
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import select
@@ -60,14 +64,17 @@ class CertificationService:
         repository: TrustRepository,
         settings: Any,
         producer: Any | None,
+        fairness_gate: Any | None = None,
     ) -> None:
         self.repository = repository
         self.settings = settings
         self.events = TrustEventPublisher(producer)
+        self.fairness_gate = fairness_gate
 
     async def create(self, data: CertificationCreate, issuer_id: str) -> CertificationResponse:
         await self._assert_pia_gate(data)
         await self._ensure_bound_model_has_card(data.agent_id)
+        await self._assert_fairness_gate(data)
         certification = await self.repository.create_certification(
             TrustCertification(
                 agent_id=data.agent_id,
@@ -124,6 +131,100 @@ class CertificationService:
                 "pia_required",
                 f"Agent {data.agent_id} declares privacy-sensitive data categories.",
             )
+
+    async def _assert_fairness_gate(self, data: CertificationCreate) -> None:
+        high_impact = data.high_impact_use or "high_impact_use" in {
+            item.casefold() for item in data.data_categories
+        }
+        if not high_impact:
+            return
+        try:
+            agent_id = UUID(data.agent_id)
+        except ValueError:
+            return
+        staleness_days = int(
+            getattr(self.settings.content_moderation, "default_fairness_staleness_days", 90)
+        )
+        if self.fairness_gate is not None:
+            latest = await self.fairness_gate.get_latest_passing_evaluation(
+                agent_id=agent_id,
+                agent_revision_id=data.agent_revision_id,
+                staleness_days=staleness_days,
+            )
+            stale_latest = (
+                None
+                if latest is not None
+                else await self._get_stale_fairness_gate_result(agent_id, data.agent_revision_id)
+            )
+        else:
+            cutoff = datetime.now(UTC) - timedelta(days=staleness_days)
+            evaluation_repo = EvaluationRepository(self.repository.session)
+            latest = await evaluation_repo.get_latest_passing_fairness_evaluation(
+                agent_id,
+                data.agent_revision_id,
+                cutoff,
+            )
+            stale_latest = await evaluation_repo.get_latest_passing_fairness_evaluation_any_age(
+                agent_id,
+                data.agent_revision_id,
+            )
+        if latest is not None:
+            await self._append_fairness_gate_audit(data, "passed")
+            return
+        reason = (
+            "fairness_evaluation_stale"
+            if stale_latest is not None
+            else "fairness_evaluation_required"
+        )
+        await self._append_fairness_gate_audit(data, reason)
+        if stale_latest is not None:
+            raise CertificationBlockedError(
+                "fairness_evaluation_stale",
+                "High-impact agents require a non-stale passing fairness evaluation.",
+            )
+        if latest is None:
+            raise CertificationBlockedError(
+                "fairness_evaluation_required",
+                "High-impact agents require a recent passing fairness evaluation.",
+            )
+
+    async def _get_stale_fairness_gate_result(
+        self,
+        agent_id: UUID,
+        agent_revision_id: str,
+    ) -> object | None:
+        getter = getattr(self.fairness_gate, "get_latest_passing_evaluation_any_age", None)
+        if getter is None:
+            return None
+        result = await getter(agent_id=agent_id, agent_revision_id=agent_revision_id)
+        return cast(object | None, result)
+
+    async def _append_fairness_gate_audit(
+        self,
+        data: CertificationCreate,
+        outcome: str,
+    ) -> None:
+        if not hasattr(self.settings, "audit") or not callable(
+            getattr(self.repository.session, "execute", None)
+        ):
+            return
+        audit_chain = AuditChainService(
+            AuditChainRepository(self.repository.session),
+            self.settings,
+            producer=getattr(self.events, "producer", None),
+        )
+        await audit_chain_hook(
+            audit_chain,
+            None,
+            "trust.certification.fairness_gate",
+            {
+                "agent_id": data.agent_id,
+                "agent_revision_id": data.agent_revision_id,
+                "high_impact_use": data.high_impact_use,
+                "outcome": outcome,
+                "occurred_at": datetime.now(UTC),
+            },
+        )
 
     async def list_for_agent(self, agent_id: str) -> list[CertificationResponse]:
         certifications = await self.repository.list_certifications_for_agent(agent_id)

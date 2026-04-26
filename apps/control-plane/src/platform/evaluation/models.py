@@ -14,6 +14,7 @@ from uuid import UUID
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
@@ -77,6 +78,12 @@ class CalibrationRunStatus(StrEnum):
 class ReviewDecision(StrEnum):
     confirmed = "confirmed"
     overridden = "overridden"
+
+
+class FairnessMetricName(StrEnum):
+    demographic_parity = "demographic_parity"
+    equal_opportunity = "equal_opportunity"
+    calibration = "calibration"
 
 
 class EvalSet(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin, SoftDeleteMixin):
@@ -254,6 +261,63 @@ class JudgeVerdict(Base, UUIDMixin, TimestampMixin):
         "platform.evaluation.models.HumanAiGrade",
         back_populates="verdict",
         uselist=False,
+    )
+
+
+class FairnessEvaluation(Base, UUIDMixin):
+    __tablename__ = "fairness_evaluations"
+    __table_args__ = (
+        CheckConstraint(
+            "metric_name IN ('demographic_parity','equal_opportunity','calibration')",
+            name="ck_fairness_eval_metric_name",
+        ),
+        CheckConstraint(
+            "fairness_band >= 0 AND fairness_band <= 1",
+            name="ck_fairness_eval_band_range",
+        ),
+        UniqueConstraint(
+            "evaluation_run_id",
+            "metric_name",
+            "group_attribute",
+            name="uq_fairness_eval_run_metric_attribute",
+        ),
+        Index(
+            "idx_fairness_eval_agent_revision",
+            "agent_id",
+            "agent_revision_id",
+            "computed_at",
+        ),
+    )
+
+    evaluation_run_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
+    agent_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("registry_agent_profiles.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    agent_revision_id: Mapped[str] = mapped_column(String(length=255), nullable=False)
+    suite_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
+    metric_name: Mapped[str] = mapped_column(String(length=64), nullable=False)
+    group_attribute: Mapped[str] = mapped_column(String(length=128), nullable=False)
+    per_group_scores: Mapped[dict[str, float]] = mapped_column(
+        JSONB(none_as_null=False), nullable=False, default=dict
+    )
+    spread: Mapped[float] = mapped_column(Float(), nullable=False)
+    fairness_band: Mapped[float] = mapped_column(Float(), nullable=False)
+    passed: Mapped[bool] = mapped_column(Boolean(), nullable=False)
+    coverage: Mapped[dict[str, Any]] = mapped_column(
+        JSONB(none_as_null=False), nullable=False, default=dict
+    )
+    notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    evaluated_by: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    computed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
     )
 
 

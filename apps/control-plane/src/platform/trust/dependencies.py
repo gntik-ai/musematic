@@ -7,6 +7,8 @@ from platform.common.clients.simulation_controller import SimulationControllerCl
 from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_db
 from platform.common.events.producer import EventProducer
+from platform.evaluation.repository import EvaluationRepository
+from platform.evaluation.service import FairnessEvaluationService
 from platform.interactions.dependencies import get_interactions_service
 from platform.interactions.service import InteractionsService
 from platform.policies.dependencies import get_policy_service
@@ -24,9 +26,19 @@ from platform.trust.privacy_assessment import PrivacyAssessmentService
 from platform.trust.recertification import RecertificationService
 from platform.trust.repository import TrustRepository
 from platform.trust.service import CertificationService
+from platform.trust.services.content_moderator import ContentModerator
+from platform.trust.services.moderation_providers import ModerationProviderRegistry
+from platform.trust.services.moderation_providers.anthropic_safety import AnthropicSafetyProvider
+from platform.trust.services.moderation_providers.google_perspective import (
+    GooglePerspectiveProvider,
+)
+from platform.trust.services.moderation_providers.openai_moderation import OpenAIModerationProvider
+from platform.trust.services.moderation_providers.self_hosted_classifier import (
+    SelfHostedClassifierProvider,
+)
 from platform.trust.surveillance_service import SurveillanceService
 from platform.trust.trust_tier import TrustTierService
-from typing import cast
+from typing import Any, cast
 
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -59,16 +71,135 @@ def _get_simulation_controller(request: Request) -> SimulationControllerClient |
     )
 
 
+class EmptySecretProvider:
+    async def get_secret(self, path: str) -> dict[str, Any]:
+        del path
+        return {}
+
+    async def read_secret(self, path: str) -> dict[str, Any]:
+        return await self.get_secret(path)
+
+
+class AllowAllResidencyService:
+    async def allow_egress(self, *, workspace_id: object, provider: str) -> bool:
+        del workspace_id, provider
+        return True
+
+
+def get_secret_provider() -> EmptySecretProvider:
+    return EmptySecretProvider()
+
+
+def get_residency_service() -> AllowAllResidencyService:
+    return AllowAllResidencyService()
+
+
+def get_audit_chain_service() -> None:
+    return None
+
+
+def build_moderation_provider_registry(
+    *,
+    settings: PlatformSettings,
+    secret_provider: Any | None = None,
+    model_router: Any | None = None,
+) -> ModerationProviderRegistry:
+    registry = ModerationProviderRegistry()
+    timeout_ms = settings.content_moderation.default_per_call_timeout_ms
+    registry.register(
+        "openai",
+        OpenAIModerationProvider(secret_provider=secret_provider, timeout_ms=timeout_ms),
+    )
+    registry.register(
+        "anthropic",
+        AnthropicSafetyProvider(
+            model_router=model_router,
+            secret_provider=secret_provider,
+            timeout_ms=timeout_ms,
+        ),
+    )
+    registry.register(
+        "google_perspective",
+        GooglePerspectiveProvider(secret_provider=secret_provider, timeout_ms=timeout_ms),
+    )
+    registry.register(
+        "self_hosted",
+        SelfHostedClassifierProvider(model_name=settings.content_moderation.self_hosted_model_name),
+    )
+    return registry
+
+
+async def get_moderation_provider_registry(
+    request: Request,
+    secret_provider: EmptySecretProvider = Depends(get_secret_provider),
+) -> ModerationProviderRegistry:
+    return build_moderation_provider_registry(
+        settings=_get_settings(request),
+        secret_provider=secret_provider,
+        model_router=request.app.state.clients.get("model_router"),
+    )
+
+
+def build_content_moderator(
+    *,
+    session: AsyncSession,
+    settings: PlatformSettings,
+    producer: EventProducer | None,
+    redis_client: AsyncRedisClient,
+    registry: ModerationProviderRegistry,
+    residency_service: Any | None,
+    secret_provider: Any | None,
+    audit_chain: Any | None,
+) -> ContentModerator:
+    return ContentModerator(
+        repository=TrustRepository(session),
+        providers=registry,
+        policy_engine=None,
+        residency_service=residency_service,
+        secrets=secret_provider,
+        audit_chain=audit_chain,
+        producer=producer,
+        redis=redis_client,
+        settings=settings,
+    )
+
+
+async def get_content_moderator(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+    registry: ModerationProviderRegistry = Depends(get_moderation_provider_registry),
+    residency_service: AllowAllResidencyService = Depends(get_residency_service),
+    secret_provider: EmptySecretProvider = Depends(get_secret_provider),
+    audit_chain: None = Depends(get_audit_chain_service),
+) -> ContentModerator:
+    return build_content_moderator(
+        session=session,
+        settings=_get_settings(request),
+        producer=_get_producer(request),
+        redis_client=_get_redis(request),
+        registry=registry,
+        residency_service=residency_service,
+        secret_provider=secret_provider,
+        audit_chain=audit_chain,
+    )
+
+
 def build_certification_service(
     *,
     session: AsyncSession,
     settings: PlatformSettings,
     producer: EventProducer | None,
 ) -> CertificationService:
+    fairness_gate = FairnessEvaluationService(
+        repository=EvaluationRepository(session),
+        settings=settings,
+        producer=producer,
+    )
     return CertificationService(
         repository=TrustRepository(session),
         settings=settings,
         producer=producer,
+        fairness_gate=fairness_gate,
     )
 
 
@@ -159,6 +290,7 @@ def build_guardrail_pipeline_service(
     producer: EventProducer | None,
     policy_engine: PolicyService | None,
     pre_screener: SafetyPreScreenerService | None = None,
+    content_moderator: ContentModerator | None = None,
 ) -> GuardrailPipelineService:
     return GuardrailPipelineService(
         repository=TrustRepository(session),
@@ -166,6 +298,7 @@ def build_guardrail_pipeline_service(
         producer=producer,
         policy_engine=policy_engine,
         pre_screener=pre_screener,
+        content_moderator=content_moderator,
     )
 
 
@@ -173,6 +306,7 @@ async def get_guardrail_pipeline_service(
     request: Request,
     session: AsyncSession = Depends(get_db),
     policy_service: PolicyService = Depends(get_policy_service),
+    content_moderator: ContentModerator = Depends(get_content_moderator),
 ) -> GuardrailPipelineService:
     prescreener_service = await get_prescreener_service(request=request, session=session)
     return build_guardrail_pipeline_service(
@@ -181,6 +315,7 @@ async def get_guardrail_pipeline_service(
         producer=_get_producer(request),
         policy_engine=policy_service,
         pre_screener=prescreener_service,
+        content_moderator=content_moderator,
     )
 
 

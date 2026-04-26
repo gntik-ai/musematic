@@ -1,6 +1,6 @@
 # musematic Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-25
+Auto-generated from all feature plans. Last updated: 2026-04-26
 
 ## Active Technologies
 - Python 3.12+ (control plane client), Go 1.22+ (reasoning engine client) + `redis-py 5.x` (Python async), `go-redis/redis/v9` (Go), Bitnami `redis-cluster` Helm chart (002-redis-cache-hot-state)
@@ -123,6 +123,7 @@ Auto-generated from all feature plans. Last updated: 2026-04-25
 - PostgreSQL — 3 new tables (`notification_channel_configs`, `outbound_webhooks`, `webhook_deliveries`), 3 additive `DeliveryMethod` enum values (`slack`, `teams`, `sms`); Redis — 3 new key namespaces (`notifications:webhook_lease:{id}`, `notifications:webhook_dlq_depth`, `notifications:channel_verify:{token}` for verification challenges); Vault — 1 path family (`secret/data/notifications/webhook-secrets/{webhook_id}`, `secret/data/notifications/sms-providers/{deployment}`). (077-multi-channel-notifications)
 - Python 3.12+ (control plane). No Go changes. (076-privacy-compliance)
 - Python 3.12+ (control plane). No Go changes — (075-model-catalog-fallback)
+- PostgreSQL — 3 new tables (`content_moderation_policies`, `content_moderation_events`, `fairness_evaluations`). No new Redis keys (cost cap and threshold-cooldown counters reuse existing notifications counters where applicable). Vault — 1 new path family (`secret/data/trust/moderation-providers/{provider}/{deployment}`). (078-content-safety-fairness)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -142,9 +143,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 078-content-safety-fairness: Added Python 3.12+ (control plane). No Go changes.
 - main: Added Python 3.12+ (control plane). No Go changes.
 - 077-multi-channel-notifications: Added control-plane multi-channel notifications with user channels, outbound webhooks, Slack/Teams/SMS adapters, dead-letter replay, retry/verification/DLQ schedulers, and Grafana channel observability.
-- 076-privacy-compliance: Added Python 3.12+ (control plane). No Go changes.
 
 
 <!-- MANUAL ADDITIONS START -->

@@ -9,6 +9,8 @@ from platform.trust.models import (
     AgentContract,
     CertificationStatus,
     Certifier,
+    ContentModerationEvent,
+    ContentModerationPolicy,
     ContractBreachEvent,
     GuardrailLayer,
     ReassessmentRecord,
@@ -32,7 +34,7 @@ from platform.trust.models import (
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import String, cast, func, or_, select, true
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -40,6 +42,162 @@ from sqlalchemy.orm import selectinload
 class TrustRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+
+    async def get_active_moderation_policy(
+        self,
+        workspace_id: UUID,
+    ) -> ContentModerationPolicy | None:
+        result = await self.session.execute(
+            select(ContentModerationPolicy).where(
+                ContentModerationPolicy.workspace_id == workspace_id,
+                ContentModerationPolicy.active.is_(True),
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def list_moderation_policy_versions(
+        self,
+        workspace_id: UUID,
+    ) -> list[ContentModerationPolicy]:
+        result = await self.session.execute(
+            select(ContentModerationPolicy)
+            .where(ContentModerationPolicy.workspace_id == workspace_id)
+            .order_by(ContentModerationPolicy.version.desc())
+        )
+        return list(result.scalars().all())
+
+    async def create_moderation_policy(
+        self,
+        policy: ContentModerationPolicy,
+    ) -> ContentModerationPolicy:
+        if policy.active:
+            current = await self.get_active_moderation_policy(policy.workspace_id)
+            if current is not None:
+                current.active = False
+                policy.version = current.version + 1
+        self.session.add(policy)
+        await self.session.flush()
+        return policy
+
+    async def update_moderation_policy(
+        self,
+        policy_id: UUID,
+        fields: dict[str, Any],
+    ) -> ContentModerationPolicy | None:
+        policy = await self.get_moderation_policy(policy_id)
+        if policy is None:
+            return None
+        for key, value in fields.items():
+            setattr(policy, key, value)
+        await self.session.flush()
+        return policy
+
+    async def deactivate_moderation_policy(
+        self,
+        policy_id: UUID,
+    ) -> ContentModerationPolicy | None:
+        policy = await self.get_moderation_policy(policy_id)
+        if policy is None:
+            return None
+        policy.active = False
+        await self.session.flush()
+        return policy
+
+    async def get_moderation_policy(
+        self,
+        policy_id: UUID,
+    ) -> ContentModerationPolicy | None:
+        return await self.session.get(ContentModerationPolicy, policy_id)
+
+    async def insert_moderation_event(
+        self,
+        event: ContentModerationEvent,
+    ) -> ContentModerationEvent:
+        self.session.add(event)
+        await self.session.flush()
+        return event
+
+    async def get_moderation_event(
+        self,
+        event_id: UUID,
+    ) -> ContentModerationEvent | None:
+        return await self.session.get(ContentModerationEvent, event_id)
+
+    async def list_moderation_events(
+        self,
+        filters: dict[str, Any],
+    ) -> tuple[list[ContentModerationEvent], int]:
+        clauses = self._moderation_event_filters(filters)
+        total = await self.session.scalar(
+            select(func.count()).select_from(ContentModerationEvent).where(*clauses)
+        )
+        result = await self.session.execute(
+            select(ContentModerationEvent)
+            .where(*clauses)
+            .order_by(ContentModerationEvent.created_at.desc(), ContentModerationEvent.id.desc())
+            .limit(int(filters.get("limit") or 100))
+        )
+        return list(result.scalars().all()), int(total or 0)
+
+    async def aggregate_moderation_events(
+        self,
+        filters: dict[str, Any],
+        group_by: list[str],
+    ) -> list[dict[str, Any]]:
+        clauses = self._moderation_event_filters(filters)
+        dimensions: dict[str, Any] = {}
+        category_values = None
+        statement_from: Any = ContentModerationEvent
+        if "category" in group_by:
+            category_values = func.jsonb_array_elements_text(
+                ContentModerationEvent.triggered_categories
+            ).table_valued("category")
+            statement_from = ContentModerationEvent.__table__.join(category_values, true())
+            dimensions["category"] = category_values.c.category
+        if "agent" in group_by:
+            dimensions["agent"] = cast(ContentModerationEvent.agent_id, String)
+        if "action" in group_by:
+            dimensions["action"] = ContentModerationEvent.action_taken
+        if "day" in group_by:
+            dimensions["day"] = func.date_trunc("day", ContentModerationEvent.created_at)
+        selected = [dimensions[dimension].label(dimension) for dimension in group_by]
+        statement = (
+            select(*selected, func.count().label("count"))
+            .select_from(statement_from)
+            .where(*clauses)
+            .group_by(*selected)
+            .order_by(*selected)
+            .limit(int(filters.get("limit") or 1000))
+        )
+        result = await self.session.execute(statement)
+        rows: list[dict[str, Any]] = []
+        for row in result.mappings().all():
+            item = {dimension: row[dimension] for dimension in group_by}
+            if "day" in item and item["day"] is not None:
+                item["day"] = item["day"].date().isoformat()
+            item["count"] = int(row["count"])
+            rows.append(item)
+        return rows
+
+    @staticmethod
+    def _moderation_event_filters(filters: dict[str, Any]) -> list[Any]:
+        clauses: list[Any] = []
+        workspace_id = filters.get("workspace_id")
+        if workspace_id is not None:
+            clauses.append(ContentModerationEvent.workspace_id == workspace_id)
+        agent_id = filters.get("agent_id")
+        if agent_id is not None:
+            clauses.append(ContentModerationEvent.agent_id == agent_id)
+        action = filters.get("action")
+        if action is not None:
+            clauses.append(ContentModerationEvent.action_taken == action)
+        since = filters.get("since")
+        if since is not None:
+            clauses.append(ContentModerationEvent.created_at >= since)
+        until = filters.get("until")
+        if until is not None:
+            clauses.append(ContentModerationEvent.created_at <= until)
+        return clauses
 
     async def create_certification(self, certification: TrustCertification) -> TrustCertification:
         self.session.add(certification)
@@ -417,14 +575,11 @@ class TrustRepository:
         attachments: list[tuple[str, UUID, datetime, UUID | None]] = [
             ("execution", item.id, item.created_at, item.contract_id) for item in executions
         ] + [
-            ("interaction", item.id, item.created_at, item.contract_id)
-            for item in interaction_rows
+            ("interaction", item.id, item.created_at, item.contract_id) for item in interaction_rows
         ]
 
         contract_ids = {
-            contract_id
-            for _, _, _, contract_id in attachments
-            if contract_id is not None
+            contract_id for _, _, _, contract_id in attachments if contract_id is not None
         }
         breaches: list[ContractBreachEvent] = []
         if contract_ids:
@@ -437,7 +592,9 @@ class TrustRepository:
                             ContractBreachEvent.contract_id.in_(contract_ids),
                         )
                     )
-                ).scalars().all()
+                )
+                .scalars()
+                .all()
             )
         attachment_keys = {(target_type, target_id) for target_type, target_id, _, _ in attachments}
         filtered_breaches = [
@@ -445,14 +602,9 @@ class TrustRepository:
             for breach in breaches
             if (breach.target_type, breach.target_id) in attachment_keys
         ]
-        breached_targets = {
-            (breach.target_type, breach.target_id)
-            for breach in filtered_breaches
-        }
+        breached_targets = {(breach.target_type, breach.target_id) for breach in filtered_breaches}
 
-        warned = sum(
-            1 for breach in filtered_breaches if breach.enforcement_action == "warn"
-        )
+        warned = sum(1 for breach in filtered_breaches if breach.enforcement_action == "warn")
         throttled = sum(
             1 for breach in filtered_breaches if breach.enforcement_action == "throttle"
         )

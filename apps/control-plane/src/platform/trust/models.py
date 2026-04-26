@@ -13,7 +13,19 @@ from platform.common.models.mixins import (
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, Numeric, String, Text
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    func,
+    text,
+)
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
@@ -555,3 +567,137 @@ class TrustSafetyPreScreenerRuleSet(Base, UUIDMixin, TimestampMixin):
     rules_ref: Mapped[str] = mapped_column(String(length=1024), nullable=False)
     rule_count: Mapped[int] = mapped_column(Integer(), nullable=False)
     activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ContentModerationPolicy(Base, UUIDMixin, TimestampMixin):
+    __tablename__ = "content_moderation_policies"
+    __table_args__ = (
+        CheckConstraint(
+            "default_action IN ('block','redact','flag')",
+            name="ck_content_moderation_policy_default_action",
+        ),
+        CheckConstraint(
+            "provider_failure_action IN ('fail_closed','fail_open')",
+            name="ck_content_moderation_policy_failure_action",
+        ),
+        CheckConstraint(
+            "tie_break_rule IN ('max_score','min_score','primary_only')",
+            name="ck_content_moderation_policy_tie_break_rule",
+        ),
+        CheckConstraint(
+            "per_call_timeout_ms > 0 AND per_execution_budget_ms > 0",
+            name="ck_content_moderation_policy_timeouts_positive",
+        ),
+        Index(
+            "uq_content_moderation_policy_workspace_active",
+            "workspace_id",
+            unique=True,
+            postgresql_where=text("active = TRUE"),
+        ),
+        Index(
+            "idx_content_moderation_policy_workspace_version",
+            "workspace_id",
+            "version",
+        ),
+    )
+
+    workspace_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("workspaces_workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    version: Mapped[int] = mapped_column(Integer(), nullable=False, default=1)
+    active: Mapped[bool] = mapped_column(Boolean(), nullable=False, default=True)
+    categories: Mapped[list[str]] = mapped_column(
+        JSONB(none_as_null=False), nullable=False, default=list
+    )
+    thresholds: Mapped[dict[str, float]] = mapped_column(
+        JSONB(none_as_null=False), nullable=False, default=dict
+    )
+    action_map: Mapped[dict[str, str]] = mapped_column(
+        JSONB(none_as_null=False), nullable=False, default=dict
+    )
+    default_action: Mapped[str] = mapped_column(String(length=32), nullable=False, default="flag")
+    primary_provider: Mapped[str] = mapped_column(String(length=64), nullable=False)
+    fallback_provider: Mapped[str | None] = mapped_column(String(length=64), nullable=True)
+    tie_break_rule: Mapped[str] = mapped_column(
+        String(length=32), nullable=False, default="max_score"
+    )
+    provider_failure_action: Mapped[str] = mapped_column(
+        String(length=32),
+        nullable=False,
+        default="fail_closed",
+    )
+    language_pins: Mapped[dict[str, str]] = mapped_column(
+        JSONB(none_as_null=False), nullable=False, default=dict
+    )
+    agent_allowlist: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB(none_as_null=False), nullable=False, default=list
+    )
+    monthly_cost_cap_eur: Mapped[Decimal] = mapped_column(
+        Numeric(precision=10, scale=2),
+        nullable=False,
+        default=Decimal("50.0"),
+    )
+    per_call_timeout_ms: Mapped[int] = mapped_column(Integer(), nullable=False, default=2000)
+    per_execution_budget_ms: Mapped[int] = mapped_column(Integer(), nullable=False, default=5000)
+    created_by: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+
+class ContentModerationEvent(Base, UUIDMixin):
+    __tablename__ = "content_moderation_events"
+    __table_args__ = (
+        CheckConstraint(
+            "action_taken IN ('block','redact','flag','none',"
+            "'fail_closed_blocked','fail_open_delivered')",
+            name="ck_content_moderation_event_action",
+        ),
+        Index("idx_moderation_events_workspace_created", "workspace_id", "created_at"),
+        Index(
+            "idx_moderation_events_workspace_agent_created",
+            "workspace_id",
+            "agent_id",
+            "created_at",
+        ),
+        Index(
+            "idx_moderation_events_workspace_action",
+            "workspace_id",
+            "action_taken",
+            postgresql_where=text("action_taken IN ('block','redact','flag')"),
+        ),
+    )
+
+    workspace_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("workspaces_workspaces.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    execution_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+    agent_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("registry_agent_profiles.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    policy_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("content_moderation_policies.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    provider: Mapped[str] = mapped_column(String(length=64), nullable=False)
+    triggered_categories: Mapped[list[str]] = mapped_column(
+        JSONB(none_as_null=False), nullable=False, default=list
+    )
+    scores: Mapped[dict[str, float]] = mapped_column(
+        JSONB(none_as_null=False), nullable=False, default=dict
+    )
+    action_taken: Mapped[str] = mapped_column(String(length=32), nullable=False)
+    language_detected: Mapped[str | None] = mapped_column(String(length=32), nullable=True)
+    latency_ms: Mapped[int | None] = mapped_column(Integer(), nullable=True)
+    audit_chain_ref: Mapped[str | None] = mapped_column(String(length=255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )

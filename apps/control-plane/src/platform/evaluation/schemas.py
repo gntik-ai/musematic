@@ -17,6 +17,82 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
+class FairnessCase(BaseModel):
+    id: str | None = None
+    input_data: dict[str, Any] = Field(default_factory=dict)
+    expected: str | int | float | bool | None = None
+    actual: str | int | float | bool | None = None
+    label: str | int | float | bool | None = None
+    prediction: str | int | float | bool | None = None
+    score: float | None = Field(default=None, ge=0.0, le=1.0)
+    group_attributes: dict[str, str] = Field(default_factory=dict)
+
+
+class FairnessScorerConfig(BaseModel):
+    metrics: list[str] = Field(
+        default_factory=lambda: ["demographic_parity", "equal_opportunity", "calibration"]
+    )
+    group_attributes: list[str] = Field(default_factory=list)
+    fairness_band: float = Field(default=0.10, ge=0.0, le=1.0)
+    min_group_size: int = Field(default=5, ge=1)
+    positive_class: str = "positive"
+    preview: bool = False
+
+
+class FairnessMetricRow(BaseModel):
+    evaluation_run_id: UUID
+    agent_id: UUID
+    agent_revision_id: str
+    suite_id: UUID
+    metric_name: str
+    group_attribute: str
+    per_group_scores: dict[str, float]
+    spread: float
+    fairness_band: float
+    passed: bool
+    coverage: dict[str, Any] = Field(default_factory=dict)
+    notes: str | None = None
+    evaluated_by: UUID | None = None
+    computed_at: datetime | None = None
+
+
+class FairnessScorerResult(BaseModel):
+    evaluation_run_id: UUID
+    status: str = "completed"
+    rows: list[FairnessMetricRow] = Field(default_factory=list)
+    overall_passed: bool
+    coverage: dict[str, Any] = Field(default_factory=dict)
+    notes: list[str] = Field(default_factory=list)
+
+
+class FairnessRunRequest(BaseModel):
+    workspace_id: UUID | None = None
+    evaluation_run_id: UUID | None = None
+    agent_id: UUID
+    agent_revision_id: str = Field(min_length=1, max_length=255)
+    suite_id: UUID
+    cases: list[FairnessCase] = Field(min_length=1)
+    config: FairnessScorerConfig = Field(default_factory=FairnessScorerConfig)
+
+
+class FairnessEvaluationSummary(BaseModel):
+    evaluation_run_id: UUID
+    agent_id: UUID
+    agent_revision_id: str
+    suite_id: UUID
+    overall_passed: bool
+    metric_count: int
+    computed_at: datetime | None = None
+
+
+class FairnessRunResponse(BaseModel):
+    evaluation_run_id: UUID
+    status: str
+    rows: list[FairnessMetricRow] = Field(default_factory=list)
+    overall_passed: bool | None = None
+    notes: list[str] = Field(default_factory=list)
+
+
 def _clean_optional_text(value: str | None) -> str | None:
     if value is None:
         return None

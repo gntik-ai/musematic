@@ -20,6 +20,7 @@ from platform.evaluation.service import (
     CalibrationService,
     EvalRunnerService,
     EvalSuiteService,
+    FairnessEvaluationService,
     RubricService,
 )
 from platform.execution.dependencies import build_execution_service
@@ -63,12 +64,14 @@ def build_scorer_registry(
 ) -> ScorerRegistry:
     registry = ScorerRegistry()
     from platform.evaluation.scorers.exact_match import ExactMatchScorer
+    from platform.evaluation.scorers.fairness import FairnessScorer
     from platform.evaluation.scorers.json_schema import JsonSchemaScorer
     from platform.evaluation.scorers.regex import RegexScorer
 
     registry.register("exact_match", ExactMatchScorer())
     registry.register("regex", RegexScorer())
     registry.register("json_schema", JsonSchemaScorer())
+    registry.register("fairness", FairnessScorer())
     registry.register(
         "semantic",
         SemanticSimilarityScorer(settings=settings, qdrant=qdrant),
@@ -337,3 +340,34 @@ async def get_human_grading_service(
     session: AsyncSession = Depends(get_db),
 ) -> HumanGradingService:
     return build_human_grading_service(session=session, producer=_get_producer(request))
+
+
+def build_fairness_service(
+    *,
+    session: AsyncSession,
+    settings: PlatformSettings,
+    producer: EventProducer | None,
+) -> FairnessEvaluationService:
+    return FairnessEvaluationService(
+        repository=EvaluationRepository(session),
+        settings=settings,
+        producer=producer,
+    )
+
+
+async def get_fairness_service(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+) -> FairnessEvaluationService:
+    return build_fairness_service(
+        session=session,
+        settings=_get_settings(request),
+        producer=_get_producer(request),
+    )
+
+
+async def get_fairness_gate(
+    request: Request,
+    session: AsyncSession = Depends(get_db),
+) -> FairnessEvaluationService:
+    return await get_fairness_service(request, session)

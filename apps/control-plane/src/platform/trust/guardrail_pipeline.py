@@ -75,6 +75,7 @@ class GuardrailPipelineService:
         policy_engine: Any | None,
         pre_screener: Any | None = None,
         dlp_service: Any | None = None,
+        content_moderator: Any | None = None,
     ) -> None:
         self.repository = repository
         self.settings = settings
@@ -82,6 +83,7 @@ class GuardrailPipelineService:
         self.policy_engine = policy_engine
         self.pre_screener = pre_screener
         self.dlp_service = dlp_service
+        self.content_moderator = content_moderator
 
     async def evaluate_full_pipeline(
         self,
@@ -124,7 +126,7 @@ class GuardrailPipelineService:
                     payload, _PROMPT_INJECTION_PATTERNS, "prompt_injection"
                 )
             elif layer == GuardrailLayer.output_moderation:
-                basis = await self._moderate_output(payload)
+                basis = await self._moderate_output(payload, context)
             elif layer == GuardrailLayer.dlp_scan:
                 basis = await self._evaluate_dlp(payload, context)
             elif layer == GuardrailLayer.tool_control:
@@ -316,7 +318,32 @@ class GuardrailPipelineService:
         )
         return f"pre_screener:{response.matched_rule}"
 
-    async def _moderate_output(self, payload: dict[str, Any]) -> str | None:
+    async def _moderate_output(
+        self,
+        payload: dict[str, Any],
+        context: dict[str, Any] | None = None,
+    ) -> str | None:
+        context = context or {}
+        if self.content_moderator is not None:
+            text = str(payload.get("output") or payload.get("text") or payload.get("content") or "")
+            workspace_id = self._optional_uuid(context.get("workspace_id"))
+            if text and workspace_id is not None:
+                verdict = await self.content_moderator.moderate_output(
+                    execution_id=self._optional_uuid(context.get("execution_id")),
+                    agent_id=self._optional_uuid(context.get("agent_id")),
+                    workspace_id=workspace_id,
+                    original_content=text,
+                    canonical_audit_ref=context.get("canonical_audit_ref"),
+                    elapsed_budget_ms=int(context.get("elapsed_budget_ms") or 0),
+                    language=context.get("language"),
+                    agent_fqn=self._optional_text(context.get("agent_fqn")),
+                )
+                if verdict.action in {"block", "fail_closed_blocked"}:
+                    payload["output"] = verdict.content
+                    return f"output_moderation:{verdict.action}"
+                if verdict.action == "redact":
+                    payload["output"] = verdict.content
+                # flag and no-policy paths continue to the regex defence-in-depth floor.
         matched = self._match_patterns(payload, _OUTPUT_MODERATION_PATTERNS, "output_moderation")
         if matched is not None:
             return matched
@@ -391,3 +418,14 @@ class GuardrailPipelineService:
         if value in {None, ""}:
             return None
         return str(value)
+
+    @staticmethod
+    def _optional_uuid(value: Any) -> UUID | None:
+        if value in {None, ""}:
+            return None
+        if isinstance(value, UUID):
+            return value
+        try:
+            return UUID(str(value))
+        except ValueError:
+            return None

@@ -27,6 +27,10 @@ class TrustEventType(StrEnum):
     prescreener_rule_set_activated = "prescreener.rule_set.activated"
     contract_breach = "trust.contract.breach"
     contract_enforcement = "trust.contract.enforcement"
+    content_moderation_policy_changed = "trust.content_moderation.policy_changed"
+    content_moderation_triggered = "trust.content_moderation.triggered"
+    content_moderation_provider_failed = "trust.content_moderation.provider_failed"
+    certification_fairness_gate_blocked = "trust.certification.fairness_gate_blocked"
 
 
 class CertificationEventPayload(BaseModel):
@@ -109,6 +113,40 @@ class ContractEnforcementPayload(BaseModel):
     occurred_at: datetime
 
 
+class ContentModerationPolicyChangedPayload(BaseModel):
+    policy_id: UUID
+    workspace_id: UUID
+    action: str
+    actor_id: UUID | None = None
+    occurred_at: datetime
+
+
+class ContentModerationTriggeredPayload(BaseModel):
+    event_id: UUID
+    workspace_id: UUID
+    policy_id: UUID | None = None
+    agent_id: UUID | None = None
+    execution_id: UUID | None = None
+    action_taken: str
+    triggered_categories: list[str]
+    occurred_at: datetime
+
+
+class ContentModerationProviderFailedPayload(BaseModel):
+    workspace_id: UUID
+    provider: str
+    failure_type: str
+    execution_id: UUID | None = None
+    occurred_at: datetime
+
+
+class CertificationFairnessGateBlockedPayload(BaseModel):
+    agent_id: str
+    agent_revision_id: str
+    reason: str
+    occurred_at: datetime
+
+
 TRUST_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     TrustEventType.certification_created.value: CertificationEventPayload,
     TrustEventType.certification_activated.value: CertificationEventPayload,
@@ -125,6 +163,12 @@ TRUST_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     TrustEventType.prescreener_rule_set_activated.value: PreScreenerRuleSetActivatedPayload,
     TrustEventType.contract_breach.value: ContractBreachPayload,
     TrustEventType.contract_enforcement.value: ContractEnforcementPayload,
+    TrustEventType.content_moderation_policy_changed.value: ContentModerationPolicyChangedPayload,
+    TrustEventType.content_moderation_triggered.value: ContentModerationTriggeredPayload,
+    TrustEventType.content_moderation_provider_failed.value: ContentModerationProviderFailedPayload,
+    TrustEventType.certification_fairness_gate_blocked.value: (
+        CertificationFairnessGateBlockedPayload
+    ),
 }
 
 
@@ -314,6 +358,54 @@ class TrustEventPublisher:
             TrustEventType.contract_enforcement,
             payload,
             key=str(payload.contract_id or payload.target_id),
+            correlation_ctx=correlation_ctx,
+        )
+
+    async def publish_content_moderation_policy_changed(
+        self,
+        payload: ContentModerationPolicyChangedPayload,
+        correlation_ctx: CorrelationContext | None = None,
+    ) -> None:
+        await self._publish(
+            TrustEventType.content_moderation_policy_changed,
+            payload,
+            key=str(payload.workspace_id),
+            correlation_ctx=correlation_ctx,
+        )
+
+    async def publish_content_moderation_triggered(
+        self,
+        payload: ContentModerationTriggeredPayload,
+        correlation_ctx: CorrelationContext | None = None,
+    ) -> None:
+        await self._publish(
+            TrustEventType.content_moderation_triggered,
+            payload,
+            key=str(payload.workspace_id),
+            correlation_ctx=correlation_ctx,
+        )
+
+    async def publish_content_moderation_provider_failed(
+        self,
+        payload: ContentModerationProviderFailedPayload,
+        correlation_ctx: CorrelationContext | None = None,
+    ) -> None:
+        await self._publish(
+            TrustEventType.content_moderation_provider_failed,
+            payload,
+            key=str(payload.workspace_id),
+            correlation_ctx=correlation_ctx,
+        )
+
+    async def publish_certification_fairness_gate_blocked(
+        self,
+        payload: CertificationFairnessGateBlockedPayload,
+        correlation_ctx: CorrelationContext | None = None,
+    ) -> None:
+        await self._publish(
+            TrustEventType.certification_fairness_gate_blocked,
+            payload,
+            key=payload.agent_id,
             correlation_ctx=correlation_ctx,
         )
 
