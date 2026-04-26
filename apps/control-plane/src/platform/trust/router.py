@@ -419,10 +419,10 @@ async def get_certification(
     incident_response_service: IncidentResponseService = Depends(get_incident_response_service),
 ) -> CertificationResponse:
     response = await certification_service.get(certification_id)
-    post_mortems = await incident_response_service.find_post_mortems_for_certification(
-        certification_id
-    )
-    response.post_mortems = [item.model_dump(mode="json") for item in post_mortems]
+    finder = getattr(incident_response_service, "find_post_mortems_for_certification", None)
+    if callable(finder):
+        post_mortems = await finder(certification_id)
+        response.post_mortems = [item.model_dump(mode="json") for item in post_mortems]
     return response
 
 

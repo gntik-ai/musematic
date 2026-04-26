@@ -132,8 +132,10 @@ async def get_execution(
     """Return execution."""
     del current_user
     response = await execution_service.get_execution(execution_id)
-    post_mortems = await incident_response_service.find_post_mortems_for_execution(execution_id)
-    response.post_mortems = [item.model_dump(mode="json") for item in post_mortems]
+    finder = getattr(incident_response_service, "find_post_mortems_for_execution", None)
+    if callable(finder):
+        post_mortems = await finder(execution_id)
+        response.post_mortems = [item.model_dump(mode="json") for item in post_mortems]
     return response
 
 
