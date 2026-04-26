@@ -84,6 +84,12 @@ from platform.context_engineering.dependencies import build_context_engineering_
 from platform.context_engineering.drift_monitor import DriftMonitorTask
 from platform.context_engineering.events import register_context_engineering_event_types
 from platform.context_engineering.router import router as context_engineering_router
+from platform.cost_governance.clickhouse_repository import ClickHouseCostRepository
+from platform.cost_governance.clickhouse_setup import run_setup as run_cost_clickhouse_setup
+from platform.cost_governance.events import register_cost_governance_event_types
+from platform.cost_governance.jobs.anomaly_job import build_anomaly_scheduler
+from platform.cost_governance.jobs.forecast_job import build_forecast_scheduler
+from platform.cost_governance.router import router as cost_governance_router
 from platform.discovery.dependencies import build_discovery_service
 from platform.discovery.events import register_discovery_event_types
 from platform.discovery.router import router as discovery_router
@@ -414,6 +420,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_accounts_event_types()
     register_workspaces_event_types()
     register_analytics_event_types()
+    register_cost_governance_event_types()
     register_security_compliance_event_types()
     register_registry_event_types()
     register_context_engineering_event_types()
@@ -473,6 +480,12 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["analytics_clickhouse_setup"] = str(exc)
             LOGGER.warning("Failed to run analytics ClickHouse setup: %s", exc)
+        try:
+            await run_cost_clickhouse_setup(clickhouse_client, app.state.settings)
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["cost_governance_clickhouse_setup"] = str(exc)
+            LOGGER.warning("Failed to run cost governance ClickHouse setup: %s", exc)
         try:
             await run_context_engineering_clickhouse_setup(clickhouse_client, app.state.settings)
         except Exception as exc:
@@ -556,6 +569,15 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["analytics_consumer"] = str(exc)
             LOGGER.warning("Failed to start analytics consumer during startup: %s", exc)
+
+    cost_clickhouse_repository = getattr(app.state, "cost_clickhouse_repository", None)
+    if cost_clickhouse_repository is not None:
+        try:
+            await cost_clickhouse_repository.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["cost_clickhouse_batch_buffer"] = str(exc)
+            LOGGER.warning("Failed to start cost ClickHouse batch buffer: %s", exc)
 
     analytics_scheduler = getattr(app.state, "analytics_budget_scheduler", None)
     if analytics_scheduler is not None:
@@ -641,6 +663,8 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         "simulation_prediction_scheduler",
         None,
     )
+    cost_forecast_scheduler = getattr(app.state, "cost_forecast_scheduler", None)
+    cost_anomaly_scheduler = getattr(app.state, "cost_anomaly_scheduler", None)
     robustness_orchestrator_scheduler = getattr(
         app.state,
         "robustness_orchestrator_scheduler",
@@ -813,6 +837,20 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["simulation_prediction_scheduler"] = str(exc)
             LOGGER.warning("Failed to start simulation prediction scheduler: %s", exc)
+    if cost_forecast_scheduler is not None:
+        try:
+            cost_forecast_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["cost_forecast_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start cost forecast scheduler: %s", exc)
+    if cost_anomaly_scheduler is not None:
+        try:
+            cost_anomaly_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["cost_anomaly_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start cost anomaly scheduler: %s", exc)
     try:
         await _load_trust_runtime_assets(app)
     except Exception as exc:
@@ -830,6 +868,16 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     try:
         yield
     finally:
+        if cost_anomaly_scheduler is not None:
+            try:
+                cost_anomaly_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop cost anomaly scheduler cleanly: %s", exc)
+        if cost_forecast_scheduler is not None:
+            try:
+                cost_forecast_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop cost forecast scheduler cleanly: %s", exc)
         if simulation_prediction_scheduler is not None:
             try:
                 simulation_prediction_scheduler.shutdown(wait=False)
@@ -1001,6 +1049,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                 analytics_scheduler.shutdown(wait=False)
             except Exception as exc:
                 LOGGER.warning("Failed to stop analytics budget scheduler cleanly: %s", exc)
+        if cost_clickhouse_repository is not None:
+            try:
+                await cost_clickhouse_repository.stop()
+            except Exception as exc:
+                LOGGER.warning("Failed to stop cost ClickHouse batch buffer cleanly: %s", exc)
         if analytics_consumer is not None:
             try:
                 await analytics_consumer.stop()
@@ -1050,8 +1103,14 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.analytics_repository = AnalyticsRepository(
         cast(AsyncClickHouseClient, app.state.clients["clickhouse"])
     )
+    app.state.cost_clickhouse_repository = ClickHouseCostRepository(
+        cast(AsyncClickHouseClient, app.state.clients["clickhouse"]),
+        resolved,
+    )
     app.state.analytics_consumer = None
     app.state.analytics_budget_scheduler = None
+    app.state.cost_forecast_scheduler = None
+    app.state.cost_anomaly_scheduler = None
     app.state.registry_index_worker = None
     app.state.context_engineering_drift_scheduler = None
     app.state.memory_scheduler = None
@@ -1157,6 +1216,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.goal_auto_completion_scheduler = _build_goal_auto_completion_scheduler(app)
         app.state.governance_retention_gc_scheduler = _build_governance_retention_gc_scheduler(app)
         app.state.checkpoint_gc_scheduler = _build_checkpoint_gc_scheduler(app)
+        app.state.cost_forecast_scheduler = build_forecast_scheduler(app)
+        app.state.cost_anomaly_scheduler = build_anomaly_scheduler(app)
         app.state.debug_logging_capture_gc_scheduler = _build_debug_logging_capture_gc_scheduler(
             app
         )
@@ -1353,6 +1414,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(accounts_router)
         app.include_router(workspaces_router)
         app.include_router(analytics_router)
+        app.include_router(cost_governance_router)
         app.include_router(registry_router)
         app.include_router(context_engineering_router)
         app.include_router(evaluations_router)

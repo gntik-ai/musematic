@@ -3,8 +3,10 @@ from __future__ import annotations
 import re
 import time
 from datetime import UTC, datetime
+from decimal import Decimal
 from fnmatch import fnmatch
 from platform.common.config import PlatformSettings
+from platform.cost_governance.constants import BLOCK_REASON_COST_BUDGET
 from platform.policies.models import EnforcementComponent
 from platform.policies.sanitizer import OutputSanitizer
 from platform.policies.schemas import GateResult, SanitizationResult
@@ -12,6 +14,8 @@ from platform.policies.service import PolicyService
 from platform.privacy_compliance.exceptions import ToolOutputBlocked
 from typing import Any
 from uuid import UUID
+
+DECIMAL_ZERO = Decimal("0")
 
 
 class ToolGatewayService:
@@ -25,6 +29,7 @@ class ToolGatewayService:
         settings: PlatformSettings | None = None,
         dlp_service: Any | None = None,
         residency_service: Any | None = None,
+        budget_service: Any | None = None,
     ) -> None:
         self.policy_service = policy_service
         self.sanitizer = sanitizer
@@ -33,6 +38,7 @@ class ToolGatewayService:
         self.settings = settings
         self.dlp_service = dlp_service
         self.residency_service = residency_service
+        self.budget_service = budget_service
 
     async def validate_tool_invocation(
         self,
@@ -150,6 +156,23 @@ class ToolGatewayService:
                     execution_id=execution_id,
                     block_reason="purpose_mismatch",
                     policy_rule_ref={"declared_purpose": declared_purpose},
+                    started=started,
+                )
+
+            cost_budget_ref = await self._check_workspace_cost_budget(
+                workspace_id,
+                session,
+                execution_id,
+            )
+            if cost_budget_ref is not None:
+                return await self._blocked(
+                    agent_id=agent_id,
+                    agent_fqn=agent_fqn,
+                    target=tool_fqn,
+                    workspace_id=workspace_id,
+                    execution_id=execution_id,
+                    block_reason=BLOCK_REASON_COST_BUDGET,
+                    policy_rule_ref=cost_budget_ref,
                     started=started,
                 )
 
@@ -326,6 +349,39 @@ class ToolGatewayService:
                 return {"limit": limit}
         return None
 
+    async def _check_workspace_cost_budget(
+        self,
+        workspace_id: UUID,
+        session: Any,
+        execution_id: UUID | None,
+    ) -> dict[str, Any] | None:
+        if (
+            execution_id is not None
+            or self.settings is None
+            or not self.settings.feature_cost_hard_caps
+            or self.budget_service is None
+        ):
+            return None
+        estimate = _decimalish(
+            getattr(session, "estimated_cost_cents", None)
+            or getattr(session, "cost_estimate_cents", None)
+            or getattr(session, "estimated_tool_cost_cents", None)
+        )
+        if estimate <= 0:
+            return None
+        result = await self.budget_service.check_budget_for_start(
+            workspace_id,
+            estimate,
+            override_token=getattr(session, "cost_override_token", None),
+        )
+        if result.allowed:
+            return None
+        return {
+            "budget_cents": result.budget_cents,
+            "projected_spend_cents": str(result.projected_spend_cents),
+            "override_endpoint": result.override_endpoint,
+        }
+
     @staticmethod
     def _check_safety(safety_rules: list[dict[str, Any]], tool_fqn: str) -> dict[str, Any] | None:
         for rule in safety_rules:
@@ -494,3 +550,9 @@ class MemoryWriteGateService:
             policy_rule_ref=policy_rule_ref,
             check_latency_ms=(time.perf_counter() - started) * 1000,
         )
+
+
+def _decimalish(value: Any) -> Decimal:
+    if value is None:
+        return DECIMAL_ZERO
+    return Decimal(str(value))

@@ -5,6 +5,8 @@ from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_db
 from platform.common.events.producer import EventProducer
+from platform.cost_governance.repository import CostGovernanceRepository
+from platform.cost_governance.services.budget_service import BudgetService
 from platform.policies.gateway import MemoryWriteGateService, ToolGatewayService
 from platform.policies.repository import PolicyRepository
 from platform.policies.sanitizer import OutputSanitizer
@@ -97,6 +99,13 @@ def build_tool_gateway_service(
         reasoning_client=reasoning_client,
     )
     sanitizer = OutputSanitizer(PolicyRepository(session))
+    budget_service = BudgetService(
+        repository=CostGovernanceRepository(session),
+        redis_client=redis_client,
+        settings=settings,
+        kafka_producer=producer,
+        workspaces_service=workspaces_service,
+    )
     return ToolGatewayService(
         policy_service=policy_service,
         sanitizer=sanitizer,
@@ -112,6 +121,7 @@ def build_tool_gateway_service(
             event_publisher=PrivacyEventPublisher(producer),
             redis_client=redis_client,
         ),
+        budget_service=budget_service,
     )
 
 

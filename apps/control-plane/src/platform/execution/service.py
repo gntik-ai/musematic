@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import UTC, datetime
 from platform.common.clients.object_storage import AsyncObjectStorageClient
 from platform.common.clients.reasoning_engine import ReasoningEngineClient
@@ -64,6 +65,28 @@ from platform.workflows.repository import WorkflowRepository
 from typing import Any
 from uuid import UUID, uuid4
 
+LOGGER = logging.getLogger(__name__)
+COST_SIGNAL_KEYS = frozenset(
+    {
+        "model_id",
+        "model",
+        "tokens_in",
+        "input_tokens",
+        "prompt_tokens",
+        "tokens_out",
+        "output_tokens",
+        "completion_tokens",
+        "duration_ms",
+        "latency_ms",
+        "bytes_written",
+        "storage_bytes",
+        "model_cost_cents",
+        "compute_cost_cents",
+        "storage_cost_cents",
+        "overhead_cost_cents",
+    }
+)
+
 
 class ExecutionService:
     """Provide execution operations."""
@@ -82,6 +105,7 @@ class ExecutionService:
         projector: ExecutionProjector,
         compiler: WorkflowCompiler | None = None,
         checkpoint_service: CheckpointService | None = None,
+        attribution_service: Any | None = None,
     ) -> None:
         self.repository = repository
         self.settings = settings
@@ -94,6 +118,7 @@ class ExecutionService:
         self.projector = projector
         self.compiler = compiler or WorkflowCompiler()
         self.checkpoint_service = checkpoint_service
+        self.attribution_service = attribution_service
         self.workflow_repository = WorkflowRepository(repository.session)
         self.task_plan_bucket = "execution-task-plans"
         self.reasoning_trace_bucket = "reasoning-traces"
@@ -701,6 +726,7 @@ class ExecutionService:
         if status is not None:
             await self.repository.update_execution_status(execution, status)
         await self._append_domain_event(execution, event_type, step_id=step_id, payload=payload)
+        await self._record_cost_attribution(execution, step_id=step_id, payload=payload)
 
     async def _resolve_workflow_version(
         self,
@@ -783,6 +809,48 @@ class ExecutionService:
     async def _invalidate_state_cache(self, execution_id: UUID) -> None:
         await self.redis_client.delete(self._state_cache_key(execution_id))
 
+    async def _record_cost_attribution(
+        self,
+        execution: Execution,
+        *,
+        step_id: str | None,
+        payload: dict[str, Any],
+    ) -> None:
+        if not any(key in payload for key in COST_SIGNAL_KEYS):
+            return
+        service = self.attribution_service
+        if service is None:
+            from platform.cost_governance.repository import CostGovernanceRepository
+            from platform.cost_governance.services.attribution_service import AttributionService
+
+            service = AttributionService(
+                repository=CostGovernanceRepository(self.repository.session),
+                settings=self.settings,
+                kafka_producer=self.producer,
+                fail_open=self.settings.cost_governance.attribution_fail_open,
+            )
+        try:
+            await service.record_step_cost(
+                execution_id=execution.id,
+                step_id=step_id,
+                workspace_id=execution.workspace_id,
+                agent_id=_uuid_or_none(payload.get("agent_id") or payload.get("agent_profile_id")),
+                user_id=execution.created_by,
+                payload=payload,
+                correlation_ctx=self._correlation(execution),
+            )
+        except Exception:
+            if not getattr(service, "fail_open", True):
+                raise
+            LOGGER.warning(
+                "Cost attribution hook failed open",
+                exc_info=True,
+                extra={
+                    "workspace_id": str(execution.workspace_id),
+                    "execution_id": str(execution.id),
+                },
+            )
+
     @staticmethod
     def _state_cache_key(execution_id: UUID) -> str:
         return f"exec:state:{execution_id}"
@@ -798,3 +866,14 @@ class ExecutionService:
             goal_id=execution.correlation_goal_id,
             correlation_id=uuid4(),
         )
+
+
+def _uuid_or_none(value: Any) -> UUID | None:
+    if value is None:
+        return None
+    if isinstance(value, UUID):
+        return value
+    try:
+        return UUID(str(value))
+    except (TypeError, ValueError):
+        return None

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import UTC, datetime, timedelta
 from platform.analytics.events import (
     BudgetThresholdCrossedPayload,
@@ -34,6 +35,8 @@ from platform.common.events.producer import EventProducer
 from typing import Any
 from uuid import UUID, uuid4
 
+LOGGER = logging.getLogger(__name__)
+
 
 class AnalyticsService:
     def __init__(
@@ -46,6 +49,7 @@ class AnalyticsService:
         kafka_producer: EventProducer | None,
         recommendation_engine: RecommendationEngine,
         forecast_engine: ForecastEngine,
+        cost_governance_service: Any | None = None,
     ) -> None:
         self.repo = repo
         self.cost_model_repo = cost_model_repo
@@ -54,6 +58,7 @@ class AnalyticsService:
         self.kafka_producer = kafka_producer
         self.recommendation_engine = recommendation_engine
         self.forecast_engine = forecast_engine
+        self.cost_governance_service = cost_governance_service
 
     async def get_usage(self, params: UsageQueryParams, user_id: UUID) -> UsageResponse:
         self._validate_window(params.start_time, params.end_time)
@@ -183,6 +188,22 @@ class AnalyticsService:
         workspace_id: UUID,
         days_back: int = 30,
     ) -> dict[str, Any]:
+        if self.cost_governance_service is not None:
+            LOGGER.info(
+                "Delegating workspace cost summary to cost governance",
+                extra={"workspace_id": str(workspace_id), "days_back": days_back},
+            )
+            summary = await self.cost_governance_service.get_workspace_cost_summary(
+                workspace_id,
+                period_start=datetime.now(UTC) - timedelta(days=days_back),
+            )
+            return {
+                "total_cost_usd": summary["total_cost_usd"],
+                "period_start": summary["period_start"],
+                "period_end": summary["period_end"],
+                "execution_count": summary["execution_count"],
+                "avg_daily_cost_usd": summary["avg_daily_cost_usd"],
+            }
         end_time = datetime.now(UTC)
         start_time = end_time - timedelta(days=days_back)
         rows = await self.repo.query_kpi_series(
@@ -203,6 +224,12 @@ class AnalyticsService:
         }
 
     async def check_budget_thresholds(self, days_back: int = 30) -> list[UUID]:
+        if self.cost_governance_service is not None:
+            LOGGER.info(
+                "Delegating budget threshold checks to cost governance",
+                extra={"days_back": days_back},
+            )
+            return await self.cost_governance_service.evaluate_thresholds()
         threshold = float(self.settings.ANALYTICS_BUDGET_THRESHOLD_USD)
         if threshold <= 0:
             return []
