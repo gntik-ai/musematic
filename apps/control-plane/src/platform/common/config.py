@@ -223,6 +223,49 @@ class CostGovernanceSettings(BaseSettings):
     attribution_fail_open: bool = True
 
 
+class IncidentResponseSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="INCIDENT_RESPONSE_",
+        extra="ignore",
+        populate_by_name=True,
+    )
+
+    delivery_retry_initial_seconds: int = 30
+    delivery_retry_max_attempts: int = 6
+    delivery_retry_max_window_seconds: int = 86_400
+    delivery_retry_scan_interval_seconds: int = 30
+    runbook_freshness_window_days: int = 90
+    timeline_max_window_hours: int = 24
+    dedup_fingerprint_ttl_seconds: int = 86_400 * 30
+    external_alert_request_timeout_seconds: float = 5.0
+    postmortem_blob_threshold_bytes: int = 524_288
+    postmortem_minio_bucket: str = "incident-response-postmortems"
+    timeline_kafka_topics: list[str] = Field(
+        default_factory=lambda: [
+            "monitor.alerts",
+            "governance.verdict.issued",
+            "governance.enforcement.executed",
+            "runtime.lifecycle",
+            "auth.events",
+            "policy.gate.blocked",
+        ],
+    )
+    alert_rule_class_to_scenario: dict[str, str] = Field(
+        default_factory=lambda: {
+            "error_rate_spike": "pod_failure",
+            "sla_breach": "runtime_pod_crash_loop",
+            "certification_failure": "certificate_expiry",
+            "security_event": "auth_service_degradation",
+            "chaos_unexpected_behavior": "governance_verdict_storm",
+            "kafka_lag": "kafka_lag",
+            "model_provider_outage": "model_provider_outage",
+            "database_connection_issue": "database_connection_issue",
+            "s3_quota_breach": "s3_quota_breach",
+            "reasoning_engine_oom": "reasoning_engine_oom",
+        },
+    )
+
+
 class VisibilitySettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="VISIBILITY_", extra="ignore")
 
@@ -733,6 +776,7 @@ class PlatformSettings(BaseSettings):
     ws_hub: WsHubSettings = Field(default_factory=WsHubSettings)
     analytics: AnalyticsSettings = Field(default_factory=AnalyticsSettings)
     cost_governance: CostGovernanceSettings = Field(default_factory=CostGovernanceSettings)
+    incident_response: IncidentResponseSettings = Field(default_factory=IncidentResponseSettings)
     visibility: VisibilitySettings = Field(default_factory=VisibilitySettings)
     privacy_compliance: PrivacyComplianceSettings = Field(default_factory=PrivacyComplianceSettings)
     api_governance: ApiGovernanceSettings = Field(default_factory=ApiGovernanceSettings)
@@ -920,6 +964,50 @@ class PlatformSettings(BaseSettings):
             "COST_GOVERNANCE_ATTRIBUTION_FAIL_OPEN": (
                 "cost_governance",
                 "attribution_fail_open",
+            ),
+            "INCIDENT_RESPONSE_DELIVERY_RETRY_INITIAL_SECONDS": (
+                "incident_response",
+                "delivery_retry_initial_seconds",
+            ),
+            "INCIDENT_RESPONSE_DELIVERY_RETRY_MAX_ATTEMPTS": (
+                "incident_response",
+                "delivery_retry_max_attempts",
+            ),
+            "INCIDENT_RESPONSE_DELIVERY_RETRY_MAX_WINDOW_SECONDS": (
+                "incident_response",
+                "delivery_retry_max_window_seconds",
+            ),
+            "INCIDENT_RESPONSE_DELIVERY_RETRY_SCAN_INTERVAL_SECONDS": (
+                "incident_response",
+                "delivery_retry_scan_interval_seconds",
+            ),
+            "INCIDENT_RESPONSE_RUNBOOK_FRESHNESS_WINDOW_DAYS": (
+                "incident_response",
+                "runbook_freshness_window_days",
+            ),
+            "INCIDENT_RESPONSE_TIMELINE_MAX_WINDOW_HOURS": (
+                "incident_response",
+                "timeline_max_window_hours",
+            ),
+            "INCIDENT_RESPONSE_DEDUP_FINGERPRINT_TTL_SECONDS": (
+                "incident_response",
+                "dedup_fingerprint_ttl_seconds",
+            ),
+            "INCIDENT_RESPONSE_EXTERNAL_ALERT_REQUEST_TIMEOUT_SECONDS": (
+                "incident_response",
+                "external_alert_request_timeout_seconds",
+            ),
+            "INCIDENT_RESPONSE_POSTMORTEM_BLOB_THRESHOLD_BYTES": (
+                "incident_response",
+                "postmortem_blob_threshold_bytes",
+            ),
+            "INCIDENT_RESPONSE_POSTMORTEM_MINIO_BUCKET": (
+                "incident_response",
+                "postmortem_minio_bucket",
+            ),
+            "INCIDENT_RESPONSE_TIMELINE_KAFKA_TOPICS": (
+                "incident_response",
+                "timeline_kafka_topics",
             ),
             "VISIBILITY_ZERO_TRUST_ENABLED": ("visibility", "zero_trust_enabled"),
             "FEATURE_PRIVACY_DSR_ENABLED": ("privacy_compliance", "dsr_enabled"),

@@ -41,6 +41,8 @@ from platform.execution.schemas import (
     WarmPoolStatusResponse,
 )
 from platform.execution.service import ExecutionService
+from platform.incident_response.dependencies import get_incident_response_service
+from platform.incident_response.service import IncidentResponseService
 from platform.workflows.models import TriggerType
 from typing import Any
 from uuid import UUID
@@ -125,10 +127,16 @@ async def get_execution(
     execution_id: UUID,
     current_user: dict[str, Any] = Depends(get_current_user),
     execution_service: ExecutionService = Depends(get_execution_service),
+    incident_response_service: IncidentResponseService = Depends(get_incident_response_service),
 ) -> ExecutionResponse:
     """Return execution."""
     del current_user
-    return await execution_service.get_execution(execution_id)
+    response = await execution_service.get_execution(execution_id)
+    finder = getattr(incident_response_service, "find_post_mortems_for_execution", None)
+    if callable(finder):
+        post_mortems = await finder(execution_id)
+        response.post_mortems = [item.model_dump(mode="json") for item in post_mortems]
+    return response
 
 
 @router.post("/{execution_id}/cancel", response_model=ExecutionResponse)

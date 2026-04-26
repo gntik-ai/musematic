@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import datetime
 from platform.audit.events import (
     AuditChainVerifiedPayload,
     publish_audit_chain_verified_event,
@@ -106,6 +107,14 @@ class AuditChainService:
         result = VerifyResult(valid=True, entries_checked=len(entries), broken_at=None)
         await self._publish_verification(result, start_seq, end_seq)
         return result
+
+    async def list_audit_sources_in_window(
+        self,
+        start_ts: datetime,
+        end_ts: datetime,
+        sources: list[str] | None = None,
+    ) -> list[AuditChainEntry]:
+        return await self.repository.list_audit_sources_in_window(start_ts, end_ts, sources)
 
     async def export_attestation(self, start_seq: int, end_seq: int) -> SignedAttestation:
         verification = await self.verify(start_seq, end_seq)

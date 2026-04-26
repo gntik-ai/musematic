@@ -128,6 +128,17 @@ from platform.governance.consumers import ObserverSignalConsumer, VerdictConsume
 from platform.governance.events import register_governance_event_types
 from platform.governance.repository import GovernanceRepository
 from platform.governance.router import router as governance_router
+from platform.incident_response.events import register_incident_response_event_types
+from platform.incident_response.jobs.delivery_retry_scanner import build_delivery_retry_scheduler
+from platform.incident_response.jobs.runbook_freshness_scanner import (
+    build_runbook_freshness_scheduler,
+)
+from platform.incident_response.router import router as incident_response_router
+from platform.incident_response.runtime import AppIncidentTrigger
+from platform.incident_response.trigger_interface import (
+    register_incident_trigger,
+    reset_incident_trigger,
+)
 from platform.interactions.dependencies import build_interactions_service
 from platform.interactions.events import register_interactions_event_types
 from platform.interactions.goal_lifecycle import GoalAutoCompletionScanner
@@ -446,6 +457,8 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_debug_logging_event_types()
     register_privacy_event_types()
     register_model_catalog_event_types()
+    register_incident_response_event_types()
+    register_incident_trigger(AppIncidentTrigger(app))
 
     for name, client in app.state.clients.items():
         if name == "kafka_consumer":
@@ -507,7 +520,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             LOGGER.warning("Failed to run testing ClickHouse setup: %s", exc)
     object_storage_client = app.state.clients.get("object_storage")
     if isinstance(object_storage_client, AsyncObjectStorageClient):
-        for bucket_name in ("evaluation-ate-evidence", "evaluation-generated-suites"):
+        for bucket_name in (
+            "evaluation-ate-evidence",
+            "evaluation-generated-suites",
+            app.state.settings.incident_response.postmortem_minio_bucket,
+        ):
             try:
                 await object_storage_client.create_bucket_if_not_exists(bucket_name)
             except Exception as exc:
@@ -665,6 +682,16 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     cost_forecast_scheduler = getattr(app.state, "cost_forecast_scheduler", None)
     cost_anomaly_scheduler = getattr(app.state, "cost_anomaly_scheduler", None)
+    incident_response_delivery_retry_scheduler = getattr(
+        app.state,
+        "incident_response_delivery_retry_scheduler",
+        None,
+    )
+    incident_response_runbook_freshness_scheduler = getattr(
+        app.state,
+        "incident_response_runbook_freshness_scheduler",
+        None,
+    )
     robustness_orchestrator_scheduler = getattr(
         app.state,
         "robustness_orchestrator_scheduler",
@@ -851,6 +878,20 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["cost_anomaly_scheduler"] = str(exc)
             LOGGER.warning("Failed to start cost anomaly scheduler: %s", exc)
+    if incident_response_delivery_retry_scheduler is not None:
+        try:
+            incident_response_delivery_retry_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["incident_response_delivery_retry_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start incident response delivery retry scheduler: %s", exc)
+    if incident_response_runbook_freshness_scheduler is not None:
+        try:
+            incident_response_runbook_freshness_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["incident_response_runbook_freshness_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start incident response runbook freshness scheduler: %s", exc)
     try:
         await _load_trust_runtime_assets(app)
     except Exception as exc:
@@ -873,6 +914,23 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                 cost_anomaly_scheduler.shutdown(wait=False)
             except Exception as exc:
                 LOGGER.warning("Failed to stop cost anomaly scheduler cleanly: %s", exc)
+        reset_incident_trigger()
+        if incident_response_delivery_retry_scheduler is not None:
+            try:
+                incident_response_delivery_retry_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning(
+                    "Failed to stop incident response delivery retry scheduler cleanly: %s",
+                    exc,
+                )
+        if incident_response_runbook_freshness_scheduler is not None:
+            try:
+                incident_response_runbook_freshness_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning(
+                    "Failed to stop incident response runbook freshness scheduler cleanly: %s",
+                    exc,
+                )
         if cost_forecast_scheduler is not None:
             try:
                 cost_forecast_scheduler.shutdown(wait=False)
@@ -1141,6 +1199,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.a2a_idle_timeout_scheduler = None
     app.state.mcp_catalog_refresh_scheduler = None
     app.state.model_catalog_auto_deprecation_scheduler = None
+    app.state.incident_response_delivery_retry_scheduler = None
+    app.state.incident_response_runbook_freshness_scheduler = None
     if resolved.profile == "api":
         app.state.ibor_sync_scheduler = _build_ibor_sync_scheduler(app)
         app.state.refresh_ibor_sync_scheduler = lambda: _refresh_ibor_sync_scheduler(app)
@@ -1218,6 +1278,10 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.checkpoint_gc_scheduler = _build_checkpoint_gc_scheduler(app)
         app.state.cost_forecast_scheduler = build_forecast_scheduler(app)
         app.state.cost_anomaly_scheduler = build_anomaly_scheduler(app)
+        app.state.incident_response_delivery_retry_scheduler = build_delivery_retry_scheduler(app)
+        app.state.incident_response_runbook_freshness_scheduler = build_runbook_freshness_scheduler(
+            app
+        )
         app.state.debug_logging_capture_gc_scheduler = _build_debug_logging_capture_gc_scheduler(
             app
         )
@@ -1445,6 +1509,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(privacy_self_service_router)
         app.include_router(audit_router)
         app.include_router(security_compliance_router)
+        app.include_router(incident_response_router)
 
     _register_deprecated_routes(app)
     _install_openapi_factory(app)

@@ -7,6 +7,8 @@ from platform.audit.dependencies import build_audit_chain_service
 from platform.common.audit_hook import audit_chain_hook
 from platform.common.dependencies import get_current_user, get_db
 from platform.common.exceptions import AuthorizationError, ValidationError
+from platform.incident_response.dependencies import get_incident_response_service
+from platform.incident_response.service import IncidentResponseService
 from platform.trust.ate_service import ATEService
 from platform.trust.circuit_breaker import CircuitBreakerService
 from platform.trust.contract_schemas import (
@@ -163,8 +165,10 @@ async def _append_disclosure_audit(
     material: bool,
 ) -> None:
     settings = getattr(request.app.state, "settings", None)
-    if settings is None or not hasattr(settings, "audit") or not callable(
-        getattr(session, "execute", None)
+    if (
+        settings is None
+        or not hasattr(settings, "audit")
+        or not callable(getattr(session, "execute", None))
     ):
         return
     clients = getattr(request.app.state, "clients", {})
@@ -412,8 +416,14 @@ async def deactivate_certifier(
 async def get_certification(
     certification_id: UUID,
     certification_service: CertificationService = Depends(get_certification_service),
+    incident_response_service: IncidentResponseService = Depends(get_incident_response_service),
 ) -> CertificationResponse:
-    return await certification_service.get(certification_id)
+    response = await certification_service.get(certification_id)
+    finder = getattr(incident_response_service, "find_post_mortems_for_certification", None)
+    if callable(finder):
+        post_mortems = await finder(certification_id)
+        response.post_mortems = [item.model_dump(mode="json") for item in post_mortems]
+    return response
 
 
 @router.get("/agents/{agent_id}/certifications", response_model=CertificationListResponse)

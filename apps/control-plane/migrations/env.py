@@ -63,6 +63,7 @@ importlib.import_module("platform.a2a_gateway.models")
 importlib.import_module("platform.mcp.models")
 importlib.import_module("platform.audit.models")
 importlib.import_module("platform.security_compliance.models")
+importlib.import_module("platform.incident_response.models")
 
 config = context.config
 

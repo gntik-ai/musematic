@@ -179,6 +179,26 @@ class ExecutionRepository:
         result = await self.session.execute(query.order_by(ExecutionEvent.sequence.asc()))
         return list(result.scalars().all())
 
+    async def list_journal_in_window(
+        self,
+        execution_ids: list[UUID],
+        start_ts: datetime,
+        end_ts: datetime,
+    ) -> list[ExecutionEvent]:
+        """Return execution events within a timestamp window."""
+        if not execution_ids:
+            return []
+        result = await self.session.execute(
+            select(ExecutionEvent)
+            .where(
+                ExecutionEvent.execution_id.in_(execution_ids),
+                ExecutionEvent.created_at >= start_ts,
+                ExecutionEvent.created_at <= end_ts,
+            )
+            .order_by(ExecutionEvent.created_at.asc(), ExecutionEvent.sequence.asc())
+        )
+        return list(result.scalars().all())
+
     async def count_events(self, execution_id: UUID) -> int:
         """Count events."""
         total = await self.session.scalar(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from platform.audit.models import AuditChainEntry
 from uuid import UUID
 
@@ -61,6 +62,24 @@ class AuditChainRepository:
             .order_by(AuditChainEntry.sequence_number.asc())
         )
         result = await self.session.execute(statement)
+        return list(result.scalars().all())
+
+    async def list_audit_sources_in_window(
+        self,
+        start_ts: datetime,
+        end_ts: datetime,
+        sources: list[str] | None = None,
+    ) -> list[AuditChainEntry]:
+        statement = (
+            select(AuditChainEntry)
+            .where(AuditChainEntry.created_at >= start_ts)
+            .where(AuditChainEntry.created_at <= end_ts)
+        )
+        if sources:
+            statement = statement.where(AuditChainEntry.audit_event_source.in_(sources))
+        result = await self.session.execute(
+            statement.order_by(AuditChainEntry.created_at.asc(), AuditChainEntry.id.asc())
+        )
         return list(result.scalars().all())
 
     async def get_by_sequence(self, sequence_number: int) -> AuditChainEntry | None:

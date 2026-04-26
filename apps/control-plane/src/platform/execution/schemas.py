@@ -85,6 +85,7 @@ class ExecutionResponse(BaseModel):
     completed_at: datetime | None
     sla_deadline: datetime | None
     checkpoint_policy_snapshot: dict[str, Any] | None = None
+    post_mortems: list[dict[str, Any]] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 
