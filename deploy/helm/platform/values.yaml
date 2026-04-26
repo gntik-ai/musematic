@@ -6,6 +6,27 @@ platformDataNamespace:
   create: true
   name: platform-data
 
+multi_region:
+  enabled: false
+  role: primary
+  primaryRegion: ""
+  secondaryRegion: ""
+  featureFlags: {}
+  endpointRefs:
+    postgresReplicaDsnRef: ""
+    kafkaAdminBrokersRef: ""
+    s3EndpointUrlRef: ""
+    s3AccessKeyRef: ""
+    s3SecretKeyRef: ""
+    qdrantApiKeyRef: ""
+    neo4jUriRef: ""
+    neo4jUserRef: ""
+    neo4jPasswordRef: ""
+    opensearchApiKeyRef: ""
+  images:
+    tools: ghcr.io/musematic/platform-tools:latest
+    kafkaMirrorMaker: quay.io/strimzi/kafka:0.43.0-kafka-3.8.0
+
 postgresql:
   enabled: true
   createNamespace: false

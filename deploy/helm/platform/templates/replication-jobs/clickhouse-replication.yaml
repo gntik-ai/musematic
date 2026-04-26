@@ -1,0 +1,28 @@
+{{- if .Values.multi_region.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-clickhouse-replication-ddl
+  namespace: {{ .Release.Namespace }}
+data:
+  replicated-tables.sql: |
+    -- Operator-owned replicated table DDL goes here.
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-clickhouse-replication
+  namespace: {{ .Release.Namespace }}
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: apply
+          image: {{ .Values.multi_region.images.tools | quote }}
+          command: ["/bin/sh", "-ec"]
+          args:
+            - echo "Apply ClickHouse replicated-table DDL"
+{{- end }}
+

@@ -1,0 +1,22 @@
+{{- if .Values.multi_region.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-opensearch-replica
+  namespace: {{ .Release.Namespace }}
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: configure
+          image: {{ .Values.multi_region.images.tools | quote }}
+          command: ["/bin/sh", "-ec"]
+          args:
+            - echo "Configure OpenSearch cross-cluster replication"
+          env:
+            - name: OPENSEARCH_API_KEY_REF
+              value: {{ .Values.multi_region.endpointRefs.opensearchApiKeyRef | quote }}
+{{- end }}
+

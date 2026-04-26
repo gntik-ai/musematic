@@ -1,0 +1,25 @@
+{{- if .Values.multi_region.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ .Release.Name }}-postgres-streaming-replica
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: multi-region-postgres-replica
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: configure
+          image: {{ .Values.multi_region.images.tools | quote }}
+          command: ["/bin/sh", "-ec"]
+          args:
+            - |
+              echo "Configure PostgreSQL streaming replica using SecretProvider reference ${POSTGRES_REPLICA_DSN_REF}"
+          env:
+            - name: POSTGRES_REPLICA_DSN_REF
+              value: {{ .Values.multi_region.endpointRefs.postgresReplicaDsnRef | quote }}
+{{- end }}
+

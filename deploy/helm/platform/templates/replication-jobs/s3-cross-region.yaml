@@ -1,0 +1,31 @@
+{{- if .Values.multi_region.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-s3-cross-region
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: multi-region-s3-replication
+spec:
+  schedule: "*/15 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: verify
+              image: {{ .Values.multi_region.images.tools | quote }}
+              command: ["/bin/sh", "-ec"]
+              args:
+                - |
+                  echo "Verify generic S3 cross-region replication rules"
+              env:
+                - name: S3_ENDPOINT_URL_REF
+                  value: {{ .Values.multi_region.endpointRefs.s3EndpointUrlRef | quote }}
+                - name: S3_ACCESS_KEY_REF
+                  value: {{ .Values.multi_region.endpointRefs.s3AccessKeyRef | quote }}
+                - name: S3_SECRET_KEY_REF
+                  value: {{ .Values.multi_region.endpointRefs.s3SecretKeyRef | quote }}
+{{- end }}
+

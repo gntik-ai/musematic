@@ -20,6 +20,7 @@ common:
   wsClientBufferSize: 1000
   wsHeartbeatIntervalSeconds: 30
   wsHeartbeatTimeoutSeconds: 10
+  extraEnv: {}
 
 privacy:
   dsrEnabled: false

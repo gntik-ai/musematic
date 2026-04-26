@@ -8,6 +8,7 @@ import { AlertFeed } from "@/components/features/operator/AlertFeed";
 import { AttentionFeedPanel } from "@/components/features/operator/AttentionFeedPanel";
 import { ConnectionStatusBanner } from "@/components/features/operator/ConnectionStatusBanner";
 import { DecommissionWizard } from "@/components/features/operator/decommission-wizard";
+import { CapacityPanel, MaintenancePanel, RegionsPanel } from "@/components/features/multi-region-ops";
 import { OperatorMetricsGrid } from "@/components/features/operator/OperatorMetricsGrid";
 import { QueueBacklogChart } from "@/components/features/operator/QueueBacklogChart";
 import { ReasoningBudgetGauge } from "@/components/features/operator/ReasoningBudgetGauge";
@@ -33,7 +34,7 @@ const heroCards = [
   { icon: BrainCircuit, title: "Reasoning diagnostics", description: "Drill into traces, provenance and resource usage for any active run." },
   { icon: ShieldAlert, title: "Escalation lane", description: "Live alerts and agent attention requests stay visible while you triage." },
 ];
-const PANELS = ["warm-pool", "verdicts", "reliability"] as const;
+const PANELS = ["warm-pool", "verdicts", "reliability", "regions", "maintenance", "capacity"] as const;
 type OperatorPanel = (typeof PANELS)[number];
 
 function resolvePanel(value: string | null): OperatorPanel {
@@ -120,7 +121,7 @@ export default function OperatorDashboardPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-semibold">Expanded operator panels</h2>
-            <p className="text-sm text-muted-foreground">Warm pool health, governance verdicts and reliability stay one click away.</p>
+            <p className="text-sm text-muted-foreground">Warm pool health, governance verdicts, reliability and regional operations stay one click away.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {PANELS.map((panel) => (
@@ -133,6 +134,9 @@ export default function OperatorDashboardPage() {
         {activePanel === "warm-pool" ? <WarmPoolPanel /> : null}
         {activePanel === "verdicts" ? <VerdictFeed workspaceId={workspaceId} /> : null}
         {activePanel === "reliability" ? <ReliabilityGauges /> : null}
+        {activePanel === "regions" ? <RegionsPanel /> : null}
+        {activePanel === "maintenance" ? <MaintenancePanel /> : null}
+        {activePanel === "capacity" ? <CapacityPanel workspaceId={workspaceId} /> : null}
       </div>
 
       <div className="space-y-4 rounded-3xl border border-border/60 bg-card/80 p-6 shadow-sm">
