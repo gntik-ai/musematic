@@ -32,7 +32,7 @@ from platform.analytics.schemas import (
 from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
-from typing import Any
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 LOGGER = logging.getLogger(__name__)
@@ -229,7 +229,7 @@ class AnalyticsService:
                 "Delegating budget threshold checks to cost governance",
                 extra={"days_back": days_back},
             )
-            return await self.cost_governance_service.evaluate_thresholds()
+            return cast(list[UUID], await self.cost_governance_service.evaluate_thresholds())
         threshold = float(self.settings.ANALYTICS_BUDGET_THRESHOLD_USD)
         if threshold <= 0:
             return []

@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import builtins
-import sys
 from datetime import UTC, datetime
 from decimal import Decimal
 from platform.common.clients.clickhouse import AsyncClickHouseClient
 from platform.common.config import PlatformSettings
 from platform.common.exceptions import ClickHouseClientError
 from platform.cost_governance import clickhouse_setup
+from platform.cost_governance import dependencies as deps
 from platform.cost_governance.clickhouse_repository import (
     COST_EVENT_COLUMNS,
     ClickHouseCostRepository,
@@ -18,76 +18,18 @@ from platform.cost_governance.exceptions import (
     InvalidBudgetConfigError,
     WorkspaceCostBudgetExceededError,
 )
+from platform.cost_governance.jobs import anomaly_job, forecast_job
 from platform.cost_governance.schemas import (
     ChargebackReportRequest,
     OverrideIssueRequest,
     WorkspaceBudgetCreateRequest,
 )
 from platform.cost_governance.service import CostGovernanceService
-from types import ModuleType, SimpleNamespace
+from types import SimpleNamespace
 from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
-
-
-def _stub_module(name: str, **attrs: Any) -> None:
-    module = ModuleType(name)
-    for key, value in attrs.items():
-        setattr(module, key, value)
-    sys.modules[name] = module
-
-
-class AuditChainService:
-    pass
-
-
-class AlertService:
-    pass
-
-
-class CatalogService:
-    pass
-
-
-class WorkspacesService:
-    pass
-
-
-for package_name in (
-    "platform.audit",
-    "platform.model_catalog",
-    "platform.notifications",
-    "platform.workspaces",
-):
-    package = ModuleType(package_name)
-    package.__path__ = []  # type: ignore[attr-defined]
-    sys.modules[package_name] = package
-
-_stub_module(
-    "platform.audit.dependencies",
-    get_audit_chain_service=lambda: None,
-)
-_stub_module("platform.audit.service", AuditChainService=AuditChainService)
-_stub_module(
-    "platform.model_catalog.dependencies",
-    get_catalog_service=lambda: None,
-)
-_stub_module("platform.model_catalog.services", CatalogService=CatalogService)
-_stub_module("platform.model_catalog.services.catalog_service", CatalogService=CatalogService)
-_stub_module(
-    "platform.notifications.dependencies",
-    get_notifications_service=lambda: None,
-)
-_stub_module("platform.notifications.service", AlertService=AlertService)
-_stub_module(
-    "platform.workspaces.dependencies",
-    get_workspaces_service=lambda: None,
-)
-_stub_module("platform.workspaces.service", WorkspacesService=WorkspacesService)
-
-from platform.cost_governance import dependencies as deps  # noqa: E402
-from platform.cost_governance.jobs import anomaly_job, forecast_job  # noqa: E402
 
 
 class RecordingClickHouseClient:
@@ -379,6 +321,14 @@ async def test_forecast_and_anomaly_jobs_commit_and_rollback(
 def test_schedulers_handle_missing_and_available_apscheduler(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    original_import = builtins.__import__
+
+    def missing_import(name: str, *args: Any, **kwargs: Any) -> Any:
+        if name == "apscheduler.schedulers.asyncio":
+            raise ImportError(name)
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", missing_import)
     assert forecast_job.build_forecast_scheduler(_app()) is None
     assert anomaly_job.build_anomaly_scheduler(_app()) is None
 
@@ -389,8 +339,6 @@ def test_schedulers_handle_missing_and_available_apscheduler(
 
         def add_job(self, func: Any, trigger: str, **kwargs: Any) -> None:
             self.jobs.append({"func": func, "trigger": trigger, **kwargs})
-
-    original_import = builtins.__import__
 
     def fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
         if name == "apscheduler.schedulers.asyncio":
@@ -447,6 +395,16 @@ async def test_scheduler_job_callbacks_execute_configured_jobs(
 
 
 def test_schema_validators_and_exceptions_cover_error_paths() -> None:
+    assert WorkspaceBudgetCreateRequest(
+        period_type="monthly",
+        budget_cents=1,
+        soft_alert_thresholds=[50, 80],
+    ).soft_alert_thresholds == [50, 80]
+    assert ChargebackReportRequest(
+        since=datetime(2026, 4, 1, tzinfo=UTC),
+        until=datetime(2026, 4, 1, tzinfo=UTC),
+    ).since == datetime(2026, 4, 1, tzinfo=UTC)
+
     with pytest.raises(ValueError, match="thresholds must be sorted"):
         WorkspaceBudgetCreateRequest(
             period_type="monthly",

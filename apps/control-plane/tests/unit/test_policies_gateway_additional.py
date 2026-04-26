@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from platform.policies.gateway import MemoryWriteGateService, ToolGatewayService
+from decimal import Decimal
+from platform.cost_governance.constants import BLOCK_REASON_COST_BUDGET
+from platform.policies.gateway import MemoryWriteGateService, ToolGatewayService, _decimalish
 from platform.policies.schemas import (
     BudgetLimitsSchema,
     EnforcementBundle,
@@ -15,7 +17,7 @@ from uuid import uuid4
 
 import pytest
 
-from tests.policies_support import MemoryServiceStub
+from tests.policies_support import MemoryServiceStub, build_fake_redis
 
 
 class PolicyServiceStub:
@@ -115,6 +117,59 @@ class SessionCommitStub:
         self.commits += 1
 
 
+class ResidencyServiceStub:
+    def __init__(self) -> None:
+        self.calls: list[tuple[object, object]] = []
+
+    async def enforce(self, workspace_id, origin_region) -> None:
+        self.calls.append((workspace_id, origin_region))
+
+
+class VisibilityRegistryStub:
+    def __init__(
+        self,
+        *,
+        tool_patterns: list[str],
+        mcp_servers: list[str] | None = None,
+        maturity_level: int = 3,
+    ) -> None:
+        self.tool_patterns = tool_patterns
+        self.mcp_servers = mcp_servers or []
+        self.maturity_level = maturity_level
+
+    async def resolve_effective_visibility(self, agent_id, workspace_id):
+        del agent_id, workspace_id
+        return SimpleNamespace(tool_patterns=self.tool_patterns)
+
+    async def get_agent(
+        self,
+        workspace_id,
+        agent_id,
+        actor_id=None,
+        requesting_agent_id=None,
+    ):
+        del workspace_id, agent_id, actor_id, requesting_agent_id
+        return SimpleNamespace(
+            maturity_level=self.maturity_level,
+            mcp_servers=self.mcp_servers,
+        )
+
+
+class BudgetCheckServiceStub:
+    def __init__(self, *, allowed: bool) -> None:
+        self.allowed = allowed
+        self.calls: list[tuple[object, Decimal, object]] = []
+
+    async def check_budget_for_start(self, workspace_id, estimate, *, override_token=None):
+        self.calls.append((workspace_id, estimate, override_token))
+        return SimpleNamespace(
+            allowed=self.allowed,
+            budget_cents=100,
+            projected_spend_cents=Decimal("125"),
+            override_endpoint="/api/v1/costs/workspaces/budget/override",
+        )
+
+
 class FailingPolicyService:
     redis_client = None
 
@@ -143,6 +198,17 @@ def build_bundle(**overrides):
     }
     payload.update(overrides)
     return EnforcementBundle(**payload)
+
+
+def _cost_settings() -> SimpleNamespace:
+    return SimpleNamespace(
+        privacy_compliance=SimpleNamespace(
+            dlp_enabled=False,
+            residency_enforcement_enabled=True,
+        ),
+        visibility=SimpleNamespace(zero_trust_enabled=True),
+        feature_cost_hard_caps=True,
+    )
 
 
 @pytest.mark.asyncio
@@ -262,6 +328,123 @@ async def test_tool_gateway_covers_maturity_purpose_safety_and_permission_paths(
 
 
 @pytest.mark.asyncio
+async def test_tool_gateway_cost_visibility_mcp_and_residency_paths() -> None:
+    workspace_id = uuid4()
+    agent_id = uuid4()
+    residency = ResidencyServiceStub()
+    budget = BudgetCheckServiceStub(allowed=False)
+    session = SimpleNamespace(
+        origin_region="eu-west",
+        estimated_tool_cost_cents="125",
+        cost_override_token="override-token",
+    )
+    gateway = ToolGatewayService(
+        policy_service=PolicyServiceStub(build_bundle(allowed_tool_patterns=["finance:*"])),
+        sanitizer=SanitizerStub(),
+        reasoning_client=None,
+        registry_service=VisibilityRegistryStub(tool_patterns=["finance:*"]),
+        settings=_cost_settings(),
+        residency_service=residency,
+        budget_service=budget,
+    )
+
+    blocked = await gateway.validate_tool_invocation(
+        agent_id,
+        "finance:agent",
+        "finance:read",
+        "analysis",
+        None,
+        workspace_id,
+        session,
+    )
+    allowed_budget = BudgetCheckServiceStub(allowed=True)
+    allowed = await ToolGatewayService(
+        policy_service=PolicyServiceStub(build_bundle(allowed_tool_patterns=["finance:*"])),
+        sanitizer=SanitizerStub(),
+        reasoning_client=None,
+        registry_service=VisibilityRegistryStub(tool_patterns=["finance:*"]),
+        settings=_cost_settings(),
+        residency_service=ResidencyServiceStub(),
+        budget_service=allowed_budget,
+    ).validate_tool_invocation(
+        agent_id,
+        "finance:agent",
+        "finance:read",
+        "analysis",
+        None,
+        workspace_id,
+        SimpleNamespace(cost_estimate_cents="25"),
+    )
+    visibility_block = await ToolGatewayService(
+        policy_service=PolicyServiceStub(build_bundle(allowed_tool_patterns=["finance:*"])),
+        sanitizer=SanitizerStub(),
+        reasoning_client=None,
+        registry_service=VisibilityRegistryStub(tool_patterns=["tools:*"]),
+        settings=_cost_settings(),
+        budget_service=BudgetCheckServiceStub(allowed=True),
+    ).validate_tool_invocation(
+        agent_id,
+        "finance:agent",
+        "finance:read",
+        "analysis",
+        None,
+        workspace_id,
+        SimpleNamespace(estimated_cost_cents="1"),
+    )
+    mcp_block = await ToolGatewayService(
+        policy_service=PolicyServiceStub(build_bundle(allowed_tool_patterns=["mcp:*"])),
+        sanitizer=SanitizerStub(),
+        reasoning_client=None,
+        registry_service=None,
+    ).validate_tool_invocation(
+        agent_id,
+        "finance:agent",
+        "mcp:server-a:tool",
+        "analysis",
+        None,
+        workspace_id,
+        None,
+    )
+    mcp_allowed = await ToolGatewayService(
+        policy_service=PolicyServiceStub(build_bundle(allowed_tool_patterns=["mcp:*"])),
+        sanitizer=SanitizerStub(),
+        reasoning_client=None,
+        registry_service=VisibilityRegistryStub(
+            tool_patterns=["mcp:*"],
+            mcp_servers=["server-a"],
+        ),
+    ).validate_tool_invocation(
+        agent_id,
+        "finance:agent",
+        "mcp:server-a:tool",
+        "analysis",
+        None,
+        workspace_id,
+        None,
+    )
+    malformed_ref = await gateway._check_mcp_server_membership(
+        agent_id,
+        workspace_id,
+        "mcp:malformed",
+    )
+
+    assert blocked.block_reason == BLOCK_REASON_COST_BUDGET
+    assert blocked.policy_rule_ref == {
+        "budget_cents": 100,
+        "projected_spend_cents": "125",
+        "override_endpoint": "/api/v1/costs/workspaces/budget/override",
+    }
+    assert budget.calls == [(workspace_id, Decimal("125"), "override-token")]
+    assert residency.calls == [(workspace_id, "eu-west")]
+    assert allowed.allowed is True
+    assert allowed_budget.calls[0][1] == Decimal("25")
+    assert visibility_block.block_reason == "visibility_denied"
+    assert mcp_block.block_reason == "permission_denied"
+    assert mcp_allowed.allowed is True
+    assert malformed_ref is None
+
+
+@pytest.mark.asyncio
 async def test_tool_gateway_uses_redis_budget_and_sanitizer_and_memory_gate_extra_paths() -> None:
     workspace_id = uuid4()
     execution_id = uuid4()
@@ -347,6 +530,148 @@ async def test_tool_gateway_uses_redis_budget_and_sanitizer_and_memory_gate_extr
         None,
     )
     assert failure_block.block_reason == "policy_resolution_failure"
+
+
+@pytest.mark.asyncio
+async def test_memory_gate_redis_rate_limit_success_path_and_decimal_helper() -> None:
+    workspace_id = uuid4()
+    agent_id = uuid4()
+    _memory, redis_client = build_fake_redis()
+    policy = PolicyServiceStub(
+        build_bundle(
+            allowed_namespaces=["finance*"],
+            budget_limits=BudgetLimitsSchema(max_memory_writes_per_minute=2),
+        )
+    )
+    policy.redis_client = redis_client
+    gateway = MemoryWriteGateService(
+        policy_service=policy,
+        memory_service=None,
+    )
+
+    first = await gateway.validate_memory_write(
+        agent_id,
+        "finance:agent",
+        "finance-notes",
+        "hash-1",
+        workspace_id,
+        None,
+    )
+    second = await gateway.validate_memory_write(
+        agent_id,
+        "finance:agent",
+        "finance-notes",
+        "hash-2",
+        workspace_id,
+        None,
+    )
+    third = await gateway.validate_memory_write(
+        agent_id,
+        "finance:agent",
+        "finance-notes",
+        "hash-3",
+        workspace_id,
+        None,
+    )
+
+    assert first.allowed is True
+    assert second.allowed is True
+    assert third.block_reason == "rate_limit_exceeded"
+    assert _decimalish(None) == Decimal("0")
+    assert _decimalish("3.5") == Decimal("3.5")
+
+
+@pytest.mark.asyncio
+async def test_gateway_allows_non_matching_private_checks_and_no_redis_memory_limit() -> None:
+    workspace_id = uuid4()
+    agent_id = uuid4()
+    bundle = build_bundle(
+        allowed_tool_patterns=["ops:*"],
+        maturity_gate_rules=[
+            MaturityGateRuleSchema(
+                min_maturity_level=1,
+                capability_patterns=["finance:*"],
+            )
+        ],
+    )
+    gateway = ToolGatewayService(
+        policy_service=PolicyServiceStub(bundle),
+        sanitizer=SanitizerStub(),
+        reasoning_client=None,
+        registry_service=VisibilityRegistryStub(
+            tool_patterns=["finance:*"],
+            mcp_servers=["server-a"],
+            maturity_level=3,
+        ),
+        settings=_cost_settings(),
+        budget_service=BudgetCheckServiceStub(allowed=True),
+    )
+
+    assert gateway._permission_ref(bundle, "finance:read") is None
+    assert await gateway._check_mcp_server_membership(
+        agent_id,
+        workspace_id,
+        "mcp:server-b:tool",
+    ) is None
+    assert await ToolGatewayService(
+        policy_service=PolicyServiceStub(bundle),
+        sanitizer=SanitizerStub(),
+        reasoning_client=None,
+        registry_service=None,
+    )._check_maturity(agent_id, workspace_id, "finance:read", bundle) == {
+        "required_level": 1
+    }
+    assert await gateway._check_maturity(agent_id, workspace_id, "finance:read", bundle) is None
+
+    budget_policy = PolicyServiceStub(
+        build_bundle(
+            allowed_tool_patterns=["finance:*"],
+            budget_limits=BudgetLimitsSchema(max_tool_invocations_per_execution=1),
+        )
+    )
+    budget_policy.redis_client = RedisBudgetClient(allowed=True)
+    assert await ToolGatewayService(
+        policy_service=budget_policy,
+        sanitizer=SanitizerStub(),
+        reasoning_client=None,
+        registry_service=None,
+    )._check_budget(budget_policy.bundle, uuid4()) is None
+    budget_policy.redis_client = object()
+    assert await ToolGatewayService(
+        policy_service=budget_policy,
+        sanitizer=SanitizerStub(),
+        reasoning_client=None,
+        registry_service=None,
+    )._check_budget(budget_policy.bundle, uuid4()) is None
+    assert await gateway._check_workspace_cost_budget(
+        workspace_id,
+        SimpleNamespace(estimated_cost_cents="0"),
+        None,
+    ) is None
+    assert gateway._check_safety(
+        [{"pattern": ""}, {"id": "wire", "pattern": "wire"}],
+        "finance:read",
+    ) is None
+
+    memory_policy = PolicyServiceStub(
+        build_bundle(
+            allowed_namespaces=["finance"],
+            budget_limits=BudgetLimitsSchema(max_memory_writes_per_minute=1),
+        )
+    )
+    allowed = await MemoryWriteGateService(
+        policy_service=memory_policy,
+        memory_service=None,
+    ).validate_memory_write(
+        agent_id,
+        "finance:agent",
+        "finance",
+        "hash",
+        workspace_id,
+        None,
+    )
+
+    assert allowed.allowed is True
 
 
 @pytest.mark.asyncio

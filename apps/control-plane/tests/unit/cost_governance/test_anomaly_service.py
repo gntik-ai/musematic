@@ -213,3 +213,18 @@ async def test_anomaly_fallback_baseline_lifecycle_none_and_audit_paths() -> Non
     await service.resolve(detected.id)
 
     assert len(audit.events) == 2
+
+
+@pytest.mark.asyncio
+async def test_anomaly_critical_severity_skips_non_callable_alert_service() -> None:
+    workspace_id = uuid4()
+    response = await AnomalyService(
+        repository=Repo(),  # type: ignore[arg-type]
+        clickhouse_repository=History(
+            [Decimal("10"), Decimal("10"), Decimal("10"), Decimal("100")]
+        ),  # type: ignore[arg-type]
+        alert_service=object(),
+    ).detect(workspace_id)
+
+    assert response is not None
+    assert response.severity == "critical"

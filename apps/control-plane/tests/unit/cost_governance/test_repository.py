@@ -217,12 +217,14 @@ async def test_repository_query_methods_return_scalar_and_row_results() -> None:
             Result(scalar=attribution),
             Result(scalar_rows=[attribution]),
             Result(scalar_rows=[attribution]),
+            Result(scalar_rows=[attribution]),
             Result(rows=[Row(workspace_id=workspace_id, total_cost_cents=Decimal("16"))]),
             Result(scalar=budget),
             Result(scalar_rows=[budget]),
             Result(scalar=budget),
             Result(scalar=alert),
             Result(scalar_rows=[alert]),
+            Result(scalar_rows=[]),
             Result(scalar=forecast),
         ]
     )
@@ -239,6 +241,13 @@ async def test_repository_query_methods_return_scalar_and_row_results() -> None:
         limit=10,
         agent_id=uuid4(),
         user_id=uuid4(),
+    ) == [attribution]
+    assert await repository.get_workspace_attributions(
+        workspace_id,
+        None,
+        None,
+        cursor=None,
+        limit=10,
     ) == [attribution]
     assert await repository.aggregate_attributions(workspace_id, ["workspace"], since, until) == [
         {"workspace_id": workspace_id, "total_cost_cents": Decimal("16")}
@@ -264,6 +273,7 @@ async def test_repository_query_methods_return_scalar_and_row_results() -> None:
         Decimal("80"),
     ) is alert
     assert await repository.list_alerts(workspace_id, cursor=until) == [alert]
+    assert await repository.list_alerts(workspace_id) == []
     assert await repository.get_latest_forecast(workspace_id) is forecast
 
 
@@ -288,6 +298,7 @@ async def test_repository_mutates_budget_forecast_anomaly_override_state() -> No
         [
             Result(scalar=anomaly),
             Result(scalar_rows=[anomaly]),
+            Result(scalar_rows=[]),
             Result(scalar=override),
             Result(scalar=None),
             Result(scalar_rows=[workspace_id]),
@@ -329,6 +340,7 @@ async def test_repository_mutates_budget_forecast_anomaly_override_state() -> No
     assert await repository.list_anomalies(workspace_id, "open", 10, datetime.now(UTC)) == [
         anomaly
     ]
+    assert await repository.list_anomalies(workspace_id, None, 10, None) == []
     record = await repository.create_override_record(
         workspace_id=workspace_id,
         issued_by=uuid4(),

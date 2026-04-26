@@ -4,8 +4,15 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from platform.common.config import PlatformSettings
-from platform.cost_governance.exceptions import InvalidBudgetConfigError
-from platform.cost_governance.services.budget_service import BudgetService, period_bounds
+from platform.cost_governance.exceptions import (
+    InvalidBudgetConfigError,
+    OverrideAlreadyRedeemedError,
+)
+from platform.cost_governance.services.budget_service import (
+    BudgetService,
+    _maybe_await,
+    period_bounds,
+)
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -370,3 +377,110 @@ async def test_budget_lua_fallback_paths() -> None:
     assert admitted is True
     assert projected == Decimal("15")
     assert redeemed == b"not-a-list"
+
+
+@pytest.mark.asyncio
+async def test_budget_service_redis_override_and_counter_edges() -> None:
+    workspace_id = uuid4()
+    budget = BudgetRow(
+        workspace_id=workspace_id,
+        period_type="monthly",
+        budget_cents=100,
+        hard_cap_enabled=True,
+    )
+    repository = FakeBudgetRepository(budget)
+    repository.spend = Decimal("40")
+    redis = FallbackRedis([1, "45"])
+    service = BudgetService(
+        repository=repository,  # type: ignore[arg-type]
+        redis_client=redis,  # type: ignore[arg-type]
+        settings=_settings(hard_caps=True),
+        alert_service=object(),
+    )
+    period_start, period_end = period_bounds("monthly")
+    counter_key = service._counter_key(workspace_id, "monthly", period_start)
+    redis.values[counter_key] = b"35"
+
+    override_result = await service.check_budget_for_start(
+        workspace_id,
+        Decimal("500"),
+        override_token="manual-token",
+    )
+    issued = await service.issue_override(workspace_id, uuid4(), "incident")
+    cached_spend = await service._current_spend(budget, period_start, period_end)
+    await service._increment_hot_counter(budget, period_start, period_end, Decimal("5"))
+    await service.invalidate_hot_counter(workspace_id, "monthly")
+    await service._route_budget_alert(workspace_id, uuid4(), 90)
+
+    assert override_result.allowed is True
+    assert issued.token
+    assert repository.redeemed_tokens
+    assert cached_spend == Decimal("35")
+    assert counter_key not in redis.values
+    assert await service._redeem_override_atomic("token", "redeemed") == b"[1, '45']"
+
+    repository.spend = Decimal("99")
+    reject_service = BudgetService(
+        repository=repository,  # type: ignore[arg-type]
+        redis_client=FallbackRedis("not-a-list"),  # type: ignore[arg-type]
+        settings=_settings(hard_caps=True),
+    )
+    admitted, projected = await reject_service._atomic_admit(
+        budget,
+        period_start,
+        period_end,
+        Decimal("5"),
+    )
+
+    assert admitted is False
+    assert projected == Decimal("99")
+    assert await BudgetService(
+        repository=repository,  # type: ignore[arg-type]
+        redis_client=FallbackRedis(123),  # type: ignore[arg-type]
+        settings=_settings(),
+    )._redeem_override_atomic("token", "redeemed") == b"123"
+    assert await _maybe_await("ready") == "ready"
+
+
+@pytest.mark.asyncio
+async def test_budget_service_failed_atomic_admit_and_redeemed_override(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace_id = uuid4()
+    budget = BudgetRow(
+        workspace_id=workspace_id,
+        period_type="monthly",
+        budget_cents=100,
+        hard_cap_enabled=True,
+    )
+    repository = FakeBudgetRepository(budget)
+    repository.spend = Decimal("80")
+    service = BudgetService(
+        repository=repository,  # type: ignore[arg-type]
+        redis_client=None,
+        settings=_settings(hard_caps=True),
+    )
+
+    async def failed_atomic_admit(*args: Any, **kwargs: Any) -> tuple[bool, Decimal]:
+        del args, kwargs
+        return False, Decimal("95")
+
+    monkeypatch.setattr(service, "_atomic_admit", failed_atomic_admit)
+    allowed_after_failed_atomic = await service.check_budget_for_start(
+        workspace_id,
+        Decimal("1"),
+    )
+
+    assert allowed_after_failed_atomic.allowed is True
+    assert allowed_after_failed_atomic.projected_spend_cents == Decimal("96")
+
+    redeemed_service = BudgetService(
+        repository=repository,  # type: ignore[arg-type]
+        redis_client=FallbackRedis(b"already_redeemed"),  # type: ignore[arg-type]
+        settings=_settings(),
+    )
+    with pytest.raises(OverrideAlreadyRedeemedError):
+        await redeemed_service.redeem_override("already-used")
+
+    no_redis_issue = await service.issue_override(workspace_id, uuid4(), "manual review")
+    assert no_redis_issue.token

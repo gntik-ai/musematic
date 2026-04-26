@@ -7,7 +7,9 @@ from platform.execution.events import (
     ExecutionCreatedEvent,
     ExecutionDomainEventType,
     ExecutionReprioritizedEvent,
+    ExecutionRolledBackEvent,
     ExecutionStatusChangedEvent,
+    PromptSecretDetectedEvent,
     _coerce_uuid,
     _find_active_execution_ids,
     attention_consumer_handler,
@@ -16,7 +18,9 @@ from platform.execution.events import (
     fleet_health_consumer_handler,
     publish_execution_created,
     publish_execution_reprioritized,
+    publish_execution_rolled_back,
     publish_execution_status_changed,
+    publish_prompt_secret_detected,
     reasoning_budget_consumer_handler,
     register_execution_consumers,
     register_execution_event_types,
@@ -72,6 +76,27 @@ async def test_execution_publishers_and_registry_cover_domain_events() -> None:
         ),
         correlation,
     )
+    await publish_execution_rolled_back(
+        producer,
+        ExecutionRolledBackEvent(
+            execution_id=execution_id,
+            rollback_action_id=uuid4(),
+            target_checkpoint_number=2,
+            workspace_id=uuid4(),
+        ),
+        correlation,
+    )
+    await publish_prompt_secret_detected(
+        producer,
+        PromptSecretDetectedEvent(
+            execution_id=execution_id,
+            workspace_id=uuid4(),
+            agent_fqn="agents.alpha",
+            step_id="step_a",
+            secret_type="api_key",
+        ),
+        correlation,
+    )
 
     assert event_registry.is_registered(ExecutionDomainEventType.execution_created.value) is True
     assert (
@@ -86,6 +111,8 @@ async def test_execution_publishers_and_registry_cover_domain_events() -> None:
         ExecutionDomainEventType.execution_created.value,
         ExecutionDomainEventType.execution_status_changed.value,
         ExecutionDomainEventType.execution_reprioritized.value,
+        ExecutionDomainEventType.execution_rolled_back.value,
+        ExecutionDomainEventType.prompt_secret_detected.value,
     ]
 
 
@@ -117,6 +144,27 @@ async def test_execution_event_publishers_ignore_missing_producer() -> None:
         ),
         correlation,
     )
+    await publish_execution_rolled_back(
+        None,
+        ExecutionRolledBackEvent(
+            execution_id=uuid4(),
+            rollback_action_id=uuid4(),
+            target_checkpoint_number=1,
+            workspace_id=uuid4(),
+        ),
+        correlation,
+    )
+    await publish_prompt_secret_detected(
+        None,
+        PromptSecretDetectedEvent(
+            execution_id=uuid4(),
+            workspace_id=uuid4(),
+            agent_fqn="agents.alpha",
+            step_id="step_a",
+            secret_type="api_key",
+        ),
+        correlation,
+    )
 
 
 @pytest.mark.asyncio
@@ -126,6 +174,7 @@ async def test_execution_event_handlers_cover_proxy_and_non_matching_paths() -> 
 
     await workflow_runtime_consumer_handler(envelope, handler)
     assert handler.await_count == 1
+    await workflow_runtime_consumer_handler(envelope)
 
     assert await reasoning_budget_consumer_handler(envelope) == []
     assert await fleet_health_consumer_handler(envelope) == []
@@ -308,15 +357,31 @@ async def test_execution_event_helpers_cover_fallbacks_registration_and_filters(
         attention_handler=noop_handler,
         event_bus_handler=noop_handler,
     )
+    register_execution_consumers(
+        manager,
+        group_id="workflow-execution",
+        workflow_runtime_handler=noop_handler,
+        reasoning_handler=noop_handler,
+        fleet_handler=noop_handler,
+        workspace_goal_handler=noop_handler,
+        attention_handler=noop_handler,
+    )
 
     topics = [call.args[0] for call in manager.subscribe.call_args_list]
-    assert topics == [
+    assert topics[:6] == [
         "workflow.runtime",
         "runtime.reasoning",
         "fleet.health",
         "workspace.goal",
         "interaction.attention",
         "event.bus",
+    ]
+    assert topics[6:] == [
+        "workflow.runtime",
+        "runtime.reasoning",
+        "fleet.health",
+        "workspace.goal",
+        "interaction.attention",
     ]
 
 
@@ -328,8 +393,16 @@ async def test_execution_event_helpers_cover_empty_identifier_paths_and_unknown_
         make_envelope("budget.threshold_breached", "runtime.reasoning", {}),
         scheduler_service=scheduler,
     ) == []
+    assert await reasoning_budget_consumer_handler(
+        make_envelope("budget.ok", "runtime.reasoning", {"event_type": "budget.ok"}),
+        scheduler_service=scheduler,
+    ) == []
     assert await fleet_health_consumer_handler(
         make_envelope("member.failed", "fleet.health", {}),
+        scheduler_service=scheduler,
+    ) == []
+    assert await fleet_health_consumer_handler(
+        make_envelope("fleet.ok", "fleet.health", {"event_type": "fleet.ok"}),
         scheduler_service=scheduler,
     ) == []
     assert await workspace_goal_consumer_handler(
@@ -341,12 +414,95 @@ async def test_execution_event_helpers_cover_empty_identifier_paths_and_unknown_
         make_envelope("attention.requested", "interaction.attention", {}),
         scheduler_service=scheduler,
     ) == []
+    direct_scheduler = SimpleNamespace(handle_reprioritization_trigger=AsyncMock())
+    assert await attention_consumer_handler(
+        make_envelope(
+            "attention.requested",
+            "interaction.attention",
+            {},
+            correlation_context=CorrelationContext(execution_id=uuid4(), correlation_id=uuid4()),
+        ),
+        scheduler_service=direct_scheduler,
+    ) != []
     with pytest.raises(ValueError, match="Unknown trigger"):
         await fire_cron_trigger(
             uuid4(),
             workflow_service=workflow_service,
             execution_service=execution_service,
         )
+
+
+@pytest.mark.asyncio
+async def test_execution_event_handlers_cover_trigger_filter_misses() -> None:
+    workspace_id = uuid4()
+    goal_id = uuid4()
+    workflow_service = SimpleNamespace(
+        repository=SimpleNamespace(
+            list_active_triggers_by_type=AsyncMock(
+                return_value=[
+                    SimpleNamespace(
+                        id=uuid4(),
+                        definition_id=uuid4(),
+                        config={"workspace_id": str(uuid4()), "goal_type_pattern": "*"},
+                    ),
+                    SimpleNamespace(
+                        id=uuid4(),
+                        definition_id=uuid4(),
+                        config={
+                            "workspace_id": str(workspace_id),
+                            "goal_type_pattern": "finance-*",
+                        },
+                    ),
+                ]
+            )
+        ),
+        get_workflow=AsyncMock(),
+        record_trigger_fired=AsyncMock(),
+    )
+    execution_service = SimpleNamespace(create_execution=AsyncMock())
+
+    goal_ids = await workspace_goal_consumer_handler(
+        make_envelope(
+            "goal.created",
+            "workspace.goal",
+            {"workspace_id": str(workspace_id), "goal_type": "ops-review"},
+            correlation_context=CorrelationContext(
+                workspace_id=workspace_id,
+                goal_id=goal_id,
+                correlation_id=uuid4(),
+            ),
+        ),
+        workflow_service=workflow_service,
+        execution_service=execution_service,
+    )
+
+    workflow_service.repository.list_active_triggers_by_type = AsyncMock(
+        return_value=[
+            SimpleNamespace(
+                id=uuid4(),
+                definition_id=uuid4(),
+                config={"topic": "billing.*", "event_type_pattern": "*"},
+            ),
+            SimpleNamespace(
+                id=uuid4(),
+                definition_id=uuid4(),
+                config={"topic": "orders.*", "event_type_pattern": "invoice.*"},
+            ),
+        ]
+    )
+    bus_ids = await event_bus_consumer_handler(
+        make_envelope(
+            "order.created",
+            "event.bus",
+            {"topic": "orders.created", "event_type": "order.created"},
+        ),
+        workflow_service=workflow_service,
+        execution_service=execution_service,
+    )
+
+    assert goal_ids == []
+    assert bus_ids == []
+    execution_service.create_execution.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -364,8 +520,10 @@ async def test_execution_event_helpers_cover_direct_uuid_coercion_and_query_help
         fleet_id=uuid4(),
         interaction_id=interaction_id,
     )
+    unfiltered = await _find_active_execution_ids(session)
 
     assert _coerce_uuid(None) is None
     assert _coerce_uuid(execution_id) == execution_id
     assert _coerce_uuid(str(execution_id)) == execution_id
     assert resolved == [execution_id, interaction_id]
+    assert unfiltered == [execution_id, interaction_id]

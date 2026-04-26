@@ -116,3 +116,15 @@ async def test_workspaces_event_publishers_emit_expected_topics() -> None:
         item.value for item in WorkspacesEventType
     }
     assert {event["topic"] for event in producer.events} == {"workspaces.events"}
+
+    await publish_workspace_created(
+        None,
+        WorkspacePayload(
+            workspace_id=uuid4(),
+            owner_id=uuid4(),
+            name="No producer",
+            status=WorkspaceStatus.active,
+            is_default=False,
+        ),
+        correlation,
+    )

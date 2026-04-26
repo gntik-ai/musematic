@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-
 from platform.common.correlation import goal_id_var
 from platform.common.events.envelope import CorrelationContext, make_envelope, parse_event_envelope
 from uuid import uuid4
@@ -198,3 +197,60 @@ def test_parse_event_envelope_unwraps_nested_envelope_bytes() -> None:
     assert envelope.source == "sandbox-manager"
     assert envelope.correlation_context.correlation_id == correlation_id
     assert envelope.payload == {"state": "creating"}
+
+
+def test_parse_event_envelope_promotes_legacy_fields_and_scalar_payload() -> None:
+    workspace_id = uuid4()
+    conversation_id = uuid4()
+    interaction_id = uuid4()
+    execution_id = uuid4()
+    fleet_id = uuid4()
+    goal_id = uuid4()
+
+    envelope = parse_event_envelope(
+        json.dumps(
+            {
+                "event_id": "not-a-uuid",
+                "event_type": "simulation.completed",
+                "workspace_id": str(workspace_id),
+                "conversation_id": str(conversation_id),
+                "interaction_id": str(interaction_id),
+                "execution_id": str(execution_id),
+                "fleet_id": str(fleet_id),
+                "goal_id": str(goal_id),
+                "trace_context": "not-a-dict",
+                "trace_id": 123,
+                "payload": ["done"],
+            }
+        )
+    )
+
+    assert envelope.source == "simulation-controller"
+    assert envelope.correlation_context.workspace_id == workspace_id
+    assert envelope.correlation_context.conversation_id == conversation_id
+    assert envelope.correlation_context.interaction_id == interaction_id
+    assert envelope.correlation_context.execution_id == execution_id
+    assert envelope.correlation_context.fleet_id == fleet_id
+    assert envelope.correlation_context.goal_id == goal_id
+    assert envelope.trace_context == {"trace_id": "123"}
+    assert envelope.payload == {"value": ["done"]}
+
+
+def test_parse_event_envelope_uses_valid_event_id_and_empty_payload() -> None:
+    event_id = uuid4()
+
+    envelope = parse_event_envelope(
+        {
+            "event_id": str(event_id),
+            "event_type": "sandbox.completed",
+            "correlation": {},
+            "payload": None,
+        }
+    )
+
+    assert envelope.source == "sandbox-manager"
+    assert envelope.correlation_context.correlation_id == event_id
+    assert envelope.payload == {}
+
+    generated = parse_event_envelope({"event_type": "legacy.event", "payload": {}})
+    assert generated.correlation_context.correlation_id is not None

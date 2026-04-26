@@ -22,6 +22,27 @@ from tests.analytics_support import AnalyticsRepositoryStub, WorkspacesServiceSt
 from tests.auth_support import RecordingProducer
 
 
+class CostGovernanceAnalyticsStub:
+    def __init__(self) -> None:
+        self.workspace_summary_calls: list[tuple[object, object]] = []
+        self.threshold_calls = 0
+        self.threshold_workspace_id = uuid4()
+
+    async def get_workspace_cost_summary(self, workspace_id, *, period_start):
+        self.workspace_summary_calls.append((workspace_id, period_start))
+        return {
+            "total_cost_usd": 42.0,
+            "period_start": period_start,
+            "period_end": datetime.now(UTC),
+            "execution_count": 7,
+            "avg_daily_cost_usd": 6.0,
+        }
+
+    async def evaluate_thresholds(self):
+        self.threshold_calls += 1
+        return [self.threshold_workspace_id]
+
+
 def _service(
     repo: AnalyticsRepositoryStub,
     *,
@@ -304,6 +325,23 @@ async def test_budget_thresholds_skip_workspaces_below_limit() -> None:
     )
 
     assert await service.check_budget_thresholds(30) == []
+
+
+@pytest.mark.asyncio
+async def test_cost_governance_delegation_paths() -> None:
+    workspace_id = uuid4()
+    delegate = CostGovernanceAnalyticsStub()
+    service = _service(AnalyticsRepositoryStub(), workspace_ids=[workspace_id])
+    service.cost_governance_service = delegate
+
+    summary = await service.get_workspace_cost_summary(workspace_id, 14)
+    crossed = await service.check_budget_thresholds(14)
+
+    assert summary["total_cost_usd"] == 42.0
+    assert summary["execution_count"] == 7
+    assert delegate.workspace_summary_calls[0][0] == workspace_id
+    assert crossed == [delegate.threshold_workspace_id]
+    assert delegate.threshold_calls == 1
 
 
 def test_rank_cost_quality_assigns_dense_ordering_with_nulls_last() -> None:

@@ -128,6 +128,21 @@ class CatalogService:
     repository = CatalogRepository()
 
 
+class GetterCatalogService:
+    async def get_pricing(self, model_id: str) -> dict[str, Decimal]:
+        assert model_id == "gpt-priced"
+        return {
+            "input_cost_per_1k_tokens": Decimal("3"),
+            "output_cost_per_1k_tokens": Decimal("4"),
+        }
+
+
+class EmptyCatalogRepository:
+    async def get_entry_by_provider_model(self, provider: str, model_id: str) -> None:
+        del provider, model_id
+        return None
+
+
 def _service(repository: FakeRepository) -> AttributionService:
     settings = PlatformSettings(
         cost_governance={
@@ -342,3 +357,48 @@ async def test_catalog_repository_pricing_clickhouse_and_budget_invalidation() -
     assert budget.invalidated == [(workspace_id, "monthly")]
     assert clickhouse.events[0]["workspace_id"] == workspace_id
     assert await service.get_execution_cost(uuid4()) is None
+
+
+@pytest.mark.asyncio
+async def test_record_correction_and_pricing_resolution_edges() -> None:
+    repository = FakeRepository()
+    clickhouse = RecordingClickHouse()
+    service = AttributionService(
+        repository=repository,  # type: ignore[arg-type]
+        settings=PlatformSettings(cost_governance={"overhead_cost_per_execution_cents": 0}),
+        clickhouse_repository=clickhouse,  # type: ignore[arg-type]
+        model_catalog_service=GetterCatalogService(),
+        budget_service=object(),
+        fail_open=False,
+    )
+    original = await service.record_step_cost(
+        execution_id=uuid4(),
+        step_id="step",
+        workspace_id=uuid4(),
+        agent_id=None,
+        user_id=uuid4(),
+        payload={
+            "model": "gpt-priced",
+            "input_tokens": 1000,
+            "output_tokens": 1000,
+        },
+    )
+
+    assert original is not None
+    assert original.model_cost_cents == Decimal("7.0000")
+    correction = await service.record_correction(
+        original.id,
+        deltas={"model_cost_cents": "-1.25"},
+    )
+    assert correction.correction_of == original.id
+    assert correction.model_cost_cents == Decimal("-1.25")
+    assert len(clickhouse.events) == 2
+
+    empty_catalog_service = AttributionService(
+        repository=FakeRepository(),  # type: ignore[arg-type]
+        settings=PlatformSettings(),
+        model_catalog_service=SimpleNamespace(repository=EmptyCatalogRepository()),
+        fail_open=False,
+    )
+    assert await empty_catalog_service._resolve_pricing("missing", "openai") == {}
+    assert await empty_catalog_service._resolve_pricing("missing", None) == {}

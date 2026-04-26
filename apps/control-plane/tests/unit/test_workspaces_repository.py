@@ -269,7 +269,24 @@ async def test_visibility_and_settings_methods_support_create_update_and_delete(
 @pytest.mark.asyncio
 async def test_get_user_workspace_ids_returns_scalar_values() -> None:
     workspace_ids = [uuid4(), uuid4()]
-    session = _session(execute_results=[_ScalarsResult(workspace_ids)])
+    member_ids = [uuid4(), uuid4()]
+    session = _session(
+        execute_results=[
+            _ScalarsResult(workspace_ids),
+            _ScalarsResult(member_ids),
+            _ScalarResult("goal"),
+            _ScalarResult(workspace_ids[0]),
+            _ScalarResult(workspace_ids[1]),
+            _ScalarResult(workspace_ids[0]),
+            _ScalarResult(workspace_ids[1]),
+        ]
+    )
     repo = WorkspacesRepository(session)
 
     assert await repo.get_user_workspace_ids(uuid4()) == workspace_ids
+    assert await repo.list_member_ids(uuid4()) == member_ids
+    assert await repo.get_goal_by_gid(uuid4()) == "goal"
+    assert await repo.get_workspace_id_for_conversation(uuid4()) == workspace_ids[0]
+    assert await repo.get_workspace_id_for_interaction(uuid4()) == workspace_ids[1]
+    assert await repo.get_workspace_id_for_execution(uuid4()) == workspace_ids[0]
+    assert await repo.get_workspace_id_for_fleet(uuid4()) == workspace_ids[1]
