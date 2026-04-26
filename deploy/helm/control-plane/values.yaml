@@ -70,6 +70,8 @@ connections:
 
 auth:
   oauth:
+    rateLimitMax: 10
+    rateLimitWindow: 60
     google:
       authorizeUrl: https://accounts.google.com/o/oauth2/v2/auth
       tokenUrl: https://oauth2.googleapis.com/token

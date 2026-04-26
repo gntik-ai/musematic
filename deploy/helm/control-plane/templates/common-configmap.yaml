@@ -43,6 +43,8 @@ data:
   FEATURE_RESIDENCY_ENFORCEMENT: {{ ternary "true" "false" .Values.privacy.residencyEnforcementEnabled | quote }}
   PRIVACY_CLICKHOUSE_PII_TABLES: {{ .Values.privacy.clickhousePiiTables | toJson | quote }}
   AUTH_JWT_ALGORITHM: {{ .Values.connections.authJwtAlgorithm | quote }}
+  AUTH_OAUTH_RATE_LIMIT_MAX: {{ .Values.auth.oauth.rateLimitMax | quote }}
+  AUTH_OAUTH_RATE_LIMIT_WINDOW: {{ .Values.auth.oauth.rateLimitWindow | quote }}
   AUTH_OAUTH_GOOGLE_AUTHORIZE_URL: {{ .Values.auth.oauth.google.authorizeUrl | quote }}
   AUTH_OAUTH_GOOGLE_TOKEN_URL: {{ .Values.auth.oauth.google.tokenUrl | quote }}
   AUTH_OAUTH_GOOGLE_TOKEN_INFO_URL: {{ .Values.auth.oauth.google.tokenInfoUrl | quote }}
