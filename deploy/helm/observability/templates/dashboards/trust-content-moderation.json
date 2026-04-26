@@ -27,7 +27,7 @@
         "targets": [
           {
             "expr": "sum by (workspace_id, category) (rate(content_moderation_triggered_total[5m]))",
-            "legendFormat": "{{workspace_id}} {{category}}"
+            "legendFormat": "\u007b\u007bworkspace_id\u007d\u007d \u007b\u007bcategory\u007d\u007d"
           }
         ]
       },
@@ -38,7 +38,7 @@
         "targets": [
           {
             "expr": "sum by (workspace_id, action) (increase(content_moderation_actions_total[1h]))",
-            "legendFormat": "{{workspace_id}} {{action}}"
+            "legendFormat": "\u007b\u007bworkspace_id\u007d\u007d \u007b\u007baction\u007d\u007d"
           }
         ]
       },
@@ -49,7 +49,7 @@
         "targets": [
           {
             "expr": "sum by (workspace_id, provider) (rate(content_moderation_provider_failed_total[5m]))",
-            "legendFormat": "{{workspace_id}} {{provider}}"
+            "legendFormat": "\u007b\u007bworkspace_id\u007d\u007d \u007b\u007bprovider\u007d\u007d"
           }
         ]
       },
@@ -60,7 +60,7 @@
         "targets": [
           {
             "expr": "sum by (workspace_id) (increase(fairness_evaluations_total[24h]))",
-            "legendFormat": "{{workspace_id}}"
+            "legendFormat": "\u007b\u007bworkspace_id\u007d\u007d"
           }
         ]
       }
