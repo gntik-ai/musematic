@@ -11,6 +11,10 @@ class IncidentTriggerInterface(Protocol):
     async def fire(self, signal: IncidentSignal) -> IncidentRef: ...
 
 
+class IncidentSignalService(Protocol):
+    async def create_from_signal(self, signal: IncidentSignal) -> IncidentRef: ...
+
+
 class NoopIncidentTrigger:
     async def fire(self, signal: IncidentSignal) -> IncidentRef:
         del signal
@@ -21,12 +25,11 @@ class NoopIncidentTrigger:
 
 
 class ServiceIncidentTrigger:
-    def __init__(self, service: object) -> None:
+    def __init__(self, service: IncidentSignalService) -> None:
         self.service = service
 
     async def fire(self, signal: IncidentSignal) -> IncidentRef:
-        create_from_signal = self.service.create_from_signal
-        return await create_from_signal(signal)
+        return await self.service.create_from_signal(signal)
 
 
 _incident_trigger: IncidentTriggerInterface = NoopIncidentTrigger()

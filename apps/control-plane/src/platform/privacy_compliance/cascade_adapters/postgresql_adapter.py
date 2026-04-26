@@ -68,6 +68,8 @@ USER_IDENTITY_COLUMNS: dict[str, list[str]] = {
     "cost_anomalies": ["acknowledged_by"],
     "cost_attributions": ["user_id"],
     "cost_overrides": ["issued_by", "redeemed_by"],
+    "runbooks": ["updated_by"],
+    "post_mortems": ["created_by"],
     "privacy_dsr_requests": ["subject_user_id", "requested_by"],
     "privacy_impact_assessments": ["submitted_by", "approved_by"],
     "privacy_consent_records": ["user_id"],

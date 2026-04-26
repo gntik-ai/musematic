@@ -3,8 +3,9 @@ from __future__ import annotations
 # ruff: noqa: E501
 from typing import Any
 
-from sqlalchemy import Table, column, literal_column, table
+from sqlalchemy import column, literal_column, table
 from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.sql.selectable import TableClause
 
 RUNBOOKS_V1: tuple[dict[str, Any], ...] = (
     {
@@ -182,7 +183,7 @@ RUNBOOKS_V1: tuple[dict[str, Any], ...] = (
 RUNBOOK_SCENARIOS: tuple[str, ...] = tuple(row["scenario"] for row in RUNBOOKS_V1)
 
 
-def _runbooks_table() -> Table:
+def _runbooks_table() -> TableClause:
     return table(
         "runbooks",
         column("scenario"),

@@ -14,6 +14,7 @@ from platform.incident_response.dependencies import (
     build_runbook_service,
 )
 from platform.incident_response.repository import IncidentResponseRepository
+from platform.incident_response.services.providers.base import PagingProviderClient
 from platform.incident_response.services.providers.opsgenie import OpsGenieClient
 from platform.incident_response.services.providers.pagerduty import PagerDutyClient
 from platform.incident_response.services.providers.victorops import VictorOpsClient
@@ -31,7 +32,7 @@ async def run_delivery_retry_scan(app: Any) -> int:
             settings=settings,
             redis_client=cast(AsyncRedisClient | None, app.state.clients.get("redis")),
         )
-        provider_clients = {
+        provider_clients: dict[str, PagingProviderClient] = {
             "pagerduty": PagerDutyClient(
                 secret_provider=secret_provider,
                 timeout_seconds=settings.incident_response.external_alert_request_timeout_seconds,

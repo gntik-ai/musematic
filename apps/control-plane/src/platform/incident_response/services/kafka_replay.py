@@ -4,11 +4,15 @@ import json
 from datetime import datetime
 from platform.common.config import PlatformSettings
 from platform.incident_response.schemas import TimelineEntry, TimelineSource
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from aiokafka import AIOKafkaConsumer
-from aiokafka.structs import TopicPartition
+
+if TYPE_CHECKING:
+    TopicPartition: Any
+else:
+    from aiokafka.structs import TopicPartition
 
 
 class KafkaTimelineReplay:

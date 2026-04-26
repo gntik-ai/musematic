@@ -8,7 +8,9 @@ Create Date: 2026-04-26
 from __future__ import annotations
 
 from collections.abc import Sequence
-from platform.incident_response.seeds.runbooks_v1 import RUNBOOK_SCENARIOS, seed_initial_runbooks
+from pathlib import Path
+from typing import Any
+import runpy
 
 import sqlalchemy as sa
 from alembic import op
@@ -18,6 +20,21 @@ revision: str = "063_incident_response"
 down_revision: str | None = "062_cost_governance"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
+
+
+def _runbook_seed_module() -> dict[str, Any]:
+    control_plane_root = Path(__file__).resolve().parents[2]
+    seed_path = control_plane_root / "src/platform/incident_response/seeds/runbooks_v1.py"
+    return runpy.run_path(str(seed_path))
+
+
+def _seed_initial_runbooks(connection: Any) -> None:
+    seed_initial_runbooks = _runbook_seed_module()["seed_initial_runbooks"]
+    seed_initial_runbooks(connection)
+
+
+def _runbook_scenarios() -> tuple[str, ...]:
+    return tuple(_runbook_seed_module()["RUNBOOK_SCENARIOS"])
 
 
 def _uuid_pk() -> sa.Column:
@@ -254,13 +271,13 @@ def upgrade() -> None:
         ondelete="SET NULL",
     )
 
-    seed_initial_runbooks(op.get_bind())
+    _seed_initial_runbooks(op.get_bind())
 
 
 def downgrade() -> None:
     connection = op.get_bind()
     runbooks = sa.table("runbooks", sa.column("scenario"))
-    connection.execute(runbooks.delete().where(runbooks.c.scenario.in_(RUNBOOK_SCENARIOS)))
+    connection.execute(runbooks.delete().where(runbooks.c.scenario.in_(_runbook_scenarios())))
     op.drop_constraint("fk_incidents_post_mortem_id", "incidents", type_="foreignkey")
     op.drop_index("ix_post_mortems_linked_certifications_gin", table_name="post_mortems")
     op.drop_table("post_mortems")
