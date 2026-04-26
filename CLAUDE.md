@@ -124,6 +124,7 @@ Auto-generated from all feature plans. Last updated: 2026-04-26
 - Python 3.12+ (control plane). No Go changes. (076-privacy-compliance)
 - Python 3.12+ (control plane). No Go changes — (075-model-catalog-fallback)
 - PostgreSQL — 3 new tables (`content_moderation_policies`, `content_moderation_events`, `fairness_evaluations`). No new Redis keys (cost cap and threshold-cooldown counters reuse existing notifications counters where applicable). Vault — 1 new path family (`secret/data/trust/moderation-providers/{provider}/{deployment}`). (078-content-safety-fairness)
+- PostgreSQL — 5 new tables (`cost_attributions`, `workspace_budgets`, `budget_alerts`, `cost_forecasts`, `cost_anomalies`) via Alembic migration `062_cost_governance.py`. ClickHouse — 1 new table `cost_events` added to `cost_governance/clickhouse_setup.py` following the `analytics/clickhouse_setup.py` pattern (`CREATE TABLE IF NOT EXISTS`, monthly partition, TTL ≥ 2 years to satisfy spec assumption "at least one full annual finance cycle"). Redis — 2 new key patterns: `cost:budget:{workspace_id}:{period_type}:{period_start}` (period spend hot counter, TTL = period length + 1d) and `cost:override:{workspace_id}:{nonce}` (single-shot admin override token, TTL ≤ 5 min). No Vault paths. (079-cost-governance-chargeback)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -143,9 +144,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 079-cost-governance-chargeback: Added Python 3.12+ (control plane). No Go changes. Cost analytics follow the analytics-delegation migration path via `cost_governance/clickhouse_setup.py`; do not reintroduce a parallel cost path.
 - 078-content-safety-fairness: Added Python 3.12+ (control plane). No Go changes.
 - main: Added Python 3.12+ (control plane). No Go changes.
-- 077-multi-channel-notifications: Added control-plane multi-channel notifications with user channels, outbound webhooks, Slack/Teams/SMS adapters, dead-letter replay, retry/verification/DLQ schedulers, and Grafana channel observability.
 
 
 <!-- MANUAL ADDITIONS START -->

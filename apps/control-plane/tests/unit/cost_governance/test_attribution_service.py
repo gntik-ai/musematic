@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from platform.common.config import PlatformSettings
 from platform.cost_governance.services.attribution_service import AttributionService
+from types import SimpleNamespace
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -89,6 +90,42 @@ class FakeRepository:
 
     async def list_execution_attributions(self, execution_id: UUID) -> list[AttributionRow]:
         return [row for row in self.rows if row.execution_id == execution_id]
+
+
+class FailingRepository(FakeRepository):
+    async def get_attribution_by_execution(self, execution_id: UUID) -> AttributionRow | None:
+        del execution_id
+        raise RuntimeError("storage unavailable")
+
+
+class RecordingBudgetService:
+    def __init__(self) -> None:
+        self.invalidated: list[tuple[UUID, str]] = []
+
+    async def invalidate_hot_counter(self, workspace_id: UUID, period_type: str) -> None:
+        self.invalidated.append((workspace_id, period_type))
+
+
+class RecordingClickHouse:
+    def __init__(self) -> None:
+        self.events: list[dict[str, Any]] = []
+
+    async def enqueue_cost_event(self, event: dict[str, Any]) -> None:
+        self.events.append(event)
+
+
+class CatalogRepository:
+    async def get_entry_by_provider_model(self, provider: str, model_id: str) -> object:
+        return SimpleNamespace(
+            provider=provider,
+            model_id=model_id,
+            input_cost_per_1k_tokens=Decimal("1"),
+            output_cost_per_1k_tokens=Decimal("2"),
+        )
+
+
+class CatalogService:
+    repository = CatalogRepository()
 
 
 def _service(repository: FakeRepository) -> AttributionService:
@@ -192,3 +229,116 @@ async def test_late_arriving_cost_appends_correction_row() -> None:
     assert result is not None
     assert result["totals"]["total_cost_cents"] == Decimal("5.5000")
     assert len(repository.rows) == 2
+
+
+@pytest.mark.asyncio
+async def test_partial_failed_step_keeps_incurred_cost() -> None:
+    repository = FakeRepository()
+    service = _service(repository)
+
+    row = await service.record_step_cost(
+        execution_id=uuid4(),
+        step_id="failed-step",
+        workspace_id=uuid4(),
+        agent_id=uuid4(),
+        user_id=uuid4(),
+        payload={
+            "status": "failed",
+            "tokens_in": 250,
+            "tokens_out": 0,
+            "input_cost_per_1k_tokens": "8",
+            "duration_ms": 25,
+        },
+    )
+
+    assert row is not None
+    assert row.model_cost_cents == Decimal("2.0000")
+    assert row.compute_cost_cents == Decimal("0.2500")
+    assert row.total_cost_cents > Decimal("0")
+
+
+@pytest.mark.asyncio
+async def test_shared_infrastructure_allocation_creates_workspace_row() -> None:
+    repository = FakeRepository()
+    service = _service(repository)
+    workspace_id = uuid4()
+
+    row = await service.record_step_cost(
+        execution_id=uuid4(),
+        step_id="warm-pool",
+        workspace_id=workspace_id,
+        agent_id=None,
+        user_id=None,
+        payload={
+            "origin": "shared_infra_allocation",
+            "overhead_cost_cents": "7.25",
+            "metadata": {"allocation_rule": "beneficiary_workspace"},
+        },
+    )
+
+    assert row is not None
+    assert row.workspace_id == workspace_id
+    assert row.overhead_cost_cents == Decimal("7.2500")
+    assert len(repository.rows) == 1
+
+
+@pytest.mark.asyncio
+async def test_fail_open_returns_none_and_fail_closed_raises() -> None:
+    kwargs = {
+        "execution_id": uuid4(),
+        "step_id": "step",
+        "workspace_id": uuid4(),
+        "agent_id": None,
+        "user_id": uuid4(),
+        "payload": {},
+    }
+    open_service = AttributionService(
+        repository=FailingRepository(),  # type: ignore[arg-type]
+        settings=PlatformSettings(),
+        fail_open=True,
+    )
+    closed_service = AttributionService(
+        repository=FailingRepository(),  # type: ignore[arg-type]
+        settings=PlatformSettings(),
+        fail_open=False,
+    )
+
+    assert await open_service.record_step_cost(**kwargs) is None
+    with pytest.raises(RuntimeError):
+        await closed_service.record_step_cost(**kwargs)
+
+
+@pytest.mark.asyncio
+async def test_catalog_repository_pricing_clickhouse_and_budget_invalidation() -> None:
+    repository = FakeRepository()
+    budget = RecordingBudgetService()
+    clickhouse = RecordingClickHouse()
+    service = AttributionService(
+        repository=repository,  # type: ignore[arg-type]
+        settings=PlatformSettings(cost_governance={"overhead_cost_per_execution_cents": 0}),
+        clickhouse_repository=clickhouse,  # type: ignore[arg-type]
+        model_catalog_service=CatalogService(),
+        budget_service=budget,
+        fail_open=False,
+    )
+    workspace_id = uuid4()
+
+    row = await service.record_step_cost(
+        execution_id=uuid4(),
+        step_id="step",
+        workspace_id=workspace_id,
+        agent_id=None,
+        user_id=uuid4(),
+        payload={
+            "provider": "openai",
+            "model": "gpt-test",
+            "input_tokens": 1000,
+            "output_tokens": 1000,
+        },
+    )
+
+    assert row is not None
+    assert row.model_cost_cents == Decimal("3.0000")
+    assert budget.invalidated == [(workspace_id, "monthly")]
+    assert clickhouse.events[0]["workspace_id"] == workspace_id
+    assert await service.get_execution_cost(uuid4()) is None

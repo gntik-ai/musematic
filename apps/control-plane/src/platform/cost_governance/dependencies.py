@@ -17,6 +17,8 @@ from platform.cost_governance.services.chargeback_service import ChargebackServi
 from platform.cost_governance.services.forecast_service import ForecastService
 from platform.model_catalog.dependencies import get_catalog_service
 from platform.model_catalog.services.catalog_service import CatalogService
+from platform.notifications.dependencies import get_notifications_service
+from platform.notifications.service import AlertService
 from platform.workspaces.dependencies import get_workspaces_service
 from platform.workspaces.service import WorkspacesService
 from typing import Any, cast
@@ -137,6 +139,7 @@ async def get_budget_service(
     session: AsyncSession = Depends(get_db),
     redis_client: AsyncRedisClient = Depends(get_redis_cost_client),
     audit_chain_service: AuditChainService = Depends(get_audit_chain_service),
+    alert_service: AlertService = Depends(get_notifications_service),
     workspaces_service: WorkspacesService = Depends(get_workspaces_service),
 ) -> BudgetService:
     return build_budget_service(
@@ -145,7 +148,7 @@ async def get_budget_service(
         settings=_get_settings(request),
         producer=_get_producer(request),
         audit_chain_service=audit_chain_service,
-        alert_service=None,
+        alert_service=alert_service,
         workspaces_service=workspaces_service,
     )
 
@@ -214,13 +217,14 @@ async def get_anomaly_service(
         get_clickhouse_cost_repository
     ),
     audit_chain_service: AuditChainService = Depends(get_audit_chain_service),
+    alert_service: AlertService = Depends(get_notifications_service),
 ) -> AnomalyService:
     return AnomalyService(
         repository=CostGovernanceRepository(session),
         clickhouse_repository=clickhouse_repository,
         kafka_producer=_get_producer(request),
         audit_chain_service=audit_chain_service,
-        alert_service=None,
+        alert_service=alert_service,
     )
 
 
@@ -232,6 +236,7 @@ async def get_cost_governance_service(
         get_clickhouse_cost_repository
     ),
     audit_chain_service: AuditChainService = Depends(get_audit_chain_service),
+    alert_service: AlertService = Depends(get_notifications_service),
     workspaces_service: WorkspacesService = Depends(get_workspaces_service),
     catalog_service: CatalogService = Depends(get_catalog_service),
 ) -> CostGovernanceService:
@@ -242,7 +247,7 @@ async def get_cost_governance_service(
         redis_client=redis_client,
         clickhouse_repository=clickhouse_repository,
         audit_chain_service=audit_chain_service,
-        alert_service=None,
+        alert_service=alert_service,
         workspaces_service=workspaces_service,
         model_catalog_service=catalog_service,
     )

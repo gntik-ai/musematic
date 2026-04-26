@@ -12,10 +12,10 @@ from platform.cost_governance.events import (
     CostGovernanceEventType,
     publish_cost_governance_event,
 )
-from platform.cost_governance.exceptions import InsufficientHistoryError
 from platform.cost_governance.repository import CostGovernanceRepository
 from platform.cost_governance.schemas import CostAnomalyResponse
 from statistics import median
+from types import SimpleNamespace
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -39,22 +39,28 @@ class AnomalyService:
     async def detect(self, workspace_id: UUID) -> CostAnomalyResponse | None:
         baseline = await self._baseline(workspace_id)
         if len(baseline) < 4:
-            raise InsufficientHistoryError()
+            return None
         values = [Decimal(str(row["total_cost_cents"])) for row in baseline]
         observed = values[-1]
         baseline_value = Decimal(str(median(values[:-1])))
-        if baseline_value <= 0 or observed <= baseline_value * Decimal("2.0"):
+        if _is_sustained(values, baseline_value):
+            anomaly_type = "sustained_deviation"
+        else:
+            anomaly_type = "sudden_spike"
+        if baseline_value <= 0 or (
+            anomaly_type == "sudden_spike" and observed <= baseline_value * Decimal("2.0")
+        ):
             return None
         severity = _severity(observed / baseline_value)
-        period_end = datetime.now(UTC)
+        period_end = datetime.now(UTC).replace(minute=0, second=0, microsecond=0)
         period_start = period_end - timedelta(hours=1)
-        fingerprint = _fingerprint(workspace_id, period_start, "sudden_spike", severity)
+        fingerprint = _fingerprint(workspace_id, period_start, anomaly_type, severity)
         existing = await self.repository.find_open_anomaly_by_fingerprint(workspace_id, fingerprint)
         if existing is not None:
             return CostAnomalyResponse.model_validate(existing)
         anomaly = await self.repository.insert_anomaly(
             workspace_id=workspace_id,
-            anomaly_type="sudden_spike",
+            anomaly_type=anomaly_type,
             severity=severity,
             baseline_cents=baseline_value,
             observed_cents=observed,
@@ -77,6 +83,7 @@ class AnomalyService:
             ),
             CorrelationContext(workspace_id=workspace_id, correlation_id=uuid4()),
         )
+        await self._route_anomaly_alert(workspace_id, anomaly.id, anomaly.severity)
         return CostAnomalyResponse.model_validate(anomaly)
 
     async def acknowledge(
@@ -128,6 +135,24 @@ class AnomalyService:
             {"event": event, **payload},
         )
 
+    async def _route_anomaly_alert(
+        self,
+        workspace_id: UUID,
+        anomaly_id: UUID,
+        severity: str,
+    ) -> None:
+        if self.alert_service is None:
+            return
+        processor = getattr(self.alert_service, "process_state_change", None)
+        if not callable(processor):
+            return
+        payload = SimpleNamespace(
+            interaction_id=anomaly_id,
+            from_state="cost_normal",
+            to_state=f"cost_anomaly_{severity}",
+        )
+        await processor(payload, workspace_id)
+
 
 def _severity(ratio: Decimal) -> str:
     if ratio >= Decimal("10"):
@@ -139,6 +164,13 @@ def _severity(ratio: Decimal) -> str:
     return "low"
 
 
+def _is_sustained(values: list[Decimal], baseline_value: Decimal) -> bool:
+    if baseline_value <= 0 or len(values) < 5:
+        return False
+    threshold = baseline_value * Decimal("1.5")
+    return all(value > threshold for value in values[-3:])
+
+
 def _fingerprint(
     workspace_id: UUID,
     period_start: datetime,
@@ -147,4 +179,3 @@ def _fingerprint(
 ) -> str:
     payload = f"{workspace_id}:{period_start.isoformat()}:{anomaly_type}:{severity}"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
-

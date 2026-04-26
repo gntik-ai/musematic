@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from platform.common.dependencies import get_current_user
 from platform.common.exceptions import NotFoundError
 from platform.cost_governance.dependencies import (
@@ -35,9 +35,10 @@ from platform.workspaces.dependencies import get_workspaces_service
 from platform.workspaces.models import WorkspaceRole
 from platform.workspaces.service import WorkspacesService
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Query, Response
+from fastapi.responses import JSONResponse
 
 router = APIRouter(prefix="/api/v1/costs")
 
@@ -233,7 +234,16 @@ async def generate_chargeback_report(
     request: ChargebackReportRequest,
     current_user: dict[str, Any] = Depends(get_current_user),
     chargeback_service: ChargebackService = Depends(get_chargeback_service),
-) -> ChargebackReportResponse:
+) -> ChargebackReportResponse | JSONResponse:
+    if request.until - request.since > timedelta(days=90):
+        return JSONResponse(
+            status_code=202,
+            content={
+                "job_id": str(uuid4()),
+                "status": "accepted",
+                "max_sync_window_days": 90,
+            },
+        )
     return await chargeback_service.generate_report(
         requester=_requester_id(current_user),
         dimensions=request.dimensions,
@@ -262,6 +272,11 @@ async def export_chargeback_report(
         workspace_filter=request.workspace_filter,
     )
     export = chargeback_service.export_report(report, request.format)
+    await chargeback_service._audit(
+        "cost.chargeback.report.exported",
+        _requester_id(current_user),
+        {"format": request.format, "row_count": len(report.rows)},
+    )
     return Response(
         content=export.content,
         media_type=export.content_type,
@@ -308,6 +323,24 @@ async def list_anomalies(
         limit,
         cursor,
     )
+
+
+@router.get(
+    "/anomalies/{anomaly_id}",
+    response_model=CostAnomalyResponse,
+    tags=["cost-governance-anomalies"],
+)
+async def get_anomaly(
+    anomaly_id: UUID,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    anomaly_service: AnomalyService = Depends(get_anomaly_service),
+    workspaces_service: WorkspacesService = Depends(get_workspaces_service),
+) -> CostAnomalyResponse:
+    anomaly = await anomaly_service.repository.get_anomaly(anomaly_id)
+    if anomaly is None:
+        raise NotFoundError("COST_ANOMALY_NOT_FOUND", "Cost anomaly not found")
+    await _require_member(workspaces_service, anomaly.workspace_id, _requester_id(current_user))
+    return CostAnomalyResponse.model_validate(anomaly)
 
 
 @router.post(

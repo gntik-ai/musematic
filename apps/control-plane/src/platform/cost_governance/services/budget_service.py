@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import hashlib
 import secrets
+from collections.abc import Awaitable
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 from platform.common.audit_hook import audit_chain_hook
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
@@ -24,8 +26,15 @@ from platform.cost_governance.exceptions import (
 from platform.cost_governance.models import WorkspaceBudget
 from platform.cost_governance.repository import CostGovernanceRepository
 from platform.cost_governance.schemas import BudgetCheckResult, OverrideIssueResponse
-from typing import Any
+from types import SimpleNamespace
+from typing import Any, cast
 from uuid import UUID, uuid4
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+BUDGET_ATOMIC_SCRIPT = SCRIPT_DIR / "_budget_atomic.lua"
+OVERRIDE_REDEEM_SCRIPT = SCRIPT_DIR / "_override_redeem.lua"
+BUDGET_ATOMIC_SOURCE = BUDGET_ATOMIC_SCRIPT.read_text(encoding="utf-8")
+OVERRIDE_REDEEM_SOURCE = OVERRIDE_REDEEM_SCRIPT.read_text(encoding="utf-8")
 
 
 class BudgetService:
@@ -48,6 +57,8 @@ class BudgetService:
         self.audit_chain_service = audit_chain_service
         self.alert_service = alert_service
         self.workspaces_service = workspaces_service
+        self._budget_script_sha: str | None = None
+        self._override_script_sha: str | None = None
 
     async def configure(
         self,
@@ -107,6 +118,7 @@ class BudgetService:
                 if alert is None:
                     continue
                 fired.append(alert.id)
+                await self._route_budget_alert(workspace_id, alert.id, int(threshold))
                 await publish_cost_governance_event(
                     self.kafka_producer,
                     CostGovernanceEventType.budget_threshold_reached,
@@ -153,7 +165,25 @@ class BudgetService:
                 period_end=period_end,
             )
         if projected <= Decimal(budget.budget_cents):
-            await self._increment_hot_counter(budget, period_start, period_end, estimate)
+            admitted, atomic_projected = await self._atomic_admit(
+                budget,
+                period_start,
+                period_end,
+                estimate,
+            )
+            if admitted:
+                return BudgetCheckResult(
+                    allowed=True,
+                    budget_cents=budget.budget_cents,
+                    projected_spend_cents=atomic_projected,
+                    period_type=budget.period_type,
+                    period_start=period_start,
+                    period_end=period_end,
+                )
+            spend = atomic_projected
+            projected = spend + estimate
+
+        if projected <= Decimal(budget.budget_cents):
             return BudgetCheckResult(
                 allowed=True,
                 budget_cents=budget.budget_cents,
@@ -163,20 +193,21 @@ class BudgetService:
                 period_end=period_end,
             )
         override_endpoint = f"/api/v1/costs/workspaces/{workspace_id}/budget/override"
-        await publish_cost_governance_event(
-            self.kafka_producer,
-            CostGovernanceEventType.budget_exceeded,
-            CostBudgetExceededPayload(
-                budget_id=budget.id,
-                workspace_id=workspace_id,
-                period_start=period_start,
-                period_end=period_end,
-                spend_cents=spend,
-                budget_cents=budget.budget_cents,
-                override_endpoint=override_endpoint,
-            ),
-            CorrelationContext(workspace_id=workspace_id, correlation_id=uuid4()),
-        )
+        if await self._mark_exceeded_event_once(budget, period_start, period_end):
+            await publish_cost_governance_event(
+                self.kafka_producer,
+                CostGovernanceEventType.budget_exceeded,
+                CostBudgetExceededPayload(
+                    budget_id=budget.id,
+                    workspace_id=workspace_id,
+                    period_start=period_start,
+                    period_end=period_end,
+                    spend_cents=spend,
+                    budget_cents=budget.budget_cents,
+                    override_endpoint=override_endpoint,
+                ),
+                CorrelationContext(workspace_id=workspace_id, correlation_id=uuid4()),
+            )
         return BudgetCheckResult(
             allowed=False,
             block_reason=BLOCK_REASON_COST_BUDGET,
@@ -232,12 +263,17 @@ class BudgetService:
         if await self.redis_client.get(redeemed_key) is not None:
             raise OverrideAlreadyRedeemedError()
         key = self._override_key(token)
-        value = await self.redis_client.get(key)
+        value = await self._redeem_override_atomic(key, redeemed_key)
+        if value == b"already_redeemed":
+            raise OverrideAlreadyRedeemedError()
         if value is None:
             raise OverrideExpiredError()
-        await self.redis_client.delete(key)
-        await self.redis_client.set(redeemed_key, b"1", ttl=86_400)
         await self.repository.mark_override_redeemed(_hash_token(token), redeemed_by)
+        await self._audit(
+            "cost.budget.override.redeemed",
+            uuid4(),
+            {"redeemed_by": redeemed_by},
+        )
 
     async def invalidate_hot_counter(self, workspace_id: UUID, period_type: str) -> None:
         if self.redis_client is None:
@@ -273,6 +309,35 @@ class BudgetService:
         spend = await self._current_spend(budget, period_start, period_end)
         await self._prime_hot_counter(budget, period_start, period_end, spend + amount)
 
+    async def _atomic_admit(
+        self,
+        budget: WorkspaceBudget,
+        period_start: datetime,
+        period_end: datetime,
+        amount: Decimal,
+    ) -> tuple[bool, Decimal]:
+        if self.redis_client is None:
+            await self._increment_hot_counter(budget, period_start, period_end, amount)
+            spend = await self._current_spend(budget, period_start, period_end)
+            return spend <= Decimal(budget.budget_cents), spend
+
+        spend = await self._current_spend(budget, period_start, period_end)
+        key = self._counter_key(budget.workspace_id, budget.period_type, period_start)
+        result = await self._eval_lua(
+            BUDGET_ATOMIC_SOURCE,
+            "_budget_script_sha",
+            [key],
+            [str(amount), str(budget.budget_cents), str(self._counter_ttl(period_end))],
+        )
+        if isinstance(result, (list, tuple)) and len(result) >= 2:
+            return bool(int(result[0])), Decimal(str(result[1]))
+
+        projected = spend + amount
+        if projected <= Decimal(budget.budget_cents):
+            await self._prime_hot_counter(budget, period_start, period_end, projected)
+            return True, projected
+        return False, spend
+
     async def _prime_hot_counter(
         self,
         budget: WorkspaceBudget,
@@ -282,12 +347,83 @@ class BudgetService:
     ) -> None:
         if self.redis_client is None:
             return
-        ttl = max(int((period_end - datetime.now(UTC)).total_seconds()) + 86_400, 60)
         await self.redis_client.set(
             self._counter_key(budget.workspace_id, budget.period_type, period_start),
             str(spend).encode("utf-8"),
-            ttl=ttl,
+            ttl=self._counter_ttl(period_end),
         )
+
+    async def _mark_exceeded_event_once(
+        self,
+        budget: WorkspaceBudget,
+        period_start: datetime,
+        period_end: datetime,
+    ) -> bool:
+        if self.redis_client is None:
+            return True
+        key = self._exceeded_event_key(budget.workspace_id, budget.period_type, period_start)
+        if await self.redis_client.get(key) is not None:
+            return False
+        await self.redis_client.set(key, b"1", ttl=self._counter_ttl(period_end))
+        return True
+
+    async def _route_budget_alert(
+        self,
+        workspace_id: UUID,
+        alert_id: UUID,
+        threshold: int,
+    ) -> None:
+        if self.alert_service is None:
+            return
+        processor = getattr(self.alert_service, "process_state_change", None)
+        if not callable(processor):
+            return
+        payload = SimpleNamespace(
+            interaction_id=alert_id,
+            from_state="budget_below_threshold",
+            to_state=f"budget_threshold_{threshold}_reached",
+        )
+        await processor(payload, workspace_id)
+
+    def _counter_ttl(self, period_end: datetime) -> int:
+        return max(int((period_end - datetime.now(UTC)).total_seconds()) + 86_400, 60)
+
+    async def _redeem_override_atomic(self, key: str, redeemed_key: str) -> bytes | None:
+        result = await self._eval_lua(
+            OVERRIDE_REDEEM_SOURCE,
+            "_override_script_sha",
+            [key, redeemed_key],
+            ["86400"],
+        )
+        if result is None:
+            return None
+        if isinstance(result, bytes):
+            return result
+        if isinstance(result, str):
+            return result.encode("utf-8")
+        return str(result).encode("utf-8")
+
+    async def _eval_lua(
+        self,
+        source: str,
+        sha_attr: str,
+        keys: list[str],
+        args: list[str],
+    ) -> Any:
+        assert self.redis_client is not None
+        await self.redis_client.initialize()
+        client = self.redis_client.client
+        if client is None:
+            return None
+        sha = getattr(self, sha_attr)
+        if sha is None:
+            sha = str(await _maybe_await(client.script_load(source)))
+            setattr(self, sha_attr, sha)
+        try:
+            return await _maybe_await(client.evalsha(sha, len(keys), *keys, *args))
+        except Exception:
+            setattr(self, sha_attr, None)
+            return await _maybe_await(client.eval(source, len(keys), *keys, *args))
 
     async def _audit(self, event: str, event_id: UUID, payload: dict[str, Any]) -> None:
         if self.audit_chain_service is None:
@@ -310,6 +446,13 @@ class BudgetService:
     @staticmethod
     def _override_redeemed_key(token: str) -> str:
         return f"cost:override-redeemed:{_hash_token(token)}"
+
+    @staticmethod
+    def _exceeded_event_key(workspace_id: UUID, period_type: str, period_start: datetime) -> str:
+        return (
+            "cost:budget-exceeded-event:"
+            f"{workspace_id}:{period_type}:{period_start.date().isoformat()}"
+        )
 
 
 def period_bounds(period_type: str, now: datetime | None = None) -> tuple[datetime, datetime]:
@@ -334,3 +477,8 @@ def period_bounds(period_type: str, now: datetime | None = None) -> tuple[dateti
 def _hash_token(token: str) -> str:
     return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
+
+async def _maybe_await(value: Awaitable[Any] | Any) -> Any:
+    if hasattr(value, "__await__"):
+        return await cast(Awaitable[Any], value)
+    return value
