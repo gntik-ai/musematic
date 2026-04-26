@@ -1,0 +1,79 @@
+from __future__ import annotations
+
+import asyncio
+import logging
+import time
+from platform.common import database
+from platform.common.clients.redis import AsyncRedisClient
+from platform.common.config import PlatformSettings
+from platform.common.events.producer import EventProducer
+from platform.cost_governance.clickhouse_repository import ClickHouseCostRepository
+from platform.cost_governance.dependencies import build_cost_governance_service
+from platform.cost_governance.repository import CostGovernanceRepository
+from typing import Any, cast
+from uuid import UUID
+
+LOGGER = logging.getLogger(__name__)
+
+
+async def run_forecast_evaluation(app: Any) -> None:
+    started = time.perf_counter()
+    async with database.AsyncSessionLocal() as session:
+        workspace_ids = await CostGovernanceRepository(session).list_workspace_ids_with_costs()
+    semaphore = asyncio.Semaphore(8)
+
+    async def _compute(workspace_id: UUID) -> None:
+        async with semaphore:
+            async with database.AsyncSessionLocal() as session:
+                service = build_cost_governance_service(
+                    session=session,
+                    settings=cast(PlatformSettings, app.state.settings),
+                    producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+                    redis_client=cast(AsyncRedisClient | None, app.state.clients.get("redis")),
+                    clickhouse_repository=cast(
+                        ClickHouseCostRepository | None,
+                        getattr(app.state, "cost_clickhouse_repository", None),
+                    ),
+                )
+                try:
+                    await service.forecast_service.compute_forecast(workspace_id)
+                    await session.commit()
+                except Exception:
+                    await session.rollback()
+                    LOGGER.exception(
+                        "Cost forecast evaluation failed",
+                        extra={"workspace_id": str(workspace_id)},
+                    )
+
+    await asyncio.gather(*(_compute(workspace_id) for workspace_id in workspace_ids))
+    LOGGER.info(
+        "Cost forecast evaluation completed",
+        extra={
+            "workspace_count": len(workspace_ids),
+            "duration_ms": round((time.perf_counter() - started) * 1000, 3),
+        },
+    )
+
+
+def build_forecast_scheduler(app: Any) -> Any | None:
+    try:
+        scheduler_module = __import__(
+            "apscheduler.schedulers.asyncio",
+            fromlist=["AsyncIOScheduler"],
+        )
+    except Exception:
+        return None
+    settings = cast(PlatformSettings, app.state.settings)
+    scheduler = scheduler_module.AsyncIOScheduler(timezone="UTC")
+
+    async def _run() -> None:
+        await run_forecast_evaluation(app)
+
+    scheduler.add_job(
+        _run,
+        "interval",
+        seconds=settings.cost_governance.forecast_evaluation_interval_seconds,
+        id="cost-governance-forecast-evaluation",
+        replace_existing=True,
+    )
+    return scheduler

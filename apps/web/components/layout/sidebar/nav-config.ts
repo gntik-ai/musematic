@@ -70,6 +70,13 @@ export const NAV_ITEMS: NavItem[] = [
     requiredRoles: ["analytics_viewer", "workspace_admin", "superadmin"],
   },
   {
+    id: "costs",
+    label: "Costs",
+    icon: "CircleDollarSign",
+    href: "/costs",
+    requiredRoles: ["workspace_admin", "superadmin"],
+  },
+  {
     id: "policies",
     label: "Policies",
     icon: "ShieldCheck",

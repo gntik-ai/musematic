@@ -10,6 +10,7 @@ from platform.common.models.mixins import (
     UUIDMixin,
     WorkspaceScopedMixin,
 )
+from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
@@ -232,6 +233,12 @@ class WorkspaceSettings(Base, UUIDMixin, TimestampMixin):
         ARRAY(PG_UUID(as_uuid=True)),
         nullable=False,
         default=list,
+    )
+    cost_budget: Mapped[dict[str, Any]] = mapped_column(
+        JSONB(none_as_null=False),
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
     )
 
     workspace: Mapped[Workspace] = relationship(

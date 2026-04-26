@@ -7,6 +7,7 @@ from platform.workspaces.models import (
     WorkspaceRole,
     WorkspaceStatus,
 )
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -180,6 +181,7 @@ class UpdateSettingsRequest(BaseModel):
     subscribed_fleets: list[UUID] | None = None
     subscribed_policies: list[UUID] | None = None
     subscribed_connectors: list[UUID] | None = None
+    cost_budget: dict[str, Any] | None = None
 
     @field_validator("subscribed_agents")
     @classmethod
@@ -195,6 +197,7 @@ class UpdateSettingsRequest(BaseModel):
             and self.subscribed_fleets is None
             and self.subscribed_policies is None
             and self.subscribed_connectors is None
+            and self.cost_budget is None
         ):
             raise ValueError("At least one settings field must be provided")
         return self
@@ -206,6 +209,7 @@ class SettingsResponse(BaseModel):
     subscribed_fleets: list[UUID]
     subscribed_policies: list[UUID]
     subscribed_connectors: list[UUID]
+    cost_budget: dict[str, Any]
     updated_at: datetime
 
 

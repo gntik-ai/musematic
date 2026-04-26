@@ -16,11 +16,12 @@ from platform.execution.models import (
 )
 from platform.execution.projector import ExecutionProjector
 from platform.execution.schemas import ApprovalDecisionRequest, ExecutionCreate
-from platform.execution.service import ExecutionService
+from platform.execution.service import ExecutionService, _uuid_or_none
 from platform.workflows.exceptions import WorkflowNotFoundError
 from platform.workflows.models import TriggerType
 from platform.workflows.schemas import TriggerCreate, WorkflowCreate
 from platform.workflows.service import WorkflowService
+from types import SimpleNamespace
 from typing import Any, cast
 from uuid import uuid4
 
@@ -41,6 +42,25 @@ class _MissingObjectStorage(FakeObjectStorage):
     async def download_object(self, bucket: str, key: str) -> bytes:
         del bucket, key
         raise ObjectNotFoundError("missing")
+
+
+class RecordingAttributionService:
+    fail_open = True
+
+    def __init__(self) -> None:
+        self.calls: list[dict[str, Any]] = []
+
+    async def record_step_cost(self, **kwargs: Any) -> None:
+        self.calls.append(kwargs)
+
+
+class FailingAttributionService:
+    def __init__(self, *, fail_open: bool) -> None:
+        self.fail_open = fail_open
+
+    async def record_step_cost(self, **kwargs: Any) -> None:
+        del kwargs
+        raise RuntimeError("cost store unavailable")
 
 
 def _build_services(
@@ -267,3 +287,64 @@ steps:
 
     with pytest.raises(ExecutionNotFoundError):
         await execution_service.get_execution(uuid4())
+
+
+@pytest.mark.asyncio
+async def test_execution_cost_attribution_hook_and_uuid_edges() -> None:
+    _workflow_service, execution_service, _workflow_repository, _execution_repository = (
+        _build_services()
+    )
+    execution = SimpleNamespace(
+        id=uuid4(),
+        workspace_id=uuid4(),
+        created_by=uuid4(),
+        correlation_conversation_id=None,
+        correlation_interaction_id=None,
+        correlation_goal_id=None,
+        correlation_fleet_id=None,
+    )
+    recorder = RecordingAttributionService()
+    execution_service.attribution_service = recorder
+
+    await execution_service._record_cost_attribution(
+        cast(Any, execution),
+        step_id="step-a",
+        payload={"message": "no cost signal"},
+    )
+    agent_id = uuid4()
+    await execution_service._record_cost_attribution(
+        cast(Any, execution),
+        step_id="step-a",
+        payload={"tokens_in": 10, "agent_id": str(agent_id)},
+    )
+
+    assert len(recorder.calls) == 1
+    assert recorder.calls[0]["execution_id"] == execution.id
+    assert recorder.calls[0]["agent_id"] == agent_id
+
+    execution_service.attribution_service = None
+    await execution_service._record_cost_attribution(
+        cast(Any, execution),
+        step_id="step-b",
+        payload={"model_cost_cents": "1.25"},
+    )
+
+    execution_service.attribution_service = FailingAttributionService(fail_open=True)
+    await execution_service._record_cost_attribution(
+        cast(Any, execution),
+        step_id="step-c",
+        payload={"tokens_out": 1},
+    )
+
+    execution_service.attribution_service = FailingAttributionService(fail_open=False)
+    with pytest.raises(RuntimeError):
+        await execution_service._record_cost_attribution(
+            cast(Any, execution),
+            step_id="step-d",
+            payload={"duration_ms": 1},
+        )
+
+    assert _uuid_or_none(None) is None
+    assert _uuid_or_none(agent_id) == agent_id
+    assert _uuid_or_none(str(agent_id)) == agent_id
+    assert _uuid_or_none("not-a-uuid") is None

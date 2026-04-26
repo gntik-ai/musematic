@@ -98,6 +98,7 @@ def build_settings(
     subscribed_fleets: list[UUID] | None = None,
     subscribed_policies: list[UUID] | None = None,
     subscribed_connectors: list[UUID] | None = None,
+    cost_budget: dict[str, object] | None = None,
 ) -> WorkspaceSettings:
     now = datetime.now(UTC)
     settings = WorkspaceSettings(
@@ -107,6 +108,7 @@ def build_settings(
         subscribed_fleets=subscribed_fleets or [],
         subscribed_policies=subscribed_policies or [],
         subscribed_connectors=subscribed_connectors or [],
+        cost_budget=cost_budget or {},
     )
     settings.created_at = now
     settings.updated_at = now
@@ -272,6 +274,13 @@ class WorkspacesRepoStub:
         items.sort(key=lambda item: (role_order[item.role], str(item.user_id)))
         start = (page - 1) * page_size
         return items[start : start + page_size], len(items)
+
+    async def list_member_ids(self, workspace_id: UUID) -> list[UUID]:
+        return [
+            user_id
+            for candidate_workspace_id, user_id in self.memberships
+            if candidate_workspace_id == workspace_id
+        ]
 
     async def change_member_role(
         self, membership: Membership, new_role: WorkspaceRole
@@ -596,6 +605,7 @@ class RouterServiceStub:
             "subscribed_fleets": [],
             "subscribed_policies": [],
             "subscribed_connectors": [],
+            "cost_budget": {},
             "updated_at": self.visibility_updated_at,
         }
 
@@ -607,6 +617,7 @@ class RouterServiceStub:
             "subscribed_fleets": payload.subscribed_fleets or [],
             "subscribed_policies": payload.subscribed_policies or [],
             "subscribed_connectors": payload.subscribed_connectors or [],
+            "cost_budget": payload.cost_budget or {},
             "updated_at": self.visibility_updated_at,
         }
 

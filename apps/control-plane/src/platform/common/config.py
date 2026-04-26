@@ -206,6 +206,23 @@ class AnalyticsSettings(BaseSettings):
     budget_threshold_usd: float = 0.0
 
 
+class CostGovernanceSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="COST_GOVERNANCE_", extra="ignore")
+
+    anomaly_evaluation_interval_seconds: int = 3600
+    forecast_evaluation_interval_seconds: int = 3600
+    override_token_ttl_seconds: int = 300
+    minimum_history_periods_for_forecast: int = 4
+    default_alert_thresholds: list[int] = Field(default_factory=lambda: [50, 80, 100])
+    default_currency: str = "USD"
+    attribution_clickhouse_batch_size: int = 500
+    attribution_clickhouse_flush_interval_seconds: float = 5.0
+    compute_cost_per_ms_cents: float = 0.0
+    storage_cost_per_byte_cents: float = 0.0
+    overhead_cost_per_execution_cents: float = 0.0
+    attribution_fail_open: bool = True
+
+
 class VisibilitySettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="VISIBILITY_", extra="ignore")
 
@@ -685,6 +702,10 @@ class PlatformSettings(BaseSettings):
         default=False,
         validation_alias=AliasChoices("FEATURE_E2E_MODE", "PLATFORM_FEATURE_E2E_MODE"),
     )
+    feature_cost_hard_caps: bool = Field(
+        default=False,
+        validation_alias=AliasChoices("FEATURE_COST_HARD_CAPS", "PLATFORM_FEATURE_COST_HARD_CAPS"),
+    )
     A2A_PROTOCOL_VERSION: str = "1.0"
     A2A_MAX_PAYLOAD_BYTES: int = 10_485_760
     A2A_TASK_IDLE_TIMEOUT_MINUTES: int = 30
@@ -711,6 +732,7 @@ class PlatformSettings(BaseSettings):
     workspaces: WorkspacesSettings = Field(default_factory=WorkspacesSettings)
     ws_hub: WsHubSettings = Field(default_factory=WsHubSettings)
     analytics: AnalyticsSettings = Field(default_factory=AnalyticsSettings)
+    cost_governance: CostGovernanceSettings = Field(default_factory=CostGovernanceSettings)
     visibility: VisibilitySettings = Field(default_factory=VisibilitySettings)
     privacy_compliance: PrivacyComplianceSettings = Field(default_factory=PrivacyComplianceSettings)
     api_governance: ApiGovernanceSettings = Field(default_factory=ApiGovernanceSettings)
@@ -853,6 +875,52 @@ class PlatformSettings(BaseSettings):
             "CHECKPOINT_RETENTION_DAYS": ("checkpoint_retention_days",),
             "CHECKPOINT_MAX_SIZE_BYTES": ("checkpoint_max_size_bytes",),
             "ANALYTICS_BUDGET_THRESHOLD_USD": ("analytics", "budget_threshold_usd"),
+            "FEATURE_COST_HARD_CAPS": ("feature_cost_hard_caps",),
+            "COST_GOVERNANCE_ANOMALY_EVALUATION_INTERVAL_SECONDS": (
+                "cost_governance",
+                "anomaly_evaluation_interval_seconds",
+            ),
+            "COST_GOVERNANCE_FORECAST_EVALUATION_INTERVAL_SECONDS": (
+                "cost_governance",
+                "forecast_evaluation_interval_seconds",
+            ),
+            "COST_GOVERNANCE_OVERRIDE_TOKEN_TTL_SECONDS": (
+                "cost_governance",
+                "override_token_ttl_seconds",
+            ),
+            "COST_GOVERNANCE_MINIMUM_HISTORY_PERIODS_FOR_FORECAST": (
+                "cost_governance",
+                "minimum_history_periods_for_forecast",
+            ),
+            "COST_GOVERNANCE_DEFAULT_ALERT_THRESHOLDS": (
+                "cost_governance",
+                "default_alert_thresholds",
+            ),
+            "COST_GOVERNANCE_DEFAULT_CURRENCY": ("cost_governance", "default_currency"),
+            "COST_GOVERNANCE_ATTRIBUTION_CLICKHOUSE_BATCH_SIZE": (
+                "cost_governance",
+                "attribution_clickhouse_batch_size",
+            ),
+            "COST_GOVERNANCE_ATTRIBUTION_CLICKHOUSE_FLUSH_INTERVAL_SECONDS": (
+                "cost_governance",
+                "attribution_clickhouse_flush_interval_seconds",
+            ),
+            "COST_GOVERNANCE_COMPUTE_COST_PER_MS_CENTS": (
+                "cost_governance",
+                "compute_cost_per_ms_cents",
+            ),
+            "COST_GOVERNANCE_STORAGE_COST_PER_BYTE_CENTS": (
+                "cost_governance",
+                "storage_cost_per_byte_cents",
+            ),
+            "COST_GOVERNANCE_OVERHEAD_COST_PER_EXECUTION_CENTS": (
+                "cost_governance",
+                "overhead_cost_per_execution_cents",
+            ),
+            "COST_GOVERNANCE_ATTRIBUTION_FAIL_OPEN": (
+                "cost_governance",
+                "attribution_fail_open",
+            ),
             "VISIBILITY_ZERO_TRUST_ENABLED": ("visibility", "zero_trust_enabled"),
             "FEATURE_PRIVACY_DSR_ENABLED": ("privacy_compliance", "dsr_enabled"),
             "PRIVACY_ERASURE_HOLD_HOURS_DEFAULT": (
@@ -1394,6 +1462,10 @@ class PlatformSettings(BaseSettings):
     @property
     def FEATURE_CONTENT_MODERATION(self) -> bool:
         return self.content_moderation.enabled
+
+    @property
+    def FEATURE_COST_HARD_CAPS(self) -> bool:
+        return self.feature_cost_hard_caps
 
     @property
     def POSTGRES_DSN(self) -> str:

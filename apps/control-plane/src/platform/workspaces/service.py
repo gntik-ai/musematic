@@ -76,12 +76,14 @@ class WorkspacesService:
         kafka_producer: EventProducer | None,
         *,
         accounts_service: Any | None = None,
+        cost_governance_service: Any | None = None,
     ) -> None:
         self.repo = repo
         self.platform_settings = settings
         self.settings = settings.workspaces
         self.kafka_producer = kafka_producer
         self.accounts_service = accounts_service
+        self.cost_governance_service = cost_governance_service
 
     async def create_workspace(
         self,
@@ -226,6 +228,8 @@ class WorkspacesService:
             self._workspace_payload(archived),
             self._correlation(correlation_id, workspace_id=archived.id),
         )
+        if self.cost_governance_service is not None:
+            await self.cost_governance_service.handle_workspace_archived(archived.id)
         return self._workspace_response(archived)
 
     async def restore_workspace(
@@ -537,7 +541,7 @@ class WorkspacesService:
         request: UpdateSettingsRequest,
     ) -> SettingsResponse:
         await self._require_membership(workspace_id, requester_id, WorkspaceRole.admin)
-        fields: dict[str, list[str] | list[UUID]] = {}
+        fields: dict[str, list[str] | list[UUID] | dict[str, Any]] = {}
         if (
             "subscribed_agents" in request.model_fields_set
             and request.subscribed_agents is not None
@@ -558,6 +562,8 @@ class WorkspacesService:
             and request.subscribed_connectors is not None
         ):
             fields["subscribed_connectors"] = request.subscribed_connectors
+        if "cost_budget" in request.model_fields_set and request.cost_budget is not None:
+            fields["cost_budget"] = request.cost_budget
         settings = await self.repo.update_settings(workspace_id, **fields)
         return self._settings_response(settings)
 
@@ -679,6 +685,7 @@ class WorkspacesService:
             subscribed_fleets=list(settings.subscribed_fleets),
             subscribed_policies=list(settings.subscribed_policies),
             subscribed_connectors=list(settings.subscribed_connectors),
+            cost_budget=dict(getattr(settings, "cost_budget", {}) or {}),
             updated_at=settings.updated_at,
         )
 

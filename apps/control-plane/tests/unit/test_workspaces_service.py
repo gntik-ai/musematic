@@ -50,6 +50,14 @@ def _settings() -> PlatformSettings:
     return PlatformSettings()
 
 
+class CostGovernanceWorkspaceStub:
+    def __init__(self) -> None:
+        self.archived: list[object] = []
+
+    async def handle_workspace_archived(self, workspace_id: object) -> None:
+        self.archived.append(workspace_id)
+
+
 def _service(
     repo: WorkspacesRepoStub,
     *,
@@ -96,6 +104,8 @@ async def test_create_get_list_update_archive_restore_and_delete_workspace() -> 
     owner_id = uuid4()
     repo = WorkspacesRepoStub()
     service, _accounts_service, producer = _service(repo)
+    cost_governance = CostGovernanceWorkspaceStub()
+    service.cost_governance_service = cost_governance
 
     created = await service.create_workspace(
         owner_id,
@@ -125,6 +135,7 @@ async def test_create_get_list_update_archive_restore_and_delete_workspace() -> 
     assert restored.status == WorkspaceStatus.active
     assert rearchived.status == WorkspaceStatus.archived
     assert deleted.workspace_id == created.id
+    assert cost_governance.archived == [created.id, created.id]
     assert [event["event_type"] for event in producer.events][:6] == [
         "workspaces.workspace.created",
         "workspaces.workspace.updated",
@@ -269,6 +280,7 @@ async def test_membership_flows_and_last_owner_guard() -> None:
         AddMemberRequest(user_id=member_id, role=WorkspaceRole.member),
     )
     members = await service.list_members(workspace.id, owner_id, 1, 50)
+    member_ids = await service.list_member_ids(workspace.id)
     changed = await service.change_member_role(
         workspace.id,
         owner_id,
@@ -279,6 +291,7 @@ async def test_membership_flows_and_last_owner_guard() -> None:
 
     assert added.user_id == member_id
     assert members.total == 2
+    assert set(member_ids) == {owner_id, member_id}
     assert changed.role == WorkspaceRole.admin
     assert [event["event_type"] for event in producer.events][-3:] == [
         "workspaces.membership.added",
@@ -381,6 +394,8 @@ async def test_goal_visibility_and_settings_flows() -> None:
         ),
     )
     fetched_visibility = await service.get_visibility_grant(workspace.id, owner_id)
+    internal_visibility = await service.get_visibility_config(workspace.id)
+    existing_settings = await service.get_settings(workspace.id, owner_id)
     settings = await service.update_settings(
         workspace.id,
         owner_id,
@@ -393,6 +408,8 @@ async def test_goal_visibility_and_settings_flows() -> None:
     assert updated_goal.status == GoalStatus.in_progress
     assert visibility.visibility_agents == ["finance:*"]
     assert fetched_visibility.visibility_tools == ["tools:csv-reader"]
+    assert internal_visibility is not None
+    assert existing_settings.workspace_id == workspace.id
     assert settings.subscribed_agents == ["planner:*"]
     assert workspace_ids == [workspace.id]
     assert {event["event_type"] for event in producer.events} >= {
@@ -427,6 +444,7 @@ async def test_goal_visibility_settings_and_limit_fallback_paths() -> None:
             subscribed_fleets=[uuid4()],
             subscribed_policies=[uuid4()],
             subscribed_connectors=[uuid4()],
+            cost_budget={"monthly_cents": 1000},
         ),
     )
     default_only_service = WorkspacesService(
@@ -444,6 +462,7 @@ async def test_goal_visibility_settings_and_limit_fallback_paths() -> None:
 
     assert fetched_goal.id == goal.id
     assert fetched_settings.workspace_id == workspace.id
+    assert updated_settings.cost_budget == {"monthly_cents": 1000}
     assert len(updated_settings.subscribed_fleets) == 1
     assert len(updated_settings.subscribed_policies) == 1
     assert len(updated_settings.subscribed_connectors) == 1
@@ -520,6 +539,7 @@ async def test_internal_visibility_interface_returns_none() -> None:
     service, _accounts_service, _producer = _service(repo)
 
     assert await service.get_workspace_visibility_grant(workspace.id) is not None
+    assert await service.get_visibility_config(workspace.id) is not None
     assert await service.get_workspace_visibility_grant(uuid4()) is None
 
 
@@ -528,8 +548,41 @@ async def test_get_workspace_id_for_resource_resolves_execution_backed_channels(
     repo = WorkspacesRepoStub()
     service, _accounts_service, _producer = _service(repo)
     workspace_id = uuid4()
+    workspace = build_workspace(workspace_id=workspace_id)
     execution_id = uuid4()
+    interaction_id = uuid4()
+    conversation_id = uuid4()
+    simulation_goal_gid = uuid4()
+    fleet_id = uuid4()
+    repo.workspaces[workspace_id] = workspace
     repo.execution_workspaces[execution_id] = workspace_id
+    repo.interaction_workspaces[interaction_id] = workspace_id
+    repo.conversation_workspaces[conversation_id] = workspace_id
+    repo.fleet_workspaces[fleet_id] = workspace_id
+    repo.goals[(workspace_id, uuid4())] = build_goal(
+        workspace_id=workspace_id,
+        gid=simulation_goal_gid,
+    )
 
     for channel in (ChannelType.EXECUTION, ChannelType.REASONING, ChannelType.CORRECTION):
         assert await service.get_workspace_id_for_resource(channel, execution_id) == workspace_id
+    assert (
+        await service.get_workspace_id_for_resource(ChannelType.WORKSPACE, workspace_id)
+        == workspace_id
+    )
+    assert (
+        await service.get_workspace_id_for_resource(ChannelType.INTERACTION, interaction_id)
+        == workspace_id
+    )
+    assert (
+        await service.get_workspace_id_for_resource(ChannelType.CONVERSATION, conversation_id)
+        == workspace_id
+    )
+    for channel in (ChannelType.SIMULATION, ChannelType.TESTING):
+        assert (
+            await service.get_workspace_id_for_resource(channel, simulation_goal_gid)
+            == workspace_id
+        )
+    assert await service.get_workspace_id_for_resource(ChannelType.FLEET, fleet_id) == workspace_id
+    assert await service.get_workspace_id_for_resource(ChannelType.WORKSPACE, uuid4()) is None
+    assert await service.get_workspace_id_for_resource(ChannelType.ALERTS, uuid4()) is None

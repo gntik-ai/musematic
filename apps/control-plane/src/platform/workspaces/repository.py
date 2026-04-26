@@ -351,7 +351,7 @@ class WorkspacesRepository:
     async def update_settings(
         self,
         workspace_id: UUID,
-        **fields: list[str] | list[UUID],
+        **fields: list[str] | list[UUID] | dict[str, Any],
     ) -> WorkspaceSettings:
         settings = await self.get_settings(workspace_id)
         if settings is None:
@@ -361,6 +361,7 @@ class WorkspacesRepository:
                 subscribed_fleets=[],
                 subscribed_policies=[],
                 subscribed_connectors=[],
+                cost_budget={},
             )
             self.session.add(settings)
             await self.session.flush()
