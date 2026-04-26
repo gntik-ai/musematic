@@ -69,13 +69,13 @@ from platform.common.events.producer import EventProducer
 from platform.common.exceptions import PlatformError, platform_exception_handler
 from platform.common.middleware.api_versioning_middleware import ApiVersioningMiddleware
 from platform.common.middleware.rate_limit_middleware import RateLimitMiddleware
-from platform.common.telemetry import setup_telemetry
 from platform.common.tagging.router import (
     admin_labels_router as tagging_admin_labels_router,
 )
 from platform.common.tagging.router import labels_router as tagging_labels_router
 from platform.common.tagging.router import saved_views_router as tagging_saved_views_router
 from platform.common.tagging.router import tags_router as tagging_tags_router
+from platform.common.telemetry import setup_telemetry
 from platform.composition.events import register_composition_event_types
 from platform.composition.router import router as composition_router
 from platform.connectors.dependencies import build_connectors_service

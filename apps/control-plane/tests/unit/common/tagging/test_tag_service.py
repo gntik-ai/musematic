@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from platform.common.tagging.exceptions import InvalidTagError, TagAttachLimitExceededError
+from platform.common.tagging.exceptions import (
+    EntityNotFoundForTagError,
+    EntityTypeNotRegisteredError,
+    InvalidTagError,
+    TagAttachLimitExceededError,
+)
 from platform.common.tagging.tag_service import TagService
 from types import SimpleNamespace
 from uuid import UUID, uuid4
@@ -216,3 +221,55 @@ async def test_detach_and_cascade() -> None:
     assert await repo.count_tags_for_entity("workspace", entity_id) == 0
     assert repo.cascaded == [("workspace", entity_id)]
     assert len(audit.entries) == 2
+
+
+@pytest.mark.asyncio
+async def test_list_access_denial_and_paginated_search_paths() -> None:
+    allowed_entity = uuid4()
+    second_entity = uuid4()
+    actor_id = uuid4()
+    repo = RepoStub()
+    await repo.insert_tag("agent", allowed_entity, "production", actor_id)
+    await repo.insert_tag("agent", second_entity, "production", actor_id)
+
+    async def allow_only_agent(
+        entity_type: str,
+        entity_id: UUID,
+        requester: object,
+        action: str,
+    ) -> bool:
+        del requester, action
+        return entity_type == "agent" and entity_id == allowed_entity
+
+    service = TagService(
+        repo,
+        visibility_resolver=ResolverStub({"agent": {allowed_entity, second_entity}}),
+        entity_access_check=allow_only_agent,
+    )
+
+    tags = await service.list_for_entity(
+        "agent",
+        allowed_entity,
+        requester=SimpleNamespace(id=actor_id),
+    )
+    search = await service.cross_entity_search(
+        tag="production",
+        requester={"sub": str(actor_id)},
+        entity_types=["agent"],
+        cursor="5",
+        limit=1,
+    )
+
+    assert [tag.tag for tag in tags] == ["production"]
+    assert search.entities == {"agent": [allowed_entity]}
+    assert search.next_cursor == "6"
+
+    with pytest.raises(EntityNotFoundForTagError):
+        await service.attach(
+            entity_type="agent",
+            entity_id=second_entity,
+            tag="blocked",
+            requester={"sub": str(actor_id)},
+        )
+    with pytest.raises(EntityTypeNotRegisteredError):
+        await service.list_for_entity("unknown", allowed_entity, requester={"sub": str(actor_id)})
