@@ -142,12 +142,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- main: Added Python 3.12+ (control plane). No Go changes.
 - 077-multi-channel-notifications: Added control-plane multi-channel notifications with user channels, outbound webhooks, Slack/Teams/SMS adapters, dead-letter replay, retry/verification/DLQ schedulers, and Grafana channel observability.
 - 076-privacy-compliance: Added Python 3.12+ (control plane). No Go changes.
-- 075-model-catalog-fallback: Added Python 3.12+ (control plane). No Go changes —
-- 074-security-compliance: Added Python 3.12+ (control plane); Go, TypeScript, Rust
-- 056-ibor-integration-and: Added Python 3.12+ (control plane); Go, TypeScript, Rust
-- 056-ibor-integration-and: Added Python 3.12+ (test harness only); YAML (Helm values additions for mock OAuth servers + CI workflow extensions); Bash (Makefile additions) + pytest 8.x (already in feature 071 harness), pytest-asyncio, pytest-html, pytest-timeout, pytest-xdist (NEW — parallel journey execution for SC-005), httpx 0.27+, websockets, aiokafka 0.11+, asyncpg — all reused from feature 071's `tests/e2e/pyproject.toml`. No new runtime dependencies on the control plane.
 
 
 <!-- MANUAL ADDITIONS START -->
