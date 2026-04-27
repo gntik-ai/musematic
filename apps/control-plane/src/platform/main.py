@@ -239,7 +239,6 @@ from platform.simulation.router import router as simulation_router
 from platform.testing.dependencies import build_drift_service
 from platform.testing.events import register_testing_event_types
 from platform.testing.router_e2e import router as testing_e2e_router
-from platform.two_person_approval.router import router as two_pa_router
 from platform.trust.contract_monitor import ContractMonitorConsumer
 from platform.trust.dependencies import (
     build_ate_service,
@@ -252,6 +251,7 @@ from platform.trust.dependencies import (
 )
 from platform.trust.events import register_trust_event_types
 from platform.trust.router import router as trust_router
+from platform.two_person_approval.router import router as two_pa_router
 from platform.workflows.dependencies import build_workflow_service
 from platform.workflows.events import register_workflows_event_types
 from platform.workflows.models import TriggerType

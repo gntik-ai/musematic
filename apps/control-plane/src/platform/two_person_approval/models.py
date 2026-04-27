@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from platform.common.models.base import Base
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Text
@@ -19,7 +20,7 @@ class TwoPersonApprovalChallenge(Base):
         primary_key=True,
     )
     action_type: Mapped[str] = mapped_column("action", Text(), nullable=False)
-    action_payload: Mapped[dict] = mapped_column(
+    action_payload: Mapped[dict[str, Any]] = mapped_column(
         "payload",
         JSONB(none_as_null=False),
         nullable=False,
