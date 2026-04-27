@@ -2,6 +2,16 @@ global:
   environment: production
   domain: platform.local
 
+superadmin:
+  username: ""
+  email: ""
+  passwordSecretRef: ""
+  mfaEnrollment: required_on_first_login
+  forcePasswordChange: true
+
+platformInstanceName: "Musematic Platform"
+tenantMode: single
+
 platformDataNamespace:
   create: true
   name: platform-data

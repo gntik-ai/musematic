@@ -770,6 +770,7 @@ Subtypes: `NotFoundError` → 404, `AuthorizationError` → 403,
 | `region.failover.completed` | region_id | multi_region_ops | notifications, audit |
 | `maintenance.mode.enabled` | — | multi_region_ops | all services (drain) |
 | `maintenance.mode.disabled` | — | multi_region_ops | all services (resume) |
+| `admin.events` | — | admin composition layer | audit, notifications, all admin consumers |
 | `model.catalog.updated` | model_id | model_catalog | registry, workflow |
 | `model.card.published` | model_id | model_catalog | trust, registry |
 | `model.fallback.triggered` | execution_id | model_catalog | analytics, cost_governance |

@@ -12,6 +12,7 @@ from platform_cli.commands.backup import backup_app
 from platform_cli.commands.diagnose import diagnose_app
 from platform_cli.commands.install import install_app
 from platform_cli.commands.observability import observability_app
+from platform_cli.commands.superadmin import superadmin_app
 from platform_cli.commands.upgrade import upgrade_app
 from platform_cli.output.console import configure_console
 from platform_cli.runtime import CLIState
@@ -73,6 +74,7 @@ app.add_typer(diagnose_app, name="diagnose")
 app.add_typer(backup_app, name="backup")
 app.add_typer(upgrade_app, name="upgrade")
 app.add_typer(admin_app, name="admin")
+app.add_typer(superadmin_app, name="superadmin")
 app.add_typer(observability_app, name="observability")
 
 

@@ -22,6 +22,7 @@ USER_IDENTITY_COLUMNS: dict[str, list[str]] = {
     "workspaces": ["owner_id"],
     "user_credentials": ["user_id"],
     "mfa_enrollments": ["user_id"],
+    "audit_chain_entries": ["impersonation_user_id"],
     "oauth_audit_entries": ["user_id"],
     "oauth_links": ["user_id"],
     "user_roles": ["user_id"],
