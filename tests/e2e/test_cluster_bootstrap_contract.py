@@ -54,6 +54,13 @@ def test_observability_install_adds_helm_repositories_before_dependency_build() 
     )
 
 
+def test_loki_alerts_require_lokirule_crd_capability() -> None:
+    loki_alerts = (ROOT / 'deploy/helm/observability/templates/alerts/loki-alerts.yaml').read_text()
+
+    assert loki_alerts.startswith('{{- if .Capabilities.APIVersions.Has "loki.grafana.com/v1/LokiRule" }}')
+    assert loki_alerts.rstrip().endswith('{{- end }}')
+
+
 def test_makefile_renders_cluster_specific_kind_config() -> None:
     makefile = (ROOT / 'tests/e2e/Makefile').read_text()
     assert 'render-kind-config' in makefile
