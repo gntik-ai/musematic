@@ -70,6 +70,12 @@ def test_configure_logging_outputs_required_json_fields(
     assert payload["message"] == "control-plane.ready"
 
 
+def test_configure_logging_suppresses_noisy_stdlib_loggers() -> None:
+    configure_logging("api", "platform-control")
+
+    assert stdlib_logging.getLogger("apscheduler").getEffectiveLevel() == stdlib_logging.WARNING
+
+
 @pytest.mark.asyncio
 async def test_contextvars_survive_await_boundary(capsys: pytest.CaptureFixture[str]) -> None:
     configure_logging("worker", "platform-control")

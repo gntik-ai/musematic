@@ -28,6 +28,7 @@ _CONTEXT_VARS: Mapping[str, ContextVar[str | None]] = {
     "execution_id": _execution_id,
 }
 _CONFIGURED: set[tuple[str, str]] = set()
+_NOISY_STDLIB_LOGGERS = ("apscheduler",)
 
 ContextTokens = dict[str, Token[str | None]]
 
@@ -39,6 +40,8 @@ def configure_logging(service_name: str, bounded_context: str) -> None:
         level=stdlib_logging.INFO,
         force=True,
     )
+    for logger_name in _NOISY_STDLIB_LOGGERS:
+        stdlib_logging.getLogger(logger_name).setLevel(stdlib_logging.WARNING)
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,
