@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import json
 from datetime import UTC, datetime
 from platform.audit.service import AuditChainService
@@ -367,7 +368,7 @@ def _decode_offset_cursor(cursor: str | None) -> int:
         return 0
     try:
         return max(0, int(base64.urlsafe_b64decode(cursor.encode("ascii")).decode("ascii")))
-    except (ValueError, UnicodeDecodeError):
+    except (ValueError, UnicodeDecodeError, binascii.Error):
         return 0
 
 

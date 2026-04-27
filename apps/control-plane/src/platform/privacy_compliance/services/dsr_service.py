@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import binascii
 import hashlib
 import json
 from base64 import urlsafe_b64decode
@@ -196,5 +197,5 @@ def _decode_offset_cursor(cursor: str | None) -> int:
     try:
         decoded = urlsafe_b64decode(cursor.encode("ascii")).decode("ascii")
         return max(0, int(decoded))
-    except (ValueError, UnicodeDecodeError):
+    except (ValueError, UnicodeDecodeError, binascii.Error):
         return 0

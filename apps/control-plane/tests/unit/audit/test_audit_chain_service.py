@@ -5,6 +5,7 @@ from asyncio import gather
 from datetime import UTC, datetime
 from hashlib import sha256
 from platform.audit import dependencies as audit_dependencies
+from platform.audit.exceptions import AuditChainIntegrityError
 from platform.audit.models import AuditChainEntry
 from platform.audit.service import GENESIS_HASH, AuditChainService, compute_entry_hash
 from platform.audit.signing import AuditChainSigning
@@ -75,6 +76,33 @@ class InMemoryAuditChainRepository:
             (entry for entry in self.entries if entry.sequence_number == sequence_number),
             None,
         )
+
+    async def list_audit_sources_in_window(
+        self,
+        start_ts: datetime,
+        end_ts: datetime,
+        sources: list[str] | None = None,
+    ) -> list[AuditChainEntry]:
+        return [
+            entry
+            for entry in self.entries
+            if start_ts <= entry.created_at <= end_ts
+            and (sources is None or entry.audit_event_source in sources)
+        ]
+
+    async def list_entries_by_actor_or_subject(
+        self,
+        *,
+        actor_id: UUID | None,
+        subject_id: UUID | None,
+        start_ts: datetime | None,
+        end_ts: datetime | None,
+        event_type: str | None,
+        limit: int,
+        cursor: str | None,
+    ) -> tuple[list[AuditChainEntry], str | None]:
+        del actor_id, subject_id, start_ts, end_ts, event_type, cursor
+        return self.entries[:limit], None
 
 
 class RecordingProducer:
@@ -212,6 +240,52 @@ async def test_audit_chain_detects_hash_tampering() -> None:
     verification = await service.verify()
     assert verification.valid is False
     assert verification.broken_at == 1
+
+
+@pytest.mark.asyncio
+async def test_audit_chain_empty_wrappers_and_attestation_error_paths() -> None:
+    settings = _settings("7" * 64)
+    repository = InMemoryAuditChainRepository()
+    service = AuditChainService(repository=repository, settings=settings)
+
+    assert service._decode_payload(b"\xff") is None
+    empty_verification = await service.verify()
+    assert empty_verification.valid is True
+    assert empty_verification.entries_checked == 0
+    assert await service.list_audit_sources_in_window(datetime.now(UTC), datetime.now(UTC)) == []
+    assert await service.list_entries_by_actor_or_subject(
+        actor_id=None,
+        subject_id=None,
+        start_ts=None,
+        end_ts=None,
+        event_type=None,
+        limit=10,
+        cursor=None,
+    ) == ([], None)
+    with pytest.raises(AuditChainIntegrityError, match="empty audit chain"):
+        await service.export_attestation(1, 1)
+
+    first = await service.append(uuid4(), "unit-test", b'{"action":"created"}')
+    second = await service.append(uuid4(), "other-source", b'{"action":"updated"}')
+    assert (await service.verify(2, 2)).valid is True
+    assert await service.list_audit_sources_in_window(
+        first.created_at,
+        second.created_at,
+        ["unit-test"],
+    ) == [first]
+    assert await service.list_entries_by_actor_or_subject(
+        actor_id=uuid4(),
+        subject_id=None,
+        start_ts=first.created_at,
+        end_ts=second.created_at,
+        event_type="auth.session.revoked",
+        limit=1,
+        cursor=None,
+    ) == ([first], None)
+
+    second.entry_hash = "f" * 64
+    with pytest.raises(AuditChainIntegrityError, match="Audit chain broken"):
+        await service.export_attestation(1, 2)
 
 
 def test_audit_signing_does_not_log_private_seed(caplog: pytest.LogCaptureFixture) -> None:

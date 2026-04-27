@@ -56,6 +56,8 @@ class UserServiceAccountCreateRequest(BaseModel):
 
 
 class UserServiceAccountCreateResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     service_account_id: UUID
     name: str
     role: str
@@ -99,6 +101,8 @@ class UserDSRSubmitRequest(BaseModel):
 
 
 class UserDSRDetailResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     subject_user_id: UUID
     request_type: DSRRequestType
@@ -133,6 +137,8 @@ class UserActivityListResponse(BaseModel):
 
 
 class UserNotificationPreferencesResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     state_transitions: list[str]
     delivery_method: DeliveryMethod
     webhook_url: str | None = None

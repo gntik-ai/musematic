@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import json
 from datetime import datetime
 from platform.audit.models import AuditChainEntry
@@ -195,5 +196,5 @@ def _decode_cursor(cursor: str | None) -> tuple[datetime | None, UUID | None]:
         if not isinstance(payload, dict):
             return None, None
         return datetime.fromisoformat(str(payload["created_at"])), UUID(str(payload["id"]))
-    except (KeyError, ValueError, TypeError, json.JSONDecodeError):
+    except (KeyError, ValueError, TypeError, json.JSONDecodeError, binascii.Error):
         return None, None

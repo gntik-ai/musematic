@@ -118,6 +118,12 @@ async def test_dependency_fallback_services_and_factories() -> None:
     assert await residency.check_egress(object(), None) is True
     assert await secrets.read_secret("secret/path") == {}
     await secrets.write_secret("secret/path", {"value": "redacted"})
+    await secrets.put("secret/other", {"value": "token"})
+    assert await secrets.get("secret/other") == "token"
+    await secrets.flush_cache("secret/other")
+    await secrets.delete_version("secret/other", 1)
+    assert await secrets.list_versions("secret/other") == [1]
+    assert (await secrets.health_check()).status == "green"
 
     custom_audit = NoopAuditChainService()
     custom_dlp = AllowAllDlpService()

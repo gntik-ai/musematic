@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 from platform.auth.exceptions import (
+    AccessTokenExpiredError,
     AccountLockedError,
     AccountPendingApprovalError,
     InactiveUserError,
@@ -356,6 +357,122 @@ async def test_verify_mfa_rejects_invalid_token_and_code(auth_settings) -> None:
 
     with pytest.raises(InvalidMfaCodeError):
         await service.verify_mfa(token, "BADCODE")
+
+
+@pytest.mark.asyncio
+async def test_auth_service_rejects_token_and_mfa_edge_cases(monkeypatch, auth_settings) -> None:
+    missing_platform_repository = FakeAuthRepository()
+    missing_platform_repository.platform_user = None
+    missing_platform_service = AuthService(
+        missing_platform_repository,
+        FakeAsyncRedisClient(),
+        auth_settings,
+    )
+    with pytest.raises(InvalidCredentialsError):
+        await missing_platform_service.login(
+            missing_platform_repository.email,
+            "SecureP@ss123",
+            "127.0.0.1",
+            "pytest",
+        )
+    assert missing_platform_repository.auth_attempts == ["failure_password"]
+
+    repository = FakeAuthRepository()
+    service = AuthService(repository, FakeAsyncRedisClient(), auth_settings)
+    expired_token = jwt.encode(
+        {
+            "sub": str(repository.user_id),
+            "type": "access",
+            "exp": datetime.now(UTC) - timedelta(seconds=1),
+        },
+        service.settings.signing_key,
+        algorithm=service.settings.jwt_algorithm,
+    )
+    refresh_type_token = jwt.encode(
+        {
+            "sub": str(repository.user_id),
+            "type": "refresh",
+            "exp": datetime.now(UTC) + timedelta(minutes=5),
+        },
+        service.settings.signing_key,
+        algorithm=service.settings.jwt_algorithm,
+    )
+    non_string_subject_token = jwt.encode(
+        {
+            "sub": 123,
+            "type": "access",
+            "exp": datetime.now(UTC) + timedelta(minutes=5),
+        },
+        service.settings.signing_key,
+        algorithm=service.settings.jwt_algorithm,
+    )
+    invalid_uuid_subject_token = jwt.encode(
+        {
+            "sub": "not-a-uuid",
+            "type": "access",
+            "exp": datetime.now(UTC) + timedelta(minutes=5),
+        },
+        service.settings.signing_key,
+        algorithm=service.settings.jwt_algorithm,
+    )
+
+    with pytest.raises(AccessTokenExpiredError):
+        await service.validate_token(expired_token)
+    for token in [refresh_type_token, non_string_subject_token, invalid_uuid_subject_token]:
+        with pytest.raises(InvalidAccessTokenError):
+            await service.validate_token(token)
+
+    monkeypatch.setattr("platform.auth.service.jwt.decode", lambda *_, **__: ["not", "a", "dict"])
+    with pytest.raises(InvalidAccessTokenError):
+        await service.validate_token("not-a-real-token")
+    monkeypatch.setattr(
+        "platform.auth.service.jwt.decode",
+        lambda *_, **__: {"sub": 123, "type": "access"},
+    )
+    with pytest.raises(InvalidAccessTokenError):
+        await service.validate_token("not-a-real-token")
+    monkeypatch.undo()
+
+    mfa_repository = FakeAuthRepository()
+    mfa_service = AuthService(mfa_repository, FakeAsyncRedisClient(), auth_settings)
+    pending_without_enrollment = await mfa_service._create_pending_mfa_token(
+        user_id=mfa_repository.user_id,
+        email=mfa_repository.email,
+        roles=[],
+        ip="127.0.0.1",
+        device="pytest",
+        session_id=uuid4(),
+    )
+    with pytest.raises(InvalidMfaTokenError):
+        await mfa_service.verify_mfa(pending_without_enrollment, "123456")
+
+    secret = generate_totp_secret()
+    mfa_repository.mfa_enrollment = SimpleNamespace(
+        id=uuid4(),
+        user_id=mfa_repository.user_id,
+        encrypted_secret=encrypt_secret(secret, auth_settings.auth.mfa_encryption_key),
+        recovery_codes_hash=[],
+        status="active",
+        expires_at=None,
+    )
+    pending_with_enrollment = await mfa_service._create_pending_mfa_token(
+        user_id=mfa_repository.user_id,
+        email=mfa_repository.email,
+        roles=[],
+        ip="127.0.0.1",
+        device="pytest",
+        session_id=uuid4(),
+    )
+    token_pair = await mfa_service.verify_mfa(pending_with_enrollment, pyotp.TOTP(secret).now())
+    assert token_pair.access_token
+
+    created_session = await mfa_service.create_session(
+        user_id=mfa_repository.user_id,
+        email=mfa_repository.email,
+        ip="127.0.0.1",
+        device="pytest",
+    )
+    assert created_session.refresh_token
 
 
 @pytest.mark.asyncio

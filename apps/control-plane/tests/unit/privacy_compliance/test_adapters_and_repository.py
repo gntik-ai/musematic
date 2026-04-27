@@ -375,6 +375,46 @@ class FailingClient(CommandClient):
         raise RuntimeError("s3 down")
 
 
+class RawOpenSearchClient:
+    def __init__(self) -> None:
+        self.last: dict[str, object] = {}
+
+    async def delete_by_query(self, **kwargs: object) -> dict[str, int]:
+        self.last = kwargs
+        return {"deleted": 5}
+
+
+class OpenSearchClientFactory:
+    def __init__(self) -> None:
+        self.raw = RawOpenSearchClient()
+
+    async def _ensure_client(self) -> RawOpenSearchClient:
+        return self.raw
+
+
+class OpenSearchBodyFallbackClient:
+    def __init__(self) -> None:
+        self.last: dict[str, object] = {}
+
+    async def delete_by_query(self, **kwargs: object) -> int:
+        if "body" in kwargs:
+            raise TypeError("unexpected body argument")
+        self.last = kwargs
+        return 4
+
+
+class MissingIndexClient:
+    async def delete_by_query(self, **kwargs: object) -> int:
+        del kwargs
+        raise RuntimeError("index_not_found_exception")
+
+
+class TypeErrorClient:
+    async def delete_by_query(self, **kwargs: object) -> int:
+        del kwargs
+        raise TypeError("transport unavailable")
+
+
 @pytest.mark.asyncio
 async def test_cascade_adapters_execute_success_and_error_paths() -> None:
     user_id = uuid4()
@@ -399,6 +439,17 @@ async def test_cascade_adapters_execute_success_and_error_paths() -> None:
     assert (await opensearch.dry_run(user_id)).per_target_estimates == {"idx": 0}
     assert (await opensearch.execute(user_id)).affected_count == 3
     assert (await OpenSearchCascadeAdapter(FailingClient()).execute(user_id)).errors
+    factory = OpenSearchClientFactory()
+    factory_result = await OpenSearchCascadeAdapter(factory, index="logs").execute(user_id)
+    assert factory_result.affected_count == 5
+    assert factory.raw.last["ignore_unavailable"] is True
+    fallback = OpenSearchBodyFallbackClient()
+    fallback_result = await OpenSearchCascadeAdapter(fallback, index="logs").execute(user_id)
+    assert fallback_result.affected_count == 4
+    assert fallback.last["workspace_id"] == ""
+    assert (await OpenSearchCascadeAdapter(MissingIndexClient()).execute(user_id)).errors == []
+    with pytest.raises(TypeError, match="transport unavailable"):
+        await OpenSearchCascadeAdapter(TypeErrorClient())._delete_by_query({"query": {}})
 
     neo_session = SessionStub(
         [
