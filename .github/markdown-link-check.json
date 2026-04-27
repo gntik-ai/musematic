@@ -1,0 +1,32 @@
+{
+  "ignorePatterns": [
+    {
+      "pattern": "^\\./"
+    },
+    {
+      "pattern": "^../"
+    },
+    {
+      "pattern": "^#"
+    },
+    {
+      "pattern": "localhost"
+    },
+    {
+      "pattern": "example\\.com"
+    }
+  ],
+  "retryOn429": true,
+  "retryCount": 3,
+  "fallbackRetryDelay": "30s",
+  "timeout": "30s",
+  "aliveStatusCodes": [
+    200,
+    206,
+    301,
+    302,
+    303,
+    307,
+    308
+  ]
+}

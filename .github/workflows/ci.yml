@@ -10,6 +10,8 @@ permissions:
   contents: read
   packages: read
   security-events: write
+  issues: write
+  pull-requests: write
 
 jobs:
   changes:
@@ -30,6 +32,7 @@ jobs:
       images: ${{ steps.filter.outputs.images }}
       image-any: ${{ steps.matrices.outputs.image-any }}
       image-matrix: ${{ steps.matrices.outputs.image-matrix }}
+      readme: ${{ steps.filter.outputs.readme }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -72,6 +75,8 @@ jobs:
               - '!apps/control-plane/**/*.md'
               - '!apps/web/**/*.md'
               - '!services/**/*.md'
+            readme:
+              - 'README*.md'
 
       - name: Build dynamic matrices
         id: matrices
@@ -307,6 +312,62 @@ jobs:
           --ruleset .spectral.yaml
           --fail-severity error
           --display-only-failures
+
+  readme-parity:
+    name: README parity
+    needs: changes
+    if: needs.changes.outputs.readme == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pandoc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pandoc
+
+      - name: Run README parity check
+        id: parity
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number || 0 }}
+        run: |
+          set +e
+          if [ "$PR_NUMBER" = "0" ]; then
+            python scripts/check-readme-parity.py | tee /tmp/readme-parity.out
+          else
+            python scripts/check-readme-parity.py --pr-number "$PR_NUMBER" | tee /tmp/readme-parity.out
+          fi
+          status="${PIPESTATUS[0]}"
+          set -e
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Comment on parity drift
+        if: github.event_name == 'pull_request' && steps.parity.outputs.status != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr comment "$PR_NUMBER" --body-file /tmp/readme-parity.out --edit-last \
+            || gh pr comment "$PR_NUMBER" --body-file /tmp/readme-parity.out
+
+      - name: Open or update drift issue
+        if: github.event_name == 'pull_request' && steps.parity.outputs.status != '0'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: scripts/open-or-update-drift-issue.sh "$PR_NUMBER" /tmp/readme-parity.out
+
+      - name: Fail on hard README parity errors
+        if: steps.parity.outputs.status == '2'
+        run: exit 2
 
   lint-go:
     name: Lint Go (${{ matrix.service }})
