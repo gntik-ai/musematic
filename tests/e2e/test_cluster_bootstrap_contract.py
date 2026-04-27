@@ -54,6 +54,24 @@ def test_observability_install_adds_helm_repositories_before_dependency_build() 
     )
 
 
+def test_observability_install_uses_targeted_readiness_after_helm_apply() -> None:
+    install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
+    observability_install = install_script.split('install_observability() {', 1)[1].split(
+        '\n}\n\nwait_for_labelled_pod',
+        1,
+    )[0]
+    observability_wait = install_script.split('wait_for_observability_stack() {', 1)[1].split(
+        '\n}\n\nstart_observability_port_forward',
+        1,
+    )[0]
+
+    assert '--wait' not in observability_install
+    assert observability_install.index('--timeout "${HELM_TIMEOUT}"') < observability_install.index(
+        'wait_for_observability_stack "${PLATFORM_READY_TIMEOUT}"',
+    )
+    assert 'wait_for_labelled_pod "${OBSERVABILITY_NAMESPACE}" "$selector" "$timeout"' in observability_wait
+
+
 def test_loki_alerts_require_lokirule_crd_capability() -> None:
     loki_alerts = (ROOT / 'deploy/helm/observability/templates/alerts/loki-alerts.yaml').read_text()
 

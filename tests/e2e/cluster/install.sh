@@ -162,9 +162,7 @@ wait_for_observability_stack() {
   )
 
   for selector in "${selectors[@]}"; do
-    if kubectl get pods -n "${OBSERVABILITY_NAMESPACE}" -l "$selector" -o name 2>/dev/null | grep -q .; then
-      kubectl wait -n "${OBSERVABILITY_NAMESPACE}" --for=condition=Ready pod -l "$selector" --timeout="$timeout"
-    fi
+    wait_for_labelled_pod "${OBSERVABILITY_NAMESPACE}" "$selector" "$timeout"
   done
 }
 
@@ -246,7 +244,6 @@ install_observability() {
     --namespace "${OBSERVABILITY_NAMESPACE}" \
     --create-namespace \
     -f "${OBSERVABILITY_VALUES_FILE}" \
-    --wait \
     --timeout "${HELM_TIMEOUT}"
   wait_for_observability_stack "${PLATFORM_READY_TIMEOUT}"
   start_observability_port_forwards
