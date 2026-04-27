@@ -1,0 +1,2 @@
+"""Localization bounded context."""
+

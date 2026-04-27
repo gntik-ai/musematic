@@ -149,6 +149,8 @@ from platform.interactions.dependencies import build_interactions_service
 from platform.interactions.events import register_interactions_event_types
 from platform.interactions.goal_lifecycle import GoalAutoCompletionScanner
 from platform.interactions.router import router as interactions_router
+from platform.localization.events import register_localization_event_types
+from platform.localization.router import router as localization_router
 from platform.marketplace.dependencies import (
     build_quality_service as build_marketplace_quality_service,
 )
@@ -477,6 +479,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_model_catalog_event_types()
     register_incident_response_event_types()
     register_multi_region_ops_event_types()
+    register_localization_event_types()
     register_incident_trigger(AppIncidentTrigger(app))
 
     for name, client in app.state.clients.items():
@@ -1586,6 +1589,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(security_compliance_router)
         app.include_router(incident_response_router)
         app.include_router(multi_region_ops_router)
+        app.include_router(localization_router)
         app.include_router(tagging_tags_router)
         app.include_router(tagging_labels_router)
         app.include_router(tagging_saved_views_router)

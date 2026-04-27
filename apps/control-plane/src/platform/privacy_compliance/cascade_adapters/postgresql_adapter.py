@@ -81,7 +81,9 @@ USER_IDENTITY_COLUMNS: dict[str, list[str]] = {
     "fairness_evaluations": ["evaluated_by"],
     "entity_tags": ["created_by"],
     "entity_labels": ["created_by"],
+    "locale_files": ["published_by"],
     "saved_views": ["owner_id"],
+    "user_preferences": ["user_id"],
 }
 
 
