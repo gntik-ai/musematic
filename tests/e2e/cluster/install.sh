@@ -225,6 +225,14 @@ start_observability_port_forwards() {
   probe_observability_http otel "http://localhost:13133/"
 }
 
+ensure_observability_helm_repos() {
+  helm repo add opentelemetry https://open-telemetry.github.io/opentelemetry-helm-charts --force-update
+  helm repo add prometheus-community https://prometheus-community.github.io/helm-charts --force-update
+  helm repo add jaegertracing https://jaegertracing.github.io/helm-charts --force-update
+  helm repo add grafana https://grafana.github.io/helm-charts --force-update
+  helm repo update
+}
+
 install_observability() {
   if [[ ! -f "${OBSERVABILITY_CHART_DIR}/Chart.yaml" ]]; then
     echo "[e2e] missing Helm chart: ${OBSERVABILITY_CHART_DIR}/Chart.yaml" >&2
@@ -232,6 +240,7 @@ install_observability() {
   fi
 
   echo "[e2e] installing observability stack"
+  ensure_observability_helm_repos
   helm dependency build "${OBSERVABILITY_CHART_DIR}"
   helm upgrade --install "${OBSERVABILITY_RELEASE_NAME}" "${OBSERVABILITY_CHART_DIR}" \
     --namespace "${OBSERVABILITY_NAMESPACE}" \

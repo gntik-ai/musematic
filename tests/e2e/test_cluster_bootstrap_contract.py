@@ -37,6 +37,23 @@ def test_operator_installs_use_server_side_apply_for_large_crds() -> None:
     assert 'kubectl apply --server-side=true --force-conflicts -n strimzi-system -f "${STRIMZI_MANIFEST_URL}"' in install_script
 
 
+def test_observability_install_adds_helm_repositories_before_dependency_build() -> None:
+    install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
+    observability_install = install_script.split('install_observability() {', 1)[1].split(
+        '\n}\n\nwait_for_labelled_pod',
+        1,
+    )[0]
+
+    assert 'ensure_observability_helm_repos' in install_script
+    assert 'https://open-telemetry.github.io/opentelemetry-helm-charts' in install_script
+    assert 'https://prometheus-community.github.io/helm-charts' in install_script
+    assert 'https://jaegertracing.github.io/helm-charts' in install_script
+    assert 'https://grafana.github.io/helm-charts' in install_script
+    assert observability_install.index('ensure_observability_helm_repos') < observability_install.index(
+        'helm dependency build "${OBSERVABILITY_CHART_DIR}"',
+    )
+
+
 def test_makefile_renders_cluster_specific_kind_config() -> None:
     makefile = (ROOT / 'tests/e2e/Makefile').read_text()
     assert 'render-kind-config' in makefile
