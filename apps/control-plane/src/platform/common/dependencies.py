@@ -5,6 +5,7 @@ from platform.common import database
 from platform.common.config import PlatformSettings
 from platform.common.config import settings as default_settings
 from platform.common.exceptions import AuthorizationError, NotFoundError
+from platform.common.logging import configure_logging, get_logger
 from typing import TYPE_CHECKING, Any, cast
 
 import jwt
@@ -14,6 +15,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 if TYPE_CHECKING:
     from platform.evaluation.service_interfaces import EvalSuiteServiceInterface
     from platform.testing.service_interfaces import CoordinationTestServiceInterface
+
+_STRUCTLOG_PROVIDERS: set[tuple[str, str]] = set()
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -76,6 +79,14 @@ async def get_workspace(
 
 def get_opensearch_client(request: Any) -> Any:
     return request.app.state.clients["opensearch"]
+
+
+def get_structlog_logger(service_name: str, bounded_context: str) -> Any:
+    key = (service_name, bounded_context)
+    if key not in _STRUCTLOG_PROVIDERS:
+        configure_logging(service_name, bounded_context)
+        _STRUCTLOG_PROVIDERS.add(key)
+    return get_logger(f"{service_name}.{bounded_context}")
 
 
 async def get_eval_suite_service_interface(

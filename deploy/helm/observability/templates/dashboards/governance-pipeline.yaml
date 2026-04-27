@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-governance-pipeline
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.dashboardLabels" . | indent 4 }}
+data:
+  governance-pipeline.json: |
+    {
+      "annotations": { "list": [] },
+      "description": "Near-real-time governance observer, judge, and enforcer flow.",
+      "editable": true,
+      "id": null,
+      "panels": [
+        { "id": 1, "type": "timeseries", "title": "Observer Signal Volume", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 7, "w": 8, "x": 0, "y": 0 }, "targets": [ { "expr": "sum by (chain) (rate(governance_observer_signals_total{workspace_id=~\"$workspace\"}[5m]))", "refId": "A" } ] },
+        { "id": 2, "type": "timeseries", "title": "Verdict Rate", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 7, "w": 8, "x": 8, "y": 0 }, "targets": [ { "expr": "sum by (chain) (rate(governance_verdicts_total{workspace_id=~\"$workspace\"}[5m]))", "refId": "A" } ] },
+        { "id": 3, "type": "bargauge", "title": "Verdicts by Type", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 7, "w": 8, "x": 16, "y": 0 }, "targets": [ { "expr": "sum by (chain, verdict) (increase(governance_verdicts_total{workspace_id=~\"$workspace\"}[1h]))", "refId": "A" } ] },
+        { "id": 4, "type": "piechart", "title": "Enforcement Actions", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 8, "w": 8, "x": 0, "y": 7 }, "targets": [ { "expr": "sum by (action) (increase(governance_enforcement_actions_total{workspace_id=~\"$workspace\"}[1h]))", "refId": "A" } ] },
+        { "id": 5, "type": "timeseries", "title": "Per-Chain Latency", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 8, "w": 8, "x": 8, "y": 7 }, "targets": [ { "expr": "histogram_quantile(0.95, sum by (le, chain) (rate(governance_chain_latency_seconds_bucket{workspace_id=~\"$workspace\"}[5m])))", "refId": "A" } ] },
+        { "id": 6, "type": "table", "title": "Top Offending Agents", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 8, "w": 8, "x": 16, "y": 7 }, "targets": [ { "expr": "topk(10, sum by (agent_fqn, workspace_id) (count_over_time({bounded_context=\"governance\"} | json | action != \"\" | workspace_id=~\"$workspace\" [1h])))", "refId": "A" } ] },
+        { "id": 7, "type": "logs", "title": "Verdict Rationale Drill-Down", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 10, "w": 24, "x": 0, "y": 15 }, "targets": [ { "expr": "{bounded_context=\"governance\"} | json | message=~\".*verdict.*\" | workspace_id=~\"$workspace\"", "refId": "A" } ], "options": { "dedupStrategy": "none", "enableLogDetails": true, "showLabels": true, "showTime": true, "sortOrder": "Descending" } }
+      ],
+      "refresh": "15s",
+      "schemaVersion": 38,
+      "tags": ["musematic", "governance"],
+      "templating": { "list": [
+        { "name": "workspace", "type": "textbox", "label": "Workspace", "query": ".*", "current": { "selected": false, "text": ".*", "value": ".*" } },
+        { "name": "prometheus", "type": "datasource", "query": "prometheus", "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" } }
+      ] },
+      "time": { "from": "now-1h", "to": "now" },
+      "timezone": "browser",
+      "title": "D21 Governance Pipeline",
+      "uid": "d21-governance-pipeline",
+      "version": 1
+    }

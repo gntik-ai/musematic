@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-model-catalog
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.dashboardLabels" . | indent 4 }}
+data:
+  model-catalog.json: |
+    {
+      "annotations": { "list": [] },
+      "description": "Model usage, fallback events, provider health, latency, cost, and deprecated-model alerts.",
+      "editable": true,
+      "id": null,
+      "panels": [
+        { "id": 1, "type": "piechart", "title": "Model Usage Distribution", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 }, "targets": [ { "expr": "sum by (model) (rate(model_catalog_requests_total[1h]))", "refId": "A" } ] },
+        { "id": 2, "type": "timeseries", "title": "Fallback Events per Minute", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 }, "targets": [ { "expr": "sum(rate({bounded_context=\"model_catalog\"} | json | message=~\".*fallback.*\" [1m]))", "refId": "A" } ] },
+        { "id": 3, "type": "stat", "title": "Provider Health", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 }, "targets": [ { "expr": "min by (provider) (model_provider_health)", "refId": "A" } ] },
+        { "id": 4, "type": "timeseries", "title": "Per-Model Latency", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 }, "targets": [ { "expr": "histogram_quantile(0.95, sum by (le, model) (rate(model_catalog_latency_seconds_bucket[5m])))", "refId": "A" } ] },
+        { "id": 5, "type": "timeseries", "title": "Per-Model Cost", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 }, "targets": [ { "expr": "sum by (model) (rate(cost_attribution_usd_total{bounded_context=\"model_catalog\"}[1h]))", "refId": "A" } ] },
+        { "id": 6, "type": "stat", "title": "Deprecated Model Usage", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 }, "targets": [ { "expr": "sum(rate(model_catalog_deprecated_model_requests_total[1h]))", "refId": "A" } ] }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "tags": ["musematic", "model-catalog"],
+      "templating": { "list": [ { "name": "prometheus", "type": "datasource", "query": "prometheus", "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" } } ] },
+      "time": { "from": "now-1h", "to": "now" },
+      "timezone": "browser",
+      "title": "D17 Model Catalog & Fallback",
+      "uid": "d17-model-catalog",
+      "version": 1
+    }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 import { NextIntlClientProvider } from "next-intl";
+import { ClientErrorLogging } from "@/components/providers/ClientErrorLogging";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { WebSocketProvider } from "@/components/providers/WebSocketProvider";
@@ -59,6 +60,7 @@ export default async function RootLayout({
           <NextIntlClientProvider locale={activeLocale} messages={messages}>
             <QueryProvider>
               <WebSocketProvider>
+                <ClientErrorLogging />
                 {children}
                 <Toaster />
               </WebSocketProvider>

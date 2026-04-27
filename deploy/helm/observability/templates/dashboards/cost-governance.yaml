@@ -64,6 +64,24 @@ data:
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
           "targets": [{ "expr": "histogram_quantile(0.95, sum by (le, service) (rate(cost_governance_clickhouse_flush_seconds_bucket[5m])))", "legendFormat": "p95 {{ `{{service}}` }}", "refId": "A" }]
+        },
+        {
+          "id": 50,
+          "type": "logs",
+          "title": "Cost Governance Log Stream",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 22 },
+          "targets": [{ "expr": "{bounded_context=\"cost_governance\"} | json | workspace_id=~\"$workspace\"", "refId": "A" }],
+          "options": { "dedupStrategy": "none", "enableLogDetails": true, "showLabels": true, "showTime": true, "sortOrder": "Descending" }
+        },
+        {
+          "id": 51,
+          "type": "logs",
+          "title": "Cost Anomalies Feed",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 22 },
+          "targets": [{ "expr": "{bounded_context=\"cost_governance\"} | json | message=~\".*anomaly.*detected.*\" | workspace_id=~\"$workspace\"", "refId": "A" }],
+          "options": { "dedupStrategy": "none", "enableLogDetails": true, "showLabels": true, "showTime": true, "sortOrder": "Descending" }
         }
       ],
       "refresh": "30s",
@@ -71,7 +89,8 @@ data:
       "tags": ["musematic", "cost-governance"],
       "templating": {
         "list": [
-          { "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" }, "hide": 0, "includeAll": false, "label": "Datasource", "multi": false, "name": "datasource", "options": [], "query": "prometheus", "refresh": 1, "regex": "", "type": "datasource" }
+          { "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" }, "hide": 0, "includeAll": false, "label": "Datasource", "multi": false, "name": "datasource", "options": [], "query": "prometheus", "refresh": 1, "regex": "", "type": "datasource" },
+          { "current": { "selected": false, "text": ".*", "value": ".*" }, "hide": 0, "includeAll": false, "label": "Workspace", "multi": false, "name": "workspace", "query": ".*", "type": "textbox" }
         ]
       },
       "time": { "from": "now-6h", "to": "now" },

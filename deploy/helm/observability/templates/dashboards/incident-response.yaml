@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-incident-response
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.dashboardLabels" . | indent 4 }}
+data:
+  incident-response.json: |
+    {
+      "annotations": { "list": [] },
+      "description": "Incident response severity, MTTR, post-mortems, runbook access, and category mix.",
+      "editable": true,
+      "id": null,
+      "panels": [
+        { "id": 1, "type": "bargauge", "title": "Active Incidents by Severity", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 }, "targets": [ { "expr": "sum by (severity) (incident_response_active_incidents)", "refId": "A" } ] },
+        { "id": 2, "type": "timeseries", "title": "MTTR Trend", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 }, "targets": [ { "expr": "avg_over_time(incident_response_mttr_seconds[24h])", "refId": "A" } ] },
+        { "id": 3, "type": "table", "title": "Post-Mortem Status", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 }, "targets": [ { "expr": "sum by (status) (incident_response_post_mortems_total)", "refId": "A" } ] },
+        { "id": 4, "type": "timeseries", "title": "Runbook Access Frequency", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }, "targets": [ { "expr": "sum(rate({bounded_context=\"incident_response\"} | json | message=~\".*runbook.*viewed.*\" [5m]))", "refId": "A" } ] },
+        { "id": 5, "type": "piechart", "title": "Incidents by Category", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 }, "targets": [ { "expr": "sum by (alert_rule_class) (count_over_time({bounded_context=\"incident_response\"} | json | alert_rule_class != \"\" [1h]))", "refId": "A" } ] }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "tags": ["musematic", "incident-response"],
+      "templating": { "list": [ { "name": "prometheus", "type": "datasource", "query": "prometheus", "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" } } ] },
+      "time": { "from": "now-1h", "to": "now" },
+      "timezone": "browser",
+      "title": "D19 Incident Response & Runbooks",
+      "uid": "d19-incident-response",
+      "version": 1
+    }

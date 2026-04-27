@@ -148,6 +148,38 @@ data:
             },
             "overrides": []
           }
+        },
+        {
+          "id": 50,
+          "type": "logs",
+          "title": "Notifications Log Stream",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 10, "w": 8, "x": 0, "y": 24 },
+          "targets": [
+            { "expr": "{bounded_context=\"notifications\"} | json", "refId": "A" }
+          ],
+          "options": { "dedupStrategy": "none", "enableLogDetails": true, "showLabels": true, "showTime": true, "sortOrder": "Descending" }
+        },
+        {
+          "id": 51,
+          "type": "logs",
+          "title": "Webhook Delivery Failures",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 10, "w": 8, "x": 8, "y": 24 },
+          "targets": [
+            { "expr": "{bounded_context=\"notifications\"} | json | message=~\".*webhook.*delivery.*failed.*\"", "refId": "A" }
+          ],
+          "options": { "dedupStrategy": "none", "enableLogDetails": true, "showLabels": true, "showTime": true, "sortOrder": "Descending" }
+        },
+        {
+          "id": 52,
+          "type": "stat",
+          "title": "DLQ Size",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 10, "w": 8, "x": 16, "y": 24 },
+          "targets": [
+            { "expr": "sum(notifications_webhook_dlq_depth{namespace=~\"$namespace\"})", "refId": "A" }
+          ]
         }
       ],
       "refresh": "30s",

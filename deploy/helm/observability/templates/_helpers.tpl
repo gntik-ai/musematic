@@ -20,3 +20,11 @@ prometheus: musematic
 role: alert-rules
 {{- end }}
 
+{{- define "musematic-observability.lokiLabels" -}}
+service
+bounded_context
+level
+namespace
+pod
+container
+{{- end }}

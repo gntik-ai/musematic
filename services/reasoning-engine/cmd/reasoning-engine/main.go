@@ -18,6 +18,7 @@ import (
 	"github.com/musematic/reasoning-engine/internal/debate"
 	"github.com/musematic/reasoning-engine/internal/escalation"
 	"github.com/musematic/reasoning-engine/internal/events"
+	structuredlogging "github.com/musematic/reasoning-engine/internal/logging"
 	"github.com/musematic/reasoning-engine/internal/mode_selector"
 	"github.com/musematic/reasoning-engine/internal/quality_evaluator"
 	"github.com/musematic/reasoning-engine/internal/tot_manager"
@@ -79,7 +80,8 @@ func main() {
 }
 
 func run() error {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger := structuredlogging.Configure("reasoning-engine", "platform-execution")
+	slog.SetDefault(logger)
 	cfg, err := loadConfig()
 	if err != nil {
 		return err

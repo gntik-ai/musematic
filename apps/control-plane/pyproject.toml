@@ -46,6 +46,7 @@ dependencies = [
   "opentelemetry-instrumentation-grpc>=0.48b0",
   "numpy>=1.26",
   "scipy>=1.13",
+  "structlog>=24.1",
 ]
 
 [project.optional-dependencies]
@@ -121,6 +122,7 @@ ignore = [
 "src/platform/common/clients/qdrant.py" = ["A002"]
 "src/platform/common/clients/redis.py" = ["A002"]
 "src/platform/common/config.py" = ["N802"]
+"src/platform/common/logging.py" = ["A005"]
 "src/platform/common/pagination.py" = ["UP046"]
 
 [tool.mypy]

@@ -17,6 +17,7 @@ import (
 	"github.com/andrea-mucci/musematic/services/sandbox-manager/internal/cleanup"
 	"github.com/andrea-mucci/musematic/services/sandbox-manager/internal/events"
 	"github.com/andrea-mucci/musematic/services/sandbox-manager/internal/executor"
+	structuredlogging "github.com/andrea-mucci/musematic/services/sandbox-manager/internal/logging"
 	"github.com/andrea-mucci/musematic/services/sandbox-manager/internal/logs"
 	"github.com/andrea-mucci/musematic/services/sandbox-manager/internal/sandbox"
 	"github.com/andrea-mucci/musematic/services/sandbox-manager/internal/state"
@@ -158,7 +159,8 @@ func main() {
 }
 
 func run() error {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger := structuredlogging.Configure("sandbox-manager", "platform-execution")
+	slog.SetDefault(logger)
 	cfg, err := loadConfigFn()
 	if err != nil {
 		return err
