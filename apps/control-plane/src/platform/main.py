@@ -239,6 +239,7 @@ from platform.simulation.router import router as simulation_router
 from platform.testing.dependencies import build_drift_service
 from platform.testing.events import register_testing_event_types
 from platform.testing.router_e2e import router as testing_e2e_router
+from platform.two_person_approval.router import router as two_pa_router
 from platform.trust.contract_monitor import ContractMonitorConsumer
 from platform.trust.dependencies import (
     build_ate_service,
@@ -1612,6 +1613,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(debug_logging_router)
         app.include_router(accounts_router)
         app.include_router(workspaces_router)
+        app.include_router(two_pa_router, prefix="/api/v1")
         app.include_router(analytics_router)
         app.include_router(cost_governance_router)
         app.include_router(registry_router)

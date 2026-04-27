@@ -22,6 +22,8 @@ from platform.connectors.schemas import (
     OutboundDeliveryCreate,
     OutboundDeliveryListResponse,
     OutboundDeliveryResponse,
+    TestConnectivityRequest,
+    TestConnectivityResponse,
 )
 from platform.connectors.service import ConnectorsService
 from typing import Any
@@ -167,6 +169,21 @@ async def health_check_connector(
 ) -> HealthCheckResponse:
     del current_user
     return await connectors_service.run_health_check(workspace_id, connector_instance_id)
+
+
+@router.post(
+    "/workspaces/{workspace_id}/connectors/{connector_instance_id}/test-connectivity",
+    response_model=TestConnectivityResponse,
+)
+async def run_connector_connectivity_test(
+    workspace_id: UUID,
+    connector_instance_id: UUID,
+    payload: TestConnectivityRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    connectors_service: ConnectorsService = Depends(get_connectors_service),
+) -> TestConnectivityResponse:
+    del current_user
+    return await connectors_service.test_connectivity(workspace_id, connector_instance_id, payload)
 
 
 @router.post(

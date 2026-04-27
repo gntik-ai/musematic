@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import datetime
 from platform.connectors.models import ConnectorHealthStatus
+from platform.connectors.schemas import TestResult
 from typing import Any, Protocol, runtime_checkable
 from uuid import UUID
 
@@ -66,3 +67,9 @@ class BaseConnector(Protocol):
     ) -> None: ...
 
     async def health_check(self, config: dict[str, Any]) -> HealthCheckResult: ...
+
+    async def test_connectivity(
+        self,
+        config: dict[str, Any],
+        credential_refs: dict[str, str],
+    ) -> TestResult: ...

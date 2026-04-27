@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from platform.common.dependencies import get_current_user
+from platform.two_person_approval.dependencies import get_two_person_approval_service
+from platform.two_person_approval.service import TwoPersonApprovalService
 from platform.workspaces.dependencies import (
     get_workspace_governance_service,
     get_workspaces_service,
@@ -18,6 +20,8 @@ from platform.workspaces.schemas import (
     MembershipResponse,
     SettingsResponse,
     SetVisibilityGrantRequest,
+    TransferOwnershipChallengeResponse,
+    TransferOwnershipRequest,
     UpdateGoalStatusRequest,
     UpdateSettingsRequest,
     UpdateWorkspaceRequest,
@@ -28,6 +32,7 @@ from platform.workspaces.schemas import (
     WorkspaceGovernanceChainUpdate,
     WorkspaceListResponse,
     WorkspaceResponse,
+    WorkspaceSummaryResponse,
 )
 from platform.workspaces.service import WorkspacesService
 from typing import Any
@@ -248,6 +253,34 @@ async def update_settings(
     workspaces_service: WorkspacesService = Depends(get_workspaces_service),
 ) -> SettingsResponse:
     return await workspaces_service.update_settings(
+        workspace_id,
+        _requester_id(current_user),
+        payload,
+    )
+
+
+@router.get("/{workspace_id}/summary", response_model=WorkspaceSummaryResponse)
+async def get_workspace_summary(
+    workspace_id: UUID,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    workspaces_service: WorkspacesService = Depends(get_workspaces_service),
+) -> WorkspaceSummaryResponse:
+    return await workspaces_service.get_summary(workspace_id, _requester_id(current_user))
+
+
+@router.post(
+    "/{workspace_id}/transfer-ownership",
+    response_model=TransferOwnershipChallengeResponse,
+)
+async def transfer_ownership(
+    workspace_id: UUID,
+    payload: TransferOwnershipRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    workspaces_service: WorkspacesService = Depends(get_workspaces_service),
+    two_pa_service: TwoPersonApprovalService = Depends(get_two_person_approval_service),
+) -> TransferOwnershipChallengeResponse:
+    workspaces_service.two_person_approval_service = two_pa_service
+    return await workspaces_service.initiate_ownership_transfer(
         workspace_id,
         _requester_id(current_user),
         payload,

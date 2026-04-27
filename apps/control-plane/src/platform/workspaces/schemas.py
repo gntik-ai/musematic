@@ -182,6 +182,9 @@ class UpdateSettingsRequest(BaseModel):
     subscribed_policies: list[UUID] | None = None
     subscribed_connectors: list[UUID] | None = None
     cost_budget: dict[str, Any] | None = None
+    quota_config: dict[str, Any] | None = None
+    dlp_rules: dict[str, Any] | None = None
+    residency_config: dict[str, Any] | None = None
 
     @field_validator("subscribed_agents")
     @classmethod
@@ -198,6 +201,9 @@ class UpdateSettingsRequest(BaseModel):
             and self.subscribed_policies is None
             and self.subscribed_connectors is None
             and self.cost_budget is None
+            and self.quota_config is None
+            and self.dlp_rules is None
+            and self.residency_config is None
         ):
             raise ValueError("At least one settings field must be provided")
         return self
@@ -210,7 +216,60 @@ class SettingsResponse(BaseModel):
     subscribed_policies: list[UUID]
     subscribed_connectors: list[UUID]
     cost_budget: dict[str, Any]
+    quota_config: dict[str, Any]
+    dlp_rules: dict[str, Any]
+    residency_config: dict[str, Any]
     updated_at: datetime
+
+
+class WorkspaceQuotaConfig(BaseModel):
+    agents: int | None = Field(default=None, ge=0)
+    fleets: int | None = Field(default=None, ge=0)
+    executions: int | None = Field(default=None, ge=0)
+    storage_gb: int | None = Field(default=None, ge=0)
+
+
+class WorkspaceDLPRules(BaseModel):
+    enabled: bool = True
+    rule_ids: list[UUID] = Field(default_factory=list)
+    overrides: dict[str, Any] = Field(default_factory=dict)
+
+
+class WorkspaceResidencyConfig(BaseModel):
+    region: str | None = Field(default=None, max_length=64)
+    tier: str | None = Field(default=None, max_length=64)
+    enforcement_mode: str | None = Field(default=None, max_length=64)
+
+
+class WorkspaceSummaryCardData(BaseModel):
+    label: str
+    value: int | float | str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class WorkspaceSummaryResponse(BaseModel):
+    workspace_id: UUID
+    active_goals: int
+    executions_in_flight: int
+    agent_count: int
+    budget: dict[str, Any]
+    quotas: dict[str, Any]
+    tags: dict[str, Any]
+    dlp_violations: int
+    recent_activity: list[dict[str, Any]]
+    cards: dict[str, WorkspaceSummaryCardData] = Field(default_factory=dict)
+    cached_until: datetime | None = None
+
+
+class TransferOwnershipRequest(BaseModel):
+    new_owner_id: UUID
+
+
+class TransferOwnershipChallengeResponse(BaseModel):
+    challenge_id: UUID
+    action_type: str
+    status: str
+    expires_at: datetime
 
 
 class WorkspaceDeletedResponse(BaseModel):

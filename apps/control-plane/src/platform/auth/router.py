@@ -13,6 +13,7 @@ from platform.auth.schemas import (
     IBORConnectorListResponse,
     IBORConnectorResponse,
     IBORConnectorUpdate,
+    IBORSyncHistoryResponse,
     IBORSyncRunListResponse,
     IBORSyncTriggerResponse,
     LoginRequest,
@@ -27,6 +28,7 @@ from platform.auth.schemas import (
     RefreshRequest,
     ServiceAccountCreateRequest,
     ServiceAccountCreateResponse,
+    TestConnectionResponse,
     TokenPair,
 )
 from platform.auth.service import AuthService
@@ -255,12 +257,58 @@ async def list_ibor_sync_runs(
     return await ibor_service.list_sync_runs(connector_id, limit=limit, cursor=cursor)
 
 
+@router.get(
+    "/ibor/connectors/{connector_id}/sync-history",
+    response_model=IBORSyncHistoryResponse,
+)
+async def get_ibor_sync_history(
+    connector_id: UUID,
+    limit: int = Query(default=90, ge=1, le=500),
+    cursor: str | None = Query(default=None),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    ibor_service: IBORConnectorService = Depends(get_ibor_service),
+) -> IBORSyncHistoryResponse:
+    _require_platform_admin(current_user)
+    runs = await ibor_service.list_sync_runs(connector_id, limit=limit, cursor=cursor)
+    return IBORSyncHistoryResponse(**runs.model_dump())
+
+
+@router.post(
+    "/ibor/connectors/{connector_id}/test-connection",
+    response_model=TestConnectionResponse,
+)
+async def run_ibor_connection_test(
+    connector_id: UUID,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    ibor_service: IBORConnectorService = Depends(get_ibor_service),
+) -> TestConnectionResponse:
+    _require_platform_admin(current_user)
+    return await ibor_service.test_connection(connector_id)
+
+
 @router.post(
     "/ibor/connectors/{connector_id}/sync",
     response_model=IBORSyncTriggerResponse,
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def trigger_ibor_sync(
+    connector_id: UUID,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    sync_service: IBORSyncService = Depends(get_ibor_sync_service),
+) -> IBORSyncTriggerResponse:
+    _require_platform_admin(current_user)
+    return await sync_service.trigger_sync(
+        connector_id,
+        triggered_by=UUID(str(current_user["sub"])),
+    )
+
+
+@router.post(
+    "/ibor/connectors/{connector_id}/sync-now",
+    response_model=IBORSyncTriggerResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def sync_ibor_now(
     connector_id: UUID,
     current_user: dict[str, Any] = Depends(get_current_user),
     sync_service: IBORSyncService = Depends(get_ibor_sync_service),
