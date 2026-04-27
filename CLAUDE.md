@@ -131,6 +131,7 @@ Auto-generated from all feature plans. Last updated: 2026-04-27
 - S3-compatible object storage for Loki chunk storage via the existing generic-S3 client (`S3_ENDPOINT_URL`, `S3_ACCESS_KEY`, `S3_SECRET_KEY`, `S3_USE_PATH_STYLE` env vars per Principle XVI). Bucket name: `platform-loki-chunks` (constitutionally reserved). One in-cluster persistent volume claim (20 GiB default; configurable per Helm values) for Loki's hot tier write path. No PostgreSQL / Redis / Qdrant / Neo4j changes. **OTEL Collector is unchanged** — its existing metrics-→-Prometheus and traces-→-Jaeger pipelines from feature 047 stay; logs do NOT route through the collector (they go via Promtail directly). (084-log-aggregation-dashboards)
 - Python 3.12+ (control plane) + TypeScript 5.x strict (Next.js auth UI). No Go changes and no new runtime packages. (087-public-signup-flow)
 - PostgreSQL enum migration only: `accounts_user_status` adds `pending_profile_completion`; no new tables, Redis keys, Kafka topics, Vault paths, or object buckets. (087-public-signup-flow)
+- Markdown + Python 3.12 stdlib + YAML only: root README, shared SVG asset, README parity checker, GitHub Actions wiring, weekly external-link workflow. No app code, migrations, data stores, or runtime deps. (088-multilingual-repository-readme)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -150,6 +151,7 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 088-multilingual-repository-readme: Added canonical English README, shared `docs/assets/architecture-overview.svg`, README parity checker/tests, CI readme path filter, drift issue helper, weekly external-link workflow, and operator quickstart. Vendor translations/native reviews remain external gates.
 - 087-public-signup-flow: Added public signup, verification pages, dedicated OAuth callback/profile-completion UI, account connections UI, `pending_profile_completion`, `PATCH /api/v1/accounts/me`, and OAuth test-connectivity dry-run support. Planner corrections: 7 locale inventory, admin OAuth page sequencing, 4 OAuth redirect call sites, missing `PATCH /me`, missing status enum, OAuth buttons variant prop, missing signup API methods, settings sub-route ownership, missing signup E2E dir, CAPTCHA placeholder scope, base64URL OAuth fragment reuse, and MFA callback handling.
 - 084-log-aggregation-dashboards: Added YAML (Helm chart values + dashboard ConfigMaps + alert rules) + Python 3.12+ (control plane structlog config + audit-chain log-emission additive change) + Go 1.22+ (Go satellite ContextHandler) + TypeScript 5.x (frontend isomorphic logger). No SQL changes (this feature owns no relational tables).
 - 081-multi-region-ha: Added Python 3.12+ (control plane). No Go changes. `MaintenanceGateMiddleware` deliberately fails OPEN when Redis/PG truth is unavailable and is registered before auth so callers see the maintenance message rather than a 401. Active-active is refused in application logic and by the partial unique primary-region index. Capacity composes feature 079 forecasts and feature 020 analytics rollups only; do not add local forecasting logic.
@@ -157,6 +159,7 @@ Python 3.12+ (application), PostgreSQL 16 (database): Follow standard convention
 
 
 <!-- MANUAL ADDITIONS START -->
+  UPD-038 corrections: six README files total; root `LICENSE`/`CONTRIBUTING.md`/`SECURITY.md` absent and out of scope; docs links match today's `docs/` tree; `docs/assets/` is created here; `make dev-up` is verified; GitHub repo is `gntik-ai/musematic`; `ci.yml` owns the per-PR README filter; `gh` uses `GITHUB_TOKEN`/`GH_TOKEN`; CI installs `pandoc`; cold-cache quick start can exceed 5 minutes; feature 083 vendor reuse is unconfirmed; native-speaker reviews are an external gate.
   `Base` first, then behavior mixins (`UUIDMixin`, `TimestampMixin`, `SoftDeleteMixin`, `AuditMixin`, `WorkspaceScopedMixin`, `EventSourcedMixin`), then concrete columns
   `make migrate`
   `make migrate-rollback`
