@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from platform.common.llm.exceptions import RateLimitError
 from platform.common.llm.mock_provider import MockLLMProvider
 
 import pytest
@@ -9,6 +10,7 @@ class FakeRedis:
     def __init__(self) -> None:
         self.lists: dict[str, list[str]] = {}
         self.sets: dict[str, set[str]] = {}
+        self.values: dict[str, str] = {}
         self.published: list[tuple[str, str]] = []
 
     async def sadd(self, key: str, *values: str) -> None:
@@ -56,10 +58,19 @@ class FakeRedis:
     async def delete(self, *keys: str) -> int:
         deleted = 0
         for key in keys:
-            deleted += int(key in self.lists or key in self.sets)
+            deleted += int(key in self.lists or key in self.sets or key in self.values)
             self.lists.pop(key, None)
             self.sets.pop(key, None)
+            self.values.pop(key, None)
         return deleted
+
+    async def get(self, key: str):
+        return self.values.get(key)
+
+    async def set(self, key: str, value: str, ex: int | None = None, ttl: int | None = None):
+        del ex, ttl
+        self.values[key] = value
+        return True
 
 
 class FakeRedisCluster(FakeRedis):
@@ -168,3 +179,39 @@ async def test_mock_provider_tracks_queue_depth_and_broadcasts_updates() -> None
     await provider.clear_queue()
     cleared = await provider.queue_depth()
     assert cleared['agent_response'] == 0
+
+
+@pytest.mark.asyncio
+async def test_mock_provider_rate_limit_injection_raises_once_then_recovers(monkeypatch) -> None:
+    monkeypatch.setenv("FEATURE_E2E_MODE", "true")
+    redis = FakeRedis()
+    provider = MockLLMProvider(redis)
+    await provider.set_response("agent_response", "ok")
+    await provider.set_rate_limit_error("agent_response", count=1)
+
+    with pytest.raises(RateLimitError):
+        await provider.generate(
+            "agent_response",
+            "prompt-rate-limited",
+            model="mock",
+            temperature=0,
+            max_tokens=5,
+        )
+
+    assert redis.values[provider._rate_limit_key("agent_response")] == "0"
+    assert await provider.generate(
+        "agent_response",
+        "prompt-recovers",
+        model="mock",
+        temperature=0,
+        max_tokens=5,
+    ) == "ok"
+
+
+@pytest.mark.asyncio
+async def test_mock_provider_rate_limit_injection_requires_e2e_mode(monkeypatch) -> None:
+    monkeypatch.delenv("FEATURE_E2E_MODE", raising=False)
+    provider = MockLLMProvider(FakeRedis())
+
+    with pytest.raises(KeyError):
+        await provider.set_rate_limit_error("agent_response", count=1)

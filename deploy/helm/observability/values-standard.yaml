@@ -1,0 +1,74 @@
+# Preset: standard
+# Purpose: small production cluster with HA control points and S3-backed Loki chunks.
+# Capacity envelope: ~4 GiB total stack RAM, 1M metric series, 100 logs/s, 1k traces/s,
+# Prometheus 30d retention, Loki 14d hot + 90d cold retention.
+networkPolicy:
+  enabled: true
+
+opentelemetry-collector:
+  replicaCount: 2
+
+kube-prometheus-stack:
+  grafana:
+    replicas: 2
+    plugins:
+      - grafana-image-renderer
+  prometheus:
+    prometheusSpec:
+      replicas: 2
+      retention: 30d
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            resources:
+              requests:
+                storage: 20Gi
+
+jaeger:
+  storage:
+    type: badger
+    badger:
+      ephemeral: false
+      persistence:
+        mountPath: /mnt/data
+        useExistingPvcName: jaeger-badger
+  persistence:
+    enabled: true
+    size: 5Gi
+
+loki:
+  deploymentMode: SingleBinary
+  loki:
+    limits_config:
+      retention_period: 336h
+    compactor:
+      retention_enabled: true
+      delete_request_store: s3
+    storage:
+      type: s3
+      bucketNames:
+        chunks: platform-loki-chunks
+        ruler: platform-loki-chunks
+        admin: platform-loki-chunks
+    schemaConfig:
+      configs:
+        - from: "2024-01-01"
+          store: tsdb
+          object_store: s3
+          schema: v13
+          index:
+            prefix: loki_index_
+            period: 24h
+    rulerConfig:
+      storage:
+        type: s3
+        s3:
+          bucketnames: platform-loki-chunks
+  retention:
+    hot: 336h
+    cold: 2160h
+  singleBinary:
+    replicas: 1
+    persistence:
+      enabled: true
+      size: 20Gi

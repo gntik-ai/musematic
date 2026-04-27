@@ -1,3 +1,4 @@
+{{- if .Capabilities.APIVersions.Has "loki.grafana.com/v1/LokiRule" }}
 apiVersion: loki.grafana.com/v1
 kind: LokiRule
 metadata:
@@ -61,3 +62,4 @@ spec:
             summary: Cost anomaly logged
             description: Cost governance emitted an anomaly-detected log entry.
             dashboard_url: http://musematic-observability-grafana/d/cost-governance
+{{- end }}

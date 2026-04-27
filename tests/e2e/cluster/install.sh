@@ -20,6 +20,11 @@ PORT_GOOGLE_OIDC="${PORT_GOOGLE_OIDC:-8083}"
 PORT_GITHUB_OAUTH="${PORT_GITHUB_OAUTH:-8084}"
 SKIP_LOAD_IMAGES="${SKIP_LOAD_IMAGES:-false}"
 COMPOSITE_CHART_DIR="${ROOT_DIR}/deploy/helm/platform"
+OBSERVABILITY_CHART_DIR="${ROOT_DIR}/deploy/helm/observability"
+OBSERVABILITY_NAMESPACE="${OBSERVABILITY_NAMESPACE:-platform-observability}"
+OBSERVABILITY_RELEASE_NAME="${OBSERVABILITY_RELEASE_NAME:-observability}"
+OBSERVABILITY_VALUES_FILE="${OBSERVABILITY_VALUES_FILE:-${OBSERVABILITY_CHART_DIR}/values-e2e.yaml}"
+OBSERVABILITY_PORT_FORWARD_DIR="${OBSERVABILITY_PORT_FORWARD_DIR:-/tmp/musematic-e2e-observability-${CLUSTER_NAME}}"
 KIND_CONFIG_TEMPLATE="${CLUSTER_DIR}/kind-config.yaml"
 KIND_CONFIG_PATH="${KIND_CONFIG_PATH:-/tmp/kind-config-${CLUSTER_NAME}.yaml}"
 VALUES_FILE="${CLUSTER_DIR}/values-e2e.yaml"
@@ -143,6 +148,105 @@ install_platform() {
     --namespace "${NAMESPACE}" \
     --create-namespace \
     --timeout "${HELM_TIMEOUT}"
+}
+
+wait_for_observability_stack() {
+  local timeout="${1:-300s}"
+  local selectors=(
+    "app.kubernetes.io/name=grafana"
+    "app.kubernetes.io/name=prometheus"
+    "app.kubernetes.io/name=loki"
+    "app.kubernetes.io/name=promtail"
+    "app.kubernetes.io/name=opentelemetry-collector"
+    "app.kubernetes.io/name=jaeger"
+  )
+
+  for selector in "${selectors[@]}"; do
+    wait_for_labelled_pod "${OBSERVABILITY_NAMESPACE}" "$selector" "$timeout"
+  done
+}
+
+start_observability_port_forward() {
+  local name="$1"
+  local target="$2"
+  local local_port="$3"
+  local remote_port="$4"
+  local pid_file="${OBSERVABILITY_PORT_FORWARD_DIR}/${name}.pid"
+  local log_file="${OBSERVABILITY_PORT_FORWARD_DIR}/${name}.log"
+
+  if [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" >/dev/null 2>&1; then
+    return
+  fi
+  mkdir -p "${OBSERVABILITY_PORT_FORWARD_DIR}"
+  nohup kubectl -n "${OBSERVABILITY_NAMESPACE}" port-forward "$target" "${local_port}:${remote_port}" >"$log_file" 2>&1 &
+  echo "$!" > "$pid_file"
+}
+
+probe_observability_http() {
+  local name="$1"
+  local url="$2"
+  local timeout_seconds=120
+  local waited=0
+
+  while (( waited < timeout_seconds )); do
+    if python3 - "$url" <<'PY' >/dev/null 2>&1
+import sys
+import urllib.request
+
+with urllib.request.urlopen(sys.argv[1], timeout=3) as response:
+    if response.status < 200 or response.status >= 300:
+        raise SystemExit(1)
+PY
+    then
+      return
+    fi
+    sleep 2
+    waited=$((waited + 2))
+  done
+
+  echo "[e2e] observability endpoint ${name} failed readiness probe at ${url}" >&2
+  exit 1
+}
+
+start_observability_port_forwards() {
+  echo "[e2e] starting observability port-forwards under ${OBSERVABILITY_PORT_FORWARD_DIR}"
+  start_observability_port_forward loki "svc/observability-loki-gateway" 3100 80
+  start_observability_port_forward prometheus "svc/observability-kube-prometh-prometheus" 9090 9090
+  start_observability_port_forward grafana "svc/observability-grafana" 3000 80
+  start_observability_port_forward jaeger "deployment/observability-jaeger" 14269 14269
+  start_observability_port_forward otel "deployment/otel-collector" 13133 13133
+
+  probe_observability_http loki "http://localhost:3100/loki/api/v1/status/buildinfo"
+  probe_observability_http prometheus "http://localhost:9090/-/ready"
+  probe_observability_http grafana "http://localhost:3000/api/health"
+  probe_observability_http jaeger "http://localhost:14269/"
+  probe_observability_http otel "http://localhost:13133/"
+}
+
+ensure_observability_helm_repos() {
+  helm repo add opentelemetry https://open-telemetry.github.io/opentelemetry-helm-charts --force-update
+  helm repo add prometheus-community https://prometheus-community.github.io/helm-charts --force-update
+  helm repo add jaegertracing https://jaegertracing.github.io/helm-charts --force-update
+  helm repo add grafana https://grafana.github.io/helm-charts --force-update
+  helm repo update
+}
+
+install_observability() {
+  if [[ ! -f "${OBSERVABILITY_CHART_DIR}/Chart.yaml" ]]; then
+    echo "[e2e] missing Helm chart: ${OBSERVABILITY_CHART_DIR}/Chart.yaml" >&2
+    exit 2
+  fi
+
+  echo "[e2e] installing observability stack"
+  ensure_observability_helm_repos
+  helm dependency build "${OBSERVABILITY_CHART_DIR}"
+  helm upgrade --install "${OBSERVABILITY_RELEASE_NAME}" "${OBSERVABILITY_CHART_DIR}" \
+    --namespace "${OBSERVABILITY_NAMESPACE}" \
+    --create-namespace \
+    -f "${OBSERVABILITY_VALUES_FILE}" \
+    --timeout "${HELM_TIMEOUT}"
+  wait_for_observability_stack "${PLATFORM_READY_TIMEOUT}"
+  start_observability_port_forwards
 }
 
 wait_for_labelled_pod() {
@@ -578,6 +682,7 @@ main() {
   if [[ "${SKIP_LOAD_IMAGES}" != "true" ]]; then
     "${CLUSTER_DIR}/load-images.sh"
   fi
+  install_observability
   install_platform
   run_manual_init_jobs
   wait_for_kafka_ready

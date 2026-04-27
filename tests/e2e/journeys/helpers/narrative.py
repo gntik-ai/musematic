@@ -21,11 +21,24 @@ class JourneyStepRecord:
     error: str | None = None
 
 
+@dataclass(slots=True)
+class JourneyArtifactRecord:
+    journey_id: str
+    test_nodeid: str
+    label: str
+    href: str
+    artifact_type: str
+
+
 _journey_step_records: ContextVar[list[JourneyStepRecord]] = ContextVar(
     "journey_step_records",
     default=[],
 )
 _journey_step_counter: ContextVar[int] = ContextVar("journey_step_counter", default=0)
+_journey_artifact_records: ContextVar[list[JourneyArtifactRecord]] = ContextVar(
+    "journey_artifact_records",
+    default=[],
+)
 
 
 def _journey_id_from_nodeid(nodeid: str) -> str:
@@ -40,10 +53,41 @@ def _journey_id_from_nodeid(nodeid: str) -> str:
 def reset_journey_step_records() -> None:
     _journey_step_records.set([])
     _journey_step_counter.set(0)
+    _journey_artifact_records.set([])
 
 
 def collect_journey_step_records() -> list[JourneyStepRecord]:
     return list(_journey_step_records.get())
+
+
+def collect_journey_artifact_records() -> list[JourneyArtifactRecord]:
+    return list(_journey_artifact_records.get())
+
+
+def _add_artifact(label: str, href: str, artifact_type: str) -> None:
+    nodeid = current_test_nodeid()
+    records = list(_journey_artifact_records.get())
+    records.append(
+        JourneyArtifactRecord(
+            journey_id=_journey_id_from_nodeid(nodeid),
+            test_nodeid=nodeid,
+            label=label,
+            href=href,
+            artifact_type=artifact_type,
+        )
+    )
+    _journey_artifact_records.set(records)
+
+
+def add_snapshot_to_report(report, snapshot_path, label) -> None:
+    href = str(snapshot_path)
+    if report is not None and hasattr(report, "setdefault"):
+        report.setdefault("snapshots", []).append({"label": label, "href": href})
+    _add_artifact(str(label), href, "snapshot")
+
+
+def add_link_to_report(label: str, href: str, artifact_type: str = "link") -> None:
+    _add_artifact(label, href, artifact_type)
 
 
 @contextmanager

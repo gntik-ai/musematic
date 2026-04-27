@@ -1,5 +1,20 @@
+createNamespace: false
+
 frontendNamespaces:
   - platform-control
+
+networkPolicy:
+  enabled: true
+  platformNamespaces:
+    - platform-control
+    - platform-execution
+    - platform-simulation
+    - platform-data
+    - platform-ui
+  ingressControllerNamespaces:
+    - ingress-nginx
+  s3EgressCidrs:
+    - 0.0.0.0/0
 
 global:
   frontendNamespaces:
@@ -103,32 +118,19 @@ kube-prometheus-stack:
   cleanPrometheusOperatorObjectNames: true
   grafana:
     adminPassword: admin
+    plugins:
+      - grafana-image-renderer
     sidecar:
       dashboards:
         enabled: true
         label: grafana_dashboard
         labelValue: "1"
         searchNamespace: platform-observability
-    additionalDataSources:
-      - name: Jaeger
-        uid: jaeger
-        type: jaeger
-        access: proxy
-        editable: false
-        url: http://musematic-observability-jaeger-query:16686
-      - name: Loki
-        uid: loki
-        type: loki
-        access: proxy
-        editable: false
-        isDefault: false
-        url: http://observability-loki:3100
-        jsonData:
-          derivedFields:
-            - name: trace_id
-              matcherRegex: '"trace_id":"([A-Fa-f0-9]+)"'
-              datasourceUid: jaeger
-              url: "$${__value.raw}"
+      datasources:
+        enabled: true
+        label: grafana_datasource
+        labelValue: "1"
+        searchNamespace: platform-observability
   alertmanager:
     alertmanagerSpec:
       storage:
@@ -246,7 +248,7 @@ loki:
   backend:
     replicas: 0
   gateway:
-    enabled: false
+    enabled: true
   extraArgs:
     - -config.expand-env=true
   extraEnv:
@@ -338,14 +340,3 @@ promtail:
         - replace:
             expression: '\b(?:[0-9][ -]*?){13,16}\b'
             replace: '[REDACTED_CARD]'
-      extraScrapeConfigs: |
-        # Helm-rendered front-end namespace list. The promtail chart renders this
-        # through tpl, so deployments can append namespaces via frontendNamespaces.
-        {{- $namespaces := concat (list "platform-control" "platform-execution" "platform-simulation" "platform-data" "platform-observability") $.Values.global.frontendNamespaces | uniq }}
-        - job_name: kubernetes-pods-platform
-          kubernetes_sd_configs:
-            - role: pod
-          relabel_configs:
-            - source_labels: [__meta_kubernetes_namespace]
-              regex: {{ join "|" $namespaces | quote }}
-              action: keep
