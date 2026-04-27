@@ -56,12 +56,10 @@ kube-prometheus-stack:
 jaeger:
   storage:
     type: memory
+    badger:
+      ephemeral: true
   persistence:
     enabled: false
-  allInOne:
-    extraEnv:
-      - name: SPAN_STORAGE_TYPE
-        value: memory
 
 loki:
   deploymentMode: SingleBinary

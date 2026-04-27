@@ -101,6 +101,16 @@ def test_e2e_observability_loki_uses_kind_sized_ephemeral_storage() -> None:
     assert 'resultsCache:\n    enabled: false' in loki_section
 
 
+def test_e2e_observability_jaeger_uses_memory_without_badger_pvc() -> None:
+    e2e_values = (ROOT / 'deploy/helm/observability/values-e2e.yaml').read_text()
+    jaeger_section = e2e_values.split('\nloki:\n', 1)[0].split('\njaeger:\n', 1)[1]
+
+    assert 'type: memory' in jaeger_section
+    assert 'badger:\n      ephemeral: true' in jaeger_section
+    assert 'persistence:\n    enabled: false' in jaeger_section
+    assert 'SPAN_STORAGE_TYPE' not in jaeger_section
+
+
 def test_e2e_observability_promtail_uses_kind_host_log_permissions() -> None:
     values = (ROOT / 'deploy/helm/observability/values.yaml').read_text()
     e2e_values = (ROOT / 'deploy/helm/observability/values-e2e.yaml').read_text()
