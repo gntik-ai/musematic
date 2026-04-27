@@ -9,6 +9,8 @@ overrides:
 
 importers:
 
+  .: {}
+
   apps/web:
     dependencies:
       '@dagrejs/dagre':
