@@ -109,6 +109,11 @@ loki:
   extraEnv: []
 
 promtail:
+  podSecurityContext:
+    runAsNonRoot: false
+    runAsUser: 0
+    runAsGroup: 0
+    fsGroup: 0
   resources:
     requests:
       cpu: 25m

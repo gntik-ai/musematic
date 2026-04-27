@@ -101,6 +101,18 @@ def test_e2e_observability_loki_uses_kind_sized_ephemeral_storage() -> None:
     assert 'resultsCache:\n    enabled: false' in loki_section
 
 
+def test_e2e_observability_promtail_uses_kind_host_log_permissions() -> None:
+    values = (ROOT / 'deploy/helm/observability/values.yaml').read_text()
+    e2e_values = (ROOT / 'deploy/helm/observability/values-e2e.yaml').read_text()
+    promtail_section = e2e_values.split('\npromtail:\n', 1)[1]
+
+    assert 'extraScrapeConfigs' not in values
+    assert 'runAsNonRoot: false' in promtail_section
+    assert 'runAsUser: 0' in promtail_section
+    assert 'runAsGroup: 0' in promtail_section
+    assert 'fsGroup: 0' in promtail_section
+
+
 def test_makefile_renders_cluster_specific_kind_config() -> None:
     makefile = (ROOT / 'tests/e2e/Makefile').read_text()
     assert 'render-kind-config' in makefile

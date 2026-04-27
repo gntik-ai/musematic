@@ -340,14 +340,3 @@ promtail:
         - replace:
             expression: '\b(?:[0-9][ -]*?){13,16}\b'
             replace: '[REDACTED_CARD]'
-      extraScrapeConfigs: |
-        # Helm-rendered front-end namespace list. The promtail chart renders this
-        # through tpl, so deployments can append namespaces via frontendNamespaces.
-        {{- $namespaces := concat (list "platform-control" "platform-execution" "platform-simulation" "platform-data" "platform-observability") $.Values.global.frontendNamespaces | uniq }}
-        - job_name: kubernetes-pods-platform
-          kubernetes_sd_configs:
-            - role: pod
-          relabel_configs:
-            - source_labels: [__meta_kubernetes_namespace]
-              regex: {{ join "|" $namespaces | quote }}
-              action: keep
