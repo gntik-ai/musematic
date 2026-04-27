@@ -4280,6 +4280,24 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#oauthbootstrap" class="md-nav__link">
+    <span class="md-ellipsis">
+      OauthBootstrap
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#oauthbootstrap_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      OAuthBootstrap
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#objectstorage" class="md-nav__link">
     <span class="md-ellipsis">
       ObjectStorage
@@ -5186,6 +5204,24 @@
   <a href="#notifications" class="md-nav__link">
     <span class="md-ellipsis">
       Notifications
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#oauthbootstrap" class="md-nav__link">
+    <span class="md-ellipsis">
+      OauthBootstrap
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#oauthbootstrap_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      OAuthBootstrap
     </span>
   </a>
   
@@ -7331,7 +7367,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/platform/templates/platform-bootstrap-job.yaml</code></td>
+<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>apps/control-plane/src/platform/auth/services/oauth_bootstrap.py</code><br><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/platform/templates/platform-bootstrap-job.yaml</code></td>
 </tr>
 <tr>
 <td><code>PLATFORM_INSTANCE_NAME</code></td>
@@ -8401,6 +8437,212 @@
 <td><code>300</code></td>
 <td>informational</td>
 <td>Configures <code>webhook_replay_window_seconds</code> for Notifications.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="oauthbootstrap">OauthBootstrap<a class="headerlink" href="#oauthbootstrap" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Required</th>
+<th>Default</th>
+<th>Sensitivity</th>
+<th>Description</th>
+<th>Sources</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OAUTH_GITHUB_ALLOWED_ORGS</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>OAUTH_GITHUB_CLIENT_ID</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>OAUTH_GITHUB_CLIENT_SECRET</code></td>
+<td>optional</td>
+<td>-</td>
+<td>sensitive</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>OAUTH_GITHUB_CLIENT_SECRET_FILE</code></td>
+<td>optional</td>
+<td>-</td>
+<td>sensitive</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>OAUTH_GITHUB_DEFAULT_ROLE</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>OAUTH_GITHUB_ENABLED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>OAUTH_GITHUB_FORCE_UPDATE</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>OAUTH_GITHUB_REDIRECT_URI</code></td>
+<td>optional</td>
+<td>-</td>
+<td>configuration</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>OAUTH_GITHUB_REQUIRE_MFA</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>OAUTH_GITHUB_TEAM_ROLE_MAPPINGS</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>OAUTH_GOOGLE_ALLOWED_DOMAINS</code></td>
+<td>optional</td>
+<td>-</td>
+<td>configuration</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>OAUTH_GOOGLE_CLIENT_ID</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>OAUTH_GOOGLE_CLIENT_SECRET</code></td>
+<td>optional</td>
+<td>-</td>
+<td>sensitive</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>OAUTH_GOOGLE_CLIENT_SECRET_FILE</code></td>
+<td>optional</td>
+<td>-</td>
+<td>sensitive</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>OAUTH_GOOGLE_DEFAULT_ROLE</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>OAUTH_GOOGLE_ENABLED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>OAUTH_GOOGLE_FORCE_UPDATE</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>OAUTH_GOOGLE_GROUP_ROLE_MAPPINGS</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>OAUTH_GOOGLE_REDIRECT_URI</code></td>
+<td>optional</td>
+<td>-</td>
+<td>configuration</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>OAUTH_GOOGLE_REQUIRE_MFA</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="oauthbootstrap_1">OAuthBootstrap<a class="headerlink" href="#oauthbootstrap_1" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Required</th>
+<th>Default</th>
+<th>Sensitivity</th>
+<th>Description</th>
+<th>Sources</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PLATFORM_OAUTH_GITHUB</code></td>
+<td>optional</td>
+<td><code>(generated at runtime)</code></td>
+<td>informational</td>
+<td>Configures <code>github</code> for OAuthBootstrap.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_OAUTH_GOOGLE</code></td>
+<td>optional</td>
+<td><code>(generated at runtime)</code></td>
+<td>informational</td>
+<td>Configures <code>google</code> for OAuthBootstrap.</td>
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 </tbody>
@@ -9661,7 +9903,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+<td><code>apps/control-plane/src/platform/auth/services/oauth_bootstrap.py</code><br><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
 <td><code>ENVIRONMENT</code></td>
@@ -9669,7 +9911,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>apps/control-plane/src/platform/common/config.py</code></td>
+<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>apps/control-plane/src/platform/auth/services/oauth_bootstrap.py</code><br><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
 <td><code>ESCALATE_TO_HUMAN</code></td>
@@ -11184,6 +11426,14 @@
 <td><code>apps/control-plane/src/platform/auth/exceptions.py</code></td>
 </tr>
 <tr>
+<td><code>OAUTH_BOOTSTRAP_ENV_NOT_SET</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/auth/services/oauth_service.py</code></td>
+</tr>
+<tr>
 <td><code>OAUTH_LAST_AUTH_METHOD</code></td>
 <td>optional</td>
 <td>-</td>
@@ -11361,11 +11611,11 @@
 </tr>
 <tr>
 <td><code>PLATFORM_ENVIRONMENT</code></td>
-<td>optional</td>
+<td>required</td>
 <td><code>(computed)</code></td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+<td><code>apps/control-plane/src/platform/auth/services/oauth_bootstrap.py</code><br><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
 <td><code>PLATFORM_FORCE_RESET_SUPERADMIN</code></td>
@@ -11374,6 +11624,30 @@
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
 <td><code>apps/control-plane/src/platform/admin/bootstrap.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_OAUTH_</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_OAUTH_GITHUB_</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_OAUTH_GOOGLE_</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
 <td><code>PLATFORM_SUPERADMIN_CLI_MODE</code></td>
@@ -12054,6 +12328,14 @@
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
 <td><code>apps/control-plane/src/platform/security_compliance/services/sbom_service.py</code></td>
+</tr>
+<tr>
+<td><code>SECRET_PROVIDER_UNAVAILABLE</code></td>
+<td>optional</td>
+<td>-</td>
+<td>sensitive</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/auth/router_oauth.py</code><br><code>apps/control-plane/src/platform/auth/services/oauth_service.py</code></td>
 </tr>
 <tr>
 <td><code>SECURITY_COMPLIANCE_</code></td>
