@@ -72,6 +72,17 @@ def test_observability_install_uses_targeted_readiness_after_helm_apply() -> Non
     assert 'wait_for_labelled_pod "${OBSERVABILITY_NAMESPACE}" "$selector" "$timeout"' in observability_wait
 
 
+def test_observability_loki_port_forward_probe_uses_gateway_supported_path() -> None:
+    install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
+    port_forward_section = install_script.split('start_observability_port_forwards() {', 1)[1].split(
+        '\n}\n\nensure_observability_helm_repos',
+        1,
+    )[0]
+
+    assert 'probe_observability_http loki "http://localhost:3100/loki/api/v1/status/buildinfo"' in port_forward_section
+    assert 'probe_observability_http loki "http://localhost:3100/ready"' not in port_forward_section
+
+
 def test_loki_alerts_require_lokirule_crd_capability() -> None:
     loki_alerts = (ROOT / 'deploy/helm/observability/templates/alerts/loki-alerts.yaml').read_text()
 

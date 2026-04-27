@@ -216,7 +216,7 @@ start_observability_port_forwards() {
   start_observability_port_forward jaeger "deployment/observability-jaeger" 14269 14269
   start_observability_port_forward otel "deployment/otel-collector" 13133 13133
 
-  probe_observability_http loki "http://localhost:3100/ready"
+  probe_observability_http loki "http://localhost:3100/loki/api/v1/status/buildinfo"
   probe_observability_http prometheus "http://localhost:9090/-/ready"
   probe_observability_http grafana "http://localhost:3000/api/health"
   probe_observability_http jaeger "http://localhost:14269/"
