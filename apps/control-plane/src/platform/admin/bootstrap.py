@@ -199,8 +199,10 @@ async def bootstrap_superadmin_from_env(
                 if await _bootstrap_audit_exists(session, config):
                     LOGGER.info(
                         "platform.superadmin.bootstrap.idempotent",
-                        username=config.username,
-                        email=config.email,
+                        extra={
+                            "username": config.username,
+                            "email": config.email,
+                        },
                     )
                     return BootstrapResult(
                         status="already_bootstrapped",
