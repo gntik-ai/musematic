@@ -8,14 +8,14 @@ import type {
 } from "@/lib/types/agent-management";
 
 export interface CompositionWizardState {
-  step: 1 | 2 | 3 | 4;
+  step: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
   description: string;
   blueprint: CompositionBlueprint | null;
   customizations: Partial<CompositionWizardCustomizations>;
   validation_result: ValidationResult | null;
   is_loading: boolean;
   error: string | null;
-  setStep: (step: 1 | 2 | 3 | 4) => void;
+  setStep: (step: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9) => void;
   setDescription: (description: string) => void;
   setBlueprint: (blueprint: CompositionBlueprint | null) => void;
   applyCustomization: <TKey extends keyof CompositionWizardCustomizations>(

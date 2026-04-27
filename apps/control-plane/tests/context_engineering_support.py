@@ -9,6 +9,7 @@ from platform.context_engineering.models import (
     ContextDriftAlert,
     ContextEngineeringProfile,
     ContextProfileAssignment,
+    ContextProfileVersion,
     ContextSourceType,
     ProfileAssignmentLevel,
 )
@@ -218,6 +219,7 @@ class MemoryContextRepository:
     def __init__(self) -> None:
         self.session = SessionStub()
         self.profiles: dict[UUID, ContextEngineeringProfile] = {}
+        self.profile_versions: dict[UUID, ContextProfileVersion] = {}
         self.assignments: dict[UUID, ContextProfileAssignment] = {}
         self.records: dict[UUID, ContextAssemblyRecord] = {}
         self.ab_tests: dict[UUID, ContextAbTest] = {}
@@ -276,6 +278,61 @@ class MemoryContextRepository:
 
     async def delete_profile(self, profile: ContextEngineeringProfile) -> None:
         self.profiles.pop(profile.id, None)
+        self.profile_versions = {
+            version_id: version
+            for version_id, version in self.profile_versions.items()
+            if version.profile_id != profile.id
+        }
+
+    async def create_profile_version(self, **fields: Any) -> ContextProfileVersion:
+        version = _stamp(ContextProfileVersion(**fields))
+        self.profile_versions[version.id] = version
+        return version
+
+    async def latest_profile_version_number(self, profile_id: UUID) -> int:
+        return max(
+            (
+                version.version_number
+                for version in self.profile_versions.values()
+                if version.profile_id == profile_id
+            ),
+            default=0,
+        )
+
+    async def list_profile_versions(
+        self,
+        profile_id: UUID,
+        *,
+        limit: int,
+        cursor: str | None,
+    ) -> tuple[list[ContextProfileVersion], str | None]:
+        versions = [
+            version
+            for version in self.profile_versions.values()
+            if version.profile_id == profile_id
+        ]
+        if cursor is not None:
+            versions = [version for version in versions if version.version_number < int(cursor)]
+        versions.sort(key=lambda version: (version.version_number, version.id), reverse=True)
+        next_cursor = None
+        if len(versions) > limit:
+            versions = versions[:limit]
+            next_cursor = str(versions[-1].version_number)
+        return versions, next_cursor
+
+    async def get_profile_version(
+        self,
+        profile_id: UUID,
+        version_number: int,
+    ) -> ContextProfileVersion | None:
+        return next(
+            (
+                version
+                for version in self.profile_versions.values()
+                if version.profile_id == profile_id and version.version_number == version_number
+            ),
+            None,
+        )
 
     async def profile_has_assignments(self, profile_id: UUID) -> bool:
         return any(item.profile_id == profile_id for item in self.assignments.values())

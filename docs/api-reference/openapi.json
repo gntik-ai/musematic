@@ -2097,6 +2097,18 @@
             "title": "Agent Id",
             "type": "string"
           },
+          "attached_revision_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Attached Revision Id"
+          },
           "cost_limit_tokens": {
             "anyOf": [
               {
@@ -4155,6 +4167,20 @@
           "created_at"
         ],
         "title": "AssemblyRecordResponse",
+        "type": "object"
+      },
+      "AttachRevisionRequest": {
+        "properties": {
+          "revision_id": {
+            "format": "uuid",
+            "title": "Revision Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision_id"
+        ],
+        "title": "AttachRevisionRequest",
         "type": "object"
       },
       "AttachmentTargetType": {
@@ -9335,6 +9361,68 @@
         "title": "ConsumeChallengeResponse",
         "type": "object"
       },
+      "ContextProfileVersionResponse": {
+        "properties": {
+          "change_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Change Summary"
+          },
+          "content_snapshot": {
+            "additionalProperties": true,
+            "title": "Content Snapshot",
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "profile_id": {
+            "format": "uuid",
+            "title": "Profile Id",
+            "type": "string"
+          },
+          "version_number": {
+            "title": "Version Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "profile_id",
+          "version_number",
+          "content_snapshot",
+          "change_summary",
+          "created_by",
+          "created_at"
+        ],
+        "title": "ContextProfileVersionResponse",
+        "type": "object"
+      },
       "ContextSourceType": {
         "enum": [
           "system_instructions",
@@ -9534,6 +9622,122 @@
           "created_at"
         ],
         "title": "ContractBreachEventResponse",
+        "type": "object"
+      },
+      "ContractTemplateListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ContractTemplateResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "ContractTemplateListResponse",
+        "type": "object"
+      },
+      "ContractTemplateResponse": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By User Id"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "forked_from_template_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forked From Template Id"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_platform_authored": {
+            "title": "Is Platform Authored",
+            "type": "boolean"
+          },
+          "is_published": {
+            "title": "Is Published",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "template_content": {
+            "additionalProperties": true,
+            "title": "Template Content",
+            "type": "object"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version_number": {
+            "title": "Version Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "category",
+          "template_content",
+          "version_number",
+          "forked_from_template_id",
+          "created_by_user_id",
+          "is_platform_authored",
+          "is_published",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ContractTemplateResponse",
         "type": "object"
       },
       "ConversationCreate": {
@@ -16945,6 +17149,21 @@
           "projected_cost_usd_high"
         ],
         "title": "ForecastPoint",
+        "type": "object"
+      },
+      "ForkRequest": {
+        "properties": {
+          "new_name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "New Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "new_name"
+        ],
+        "title": "ForkRequest",
         "type": "object"
       },
       "FrameworkListResponse": {
@@ -27667,6 +27886,52 @@
         "title": "PreScreenerRuleSetResponse",
         "type": "object"
       },
+      "PreviewSource": {
+        "properties": {
+          "classification": {
+            "title": "Classification",
+            "type": "string"
+          },
+          "included": {
+            "title": "Included",
+            "type": "boolean"
+          },
+          "origin": {
+            "title": "Origin",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "score": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Score",
+            "type": "number"
+          },
+          "snippet": {
+            "title": "Snippet",
+            "type": "string"
+          }
+        },
+        "required": [
+          "origin",
+          "snippet",
+          "score",
+          "included",
+          "classification"
+        ],
+        "title": "PreviewSource",
+        "type": "object"
+      },
       "PrivacyAssessmentRequest": {
         "properties": {
           "agent_id": {
@@ -31097,25 +31362,6 @@
         "title": "RoleType",
         "type": "string"
       },
-      "RollbackRequest": {
-        "additionalProperties": false,
-        "description": "Represent a rollback request payload.",
-        "properties": {
-          "reason": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Reason"
-          }
-        },
-        "title": "RollbackRequest",
-        "type": "object"
-      },
       "RollbackResponse": {
         "description": "Represent a rollback response payload.",
         "properties": {
@@ -32617,6 +32863,46 @@
         "title": "ScanStatusResponse",
         "type": "object"
       },
+      "SchemaEnumsResponse": {
+        "properties": {
+          "failure_modes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Failure Modes",
+            "type": "array"
+          },
+          "resource_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Resource Types",
+            "type": "array"
+          },
+          "role_types": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Role Types",
+            "type": "array"
+          },
+          "workspace_constraints": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Workspace Constraints",
+            "type": "array"
+          }
+        },
+        "required": [
+          "resource_types",
+          "role_types",
+          "workspace_constraints",
+          "failure_modes"
+        ],
+        "title": "SchemaEnumsResponse",
+        "type": "object"
+      },
       "ScorerTypeListResponse": {
         "properties": {
           "items": {
@@ -33479,6 +33765,45 @@
             "minimum": 1.0,
             "title": "Priority",
             "type": "integer"
+          },
+          "provenance_attribution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provenance Attribution"
+          },
+          "provenance_classification": {
+            "default": "public",
+            "enum": [
+              "public",
+              "pii",
+              "phi",
+              "financial",
+              "confidential"
+            ],
+            "title": "Provenance Classification",
+            "type": "string"
+          },
+          "provenance_enabled": {
+            "default": false,
+            "title": "Provenance Enabled",
+            "type": "boolean"
+          },
+          "retrieval_strategy": {
+            "default": "hybrid",
+            "enum": [
+              "semantic",
+              "graph",
+              "fts",
+              "hybrid"
+            ],
+            "title": "Retrieval Strategy",
+            "type": "string"
           },
           "source_type": {
             "$ref": "#/components/schemas/ContextSourceType"
@@ -36944,6 +37269,62 @@
         "title": "VerifyResult",
         "type": "object"
       },
+      "VersionDiffResponse": {
+        "properties": {
+          "added": {
+            "additionalProperties": true,
+            "title": "Added",
+            "type": "object"
+          },
+          "modified": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Modified",
+            "type": "object"
+          },
+          "removed": {
+            "additionalProperties": true,
+            "title": "Removed",
+            "type": "object"
+          }
+        },
+        "required": [
+          "added",
+          "removed",
+          "modified"
+        ],
+        "title": "VersionDiffResponse",
+        "type": "object"
+      },
+      "VersionHistoryResponse": {
+        "properties": {
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/ContextProfileVersionResponse"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "versions"
+        ],
+        "title": "VersionHistoryResponse",
+        "type": "object"
+      },
       "VisibilityGrantResponse": {
         "properties": {
           "updated_at": {
@@ -38402,6 +38783,67 @@
         "title": "DriftAlertResponse",
         "type": "object"
       },
+      "platform__context_engineering__schemas__PreviewRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "query_text": {
+            "minLength": 1,
+            "title": "Query Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "query_text"
+        ],
+        "title": "PreviewRequest",
+        "type": "object"
+      },
+      "platform__context_engineering__schemas__PreviewResponse": {
+        "properties": {
+          "completion_metadata": {
+            "additionalProperties": true,
+            "title": "Completion Metadata",
+            "type": "object"
+          },
+          "mock_response": {
+            "title": "Mock Response",
+            "type": "string"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/PreviewSource"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "was_fallback": {
+            "title": "Was Fallback",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sources",
+          "mock_response",
+          "completion_metadata",
+          "was_fallback"
+        ],
+        "title": "PreviewResponse",
+        "type": "object"
+      },
+      "platform__context_engineering__schemas__RollbackRequest": {
+        "properties": {
+          "target_version": {
+            "minimum": 1.0,
+            "title": "Target Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "target_version"
+        ],
+        "title": "RollbackRequest",
+        "type": "object"
+      },
       "platform__evaluation__schemas__ATEConfigCreate": {
         "additionalProperties": false,
         "properties": {
@@ -38733,6 +39175,25 @@
         "title": "ATERunResponse",
         "type": "object"
       },
+      "platform__execution__schemas__RollbackRequest": {
+        "additionalProperties": false,
+        "description": "Represent a rollback request payload.",
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "title": "RollbackRequest",
+        "type": "object"
+      },
       "platform__incident_response__schemas__DeliveryStatus": {
         "enum": [
           "pending",
@@ -38948,6 +39409,91 @@
           "updated_at"
         ],
         "title": "DriftAlertResponse",
+        "type": "object"
+      },
+      "platform__trust__contract_schemas__PreviewRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "cost_acknowledged": {
+            "default": false,
+            "title": "Cost Acknowledged",
+            "type": "boolean"
+          },
+          "sample_input": {
+            "additionalProperties": true,
+            "title": "Sample Input",
+            "type": "object"
+          },
+          "use_mock": {
+            "default": true,
+            "title": "Use Mock",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sample_input"
+        ],
+        "title": "PreviewRequest",
+        "type": "object"
+      },
+      "platform__trust__contract_schemas__PreviewResponse": {
+        "properties": {
+          "clauses_satisfied": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Clauses Satisfied",
+            "type": "array"
+          },
+          "clauses_triggered": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Clauses Triggered",
+            "type": "array"
+          },
+          "clauses_violated": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Clauses Violated",
+            "type": "array"
+          },
+          "final_action": {
+            "enum": [
+              "continue",
+              "warn",
+              "throttle",
+              "escalate",
+              "terminate"
+            ],
+            "title": "Final Action",
+            "type": "string"
+          },
+          "mock_response": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mock Response"
+          },
+          "was_fallback": {
+            "default": false,
+            "title": "Was Fallback",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "clauses_triggered",
+          "clauses_satisfied",
+          "clauses_violated",
+          "final_action"
+        ],
+        "title": "PreviewResponse",
         "type": "object"
       },
       "platform__trust__schemas__ATEConfigCreate": {
@@ -52851,6 +53397,58 @@
         ]
       }
     },
+    "/api/v1/context-engineering/profiles/schema": {
+      "get": {
+        "operationId": "get_profile_schema_api_v1_context_engineering_profiles_schema_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Profile Schema Api V1 Context Engineering Profiles Schema Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Get Profile Schema",
+        "tags": [
+          "context-engineering"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/context-engineering/profiles/schema\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/context-engineering/profiles/schema\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/context-engineering/profiles/schema`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/context-engineering/profiles/schema\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
     "/api/v1/context-engineering/profiles/{profile_id}": {
       "delete": {
         "operationId": "delete_profile_api_v1_context_engineering_profiles__profile_id__delete",
@@ -53144,6 +53742,376 @@
           {
             "lang": "curl",
             "source": "curl -X POST \"http://localhost:8000/api/v1/context-engineering/profiles/{profile_id}/assign\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/context-engineering/profiles/{profile_id}/preview": {
+      "post": {
+        "operationId": "preview_profile_api_v1_context_engineering_profiles__profile_id__preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/platform__context_engineering__schemas__PreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/platform__context_engineering__schemas__PreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Preview Profile",
+        "tags": [
+          "context-engineering"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/context-engineering/profiles/{profile_id}/preview\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/context-engineering/profiles/{profile_id}/preview\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/context-engineering/profiles/{profile_id}/preview`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/context-engineering/profiles/{profile_id}/preview\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/context-engineering/profiles/{profile_id}/rollback/{version}": {
+      "post": {
+        "operationId": "rollback_profile_api_v1_context_engineering_profiles__profile_id__rollback__version__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/platform__context_engineering__schemas__RollbackRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContextProfileVersionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Rollback Profile",
+        "tags": [
+          "context-engineering"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/context-engineering/profiles/{profile_id}/rollback/{version}\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/context-engineering/profiles/{profile_id}/rollback/{version}\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/context-engineering/profiles/{profile_id}/rollback/{version}`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/context-engineering/profiles/{profile_id}/rollback/{version}\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/context-engineering/profiles/{profile_id}/versions": {
+      "get": {
+        "operationId": "list_profile_versions_api_v1_context_engineering_profiles__profile_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionHistoryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "List Profile Versions",
+        "tags": [
+          "context-engineering"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/context-engineering/profiles/{profile_id}/versions\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/context-engineering/profiles/{profile_id}/versions\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/context-engineering/profiles/{profile_id}/versions`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/context-engineering/profiles/{profile_id}/versions\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/context-engineering/profiles/{profile_id}/versions/{v1_number}/diff/{v2_number}": {
+      "get": {
+        "operationId": "get_profile_version_diff_api_v1_context_engineering_profiles__profile_id__versions__v1_number__diff__v2_number__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "profile_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Profile Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "v1_number",
+            "required": true,
+            "schema": {
+              "title": "V1 Number",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "v2_number",
+            "required": true,
+            "schema": {
+              "title": "V2 Number",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VersionDiffResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Get Profile Version Diff",
+        "tags": [
+          "context-engineering"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/context-engineering/profiles/{profile_id}/versions/{v1_number}/diff/{v2_number}\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/context-engineering/profiles/{profile_id}/versions/{v1_number}/diff/{v2_number}\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/context-engineering/profiles/{profile_id}/versions/{v1_number}/diff/{v2_number}`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/context-engineering/profiles/{profile_id}/versions/{v1_number}/diff/{v2_number}\" -H \"Authorization: Bearer $TOKEN\""
           }
         ]
       }
@@ -61046,7 +62014,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RollbackRequest"
+                "$ref": "#/components/schemas/platform__execution__schemas__RollbackRequest"
               }
             }
           }
@@ -90808,6 +91776,158 @@
         ]
       }
     },
+    "/api/v1/trust/contracts/schema": {
+      "get": {
+        "operationId": "get_contract_schema_api_v1_trust_contracts_schema_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Contract Schema Api V1 Trust Contracts Schema Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Get Contract Schema",
+        "tags": [
+          "trust"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/trust/contracts/schema\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/trust/contracts/schema\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/trust/contracts/schema`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/trust/contracts/schema\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/trust/contracts/schema-enums": {
+      "get": {
+        "operationId": "get_contract_schema_enums_api_v1_trust_contracts_schema_enums_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaEnumsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Get Contract Schema Enums",
+        "tags": [
+          "trust"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/trust/contracts/schema-enums\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/trust/contracts/schema-enums\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/trust/contracts/schema-enums`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/trust/contracts/schema-enums\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/trust/contracts/templates": {
+      "get": {
+        "operationId": "list_contract_templates_api_v1_trust_contracts_templates_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContractTemplateListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "List Contract Templates",
+        "tags": [
+          "trust"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/trust/contracts/templates\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/trust/contracts/templates\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/trust/contracts/templates`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/trust/contracts/templates\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
     "/api/v1/trust/contracts/{contract_id}": {
       "delete": {
         "operationId": "archive_contract_api_v1_trust_contracts__contract_id__delete",
@@ -91173,6 +92293,156 @@
         ]
       }
     },
+    "/api/v1/trust/contracts/{contract_id}/attach-revision": {
+      "post": {
+        "operationId": "attach_contract_to_revision_body_api_v1_trust_contracts__contract_id__attach_revision_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contract Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttachRevisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Attach Contract To Revision Body",
+        "tags": [
+          "trust"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/trust/contracts/{contract_id}/attach-revision\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/trust/contracts/{contract_id}/attach-revision\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/trust/contracts/{contract_id}/attach-revision`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/trust/contracts/{contract_id}/attach-revision\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/trust/contracts/{contract_id}/attach-revision/{revision_id}": {
+      "post": {
+        "operationId": "attach_contract_to_revision_api_v1_trust_contracts__contract_id__attach_revision__revision_id__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contract Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "revision_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Revision Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Attach Contract To Revision",
+        "tags": [
+          "trust"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/trust/contracts/{contract_id}/attach-revision/{revision_id}\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/trust/contracts/{contract_id}/attach-revision/{revision_id}\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/trust/contracts/{contract_id}/attach-revision/{revision_id}`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/trust/contracts/{contract_id}/attach-revision/{revision_id}\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
     "/api/v1/trust/contracts/{contract_id}/breaches": {
       "get": {
         "operationId": "list_contract_breaches_api_v1_trust_contracts__contract_id__breaches_get",
@@ -91314,6 +92584,170 @@
           {
             "lang": "curl",
             "source": "curl -X GET \"http://localhost:8000/api/v1/trust/contracts/{contract_id}/breaches\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/trust/contracts/{contract_id}/preview": {
+      "post": {
+        "operationId": "preview_contract_api_v1_trust_contracts__contract_id__preview_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contract_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Contract Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/platform__trust__contract_schemas__PreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/platform__trust__contract_schemas__PreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Preview Contract",
+        "tags": [
+          "trust"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/trust/contracts/{contract_id}/preview\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/trust/contracts/{contract_id}/preview\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/trust/contracts/{contract_id}/preview`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/trust/contracts/{contract_id}/preview\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/trust/contracts/{template_id}/fork": {
+      "post": {
+        "operationId": "fork_contract_template_api_v1_trust_contracts__template_id__fork_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "template_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Template Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentContractResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Fork Contract Template",
+        "tags": [
+          "trust"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/trust/contracts/{template_id}/fork\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/trust/contracts/{template_id}/fork\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/trust/contracts/{template_id}/fork`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/trust/contracts/{template_id}/fork\" -H \"Authorization: Bearer $TOKEN\""
           }
         ]
       }

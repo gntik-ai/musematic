@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from platform.execution.models import Execution, ExecutionStatus
 from platform.interactions.models import Interaction
+from platform.registry.models import AgentProfile, AgentRevision
 from platform.trust.exceptions import ContractConflictError
 from platform.trust.models import (
     AgentContract,
@@ -12,6 +13,7 @@ from platform.trust.models import (
     ContentModerationEvent,
     ContentModerationPolicy,
     ContractBreachEvent,
+    ContractTemplate,
     GuardrailLayer,
     ReassessmentRecord,
     RecertificationTriggerStatus,
@@ -315,6 +317,45 @@ class TrustRepository:
         contract.is_archived = True
         await self.session.flush()
         return contract
+
+    async def list_contract_templates(
+        self,
+        *,
+        include_unpublished: bool = False,
+    ) -> list[ContractTemplate]:
+        filters = []
+        if not include_unpublished:
+            filters.append(ContractTemplate.is_published.is_(True))
+        result = await self.session.execute(
+            select(ContractTemplate)
+            .where(*filters)
+            .order_by(
+                ContractTemplate.is_platform_authored.desc(),
+                ContractTemplate.category.asc(),
+                ContractTemplate.name.asc(),
+            )
+        )
+        return list(result.scalars().all())
+
+    async def get_contract_template(self, template_id: UUID) -> ContractTemplate | None:
+        result = await self.session.execute(
+            select(ContractTemplate).where(ContractTemplate.id == template_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_agent_revision_with_profile(
+        self,
+        revision_id: UUID,
+    ) -> tuple[AgentRevision, AgentProfile] | None:
+        result = await self.session.execute(
+            select(AgentRevision, AgentProfile)
+            .join(AgentProfile, AgentProfile.id == AgentRevision.agent_profile_id)
+            .where(AgentRevision.id == revision_id)
+        )
+        row = result.one_or_none()
+        if row is None:
+            return None
+        return row[0], row[1]
 
     async def has_inflight_execution_for_contract(self, contract_id: UUID) -> bool:
         total = await self.session.scalar(

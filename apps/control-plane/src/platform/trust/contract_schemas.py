@@ -10,6 +10,13 @@ EnforcementPolicy = Literal["warn", "throttle", "escalate", "terminate"]
 ReassessmentVerdict = Literal["pass", "fail", "action_required"]
 ComplianceScope = Literal["agent", "fleet", "workspace"]
 ComplianceBucket = Literal["hourly", "daily"]
+FailureMode = Literal[
+    "continue",
+    "warn",
+    "throttle",
+    "escalate",
+    "terminate",
+]
 
 
 class CertifierCreate(BaseModel):
@@ -76,6 +83,7 @@ class AgentContractResponse(BaseModel):
     success_criteria: dict[str, Any] | None
     enforcement_policy: str
     is_archived: bool
+    attached_revision_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -109,6 +117,60 @@ class ContractBreachEventResponse(BaseModel):
 class ContractBreachEventListResponse(BaseModel):
     items: list[ContractBreachEventResponse]
     total: int
+
+
+class PreviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    sample_input: dict[str, Any]
+    use_mock: bool = True
+    cost_acknowledged: bool = False
+
+
+class PreviewResponse(BaseModel):
+    clauses_triggered: list[str]
+    clauses_satisfied: list[str]
+    clauses_violated: list[str]
+    final_action: FailureMode
+    mock_response: str | None = None
+    was_fallback: bool = False
+
+
+class ForkRequest(BaseModel):
+    new_name: str = Field(min_length=1, max_length=255)
+
+
+class AttachRevisionRequest(BaseModel):
+    revision_id: UUID
+
+
+class ContractTemplateResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    description: str | None
+    category: str
+    template_content: dict[str, Any]
+    version_number: int
+    forked_from_template_id: UUID | None
+    created_by_user_id: UUID | None
+    is_platform_authored: bool
+    is_published: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class ContractTemplateListResponse(BaseModel):
+    items: list[ContractTemplateResponse]
+    total: int
+
+
+class SchemaEnumsResponse(BaseModel):
+    resource_types: list[str]
+    role_types: list[str]
+    workspace_constraints: list[str]
+    failure_modes: list[str]
 
 
 class ReassessmentCreate(BaseModel):

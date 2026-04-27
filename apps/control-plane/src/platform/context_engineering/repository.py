@@ -8,6 +8,7 @@ from platform.context_engineering.models import (
     ContextDriftAlert,
     ContextEngineeringProfile,
     ContextProfileAssignment,
+    ContextProfileVersion,
     CorrelationClassification,
     CorrelationResult,
     ProfileAssignmentLevel,
@@ -120,6 +121,70 @@ class ContextEngineeringRepository:
     async def delete_profile(self, profile: ContextEngineeringProfile) -> None:
         await self.session.delete(profile)
         await self.session.flush()
+
+    async def create_profile_version(
+        self,
+        *,
+        profile_id: UUID,
+        version_number: int,
+        content_snapshot: dict[str, Any],
+        change_summary: str | None,
+        created_by: UUID | None,
+    ) -> ContextProfileVersion:
+        version = ContextProfileVersion(
+            profile_id=profile_id,
+            version_number=version_number,
+            content_snapshot=content_snapshot,
+            change_summary=change_summary,
+            created_by=created_by,
+        )
+        self.session.add(version)
+        await self.session.flush()
+        return version
+
+    async def latest_profile_version_number(self, profile_id: UUID) -> int:
+        value = await self.session.scalar(
+            select(func.max(ContextProfileVersion.version_number)).where(
+                ContextProfileVersion.profile_id == profile_id
+            )
+        )
+        return int(value or 0)
+
+    async def list_profile_versions(
+        self,
+        profile_id: UUID,
+        *,
+        limit: int,
+        cursor: str | None,
+    ) -> tuple[list[ContextProfileVersion], str | None]:
+        query = select(ContextProfileVersion).where(ContextProfileVersion.profile_id == profile_id)
+        if cursor is not None:
+            query = query.where(ContextProfileVersion.version_number < int(cursor))
+        result = await self.session.execute(
+            query.order_by(
+                ContextProfileVersion.version_number.desc(),
+                ContextProfileVersion.id.desc(),
+            ).limit(limit + 1)
+        )
+        rows = list(result.scalars().all())
+        next_cursor = None
+        if len(rows) > limit:
+            rows = rows[:limit]
+            next_cursor = str(rows[-1].version_number)
+        return rows, next_cursor
+
+    async def get_profile_version(
+        self,
+        profile_id: UUID,
+        version_number: int,
+    ) -> ContextProfileVersion | None:
+        result = await self.session.execute(
+            select(ContextProfileVersion).where(
+                ContextProfileVersion.profile_id == profile_id,
+                ContextProfileVersion.version_number == version_number,
+            )
+        )
+        return result.scalar_one_or_none()
 
     async def profile_has_assignments(self, profile_id: UUID) -> bool:
         total = await self.session.scalar(

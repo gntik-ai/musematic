@@ -7,6 +7,7 @@ import { CheckpointList } from "@/components/features/execution/checkpoint-list"
 import { DebateTranscript } from "@/components/features/execution/debate-transcript";
 import { ReactCycleViewer } from "@/components/features/execution/react-cycle-viewer";
 import { TrajectoryViz } from "@/components/features/execution/trajectory-viz";
+import { ProvenanceViewer } from "@/components/features/agents/ProvenanceViewer";
 import { ActiveExecutionStatusBadge } from "@/components/features/operator/ActiveExecutionStatusBadge";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -19,13 +20,14 @@ export interface ExecutionDrilldownProps {
   executionId: string;
 }
 
-type DrilldownTab = "trajectory" | "checkpoints" | "debate" | "react";
+type DrilldownTab = "trajectory" | "checkpoints" | "debate" | "react" | "context";
 
 const VALID_TABS = new Set<DrilldownTab>([
   "trajectory",
   "checkpoints",
   "debate",
   "react",
+  "context",
 ]);
 
 function resolveTab(value: string | null): DrilldownTab {
@@ -172,6 +174,13 @@ export function ExecutionDrilldown({ executionId }: ExecutionDrilldownProps) {
           >
             ReAct
           </TabsTrigger>
+          <TabsTrigger
+            aria-pressed={activeTab === "context"}
+            className={activeTab === "context" ? "bg-background shadow-sm" : undefined}
+            onClick={() => updateTab("context")}
+          >
+            Context
+          </TabsTrigger>
         </TabsList>
 
         {activeTab === "trajectory" ? (
@@ -196,6 +205,11 @@ export function ExecutionDrilldown({ executionId }: ExecutionDrilldownProps) {
         {activeTab === "react" ? (
           <TabsContent>
             <ReactCycleViewer executionId={executionId} />
+          </TabsContent>
+        ) : null}
+        {activeTab === "context" ? (
+          <TabsContent>
+            <ProvenanceViewer executionId={executionId} />
           </TabsContent>
         ) : null}
       </Tabs>

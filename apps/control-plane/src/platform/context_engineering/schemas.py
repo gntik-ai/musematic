@@ -90,6 +90,16 @@ class SourceConfig(BaseModel):
     priority: int = Field(default=50, ge=1, le=100)
     enabled: bool = True
     max_elements: int = Field(default=10, ge=1, le=100)
+    retrieval_strategy: Literal["semantic", "graph", "fts", "hybrid"] = "hybrid"
+    provenance_enabled: bool = False
+    provenance_classification: Literal[
+        "public",
+        "pii",
+        "phi",
+        "financial",
+        "confidential",
+    ] = "public"
+    provenance_attribution: str | None = None
 
 
 class ProfileCreate(BaseModel):
@@ -139,6 +149,58 @@ class ProfileResponse(BaseModel):
 class ProfileListResponse(BaseModel):
     items: list[ProfileResponse]
     total: int
+
+
+class PreviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    query_text: str = Field(min_length=1)
+
+    @field_validator("query_text")
+    @classmethod
+    def normalize_query_text(cls, value: str) -> str:
+        return value.strip()
+
+
+class PreviewSource(BaseModel):
+    origin: str
+    snippet: str
+    score: float = Field(ge=0.0, le=1.0)
+    included: bool
+    classification: str
+    reason: str | None = None
+
+
+class PreviewResponse(BaseModel):
+    sources: list[PreviewSource]
+    mock_response: str
+    completion_metadata: dict[str, Any]
+    was_fallback: bool
+
+
+class ContextProfileVersionResponse(BaseModel):
+    id: UUID
+    profile_id: UUID
+    version_number: int
+    content_snapshot: dict[str, Any]
+    change_summary: str | None
+    created_by: UUID | None
+    created_at: datetime
+
+
+class VersionHistoryResponse(BaseModel):
+    versions: list[ContextProfileVersionResponse]
+    next_cursor: str | None = None
+
+
+class VersionDiffResponse(BaseModel):
+    added: dict[str, Any]
+    removed: dict[str, Any]
+    modified: dict[str, dict[str, Any]]
+
+
+class RollbackRequest(BaseModel):
+    target_version: int = Field(ge=1)
 
 
 class ProfileAssignmentCreate(BaseModel):
