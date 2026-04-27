@@ -44,6 +44,10 @@ from platform.auth.ibor_sync import IBORSyncService
 from platform.auth.repository import AuthRepository
 from platform.auth.router import router as auth_router
 from platform.auth.router_oauth import oauth_router
+from platform.auth.services.oauth_bootstrap import (
+    bootstrap_oauth_providers_from_env,
+    oauth_bootstrap_enabled,
+)
 from platform.common import database
 from platform.common.api_versioning.registry import clear_markers, mark_deprecated
 from platform.common.auth_middleware import AuthMiddleware
@@ -73,6 +77,7 @@ from platform.common.logging import configure_logging
 from platform.common.middleware.api_versioning_middleware import ApiVersioningMiddleware
 from platform.common.middleware.correlation_logging_middleware import CorrelationLoggingMiddleware
 from platform.common.middleware.rate_limit_middleware import RateLimitMiddleware
+from platform.common.secret_provider import MockSecretProvider
 from platform.common.tagging.router import (
     admin_labels_router as tagging_admin_labels_router,
 )
@@ -525,6 +530,21 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["superadmin_bootstrap"] = str(exc)
             LOGGER.warning("Failed to run super admin bootstrap: %s", exc)
+
+    if oauth_bootstrap_enabled(cast(PlatformSettings, app.state.settings)):
+        try:
+            await bootstrap_oauth_providers_from_env(
+                session_factory=database.AsyncSessionLocal,
+                settings=cast(PlatformSettings, app.state.settings),
+                secret_provider=app.state.secret_provider,
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            )
+        except BootstrapConfigError:
+            raise
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["oauth_bootstrap"] = str(exc)
+            LOGGER.warning("Failed to run OAuth provider bootstrap: %s", exc)
 
     try:
         async with database.AsyncSessionLocal() as session:
@@ -1259,6 +1279,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     )
     app.state.settings = resolved
     app.state.clients = _build_clients(resolved)
+    app.state.secret_provider = MockSecretProvider(resolved)
     app.state.analytics_repository = AnalyticsRepository(
         cast(AsyncClickHouseClient, app.state.clients["clickhouse"])
     )

@@ -39,6 +39,10 @@ def build_provider(
         group_role_mapping=dict(group_role_mapping or {}),
         default_role="viewer",
         require_mfa=require_mfa,
+        source="manual",
+        last_edited_by=None,
+        last_edited_at=None,
+        last_successful_auth_at=None,
         created_at=now,
         updated_at=now,
     )
@@ -56,6 +60,9 @@ class OAuthRepositoryStub:
     auth_method_count: int = 2
 
     async def get_provider_by_type(self, provider_type: str) -> Any | None:
+        return self.providers.get(provider_type)
+
+    async def get_by_type_for_update(self, provider_type: str) -> Any | None:
         return self.providers.get(provider_type)
 
     async def get_all_providers(self) -> list[Any]:
@@ -102,6 +109,13 @@ class OAuthRepositoryStub:
             setattr(link, key, value)
         return link
 
+    async def update_provider_last_successful_auth(
+        self,
+        provider: Any,
+        timestamp: datetime,
+    ) -> None:
+        provider.last_successful_auth_at = timestamp
+
     async def delete_link(self, link: Any) -> None:
         self.deleted_links.append(link)
         self.links_by_external.pop((link.provider_id, link.external_id), None)
@@ -113,6 +127,47 @@ class OAuthRepositoryStub:
     async def count_auth_methods(self, user_id: UUID) -> int:
         del user_id
         return self.auth_method_count
+
+    async def count_active_links(self, provider_id: UUID) -> int:
+        return len(
+            {
+                link.user_id
+                for link in self.links_by_external.values()
+                if link.provider_id == provider_id
+            }
+        )
+
+    async def count_successful_auths_since(self, provider_id: UUID, since: datetime) -> int:
+        return sum(
+            1
+            for item in self.audit_entries
+            if item.get("provider_id") == provider_id
+            and item.get("action") == "sign_in_succeeded"
+            and item.get("outcome") == "success"
+            and item.get("created_at", since) >= since
+        )
+
+    async def get_history(
+        self,
+        provider_id: UUID,
+        *,
+        limit: int = 100,
+        cursor: datetime | None = None,
+    ) -> list[Any]:
+        entries = [
+            SimpleNamespace(**item)
+            for item in self.audit_entries
+            if item.get("provider_id") == provider_id
+            and (cursor is None or item.get("created_at", cursor) < cursor)
+        ]
+        return entries[:limit]
+
+    async def get_rate_limits(self, provider_id: UUID) -> Any | None:
+        del provider_id
+        return None
+
+    async def upsert_rate_limits(self, provider_id: UUID, **kwargs: Any) -> Any:
+        return SimpleNamespace(id=uuid4(), provider_id=provider_id, **kwargs)
 
     async def create_audit_entry(self, **kwargs: Any) -> Any:
         entry = {"id": uuid4(), "created_at": datetime.now(UTC), **kwargs}

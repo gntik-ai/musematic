@@ -6,13 +6,15 @@ import hmac
 import json
 import secrets
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from platform.accounts.models import SignupSource, UserStatus
 from platform.accounts.repository import AccountsRepository
 from platform.auth.events import (
     OAuthAccountLinkedPayload,
     OAuthAccountUnlinkedPayload,
     OAuthProviderConfiguredPayload,
+    OAuthRateLimitUpdatedPayload,
+    OAuthSecretRotatedPayload,
     OAuthSignInFailedPayload,
     OAuthSignInSucceededPayload,
     OAuthUserProvisionedPayload,
@@ -35,20 +37,29 @@ from platform.auth.schemas import (
     OAuthAuditEntryListResponse,
     OAuthAuditEntryResponse,
     OAuthAuthorizeResponse,
+    OAuthConfigReseedResponse,
+    OAuthHistoryEntryResponse,
+    OAuthHistoryListResponse,
     OAuthLinkListResponse,
     OAuthLinkResponse,
     OAuthProviderAdminListResponse,
     OAuthProviderAdminResponse,
     OAuthProviderPublic,
     OAuthProviderPublicListResponse,
+    OAuthProviderSourceType,
+    OAuthProviderStatusResponse,
     OAuthProviderType,
+    OAuthRateLimitConfig,
 )
 from platform.auth.service import AuthService
+from platform.auth.services.oauth_bootstrap import bootstrap_oauth_provider_from_env
 from platform.auth.services.oauth_providers.github import GitHubOAuthProvider
 from platform.auth.services.oauth_providers.google import GoogleOAuthProvider
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.events.producer import EventProducer
+from platform.common.exceptions import ValidationError
+from platform.common.secret_provider import SecretProvider
 from platform.connectors.security import compute_hmac_sha256
 from typing import Any, cast
 from uuid import UUID, uuid4
@@ -81,6 +92,7 @@ class OAuthService:
         google_provider: GoogleOAuthProvider | None = None,
         github_provider: GitHubOAuthProvider | None = None,
         credential_resolver: Any | None = None,
+        secret_provider: SecretProvider | None = None,
     ) -> None:
         self.repository = repository
         self.auth_repository = auth_repository
@@ -92,6 +104,7 @@ class OAuthService:
         self.google_provider = google_provider or GoogleOAuthProvider()
         self.github_provider = github_provider or GitHubOAuthProvider()
         self.credential_resolver = credential_resolver
+        self.secret_provider = secret_provider
 
     async def list_public_providers(self) -> OAuthProviderPublicListResponse:
         providers = [
@@ -172,6 +185,9 @@ class OAuthService:
             group_role_mapping=group_role_mapping,
             default_role=default_role,
             require_mfa=require_mfa,
+            source="manual",
+            last_edited_by=actor_id,
+            last_edited_at=datetime.now(UTC),
         )
         changed_fields = self._diff_provider(before, self._provider_snapshot(provider))
         await self.repository.create_audit_entry(
@@ -198,6 +214,170 @@ class OAuthService:
             self.producer,
         )
         return self._serialize_admin_provider(provider), created
+
+    async def rotate_secret(self, provider_type: str, new_secret: str, actor_id: UUID) -> None:
+        provider = await self._require_provider(provider_type)
+        versions_before = await self._list_secret_versions(provider.client_secret_ref)
+        await self._put_secret(provider.client_secret_ref, new_secret)
+        await self._flush_secret_cache(provider.client_secret_ref)
+        versions_after = await self._list_secret_versions(provider.client_secret_ref)
+        old_version = max(versions_before) if versions_before else None
+        new_version = max(versions_after) if versions_after else None
+        await self.repository.create_audit_entry(
+            provider_type=provider.provider_type,
+            provider_id=provider.id,
+            user_id=None,
+            external_id=None,
+            action="secret_rotated",
+            outcome="success",
+            failure_reason=None,
+            source_ip=None,
+            user_agent=None,
+            actor_id=actor_id,
+            changed_fields={"changed_fields": ["client_secret"]},
+        )
+        await publish_auth_event(
+            "auth.oauth.secret_rotated",
+            OAuthSecretRotatedPayload(
+                actor_id=actor_id,
+                provider_type=provider.provider_type,
+                old_version=old_version,
+                new_version=new_version,
+            ),
+            uuid4(),
+            self.producer,
+        )
+
+    async def reseed_from_env(
+        self,
+        provider_type: str,
+        *,
+        force_update: bool,
+        actor_id: UUID,
+        settings: PlatformSettings,
+        secret_provider: SecretProvider,
+    ) -> OAuthConfigReseedResponse:
+        if provider_type == "google" and not settings.oauth_bootstrap.google.enabled:
+            raise ValidationError(
+                "OAUTH_BOOTSTRAP_ENV_NOT_SET",
+                "PLATFORM_OAUTH_GOOGLE_ENABLED is not set in the running pod; cannot reseed",
+            )
+        if provider_type == "github" and not settings.oauth_bootstrap.github.enabled:
+            raise ValidationError(
+                "OAUTH_BOOTSTRAP_ENV_NOT_SET",
+                "PLATFORM_OAUTH_GITHUB_ENABLED is not set in the running pod; cannot reseed",
+            )
+        if provider_type not in {"google", "github"}:
+            raise OAuthProviderNotFoundError(provider_type)
+        result = await bootstrap_oauth_provider_from_env(
+            repository=self.repository,
+            settings=settings,
+            secret_provider=secret_provider,
+            producer=self.producer,
+            provider_type=cast(Any, provider_type),
+            actor_id=actor_id,
+            force_update_override=force_update,
+        )
+        return OAuthConfigReseedResponse(
+            diff={
+                "status": result.status,
+                "changed_fields": result.changed_fields,
+                "audit_event_id": str(result.audit_event_id) if result.audit_event_id else None,
+            }
+        )
+
+    async def get_history(
+        self,
+        provider_type: str,
+        *,
+        limit: int,
+        cursor: str | None,
+    ) -> OAuthHistoryListResponse:
+        provider = await self._require_provider(provider_type)
+        parsed_cursor = datetime.fromisoformat(cursor) if cursor else None
+        entries = await self.repository.get_history(
+            provider.id,
+            limit=limit,
+            cursor=parsed_cursor,
+        )
+        next_cursor = entries[-1].created_at.isoformat() if len(entries) == limit else None
+        return OAuthHistoryListResponse(
+            entries=[self._serialize_history_entry(item) for item in entries],
+            next_cursor=next_cursor,
+        )
+
+    async def get_rate_limits(self, provider_type: str) -> OAuthRateLimitConfig:
+        provider = await self._require_provider(provider_type)
+        limits = await self.repository.get_rate_limits(provider.id)
+        if limits is None:
+            return self._default_rate_limits()
+        return self._serialize_rate_limits(limits)
+
+    async def update_rate_limits(
+        self,
+        provider_type: str,
+        config: OAuthRateLimitConfig,
+        actor_id: UUID,
+    ) -> OAuthRateLimitConfig:
+        provider = await self._require_provider(provider_type)
+        before_row = await self.repository.get_rate_limits(provider.id)
+        before = (
+            self._serialize_rate_limits(before_row).model_dump()
+            if before_row is not None
+            else self._default_rate_limits().model_dump()
+        )
+        limits = await self.repository.upsert_rate_limits(provider.id, **config.model_dump())
+        after = self._serialize_rate_limits(limits)
+        await self.repository.create_audit_entry(
+            provider_type=provider.provider_type,
+            provider_id=provider.id,
+            user_id=None,
+            external_id=None,
+            action="rate_limit_updated",
+            outcome="success",
+            failure_reason=None,
+            source_ip=None,
+            user_agent=None,
+            actor_id=actor_id,
+            changed_fields={"before": before, "after": after.model_dump()},
+        )
+        await publish_auth_event(
+            "auth.oauth.rate_limit_updated",
+            OAuthRateLimitUpdatedPayload(
+                actor_id=actor_id,
+                provider_type=provider.provider_type,
+                before=before,
+                after=after.model_dump(),
+            ),
+            uuid4(),
+            self.producer,
+        )
+        return after
+
+    async def get_status(self, provider_type: str) -> OAuthProviderStatusResponse:
+        provider = await self._require_provider(provider_type)
+        now = datetime.now(UTC)
+        auth_count_24h = await self.repository.count_successful_auths_since(
+            provider.id,
+            now - timedelta(hours=24),
+        )
+        auth_count_7d = await self.repository.count_successful_auths_since(
+            provider.id,
+            now - timedelta(days=7),
+        )
+        auth_count_30d = await self.repository.count_successful_auths_since(
+            provider.id,
+            now - timedelta(days=30),
+        )
+        return OAuthProviderStatusResponse(
+            provider_type=OAuthProviderType(provider.provider_type),
+            source=OAuthProviderSourceType(self._source_value(getattr(provider, "source", None))),
+            last_successful_auth_at=getattr(provider, "last_successful_auth_at", None),
+            auth_count_24h=auth_count_24h,
+            auth_count_7d=auth_count_7d,
+            auth_count_30d=auth_count_30d,
+            active_linked_users=await self.repository.count_active_links(provider.id),
+        )
 
     async def get_authorization_url(
         self,
@@ -452,6 +632,8 @@ class OAuthService:
             ip=source_ip,
             device=user_agent,
         )
+        success_at = datetime.now(UTC)
+        await self.repository.update_provider_last_successful_auth(provider, success_at)
         await self.repository.create_audit_entry(
             provider_type=provider.provider_type,
             provider_id=provider.id,
@@ -730,21 +912,34 @@ class OAuthService:
         return cast(dict[str, Any], jsonable_encoder(payload))
 
     async def _resolve_secret(self, reference: str) -> str:
+        if reference.startswith("plain:"):
+            return reference.split(":", 1)[1]
         if self.credential_resolver is not None:
             result = self.credential_resolver(reference)
             if hasattr(result, "__await__"):
                 result = await result
             if isinstance(result, str) and result:
                 return result
-        if reference.startswith("plain:"):
-            return reference.split(":", 1)[1]
-        import os
-
-        env_key = "OAUTH_SECRET_" + "".join(ch if ch.isalnum() else "_" for ch in reference).upper()
-        value = os.getenv(env_key)
-        if value:
-            return value
+        if self.secret_provider is not None:
+            return await self.secret_provider.get(reference)
         return reference
+
+    def _require_secret_provider(self) -> SecretProvider:
+        if self.secret_provider is None:
+            raise ValidationError(
+                "SECRET_PROVIDER_UNAVAILABLE",
+                "OAuth secret operation requires a configured SecretProvider",
+            )
+        return self.secret_provider
+
+    async def _put_secret(self, reference: str, value: str) -> None:
+        await self._require_secret_provider().put(reference, {"value": value})
+
+    async def _flush_secret_cache(self, reference: str) -> None:
+        await self._require_secret_provider().flush_cache(reference)
+
+    async def _list_secret_versions(self, reference: str) -> list[int]:
+        return await self._require_secret_provider().list_versions(reference)
 
     def _resolve_role(self, provider: Any, groups: list[str]) -> str:
         for group in groups:
@@ -820,6 +1015,7 @@ class OAuthService:
             "group_role_mapping": dict(provider.group_role_mapping),
             "default_role": provider.default_role,
             "require_mfa": provider.require_mfa,
+            "source": OAuthService._source_value(getattr(provider, "source", None)),
         }
 
     @staticmethod
@@ -851,9 +1047,59 @@ class OAuthService:
             group_role_mapping=dict(provider.group_role_mapping),
             default_role=provider.default_role,
             require_mfa=provider.require_mfa,
+            source=OAuthProviderSourceType(
+                OAuthService._source_value(getattr(provider, "source", None))
+            ),
+            last_edited_by=getattr(provider, "last_edited_by", None),
+            last_edited_at=getattr(provider, "last_edited_at", None),
+            last_successful_auth_at=getattr(provider, "last_successful_auth_at", None),
             created_at=provider.created_at,
             updated_at=provider.updated_at,
         )
+
+    @staticmethod
+    def _serialize_history_entry(entry: Any) -> OAuthHistoryEntryResponse:
+        changed = dict(entry.changed_fields or {})
+        before: dict[str, Any] = {}
+        after: dict[str, Any] = {}
+        for key, value in changed.items():
+            if isinstance(value, dict) and {"before", "after"}.issubset(value):
+                before[key] = value.get("before")
+                after[key] = value.get("after")
+        return OAuthHistoryEntryResponse(
+            timestamp=entry.created_at,
+            admin_id=entry.actor_id,
+            action=entry.action,
+            before=before or None,
+            after=after or None,
+        )
+
+    def _default_rate_limits(self) -> OAuthRateLimitConfig:
+        return OAuthRateLimitConfig(
+            per_ip_max=self.settings.auth.oauth_rate_limit_max,
+            per_ip_window=self.settings.auth.oauth_rate_limit_window,
+            per_user_max=self.settings.auth.oauth_rate_limit_max,
+            per_user_window=self.settings.auth.oauth_rate_limit_window,
+            global_max=self.settings.auth.oauth_rate_limit_max,
+            global_window=self.settings.auth.oauth_rate_limit_window,
+        )
+
+    @staticmethod
+    def _serialize_rate_limits(limits: Any) -> OAuthRateLimitConfig:
+        return OAuthRateLimitConfig(
+            per_ip_max=limits.per_ip_max,
+            per_ip_window=limits.per_ip_window,
+            per_user_max=limits.per_user_max,
+            per_user_window=limits.per_user_window,
+            global_max=limits.global_max,
+            global_window=limits.global_window,
+        )
+
+    @staticmethod
+    def _source_value(source: Any) -> str:
+        if source is None:
+            return "manual"
+        return str(getattr(source, "value", source))
 
     @staticmethod
     def _serialize_audit_entry(entry: Any) -> OAuthAuditEntryResponse:

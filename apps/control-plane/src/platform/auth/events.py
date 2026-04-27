@@ -93,6 +93,53 @@ class OAuthProviderConfiguredPayload(BaseModel):
     enabled: bool
 
 
+class OAuthProviderBootstrappedPayload(BaseModel):
+    actor_id: UUID | None = None
+    provider_type: str
+    source: str
+    force_update_used: bool = False
+
+
+class OAuthSecretRotatedPayload(BaseModel):
+    actor_id: UUID
+    provider_type: str
+    old_version: int | None = None
+    new_version: int | None = None
+
+
+class OAuthConfigReseededPayload(BaseModel):
+    actor_id: UUID | None = None
+    provider_type: str
+    force_update: bool
+    changed_fields: list[str]
+
+
+class OAuthRoleMappingUpdatedPayload(BaseModel):
+    actor_id: UUID
+    provider_type: str
+    before_count: int
+    after_count: int
+
+
+class OAuthRateLimitUpdatedPayload(BaseModel):
+    actor_id: UUID
+    provider_type: str
+    before: dict[str, int] | None = None
+    after: dict[str, int]
+
+
+class OAuthConfigImportedPayload(BaseModel):
+    actor_id: UUID
+    provider_type: str
+    vault_path: str
+
+
+class OAuthConfigExportedPayload(BaseModel):
+    actor_id: UUID
+    provider_type: str
+    target_env: str
+
+
 AUTH_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     "auth.user.authenticated": UserAuthenticatedPayload,
     "auth.user.locked": UserLockedPayload,
@@ -107,6 +154,13 @@ AUTH_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     "auth.oauth.account_linked": OAuthAccountLinkedPayload,
     "auth.oauth.account_unlinked": OAuthAccountUnlinkedPayload,
     "auth.oauth.provider_configured": OAuthProviderConfiguredPayload,
+    "auth.oauth.provider_bootstrapped": OAuthProviderBootstrappedPayload,
+    "auth.oauth.secret_rotated": OAuthSecretRotatedPayload,
+    "auth.oauth.config_reseeded": OAuthConfigReseededPayload,
+    "auth.oauth.role_mapping_updated": OAuthRoleMappingUpdatedPayload,
+    "auth.oauth.rate_limit_updated": OAuthRateLimitUpdatedPayload,
+    "auth.oauth.config_imported": OAuthConfigImportedPayload,
+    "auth.oauth.config_exported": OAuthConfigExportedPayload,
 }
 
 

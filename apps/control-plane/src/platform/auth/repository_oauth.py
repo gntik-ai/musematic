@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from platform.audit.service import AuditChainService
-from platform.auth.models import OAuthAuditEntry, OAuthLink, OAuthProvider, UserCredential
+from platform.auth.models import (
+    OAuthAuditEntry,
+    OAuthLink,
+    OAuthProvider,
+    OAuthProviderRateLimit,
+    OAuthProviderSource,
+    UserCredential,
+)
 from platform.common.audit_hook import audit_chain_hook
 from typing import Any
 from uuid import UUID
@@ -21,6 +28,14 @@ class OAuthRepository:
     async def get_provider_by_type(self, provider_type: str) -> OAuthProvider | None:
         result = await self.session.execute(
             select(OAuthProvider).where(OAuthProvider.provider_type == provider_type)
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_type_for_update(self, provider_type: str) -> OAuthProvider | None:
+        result = await self.session.execute(
+            select(OAuthProvider)
+            .where(OAuthProvider.provider_type == provider_type)
+            .with_for_update(skip_locked=True)
         )
         return result.scalar_one_or_none()
 
@@ -45,6 +60,10 @@ class OAuthRepository:
         group_role_mapping: dict[str, str],
         default_role: str,
         require_mfa: bool,
+        source: str | OAuthProviderSource = OAuthProviderSource.manual,
+        last_edited_by: UUID | None = None,
+        last_edited_at: datetime | None = None,
+        last_successful_auth_at: datetime | None = None,
     ) -> tuple[OAuthProvider, bool]:
         values = {
             "provider_type": provider_type,
@@ -59,7 +78,12 @@ class OAuthRepository:
             "group_role_mapping": dict(group_role_mapping),
             "default_role": default_role,
             "require_mfa": require_mfa,
+            "source": str(source),
+            "last_edited_by": last_edited_by,
+            "last_edited_at": last_edited_at,
         }
+        if last_successful_auth_at is not None:
+            values["last_successful_auth_at"] = last_successful_auth_at
         created_expr: Any = literal_column("xmax = 0").label("created")
         statement = (
             insert(OAuthProvider)
@@ -75,6 +99,14 @@ class OAuthRepository:
         if provider is None:  # pragma: no cover - guarded by RETURNING
             raise LookupError(f"OAuth provider {provider_type} disappeared after upsert")
         return provider, bool(row.created)
+
+    async def update_provider_last_successful_auth(
+        self,
+        provider: OAuthProvider,
+        timestamp: datetime,
+    ) -> None:
+        provider.last_successful_auth_at = timestamp
+        await self.session.flush()
 
     async def get_link_by_external(self, provider_id: UUID, external_id: str) -> OAuthLink | None:
         result = await self.session.execute(
@@ -199,6 +231,29 @@ class OAuthRepository:
         )
         return int(local_result.scalar() or 0) + int(oauth_result.scalar() or 0)
 
+    async def count_active_links(self, provider_id: UUID) -> int:
+        result = await self.session.execute(
+            select(func.count(func.distinct(OAuthLink.user_id))).where(
+                OAuthLink.provider_id == provider_id
+            )
+        )
+        return int(result.scalar() or 0)
+
+    async def count_successful_auths_since(
+        self,
+        provider_id: UUID,
+        since: datetime,
+    ) -> int:
+        result = await self.session.execute(
+            select(func.count(OAuthAuditEntry.id)).where(
+                OAuthAuditEntry.provider_id == provider_id,
+                OAuthAuditEntry.action == "sign_in_succeeded",
+                OAuthAuditEntry.outcome == "success",
+                OAuthAuditEntry.created_at >= since,
+            )
+        )
+        return int(result.scalar() or 0)
+
     async def create_audit_entry(
         self,
         *,
@@ -274,3 +329,66 @@ class OAuthRepository:
             query = query.where(OAuthAuditEntry.created_at <= end_time)
         result = await self.session.execute(query.limit(limit))
         return list(result.scalars().all())
+
+    async def get_history(
+        self,
+        provider_id: UUID,
+        *,
+        limit: int = 100,
+        cursor: datetime | None = None,
+    ) -> list[OAuthAuditEntry]:
+        query = (
+            select(OAuthAuditEntry)
+            .where(OAuthAuditEntry.provider_id == provider_id)
+            .order_by(OAuthAuditEntry.created_at.desc(), OAuthAuditEntry.id.desc())
+        )
+        if cursor is not None:
+            query = query.where(OAuthAuditEntry.created_at < cursor)
+        result = await self.session.execute(query.limit(limit))
+        return list(result.scalars().all())
+
+    async def get_rate_limits(self, provider_id: UUID) -> OAuthProviderRateLimit | None:
+        result = await self.session.execute(
+            select(OAuthProviderRateLimit).where(OAuthProviderRateLimit.provider_id == provider_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def upsert_rate_limits(
+        self,
+        provider_id: UUID,
+        *,
+        per_ip_max: int,
+        per_ip_window: int,
+        per_user_max: int,
+        per_user_window: int,
+        global_max: int,
+        global_window: int,
+    ) -> OAuthProviderRateLimit:
+        values = {
+            "provider_id": provider_id,
+            "per_ip_max": per_ip_max,
+            "per_ip_window": per_ip_window,
+            "per_user_max": per_user_max,
+            "per_user_window": per_user_window,
+            "global_max": global_max,
+            "global_window": global_window,
+        }
+        row_id = (
+            await self.session.execute(
+                insert(OAuthProviderRateLimit)
+                .values(**values)
+                .on_conflict_do_update(
+                    index_elements=[OAuthProviderRateLimit.provider_id],
+                    set_={key: value for key, value in values.items() if key != "provider_id"},
+                )
+                .returning(OAuthProviderRateLimit.id)
+            )
+        ).scalar_one()
+        limits = await self.session.get(
+            OAuthProviderRateLimit,
+            row_id,
+            populate_existing=True,
+        )
+        if limits is None:  # pragma: no cover - guarded by RETURNING
+            raise LookupError(f"OAuth rate limits for provider={provider_id} disappeared")
+        return limits

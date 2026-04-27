@@ -4,9 +4,10 @@ import re
 from datetime import datetime
 from enum import StrEnum
 from platform.auth.models import IBORSourceType, IBORSyncMode, IBORSyncRunStatus
+from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator
 
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 
@@ -210,6 +211,12 @@ class OAuthProviderType(StrEnum):
     GITHUB = "github"
 
 
+class OAuthProviderSourceType(StrEnum):
+    ENV_VAR = "env_var"
+    MANUAL = "manual"
+    IMPORTED = "imported"
+
+
 class OAuthProviderCreate(BaseModel):
     display_name: str = Field(min_length=1, max_length=128)
     enabled: bool = False
@@ -251,6 +258,10 @@ class OAuthProviderAdminResponse(BaseModel):
     group_role_mapping: dict[str, str] = Field(default_factory=dict)
     default_role: str
     require_mfa: bool
+    source: OAuthProviderSourceType = OAuthProviderSourceType.MANUAL
+    last_edited_by: UUID | None = None
+    last_edited_at: datetime | None = None
+    last_successful_auth_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -281,6 +292,50 @@ class OAuthConnectivityTestResponse(BaseModel):
     reachable: bool
     auth_url_returned: bool
     diagnostic: str
+
+
+class OAuthSecretRotateRequest(BaseModel):
+    new_secret: SecretStr = Field(min_length=1)
+
+
+class OAuthConfigReseedRequest(BaseModel):
+    force_update: bool = False
+
+
+class OAuthConfigReseedResponse(BaseModel):
+    diff: dict[str, Any] = Field(default_factory=dict)
+
+
+class OAuthRateLimitConfig(BaseModel):
+    per_ip_max: int = Field(ge=1)
+    per_ip_window: int = Field(ge=1)
+    per_user_max: int = Field(ge=1)
+    per_user_window: int = Field(ge=1)
+    global_max: int = Field(ge=1)
+    global_window: int = Field(ge=1)
+
+
+class OAuthHistoryEntryResponse(BaseModel):
+    timestamp: datetime
+    admin_id: UUID | None = None
+    action: str
+    before: dict[str, Any] | None = None
+    after: dict[str, Any] | None = None
+
+
+class OAuthHistoryListResponse(BaseModel):
+    entries: list[OAuthHistoryEntryResponse]
+    next_cursor: str | None = None
+
+
+class OAuthProviderStatusResponse(BaseModel):
+    provider_type: OAuthProviderType
+    source: OAuthProviderSourceType
+    last_successful_auth_at: datetime | None = None
+    auth_count_24h: int
+    auth_count_7d: int
+    auth_count_30d: int
+    active_linked_users: int
 
 
 class OAuthAuditEntryResponse(BaseModel):
