@@ -1,0 +1,97 @@
+# Preset: enterprise
+# Purpose: HA production topology. Operators provide Grafana database credentials
+# and Jaeger production datastore values in a tenant overlay.
+# Capacity envelope: ~16 GiB total stack RAM, 10M metric series, 10k logs/s,
+# 100k traces/s, Prometheus 30d local retention with Thanos object storage, Loki
+# 14d hot + 90d cold retention on S3.
+networkPolicy:
+  enabled: true
+
+opentelemetry-collector:
+  replicaCount: 3
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+
+kube-prometheus-stack:
+  grafana:
+    replicas: 2
+    plugins:
+      - grafana-image-renderer
+    persistence:
+      enabled: false
+    database:
+      type: postgres
+  prometheus:
+    prometheusSpec:
+      replicas: 2
+      retention: 30d
+      thanos:
+        objectStorageConfig:
+          existingSecret:
+            name: minio-platform-credentials
+            key: thanos.yaml
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            resources:
+              requests:
+                storage: 50Gi
+
+jaeger:
+  allInOne:
+    enabled: false
+  collector:
+    enabled: true
+  query:
+    enabled: true
+  storage:
+    type: elasticsearch
+  persistence:
+    enabled: false
+
+loki:
+  deploymentMode: Distributed
+  loki:
+    limits_config:
+      retention_period: 336h
+    compactor:
+      retention_enabled: true
+      delete_request_store: s3
+    storage:
+      type: s3
+      bucketNames:
+        chunks: platform-loki-chunks
+        ruler: platform-loki-chunks
+        admin: platform-loki-chunks
+    schemaConfig:
+      configs:
+        - from: "2024-01-01"
+          store: tsdb
+          object_store: s3
+          schema: v13
+          index:
+            prefix: loki_index_
+            period: 24h
+  retention:
+    hot: 336h
+    cold: 2160h
+  singleBinary:
+    replicas: 0
+  ingester:
+    replicas: 3
+    maxUnavailable: 1
+  querier:
+    replicas: 3
+    maxUnavailable: 1
+  queryFrontend:
+    replicas: 2
+    maxUnavailable: 1
+  distributor:
+    replicas: 2
+    maxUnavailable: 1
+  compactor:
+    replicas: 1
+  gateway:
+    enabled: true

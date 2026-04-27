@@ -1,0 +1,106 @@
+# Preset: e2e
+# Purpose: kind-cluster overlay consumed only by tests/e2e/cluster/install.sh and
+# make e2e-up. Never deploy this preset to production clusters.
+# Capacity envelope: <= 1 GiB total stack RAM on a 16 GiB laptop, 1h retention,
+# no persistent volumes, no renderer plugin, and no S3 bucket hook.
+networkPolicy:
+  enabled: false
+
+opentelemetry-collector:
+  replicaCount: 1
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  alternateConfig:
+    processors:
+      batch:
+        timeout: 1s
+        send_batch_size: 128
+
+kube-prometheus-stack:
+  grafana:
+    replicas: 1
+    plugins: []
+    persistence:
+      enabled: false
+    resources:
+      requests:
+        cpu: 25m
+        memory: 96Mi
+      limits:
+        cpu: 200m
+        memory: 192Mi
+  alertmanager:
+    alertmanagerSpec:
+      replicas: 1
+      storage: {}
+  prometheus:
+    prometheusSpec:
+      replicas: 1
+      retention: 1h
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          cpu: 300m
+          memory: 256Mi
+      storageSpec: {}
+
+jaeger:
+  storage:
+    type: memory
+  persistence:
+    enabled: false
+  allInOne:
+    extraEnv:
+      - name: SPAN_STORAGE_TYPE
+        value: memory
+
+loki:
+  deploymentMode: SingleBinary
+  loki:
+    limits_config:
+      retention_period: 1h
+    compactor:
+      retention_enabled: true
+      delete_request_store: filesystem
+    storage:
+      type: filesystem
+    schemaConfig:
+      configs:
+        - from: "2024-01-01"
+          store: tsdb
+          object_store: filesystem
+          schema: v13
+          index:
+            prefix: loki_index_
+            period: 24h
+    rulerConfig:
+      storage:
+        type: local
+  singleBinary:
+    replicas: 1
+    persistence:
+      enabled: false
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 300m
+        memory: 256Mi
+  extraEnv: []
+
+promtail:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi

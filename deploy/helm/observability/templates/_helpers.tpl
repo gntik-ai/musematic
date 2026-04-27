@@ -20,6 +20,11 @@ prometheus: musematic
 role: alert-rules
 {{- end }}
 
+{{- define "musematic-observability.dataSourceLabels" -}}
+{{ include "musematic-observability.labels" . }}
+grafana_datasource: "1"
+{{- end }}
+
 {{- define "musematic-observability.lokiLabels" -}}
 service
 bounded_context

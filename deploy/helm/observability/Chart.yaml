@@ -2,21 +2,21 @@ apiVersion: v2
 name: musematic-observability
 description: Unified observability stack for Musematic.
 type: application
-version: 0.1.0
+version: 0.2.0
 appVersion: "0.1.0"
 dependencies:
   - name: opentelemetry-collector
-    version: ^0.108.0
+    version: 0.108.1
     repository: https://open-telemetry.github.io/opentelemetry-helm-charts
   - name: kube-prometheus-stack
-    version: ^65.0.0
+    version: 65.8.1
     repository: https://prometheus-community.github.io/helm-charts
   - name: jaeger
-    version: ^3.0.0
+    version: 3.4.1
     repository: https://jaegertracing.github.io/helm-charts
   - name: loki
-    version: ^6.16.0
+    version: 6.16.0
     repository: https://grafana.github.io/helm-charts
   - name: promtail
-    version: ^6.16.6
+    version: 6.16.6
     repository: https://grafana.github.io/helm-charts

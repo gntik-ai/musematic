@@ -8,7 +8,13 @@ from xml.etree.ElementTree import Element, ElementTree, SubElement
 
 import pytest
 
-from journeys.helpers.narrative import JourneyStepRecord, collect_journey_step_records, reset_journey_step_records
+from journeys.helpers.narrative import (
+    JourneyArtifactRecord,
+    JourneyStepRecord,
+    collect_journey_artifact_records,
+    collect_journey_step_records,
+    reset_journey_step_records,
+)
 
 
 @dataclass(slots=True)
@@ -17,6 +23,7 @@ class JourneyCaseReport:
     outcome: str = "passed"
     duration_s: float = 0.0
     records: list[JourneyStepRecord] = field(default_factory=list)
+    artifacts: list[JourneyArtifactRecord] = field(default_factory=list)
 
 
 def pytest_configure(config) -> None:
@@ -43,6 +50,7 @@ def pytest_runtest_makereport(item, call):
         outcome=report.outcome,
         duration_s=report.duration,
         records=collect_journey_step_records(),
+        artifacts=collect_journey_artifact_records(),
     )
 
 
@@ -131,11 +139,20 @@ def _write_html_report(path: Path, case_reports: dict[str, JourneyCaseReport], e
             )
             if record.status != "passed":
                 break
+        artifacts = "".join(
+            "<li>"
+            f"<span class='artifact-type'>{escape(artifact.artifact_type)}</span>: "
+            f"<a href='{escape(artifact.href)}'>{escape(artifact.label)}</a>"
+            "</li>"
+            for artifact in case.artifacts
+        )
+        artifacts_block = f"<ul class='artifacts'>{artifacts}</ul>" if artifacts else ""
         rows.append(
             "<section class='journey'>"
             f"<h2>{escape(records[0].journey_id.upper())} - {escape(case.nodeid)}</h2>"
             f"<p class='summary'>Outcome: {escape(case.outcome)}; steps captured: {len(records)}</p>"
             f"<ol>{''.join(list_items)}</ol>"
+            f"{artifacts_block}"
             "</section>"
         )
 
@@ -155,6 +172,8 @@ def _write_html_report(path: Path, case_reports: dict[str, JourneyCaseReport], e
     li.passed {{ color: #166534; }}
     .step-index {{ display: inline-block; min-width: 2rem; }}
     .step-duration {{ color: #666; margin-left: 0.4rem; font-size: 0.95em; }}
+    .artifacts {{ border-top: 1px solid #eee; margin-top: 1rem; padding-top: 0.5rem; }}
+    .artifact-type {{ color: #555; font-size: 0.95em; }}
     .empty {{ color: #666; font-style: italic; }}
   </style>
 </head>

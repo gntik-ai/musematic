@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from platform.common.clients.redis import AsyncRedisClient
+from platform.common.llm.exceptions import RateLimitError
 from typing import Any, ClassVar, Protocol
 from uuid import uuid4
 
@@ -61,6 +63,7 @@ class MockLLMProvider:
     BROADCAST_CHANNEL = "e2e:mock_llm:set"
     CALLS_KEY = "e2e:mock_llm:calls"
     PATTERNS_KEY = "e2e:mock_llm:patterns"
+    RATE_LIMIT_KEY_PREFIX = "e2e:mock_llm:rate_limit"
     CALLS_LIMIT = 1000
 
     def __init__(self, redis_client: AsyncRedisClient | Any) -> None:
@@ -90,6 +93,19 @@ class MockLLMProvider:
             for response in items:
                 await self.set_response(prompt_pattern, response)
         return await self.queue_depth()
+
+    async def set_rate_limit_error(self, prompt_pattern: str, count: int = 1) -> None:
+        if os.getenv("FEATURE_E2E_MODE") != "true":
+            raise KeyError("Mock LLM rate-limit injection requires FEATURE_E2E_MODE=true")
+        if count < 1:
+            raise ValueError("count must be at least 1")
+        client = await self._redis()
+        await self._set_key(
+            client,
+            self._rate_limit_key(prompt_pattern),
+            str(count),
+            ttl_seconds=300,
+        )
 
     async def queue_depth(self) -> dict[str, int]:
         client = await self._redis()
@@ -137,6 +153,7 @@ class MockLLMProvider:
         max_tokens: int,
         correlation_context: dict[str, Any] | None = None,
     ) -> str:
+        await self._raise_rate_limit_if_configured(prompt_pattern)
         result = await self._dequeue_response(prompt_pattern)
         await self._record_call(
             prompt_pattern=prompt_pattern,
@@ -150,6 +167,23 @@ class MockLLMProvider:
             correlation_context=correlation_context,
         )
         return str(result["response"])
+
+    async def _raise_rate_limit_if_configured(self, prompt_pattern: str) -> None:
+        if os.getenv("FEATURE_E2E_MODE") != "true":
+            return
+        client = await self._redis()
+        key = self._rate_limit_key(prompt_pattern)
+        raw_remaining = await client.get(key)
+        if raw_remaining is None:
+            return
+        if isinstance(raw_remaining, bytes):
+            remaining = int(raw_remaining.decode("utf-8"))
+        else:
+            remaining = int(str(raw_remaining))
+        if remaining <= 0:
+            return
+        await self._set_key(client, key, str(remaining - 1), ttl_seconds=300)
+        raise RateLimitError(f"synthetic 429 for prompt pattern {prompt_pattern!r}")
 
     async def stream(
         self,
@@ -253,6 +287,23 @@ class MockLLMProvider:
             return
         raise AttributeError("Redis client does not support publish semantics")
 
+    async def _set_key(
+        self,
+        client: Any,
+        key: str,
+        value: str,
+        *,
+        ttl_seconds: int,
+    ) -> None:
+        try:
+            await client.set(key, value, ex=ttl_seconds)
+        except TypeError:
+            await client.set(key, value, ttl=ttl_seconds)
+
     @staticmethod
     def _queue_key(prompt_pattern: str) -> str:
         return f"e2e:mock_llm:queue:{prompt_pattern}"
+
+    @classmethod
+    def _rate_limit_key(cls, prompt_pattern: str) -> str:
+        return f"{cls.RATE_LIMIT_KEY_PREFIX}:{prompt_pattern}"

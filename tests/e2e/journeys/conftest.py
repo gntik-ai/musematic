@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import os
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -16,7 +17,15 @@ import websockets
 from journeys.helpers import journey_resource_prefix
 from journeys.helpers.agents import certify_agent, register_full_agent
 from journeys.helpers.api_waits import wait_for_policy, wait_for_workspace_access
+from journeys.helpers.axe_runner import run_axe_scan
 from journeys.helpers.governance import create_governance_chain
+from journeys.helpers.observability_readiness import (
+    _grafana_url,
+    _jaeger_url,
+    _loki_url,
+    _prom_url,
+    wait_for_observability_stack_ready,
+)
 from journeys.helpers.oauth import oauth_login
 
 pytest_plugins = ["journeys.plugins.narrative_report"]
@@ -526,13 +535,56 @@ def journey_id(request) -> str:
     return str(getattr(request.module, "JOURNEY_ID", "unknown"))
 
 
+@pytest.fixture(scope="session")
+def observability_stack_ready() -> None:
+    asyncio.run(wait_for_observability_stack_ready())
+
+
 @pytest.fixture
-def journey_context(request, journey_id: str) -> JourneyContext:
+def journey_context(
+    request,
+    journey_id: str,
+    observability_stack_ready: None,
+) -> JourneyContext:
+    del observability_stack_ready
     return JourneyContext(
         journey_id=journey_id,
         nodeid=request.node.nodeid,
         prefix=journey_resource_prefix(journey_id, nodeid=request.node.nodeid),
     )
+
+
+@pytest_asyncio.fixture
+async def loki_client(observability_stack_ready: None):
+    del observability_stack_ready
+    async with httpx.AsyncClient(base_url=_loki_url(), timeout=30.0) as client:
+        yield client
+
+
+@pytest_asyncio.fixture
+async def prom_client(observability_stack_ready: None):
+    del observability_stack_ready
+    async with httpx.AsyncClient(base_url=_prom_url(), timeout=30.0) as client:
+        yield client
+
+
+@pytest_asyncio.fixture
+async def jaeger_client(observability_stack_ready: None):
+    del observability_stack_ready
+    async with httpx.AsyncClient(base_url=_jaeger_url(), timeout=30.0) as client:
+        yield client
+
+
+@pytest_asyncio.fixture
+async def grafana_client(observability_stack_ready: None):
+    del observability_stack_ready
+    async with httpx.AsyncClient(base_url=_grafana_url(), timeout=30.0) as client:
+        yield client
+
+
+@pytest.fixture
+def axe_runner():
+    return run_axe_scan
 
 
 @pytest_asyncio.fixture

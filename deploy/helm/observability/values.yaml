@@ -1,6 +1,19 @@
 frontendNamespaces:
   - platform-control
 
+networkPolicy:
+  enabled: true
+  platformNamespaces:
+    - platform-control
+    - platform-execution
+    - platform-simulation
+    - platform-data
+    - platform-ui
+  ingressControllerNamespaces:
+    - ingress-nginx
+  s3EgressCidrs:
+    - 0.0.0.0/0
+
 global:
   frontendNamespaces:
     - platform-control
@@ -103,32 +116,19 @@ kube-prometheus-stack:
   cleanPrometheusOperatorObjectNames: true
   grafana:
     adminPassword: admin
+    plugins:
+      - grafana-image-renderer
     sidecar:
       dashboards:
         enabled: true
         label: grafana_dashboard
         labelValue: "1"
         searchNamespace: platform-observability
-    additionalDataSources:
-      - name: Jaeger
-        uid: jaeger
-        type: jaeger
-        access: proxy
-        editable: false
-        url: http://musematic-observability-jaeger-query:16686
-      - name: Loki
-        uid: loki
-        type: loki
-        access: proxy
-        editable: false
-        isDefault: false
-        url: http://observability-loki:3100
-        jsonData:
-          derivedFields:
-            - name: trace_id
-              matcherRegex: '"trace_id":"([A-Fa-f0-9]+)"'
-              datasourceUid: jaeger
-              url: "$${__value.raw}"
+      datasources:
+        enabled: true
+        label: grafana_datasource
+        labelValue: "1"
+        searchNamespace: platform-observability
   alertmanager:
     alertmanagerSpec:
       storage:
@@ -246,7 +246,7 @@ loki:
   backend:
     replicas: 0
   gateway:
-    enabled: false
+    enabled: true
   extraArgs:
     - -config.expand-env=true
   extraEnv:
