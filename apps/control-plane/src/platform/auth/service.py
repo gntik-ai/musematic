@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+import ipaddress
 import json
 import secrets
 from datetime import UTC, datetime, timedelta
 from platform.auth.events import (
+    ApiKeyCreatedPayload,
+    ApiKeyRevokedPayload,
     ApiKeyRotatedPayload,
     MfaEnrolledPayload,
     SessionRevokedPayload,
+    SessionsRevokedAllOthersPayload,
     UserAuthenticatedPayload,
     publish_auth_event,
 )
@@ -297,6 +301,79 @@ class AuthService:
     async def logout_all(self, user_id: UUID) -> int:
         return await self.session_store.delete_all_sessions(user_id)
 
+    async def list_user_sessions(
+        self,
+        user_id: UUID,
+        current_session_id: UUID | None = None,
+    ) -> list[dict[str, Any]]:
+        sessions = await self.session_store.list_sessions_by_user(user_id)
+        sanitized: list[dict[str, Any]] = []
+        for session in sessions:
+            session_id = UUID(str(session["session_id"]))
+            sanitized.append(
+                {
+                    "session_id": session_id,
+                    "device_info": session.get("device_info"),
+                    "ip_address": session.get("ip_address"),
+                    "location": self._city_level_location(str(session.get("ip_address") or "")),
+                    "created_at": session.get("created_at"),
+                    "last_activity": session.get("last_activity"),
+                    "is_current": (
+                        current_session_id is not None and session_id == current_session_id
+                    ),
+                }
+            )
+        return sanitized
+
+    async def revoke_session_by_id(
+        self,
+        user_id: UUID,
+        session_id: UUID,
+        current_session_id: UUID,
+        *,
+        correlation_id: UUID | None = None,
+    ) -> None:
+        if session_id == current_session_id:
+            raise ValueError("cannot revoke current session")
+        await self.session_store.delete_session(user_id, session_id)
+        await publish_auth_event(
+            "auth.session.revoked",
+            SessionRevokedPayload(
+                user_id=user_id,
+                session_id=session_id,
+                reason="self_service",
+            ),
+            correlation_id or uuid4(),
+            self.producer,
+        )
+
+    async def revoke_other_sessions(
+        self,
+        user_id: UUID,
+        current_session_id: UUID,
+        *,
+        correlation_id: UUID | None = None,
+    ) -> int:
+        sessions = await self.session_store.list_sessions_by_user(user_id)
+        revoked = 0
+        for session in sessions:
+            session_id = UUID(str(session["session_id"]))
+            if session_id == current_session_id:
+                continue
+            await self.session_store.delete_session(user_id, session_id)
+            revoked += 1
+        await publish_auth_event(
+            "auth.session.revoked_all_others",
+            SessionsRevokedAllOthersPayload(
+                user_id=user_id,
+                current_session_id=current_session_id,
+                sessions_revoked=revoked,
+            ),
+            correlation_id or uuid4(),
+            self.producer,
+        )
+        return revoked
+
     async def verify_mfa(self, mfa_token: str, totp_code: str) -> TokenPair:
         pending = await self._get_pending_mfa_token(mfa_token)
         if pending is None:
@@ -512,6 +589,67 @@ class AuthService:
             role=credential.role,
         )
 
+    async def create_for_current_user(
+        self,
+        user_id: UUID,
+        name: str,
+        scopes: list[str] | None = None,
+        expiry: datetime | None = None,
+        mfa_token: str | None = None,
+    ) -> ServiceAccountCreateResponse:
+        del scopes, expiry
+        enrollment = await self.repository.get_mfa_enrollment(user_id)
+        if enrollment is not None and enrollment.status == MfaStatus.ACTIVE.value:
+            if not mfa_token:
+                raise InvalidMfaTokenError()
+            secret = decrypt_secret(enrollment.encrypted_secret, self.settings.mfa_encryption_key)
+            if not verify_totp_code(secret, mfa_token.strip()):
+                raise InvalidMfaCodeError()
+
+        active_count = await self.repository.count_active_service_accounts_for_user(user_id)
+        if active_count >= 10:
+            raise ValueError("maximum personal API key count reached")
+
+        service_account_id = uuid4()
+        raw_key = f"msk_{secrets.token_urlsafe(40)}"
+        credential = await self.repository.create_service_account_credential(
+            sa_id=service_account_id,
+            name=name,
+            key_hash=hash_password(raw_key),
+            role="service_account",
+            workspace_id=None,
+            created_by_user_id=user_id,
+        )
+        await publish_auth_event(
+            "auth.api_key.created",
+            ApiKeyCreatedPayload(
+                user_id=user_id,
+                service_account_id=credential.service_account_id,
+            ),
+            uuid4(),
+            self.producer,
+        )
+        return ServiceAccountCreateResponse(
+            service_account_id=credential.service_account_id,
+            name=credential.name,
+            api_key=raw_key,
+            role=credential.role,
+        )
+
+    async def list_for_current_user(self, user_id: UUID) -> list[Any]:
+        return await self.repository.list_service_accounts_for_user(user_id)
+
+    async def revoke_for_current_user(self, user_id: UUID, sa_id: UUID) -> None:
+        revoked = await self.repository.revoke_service_account_for_user(user_id, sa_id)
+        if not revoked:
+            raise NotFoundError("SERVICE_ACCOUNT_NOT_FOUND", "Service account not found")
+        await publish_auth_event(
+            "auth.api_key.revoked",
+            ApiKeyRevokedPayload(user_id=user_id, service_account_id=sa_id),
+            uuid4(),
+            self.producer,
+        )
+
     async def verify_api_key(self, raw_key: str) -> Any | None:
         for credential in await self.repository.get_active_service_accounts():
             if verify_password(raw_key, credential.api_key_hash):
@@ -564,6 +702,18 @@ class AuthService:
 
     async def reset_mfa(self, user_id: UUID) -> bool:
         return await self.repository.disable_mfa_enrollment(user_id)
+
+    @staticmethod
+    def _city_level_location(ip_address: str) -> str | None:
+        try:
+            parsed = ipaddress.ip_address(ip_address)
+        except ValueError:
+            return None
+        if parsed.is_loopback:
+            return "Localhost"
+        if parsed.is_private:
+            return "Private network"
+        return None
 
     async def initiate_password_reset(
         self,

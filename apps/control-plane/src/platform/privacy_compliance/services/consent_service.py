@@ -84,6 +84,17 @@ class ConsentService:
         )
         return record
 
+    async def list_for_user(self, user_id: UUID) -> list[PrivacyConsentRecord]:
+        return await self.repository.get_consent_records(user_id)
+
+    async def list_history_for_user(self, user_id: UUID) -> list[PrivacyConsentRecord]:
+        records = await self.repository.get_consent_records(user_id)
+        return sorted(
+            records,
+            key=lambda record: record.revoked_at or record.granted_at,
+            reverse=True,
+        )
+
     async def history(self, user_id: UUID) -> list[PrivacyConsentRecord]:
         return await self.repository.get_consent_records(user_id)
 

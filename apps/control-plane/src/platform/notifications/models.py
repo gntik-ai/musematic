@@ -77,6 +77,19 @@ class UserAlertSettings(Base, UUIDMixin, TimestampMixin):
         server_default=text("'in_app'"),
     )
     webhook_url: Mapped[str | None] = mapped_column(String(length=512), nullable=True)
+    per_channel_preferences: Mapped[dict[str, list[str]]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
+    digest_mode: Mapped[dict[str, str]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
+    quiet_hours: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
 
 class UserAlert(Base, UUIDMixin, TimestampMixin):

@@ -175,6 +175,7 @@ from platform.marketplace.repository import MarketplaceRepository
 from platform.marketplace.router import router as marketplace_router
 from platform.mcp.events import register_mcp_event_types
 from platform.mcp.router import router as mcp_router
+from platform.me.router import router as me_router
 from platform.memory.consolidation_worker import ConsolidationWorker, SessionMemoryCleaner
 from platform.memory.dependencies import build_memory_service
 from platform.memory.embedding_worker import EmbeddingWorker
@@ -1620,6 +1621,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(marketplace_router)
         app.include_router(interactions_router)
         app.include_router(notifications_router, prefix="/api/v1")
+        app.include_router(me_router, prefix="/api/v1")
         app.include_router(notifications_webhooks_router, prefix="/api/v1")
         app.include_router(notifications_deadletter_router, prefix="/api/v1")
         app.include_router(governance_router, prefix="/api/v1")

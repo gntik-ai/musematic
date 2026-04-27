@@ -146,6 +146,26 @@ class AuditChainService:
     ) -> list[AuditChainEntry]:
         return await self.repository.list_audit_sources_in_window(start_ts, end_ts, sources)
 
+    async def list_entries_by_actor_or_subject(
+        self,
+        actor_id: UUID | None,
+        subject_id: UUID | None,
+        start_ts: datetime | None,
+        end_ts: datetime | None,
+        limit: int,
+        cursor: str | None,
+        event_type: str | None = None,
+    ) -> tuple[list[AuditChainEntry], str | None]:
+        return await self.repository.list_entries_by_actor_or_subject(
+            actor_id=actor_id,
+            subject_id=subject_id,
+            start_ts=start_ts,
+            end_ts=end_ts,
+            event_type=event_type,
+            limit=limit,
+            cursor=cursor,
+        )
+
     async def export_attestation(self, start_seq: int, end_seq: int) -> SignedAttestation:
         verification = await self.verify(start_seq, end_seq)
         if not verification.valid:

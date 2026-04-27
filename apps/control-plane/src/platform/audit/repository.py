@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import base64
+import binascii
+import json
 from datetime import datetime
 from platform.audit.models import AuditChainEntry
 from uuid import UUID
 
-from sqlalchemy import Select, func, select, update
+from sqlalchemy import Select, and_, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 AUDIT_CHAIN_APPEND_LOCK_ID = 740_740_001
@@ -92,6 +95,71 @@ class AuditChainRepository:
         )
         return list(result.scalars().all())
 
+    async def list_entries_by_actor_or_subject(
+        self,
+        *,
+        actor_id: UUID | None,
+        subject_id: UUID | None,
+        start_ts: datetime | None,
+        end_ts: datetime | None,
+        event_type: str | None,
+        limit: int,
+        cursor: str | None,
+    ) -> tuple[list[AuditChainEntry], str | None]:
+        statement = select(AuditChainEntry)
+        predicates = []
+        if actor_id is not None:
+            actor_value = str(actor_id)
+            predicates.append(
+                AuditChainEntry.canonical_payload["actor_id"].as_string() == actor_value
+            )
+            predicates.append(
+                AuditChainEntry.canonical_payload["requested_by"].as_string() == actor_value
+            )
+        if subject_id is not None:
+            subject_value = str(subject_id)
+            predicates.append(
+                AuditChainEntry.canonical_payload["subject_id"].as_string() == subject_value
+            )
+            predicates.append(
+                AuditChainEntry.canonical_payload["user_id"].as_string() == subject_value
+            )
+            predicates.append(
+                AuditChainEntry.canonical_payload["subject_user_id"].as_string() == subject_value
+            )
+        if predicates:
+            statement = statement.where(or_(*predicates))
+        if start_ts is not None:
+            statement = statement.where(AuditChainEntry.created_at >= start_ts)
+        if end_ts is not None:
+            statement = statement.where(AuditChainEntry.created_at <= end_ts)
+        if event_type is not None:
+            statement = statement.where(AuditChainEntry.event_type == event_type)
+
+        cursor_created_at, cursor_id = _decode_cursor(cursor)
+        if cursor_created_at is not None and cursor_id is not None:
+            statement = statement.where(
+                or_(
+                    AuditChainEntry.created_at < cursor_created_at,
+                    and_(
+                        AuditChainEntry.created_at == cursor_created_at,
+                        AuditChainEntry.id < cursor_id,
+                    ),
+                )
+            )
+
+        result = await self.session.execute(
+            statement.order_by(AuditChainEntry.created_at.desc(), AuditChainEntry.id.desc()).limit(
+                limit + 1
+            )
+        )
+        entries = list(result.scalars().all())
+        next_cursor = None
+        if len(entries) > limit:
+            entries = entries[:limit]
+            next_cursor = _encode_cursor(entries[-1])
+        return entries, next_cursor
+
     async def get_by_sequence(self, sequence_number: int) -> AuditChainEntry | None:
         result = await self.session.execute(
             select(AuditChainEntry).where(AuditChainEntry.sequence_number == sequence_number)
@@ -113,3 +181,20 @@ class AuditChainRepository:
 
     async def delete(self, *_args: object, **_kwargs: object) -> None:
         raise NotImplementedError("audit_chain_entries is append-only")
+
+
+def _encode_cursor(entry: AuditChainEntry) -> str:
+    payload = {"created_at": entry.created_at.isoformat(), "id": str(entry.id)}
+    return base64.urlsafe_b64encode(json.dumps(payload).encode("utf-8")).decode("ascii")
+
+
+def _decode_cursor(cursor: str | None) -> tuple[datetime | None, UUID | None]:
+    if cursor is None:
+        return None, None
+    try:
+        payload = json.loads(base64.urlsafe_b64decode(cursor.encode("ascii")).decode("utf-8"))
+        if not isinstance(payload, dict):
+            return None, None
+        return datetime.fromisoformat(str(payload["created_at"])), UUID(str(payload["id"]))
+    except (KeyError, ValueError, TypeError, json.JSONDecodeError, binascii.Error):
+        return None, None

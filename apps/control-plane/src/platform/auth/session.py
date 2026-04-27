@@ -58,6 +58,23 @@ class RedisSessionStore:
             "refresh_jti": raw["refresh_jti"],
         }
 
+    async def list_sessions_by_user(self, user_id: UUID) -> list[dict[str, Any]]:
+        client = await self.redis_client._get_client()
+        raw_session_ids = await cast(Any, client.smembers(self._user_sessions_key(user_id)))
+        sessions: list[dict[str, Any]] = []
+        for raw_session_id in raw_session_ids:
+            session_id = UUID(self._decode_redis_value(raw_session_id))
+            session = await self.get_session(user_id, session_id)
+            if session is None:
+                await cast(Any, client.srem(self._user_sessions_key(user_id), str(session_id)))
+                continue
+            sessions.append({"session_id": str(session_id), **session})
+        return sorted(
+            sessions,
+            key=lambda session: str(session.get("last_activity") or ""),
+            reverse=True,
+        )
+
     async def delete_session(self, user_id: UUID, session_id: UUID) -> None:
         client = await self.redis_client._get_client()
         await client.delete(self._session_key(user_id, session_id))
@@ -84,3 +101,9 @@ class RedisSessionStore:
     @staticmethod
     def _user_sessions_key(user_id: UUID) -> str:
         return f"user_sessions:{user_id}"
+
+    @staticmethod
+    def _decode_redis_value(value: Any) -> str:
+        if isinstance(value, bytes):
+            return value.decode()
+        return str(value)

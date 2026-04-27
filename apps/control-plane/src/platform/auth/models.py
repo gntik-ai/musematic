@@ -127,6 +127,12 @@ class ServiceAccountCredential(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin)
         nullable=True,
         index=True,
     )
+    created_by_user_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
 
 class UserRole(Base, UUIDMixin, TimestampMixin):

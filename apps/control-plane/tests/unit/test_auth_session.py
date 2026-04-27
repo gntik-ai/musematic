@@ -61,6 +61,52 @@ async def test_delete_session_updates_index(auth_settings) -> None:
 
 
 @pytest.mark.asyncio
+async def test_list_sessions_by_user_sorts_sessions_and_prunes_stale_index(auth_settings) -> None:
+    redis_client = FakeAsyncRedisClient()
+    store = RedisSessionStore(redis_client, auth_settings.auth)
+    user_id = uuid4()
+    old_session_id = uuid4()
+    new_session_id = uuid4()
+
+    await store.create_session(
+        user_id=user_id,
+        session_id=old_session_id,
+        email="user@example.com",
+        roles=[],
+        ip="127.0.0.1",
+        device="old",
+        refresh_jti="old-refresh",
+    )
+    await store.create_session(
+        user_id=user_id,
+        session_id=new_session_id,
+        email="user@example.com",
+        roles=[],
+        ip="127.0.0.1",
+        device="new",
+        refresh_jti="new-refresh",
+    )
+    client = await redis_client._get_client()
+    client.hashes[f"session:{user_id}:{old_session_id}"]["last_activity"] = (
+        "2026-01-01T00:00:00+00:00"
+    )
+    client.hashes[f"session:{user_id}:{new_session_id}"]["last_activity"] = (
+        "2026-01-02T00:00:00+00:00"
+    )
+    stale_session_id = uuid4()
+    await client.sadd(f"user_sessions:{user_id}", str(stale_session_id))
+
+    sessions = await store.list_sessions_by_user(user_id)
+
+    assert [session["session_id"] for session in sessions] == [
+        str(new_session_id),
+        str(old_session_id),
+    ]
+    assert str(stale_session_id) not in await client.smembers(f"user_sessions:{user_id}")
+    assert RedisSessionStore._decode_redis_value(b"redis-value") == "redis-value"
+
+
+@pytest.mark.asyncio
 async def test_delete_all_sessions_returns_deleted_count(auth_settings) -> None:
     redis_client = FakeAsyncRedisClient()
     store = RedisSessionStore(redis_client, auth_settings.auth)
