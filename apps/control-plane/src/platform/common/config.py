@@ -291,6 +291,19 @@ class IncidentResponseSettings(BaseSettings):
     )
 
 
+class LocalizationSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="LOCALIZATION_", extra="ignore")
+
+    localization_locale_lru_size: int = 12
+    localization_drift_threshold_days: int = 7
+    localization_default_locale: str = "en"
+    localization_supported_locales: list[str] = Field(
+        default_factory=lambda: ["en", "es", "fr", "de", "ja", "zh-CN"]
+    )
+    localization_translation_vendor: str = "lokalise"
+    localization_default_data_export_format: str = "json"
+
+
 class VisibilitySettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="VISIBILITY_", extra="ignore")
 
@@ -812,6 +825,7 @@ class PlatformSettings(BaseSettings):
     multi_region_ops: MultiRegionOpsSettings = Field(default_factory=MultiRegionOpsSettings)
     tagging: TaggingSettings = Field(default_factory=TaggingSettings)
     incident_response: IncidentResponseSettings = Field(default_factory=IncidentResponseSettings)
+    localization: LocalizationSettings = Field(default_factory=LocalizationSettings)
     visibility: VisibilitySettings = Field(default_factory=VisibilitySettings)
     privacy_compliance: PrivacyComplianceSettings = Field(default_factory=PrivacyComplianceSettings)
     api_governance: ApiGovernanceSettings = Field(default_factory=ApiGovernanceSettings)
@@ -1099,6 +1113,30 @@ class PlatformSettings(BaseSettings):
             "INCIDENT_RESPONSE_TIMELINE_KAFKA_TOPICS": (
                 "incident_response",
                 "timeline_kafka_topics",
+            ),
+            "LOCALIZATION_LOCALE_LRU_SIZE": (
+                "localization",
+                "localization_locale_lru_size",
+            ),
+            "LOCALIZATION_DRIFT_THRESHOLD_DAYS": (
+                "localization",
+                "localization_drift_threshold_days",
+            ),
+            "LOCALIZATION_DEFAULT_LOCALE": (
+                "localization",
+                "localization_default_locale",
+            ),
+            "LOCALIZATION_SUPPORTED_LOCALES": (
+                "localization",
+                "localization_supported_locales",
+            ),
+            "LOCALIZATION_TRANSLATION_VENDOR": (
+                "localization",
+                "localization_translation_vendor",
+            ),
+            "LOCALIZATION_DEFAULT_DATA_EXPORT_FORMAT": (
+                "localization",
+                "localization_default_data_export_format",
             ),
             "VISIBILITY_ZERO_TRUST_ENABLED": ("visibility", "zero_trust_enabled"),
             "FEATURE_PRIVACY_DSR_ENABLED": ("privacy_compliance", "dsr_enabled"),

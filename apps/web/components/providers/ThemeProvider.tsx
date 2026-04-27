@@ -10,6 +10,8 @@ export function ThemeProvider({ children }: PropsWithChildren) {
       defaultTheme="system"
       disableTransitionOnChange
       enableSystem
+      storageKey="musematic-theme"
+      themes={["light", "dark", "system", "high_contrast"]}
     >
       {children}
     </NextThemesProvider>

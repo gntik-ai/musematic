@@ -27,9 +27,9 @@ export function useAppQuery<TData>(
   });
 }
 
-export function useAppMutation<TData, TVariables>(
+export function useAppMutation<TData, TVariables, TContext = unknown>(
   mutationFn: (variables: TVariables) => Promise<TData>,
-  options?: UseMutationOptions<TData, Error, TVariables> & {
+  options?: UseMutationOptions<TData, Error, TVariables, TContext> & {
     invalidateKeys?: QueryKey[];
   },
 ) {
