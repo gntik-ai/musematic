@@ -6,6 +6,7 @@ from platform.auth.dependencies_oauth import get_oauth_service, rate_limit_callb
 from platform.auth.schemas import (
     OAuthAuditEntryListResponse,
     OAuthAuthorizeResponse,
+    OAuthConnectivityTestResponse,
     OAuthLinkListResponse,
     OAuthProviderAdminListResponse,
     OAuthProviderAdminResponse,
@@ -34,11 +35,11 @@ def _require_platform_admin(current_user: dict[str, Any]) -> None:
     raise AuthorizationError("PERMISSION_DENIED", "Platform admin role required")
 
 
-def _frontend_login_redirect(request: Request) -> str:
+def _frontend_oauth_callback_redirect(request: Request, provider: str) -> str:
     origin = request.headers.get("Origin")
     if origin:
-        return f"{origin.rstrip('/')}/login"
-    return "/login"
+        return f"{origin.rstrip('/')}/auth/oauth/{provider}/callback"
+    return f"/auth/oauth/{provider}/callback"
 
 
 def _frontend_profile_redirect(request: Request) -> str:
@@ -123,12 +124,15 @@ async def oauth_callback(
     del _rate_limit
     if error is not None:
         return RedirectResponse(
-            url=f"{_frontend_login_redirect(request)}?error={error}",
+            url=f"{_frontend_oauth_callback_redirect(request, provider)}?error={error}",
             status_code=status.HTTP_302_FOUND,
         )
     if not code or not state:
         return RedirectResponse(
-            url=f"{_frontend_login_redirect(request)}?error=invalid_oauth_callback",
+            url=(
+                f"{_frontend_oauth_callback_redirect(request, provider)}"
+                "?error=invalid_oauth_callback"
+            ),
             status_code=status.HTTP_302_FOUND,
         )
     try:
@@ -141,7 +145,7 @@ async def oauth_callback(
         )
     except PlatformError as exc:
         return RedirectResponse(
-            url=f"{_frontend_login_redirect(request)}?error={exc.code.lower()}",
+            url=f"{_frontend_oauth_callback_redirect(request, provider)}?error={exc.code.lower()}",
             status_code=status.HTTP_302_FOUND,
         )
     if result.get("linked"):
@@ -151,7 +155,7 @@ async def oauth_callback(
         )
     fragment = _oauth_session_fragment(result)
     response = RedirectResponse(
-        url=f"{_frontend_login_redirect(request)}#oauth_session={fragment}",
+        url=f"{_frontend_oauth_callback_redirect(request, provider)}#oauth_session={fragment}",
         status_code=status.HTTP_302_FOUND,
     )
     token_pair = result.get("token_pair")
@@ -210,6 +214,38 @@ async def upsert_oauth_provider(
     if created:
         response.status_code = status.HTTP_201_CREATED
     return provider_response
+
+
+@oauth_router.post(
+    "/api/v1/admin/oauth-providers/{provider}/test-connectivity",
+    response_model=OAuthConnectivityTestResponse,
+    tags=["admin"],
+)
+@oauth_router.post(
+    "/api/v1/admin/oauth/providers/{provider}/test-connectivity",
+    response_model=OAuthConnectivityTestResponse,
+    tags=["admin"],
+    include_in_schema=False,
+)
+async def probe_oauth_provider_connectivity(
+    provider: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    oauth_service: OAuthService = Depends(get_oauth_service),
+) -> OAuthConnectivityTestResponse:
+    _require_platform_admin(current_user)
+    try:
+        response = await oauth_service.get_authorization_url(provider, dry_run=True)
+    except PlatformError as exc:
+        return OAuthConnectivityTestResponse(
+            reachable=False,
+            auth_url_returned=False,
+            diagnostic=exc.message,
+        )
+    return OAuthConnectivityTestResponse(
+        reachable=True,
+        auth_url_returned=bool(response.redirect_url),
+        diagnostic="authorization_url_generated",
+    )
 
 
 @oauth_router.get(

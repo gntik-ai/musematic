@@ -11,7 +11,7 @@ import type {
   OAuthProviderUpsertRequest,
 } from "@/lib/types/oauth";
 import type { ApiError } from "@/types/api";
-import type { AuthSession, RoleType, UserProfile } from "@/types/auth";
+import type { AccountStatus, AuthSession, RoleType, UserProfile } from "@/types/auth";
 
 const authApi = createApiClient(
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000",
@@ -25,6 +25,8 @@ export interface AuthUserResponse {
   roles: RoleType[];
   workspace_id: string | null;
   mfa_enrolled: boolean;
+  status?: AccountStatus;
+  has_local_password?: boolean;
 }
 
 export interface LoginRequest {
@@ -114,6 +116,40 @@ export type OAuthCallbackResponse =
   | OAuthCallbackSuccessResponse
   | OAuthCallbackMfaResponse;
 
+export interface RegisterRequest {
+  email: string;
+  display_name: string;
+  password: string;
+}
+
+export interface RegisterResponse {
+  message: string;
+}
+
+export interface VerifyEmailResponse {
+  user_id: string;
+  status: AccountStatus;
+}
+
+export interface ResendVerificationResponse {
+  message: string;
+}
+
+export interface ProfileUpdateRequest {
+  locale?: string;
+  timezone?: string;
+  display_name?: string;
+}
+
+export interface ProfileUpdateResponse {
+  user_id: string;
+  email: string;
+  display_name: string;
+  status: AccountStatus;
+  locale: string | null;
+  timezone: string | null;
+}
+
 export async function login(request: LoginRequest): Promise<LoginResponse> {
   return authApi.post<LoginResponse>("/api/v1/auth/login", request, {
     skipAuth: true,
@@ -199,6 +235,51 @@ export async function unlinkOAuthProvider(
   return authApi.delete<void>(`/api/v1/auth/oauth/${providerType}/link`);
 }
 
+export async function register(payload: RegisterRequest): Promise<RegisterResponse> {
+  return authApi.post<RegisterResponse>("/api/v1/accounts/register", payload, {
+    skipAuth: true,
+    skipRetry: true,
+  });
+}
+
+export async function verifyEmail(token: string): Promise<VerifyEmailResponse> {
+  return authApi.post<VerifyEmailResponse>(
+    "/api/v1/accounts/verify-email",
+    { token },
+    {
+      skipAuth: true,
+      skipRetry: true,
+    },
+  );
+}
+
+export async function resendVerification(
+  email: string,
+): Promise<ResendVerificationResponse> {
+  return authApi.post<ResendVerificationResponse>(
+    "/api/v1/accounts/resend-verification",
+    { email },
+    {
+      skipAuth: true,
+      skipRetry: true,
+    },
+  );
+}
+
+export async function getCurrentAccount(): Promise<ProfileUpdateResponse> {
+  return authApi.get<ProfileUpdateResponse>("/api/v1/accounts/me", {
+    skipRetry: true,
+  });
+}
+
+export async function updateProfile(
+  payload: ProfileUpdateRequest,
+): Promise<ProfileUpdateResponse> {
+  return authApi.patch<ProfileUpdateResponse>("/api/v1/accounts/me", payload, {
+    skipRetry: true,
+  });
+}
+
 export async function listAdminOAuthProviders(): Promise<OAuthProviderAdminListResponse> {
   return authApi.get<OAuthProviderAdminListResponse>("/api/v1/admin/oauth/providers");
 }
@@ -234,6 +315,8 @@ export function toUserProfile(user: AuthUserResponse): UserProfile {
     roles: user.roles,
     workspaceId: user.workspace_id,
     mfaEnrolled: user.mfa_enrolled,
+    status: user.status ?? "active",
+    hasLocalPassword: user.has_local_password ?? true,
   };
 }
 

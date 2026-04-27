@@ -43,6 +43,16 @@ class RateLimitError(AccountsError):
         )
 
 
+class ProfileCompletionNotAllowedError(AccountsError):
+    status_code = 403
+
+    def __init__(self) -> None:
+        super().__init__(
+            "profile_completion_not_allowed",
+            "Profile completion is only available for users pending profile completion",
+        )
+
+
 class InvitationError(AccountsError):
     pass
 

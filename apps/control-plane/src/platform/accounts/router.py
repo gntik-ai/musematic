@@ -13,6 +13,8 @@ from platform.accounts.schemas import (
     InvitationResponse,
     PaginatedInvitationsResponse,
     PendingApprovalsResponse,
+    ProfileUpdateRequest,
+    ProfileUpdateResponse,
     ReactivateUserRequest,
     RegisterRequest,
     RegisterResponse,
@@ -80,6 +82,23 @@ async def resend_verification(
     accounts_service: AccountsService = Depends(get_accounts_service),
 ) -> ResendVerificationResponse:
     return await accounts_service.resend_verification(payload)
+
+
+@router.patch("/me", response_model=ProfileUpdateResponse, status_code=200)
+async def update_my_profile(
+    payload: ProfileUpdateRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    accounts_service: AccountsService = Depends(get_accounts_service),
+) -> ProfileUpdateResponse:
+    return await accounts_service.update_profile(UUID(str(current_user["sub"])), payload)
+
+
+@router.get("/me", response_model=ProfileUpdateResponse)
+async def get_my_profile(
+    current_user: dict[str, Any] = Depends(get_current_user),
+    accounts_service: AccountsService = Depends(get_accounts_service),
+) -> ProfileUpdateResponse:
+    return await accounts_service.get_profile(UUID(str(current_user["sub"])))
 
 
 @router.get("/pending-approvals", response_model=PendingApprovalsResponse)

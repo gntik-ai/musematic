@@ -7,6 +7,10 @@ import {
   enrollMfa,
   login,
   requestPasswordReset,
+  resendVerification,
+  register,
+  updateProfile,
+  verifyEmail,
   verifyMfa,
   type LoginRequest,
   type LoginResponse,
@@ -18,6 +22,12 @@ import {
   type PasswordResetCompleteRequest,
   type PasswordResetCompleteResponse,
   type PasswordResetRequestBody,
+  type ProfileUpdateRequest,
+  type ProfileUpdateResponse,
+  type RegisterRequest,
+  type RegisterResponse,
+  type ResendVerificationResponse,
+  type VerifyEmailResponse,
 } from "@/lib/api/auth";
 import type { ApiError } from "@/types/api";
 
@@ -48,6 +58,46 @@ export function useForgotPasswordMutation(): UseMutationResult<
 > {
   return useMutation({
     mutationFn: requestPasswordReset,
+  });
+}
+
+export function useRegisterMutation(): UseMutationResult<
+  RegisterResponse,
+  ApiError,
+  RegisterRequest
+> {
+  return useMutation({
+    mutationFn: register,
+  });
+}
+
+export function useVerifyEmailMutation(): UseMutationResult<
+  VerifyEmailResponse,
+  ApiError,
+  string
+> {
+  return useMutation({
+    mutationFn: verifyEmail,
+  });
+}
+
+export function useResendVerificationMutation(): UseMutationResult<
+  ResendVerificationResponse,
+  ApiError,
+  string
+> {
+  return useMutation({
+    mutationFn: resendVerification,
+  });
+}
+
+export function useUpdateProfileMutation(): UseMutationResult<
+  ProfileUpdateResponse,
+  ApiError,
+  ProfileUpdateRequest
+> {
+  return useMutation({
+    mutationFn: updateProfile,
   });
 }
 

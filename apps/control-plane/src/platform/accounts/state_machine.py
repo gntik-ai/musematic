@@ -12,6 +12,9 @@ VALID_TRANSITIONS: dict[UserStatus, set[UserStatus]] = {
         UserStatus.active,
         UserStatus.archived,
     },
+    UserStatus.pending_profile_completion: {
+        UserStatus.active,
+    },
     UserStatus.active: {
         UserStatus.suspended,
         UserStatus.blocked,

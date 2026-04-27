@@ -57,6 +57,25 @@ export const resetPasswordSchema = z
     path: ["confirmPassword"],
   });
 
+export const signupSchema = z
+  .object({
+    email: z.string().email("Enter a valid email address"),
+    displayName: z.string().min(2, "Display name is required").max(100),
+    password: passwordSchema,
+    aiDisclosureAccepted: z
+      .boolean()
+      .refine((value) => value, "AI disclosure consent is required"),
+    termsAccepted: z
+      .boolean()
+      .refine((value) => value, "Terms acceptance is required"),
+  });
+
+export const profileCompletionSchema = z.object({
+  displayName: z.string().min(2, "Display name is required").max(100),
+  locale: z.enum(["en", "es", "fr", "de", "ja", "zh-CN"]),
+  timezone: z.string().min(1, "Timezone is required").max(64),
+});
+
 export const mfaCodeSchema = z.object({
   code: z.string().regex(/^\d{6}$/, "Enter a 6-digit code"),
   useRecoveryCode: z.literal(false).default(false),
@@ -87,6 +106,8 @@ export function evaluatePasswordRules(password: string): Array<{
 export type LoginFormValues = z.infer<typeof loginSchema>;
 export type ForgotPasswordFormValues = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordFormValues = z.infer<typeof resetPasswordSchema>;
+export type SignupFormValues = z.infer<typeof signupSchema>;
+export type ProfileCompletionFormValues = z.infer<typeof profileCompletionSchema>;
 export type MfaCodeFormValues = z.infer<typeof mfaCodeSchema>;
 export type RecoveryCodeFormValues = z.infer<typeof recoveryCodeSchema>;
 export type MfaInputFormValues = z.infer<typeof mfaInputSchema>;

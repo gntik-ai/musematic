@@ -14,6 +14,7 @@ import {
   useOAuthProviders,
   useOAuthUnlinkMutation,
 } from "@/lib/hooks/use-oauth";
+import { useAuthStore } from "@/store/auth-store";
 import type { OAuthLinkResponse, OAuthProviderType } from "@/lib/types/oauth";
 
 function formatTimestamp(value: string | null): string {
@@ -29,14 +30,17 @@ function formatTimestamp(value: string | null): string {
 
 function LinkedAccountCard({
   link,
+  disabledReason,
   onUnlink,
   pendingProvider,
 }: {
   link: OAuthLinkResponse;
+  disabledReason: string | null;
   onUnlink: (providerType: OAuthProviderType) => void;
   pendingProvider: OAuthProviderType | null;
 }) {
   const isPending = pendingProvider === link.provider_type;
+  const unlinkDisabled = pendingProvider !== null || disabledReason !== null;
 
   return (
     <div className="rounded-2xl border border-border/70 bg-muted/30 p-4">
@@ -53,7 +57,8 @@ function LinkedAccountCard({
           </div>
         </div>
         <Button
-          disabled={pendingProvider !== null}
+          disabled={unlinkDisabled}
+          title={disabledReason ?? undefined}
           type="button"
           variant="outline"
           onClick={() => onUnlink(link.provider_type)}
@@ -67,6 +72,7 @@ function LinkedAccountCard({
 }
 
 export function ConnectedAccountsSection() {
+  const hasLocalPassword = useAuthStore((state) => state.user?.hasLocalPassword ?? true);
   const linksQuery = useOAuthLinks();
   const providersQuery = useOAuthProviders();
   const linkMutation = useOAuthLinkMutation();
@@ -83,6 +89,10 @@ export function ConnectedAccountsSection() {
       (provider) => !linked.has(provider.provider_type),
     );
   }, [links, providersQuery.data?.providers]);
+  const unlinkDisabledReason =
+    links.length === 1 && !hasLocalPassword
+      ? "You must keep at least one authentication method. Set a local password or link another provider first."
+      : null;
 
   return (
     <Card>
@@ -111,6 +121,7 @@ export function ConnectedAccountsSection() {
               {links.map((link) => (
                 <LinkedAccountCard
                   key={link.provider_type}
+                  disabledReason={unlinkDisabledReason}
                   link={link}
                   pendingProvider={pendingProvider}
                   onUnlink={(providerType) => {
@@ -186,6 +197,7 @@ export function ConnectedAccountsSection() {
           open={confirmProvider !== null}
           title="Unlink OAuth provider"
           variant="destructive"
+          {...(confirmProvider ? { requireTypedConfirmation: confirmProvider } : {})}
           onConfirm={async () => {
             if (!confirmProvider) {
               return;

@@ -18,6 +18,15 @@ export type RoleType =
   | "agent"
   | "service_account";
 
+export type AccountStatus =
+  | "pending_verification"
+  | "pending_approval"
+  | "pending_profile_completion"
+  | "active"
+  | "suspended"
+  | "blocked"
+  | "archived";
+
 export interface UserProfile {
   id: string;
   email: string;
@@ -26,6 +35,8 @@ export interface UserProfile {
   roles: RoleType[];
   workspaceId: string | null;
   mfaEnrolled: boolean;
+  status?: AccountStatus;
+  hasLocalPassword?: boolean;
 }
 
 export interface AuthState {
