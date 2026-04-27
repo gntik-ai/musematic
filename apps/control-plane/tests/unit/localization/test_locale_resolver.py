@@ -60,3 +60,14 @@ async def test_locale_resolver_defaults_when_no_supported_candidate() -> None:
     assert locale == "en"
     assert source == "default"
 
+
+def test_locale_resolver_matches_case_primary_and_accept_language_edges() -> None:
+    resolver = LocaleResolver()
+
+    assert resolver._match("   ") is None
+    assert resolver._match("ZH_cn") == "zh-CN"
+    assert resolver._match("fr-CA") == "fr"
+    assert resolver._parse_accept_language(None) == []
+    assert resolver._parse_accept_language(
+        " , fr;level=regional;q=0.3, de;q=bad, *;q=1, en;q=0"
+    ) == ["fr"]

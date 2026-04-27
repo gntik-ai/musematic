@@ -1,5 +1,6 @@
 import { LogEventSchema } from "@/lib/logging";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 const WINDOW_MS = 60_000;
 const MAX_EVENTS_PER_WINDOW = 60;

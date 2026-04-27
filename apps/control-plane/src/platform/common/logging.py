@@ -226,7 +226,7 @@ def _user_id_from_authorization(header: str | None) -> str | None:
     if not token:
         return None
     try:
-        payload = jwt.decode(token, options={"verify_signature": False})
+        payload: Any = jwt.decode(token, options={"verify_signature": False})
     except jwt.PyJWTError:
         return None
     if not isinstance(payload, Mapping):
