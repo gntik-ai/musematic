@@ -11601,7 +11601,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/accounts/router.py</code><br><code>apps/control-plane/src/platform/accounts/service.py</code><br><code>apps/control-plane/src/platform/audit/router.py</code><br><code>apps/control-plane/src/platform/auth/dependencies.py</code><br><code>apps/control-plane/src/platform/auth/router.py</code><br>+17 more</td>
+<td><code>apps/control-plane/src/platform/accounts/router.py</code><br><code>apps/control-plane/src/platform/accounts/service.py</code><br><code>apps/control-plane/src/platform/audit/router.py</code><br><code>apps/control-plane/src/platform/auth/dependencies.py</code><br><code>apps/control-plane/src/platform/auth/router.py</code><br>+18 more</td>
 </tr>
 <tr>
 <td><code>PLATFORM_</code></td>
@@ -12201,7 +12201,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/connectors/models.py</code><br><code>apps/control-plane/src/platform/cost_governance/models.py</code><br><code>apps/control-plane/src/platform/evaluation/models.py</code><br><code>apps/control-plane/src/platform/execution/models.py</code></td>
+<td><code>apps/control-plane/src/platform/connectors/models.py</code><br><code>apps/control-plane/src/platform/cost_governance/models.py</code><br><code>apps/control-plane/src/platform/evaluation/models.py</code><br><code>apps/control-plane/src/platform/execution/models.py</code><br><code>apps/control-plane/src/platform/two_person_approval/models.py</code></td>
 </tr>
 <tr>
 <td><code>ROBUSTNESS_RUN_NOT_FOUND</code></td>
@@ -12892,12 +12892,68 @@
 <td><code>apps/control-plane/src/platform/trust/exceptions.py</code></td>
 </tr>
 <tr>
+<td><code>TWO_PERSON_APPROVAL_EXPIRED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/two_person_approval/service.py</code></td>
+</tr>
+<tr>
+<td><code>TWO_PERSON_APPROVAL_INITIATOR_REQUIRED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/two_person_approval/service.py</code></td>
+</tr>
+<tr>
+<td><code>TWO_PERSON_APPROVAL_NOT_APPROVED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/two_person_approval/service.py</code></td>
+</tr>
+<tr>
+<td><code>TWO_PERSON_APPROVAL_NOT_FOUND</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/two_person_approval/service.py</code></td>
+</tr>
+<tr>
+<td><code>TWO_PERSON_APPROVAL_NOT_PENDING</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/two_person_approval/service.py</code></td>
+</tr>
+<tr>
 <td><code>TWO_PERSON_APPROVAL_REQUIRED</code></td>
 <td>optional</td>
 <td>-</td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
 <td><code>apps/control-plane/src/platform/model_catalog/services/credential_service.py</code><br><code>apps/control-plane/src/platform/security_compliance/services/jit_service.py</code><br><code>apps/control-plane/src/platform/security_compliance/services/secret_rotation_service.py</code><br><code>apps/control-plane/src/platform/security_compliance/services/vuln_scan_service.py</code></td>
+</tr>
+<tr>
+<td><code>TWO_PERSON_APPROVAL_SAME_ACTOR</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/two_person_approval/service.py</code></td>
+</tr>
+<tr>
+<td><code>TWO_PERSON_APPROVAL_UNAVAILABLE</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/workspaces/service.py</code></td>
 </tr>
 <tr>
 <td><code>UNAUTHORIZED</code></td>
