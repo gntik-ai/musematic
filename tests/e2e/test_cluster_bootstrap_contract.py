@@ -83,6 +83,16 @@ def test_observability_loki_port_forward_probe_uses_gateway_supported_path() -> 
     assert 'probe_observability_http loki "http://localhost:3100/ready"' not in port_forward_section
 
 
+def test_journey_observability_helpers_use_gateway_supported_loki_probe() -> None:
+    readiness_helper = (ROOT / 'tests/e2e/journeys/helpers/observability_readiness.py').read_text()
+    log_helper = (ROOT / 'tests/e2e/journeys/helpers/assert_log_entry.py').read_text()
+
+    assert 'LOKI_READY_PATH = "/loki/api/v1/status/buildinfo"' in readiness_helper
+    assert '"loki": (_loki_url(), LOKI_READY_PATH)' in readiness_helper
+    assert 'loki_client.get(LOKI_READY_PATH)' in log_helper
+    assert 'loki_client.get("/ready")' not in log_helper
+
+
 def test_loki_alerts_require_lokirule_crd_capability() -> None:
     loki_alerts = (ROOT / 'deploy/helm/observability/templates/alerts/loki-alerts.yaml').read_text()
 

@@ -7,6 +7,9 @@ import time
 import httpx
 
 
+LOKI_READY_PATH = "/loki/api/v1/status/buildinfo"
+
+
 def _env(name: str, default: str) -> str:
     return os.environ.get(name, default)
 
@@ -46,7 +49,7 @@ async def wait_for_observability_stack_ready(timeout_seconds: int = 60) -> None:
     configured_timeout = int(os.environ.get("MUSEMATIC_E2E_OBS_READY_TIMEOUT", timeout_seconds))
     deadline = time.monotonic() + configured_timeout
     probes = {
-        "loki": (_loki_url(), "/ready"),
+        "loki": (_loki_url(), LOKI_READY_PATH),
         "prometheus": (_prom_url(), "/-/ready"),
         "grafana": (_grafana_url(), "/api/health"),
         "jaeger": (_jaeger_url(), "/"),

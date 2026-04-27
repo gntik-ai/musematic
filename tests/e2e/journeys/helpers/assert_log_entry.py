@@ -5,6 +5,8 @@ import time
 
 import httpx
 
+from journeys.helpers.observability_readiness import LOKI_READY_PATH
+
 
 def _escape_label_value(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"')
@@ -24,7 +26,7 @@ async def assert_log_contains(
     within_seconds: int = 30,
     poll_interval: float = 1.0,
 ) -> dict:
-    ready = await loki_client.get("/ready")
+    ready = await loki_client.get(LOKI_READY_PATH)
     if ready.status_code != 200:
         raise AssertionError(f"Loki at {loki_client.base_url} not ready: {ready.status_code} {ready.text}")
 
@@ -59,4 +61,3 @@ async def assert_log_contains(
         f"Loki query {query} did not contain {substring!r} within {within_seconds}s; "
         f"last volume={last_volume}; last line={last_line[:240]!r}"
     )
-
