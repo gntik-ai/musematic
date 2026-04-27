@@ -181,6 +181,11 @@ class AgentContract(Base, UUIDMixin, TimestampMixin, AuditMixin, WorkspaceScoped
         default="warn",
     )
     is_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    attached_revision_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("registry_agent_revisions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     breach_events: Mapped[list[ContractBreachEvent]] = relationship(
         "platform.trust.models.ContractBreachEvent",
@@ -188,6 +193,36 @@ class AgentContract(Base, UUIDMixin, TimestampMixin, AuditMixin, WorkspaceScoped
         cascade="all, delete-orphan",
         order_by="platform.trust.models.ContractBreachEvent.created_at.asc()",
     )
+
+
+class ContractTemplate(Base, UUIDMixin, TimestampMixin):
+    __tablename__ = "contract_templates"
+    __table_args__ = (
+        Index("ix_contract_templates_category", "category"),
+        Index("ix_contract_templates_published", "is_published"),
+    )
+
+    name: Mapped[str] = mapped_column(String(length=255), nullable=False, unique=True)
+    description: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    category: Mapped[str] = mapped_column(String(length=64), nullable=False)
+    template_content: Mapped[dict[str, Any]] = mapped_column(
+        JSONB(none_as_null=False),
+        nullable=False,
+        default=dict,
+    )
+    version_number: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    forked_from_template_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("contract_templates.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    created_by_user_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    is_platform_authored: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
 class ContractBreachEvent(Base, UUIDMixin, TimestampMixin):

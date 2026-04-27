@@ -9,6 +9,7 @@ from platform.common.models.mixins import (
     UUIDMixin,
     WorkspaceScopedMixin,
 )
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
@@ -107,6 +108,45 @@ class ContextEngineeringProfile(Base, UUIDMixin, TimestampMixin, WorkspaceScoped
         "platform.context_engineering.models.ContextProfileAssignment",
         back_populates="profile",
         cascade="all, delete-orphan",
+    )
+    versions: Mapped[list[ContextProfileVersion]] = relationship(
+        "platform.context_engineering.models.ContextProfileVersion",
+        back_populates="profile",
+        cascade="all, delete-orphan",
+        order_by="platform.context_engineering.models.ContextProfileVersion.version_number.asc()",
+    )
+
+
+class ContextProfileVersion(Base, UUIDMixin, TimestampMixin):
+    __tablename__ = "context_engineering_profile_versions"
+    __table_args__ = (
+        UniqueConstraint(
+            "profile_id",
+            "version_number",
+            name="uq_context_profile_versions_profile_version",
+        ),
+        Index("ix_context_profile_versions_profile", "profile_id", "version_number"),
+    )
+
+    profile_id: Mapped[UUID] = mapped_column(
+        ForeignKey("context_engineering_profiles.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    version_number: Mapped[int] = mapped_column(Integer(), nullable=False)
+    content_snapshot: Mapped[dict[str, Any]] = mapped_column(
+        JSONB(none_as_null=False),
+        nullable=False,
+        default=dict,
+    )
+    change_summary: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    created_by: Mapped[UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    profile: Mapped[ContextEngineeringProfile] = relationship(
+        "platform.context_engineering.models.ContextEngineeringProfile",
+        back_populates="versions",
     )
 
 

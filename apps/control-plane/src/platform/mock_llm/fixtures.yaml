@@ -1,0 +1,38 @@
+responses:
+  - input_hash: "7da3ea817b92643a"
+    output_text: "Mock support response: acknowledge the customer, cite the refund policy, and escalate if account-specific PII is required."
+    completion_metadata:
+      scenario: "customer-support"
+      model: "mock-creator-preview-v1"
+      prompt_tokens: 48
+      completion_tokens: 24
+  - input_hash: "a6e569715f74d9b5"
+    output_text: "Mock code review response: flag input validation, missing tests, and any secret-handling concerns with file references."
+    completion_metadata:
+      scenario: "code-review"
+      model: "mock-creator-preview-v1"
+      prompt_tokens: 52
+      completion_tokens: 28
+  - input_hash: "cda0d151c3f4dccd"
+    output_text: "Mock analysis response: summarize cohort deltas, state assumptions, and include confidence and limitation notes."
+    completion_metadata:
+      scenario: "data-analysis"
+      model: "mock-creator-preview-v1"
+      prompt_tokens: 44
+      completion_tokens: 27
+  - input_hash: "182ee386330de12e"
+    output_text: "Mock content response: draft concise launch copy, separate claims from assumptions, and mark review-needed statements."
+    completion_metadata:
+      scenario: "content-generation"
+      model: "mock-creator-preview-v1"
+      prompt_tokens: 39
+      completion_tokens: 23
+fallback:
+  input_hash: "a99f7a6307645e93"
+  output_text: "Mock fallback response: no canned fixture matched this input, so this deterministic generic preview was returned."
+  completion_metadata:
+    scenario: "generic-fallback"
+    model: "mock-creator-preview-v1"
+    prompt_tokens: 16
+    completion_tokens: 17
+

@@ -4,11 +4,14 @@ import hashlib
 import json
 from datetime import UTC, datetime
 from platform.audit.dependencies import build_audit_chain_service
+from platform.auth.schemas import RoleType
 from platform.common.audit_hook import audit_chain_hook
 from platform.common.dependencies import get_current_user, get_db
 from platform.common.exceptions import AuthorizationError, ValidationError
 from platform.incident_response.dependencies import get_incident_response_service
 from platform.incident_response.service import IncidentResponseService
+from platform.policies.models import AttachmentTargetType, EnforcementComponent, PolicyScopeType
+from platform.registry.models import AgentRoleType
 from platform.trust.ate_service import ATEService
 from platform.trust.circuit_breaker import CircuitBreakerService
 from platform.trust.contract_schemas import (
@@ -16,6 +19,7 @@ from platform.trust.contract_schemas import (
     AgentContractListResponse,
     AgentContractResponse,
     AgentContractUpdate,
+    AttachRevisionRequest,
     CertifierCreate,
     CertifierListResponse,
     CertifierResponse,
@@ -23,11 +27,17 @@ from platform.trust.contract_schemas import (
     ComplianceRateResponse,
     ContractAttachmentRequest,
     ContractBreachEventListResponse,
+    ContractTemplateListResponse,
     DismissSuspensionRequest,
+    FailureMode,
+    ForkRequest,
     IssueWithCertifierRequest,
+    PreviewRequest,
+    PreviewResponse,
     ReassessmentCreate,
     ReassessmentListResponse,
     ReassessmentResponse,
+    SchemaEnumsResponse,
     TrustRecertificationRequestListResponse,
     TrustRecertificationRequestResponse,
 )
@@ -91,7 +101,7 @@ from platform.trust.schemas import (
 )
 from platform.trust.service import CertificationService
 from platform.trust.trust_tier import TrustTierService
-from typing import Any
+from typing import Any, get_args
 from uuid import UUID
 
 import yaml
@@ -245,6 +255,43 @@ async def list_contracts(
     )
 
 
+@router.get("/contracts/schema")
+async def get_contract_schema() -> dict[str, Any]:
+    return AgentContractCreate.model_json_schema()
+
+
+@router.get("/contracts/schema-enums", response_model=SchemaEnumsResponse)
+async def get_contract_schema_enums(
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> SchemaEnumsResponse:
+    _require_roles(
+        current_user,
+        {"workspace_member", "agent_owner", "platform_admin", "superadmin"},
+    )
+    return SchemaEnumsResponse(
+        resource_types=[
+            *[item.value for item in PolicyScopeType],
+            *[item.value for item in AttachmentTargetType],
+            *[item.value for item in EnforcementComponent],
+        ],
+        role_types=[item.value for item in RoleType] + [item.value for item in AgentRoleType],
+        workspace_constraints=["workspace_visibility", "quota", "residency", "approval_required"],
+        failure_modes=list(get_args(FailureMode)),
+    )
+
+
+@router.get("/contracts/templates", response_model=ContractTemplateListResponse)
+async def list_contract_templates(
+    current_user: dict[str, Any] = Depends(get_current_user),
+    contract_service: ContractService = Depends(get_contract_service),
+) -> ContractTemplateListResponse:
+    _require_roles(
+        current_user,
+        {"workspace_member", "agent_owner", "platform_admin", "superadmin"},
+    )
+    return await contract_service.list_templates()
+
+
 @router.get("/contracts/{contract_id}", response_model=AgentContractResponse)
 async def get_contract(
     contract_id: UUID,
@@ -255,6 +302,77 @@ async def get_contract(
         contract_id,
         workspace_id=_workspace_id(current_user),
     )
+
+
+@router.post("/contracts/{contract_id}/preview", response_model=PreviewResponse)
+async def preview_contract(
+    contract_id: UUID,
+    payload: PreviewRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    contract_service: ContractService = Depends(get_contract_service),
+) -> PreviewResponse:
+    _require_roles(current_user, {"agent_owner", "platform_admin", "superadmin"})
+    return await contract_service.preview_contract(
+        contract_id,
+        payload.sample_input,
+        use_mock=payload.use_mock,
+        cost_acknowledged=payload.cost_acknowledged,
+        workspace_id=_workspace_id(current_user),
+    )
+
+
+@router.post(
+    "/contracts/{template_id}/fork",
+    response_model=AgentContractResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def fork_contract_template(
+    template_id: UUID,
+    payload: ForkRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    contract_service: ContractService = Depends(get_contract_service),
+) -> AgentContractResponse:
+    _require_roles(current_user, {"agent_owner", "platform_admin", "superadmin"})
+    return await contract_service.fork_template(
+        template_id,
+        payload.new_name,
+        _workspace_id(current_user),
+        UUID(str(current_user["sub"])),
+    )
+
+
+@router.post("/contracts/{contract_id}/attach-revision/{revision_id}", status_code=204)
+async def attach_contract_to_revision(
+    contract_id: UUID,
+    revision_id: UUID,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    contract_service: ContractService = Depends(get_contract_service),
+) -> Response:
+    _require_roles(current_user, {"agent_owner", "platform_admin", "superadmin"})
+    await contract_service.attach_to_revision(
+        contract_id,
+        revision_id,
+        UUID(str(current_user["sub"])),
+        workspace_id=_workspace_id(current_user),
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/contracts/{contract_id}/attach-revision", status_code=204)
+async def attach_contract_to_revision_body(
+    contract_id: UUID,
+    payload: AttachRevisionRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    contract_service: ContractService = Depends(get_contract_service),
+) -> Response:
+    _require_roles(current_user, {"agent_owner", "platform_admin", "superadmin"})
+    await contract_service.attach_to_revision(
+        contract_id,
+        payload.revision_id,
+        UUID(str(current_user["sub"])),
+        workspace_id=_workspace_id(current_user),
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.put("/contracts/{contract_id}", response_model=AgentContractResponse)

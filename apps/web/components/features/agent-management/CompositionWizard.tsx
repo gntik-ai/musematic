@@ -6,6 +6,11 @@ import { WizardStepCustomize } from "@/components/features/agent-management/Wiza
 import { WizardStepDescribe } from "@/components/features/agent-management/WizardStepDescribe";
 import { WizardStepReviewBlueprint } from "@/components/features/agent-management/WizardStepReviewBlueprint";
 import { WizardStepValidate } from "@/components/features/agent-management/WizardStepValidate";
+import { WizardStepAttachBoth } from "@/components/features/agent-management/wizard/WizardStepAttachBoth";
+import { WizardStepContextProfile } from "@/components/features/agent-management/wizard/WizardStepContextProfile";
+import { WizardStepContract } from "@/components/features/agent-management/wizard/WizardStepContract";
+import { WizardStepPreviewContract } from "@/components/features/agent-management/wizard/WizardStepPreviewContract";
+import { WizardStepTestProfile } from "@/components/features/agent-management/wizard/WizardStepTestProfile";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
 import { useCompositionWizardStore } from "@/lib/stores/use-composition-wizard-store";
@@ -15,7 +20,14 @@ const STEP_LABELS = [
   "Review blueprint",
   "Customize",
   "Validate",
+  "Context Profile",
+  "Test Profile",
+  "Contract",
+  "Preview Contract",
+  "Attach Both",
 ] as const;
+
+type WizardStepNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
 export function CompositionWizard() {
   const router = useRouter();
@@ -29,14 +41,14 @@ export function CompositionWizard() {
       return;
     }
 
-    if (step < 4) {
-      setStep((step + 1) as 2 | 3 | 4);
+    if (step < STEP_LABELS.length) {
+      setStep((step + 1) as WizardStepNumber);
     }
   };
 
   const handleBack = () => {
     if (step > 1) {
-      setStep((step - 1) as 1 | 2 | 3);
+      setStep((step - 1) as WizardStepNumber);
     }
   };
 
@@ -53,8 +65,18 @@ export function CompositionWizard() {
         <WizardStepReviewBlueprint blueprint={blueprint} />
       ) : step === 3 ? (
         <WizardStepCustomize blueprint={blueprint} />
-      ) : (
+      ) : step === 4 ? (
         <WizardStepValidate blueprint={blueprint} />
+      ) : step === 5 ? (
+        <WizardStepContextProfile blueprint={blueprint} />
+      ) : step === 6 ? (
+        <WizardStepTestProfile blueprint={blueprint} />
+      ) : step === 7 ? (
+        <WizardStepContract blueprint={blueprint} />
+      ) : step === 8 ? (
+        <WizardStepPreviewContract blueprint={blueprint} />
+      ) : (
+        <WizardStepAttachBoth blueprint={blueprint} />
       )
     ) : (
       <EmptyState
@@ -80,7 +102,7 @@ export function CompositionWizard() {
               Move from a natural-language brief to a validated draft agent in four guided steps.
             </p>
           </div>
-          <div className="grid gap-2 sm:grid-cols-4">
+          <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-9">
             {STEP_LABELS.map((label, index) => {
               const stepNumber = index + 1;
               const active = step === stepNumber;
@@ -120,7 +142,7 @@ export function CompositionWizard() {
           <Button disabled={step === 1} type="button" variant="outline" onClick={handleBack}>
             Back
           </Button>
-          {step < 4 ? (
+          {step < STEP_LABELS.length ? (
             <Button
               disabled={step === 1 && !blueprint}
               type="button"

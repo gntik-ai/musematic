@@ -10,6 +10,7 @@ from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import NotFoundError
+from platform.common.logging import get_logger
 from platform.context_engineering.adapters import ContextFetchRequest, ContextSourceAdapter
 from platform.context_engineering.compactor import ContextCompactor
 from platform.context_engineering.correlation_scheduler import CorrelationRecomputerTask
@@ -38,6 +39,7 @@ from platform.context_engineering.models import (
     ContextDriftAlert,
     ContextEngineeringProfile,
     ContextProfileAssignment,
+    ContextProfileVersion,
     ContextSourceType,
     ProfileAssignmentLevel,
 )
@@ -53,10 +55,13 @@ from platform.context_engineering.schemas import (
     BudgetEnvelope,
     ContextBundle,
     ContextElement,
+    ContextProfileVersionResponse,
     ContextQualityScore,
     CorrelationFleetResponse,
     DriftAlertListResponse,
     DriftAlertResponse,
+    PreviewResponse,
+    PreviewSource,
     ProfileAssignmentCreate,
     ProfileAssignmentListResponse,
     ProfileAssignmentResponse,
@@ -64,7 +69,10 @@ from platform.context_engineering.schemas import (
     ProfileListResponse,
     ProfileResponse,
     SourceConfig,
+    VersionDiffResponse,
+    VersionHistoryResponse,
 )
+from platform.mock_llm.service import MockLLMService
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -81,6 +89,8 @@ _DEFAULT_SOURCE_CONFIG: tuple[SourceConfig, ...] = (
     SourceConfig(source_type=ContextSourceType.connector_payloads, priority=60, max_elements=5),
     SourceConfig(source_type=ContextSourceType.workspace_metadata, priority=50, max_elements=2),
 )
+
+LOGGER = get_logger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,6 +125,7 @@ class ContextEngineeringService:
         event_producer: EventProducer | None,
         workspaces_service: Any | None = None,
         registry_service: Any | None = None,
+        mock_llm_service: MockLLMService | None = None,
     ) -> None:
         self.repository = repository
         self.adapters = adapters
@@ -127,6 +138,7 @@ class ContextEngineeringService:
         self.event_producer = event_producer
         self.workspaces_service = workspaces_service
         self.registry_service = registry_service
+        self.mock_llm_service = mock_llm_service or MockLLMService()
 
     async def create_profile(
         self,
@@ -149,6 +161,13 @@ class ContextEngineeringService:
                 compaction_strategies=[item.value for item in payload.compaction_strategies],
                 quality_weights=dict(payload.quality_weights),
                 privacy_overrides=dict(payload.privacy_overrides),
+            )
+            await self.repository.create_profile_version(
+                profile_id=profile.id,
+                version_number=1,
+                content_snapshot=self._profile_snapshot(payload),
+                change_summary="Initial profile creation",
+                created_by=actor_id,
             )
             await self._commit()
         except IntegrityError as exc:
@@ -201,11 +220,152 @@ class ContextEngineeringService:
                 quality_weights=dict(payload.quality_weights),
                 privacy_overrides=dict(payload.privacy_overrides),
             )
+            next_version = await self.repository.latest_profile_version_number(profile_id) + 1
+            await self.repository.create_profile_version(
+                profile_id=profile_id,
+                version_number=next_version,
+                content_snapshot=self._profile_snapshot(payload),
+                change_summary="Profile updated",
+                created_by=actor_id,
+            )
             await self._commit()
         except IntegrityError as exc:
             await self._rollback()
             raise ProfileConflictError(payload.name) from exc
         return self._profile_response(updated)
+
+    async def preview_retrieval(
+        self,
+        workspace_id: UUID,
+        profile_id: UUID,
+        query_text: str,
+        actor_id: UUID,
+    ) -> PreviewResponse:
+        await self._assert_workspace_access(workspace_id, actor_id)
+        profile = await self.repository.get_profile(workspace_id, profile_id)
+        if profile is None:
+            raise ProfileNotFoundError(profile_id)
+        sources = self._preview_sources(profile, query_text)
+        mock = await self.mock_llm_service.preview(
+            query_text,
+            {
+                "profile_id": str(profile_id),
+                "workspace_id": str(workspace_id),
+                "source_count": len(sources),
+            },
+        )
+        LOGGER.info(
+            "creator.context_profile.preview_executed",
+            profile_id=str(profile_id),
+            workspace_id=str(workspace_id),
+            actor_id=str(actor_id),
+            was_fallback=mock.was_fallback,
+        )
+        return PreviewResponse(
+            sources=sources,
+            mock_response=mock.output_text,
+            completion_metadata=mock.completion_metadata,
+            was_fallback=mock.was_fallback,
+        )
+
+    async def get_profile_versions(
+        self,
+        workspace_id: UUID,
+        profile_id: UUID,
+        actor_id: UUID,
+        *,
+        limit: int,
+        cursor: str | None,
+    ) -> VersionHistoryResponse:
+        await self._assert_workspace_access(workspace_id, actor_id)
+        if await self.repository.get_profile(workspace_id, profile_id) is None:
+            raise ProfileNotFoundError(profile_id)
+        versions, next_cursor = await self.repository.list_profile_versions(
+            profile_id,
+            limit=limit,
+            cursor=cursor,
+        )
+        return VersionHistoryResponse(
+            versions=[self._version_response(item) for item in versions],
+            next_cursor=next_cursor,
+        )
+
+    async def get_version_diff(
+        self,
+        workspace_id: UUID,
+        profile_id: UUID,
+        actor_id: UUID,
+        *,
+        v1_number: int,
+        v2_number: int,
+    ) -> VersionDiffResponse:
+        await self._assert_workspace_access(workspace_id, actor_id)
+        if await self.repository.get_profile(workspace_id, profile_id) is None:
+            raise ProfileNotFoundError(profile_id)
+        v1 = await self.repository.get_profile_version(profile_id, v1_number)
+        v2 = await self.repository.get_profile_version(profile_id, v2_number)
+        if v1 is None:
+            raise NotFoundError(
+                "CONTEXT_PROFILE_VERSION_NOT_FOUND",
+                "Context profile version not found",
+                {"profile_id": str(profile_id), "version_number": v1_number},
+            )
+        if v2 is None:
+            raise NotFoundError(
+                "CONTEXT_PROFILE_VERSION_NOT_FOUND",
+                "Context profile version not found",
+                {"profile_id": str(profile_id), "version_number": v2_number},
+            )
+        return self._diff_snapshots(v1.content_snapshot, v2.content_snapshot)
+
+    async def rollback_to_version(
+        self,
+        workspace_id: UUID,
+        profile_id: UUID,
+        target_version_number: int,
+        requester_id: UUID,
+    ) -> ContextProfileVersionResponse:
+        await self._assert_workspace_access(workspace_id, requester_id)
+        profile = await self.repository.get_profile(workspace_id, profile_id)
+        if profile is None:
+            raise ProfileNotFoundError(profile_id)
+        target = await self.repository.get_profile_version(profile_id, target_version_number)
+        if target is None:
+            raise NotFoundError(
+                "CONTEXT_PROFILE_VERSION_NOT_FOUND",
+                "Context profile version not found",
+                {"profile_id": str(profile_id), "version_number": target_version_number},
+            )
+        snapshot = dict(target.content_snapshot)
+        await self.repository.update_profile(
+            profile,
+            updated_by=requester_id,
+            name=str(snapshot.get("name") or profile.name),
+            description=snapshot.get("description"),
+            is_default=bool(snapshot.get("is_default", profile.is_default)),
+            source_config=list(snapshot.get("source_config") or []),
+            budget_config=dict(snapshot.get("budget_config") or {}),
+            compaction_strategies=list(snapshot.get("compaction_strategies") or []),
+            quality_weights=dict(snapshot.get("quality_weights") or {}),
+            privacy_overrides=dict(snapshot.get("privacy_overrides") or {}),
+        )
+        next_version = await self.repository.latest_profile_version_number(profile_id) + 1
+        version = await self.repository.create_profile_version(
+            profile_id=profile_id,
+            version_number=next_version,
+            content_snapshot=snapshot,
+            change_summary=f"Rolled back to version {target_version_number}",
+            created_by=requester_id,
+        )
+        await self._commit()
+        LOGGER.info(
+            "creator.context_profile.rolled_back",
+            profile_id=str(profile_id),
+            target_version=target_version_number,
+            new_version=next_version,
+            actor_id=str(requester_id),
+        )
+        return self._version_response(version)
 
     async def delete_profile(self, workspace_id: UUID, profile_id: UUID, actor_id: UUID) -> None:
         await self._assert_workspace_access(workspace_id, actor_id)
@@ -964,6 +1124,79 @@ class ContextEngineeringService:
             workspace_id=record.workspace_id,
             created_at=record.created_at,
         )
+
+    def _version_response(
+        self,
+        version: ContextProfileVersion,
+    ) -> ContextProfileVersionResponse:
+        return ContextProfileVersionResponse(
+            id=version.id,
+            profile_id=version.profile_id,
+            version_number=version.version_number,
+            content_snapshot=dict(version.content_snapshot or {}),
+            change_summary=version.change_summary,
+            created_by=version.created_by,
+            created_at=version.created_at,
+        )
+
+    def _profile_snapshot(self, payload: ProfileCreate) -> dict[str, Any]:
+        return {
+            "_schema_version": 1,
+            "name": payload.name,
+            "description": payload.description,
+            "source_config": [item.model_dump(mode="json") for item in payload.source_config],
+            "budget_config": payload.budget_config.model_dump(mode="json"),
+            "compaction_strategies": [item.value for item in payload.compaction_strategies],
+            "quality_weights": dict(payload.quality_weights),
+            "privacy_overrides": dict(payload.privacy_overrides),
+            "is_default": payload.is_default,
+        }
+
+    @staticmethod
+    def _diff_snapshots(
+        before: dict[str, Any],
+        after: dict[str, Any],
+    ) -> VersionDiffResponse:
+        before_keys = set(before)
+        after_keys = set(after)
+        added = {key: after[key] for key in sorted(after_keys - before_keys)}
+        removed = {key: before[key] for key in sorted(before_keys - after_keys)}
+        modified = {
+            key: {"old": before[key], "new": after[key]}
+            for key in sorted(before_keys & after_keys)
+            if before[key] != after[key]
+        }
+        return VersionDiffResponse(added=added, removed=removed, modified=modified)
+
+    @staticmethod
+    def _preview_sources(
+        profile: ContextEngineeringProfile,
+        query_text: str,
+    ) -> list[PreviewSource]:
+        query_tokens = {token.lower() for token in query_text.split() if token.strip()}
+        raw_sources = list(profile.source_config or [])
+        if not raw_sources:
+            raw_sources = [item.model_dump(mode="json") for item in _DEFAULT_SOURCE_CONFIG[:3]]
+        sources: list[PreviewSource] = []
+        for index, source in enumerate(raw_sources):
+            source_type = str(source.get("source_type") or f"source-{index + 1}")
+            attribution = str(source.get("provenance_attribution") or source_type)
+            strategy = str(source.get("retrieval_strategy") or "hybrid")
+            source_tokens = {token.lower() for token in source_type.replace("_", " ").split()}
+            overlap = len(query_tokens & source_tokens)
+            score = min(1.0, 0.55 + (0.1 * overlap) + (0.03 * max(0, 5 - index)))
+            enabled = bool(source.get("enabled", True))
+            sources.append(
+                PreviewSource(
+                    origin=attribution,
+                    snippet=f"{source_type} matched through {strategy} retrieval.",
+                    score=round(score, 3),
+                    included=enabled,
+                    classification=str(source.get("provenance_classification") or "public"),
+                    reason=None if enabled else "Source disabled in profile",
+                )
+            )
+        return sorted(sources, key=lambda item: item.score, reverse=True)
 
     def _alert_response(self, alert: ContextDriftAlert) -> DriftAlertResponse:
         return DriftAlertResponse(

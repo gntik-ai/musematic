@@ -10,14 +10,20 @@ from platform.context_engineering.schemas import (
     AbTestResponse,
     AssemblyRecordListResponse,
     AssemblyRecordResponse,
+    ContextProfileVersionResponse,
     CorrelationFleetResponse,
     CorrelationRecomputeRequest,
     DriftAlertListResponse,
+    PreviewRequest,
+    PreviewResponse,
     ProfileAssignmentCreate,
     ProfileAssignmentResponse,
     ProfileCreate,
     ProfileListResponse,
     ProfileResponse,
+    RollbackRequest,
+    VersionDiffResponse,
+    VersionHistoryResponse,
 )
 from platform.context_engineering.service import ContextEngineeringService
 from typing import Any
@@ -66,6 +72,11 @@ async def list_profiles(
     return await service.list_profiles(_workspace_id(request), _actor_id(current_user))
 
 
+@router.get("/profiles/schema")
+async def get_profile_schema() -> dict[str, Any]:
+    return ProfileCreate.model_json_schema()
+
+
 @router.get("/profiles/{profile_id}", response_model=ProfileResponse)
 async def get_profile(
     profile_id: UUID,
@@ -74,6 +85,82 @@ async def get_profile(
     service: ContextEngineeringService = Depends(get_context_engineering_service),
 ) -> ProfileResponse:
     return await service.get_profile(_workspace_id(request), profile_id, _actor_id(current_user))
+
+
+@router.post("/profiles/{profile_id}/preview", response_model=PreviewResponse)
+async def preview_profile(
+    profile_id: UUID,
+    payload: PreviewRequest,
+    request: Request,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    service: ContextEngineeringService = Depends(get_context_engineering_service),
+) -> PreviewResponse:
+    return await service.preview_retrieval(
+        _workspace_id(request),
+        profile_id,
+        payload.query_text,
+        _actor_id(current_user),
+    )
+
+
+@router.get("/profiles/{profile_id}/versions", response_model=VersionHistoryResponse)
+async def list_profile_versions(
+    profile_id: UUID,
+    request: Request,
+    limit: int = Query(default=20, ge=1, le=100),
+    cursor: str | None = Query(default=None),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    service: ContextEngineeringService = Depends(get_context_engineering_service),
+) -> VersionHistoryResponse:
+    return await service.get_profile_versions(
+        _workspace_id(request),
+        profile_id,
+        _actor_id(current_user),
+        limit=limit,
+        cursor=cursor,
+    )
+
+
+@router.get(
+    "/profiles/{profile_id}/versions/{v1_number}/diff/{v2_number}",
+    response_model=VersionDiffResponse,
+)
+async def get_profile_version_diff(
+    profile_id: UUID,
+    v1_number: int,
+    v2_number: int,
+    request: Request,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    service: ContextEngineeringService = Depends(get_context_engineering_service),
+) -> VersionDiffResponse:
+    return await service.get_version_diff(
+        _workspace_id(request),
+        profile_id,
+        _actor_id(current_user),
+        v1_number=v1_number,
+        v2_number=v2_number,
+    )
+
+
+@router.post(
+    "/profiles/{profile_id}/rollback/{version}",
+    response_model=ContextProfileVersionResponse,
+)
+async def rollback_profile(
+    profile_id: UUID,
+    version: int,
+    request: Request,
+    payload: RollbackRequest | None = None,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    service: ContextEngineeringService = Depends(get_context_engineering_service),
+) -> ContextProfileVersionResponse:
+    target_version = payload.target_version if payload is not None else version
+    return await service.rollback_to_version(
+        _workspace_id(request),
+        profile_id,
+        target_version,
+        _actor_id(current_user),
+    )
 
 
 @router.put("/profiles/{profile_id}", response_model=ProfileResponse)
