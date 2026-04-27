@@ -9,7 +9,7 @@ import { renderWithProviders } from "@/test-utils/render";
 
 const assign = vi.fn();
 
-function setAuthenticatedUser() {
+function setAuthenticatedUser(hasLocalPassword = true) {
   useAuthStore.setState({
     accessToken: "access-token",
     isAuthenticated: true,
@@ -20,6 +20,7 @@ function setAuthenticatedUser() {
       displayName: "Alex Mercer",
       avatarUrl: null,
       mfaEnrolled: true,
+      hasLocalPassword,
       roles: ["workspace_admin"],
       workspaceId: "workspace-1",
     },
@@ -79,6 +80,7 @@ describe("ConnectedAccountsSection", () => {
     renderWithProviders(<ConnectedAccountsSection />);
 
     await user.click(await screen.findByRole("button", { name: "Unlink" }));
+    await user.type(screen.getByPlaceholderText("google"), "google");
     await user.click(screen.getByRole("button", { name: "Unlink provider" }));
 
     expect(
@@ -105,10 +107,26 @@ describe("ConnectedAccountsSection", () => {
     }
 
     await user.click(firstButton);
+    await user.type(screen.getByPlaceholderText("google"), "google");
     await user.click(screen.getByRole("button", { name: "Unlink provider" }));
 
     await waitFor(() => {
       expect(screen.queryByText("alex@musematic.dev")).not.toBeInTheDocument();
     });
+  });
+
+  it("disables unlinking when OAuth is the only auth method", async () => {
+    setAuthenticatedUser(false);
+    oauthFixtures.links = [buildLink("google", "alex@musematic.dev")];
+
+    renderWithProviders(<ConnectedAccountsSection />);
+
+    const unlinkButton = await screen.findByRole("button", { name: "Unlink" });
+
+    expect(unlinkButton).toBeDisabled();
+    expect(unlinkButton).toHaveAttribute(
+      "title",
+      "You must keep at least one authentication method. Set a local password or link another provider first.",
+    );
   });
 });

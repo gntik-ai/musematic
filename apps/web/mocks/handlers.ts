@@ -53,6 +53,7 @@ function toLoginSuccess(user: UserProfile = mockUser) {
       roles: user.roles,
       workspace_id: user.workspaceId,
       mfa_enrolled: user.mfaEnrolled,
+      has_local_password: user.hasLocalPassword ?? true,
     },
   };
 }

@@ -15,6 +15,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 class UserStatus(StrEnum):
     pending_verification = "pending_verification"
     pending_approval = "pending_approval"
+    pending_profile_completion = "pending_profile_completion"
     active = "active"
     suspended = "suspended"
     blocked = "blocked"

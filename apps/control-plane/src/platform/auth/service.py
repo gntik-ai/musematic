@@ -13,6 +13,7 @@ from platform.auth.events import (
 from platform.auth.exceptions import (
     AccessTokenExpiredError,
     AccountLockedError,
+    AccountPendingApprovalError,
     InactiveUserError,
     InvalidAccessTokenError,
     InvalidCredentialsError,
@@ -138,7 +139,25 @@ class AuthService:
 
         assert user_id is not None
         platform_user = await self.repository.get_platform_user(user_id)
-        if platform_user is None or platform_user.status != "active":
+        if platform_user is None:
+            await self.repository.record_auth_attempt(
+                user_id,
+                normalized_email,
+                ip,
+                device,
+                AuthOutcome.FAILURE_PASSWORD.value,
+            )
+            raise InvalidCredentialsError()
+        if platform_user.status == "pending_approval":
+            await self.repository.record_auth_attempt(
+                user_id,
+                normalized_email,
+                ip,
+                device,
+                AuthOutcome.FAILURE_PASSWORD.value,
+            )
+            raise AccountPendingApprovalError()
+        if platform_user.status != "active":
             await self.repository.record_auth_attempt(
                 user_id,
                 normalized_email,

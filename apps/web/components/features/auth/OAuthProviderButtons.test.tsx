@@ -54,4 +54,26 @@ describe("OAuthProviderButtons", () => {
       await screen.findByRole("button", { name: "Continue with GitHub" }),
     ).toBeInTheDocument();
   });
+
+  it("renders signup labels for the signup variant", async () => {
+    renderWithProviders(<OAuthProviderButtons variant="signup" />);
+
+    expect(
+      await screen.findByRole("button", { name: "Sign up with Google" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Sign up with GitHub" }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps continue labels as the default login variant", async () => {
+    renderWithProviders(<OAuthProviderButtons />);
+
+    expect(
+      await screen.findByRole("button", { name: "Continue with Google" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Continue with GitHub" }),
+    ).toBeInTheDocument();
+  });
 });

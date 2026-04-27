@@ -10,12 +10,17 @@ function providerIcon(providerType: OAuthProviderType) {
   return providerType === "github" ? Github : Globe2;
 }
 
-export function OAuthProviderButtons() {
+interface OAuthProviderButtonsProps {
+  variant?: "login" | "signup";
+}
+
+export function OAuthProviderButtons({ variant = "login" }: OAuthProviderButtonsProps) {
   const providersQuery = useOAuthProviders();
   const authorizeMutation = useOAuthAuthorizeMutation();
   const { toast } = useToast();
 
   const providers = providersQuery.data?.providers ?? [];
+  const labelPrefix = variant === "signup" ? "Sign up with" : "Continue with";
 
   if (!providersQuery.isLoading && providers.length === 0) {
     return null;
@@ -41,7 +46,7 @@ export function OAuthProviderButtons() {
           return (
             <Button
               key={provider.provider_type}
-              aria-label={`Continue with ${provider.display_name}`}
+              aria-label={`${labelPrefix} ${provider.display_name}`}
               disabled={authorizeMutation.isPending}
               type="button"
               variant="outline"
@@ -64,7 +69,7 @@ export function OAuthProviderButtons() {
               ) : (
                 <Icon className="h-4 w-4" />
               )}
-              Continue with {provider.display_name}
+              {labelPrefix} {provider.display_name}
             </Button>
           );
         })}

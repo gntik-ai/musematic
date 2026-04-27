@@ -1,6 +1,10 @@
 "use client";
 
+// OAuth fragment handling below is legacy compatibility for in-flight callbacks.
+// New OAuth flows land on /auth/oauth/{provider}/callback.
+
 import { Suspense, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import {
@@ -71,6 +75,12 @@ function LoginPageContent() {
     if (message === "password_updated") {
       toast({
         title: "Password updated. Please log in.",
+        variant: "success",
+      });
+    }
+    if (message === "email_verified") {
+      toast({
+        title: "Email verified. Please log in.",
         variant: "success",
       });
     }
@@ -162,7 +172,15 @@ function LoginPageContent() {
               completeAuth(response);
             }}
           />
-          <OAuthProviderButtons />
+          {process.env.NEXT_PUBLIC_FEATURE_SIGNUP_ENABLED !== "false" ? (
+            <div className="text-center text-sm text-muted-foreground">
+              New to Musematic?{" "}
+              <Link className="font-medium text-brand-primary" href="/signup">
+                Sign up
+              </Link>
+            </div>
+          ) : null}
+          <OAuthProviderButtons variant="login" />
         </>
       ) : null}
 

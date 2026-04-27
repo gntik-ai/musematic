@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from platform.auth.exceptions import (
     AccountLockedError,
+    AccountPendingApprovalError,
     ApiKeyInvalidError,
     InvalidCredentialsError,
     InvalidMfaCodeError,
@@ -15,6 +16,7 @@ from platform.auth.exceptions import (
 def test_auth_exceptions_expose_expected_codes_and_statuses() -> None:
     exceptions = [
         InvalidCredentialsError(),
+        AccountPendingApprovalError(),
         AccountLockedError(),
         InvalidMfaCodeError(),
         InvalidMfaTokenError(),
@@ -26,6 +28,7 @@ def test_auth_exceptions_expose_expected_codes_and_statuses() -> None:
 
     assert [exc.code for exc in exceptions] == [
         "INVALID_CREDENTIALS",
+        "account_pending_approval",
         "ACCOUNT_LOCKED",
         "INVALID_MFA_CODE",
         "INVALID_MFA_TOKEN",
@@ -34,4 +37,15 @@ def test_auth_exceptions_expose_expected_codes_and_statuses() -> None:
         "INVALID_REFRESH_TOKEN",
         "INVALID_API_KEY",
     ]
-    assert [exc.status_code for exc in exceptions] == [401, 403, 401, 401, 409, 404, 401, 401]
+    assert [exc.status_code for exc in exceptions] == [
+        401,
+        403,
+        403,
+        401,
+        401,
+        409,
+        404,
+        401,
+        401,
+    ]
+    assert exceptions[1].details == {"redirect_to": "/waiting-approval"}

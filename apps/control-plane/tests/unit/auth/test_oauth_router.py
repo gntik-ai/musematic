@@ -40,11 +40,15 @@ class OAuthRouterServiceStub:
         self.calls.append(("list_links", (user_id,), {}))
         return OAuthLinkListResponse(items=[])
 
-    async def get_authorization_url(self, provider, link_for_user_id=None):
+    async def get_authorization_url(self, provider, link_for_user_id=None, dry_run=False):
         from platform.auth.schemas import OAuthAuthorizeResponse
 
         self.calls.append(
-            ("get_authorization_url", (provider,), {"link_for_user_id": link_for_user_id})
+            (
+                "get_authorization_url",
+                (provider,),
+                {"link_for_user_id": link_for_user_id, "dry_run": dry_run},
+            )
         )
         return OAuthAuthorizeResponse(redirect_url=f"https://oauth.example.com/{provider}")
 
@@ -129,7 +133,9 @@ async def test_oauth_router_callback_redirects_with_fragment_and_cookie() -> Non
         )
 
     assert response.status_code == 302
-    assert response.headers["location"].startswith("https://app.example.com/login#oauth_session=")
+    assert response.headers["location"].startswith(
+        "https://app.example.com/auth/oauth/google/callback#oauth_session="
+    )
     assert "session=access-token" in response.headers.get("set-cookie", "")
     fragment = response.headers["location"].split("#oauth_session=", 1)[1]
     payload = json.loads(base64.urlsafe_b64decode(fragment + "==").decode("utf-8"))
@@ -156,7 +162,10 @@ async def test_oauth_router_callback_redirects_link_flow_and_errors() -> None:
     assert (
         link_response.headers["location"] == "https://app.example.com/profile?message=oauth_linked"
     )
-    assert error_response.headers["location"] == "https://app.example.com/login?error=access_denied"
+    assert (
+        error_response.headers["location"]
+        == "https://app.example.com/auth/oauth/google/callback?error=access_denied"
+    )
 
 
 @pytest.mark.asyncio
@@ -189,6 +198,9 @@ async def test_oauth_router_admin_and_link_endpoints_delegate() -> None:
         unlink = await client.delete("/api/v1/auth/oauth/google/link")
         admin_list = await client.get("/api/v1/admin/oauth/providers")
         admin_upsert = await client.put("/api/v1/admin/oauth/providers/google", json=payload)
+        connectivity = await client.post(
+            "/api/v1/admin/oauth-providers/google/test-connectivity"
+        )
         audit = await client.get("/api/v1/admin/oauth/audit?limit=10")
 
     assert providers.status_code == 200
@@ -198,6 +210,8 @@ async def test_oauth_router_admin_and_link_endpoints_delegate() -> None:
     assert unlink.status_code == 204
     assert admin_list.status_code == 200
     assert admin_upsert.status_code == 201
+    assert connectivity.status_code == 200
+    assert connectivity.json()["auth_url_returned"] is True
     assert audit.status_code == 200
     assert {name for name, _, _ in service.calls} >= {
         "list_public_providers",

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from platform.auth.exceptions import (
     AccountLockedError,
+    AccountPendingApprovalError,
     InactiveUserError,
     InvalidAccessTokenError,
     InvalidCredentialsError,
@@ -509,6 +510,19 @@ async def test_login_rejects_inactive_platform_user(auth_settings) -> None:
 
 
 @pytest.mark.asyncio
+async def test_login_rejects_pending_approval_with_redirect(auth_settings) -> None:
+    repository = FakeAuthRepository()
+    repository.platform_user.status = "pending_approval"
+    service = AuthService(repository, FakeAsyncRedisClient(), auth_settings)
+
+    with pytest.raises(AccountPendingApprovalError) as exc_info:
+        await service.login(repository.email, "SecureP@ss123", "127.0.0.1", "pytest")
+
+    assert exc_info.value.details == {"redirect_to": "/waiting-approval"}
+    assert repository.auth_attempts == ["failure_password"]
+
+
+@pytest.mark.asyncio
 async def test_validate_token_rejects_inactive_missing_and_malformed_users(auth_settings) -> None:
     repository = FakeAuthRepository()
     service = AuthService(repository, FakeAsyncRedisClient(), auth_settings)
@@ -630,4 +644,3 @@ async def test_admin_auth_helpers_delegate_to_repository_and_session_store(auth_
     assert reset_token
     assert repository.password_reset_tokens[0].user_id == user_id
     assert challenge.mfa_token
-

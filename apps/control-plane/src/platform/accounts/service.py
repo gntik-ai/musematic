@@ -11,6 +11,7 @@ from platform.accounts.events import (
     UserActivatedPayload,
     UserEmailVerifiedPayload,
     UserLifecyclePayload,
+    UserProfileCompletedPayload,
     UserRegisteredPayload,
     publish_accounts_event,
 )
@@ -21,6 +22,7 @@ from platform.accounts.exceptions import (
     InvitationExpiredError,
     InvitationNotFoundError,
     InvitationRevokedError,
+    ProfileCompletionNotAllowedError,
     RateLimitError,
     SelfRegistrationDisabledError,
 )
@@ -41,6 +43,8 @@ from platform.accounts.schemas import (
     InvitationResponse,
     PaginatedInvitationsResponse,
     PendingApprovalsResponse,
+    ProfileUpdateRequest,
+    ProfileUpdateResponse,
     RegisterRequest,
     RegisterResponse,
     ResendVerificationRequest,
@@ -201,6 +205,70 @@ class AccountsService:
             self.notification_client,
         )
         return ResendVerificationResponse()
+
+    async def get_profile(self, user_id: UUID) -> ProfileUpdateResponse:
+        user = await self.repo.get_user_by_id(user_id)
+        if user is None:
+            raise NotFoundError("USER_NOT_FOUND", "User not found")
+        preferences = await self.repo.get_user_preferences(user.id)
+        return ProfileUpdateResponse(
+            user_id=user.id,
+            email=user.email,
+            display_name=user.display_name,
+            status=user.status,
+            locale=preferences.language if preferences is not None else None,
+            timezone=preferences.timezone if preferences is not None else None,
+        )
+
+    async def update_profile(
+        self,
+        user_id: UUID,
+        request: ProfileUpdateRequest,
+        *,
+        correlation_id: UUID | None = None,
+    ) -> ProfileUpdateResponse:
+        user = await self.repo.get_user_for_update(user_id)
+        if user is None:
+            raise NotFoundError("USER_NOT_FOUND", "User not found")
+        if user.status != UserStatus.pending_profile_completion:
+            raise ProfileCompletionNotAllowedError()
+
+        validate_transition(user.status, UserStatus.active)
+        await self.repo.update_user_profile(user.id, display_name=request.display_name)
+        preferences = await self.repo.upsert_user_preferences(
+            user.id,
+            locale=request.locale,
+            timezone=request.timezone,
+        )
+        now = self._now()
+        updated_user = await self.repo.update_user_status(
+            user.id,
+            UserStatus.active,
+            email_verified_at=user.email_verified_at or now,
+            activated_at=user.activated_at or now,
+        )
+        correlation = self._correlation(correlation_id)
+        await publish_accounts_event(
+            self.kafka_producer,
+            AccountsEventType.user_profile_completed,
+            UserProfileCompletedPayload(
+                user_id=updated_user.id,
+                email=updated_user.email,
+                display_name=updated_user.display_name,
+                locale=preferences.language if preferences is not None else request.locale,
+                timezone=preferences.timezone if preferences is not None else request.timezone,
+            ),
+            correlation,
+        )
+        await self._publish_activation(updated_user, correlation)
+        return ProfileUpdateResponse(
+            user_id=updated_user.id,
+            email=updated_user.email,
+            display_name=updated_user.display_name,
+            status=updated_user.status,
+            locale=preferences.language if preferences is not None else request.locale,
+            timezone=preferences.timezone if preferences is not None else request.timezone,
+        )
 
     async def get_pending_approvals(self, page: int, page_size: int) -> PendingApprovalsResponse:
         items, total = await self.repo.get_pending_approvals(page, page_size)

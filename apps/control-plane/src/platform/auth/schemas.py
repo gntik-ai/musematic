@@ -277,6 +277,12 @@ class OAuthAuthorizeResponse(BaseModel):
     redirect_url: str
 
 
+class OAuthConnectivityTestResponse(BaseModel):
+    reachable: bool
+    auth_url_returned: bool
+    diagnostic: str
+
+
 class OAuthAuditEntryResponse(BaseModel):
     id: UUID
     provider_type: OAuthProviderType | None = None

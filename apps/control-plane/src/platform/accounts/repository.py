@@ -14,6 +14,7 @@ from platform.accounts.models import (
 from platform.accounts.schemas import PendingApprovalItem
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.models.user import User as PlatformUser
+from platform.localization.models import UserPreferences
 from uuid import UUID, uuid4
 
 from sqlalchemy import func, select
@@ -119,6 +120,64 @@ class AccountsRepository:
                 platform_user.deleted_at = kwargs.get("deleted_at")  # type: ignore[assignment]
         await self.session.flush()
         return user
+
+    async def update_user_profile(
+        self,
+        user_id: UUID,
+        *,
+        display_name: str | None = None,
+    ) -> User:
+        user = await self.get_user_for_update(user_id)
+        if user is None:
+            raise ValueError("User not found")
+        if display_name is not None:
+            user.display_name = display_name
+
+        platform_result = await self.session.execute(
+            select(PlatformUser).where(PlatformUser.id == user_id).with_for_update()
+        )
+        platform_user = platform_result.scalar_one_or_none()
+        if platform_user is not None and display_name is not None:
+            platform_user.display_name = display_name
+        await self.session.flush()
+        return user
+
+    async def upsert_user_preferences(
+        self,
+        user_id: UUID,
+        *,
+        locale: str | None = None,
+        timezone: str | None = None,
+    ) -> UserPreferences | None:
+        fields: dict[str, object] = {}
+        if locale is not None:
+            fields["language"] = locale
+        if timezone is not None:
+            fields["timezone"] = timezone
+        if not fields:
+            return await self.get_user_preferences(user_id)
+
+        values = {"user_id": user_id, **fields}
+        statement = insert(UserPreferences).values(**values)
+        update_values = {
+            field: getattr(statement.excluded, field)
+            for field in fields
+            if hasattr(statement.excluded, field)
+        }
+        update_values["updated_at"] = func.now()
+        result = await self.session.execute(
+            statement.on_conflict_do_update(
+                index_elements=[UserPreferences.user_id],
+                set_=update_values,
+            ).returning(UserPreferences)
+        )
+        return result.scalar_one()
+
+    async def get_user_preferences(self, user_id: UUID) -> UserPreferences | None:
+        result = await self.session.execute(
+            select(UserPreferences).where(UserPreferences.user_id == user_id)
+        )
+        return result.scalar_one_or_none()
 
     async def create_email_verification(
         self,

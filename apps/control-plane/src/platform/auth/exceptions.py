@@ -10,6 +10,17 @@ class InvalidCredentialsError(PlatformError):
         super().__init__("INVALID_CREDENTIALS", message)
 
 
+class AccountPendingApprovalError(PlatformError):
+    status_code = 403
+
+    def __init__(self) -> None:
+        super().__init__(
+            "account_pending_approval",
+            "Account is pending administrator approval",
+            {"redirect_to": "/waiting-approval"},
+        )
+
+
 class AccountLockedError(PlatformError):
     status_code = 403
 

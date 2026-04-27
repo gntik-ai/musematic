@@ -4,9 +4,10 @@ import re
 from datetime import datetime
 from platform.accounts.models import InvitationStatus, UserStatus
 from platform.auth.schemas import RoleType
+from platform.localization.constants import LOCALES
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 PASSWORD_PATTERNS = (
     re.compile(r"[A-Z]"),
@@ -60,6 +61,38 @@ class ResendVerificationRequest(BaseModel):
     @classmethod
     def normalize_email(cls, value: str) -> str:
         return _normalize_email(value)
+
+
+class ProfileUpdateRequest(BaseModel):
+    locale: str | None = Field(default=None, max_length=16)
+    timezone: str | None = Field(default=None, max_length=64)
+    display_name: str | None = Field(default=None, min_length=2, max_length=100)
+
+    @field_validator("locale")
+    @classmethod
+    def validate_locale(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if normalized not in LOCALES:
+            raise ValueError(f"locale must be one of: {', '.join(LOCALES)}")
+        return normalized
+
+    @field_validator("timezone", "display_name")
+    @classmethod
+    def normalize_optional_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("value must not be blank")
+        return normalized
+
+    @model_validator(mode="after")
+    def require_at_least_one_field(self) -> ProfileUpdateRequest:
+        if self.locale is None and self.timezone is None and self.display_name is None:
+            raise ValueError("At least one profile field must be provided")
+        return self
 
 
 class ApproveUserRequest(BaseModel):
@@ -131,6 +164,15 @@ class ResendVerificationResponse(BaseModel):
 class VerifyEmailResponse(BaseModel):
     user_id: UUID
     status: UserStatus
+
+
+class ProfileUpdateResponse(BaseModel):
+    user_id: UUID
+    email: str
+    display_name: str
+    status: UserStatus
+    locale: str | None = None
+    timezone: str | None = None
 
 
 class PendingApprovalItem(BaseModel):

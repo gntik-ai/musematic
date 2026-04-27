@@ -61,6 +61,8 @@ class OAuthUserIdentity:
     external_id: str
     email: str
     name: str | None
+    locale: str | None
+    timezone: str | None
     avatar_url: str | None
     groups: list[str]
 
@@ -202,6 +204,7 @@ class OAuthService:
         provider_type: str,
         *,
         link_for_user_id: UUID | None = None,
+        dry_run: bool = False,
     ) -> OAuthAuthorizeResponse:
         provider = await self._require_enabled_provider(provider_type)
         nonce = secrets.token_urlsafe(24)
@@ -212,11 +215,12 @@ class OAuthService:
             "created_at": datetime.now(UTC).isoformat(),
             "link_for_user_id": str(link_for_user_id) if link_for_user_id else None,
         }
-        await self.redis_client.set(
-            self._state_key(nonce),
-            json.dumps(payload).encode("utf-8"),
-            ttl=self.settings.auth.oauth_state_ttl,
-        )
+        if not dry_run:
+            await self.redis_client.set(
+                self._state_key(nonce),
+                json.dumps(payload).encode("utf-8"),
+                ttl=self.settings.auth.oauth_state_ttl,
+            )
         state = self._sign_state(nonce)
         redirect_url = self._provider_client(provider.provider_type).get_auth_url(
             client_id=provider.client_id,
@@ -389,7 +393,12 @@ class OAuthService:
 
         await self._ensure_oauth_credential(user_id, identity.email)
         platform_user = await self.auth_repository.get_platform_user(user_id)
-        if platform_user is None or platform_user.status != "active":
+        allowed_statuses = {
+            UserStatus.active.value,
+            UserStatus.pending_approval.value,
+            UserStatus.pending_profile_completion.value,
+        }
+        if platform_user is None or platform_user.status not in allowed_statuses:
             error = InactiveUserError()
             await self.repository.create_audit_entry(
                 provider_type=provider.provider_type,
@@ -560,19 +569,20 @@ class OAuthService:
 
     async def _auto_provision_user(self, provider: Any, identity: OAuthUserIdentity) -> UUID:
         role = self._resolve_role(provider, identity.groups)
+        status = self._initial_user_status(identity)
         user = await self.accounts_repository.create_user(
             email=identity.email,
             display_name=identity.name or identity.email.split("@", 1)[0],
-            status=UserStatus.active,
+            status=status,
             signup_source=SignupSource.self_registration,
         )
         now = datetime.now(UTC)
-        await self.accounts_repository.update_user_status(
-            user.id,
-            UserStatus.active,
-            email_verified_at=now,
-            activated_at=now,
-        )
+        status_fields: dict[str, object] = {"email_verified_at": now}
+        if status == UserStatus.active:
+            status_fields["activated_at"] = now
+        await self.accounts_repository.update_user_status(user.id, status, **status_fields)
+        if status == UserStatus.pending_approval:
+            await self.accounts_repository.create_approval_request(user.id, now)
         await self.auth_repository.assign_user_role(user.id, role, None)
         return user.id
 
@@ -612,6 +622,8 @@ class OAuthService:
                 external_id=str(user_payload.get("sub") or user_payload.get("user_id") or ""),
                 email=str(user_payload.get("email") or "").lower(),
                 name=str(user_payload.get("name") or "") or None,
+                locale=str(user_payload.get("locale") or "") or None,
+                timezone=None,
                 avatar_url=str(user_payload.get("picture") or "") or None,
                 groups=list(groups),
             )
@@ -632,9 +644,18 @@ class OAuthService:
             external_id=str(user_payload.get("id") or ""),
             email=email.lower(),
             name=str(user_payload.get("name") or user_payload.get("login") or "") or None,
+            locale=None,
+            timezone=None,
             avatar_url=str(user_payload.get("avatar_url") or "") or None,
             groups=[*org_markers, *list(groups)],
         )
+
+    def _initial_user_status(self, identity: OAuthUserIdentity) -> UserStatus:
+        if not identity.name or not identity.locale or not identity.timezone:
+            return UserStatus.pending_profile_completion
+        if self.settings.accounts.signup_mode == "admin_approval":
+            return UserStatus.pending_approval
+        return UserStatus.active
 
     def _enforce_restrictions(self, provider: Any, identity: OAuthUserIdentity) -> None:
         if (
@@ -865,6 +886,7 @@ class OAuthService:
             "email": platform_user.email,
             "display_name": platform_user.display_name or identity.email.split("@", 1)[0],
             "avatar_url": identity.avatar_url,
+            "status": platform_user.status,
             "roles": [role.role for role in roles],
             "workspace_id": None,
             "mfa_enrolled": bool(

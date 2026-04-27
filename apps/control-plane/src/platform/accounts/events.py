@@ -14,6 +14,7 @@ from pydantic import BaseModel
 class AccountsEventType(StrEnum):
     user_registered = "accounts.user.registered"
     user_email_verified = "accounts.user.email_verified"
+    user_profile_completed = "accounts.user.profile_completed"
     user_approved = "accounts.user.approved"
     user_rejected = "accounts.user.rejected"
     user_activated = "accounts.user.activated"
@@ -40,6 +41,14 @@ class UserEmailVerifiedPayload(BaseModel):
     email: str
 
 
+class UserProfileCompletedPayload(BaseModel):
+    user_id: UUID
+    email: str
+    display_name: str
+    locale: str | None = None
+    timezone: str | None = None
+
+
 class UserActivatedPayload(BaseModel):
     user_id: UUID
     email: str
@@ -63,6 +72,7 @@ class InvitationPayload(BaseModel):
 ACCOUNTS_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     AccountsEventType.user_registered.value: UserRegisteredPayload,
     AccountsEventType.user_email_verified.value: UserEmailVerifiedPayload,
+    AccountsEventType.user_profile_completed.value: UserProfileCompletedPayload,
     AccountsEventType.user_approved.value: UserLifecyclePayload,
     AccountsEventType.user_rejected.value: UserLifecyclePayload,
     AccountsEventType.user_activated.value: UserActivatedPayload,

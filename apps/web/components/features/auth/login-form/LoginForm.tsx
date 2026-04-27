@@ -68,6 +68,15 @@ export function LoginForm({
           return;
         }
 
+        if (error.code === "account_pending_approval") {
+          window.location.assign(
+            typeof error.meta?.redirect_to === "string"
+              ? error.meta.redirect_to
+              : "/waiting-approval",
+          );
+          return;
+        }
+
         if (error.code === "ACCOUNT_LOCKED") {
           const lockoutSeconds = getLockoutSeconds(error);
           if (lockoutSeconds !== null) {

@@ -127,6 +127,49 @@ describe("LoginForm", () => {
     });
   });
 
+  it("redirects pending approval users to the waiting page", async () => {
+    const user = userEvent.setup();
+    const assign = vi.fn();
+
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        ...window.location,
+        assign,
+      },
+    });
+    server.use(
+      http.post("*/api/v1/auth/login", () =>
+        HttpResponse.json(
+          {
+            error: {
+              code: "account_pending_approval",
+              message: "Account is pending administrator approval",
+              redirect_to: "/waiting-approval",
+            },
+          },
+          { status: 403 },
+        ),
+      ),
+    );
+
+    renderWithProviders(
+      <LoginForm
+        onLockout={vi.fn()}
+        onMfaChallenge={vi.fn()}
+        onSuccess={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByLabelText(/email/i), "pending@musematic.dev");
+    await user.type(screen.getByLabelText(/^password$/i), "SecretPass1!");
+    await user.click(screen.getByRole("button", { name: /sign in/i }));
+
+    await waitFor(() => {
+      expect(assign).toHaveBeenCalledWith("/waiting-approval");
+    });
+  });
+
   it("transitions to MFA and supports pressing Enter in the password field", async () => {
     const user = userEvent.setup();
     const onMfaChallenge = vi.fn();
