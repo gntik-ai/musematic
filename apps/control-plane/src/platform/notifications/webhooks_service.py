@@ -26,7 +26,7 @@ from platform.notifications.schemas import (
     OutboundWebhookUpdate,
     WebhookDeliveryRead,
 )
-from typing import Any
+from typing import Any, cast
 from uuid import UUID, uuid4
 
 
@@ -73,7 +73,7 @@ class OutboundWebhookService:
             created_by=actor_id,
         )
         secret_ref = f"secret/data/notifications/webhook-secrets/{webhook.id}"
-        await self.secrets.write_secret(secret_ref, {"hmac_secret": secret})
+        await _write_secret_values(self.secrets, secret_ref, {"hmac_secret": secret})
         updated = await self.repo.update_outbound_webhook(
             webhook.id,
             signing_secret_ref=secret_ref,
@@ -114,7 +114,8 @@ class OutboundWebhookService:
         webhook = await self.repo.get_outbound_webhook(webhook_id)
         if webhook is None:
             raise WebhookNotFoundError(webhook_id)
-        await self.secrets.write_secret(
+        await _write_secret_values(
+            self.secrets,
             webhook.signing_secret_ref,
             {"hmac_secret": _new_hmac_secret()},
         )
@@ -246,8 +247,7 @@ class OutboundWebhookService:
         if failure_reason is not None:
             return WebhookDeliveryRead.model_validate(delivery)
 
-        secret_payload = await self.secrets.read_secret(webhook.signing_secret_ref)
-        secret = str(secret_payload.get("hmac_secret", ""))
+        secret = await _read_hmac_secret(self.secrets, webhook.signing_secret_ref)
         outcome, error_detail, _idempotency_key = await self.deliverer.send_signed(
             webhook_id=webhook.id,
             event_id=event_id,
@@ -345,6 +345,42 @@ class OutboundWebhookService:
 
 def _new_hmac_secret() -> str:
     return base64.b64encode(secrets.token_bytes(32)).decode("ascii")
+
+
+async def _write_secret_values(
+    secrets_provider: object,
+    path: str,
+    values: dict[str, str],
+) -> None:
+    put_secret = getattr(secrets_provider, "put", None)
+    if callable(put_secret):
+        await cast(Any, put_secret)(path, values)
+        return
+
+    write_secret = getattr(secrets_provider, "write_secret", None)
+    if callable(write_secret):
+        await cast(Any, write_secret)(path, values)
+        return
+
+    raise AttributeError("secret provider must expose put() or write_secret()")
+
+
+async def _read_hmac_secret(secrets_provider: object, path: str) -> str:
+    get_secret = getattr(secrets_provider, "get", None)
+    if callable(get_secret):
+        value = await cast(Any, get_secret)(path, key="hmac_secret")
+        if isinstance(value, str):
+            return value
+
+    read_secret = getattr(secrets_provider, "read_secret", None)
+    if callable(read_secret):
+        payload = await cast(Any, read_secret)(path)
+        if isinstance(payload, dict):
+            value = payload.get("hmac_secret")
+            if isinstance(value, str):
+                return value
+
+    raise AttributeError("secret provider must expose get() or read_secret() for hmac_secret")
 
 
 def _dead_letter_item(delivery: WebhookDelivery) -> DeadLetterListItem:

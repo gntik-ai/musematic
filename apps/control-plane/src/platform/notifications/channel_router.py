@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from platform.accounts.models import User
@@ -8,6 +9,7 @@ from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.models.user import User as PlatformUser
+from platform.common.secret_provider import SecretProvider as _CanonicalSecretProvider
 from platform.notifications.canonical import derive_idempotency_key
 from platform.notifications.deliverers.email_deliverer import EmailDeliverer
 from platform.notifications.deliverers.sms_deliverer import SmsDeliverer
@@ -25,6 +27,20 @@ from platform.workspaces.service import WorkspacesService
 from typing import Any, Protocol, cast
 from uuid import UUID, uuid4
 
+_SECRET_PROVIDER_DEPRECATION_EMITTED = False
+
+if not _SECRET_PROVIDER_DEPRECATION_EMITTED:
+    warnings.warn(
+        "Imports of `SecretProvider` from `platform.notifications.channel_router` are "
+        "deprecated; migrate to `platform.common.secret_provider` by v1.4.0.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    _SECRET_PROVIDER_DEPRECATION_EMITTED = True
+
+SecretProvider = _CanonicalSecretProvider
+"""Deprecated compatibility alias for `platform.common.secret_provider.SecretProvider`."""
+
 
 class DlpService(Protocol):
     async def scan_outbound(
@@ -40,12 +56,6 @@ class ResidencyService(Protocol):
     async def resolve_region_for_url(self, url: str) -> str | None: ...
 
     async def check_egress(self, workspace_id: UUID, region: str | None) -> bool: ...
-
-
-class SecretProvider(Protocol):
-    async def read_secret(self, path: str) -> dict[str, Any]: ...
-
-    async def write_secret(self, path: str, payload: dict[str, Any]) -> None: ...
 
 
 class AuditChainService(Protocol):
@@ -379,8 +389,7 @@ class ChannelRouter:
     ) -> str:
         webhook_row = cast(Any, webhook)
         delivery_row = cast(Any, delivery)
-        secret_payload = await self.secrets.read_secret(webhook_row.signing_secret_ref)
-        secret = str(secret_payload.get("hmac_secret", ""))
+        secret = await _read_hmac_secret(self.secrets, webhook_row.signing_secret_ref)
         webhook_deliverer = cast(
             WebhookDeliverer,
             self.deliverers.get(DeliveryMethod.webhook),
@@ -561,6 +570,24 @@ def _event_payload(envelope: object) -> dict[str, Any]:
         dict[str, Any],
         _jsonable_payload(getattr(envelope, "__dict__", {"payload": str(envelope)})),
     )
+
+
+async def _read_hmac_secret(secrets: object, path: str) -> str:
+    get_secret = getattr(secrets, "get", None)
+    if callable(get_secret):
+        value = await cast(Any, get_secret)(path, key="hmac_secret")
+        if isinstance(value, str):
+            return value
+
+    read_secret = getattr(secrets, "read_secret", None)
+    if callable(read_secret):
+        payload = await cast(Any, read_secret)(path)
+        if isinstance(payload, dict):
+            value = payload.get("hmac_secret")
+            if isinstance(value, str):
+                return value
+
+    raise AttributeError("secret provider must expose get() or read_secret() for hmac_secret")
 
 
 def _jsonable_payload(value: object) -> Any:

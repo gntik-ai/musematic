@@ -3,9 +3,9 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
-import os
-from pathlib import Path
+import warnings
 from platform.common.config import PlatformSettings
+from platform.common.secret_provider import MockSecretProvider
 from platform.connectors.exceptions import CredentialUnavailableError, WebhookSignatureError
 from typing import Any
 
@@ -48,9 +48,21 @@ def scrub_secret_text(text: str | None, secrets: list[str]) -> str | None:
     return scrubbed
 
 
+_VAULT_RESOLVER_DEPRECATION_EMITTED = False
+
+
 class VaultResolver:
     def __init__(self, settings: PlatformSettings) -> None:
+        global _VAULT_RESOLVER_DEPRECATION_EMITTED
+        if not _VAULT_RESOLVER_DEPRECATION_EMITTED:
+            warnings.warn(
+                "`VaultResolver` is deprecated; use `platform.common.secret_provider` by v1.4.0.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            _VAULT_RESOLVER_DEPRECATION_EMITTED = True
         self.settings = settings
+        self._mock = MockSecretProvider(settings, validate_paths=False)
 
     def resolve(self, vault_path: str, credential_key: str) -> str:
         if self.settings.connectors.vault_mode == "mock":
@@ -58,28 +70,7 @@ class VaultResolver:
         raise CredentialUnavailableError(credential_key)
 
     def _resolve_mock(self, vault_path: str, credential_key: str) -> str:
-        candidates = [Path(self.settings.connectors.vault_mock_secrets_file)]
-        if not candidates[0].is_absolute():
-            candidates.insert(
-                0,
-                Path.cwd() / self.settings.connectors.vault_mock_secrets_file,
-            )
-        for candidate in candidates:
-            if not candidate.exists():
-                continue
-            content = json.loads(candidate.read_text(encoding="utf-8"))
-            if isinstance(content, dict):
-                value = content.get(vault_path)
-                if isinstance(value, str):
-                    return value
-        env_key = "CONNECTOR_SECRET_" + "".join(
-            char if char.isalnum() else "_"
-            for char in f"{credential_key}_{vault_path}"
-        ).upper()
-        env_value = os.environ.get(env_key)
-        if env_value is not None:
-            return env_value
-        raise CredentialUnavailableError(credential_key)
+        return self._mock._get_sync(vault_path, credential_key)
 
 
 def payload_to_json(payload: dict[str, Any]) -> bytes:

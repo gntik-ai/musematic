@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from platform.common.config import PlatformSettings
 from platform.notifications.exceptions import (
+    DeadLetterNotReplayableError,
     InvalidWebhookUrlError,
     QuotaExceededError,
     ResidencyViolationError,
@@ -11,7 +12,14 @@ from platform.notifications.exceptions import (
 )
 from platform.notifications.models import DeliveryOutcome
 from platform.notifications.schemas import OutboundWebhookCreate, OutboundWebhookUpdate
-from platform.notifications.webhooks_service import OutboundWebhookService, _retry_delay_seconds
+from platform.notifications.webhooks_service import (
+    OutboundWebhookService,
+    _retry_delay_seconds,
+    _write_secret_values,
+)
+from platform.notifications.webhooks_service import (
+    _read_hmac_secret as _read_webhook_hmac_secret,
+)
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -79,6 +87,13 @@ class RepoStub:
                 return delivery
         return None
 
+    async def get_delivery(self, delivery_id, include_webhook=False):
+        del include_webhook
+        for delivery in self.deliveries:
+            if delivery.id == delivery_id:
+                return delivery
+        return None
+
 
 class SecretProviderStub:
     def __init__(self) -> None:
@@ -90,6 +105,39 @@ class SecretProviderStub:
     async def read_secret(self, path):
         del path
         return {"hmac_secret": "secret"}
+
+
+class LegacySecretProviderStub:
+    def __init__(self) -> None:
+        self.writes: list[tuple[str, dict[str, str]]] = []
+
+    async def put(self, path, payload):
+        self.writes.append((path, payload))
+
+    async def get(self, path, *, key):
+        assert path == "secret/path"
+        assert key == "hmac_secret"
+        return "legacy-secret"
+
+
+class NonStringGetSecretProviderStub:
+    async def get(self, path, *, key):
+        del path, key
+        return None
+
+    async def read_secret(self, path):
+        del path
+        return {"hmac_secret": "fallback-secret"}
+
+
+class MissingHmacSecretProviderStub:
+    async def get(self, path, *, key):
+        del path, key
+        return None
+
+    async def read_secret(self, path):
+        del path
+        return {}
 
 
 class ResidencyStub:
@@ -382,6 +430,8 @@ async def test_send_test_event_dead_letters_deliverer_failure_and_region_policy(
     ).send_test_event(created.id, actor_id=uuid4())
     assert failed.status == "dead_letter"
     assert failed.failure_reason == "4xx_permanent"
+    dead_letter = await _service(repo=repo).get_dead_letter(failed.id)
+    assert dead_letter.id == failed.id
 
     region_blocked = await _service(
         repo=repo,
@@ -392,9 +442,76 @@ async def test_send_test_event_dead_letters_deliverer_failure_and_region_policy(
     assert region_blocked.failure_reason == "residency_violation"
 
 
+@pytest.mark.asyncio
+async def test_send_test_event_allows_missing_dlp_service() -> None:
+    repo = RepoStub()
+    deliverer = WebhookDelivererStub()
+    service = OutboundWebhookService(
+        repo=repo,
+        settings=PlatformSettings(),
+        secrets=SecretProviderStub(),
+        residency_service=ResidencyStub(),
+        dlp_service=None,
+        deliverer=deliverer,
+    )
+    created = await service.create(
+        OutboundWebhookCreate(
+            workspace_id=uuid4(),
+            name="CRM",
+            url="https://hooks.example.com/events",
+            event_types=["execution.failed"],
+        ),
+        actor_id=uuid4(),
+    )
+
+    delivery = await service.send_test_event(created.id, actor_id=uuid4())
+
+    assert delivery.status == "delivered"
+
+
+@pytest.mark.asyncio
+async def test_dead_letter_methods_report_not_found_and_non_replayable_edges() -> None:
+    repo = RepoStub()
+    service = _service(repo=repo)
+    delivery_id = uuid4()
+
+    with pytest.raises(WebhookNotFoundError):
+        await service.get_dead_letter(delivery_id)
+    with pytest.raises(WebhookNotFoundError):
+        await service.replay_dead_letter(delivery_id, actor_id=uuid4())
+    with pytest.raises(WebhookNotFoundError):
+        await service.resolve_dead_letter(delivery_id, actor_id=uuid4(), resolution="resolved")
+
+    repo.deliveries.append(SimpleNamespace(id=delivery_id, status="delivered"))
+
+    with pytest.raises(DeadLetterNotReplayableError):
+        await service.resolve_dead_letter(delivery_id, actor_id=uuid4(), resolution="resolved")
+
+
 def test_webhook_retry_delay_helper_handles_bad_retry_after_and_empty_policy() -> None:
     settings = PlatformSettings()
 
     assert _retry_delay_seconds("retry_after=bad", {"backoff_seconds": [7]}, settings) == 7
     assert _retry_delay_seconds(None, {"backoff_seconds": []}, settings) == 60
     assert _retry_delay_seconds("retry_after=-5", {"backoff_seconds": [7]}, settings) == 0
+
+
+@pytest.mark.asyncio
+async def test_webhook_secret_helpers_support_legacy_get_put_and_errors() -> None:
+    provider = LegacySecretProviderStub()
+
+    await _write_secret_values(provider, "secret/path", {"hmac_secret": "secret"})
+
+    assert provider.writes == [("secret/path", {"hmac_secret": "secret"})]
+    assert await _read_webhook_hmac_secret(provider, "secret/path") == "legacy-secret"
+    assert (
+        await _read_webhook_hmac_secret(NonStringGetSecretProviderStub(), "secret/path")
+        == "fallback-secret"
+    )
+
+    with pytest.raises(AttributeError):
+        await _write_secret_values(object(), "secret/path", {"hmac_secret": "secret"})
+    with pytest.raises(AttributeError):
+        await _read_webhook_hmac_secret(object(), "secret/path")
+    with pytest.raises(AttributeError):
+        await _read_webhook_hmac_secret(MissingHmacSecretProviderStub(), "secret/path")

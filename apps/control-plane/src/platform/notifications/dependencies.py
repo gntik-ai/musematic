@@ -5,13 +5,13 @@ from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_db
 from platform.common.events.producer import EventProducer
+from platform.common.secret_provider import HealthStatus, SecretProvider
 from platform.notifications.channel_router import (
     AuditChainService,
     ChannelDelivererRegistry,
     ChannelRouter,
     DlpService,
     ResidencyService,
-    SecretProvider,
 )
 from platform.notifications.deliverers.email_deliverer import EmailDeliverer
 from platform.notifications.deliverers.slack_deliverer import SlackDeliverer
@@ -70,12 +70,30 @@ class AllowAllResidencyService:
 
 
 class InMemorySecretProvider:
-    async def read_secret(self, path: str) -> dict[str, Any]:
+    def __init__(self) -> None:
+        self._values: dict[str, dict[str, str]] = {}
+
+    async def get(self, path: str, key: str = "value") -> str:
+        return self._values.get(path, {}).get(key, "")
+
+    async def put(self, path: str, values: dict[str, str]) -> None:
+        self._values[path] = dict(values)
+
+    async def delete_version(self, path: str, version: int) -> None:
+        del path, version
+
+    async def list_versions(self, path: str) -> list[int]:
         del path
-        return {}
+        return [1]
+
+    async def health_check(self) -> HealthStatus:
+        return HealthStatus(status="green", auth_method="memory")
+
+    async def read_secret(self, path: str) -> dict[str, Any]:
+        return dict(self._values.get(path, {}))
 
     async def write_secret(self, path: str, payload: dict[str, Any]) -> None:
-        del path, payload
+        self._values[path] = {key: str(value) for key, value in payload.items()}
 
 
 def build_notifications_service(

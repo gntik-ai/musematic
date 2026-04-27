@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import secrets
+import warnings
 from typing import Any, Literal
 
 from pydantic import AliasChoices, Field, model_validator
@@ -557,8 +558,34 @@ class ConnectorsSettings(BaseSettings):
     worker_enabled: bool = True
     delivery_max_concurrent: int = 10
     email_poll_interval_seconds: int = 60
-    vault_mode: Literal["mock", "vault"] = "mock"
+    vault_mode: Literal["mock", "kubernetes", "vault"] = "mock"
     vault_mock_secrets_file: str = ".vault-secrets.json"
+
+
+class VaultSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="VAULT_",
+        extra="ignore",
+        populate_by_name=True,
+    )
+
+    mode: Literal["mock", "kubernetes", "vault"] = "mock"
+    addr: str = ""
+    namespace: str = ""
+    ca_cert_secret_ref: str | None = None
+    auth_method: Literal["kubernetes", "approle", "token"] = "kubernetes"
+    kubernetes_role: str = "musematic-platform"
+    service_account_token_path: str = "/var/run/secrets/tokens/vault-token"
+    approle_role_id: str = ""
+    approle_secret_id_secret_ref: str | None = None
+    token: str = ""
+    kv_mount: str = "secret"
+    kv_prefix: str = "musematic/{environment}"
+    cache_ttl_seconds: int = 60
+    cache_max_staleness_seconds: int = 300
+    retry_attempts: int = 3
+    retry_timeout_seconds: int = 10
+    lease_renewal_threshold: float = 0.5
 
 
 class TrustSettings(BaseSettings):
@@ -824,6 +851,7 @@ class PlatformSettings(BaseSettings):
     cost_governance: CostGovernanceSettings = Field(default_factory=CostGovernanceSettings)
     multi_region_ops: MultiRegionOpsSettings = Field(default_factory=MultiRegionOpsSettings)
     tagging: TaggingSettings = Field(default_factory=TaggingSettings)
+    vault: VaultSettings = Field(default_factory=VaultSettings)
     incident_response: IncidentResponseSettings = Field(default_factory=IncidentResponseSettings)
     localization: LocalizationSettings = Field(default_factory=LocalizationSettings)
     visibility: VisibilitySettings = Field(default_factory=VisibilitySettings)
@@ -1557,6 +1585,35 @@ class PlatformSettings(BaseSettings):
                 "agentops",
                 "recertification_grace_period_days",
             ),
+            "PLATFORM_VAULT_MODE": ("vault", "mode"),
+            "PLATFORM_VAULT_ADDR": ("vault", "addr"),
+            "PLATFORM_VAULT_NAMESPACE": ("vault", "namespace"),
+            "PLATFORM_VAULT_CA_CERT_SECRET_REF": ("vault", "ca_cert_secret_ref"),
+            "PLATFORM_VAULT_AUTH_METHOD": ("vault", "auth_method"),
+            "PLATFORM_VAULT_KUBERNETES_ROLE": ("vault", "kubernetes_role"),
+            "PLATFORM_VAULT_SERVICE_ACCOUNT_TOKEN_PATH": (
+                "vault",
+                "service_account_token_path",
+            ),
+            "PLATFORM_VAULT_APPROLE_ROLE_ID": ("vault", "approle_role_id"),
+            "PLATFORM_VAULT_APPROLE_SECRET_ID_SECRET_REF": (
+                "vault",
+                "approle_secret_id_secret_ref",
+            ),
+            "PLATFORM_VAULT_TOKEN": ("vault", "token"),
+            "PLATFORM_VAULT_KV_MOUNT": ("vault", "kv_mount"),
+            "PLATFORM_VAULT_KV_PREFIX": ("vault", "kv_prefix"),
+            "PLATFORM_VAULT_CACHE_TTL_SECONDS": ("vault", "cache_ttl_seconds"),
+            "PLATFORM_VAULT_CACHE_MAX_STALENESS_SECONDS": (
+                "vault",
+                "cache_max_staleness_seconds",
+            ),
+            "PLATFORM_VAULT_RETRY_ATTEMPTS": ("vault", "retry_attempts"),
+            "PLATFORM_VAULT_RETRY_TIMEOUT_SECONDS": ("vault", "retry_timeout_seconds"),
+            "PLATFORM_VAULT_LEASE_RENEWAL_THRESHOLD": (
+                "vault",
+                "lease_renewal_threshold",
+            ),
             "COMPOSITION_LLM_API_URL": ("composition", "llm_api_url"),
             "COMPOSITION_LLM_MODEL": ("composition", "llm_model"),
             "COMPOSITION_LLM_TIMEOUT_SECONDS": (
@@ -1635,6 +1692,9 @@ class PlatformSettings(BaseSettings):
             "PLATFORM_PROFILE": ("profile", ""),
             "RUNTIME_PROFILE": ("profile", ""),
         }
+        for key in mappings:
+            if key.startswith("PLATFORM_VAULT_") and key not in values and key in os.environ:
+                values[key] = os.environ[key]
         for key, target in mappings.items():
             if key not in values:
                 continue
@@ -1663,6 +1723,42 @@ class PlatformSettings(BaseSettings):
                 nested[field] = value
             values[section] = nested
         return values
+
+    @model_validator(mode="after")
+    def _validate_vault_settings(self) -> PlatformSettings:
+        platform_mode = os.environ.get("PLATFORM_VAULT_MODE")
+        connector_mode = os.environ.get("CONNECTOR_VAULT_MODE")
+        if platform_mode is None and connector_mode is not None:
+            self.vault.mode = connector_mode  # type: ignore[assignment]
+            self.connectors.vault_mode = connector_mode  # type: ignore[assignment]
+            warnings.warn(
+                "CONNECTOR_VAULT_MODE is deprecated; migrate to PLATFORM_VAULT_MODE by v1.4.0.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        elif (
+            platform_mode is not None
+            and connector_mode is not None
+            and platform_mode != connector_mode
+        ):
+            raise ValueError(
+                "CONNECTOR_VAULT_MODE conflicts with PLATFORM_VAULT_MODE; remove the "
+                "deprecated connector-scoped value."
+            )
+        else:
+            self.connectors.vault_mode = self.vault.mode
+
+        environment = os.environ.get("PLATFORM_ENVIRONMENT", self.profile)
+        if (
+            self.vault.auth_method == "token"
+            and environment in {"production", "staging"}
+            and os.environ.get("ALLOW_INSECURE", "").lower() != "true"
+        ):
+            raise ValueError(
+                "PLATFORM_VAULT_AUTH_METHOD=token is not allowed in production or staging. "
+                "Use Kubernetes or AppRole auth; see the AppRole bootstrap runbook."
+            )
+        return self
 
     @property
     def PLATFORM_PROFILE(self) -> str:
