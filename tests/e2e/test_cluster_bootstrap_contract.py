@@ -90,6 +90,17 @@ def test_observability_namespace_creation_is_gated_for_helm_create_namespace() -
     assert 'createNamespace: false' in e2e_values
 
 
+def test_e2e_observability_loki_uses_kind_sized_ephemeral_storage() -> None:
+    e2e_values = (ROOT / 'deploy/helm/observability/values-e2e.yaml').read_text()
+    loki_section = e2e_values.split('\npromtail:\n', 1)[0].split('\nloki:\n', 1)[1]
+
+    assert 'persistence:\n      enabled: false' in loki_section
+    assert 'emptyDir: {}' in loki_section
+    assert 'mountPath: /var/loki' in loki_section
+    assert 'chunksCache:\n    enabled: false' in loki_section
+    assert 'resultsCache:\n    enabled: false' in loki_section
+
+
 def test_makefile_renders_cluster_specific_kind_config() -> None:
     makefile = (ROOT / 'tests/e2e/Makefile').read_text()
     assert 'render-kind-config' in makefile

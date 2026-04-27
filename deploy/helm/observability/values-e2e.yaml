@@ -89,6 +89,12 @@ loki:
     replicas: 1
     persistence:
       enabled: false
+    extraVolumes:
+      - name: loki-data
+        emptyDir: {}
+    extraVolumeMounts:
+      - name: loki-data
+        mountPath: /var/loki
     resources:
       requests:
         cpu: 50m
@@ -96,6 +102,10 @@ loki:
       limits:
         cpu: 300m
         memory: 256Mi
+  chunksCache:
+    enabled: false
+  resultsCache:
+    enabled: false
   extraEnv: []
 
 promtail:
