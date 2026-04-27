@@ -18,6 +18,7 @@ dependencies = [
   "kubernetes",
   "PyJWT>=2.9",
   "pyotp>=2.9",
+  "PyYAML>=6.0",
 ]
 
 [project.optional-dependencies]
