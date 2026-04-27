@@ -359,11 +359,15 @@ async def test_unlink_account_enforces_last_auth_method_and_deletes_link(auth_se
 @pytest.mark.asyncio
 async def test_upsert_provider_records_changed_fields_and_event(auth_settings) -> None:
     provider = build_provider(provider_type="google", enabled=False)
+    actor_id = uuid4()
+    auth_repository = AuthRepositoryStub(
+        users_by_id={actor_id: SimpleNamespace(id=actor_id, email="admin@example.com")}
+    )
     service, repository, _, _, _, producer, _ = build_oauth_service_fixture(
         auth_settings,
         provider=provider,
+        auth_repository=auth_repository,
     )
-    actor_id = uuid4()
 
     response, created = await service.upsert_provider(
         provider_type="google",
@@ -383,6 +387,7 @@ async def test_upsert_provider_records_changed_fields_and_event(auth_settings) -
 
     assert created is False
     assert response.display_name == "Google Workspace"
+    assert response.last_edited_by == actor_id
     assert repository.audit_entries[-1]["action"] == "provider_configured"
     assert repository.audit_entries[-1]["actor_id"] == actor_id
     assert repository.audit_entries[-1]["changed_fields"]["enabled"] == {
@@ -407,6 +412,37 @@ async def test_upsert_provider_records_changed_fields_and_event(auth_settings) -
             default_role="viewer",
             require_mfa=False,
         )
+
+
+@pytest.mark.asyncio
+async def test_upsert_provider_omits_missing_actor_from_last_edited_fk(auth_settings) -> None:
+    provider = build_provider(provider_type="google", enabled=False)
+    service, repository, _, _, _, _, _ = build_oauth_service_fixture(
+        auth_settings,
+        provider=provider,
+        auth_repository=AuthRepositoryStub(),
+    )
+    actor_id = uuid4()
+
+    response, _ = await service.upsert_provider(
+        provider_type="google",
+        actor_id=actor_id,
+        display_name="Google Workspace",
+        enabled=True,
+        client_id="google-client",
+        client_secret_ref="plain:secret",
+        redirect_uri="https://app.example.com/oauth/google/callback",
+        scopes=["openid"],
+        domain_restrictions=[],
+        org_restrictions=[],
+        group_role_mapping={},
+        default_role="viewer",
+        require_mfa=False,
+    )
+
+    assert response.last_edited_by is None
+    assert repository.upsert_calls[-1]["last_edited_by"] is None
+    assert repository.audit_entries[-1]["actor_id"] == actor_id
 
 
 @pytest.mark.asyncio
@@ -579,4 +615,3 @@ async def test_oauth_internal_helpers_cover_error_paths(monkeypatch, auth_settin
     )
     with pytest.raises(OAuthStateInvalidError):
         await service._consume_state(mismatch_state, "google")
-

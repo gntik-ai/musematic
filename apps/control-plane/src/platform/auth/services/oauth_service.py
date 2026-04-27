@@ -172,6 +172,7 @@ class OAuthService:
 
         existing = await self.repository.get_provider_by_type(provider_type)
         before = self._provider_snapshot(existing)
+        last_edited_by = await self._resolved_existing_actor_id(actor_id)
         provider, created = await self.repository.upsert_provider(
             provider_type,
             display_name=display_name,
@@ -186,7 +187,7 @@ class OAuthService:
             default_role=default_role,
             require_mfa=require_mfa,
             source="manual",
-            last_edited_by=actor_id,
+            last_edited_by=last_edited_by,
             last_edited_at=datetime.now(UTC),
         )
         changed_fields = self._diff_provider(before, self._provider_snapshot(provider))
@@ -214,6 +215,11 @@ class OAuthService:
             self.producer,
         )
         return self._serialize_admin_provider(provider), created
+
+    async def _resolved_existing_actor_id(self, actor_id: UUID) -> UUID | None:
+        if await self.auth_repository.get_platform_user(actor_id) is None:
+            return None
+        return actor_id
 
     async def rotate_secret(self, provider_type: str, new_secret: str, actor_id: UUID) -> None:
         provider = await self._require_provider(provider_type)
