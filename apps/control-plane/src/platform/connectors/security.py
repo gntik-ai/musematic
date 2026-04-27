@@ -73,5 +73,13 @@ class VaultResolver:
         return self._mock._get_sync(vault_path, credential_key)
 
 
+def resolve_connector_secret(
+    resolver: VaultResolver,
+    vault_path: str,
+    credential_key: str,
+) -> str:
+    return resolver.resolve(vault_path, credential_key)
+
+
 def payload_to_json(payload: dict[str, Any]) -> bytes:
     return json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")

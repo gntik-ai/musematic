@@ -189,6 +189,35 @@ class HealthCheckResponse(BaseModel):
     error: str | None = None
 
 
+class TestConnectivityRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    config: dict[str, Any] | None = None
+    credential_refs: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("config")
+    @classmethod
+    def validate_config_refs(cls, value: dict[str, Any] | None) -> dict[str, Any] | None:
+        if value is None:
+            return None
+        validated = _validate_ref_shape(value)
+        if not isinstance(validated, dict):
+            raise TypeError("Connector config must be an object.")
+        return validated
+
+
+class TestResult(BaseModel):
+    success: bool
+    diagnostic: str
+    latency_ms: float
+
+
+class TestConnectivityResponse(BaseModel):
+    connector_instance_id: UUID
+    connector_type_slug: str
+    result: TestResult
+
+
 class ConnectorRouteCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

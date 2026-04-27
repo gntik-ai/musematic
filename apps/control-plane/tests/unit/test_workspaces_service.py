@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.exceptions import NotFoundError
@@ -23,6 +24,7 @@ from platform.workspaces.schemas import (
     CreateGoalRequest,
     CreateWorkspaceRequest,
     SetVisibilityGrantRequest,
+    TransferOwnershipRequest,
     UpdateGoalStatusRequest,
     UpdateSettingsRequest,
     UpdateWorkspaceRequest,
@@ -56,6 +58,32 @@ class CostGovernanceWorkspaceStub:
 
     async def handle_workspace_archived(self, workspace_id: object) -> None:
         self.archived.append(workspace_id)
+
+
+class IncidentResponseWorkspaceStub:
+    def __init__(self) -> None:
+        self.archived: list[object] = []
+
+    async def handle_workspace_archived(self, workspace_id: object) -> None:
+        self.archived.append(workspace_id)
+
+
+class TwoPersonApprovalWorkspaceStub:
+    def __init__(self) -> None:
+        self.created: list[dict[str, object]] = []
+
+    async def create_challenge(self, **payload: object):
+        self.created.append(payload)
+        return type(
+            "Challenge",
+            (),
+            {
+                "id": uuid4(),
+                "action_type": payload["action_type"],
+                "status": "pending",
+                "expires_at": datetime.now(UTC),
+            },
+        )()
 
 
 def _service(
@@ -105,7 +133,9 @@ async def test_create_get_list_update_archive_restore_and_delete_workspace() -> 
     repo = WorkspacesRepoStub()
     service, _accounts_service, producer = _service(repo)
     cost_governance = CostGovernanceWorkspaceStub()
+    incident_response = IncidentResponseWorkspaceStub()
     service.cost_governance_service = cost_governance
+    service.incident_response_service = incident_response
 
     created = await service.create_workspace(
         owner_id,
@@ -136,6 +166,7 @@ async def test_create_get_list_update_archive_restore_and_delete_workspace() -> 
     assert rearchived.status == WorkspaceStatus.archived
     assert deleted.workspace_id == created.id
     assert cost_governance.archived == [created.id, created.id]
+    assert incident_response.archived == [created.id, created.id]
     assert [event["event_type"] for event in producer.events][:6] == [
         "workspaces.workspace.created",
         "workspaces.workspace.updated",
@@ -399,9 +430,15 @@ async def test_goal_visibility_and_settings_flows() -> None:
     settings = await service.update_settings(
         workspace.id,
         owner_id,
-        UpdateSettingsRequest(subscribed_agents=["planner:*"]),
+        UpdateSettingsRequest(
+            subscribed_agents=["planner:*"],
+            quota_config={"executions": 50},
+            dlp_rules={"enabled": True},
+            residency_config={"region": "eu-west"},
+        ),
     )
     workspace_ids = await service.get_user_workspace_ids(owner_id)
+    summary = await service.get_summary(workspace.id, owner_id)
 
     assert goal.title == "Goal A"
     assert listed.total == 1
@@ -411,6 +448,11 @@ async def test_goal_visibility_and_settings_flows() -> None:
     assert internal_visibility is not None
     assert existing_settings.workspace_id == workspace.id
     assert settings.subscribed_agents == ["planner:*"]
+    assert settings.quota_config == {"executions": 50}
+    assert settings.dlp_rules == {"enabled": True}
+    assert settings.residency_config == {"region": "eu-west"}
+    assert summary.cards["agent_count"].metadata == {"subscribed_agents": ["planner:*"]}
+    assert summary.quotas == {"executions": 50}
     assert workspace_ids == [workspace.id]
     assert {event["event_type"] for event in producer.events} >= {
         "workspaces.goal.created",
@@ -437,6 +479,8 @@ async def test_goal_visibility_settings_and_limit_fallback_paths() -> None:
     fetched_goal = await service.get_goal(workspace.id, owner_id, goal.id)
     await service.delete_visibility_grant(workspace.id, owner_id)
     fetched_settings = await service.get_settings(workspace.id, owner_id)
+    repo.settings_by_workspace.pop(workspace.id)
+    summary = await service.get_summary(workspace.id, owner_id)
     updated_settings = await service.update_settings(
         workspace.id,
         owner_id,
@@ -462,6 +506,7 @@ async def test_goal_visibility_settings_and_limit_fallback_paths() -> None:
 
     assert fetched_goal.id == goal.id
     assert fetched_settings.workspace_id == workspace.id
+    assert summary.workspace_id == workspace.id
     assert updated_settings.cost_budget == {"monthly_cents": 1000}
     assert len(updated_settings.subscribed_fleets) == 1
     assert len(updated_settings.subscribed_policies) == 1
@@ -477,6 +522,106 @@ async def test_goal_visibility_settings_and_limit_fallback_paths() -> None:
 
     with pytest.raises(WorkspaceNotFoundError):
         await service._require_membership(uuid4(), owner_id, WorkspaceRole.viewer)
+
+
+@pytest.mark.asyncio
+async def test_ownership_transfer_challenge_and_commit_paths() -> None:
+    owner_id = uuid4()
+    new_owner_id = uuid4()
+    repo = WorkspacesRepoStub()
+    repo.existing_users.add(new_owner_id)
+    workspace = build_workspace(owner_id=owner_id)
+    repo.workspaces[workspace.id] = workspace
+    repo.memberships[(workspace.id, owner_id)] = build_membership(
+        workspace_id=workspace.id,
+        user_id=owner_id,
+        role=WorkspaceRole.owner,
+    )
+    two_pa = TwoPersonApprovalWorkspaceStub()
+    service, _accounts_service, _producer = _service(repo)
+    service.two_person_approval_service = two_pa
+
+    challenge = await service.initiate_ownership_transfer(
+        workspace.id,
+        owner_id,
+        TransferOwnershipRequest(new_owner_id=new_owner_id),
+    )
+    committed = await service.commit_ownership_transfer_payload(
+        {
+            "workspace_id": str(workspace.id),
+            "new_owner_id": str(new_owner_id),
+        },
+        owner_id,
+    )
+
+    assert challenge.action_type == "workspace_transfer_ownership"
+    assert two_pa.created[0]["initiator_id"] == owner_id
+    assert two_pa.created[0]["action_payload"] == {
+        "workspace_id": str(workspace.id),
+        "new_owner_id": str(new_owner_id),
+    }
+    assert committed.owner_id == new_owner_id
+    assert repo.memberships[(workspace.id, owner_id)].role == WorkspaceRole.admin
+    assert repo.memberships[(workspace.id, new_owner_id)].role == WorkspaceRole.owner
+
+
+@pytest.mark.asyncio
+async def test_ownership_transfer_rejects_missing_or_invalid_targets() -> None:
+    owner_id = uuid4()
+    repo = WorkspacesRepoStub()
+    workspace = build_workspace(owner_id=owner_id)
+    repo.workspaces[workspace.id] = workspace
+    repo.memberships[(workspace.id, owner_id)] = build_membership(
+        workspace_id=workspace.id,
+        user_id=owner_id,
+        role=WorkspaceRole.owner,
+    )
+    service, _accounts_service, _producer = _service(repo)
+
+    with pytest.raises(NotFoundError):
+        await service.initiate_ownership_transfer(
+            workspace.id,
+            owner_id,
+            TransferOwnershipRequest(new_owner_id=uuid4()),
+        )
+
+    repo.existing_users.add(owner_id)
+    with pytest.raises(WorkspaceAuthorizationError):
+        await service.initiate_ownership_transfer(
+            workspace.id,
+            owner_id,
+            TransferOwnershipRequest(new_owner_id=owner_id),
+        )
+
+    target_id = uuid4()
+    repo.existing_users.add(target_id)
+    with pytest.raises(WorkspaceStateConflictError):
+        await service.initiate_ownership_transfer(
+            workspace.id,
+            owner_id,
+            TransferOwnershipRequest(new_owner_id=target_id),
+        )
+
+    with pytest.raises(NotFoundError):
+        await service.commit_ownership_transfer_payload(
+            {
+                "workspace_id": str(workspace.id),
+                "new_owner_id": str(uuid4()),
+            },
+            owner_id,
+        )
+
+    stale_owner_id = uuid4()
+    repo.existing_users.add(target_id)
+    workspace.owner_id = stale_owner_id
+    with pytest.raises(WorkspaceAuthorizationError):
+        await service.commit_ownership_transfer_payload(
+            {
+                "workspace_id": str(workspace.id),
+                "new_owner_id": str(target_id),
+            },
+            owner_id,
+        )
 
 
 @pytest.mark.asyncio

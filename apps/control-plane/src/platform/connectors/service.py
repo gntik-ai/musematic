@@ -61,12 +61,15 @@ from platform.connectors.schemas import (
     OutboundDeliveryCreate,
     OutboundDeliveryListResponse,
     OutboundDeliveryResponse,
+    TestConnectivityRequest,
+    TestConnectivityResponse,
 )
 from platform.connectors.security import (
     VaultResolver,
     assert_slack_signature,
     assert_webhook_signature,
     payload_to_json,
+    resolve_connector_secret,
     scrub_secret_text,
 )
 from typing import Any
@@ -226,6 +229,33 @@ class ConnectorsService:
             last_health_check_at=datetime.now(UTC),
         )
         return HealthCheckResponse(status=result.status, latency_ms=result.latency_ms, error=error)
+
+    async def test_connectivity(
+        self,
+        workspace_id: UUID,
+        connector_id: UUID,
+        payload: TestConnectivityRequest,
+    ) -> TestConnectivityResponse:
+        instance = await self.repository.get_connector_instance(connector_id, workspace_id)
+        if instance is None:
+            raise ConnectorNotFoundError(connector_id)
+        connector = get_connector(instance.connector_type.slug)
+        config = payload.config if payload.config is not None else instance.config_json
+        credential_refs = (
+            payload.credential_refs
+            if payload.credential_refs
+            else {item.credential_key: item.vault_path for item in instance.credential_refs}
+        )
+        await self._validate_connector_config(instance.connector_type.slug, config, credential_refs)
+        resolved_config, secrets = self._resolve_config(config, credential_refs)
+        result = await connector.test_connectivity(resolved_config, credential_refs)
+        return TestConnectivityResponse(
+            connector_instance_id=instance.id,
+            connector_type_slug=instance.connector_type.slug,
+            result=result.model_copy(
+                update={"diagnostic": scrub_secret_text(result.diagnostic, secrets)}
+            ),
+        )
 
     async def create_route(
         self,
@@ -391,9 +421,7 @@ class ConnectorsService:
         )
         route_id = UUID(str(matched["id"])) if matched.get("id") else None
         target_workflow_id = (
-            UUID(str(matched["target_workflow_id"]))
-            if matched.get("target_workflow_id")
-            else None
+            UUID(str(matched["target_workflow_id"])) if matched.get("target_workflow_id") else None
         )
         await publish_connector_ingress(
             self.producer,
@@ -728,9 +756,7 @@ class ConnectorsService:
         refs_in_config = self._extract_config_refs(config)
         missing = sorted(refs_in_config.difference(credential_refs))
         if missing:
-            raise ConnectorConfigError(
-                f"Missing credential_refs for keys: {', '.join(missing)}."
-            )
+            raise ConnectorConfigError(f"Missing credential_refs for keys: {', '.join(missing)}.")
         connector = get_connector(type_slug)
         await connector.validate_config(config, credential_refs)
 
@@ -739,13 +765,20 @@ class ConnectorsService:
         instance: ConnectorInstance,
     ) -> tuple[dict[str, Any], list[str]]:
         refs = {item.credential_key: item.vault_path for item in instance.credential_refs}
+        return self._resolve_config(instance.config_json, refs)
+
+    def _resolve_config(
+        self,
+        config: dict[str, Any],
+        refs: dict[str, str],
+    ) -> tuple[dict[str, Any], list[str]]:
         secrets: list[str] = []
 
         def _resolve(value: Any) -> Any:
             if isinstance(value, dict):
                 if "$ref" in value:
                     key = str(value["$ref"])
-                    secret = self.vault.resolve(refs[key], key)
+                    secret = resolve_connector_secret(self.vault, refs[key], key)
                     secrets.append(secret)
                     return secret
                 return {name: _resolve(item) for name, item in value.items()}
@@ -753,7 +786,10 @@ class ConnectorsService:
                 return [_resolve(item) for item in value]
             return value
 
-        return _resolve(instance.config_json), secrets
+        resolved = _resolve(config)
+        if not isinstance(resolved, dict):
+            raise ConnectorConfigError("Connector config must resolve to an object.")
+        return resolved, secrets
 
     async def _invalidate_route_cache(self, workspace_id: UUID, connector_id: UUID) -> None:
         await self.redis_client.delete(self._route_cache_key(workspace_id, connector_id))

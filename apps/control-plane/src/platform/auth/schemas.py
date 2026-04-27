@@ -205,6 +205,26 @@ class IBORSyncTriggerResponse(BaseModel):
     started_at: datetime
 
 
+class StepResult(BaseModel):
+    step: str
+    status: str
+    duration_ms: int
+    error: str | None = None
+
+
+class TestConnectionResponse(BaseModel):
+    connector_id: UUID
+    steps: list[StepResult]
+    success: bool
+
+
+class SyncRunResponse(IBORSyncTriggerResponse):
+    pass
+
+
+class IBORSyncHistoryResponse(IBORSyncRunListResponse):
+    pass
+
 
 class OAuthProviderType(StrEnum):
     GOOGLE = "google"

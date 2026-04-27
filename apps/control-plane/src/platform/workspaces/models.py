@@ -240,6 +240,24 @@ class WorkspaceSettings(Base, UUIDMixin, TimestampMixin):
         default=dict,
         server_default=text("'{}'::jsonb"),
     )
+    quota_config: Mapped[dict[str, Any]] = mapped_column(
+        JSONB(none_as_null=False),
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
+    dlp_rules: Mapped[dict[str, Any]] = mapped_column(
+        JSONB(none_as_null=False),
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
+    residency_config: Mapped[dict[str, Any]] = mapped_column(
+        JSONB(none_as_null=False),
+        nullable=False,
+        default=dict,
+        server_default=text("'{}'::jsonb"),
+    )
 
     workspace: Mapped[Workspace] = relationship(
         "platform.workspaces.models.Workspace",

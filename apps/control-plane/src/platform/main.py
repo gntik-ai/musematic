@@ -251,6 +251,7 @@ from platform.trust.dependencies import (
 )
 from platform.trust.events import register_trust_event_types
 from platform.trust.router import router as trust_router
+from platform.two_person_approval.router import router as two_pa_router
 from platform.workflows.dependencies import build_workflow_service
 from platform.workflows.events import register_workflows_event_types
 from platform.workflows.models import TriggerType
@@ -1612,6 +1613,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(debug_logging_router)
         app.include_router(accounts_router)
         app.include_router(workspaces_router)
+        app.include_router(two_pa_router, prefix="/api/v1")
         app.include_router(analytics_router)
         app.include_router(cost_governance_router)
         app.include_router(registry_router)

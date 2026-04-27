@@ -1,0 +1,1 @@
+"""Two-person approval primitive."""

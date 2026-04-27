@@ -99,6 +99,9 @@ def build_settings(
     subscribed_policies: list[UUID] | None = None,
     subscribed_connectors: list[UUID] | None = None,
     cost_budget: dict[str, object] | None = None,
+    quota_config: dict[str, object] | None = None,
+    dlp_rules: dict[str, object] | None = None,
+    residency_config: dict[str, object] | None = None,
 ) -> WorkspaceSettings:
     now = datetime.now(UTC)
     settings = WorkspaceSettings(
@@ -109,6 +112,9 @@ def build_settings(
         subscribed_policies=subscribed_policies or [],
         subscribed_connectors=subscribed_connectors or [],
         cost_budget=cost_budget or {},
+        quota_config=quota_config or {},
+        dlp_rules=dlp_rules or {},
+        residency_config=residency_config or {},
     )
     settings.created_at = now
     settings.updated_at = now
@@ -379,6 +385,38 @@ class WorkspacesRepoStub:
         settings.updated_at = datetime.now(UTC)
         return settings
 
+    async def count_active_goals(self, workspace_id: UUID) -> int:
+        return sum(
+            1
+            for (candidate_workspace_id, _goal_id), goal in self.goals.items()
+            if candidate_workspace_id == workspace_id and goal.status == GoalStatus.open
+        )
+
+    async def count_executions_in_flight(self, workspace_id: UUID) -> int:
+        del workspace_id
+        return 0
+
+    async def transfer_ownership(
+        self,
+        workspace: Workspace,
+        previous_owner_membership: Membership,
+        new_owner_membership: Membership | None,
+        new_owner_id: UUID,
+    ) -> Workspace:
+        previous_owner_membership.role = WorkspaceRole.admin
+        if new_owner_membership is None:
+            new_owner_membership = await self.add_member(
+                workspace.id,
+                new_owner_id,
+                WorkspaceRole.owner,
+            )
+        else:
+            new_owner_membership.role = WorkspaceRole.owner
+            new_owner_membership.updated_at = datetime.now(UTC)
+        workspace.owner_id = new_owner_id
+        workspace.updated_at = datetime.now(UTC)
+        return workspace
+
     async def get_user_workspace_ids(self, user_id: UUID) -> list[UUID]:
         return [
             workspace_id
@@ -606,6 +644,9 @@ class RouterServiceStub:
             "subscribed_policies": [],
             "subscribed_connectors": [],
             "cost_budget": {},
+            "quota_config": {},
+            "dlp_rules": {},
+            "residency_config": {},
             "updated_at": self.visibility_updated_at,
         }
 
@@ -618,6 +659,9 @@ class RouterServiceStub:
             "subscribed_policies": payload.subscribed_policies or [],
             "subscribed_connectors": payload.subscribed_connectors or [],
             "cost_budget": payload.cost_budget or {},
+            "quota_config": payload.quota_config or {},
+            "dlp_rules": payload.dlp_rules or {},
+            "residency_config": payload.residency_config or {},
             "updated_at": self.visibility_updated_at,
         }
 

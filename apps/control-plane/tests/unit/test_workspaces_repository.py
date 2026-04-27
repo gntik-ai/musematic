@@ -267,6 +267,66 @@ async def test_visibility_and_settings_methods_support_create_update_and_delete(
 
 
 @pytest.mark.asyncio
+async def test_summary_counters_return_scalar_counts() -> None:
+    workspace_id = uuid4()
+    session = _session(scalar_results=[None, 4])
+    repo = WorkspacesRepository(session)
+
+    assert await repo.count_active_goals(workspace_id) == 0
+    assert await repo.count_executions_in_flight(workspace_id) == 4
+
+
+@pytest.mark.asyncio
+async def test_transfer_ownership_updates_existing_or_new_membership() -> None:
+    workspace = build_workspace()
+    previous_owner = build_membership(
+        workspace_id=workspace.id,
+        user_id=workspace.owner_id,
+        role=WorkspaceRole.owner,
+    )
+    existing_new_owner = build_membership(
+        workspace_id=workspace.id,
+        user_id=uuid4(),
+        role=WorkspaceRole.member,
+    )
+    session = _session()
+    repo = WorkspacesRepository(session)
+
+    updated_existing = await repo.transfer_ownership(
+        workspace,
+        previous_owner,
+        existing_new_owner,
+        existing_new_owner.user_id,
+    )
+
+    assert updated_existing.owner_id == existing_new_owner.user_id
+    assert previous_owner.role == WorkspaceRole.admin
+    assert existing_new_owner.role == WorkspaceRole.owner
+
+    second_workspace = build_workspace()
+    second_previous_owner = build_membership(
+        workspace_id=second_workspace.id,
+        user_id=second_workspace.owner_id,
+        role=WorkspaceRole.owner,
+    )
+    added_owner_id = uuid4()
+    updated_created = await repo.transfer_ownership(
+        second_workspace,
+        second_previous_owner,
+        None,
+        added_owner_id,
+    )
+
+    assert updated_created.owner_id == added_owner_id
+    assert second_previous_owner.role == WorkspaceRole.admin
+    added_membership = session.add.call_args.args[0]
+    assert added_membership.workspace_id == second_workspace.id
+    assert added_membership.user_id == added_owner_id
+    assert added_membership.role == WorkspaceRole.owner
+    assert session.flush.await_count == 2
+
+
+@pytest.mark.asyncio
 async def test_get_user_workspace_ids_returns_scalar_values() -> None:
     workspace_ids = [uuid4(), uuid4()]
     member_ids = [uuid4(), uuid4()]

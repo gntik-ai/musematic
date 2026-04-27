@@ -54,6 +54,8 @@ from platform.workspaces.schemas import (
     MembershipResponse,
     SettingsResponse,
     SetVisibilityGrantRequest,
+    TransferOwnershipChallengeResponse,
+    TransferOwnershipRequest,
     UpdateGoalStatusRequest,
     UpdateSettingsRequest,
     UpdateWorkspaceRequest,
@@ -61,6 +63,7 @@ from platform.workspaces.schemas import (
     WorkspaceDeletedResponse,
     WorkspaceListResponse,
     WorkspaceResponse,
+    WorkspaceSummaryResponse,
 )
 from platform.workspaces.state_machine import validate_goal_transition
 from platform.ws_hub.subscription import ChannelType
@@ -86,6 +89,7 @@ class WorkspacesService:
         self.accounts_service = accounts_service
         self.cost_governance_service = cost_governance_service
         self.incident_response_service = incident_response_service
+        self.two_person_approval_service: Any | None = None
 
     async def create_workspace(
         self,
@@ -568,8 +572,115 @@ class WorkspacesService:
             fields["subscribed_connectors"] = request.subscribed_connectors
         if "cost_budget" in request.model_fields_set and request.cost_budget is not None:
             fields["cost_budget"] = request.cost_budget
+        if "quota_config" in request.model_fields_set and request.quota_config is not None:
+            fields["quota_config"] = request.quota_config
+        if "dlp_rules" in request.model_fields_set and request.dlp_rules is not None:
+            fields["dlp_rules"] = request.dlp_rules
+        if "residency_config" in request.model_fields_set and request.residency_config is not None:
+            fields["residency_config"] = request.residency_config
         settings = await self.repo.update_settings(workspace_id, **fields)
         return self._settings_response(settings)
+
+    async def get_summary(self, workspace_id: UUID, requester_id: UUID) -> WorkspaceSummaryResponse:
+        await self._require_membership(workspace_id, requester_id, WorkspaceRole.viewer)
+        settings = await self.repo.get_settings(workspace_id)
+        if settings is None:
+            settings = await self.repo.update_settings(workspace_id)
+        active_goals = await self.repo.count_active_goals(workspace_id)
+        executions_in_flight = await self.repo.count_executions_in_flight(workspace_id)
+        subscribed_agents = list(settings.subscribed_agents)
+        agent_count = len(subscribed_agents)
+        budget = dict(getattr(settings, "cost_budget", {}) or {})
+        quotas = dict(getattr(settings, "quota_config", {}) or {})
+        dlp_rules = dict(getattr(settings, "dlp_rules", {}) or {})
+        return WorkspaceSummaryResponse(
+            workspace_id=workspace_id,
+            active_goals=active_goals,
+            executions_in_flight=executions_in_flight,
+            agent_count=agent_count,
+            budget=budget,
+            quotas=quotas,
+            tags={"count": 0, "items": []},
+            dlp_violations=0,
+            recent_activity=[],
+            cards={
+                "active_goals": {
+                    "label": "Active goals",
+                    "value": active_goals,
+                    "metadata": {},
+                },
+                "executions_in_flight": {
+                    "label": "Executions in flight",
+                    "value": executions_in_flight,
+                    "metadata": {},
+                },
+                "agent_count": {
+                    "label": "Agents",
+                    "value": agent_count,
+                    "metadata": {"subscribed_agents": subscribed_agents},
+                },
+                "budget": {"label": "Budget", "value": budget.get("amount", 0), "metadata": budget},
+                "quotas": {"label": "Quotas", "value": len(quotas), "metadata": quotas},
+                "tags": {"label": "Tags", "value": 0, "metadata": {}},
+                "dlp": {"label": "DLP violations", "value": 0, "metadata": dlp_rules},
+            },
+        )
+
+    async def initiate_ownership_transfer(
+        self,
+        workspace_id: UUID,
+        requester_id: UUID,
+        request: TransferOwnershipRequest,
+    ) -> TransferOwnershipChallengeResponse:
+        workspace, _ = await self._require_membership(
+            workspace_id, requester_id, WorkspaceRole.owner
+        )
+        if not await self.repo.user_exists(request.new_owner_id):
+            raise NotFoundError("USER_NOT_FOUND", "User not found")
+        if request.new_owner_id == workspace.owner_id:
+            raise WorkspaceAuthorizationError("New owner is already the workspace owner")
+        if self.two_person_approval_service is None:
+            raise WorkspaceStateConflictError(
+                "TWO_PERSON_APPROVAL_UNAVAILABLE",
+                "Two-person approval service is not configured",
+            )
+        challenge = await self.two_person_approval_service.create_challenge(
+            initiator_id=requester_id,
+            action_type="workspace_transfer_ownership",
+            action_payload={
+                "workspace_id": str(workspace_id),
+                "new_owner_id": str(request.new_owner_id),
+            },
+        )
+        return TransferOwnershipChallengeResponse(
+            challenge_id=challenge.id,
+            action_type=challenge.action_type,
+            status=challenge.status,
+            expires_at=challenge.expires_at,
+        )
+
+    async def commit_ownership_transfer_payload(
+        self,
+        payload: dict[str, Any],
+        requester_id: UUID,
+    ) -> WorkspaceResponse:
+        workspace_id = UUID(str(payload["workspace_id"]))
+        new_owner_id = UUID(str(payload["new_owner_id"]))
+        workspace, previous_owner_membership = await self._require_membership(
+            workspace_id, requester_id, WorkspaceRole.owner
+        )
+        if workspace.owner_id != requester_id:
+            raise WorkspaceAuthorizationError("Only the current owner can commit transfer")
+        if not await self.repo.user_exists(new_owner_id):
+            raise NotFoundError("USER_NOT_FOUND", "User not found")
+        new_owner_membership = await self.repo.get_membership(workspace_id, new_owner_id)
+        updated = await self.repo.transfer_ownership(
+            workspace,
+            previous_owner_membership,
+            new_owner_membership,
+            new_owner_id,
+        )
+        return self._workspace_response(updated)
 
     async def get_user_workspace_ids(self, user_id: UUID) -> list[UUID]:
         return await self.repo.get_user_workspace_ids(user_id)
@@ -690,6 +801,9 @@ class WorkspacesService:
             subscribed_policies=list(settings.subscribed_policies),
             subscribed_connectors=list(settings.subscribed_connectors),
             cost_budget=dict(getattr(settings, "cost_budget", {}) or {}),
+            quota_config=dict(getattr(settings, "quota_config", {}) or {}),
+            dlp_rules=dict(getattr(settings, "dlp_rules", {}) or {}),
+            residency_config=dict(getattr(settings, "residency_config", {}) or {}),
             updated_at=settings.updated_at,
         )
 

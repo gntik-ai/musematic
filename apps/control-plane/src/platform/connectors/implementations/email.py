@@ -16,6 +16,7 @@ from platform.connectors.exceptions import (
 )
 from platform.connectors.models import ConnectorHealthStatus
 from platform.connectors.plugin import DeliveryRequest, HealthCheckResult, InboundMessage
+from platform.connectors.schemas import TestResult
 from typing import Any
 from uuid import UUID
 
@@ -78,9 +79,7 @@ class EmailConnector:
             channel=str(parsed.get("To", config.get("email_address", "email"))),
             content_text=text,
             content_structured=(
-                {"subject": parsed.get("Subject")}
-                if parsed.get("Subject")
-                else None
+                {"subject": parsed.get("Subject")} if parsed.get("Subject") else None
             ),
             timestamp=received_at,
             original_payload=original_payload,
@@ -148,6 +147,19 @@ class EmailConnector:
                             await result
                     except Exception:
                         pass
+
+    async def test_connectivity(
+        self,
+        config: dict[str, Any],
+        credential_refs: dict[str, str],
+    ) -> TestResult:
+        del credential_refs
+        result = await self.health_check(config)
+        return TestResult(
+            success=result.status is ConnectorHealthStatus.healthy,
+            diagnostic=result.error or "Email IMAP NOOP succeeded.",
+            latency_ms=float(result.latency_ms or 0.0),
+        )
 
 
 @dataclass(slots=True)

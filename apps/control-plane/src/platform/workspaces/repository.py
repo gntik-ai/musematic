@@ -362,6 +362,9 @@ class WorkspacesRepository:
                 subscribed_policies=[],
                 subscribed_connectors=[],
                 cost_budget={},
+                quota_config={},
+                dlp_rules={},
+                residency_config={},
             )
             self.session.add(settings)
             await self.session.flush()
@@ -369,6 +372,60 @@ class WorkspacesRepository:
             setattr(settings, key, value)
         await self.session.flush()
         return settings
+
+    async def count_active_goals(self, workspace_id: UUID) -> int:
+        total = await self.session.scalar(
+            select(func.count())
+            .select_from(WorkspaceGoal)
+            .where(
+                WorkspaceGoal.workspace_id == workspace_id,
+                WorkspaceGoal.status.in_([GoalStatus.open, GoalStatus.in_progress]),
+            )
+        )
+        return int(total or 0)
+
+    async def count_executions_in_flight(self, workspace_id: UUID) -> int:
+        from platform.execution.models import Execution, ExecutionStatus
+
+        total = await self.session.scalar(
+            select(func.count())
+            .select_from(Execution)
+            .where(
+                Execution.workspace_id == workspace_id,
+                Execution.status.in_(
+                    [
+                        ExecutionStatus.queued,
+                        ExecutionStatus.running,
+                        ExecutionStatus.waiting_for_approval,
+                        ExecutionStatus.compensating,
+                        ExecutionStatus.paused,
+                    ]
+                ),
+            )
+        )
+        return int(total or 0)
+
+    async def transfer_ownership(
+        self,
+        workspace: Workspace,
+        previous_owner_membership: Membership,
+        new_owner_membership: Membership | None,
+        new_owner_id: UUID,
+    ) -> Workspace:
+        workspace.owner_id = new_owner_id
+        previous_owner_membership.role = WorkspaceRole.admin
+        if new_owner_membership is None:
+            self.session.add(
+                Membership(
+                    workspace_id=workspace.id,
+                    user_id=new_owner_id,
+                    role=WorkspaceRole.owner,
+                )
+            )
+        else:
+            new_owner_membership.role = WorkspaceRole.owner
+        await self.session.flush()
+        return workspace
 
     async def get_user_workspace_ids(self, user_id: UUID) -> list[UUID]:
         result = await self.session.execute(

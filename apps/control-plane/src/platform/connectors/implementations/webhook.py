@@ -9,6 +9,7 @@ from platform.connectors.exceptions import (
 )
 from platform.connectors.models import ConnectorHealthStatus
 from platform.connectors.plugin import DeliveryRequest, HealthCheckResult, InboundMessage
+from platform.connectors.schemas import TestResult
 from typing import Any
 from uuid import UUID
 
@@ -114,3 +115,16 @@ class WebhookConnector:
                 latency_ms=(time.perf_counter() - started) * 1000.0,
                 error=str(exc),
             )
+
+    async def test_connectivity(
+        self,
+        config: dict[str, Any],
+        credential_refs: dict[str, str],
+    ) -> TestResult:
+        del credential_refs
+        result = await self.health_check(config)
+        return TestResult(
+            success=result.status is ConnectorHealthStatus.healthy,
+            diagnostic=result.error or "Webhook HEAD request succeeded.",
+            latency_ms=float(result.latency_ms or 0.0),
+        )
