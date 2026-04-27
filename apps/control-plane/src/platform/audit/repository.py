@@ -31,6 +31,11 @@ class AuditChainRepository:
         audit_event_id: UUID | None,
         audit_event_source: str,
         canonical_payload_hash: str,
+        event_type: str | None = None,
+        actor_role: str | None = None,
+        severity: str = "info",
+        canonical_payload: dict[str, object] | None = None,
+        impersonation_user_id: UUID | None = None,
     ) -> AuditChainEntry:
         entry = AuditChainEntry(
             sequence_number=sequence_number,
@@ -39,6 +44,11 @@ class AuditChainRepository:
             audit_event_id=audit_event_id,
             audit_event_source=audit_event_source,
             canonical_payload_hash=canonical_payload_hash,
+            event_type=event_type,
+            actor_role=actor_role,
+            severity=severity,
+            canonical_payload=canonical_payload,
+            impersonation_user_id=impersonation_user_id,
         )
         self.session.add(entry)
         await self.session.flush()

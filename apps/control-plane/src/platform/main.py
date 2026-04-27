@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
@@ -20,6 +21,7 @@ from platform.a2a_gateway.router import router as a2a_gateway_router
 from platform.accounts.events import register_accounts_event_types
 from platform.accounts.repository import AccountsRepository
 from platform.accounts.router import router as accounts_router
+from platform.admin.bootstrap import BootstrapConfigError, bootstrap_superadmin_from_env
 from platform.agentops.dependencies import build_agentops_service
 from platform.agentops.events import register_agentops_event_types
 from platform.agentops.governance.triggers import AgentOpsGovernanceTriggers
@@ -510,6 +512,20 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             LOGGER.warning("Failed to connect %s during startup: %s", name, exc)
 
     app.state.startup_errors = startup_errors
+    if os.getenv("PLATFORM_SUPERADMIN_USERNAME"):
+        try:
+            await bootstrap_superadmin_from_env(
+                session_factory=database.AsyncSessionLocal,
+                settings=cast(PlatformSettings, app.state.settings),
+                method="env_var",
+            )
+        except BootstrapConfigError:
+            raise
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["superadmin_bootstrap"] = str(exc)
+            LOGGER.warning("Failed to run super admin bootstrap: %s", exc)
+
     try:
         async with database.AsyncSessionLocal() as session:
             rubric_service = build_rubric_service(

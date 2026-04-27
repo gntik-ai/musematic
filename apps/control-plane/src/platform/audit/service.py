@@ -16,6 +16,7 @@ from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.logging import get_logger
+from typing import Any
 from uuid import UUID, uuid4
 
 GENESIS_HASH = "0" * 64
@@ -52,12 +53,19 @@ class AuditChainService:
         audit_event_id: UUID | None,
         audit_event_source: str,
         canonical_payload: bytes,
+        *,
+        event_type: str | None = None,
+        actor_role: str | None = None,
+        severity: str = "info",
+        canonical_payload_json: dict[str, object] | None = None,
+        impersonation_user_id: UUID | None = None,
     ) -> AuditChainEntry:
         await self.repository.acquire_append_lock()
         latest = await self.repository.get_latest_entry()
         sequence_number = await self.repository.next_sequence_number()
         previous_hash = latest.entry_hash if latest is not None else GENESIS_HASH
         canonical_payload_hash = hashlib.sha256(canonical_payload).hexdigest()
+        persisted_payload = canonical_payload_json or self._decode_payload(canonical_payload)
         entry_hash = compute_entry_hash(
             previous_hash=previous_hash,
             sequence_number=sequence_number,
@@ -70,6 +78,11 @@ class AuditChainService:
             audit_event_id=audit_event_id,
             audit_event_source=audit_event_source,
             canonical_payload_hash=canonical_payload_hash,
+            event_type=event_type,
+            actor_role=actor_role,
+            severity=severity,
+            canonical_payload=persisted_payload,
+            impersonation_user_id=impersonation_user_id,
         )
         get_logger(__name__).info(
             "audit.chain.appended",
@@ -79,6 +92,14 @@ class AuditChainService:
             entry_hash=entry_hash,
         )
         return entry
+
+    @staticmethod
+    def _decode_payload(canonical_payload: bytes) -> dict[str, Any] | None:
+        try:
+            decoded = json.loads(canonical_payload.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return None
+        return decoded if isinstance(decoded, dict) else None
 
     async def verify(
         self,
