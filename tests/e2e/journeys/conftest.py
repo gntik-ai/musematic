@@ -661,6 +661,7 @@ async def admin_client(
     http_client: AuthenticatedAsyncClient,
     mock_google_oidc: str,
     ensure_journey_personas: dict[str, str],
+    journey_context: JourneyContext,
 ) -> AuthenticatedAsyncClient:
     del ensure_journey_personas
     if _use_password_login("admin"):
@@ -678,7 +679,7 @@ async def admin_client(
         http_client.clone(),
         provider="google",
         mock_server=mock_google_oidc,
-        login="j-admin",
+        login=_env("JOURNEY_ADMIN_GOOGLE_LOGIN", f"{journey_context.journey_id}-admin"),
     )
     assert provisioned.access_token is not None
     claims = _decode_access_token(provisioned.access_token)

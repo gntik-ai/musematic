@@ -46,6 +46,31 @@ def _decode_oauth_session_payload(redirect_location: str) -> dict[str, object]:
     return payload
 
 
+def _profile_display_name(login: str) -> str:
+    normalized = login.replace("_", " ").replace("-", " ").replace(".", " ").strip()
+    if not normalized:
+        return "E2E User"
+    return f"E2E {normalized.title()}"
+
+
+async def _complete_profile_if_required(client, login: str) -> None:
+    profile = await client.get("/api/v1/accounts/me")
+    profile.raise_for_status()
+    payload = profile.json()
+    if payload.get("status") != "pending_profile_completion":
+        return
+
+    completion = await client.patch(
+        "/api/v1/accounts/me",
+        json={
+            "display_name": _profile_display_name(login),
+            "locale": "en",
+            "timezone": "UTC",
+        },
+    )
+    completion.raise_for_status()
+
+
 async def oauth_login(client, provider: str, mock_server: str, login: str):
     authorize = await client.get(f"/api/v1/auth/oauth/{provider}/authorize")
     authorize.raise_for_status()
@@ -81,4 +106,5 @@ async def oauth_login(client, provider: str, mock_server: str, login: str):
         raise AssertionError(f"{provider} callback did not include an access token")
     client.set_bearer_token(access_token)
     client.refresh_token = refresh_token if isinstance(refresh_token, str) else None
+    await _complete_profile_if_required(client, login)
     return client
