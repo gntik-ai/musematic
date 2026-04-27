@@ -23680,6 +23680,28 @@
         "title": "OAuthAuthorizeResponse",
         "type": "object"
       },
+      "OAuthConfigReseedRequest": {
+        "properties": {
+          "force_update": {
+            "default": false,
+            "title": "Force Update",
+            "type": "boolean"
+          }
+        },
+        "title": "OAuthConfigReseedRequest",
+        "type": "object"
+      },
+      "OAuthConfigReseedResponse": {
+        "properties": {
+          "diff": {
+            "additionalProperties": true,
+            "title": "Diff",
+            "type": "object"
+          }
+        },
+        "title": "OAuthConfigReseedResponse",
+        "type": "object"
+      },
       "OAuthConnectivityTestResponse": {
         "properties": {
           "auth_url_returned": {
@@ -23701,6 +23723,88 @@
           "diagnostic"
         ],
         "title": "OAuthConnectivityTestResponse",
+        "type": "object"
+      },
+      "OAuthHistoryEntryResponse": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "admin_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Admin Id"
+          },
+          "after": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "timestamp": {
+            "format": "date-time",
+            "title": "Timestamp",
+            "type": "string"
+          }
+        },
+        "required": [
+          "timestamp",
+          "action"
+        ],
+        "title": "OAuthHistoryEntryResponse",
+        "type": "object"
+      },
+      "OAuthHistoryListResponse": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/OAuthHistoryEntryResponse"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "entries"
+        ],
+        "title": "OAuthHistoryListResponse",
         "type": "object"
       },
       "OAuthLinkListResponse": {
@@ -23849,6 +23953,42 @@
             "title": "Id",
             "type": "string"
           },
+          "last_edited_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Edited At"
+          },
+          "last_edited_by": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Edited By"
+          },
+          "last_successful_auth_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Successful Auth At"
+          },
           "org_restrictions": {
             "items": {
               "type": "string"
@@ -23873,6 +24013,10 @@
             },
             "title": "Scopes",
             "type": "array"
+          },
+          "source": {
+            "$ref": "#/components/schemas/OAuthProviderSourceType",
+            "default": "manual"
           },
           "updated_at": {
             "format": "date-time",
@@ -24010,6 +24154,63 @@
         "title": "OAuthProviderPublicListResponse",
         "type": "object"
       },
+      "OAuthProviderSourceType": {
+        "enum": [
+          "env_var",
+          "manual",
+          "imported"
+        ],
+        "title": "OAuthProviderSourceType",
+        "type": "string"
+      },
+      "OAuthProviderStatusResponse": {
+        "properties": {
+          "active_linked_users": {
+            "title": "Active Linked Users",
+            "type": "integer"
+          },
+          "auth_count_24h": {
+            "title": "Auth Count 24H",
+            "type": "integer"
+          },
+          "auth_count_30d": {
+            "title": "Auth Count 30D",
+            "type": "integer"
+          },
+          "auth_count_7d": {
+            "title": "Auth Count 7D",
+            "type": "integer"
+          },
+          "last_successful_auth_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Successful Auth At"
+          },
+          "provider_type": {
+            "$ref": "#/components/schemas/OAuthProviderType"
+          },
+          "source": {
+            "$ref": "#/components/schemas/OAuthProviderSourceType"
+          }
+        },
+        "required": [
+          "provider_type",
+          "source",
+          "auth_count_24h",
+          "auth_count_7d",
+          "auth_count_30d",
+          "active_linked_users"
+        ],
+        "title": "OAuthProviderStatusResponse",
+        "type": "object"
+      },
       "OAuthProviderType": {
         "enum": [
           "google",
@@ -24017,6 +24218,66 @@
         ],
         "title": "OAuthProviderType",
         "type": "string"
+      },
+      "OAuthRateLimitConfig": {
+        "properties": {
+          "global_max": {
+            "minimum": 1.0,
+            "title": "Global Max",
+            "type": "integer"
+          },
+          "global_window": {
+            "minimum": 1.0,
+            "title": "Global Window",
+            "type": "integer"
+          },
+          "per_ip_max": {
+            "minimum": 1.0,
+            "title": "Per Ip Max",
+            "type": "integer"
+          },
+          "per_ip_window": {
+            "minimum": 1.0,
+            "title": "Per Ip Window",
+            "type": "integer"
+          },
+          "per_user_max": {
+            "minimum": 1.0,
+            "title": "Per User Max",
+            "type": "integer"
+          },
+          "per_user_window": {
+            "minimum": 1.0,
+            "title": "Per User Window",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "per_ip_max",
+          "per_ip_window",
+          "per_user_max",
+          "per_user_window",
+          "global_max",
+          "global_window"
+        ],
+        "title": "OAuthRateLimitConfig",
+        "type": "object"
+      },
+      "OAuthSecretRotateRequest": {
+        "properties": {
+          "new_secret": {
+            "format": "password",
+            "minLength": 1,
+            "title": "New Secret",
+            "type": "string",
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "new_secret"
+        ],
+        "title": "OAuthSecretRotateRequest",
+        "type": "object"
       },
       "OJEPipelineConfigCreate": {
         "properties": {
@@ -41100,6 +41361,487 @@
           {
             "lang": "curl",
             "source": "curl -X POST \"http://localhost:8000/api/v1/admin/maintenance/windows/{window_id}/enable\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/oauth-providers/{provider}/history": {
+      "get": {
+        "operationId": "get_oauth_provider_history_api_v1_admin_oauth_providers__provider__history_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "title": "Provider",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthHistoryListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Get Oauth Provider History",
+        "tags": [
+          "oauth",
+          "admin"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/admin/oauth-providers/{provider}/history\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/admin/oauth-providers/{provider}/history\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/oauth-providers/{provider}/history`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/admin/oauth-providers/{provider}/history\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/oauth-providers/{provider}/rate-limits": {
+      "get": {
+        "operationId": "get_oauth_provider_rate_limits_api_v1_admin_oauth_providers__provider__rate_limits_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "title": "Provider",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthRateLimitConfig"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Get Oauth Provider Rate Limits",
+        "tags": [
+          "oauth",
+          "admin"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/admin/oauth-providers/{provider}/rate-limits\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/admin/oauth-providers/{provider}/rate-limits\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/oauth-providers/{provider}/rate-limits`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/admin/oauth-providers/{provider}/rate-limits\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      },
+      "put": {
+        "operationId": "update_oauth_provider_rate_limits_api_v1_admin_oauth_providers__provider__rate_limits_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "title": "Provider",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OAuthRateLimitConfig"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthRateLimitConfig"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Update Oauth Provider Rate Limits",
+        "tags": [
+          "oauth",
+          "admin"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"PUT\", \"http://localhost:8000/api/v1/admin/oauth-providers/{provider}/rate-limits\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"PUT\", \"{baseURL}/api/v1/admin/oauth-providers/{provider}/rate-limits\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/oauth-providers/{provider}/rate-limits`, {\n  method: \"PUT\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X PUT \"http://localhost:8000/api/v1/admin/oauth-providers/{provider}/rate-limits\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/oauth-providers/{provider}/reseed-from-env": {
+      "post": {
+        "operationId": "reseed_oauth_provider_api_v1_admin_oauth_providers__provider__reseed_from_env_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "title": "Provider",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OAuthConfigReseedRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthConfigReseedResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Reseed Oauth Provider",
+        "tags": [
+          "oauth",
+          "admin"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/oauth-providers/{provider}/reseed-from-env\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/oauth-providers/{provider}/reseed-from-env\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/oauth-providers/{provider}/reseed-from-env`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/oauth-providers/{provider}/reseed-from-env\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/oauth-providers/{provider}/rotate-secret": {
+      "post": {
+        "operationId": "rotate_oauth_secret_api_v1_admin_oauth_providers__provider__rotate_secret_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "title": "Provider",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OAuthSecretRotateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Rotate Oauth Secret",
+        "tags": [
+          "oauth",
+          "admin"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/oauth-providers/{provider}/rotate-secret\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/oauth-providers/{provider}/rotate-secret\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/oauth-providers/{provider}/rotate-secret`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/oauth-providers/{provider}/rotate-secret\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/oauth-providers/{provider}/status": {
+      "get": {
+        "operationId": "get_oauth_provider_status_api_v1_admin_oauth_providers__provider__status_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "provider",
+            "required": true,
+            "schema": {
+              "title": "Provider",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OAuthProviderStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Get Oauth Provider Status",
+        "tags": [
+          "oauth",
+          "admin"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/admin/oauth-providers/{provider}/status\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/admin/oauth-providers/{provider}/status\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/oauth-providers/{provider}/status`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/admin/oauth-providers/{provider}/status\" -H \"Authorization: Bearer $TOKEN\""
           }
         ]
       }
