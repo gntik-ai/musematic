@@ -25,6 +25,7 @@ USER_IDENTITY_COLUMNS: dict[str, list[str]] = {
     "audit_chain_entries": ["impersonation_user_id"],
     "oauth_audit_entries": ["user_id"],
     "oauth_links": ["user_id"],
+    "oauth_providers": ["last_edited_by"],
     "user_roles": ["user_id"],
     "auth_attempts": ["user_id"],
     "accounts_users": ["user_id", "suspended_by", "blocked_by", "archived_by"],
