@@ -82,12 +82,14 @@ USER_IDENTITY_COLUMNS: dict[str, list[str]] = {
     "two_person_auth_requests": ["initiator_id", "approved_by_id", "rejected_by_id"],
     "a2a_external_endpoints": ["created_by"],
     "content_moderation_policies": ["created_by"],
+    "context_engineering_profile_versions": ["created_by"],
     "fairness_evaluations": ["evaluated_by"],
     "entity_tags": ["created_by"],
     "entity_labels": ["created_by"],
     "locale_files": ["published_by"],
     "saved_views": ["owner_id"],
     "user_preferences": ["user_id"],
+    "contract_templates": ["created_by_user_id"],
 }
 
 

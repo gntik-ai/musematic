@@ -390,7 +390,7 @@ class ContractService:
             clauses_triggered=clauses,
             clauses_satisfied=satisfied,
             clauses_violated=violated,
-            final_action=final_action,  # type: ignore[arg-type]
+            final_action=final_action,
             mock_response=mock_response,
             was_fallback=was_fallback,
         )
