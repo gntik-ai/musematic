@@ -4410,6 +4410,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#vault" class="md-nav__link">
+    <span class="md-ellipsis">
+      Vault
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#visibility" class="md-nav__link">
     <span class="md-ellipsis">
       Visibility
@@ -5307,6 +5316,15 @@
   <a href="#trust" class="md-nav__link">
     <span class="md-ellipsis">
       Trust
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vault" class="md-nav__link">
+    <span class="md-ellipsis">
+      Vault
     </span>
   </a>
   
@@ -6254,14 +6272,6 @@
 <td>optional</td>
 <td>-</td>
 <td>sensitive</td>
-<td>Accepted by the platform flat-settings compatibility mapper.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code></td>
-</tr>
-<tr>
-<td><code>VAULT_MODE</code></td>
-<td>optional</td>
-<td>-</td>
-<td>informational</td>
 <td>Accepted by the platform flat-settings compatibility mapper.</td>
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
@@ -8890,6 +8900,14 @@
 <td><code>apps/control-plane/src/platform/notifications/exceptions.py</code></td>
 </tr>
 <tr>
+<td><code>ALLOW_INSECURE</code></td>
+<td>optional</td>
+<td><code>""</code></td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
 <td><code>ALLOW_SUPERADMIN_RESET</code></td>
 <td>optional</td>
 <td>-</td>
@@ -9295,7 +9313,7 @@
 <td>-</td>
 <td>sensitive</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/connectors/security.py</code></td>
+<td><code>apps/control-plane/src/platform/common/secret_provider.py</code></td>
 </tr>
 <tr>
 <td><code>CONNECTOR_TYPE_DEPRECATED</code></td>
@@ -9400,6 +9418,14 @@
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>CREDENTIAL_POLICY_DENIED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>sensitive</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/common/secret_provider.py</code></td>
 </tr>
 <tr>
 <td><code>CREDENTIAL_UNAVAILABLE</code></td>
@@ -11338,6 +11364,14 @@
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
+<td><code>PLATFORM_ENVIRONMENT</code></td>
+<td>optional</td>
+<td><code>(computed)</code></td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
 <td><code>PLATFORM_FORCE_RESET_SUPERADMIN</code></td>
 <td>optional</td>
 <td>-</td>
@@ -11368,6 +11402,14 @@
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
 <td><code>apps/control-plane/src/platform/admin/bootstrap.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_VAULT_</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
 <td><code>POLICY_ALREADY_ATTACHED</code></td>
@@ -12650,6 +12692,14 @@
 <td><code>apps/control-plane/src/platform/cost_governance/jobs/anomaly_job.py</code><br><code>apps/control-plane/src/platform/cost_governance/jobs/forecast_job.py</code><br><code>apps/control-plane/src/platform/incident_response/jobs/delivery_retry_scanner.py</code><br><code>apps/control-plane/src/platform/incident_response/jobs/runbook_freshness_scanner.py</code><br><code>apps/control-plane/src/platform/localization/models.py</code><br>+11 more</td>
 </tr>
 <tr>
+<td><code>VAULT_</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
 <td><code>VAULT_REFERENCE_EMPTY</code></td>
 <td>optional</td>
 <td>-</td>
@@ -13829,6 +13879,293 @@
 <td><code>7</code></td>
 <td>informational</td>
 <td>Configures <code>surveillance_warning_window_days</code> for Trust.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="vault">Vault<a class="headerlink" href="#vault" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Required</th>
+<th>Default</th>
+<th>Sensitivity</th>
+<th>Description</th>
+<th>Sources</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PLATFORM_VAULT_ADDR</code></td>
+<td>optional</td>
+<td>-</td>
+<td>configuration</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_VAULT_APPROLE_ROLE_ID</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_VAULT_APPROLE_SECRET_ID_SECRET_REF</code></td>
+<td>optional</td>
+<td>-</td>
+<td>sensitive</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_VAULT_AUTH_METHOD</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_VAULT_CACHE_MAX_STALENESS_SECONDS</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_VAULT_CACHE_TTL_SECONDS</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_VAULT_CA_CERT_SECRET_REF</code></td>
+<td>optional</td>
+<td>-</td>
+<td>sensitive</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_VAULT_KUBERNETES_ROLE</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_VAULT_KV_MOUNT</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_VAULT_KV_PREFIX</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_VAULT_LEASE_RENEWAL_THRESHOLD</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_VAULT_MODE</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_VAULT_NAMESPACE</code></td>
+<td>optional</td>
+<td>-</td>
+<td>configuration</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_VAULT_RETRY_ATTEMPTS</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_VAULT_RETRY_TIMEOUT_SECONDS</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_VAULT_SERVICE_ACCOUNT_TOKEN_PATH</code></td>
+<td>optional</td>
+<td>-</td>
+<td>sensitive</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_VAULT_TOKEN</code></td>
+<td>optional</td>
+<td>-</td>
+<td>sensitive</td>
+<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>VAULT_ADDR</code></td>
+<td>optional</td>
+<td><code>""</code></td>
+<td>configuration</td>
+<td>Configures <code>addr</code> for Vault.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>VAULT_APPROLE_ROLE_ID</code></td>
+<td>optional</td>
+<td><code>""</code></td>
+<td>informational</td>
+<td>Configures <code>approle_role_id</code> for Vault.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>VAULT_APPROLE_SECRET_ID_SECRET_REF</code></td>
+<td>optional</td>
+<td><code>null</code></td>
+<td>sensitive</td>
+<td>Configures <code>approle_secret_id_secret_ref</code> for Vault.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>VAULT_AUTH_METHOD</code></td>
+<td>optional</td>
+<td><code>kubernetes</code></td>
+<td>informational</td>
+<td>Configures <code>auth_method</code> for Vault.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>VAULT_CACHE_MAX_STALENESS_SECONDS</code></td>
+<td>optional</td>
+<td><code>300</code></td>
+<td>informational</td>
+<td>Configures <code>cache_max_staleness_seconds</code> for Vault.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>VAULT_CACHE_TTL_SECONDS</code></td>
+<td>optional</td>
+<td><code>60</code></td>
+<td>informational</td>
+<td>Configures <code>cache_ttl_seconds</code> for Vault.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>VAULT_CA_CERT_SECRET_REF</code></td>
+<td>optional</td>
+<td><code>null</code></td>
+<td>sensitive</td>
+<td>Configures <code>ca_cert_secret_ref</code> for Vault.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>VAULT_KUBERNETES_ROLE</code></td>
+<td>optional</td>
+<td><code>musematic-platform</code></td>
+<td>informational</td>
+<td>Configures <code>kubernetes_role</code> for Vault.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>VAULT_KV_MOUNT</code></td>
+<td>optional</td>
+<td><code>secret</code></td>
+<td>informational</td>
+<td>Configures <code>kv_mount</code> for Vault.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>VAULT_KV_PREFIX</code></td>
+<td>optional</td>
+<td><code>musematic/{environment}</code></td>
+<td>informational</td>
+<td>Configures <code>kv_prefix</code> for Vault.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>VAULT_LEASE_RENEWAL_THRESHOLD</code></td>
+<td>optional</td>
+<td><code>0.5</code></td>
+<td>informational</td>
+<td>Configures <code>lease_renewal_threshold</code> for Vault.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>VAULT_MODE</code></td>
+<td>optional</td>
+<td><code>mock</code></td>
+<td>informational</td>
+<td>Configures <code>mode</code> for Vault.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>VAULT_NAMESPACE</code></td>
+<td>optional</td>
+<td><code>""</code></td>
+<td>configuration</td>
+<td>Configures <code>namespace</code> for Vault.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>VAULT_RETRY_ATTEMPTS</code></td>
+<td>optional</td>
+<td><code>3</code></td>
+<td>informational</td>
+<td>Configures <code>retry_attempts</code> for Vault.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>VAULT_RETRY_TIMEOUT_SECONDS</code></td>
+<td>optional</td>
+<td><code>10</code></td>
+<td>informational</td>
+<td>Configures <code>retry_timeout_seconds</code> for Vault.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>VAULT_SERVICE_ACCOUNT_TOKEN_PATH</code></td>
+<td>optional</td>
+<td><code>/var/run/secrets/tokens/vault-token</code></td>
+<td>sensitive</td>
+<td>Configures <code>service_account_token_path</code> for Vault.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>VAULT_TOKEN</code></td>
+<td>optional</td>
+<td><code>""</code></td>
+<td>sensitive</td>
+<td>Configures <code>token</code> for Vault.</td>
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 </tbody>
