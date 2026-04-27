@@ -57,6 +57,8 @@ class SecretProvider(Protocol):
 
     async def put(self, path: str, values: dict[str, str]) -> None: ...
 
+    async def flush_cache(self, path: str | None = None) -> None: ...
+
     async def delete_version(self, path: str, version: int) -> None: ...
 
     async def list_versions(self, path: str) -> list[int]: ...
@@ -93,6 +95,9 @@ class MockSecretProvider:
         if self.validate_paths:
             validate_secret_path(path)
         await asyncio.to_thread(self._put_sync, path, values)
+
+    async def flush_cache(self, path: str | None = None) -> None:
+        del path
 
     async def delete_version(self, path: str, version: int) -> None:
         del path, version

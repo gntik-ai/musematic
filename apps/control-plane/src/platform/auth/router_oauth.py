@@ -6,17 +6,25 @@ from platform.auth.dependencies_oauth import get_oauth_service, rate_limit_callb
 from platform.auth.schemas import (
     OAuthAuditEntryListResponse,
     OAuthAuthorizeResponse,
+    OAuthConfigReseedRequest,
+    OAuthConfigReseedResponse,
     OAuthConnectivityTestResponse,
+    OAuthHistoryListResponse,
     OAuthLinkListResponse,
     OAuthProviderAdminListResponse,
     OAuthProviderAdminResponse,
     OAuthProviderCreate,
     OAuthProviderPublicListResponse,
+    OAuthProviderStatusResponse,
+    OAuthRateLimitConfig,
+    OAuthSecretRotateRequest,
 )
 from platform.auth.services.oauth_service import OAuthService
+from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_current_user
-from platform.common.exceptions import AuthorizationError, PlatformError
-from typing import Any
+from platform.common.exceptions import AuthorizationError, PlatformError, ValidationError
+from platform.common.secret_provider import SecretProvider
+from typing import Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
@@ -245,6 +253,159 @@ async def probe_oauth_provider_connectivity(
         reachable=True,
         auth_url_returned=bool(response.redirect_url),
         diagnostic="authorization_url_generated",
+    )
+
+
+@oauth_router.post(
+    "/api/v1/admin/oauth-providers/{provider}/rotate-secret",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    tags=["admin"],
+)
+@oauth_router.post(
+    "/api/v1/admin/oauth/providers/{provider}/rotate-secret",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_class=Response,
+    tags=["admin"],
+    include_in_schema=False,
+)
+async def rotate_oauth_secret(
+    provider: str,
+    body: OAuthSecretRotateRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    oauth_service: OAuthService = Depends(get_oauth_service),
+) -> Response:
+    _require_platform_admin(current_user)
+    await oauth_service.rotate_secret(
+        provider,
+        body.new_secret.get_secret_value(),
+        actor_id=UUID(str(current_user["sub"])),
+    )
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@oauth_router.post(
+    "/api/v1/admin/oauth-providers/{provider}/reseed-from-env",
+    response_model=OAuthConfigReseedResponse,
+    tags=["admin"],
+)
+@oauth_router.post(
+    "/api/v1/admin/oauth/providers/{provider}/reseed-from-env",
+    response_model=OAuthConfigReseedResponse,
+    tags=["admin"],
+    include_in_schema=False,
+)
+async def reseed_oauth_provider(
+    provider: str,
+    body: OAuthConfigReseedRequest,
+    request: Request,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    oauth_service: OAuthService = Depends(get_oauth_service),
+) -> OAuthConfigReseedResponse:
+    _require_platform_admin(current_user)
+    secret_provider = getattr(request.app.state, "secret_provider", None) or getattr(
+        oauth_service,
+        "secret_provider",
+        None,
+    )
+    if secret_provider is None:
+        raise ValidationError(
+            "SECRET_PROVIDER_UNAVAILABLE",
+            "OAuth reseed requires a configured SecretProvider",
+        )
+    return await oauth_service.reseed_from_env(
+        provider,
+        force_update=body.force_update,
+        actor_id=UUID(str(current_user["sub"])),
+        settings=cast(PlatformSettings, request.app.state.settings),
+        secret_provider=cast(SecretProvider, secret_provider),
+    )
+
+
+@oauth_router.get(
+    "/api/v1/admin/oauth-providers/{provider}/history",
+    response_model=OAuthHistoryListResponse,
+    tags=["admin"],
+)
+@oauth_router.get(
+    "/api/v1/admin/oauth/providers/{provider}/history",
+    response_model=OAuthHistoryListResponse,
+    tags=["admin"],
+    include_in_schema=False,
+)
+async def get_oauth_provider_history(
+    provider: str,
+    limit: int = Query(default=100, ge=1, le=200),
+    cursor: str | None = Query(default=None),
+    current_user: dict[str, Any] = Depends(get_current_user),
+    oauth_service: OAuthService = Depends(get_oauth_service),
+) -> OAuthHistoryListResponse:
+    _require_platform_admin(current_user)
+    return await oauth_service.get_history(provider, limit=limit, cursor=cursor)
+
+
+@oauth_router.get(
+    "/api/v1/admin/oauth-providers/{provider}/status",
+    response_model=OAuthProviderStatusResponse,
+    tags=["admin"],
+)
+@oauth_router.get(
+    "/api/v1/admin/oauth/providers/{provider}/status",
+    response_model=OAuthProviderStatusResponse,
+    tags=["admin"],
+    include_in_schema=False,
+)
+async def get_oauth_provider_status(
+    provider: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    oauth_service: OAuthService = Depends(get_oauth_service),
+) -> OAuthProviderStatusResponse:
+    _require_platform_admin(current_user)
+    return await oauth_service.get_status(provider)
+
+
+@oauth_router.get(
+    "/api/v1/admin/oauth-providers/{provider}/rate-limits",
+    response_model=OAuthRateLimitConfig,
+    tags=["admin"],
+)
+@oauth_router.get(
+    "/api/v1/admin/oauth/providers/{provider}/rate-limits",
+    response_model=OAuthRateLimitConfig,
+    tags=["admin"],
+    include_in_schema=False,
+)
+async def get_oauth_provider_rate_limits(
+    provider: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    oauth_service: OAuthService = Depends(get_oauth_service),
+) -> OAuthRateLimitConfig:
+    _require_platform_admin(current_user)
+    return await oauth_service.get_rate_limits(provider)
+
+
+@oauth_router.put(
+    "/api/v1/admin/oauth-providers/{provider}/rate-limits",
+    response_model=OAuthRateLimitConfig,
+    tags=["admin"],
+)
+@oauth_router.put(
+    "/api/v1/admin/oauth/providers/{provider}/rate-limits",
+    response_model=OAuthRateLimitConfig,
+    tags=["admin"],
+    include_in_schema=False,
+)
+async def update_oauth_provider_rate_limits(
+    provider: str,
+    body: OAuthRateLimitConfig,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    oauth_service: OAuthService = Depends(get_oauth_service),
+) -> OAuthRateLimitConfig:
+    _require_platform_admin(current_user)
+    return await oauth_service.update_rate_limits(
+        provider,
+        body,
+        actor_id=UUID(str(current_user["sub"])),
     )
 
 

@@ -98,6 +98,49 @@ class OAuthRouterServiceStub:
         self.calls.append(("list_audit_entries", (), kwargs))
         return OAuthAuditEntryListResponse(items=[])
 
+    async def rotate_secret(self, provider, new_secret, actor_id):
+        self.calls.append(("rotate_secret", (provider, new_secret), {"actor_id": actor_id}))
+
+    async def get_history(self, provider, *, limit, cursor):
+        from platform.auth.schemas import OAuthHistoryListResponse
+
+        self.calls.append(("get_history", (provider,), {"limit": limit, "cursor": cursor}))
+        return OAuthHistoryListResponse(entries=[], next_cursor=None)
+
+    async def get_status(self, provider):
+        from platform.auth.schemas import (
+            OAuthProviderSourceType,
+            OAuthProviderStatusResponse,
+            OAuthProviderType,
+        )
+
+        self.calls.append(("get_status", (provider,), {}))
+        return OAuthProviderStatusResponse(
+            provider_type=OAuthProviderType.GOOGLE,
+            source=OAuthProviderSourceType.MANUAL,
+            auth_count_24h=0,
+            auth_count_7d=0,
+            auth_count_30d=0,
+            active_linked_users=0,
+        )
+
+    async def get_rate_limits(self, provider):
+        from platform.auth.schemas import OAuthRateLimitConfig
+
+        self.calls.append(("get_rate_limits", (provider,), {}))
+        return OAuthRateLimitConfig(
+            per_ip_max=10,
+            per_ip_window=60,
+            per_user_max=10,
+            per_user_window=60,
+            global_max=100,
+            global_window=60,
+        )
+
+    async def update_rate_limits(self, provider, body, actor_id):
+        self.calls.append(("update_rate_limits", (provider, body), {"actor_id": actor_id}))
+        return body
+
     async def unlink_account(self, user_id, provider):
         self.calls.append(("unlink_account", (user_id, provider), {}))
 
@@ -201,6 +244,24 @@ async def test_oauth_router_admin_and_link_endpoints_delegate() -> None:
         connectivity = await client.post(
             "/api/v1/admin/oauth-providers/google/test-connectivity"
         )
+        rotate = await client.post(
+            "/api/v1/admin/oauth-providers/google/rotate-secret",
+            json={"new_secret": "rotated-secret"},
+        )
+        history = await client.get("/api/v1/admin/oauth-providers/google/history")
+        status_response = await client.get("/api/v1/admin/oauth-providers/google/status")
+        rate_limits = await client.get("/api/v1/admin/oauth-providers/google/rate-limits")
+        rate_limit_update = await client.put(
+            "/api/v1/admin/oauth-providers/google/rate-limits",
+            json={
+                "per_ip_max": 20,
+                "per_ip_window": 60,
+                "per_user_max": 15,
+                "per_user_window": 60,
+                "global_max": 200,
+                "global_window": 60,
+            },
+        )
         audit = await client.get("/api/v1/admin/oauth/audit?limit=10")
 
     assert providers.status_code == 200
@@ -212,6 +273,11 @@ async def test_oauth_router_admin_and_link_endpoints_delegate() -> None:
     assert admin_upsert.status_code == 201
     assert connectivity.status_code == 200
     assert connectivity.json()["auth_url_returned"] is True
+    assert rotate.status_code == 204
+    assert history.status_code == 200
+    assert status_response.status_code == 200
+    assert rate_limits.status_code == 200
+    assert rate_limit_update.status_code == 200
     assert audit.status_code == 200
     assert {name for name, _, _ in service.calls} >= {
         "list_public_providers",
@@ -221,6 +287,11 @@ async def test_oauth_router_admin_and_link_endpoints_delegate() -> None:
         "list_admin_providers",
         "upsert_provider",
         "list_audit_entries",
+        "rotate_secret",
+        "get_history",
+        "get_status",
+        "get_rate_limits",
+        "update_rate_limits",
     }
 
 

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import json
 import os
+import re
 import secrets
 import warnings
 from typing import Any, Literal
 
-from pydantic import AliasChoices, Field, model_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -167,6 +169,202 @@ class AuthSettings(BaseSettings):
     @property
     def session_ttl_seconds(self) -> int:
         return self.session_ttl
+
+
+_VALID_OAUTH_BOOTSTRAP_ROLES = {
+    "admin",
+    "agent",
+    "auditor",
+    "creator",
+    "member",
+    "operator",
+    "platform_admin",
+    "privacy_officer",
+    "security_officer",
+    "service_account",
+    "super_admin",
+    "superadmin",
+    "user",
+    "viewer",
+    "workspace_admin",
+    "workspace_owner",
+}
+_GITHUB_CLIENT_ID_RE = re.compile(r"^[A-Za-z0-9_-]+$")
+
+
+def _parse_list_setting(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+    stripped = value.strip()
+    if not stripped:
+        return []
+    if stripped.startswith("["):
+        return json.loads(stripped)
+    return [item.strip() for item in stripped.split(",") if item.strip()]
+
+
+def _parse_mapping_setting(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+    stripped = value.strip()
+    if not stripped:
+        return {}
+    loaded = json.loads(stripped)
+    if not isinstance(loaded, dict):
+        raise ValueError("role mapping must be a JSON object")
+    return loaded
+
+
+def _validate_bootstrap_roles(*roles: str) -> None:
+    invalid = sorted({role for role in roles if role not in _VALID_OAUTH_BOOTSTRAP_ROLES})
+    if invalid:
+        valid = ", ".join(sorted(_VALID_OAUTH_BOOTSTRAP_ROLES))
+        raise ValueError(
+            f"Unknown OAuth bootstrap role(s): {', '.join(invalid)}. Valid roles: {valid}"
+        )
+
+
+def _platform_environment() -> str:
+    return (
+        os.getenv("PLATFORM_ENVIRONMENT")
+        or os.getenv("PLATFORM_ENV")
+        or os.getenv("ENVIRONMENT")
+        or os.getenv("ENV")
+        or "dev"
+    ).strip().lower()
+
+
+class OAuthGoogleBootstrap(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="PLATFORM_OAUTH_GOOGLE_",
+        enable_decoding=False,
+        extra="ignore",
+        populate_by_name=True,
+    )
+
+    enabled: bool = False
+    client_id: str = ""
+    client_secret: SecretStr | None = None
+    client_secret_file: str | None = None
+    redirect_uri: str = ""
+    allowed_domains: list[str] = Field(default_factory=list)
+    group_role_mappings: dict[str, str] = Field(default_factory=dict)
+    require_mfa: bool = False
+    default_role: str = "member"
+    force_update: bool = False
+
+    @field_validator("allowed_domains", mode="before")
+    @classmethod
+    def _parse_allowed_domains(cls, value: Any) -> Any:
+        return _parse_list_setting(value)
+
+    @field_validator("group_role_mappings", mode="before")
+    @classmethod
+    def _parse_group_role_mappings(cls, value: Any) -> Any:
+        return _parse_mapping_setting(value)
+
+    @model_validator(mode="after")
+    def _validate_google_bootstrap(self) -> OAuthGoogleBootstrap:
+        if not self.enabled:
+            return self
+        if not self.client_id:
+            raise ValueError(
+                "PLATFORM_OAUTH_GOOGLE_CLIENT_ID is required when "
+                "PLATFORM_OAUTH_GOOGLE_ENABLED=true"
+            )
+        if not self.client_id.endswith(".apps.googleusercontent.com"):
+            raise ValueError(
+                "PLATFORM_OAUTH_GOOGLE_CLIENT_ID must end with .apps.googleusercontent.com"
+            )
+        if bool(self.client_secret) and bool(self.client_secret_file):
+            raise ValueError(
+                "PLATFORM_OAUTH_GOOGLE_CLIENT_SECRET and "
+                "PLATFORM_OAUTH_GOOGLE_CLIENT_SECRET_FILE are mutually exclusive"
+            )
+        if not self.redirect_uri:
+            raise ValueError(
+                "PLATFORM_OAUTH_GOOGLE_REDIRECT_URI is required when "
+                "PLATFORM_OAUTH_GOOGLE_ENABLED=true"
+            )
+        if (
+            _platform_environment() in {"production", "staging"}
+            and not self.redirect_uri.startswith("https://")
+            and os.getenv("ALLOW_INSECURE", "").lower() != "true"
+        ):
+            raise ValueError("PLATFORM_OAUTH_GOOGLE_REDIRECT_URI must use HTTPS")
+        _validate_bootstrap_roles(self.default_role, *self.group_role_mappings.values())
+        return self
+
+
+class OAuthGithubBootstrap(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="PLATFORM_OAUTH_GITHUB_",
+        enable_decoding=False,
+        extra="ignore",
+        populate_by_name=True,
+    )
+
+    enabled: bool = False
+    client_id: str = ""
+    client_secret: SecretStr | None = None
+    client_secret_file: str | None = None
+    redirect_uri: str = ""
+    allowed_orgs: list[str] = Field(default_factory=list)
+    team_role_mappings: dict[str, str] = Field(default_factory=dict)
+    require_mfa: bool = False
+    default_role: str = "member"
+    force_update: bool = False
+
+    @field_validator("allowed_orgs", mode="before")
+    @classmethod
+    def _parse_allowed_orgs(cls, value: Any) -> Any:
+        return _parse_list_setting(value)
+
+    @field_validator("team_role_mappings", mode="before")
+    @classmethod
+    def _parse_team_role_mappings(cls, value: Any) -> Any:
+        return _parse_mapping_setting(value)
+
+    @model_validator(mode="after")
+    def _validate_github_bootstrap(self) -> OAuthGithubBootstrap:
+        if not self.enabled:
+            return self
+        if not self.client_id:
+            raise ValueError(
+                "PLATFORM_OAUTH_GITHUB_CLIENT_ID is required when "
+                "PLATFORM_OAUTH_GITHUB_ENABLED=true"
+            )
+        if not _GITHUB_CLIENT_ID_RE.fullmatch(self.client_id):
+            raise ValueError("PLATFORM_OAUTH_GITHUB_CLIENT_ID must be alphanumeric")
+        if bool(self.client_secret) and bool(self.client_secret_file):
+            raise ValueError(
+                "PLATFORM_OAUTH_GITHUB_CLIENT_SECRET and "
+                "PLATFORM_OAUTH_GITHUB_CLIENT_SECRET_FILE are mutually exclusive"
+            )
+        if not self.redirect_uri:
+            raise ValueError(
+                "PLATFORM_OAUTH_GITHUB_REDIRECT_URI is required when "
+                "PLATFORM_OAUTH_GITHUB_ENABLED=true"
+            )
+        if (
+            _platform_environment() in {"production", "staging"}
+            and not self.redirect_uri.startswith("https://")
+            and os.getenv("ALLOW_INSECURE", "").lower() != "true"
+        ):
+            raise ValueError("PLATFORM_OAUTH_GITHUB_REDIRECT_URI must use HTTPS")
+        _validate_bootstrap_roles(self.default_role, *self.team_role_mappings.values())
+        return self
+
+
+class OAuthBootstrapSettings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="PLATFORM_OAUTH_",
+        extra="ignore",
+        populate_by_name=True,
+    )
+
+    google: OAuthGoogleBootstrap = Field(default_factory=OAuthGoogleBootstrap)
+    github: OAuthGithubBootstrap = Field(default_factory=OAuthGithubBootstrap)
 
 
 class OTelSettings(BaseSettings):
@@ -843,6 +1041,7 @@ class PlatformSettings(BaseSettings):
     s3: ObjectStorageSettings = Field(default_factory=ObjectStorageSettings)
     grpc: GRPCSettings = Field(default_factory=GRPCSettings)
     auth: AuthSettings = Field(default_factory=AuthSettings)
+    oauth_bootstrap: OAuthBootstrapSettings = Field(default_factory=OAuthBootstrapSettings)
     otel: OTelSettings = Field(default_factory=OTelSettings)
     accounts: AccountsSettings = Field(default_factory=AccountsSettings)
     workspaces: WorkspacesSettings = Field(default_factory=WorkspacesSettings)
@@ -973,6 +1172,50 @@ class PlatformSettings(BaseSettings):
                 "auth",
                 "oauth_github_org_membership_url_template",
             ),
+            "OAUTH_GOOGLE_ENABLED": ("oauth_bootstrap", "google", "enabled"),
+            "OAUTH_GOOGLE_CLIENT_ID": ("oauth_bootstrap", "google", "client_id"),
+            "OAUTH_GOOGLE_CLIENT_SECRET": ("oauth_bootstrap", "google", "client_secret"),
+            "OAUTH_GOOGLE_CLIENT_SECRET_FILE": (
+                "oauth_bootstrap",
+                "google",
+                "client_secret_file",
+            ),
+            "OAUTH_GOOGLE_REDIRECT_URI": ("oauth_bootstrap", "google", "redirect_uri"),
+            "OAUTH_GOOGLE_ALLOWED_DOMAINS": (
+                "oauth_bootstrap",
+                "google",
+                "allowed_domains",
+            ),
+            "OAUTH_GOOGLE_GROUP_ROLE_MAPPINGS": (
+                "oauth_bootstrap",
+                "google",
+                "group_role_mappings",
+            ),
+            "OAUTH_GOOGLE_REQUIRE_MFA": ("oauth_bootstrap", "google", "require_mfa"),
+            "OAUTH_GOOGLE_DEFAULT_ROLE": ("oauth_bootstrap", "google", "default_role"),
+            "OAUTH_GOOGLE_FORCE_UPDATE": ("oauth_bootstrap", "google", "force_update"),
+            "OAUTH_GITHUB_ENABLED": ("oauth_bootstrap", "github", "enabled"),
+            "OAUTH_GITHUB_CLIENT_ID": ("oauth_bootstrap", "github", "client_id"),
+            "OAUTH_GITHUB_CLIENT_SECRET": ("oauth_bootstrap", "github", "client_secret"),
+            "OAUTH_GITHUB_CLIENT_SECRET_FILE": (
+                "oauth_bootstrap",
+                "github",
+                "client_secret_file",
+            ),
+            "OAUTH_GITHUB_REDIRECT_URI": ("oauth_bootstrap", "github", "redirect_uri"),
+            "OAUTH_GITHUB_ALLOWED_ORGS": (
+                "oauth_bootstrap",
+                "github",
+                "allowed_orgs",
+            ),
+            "OAUTH_GITHUB_TEAM_ROLE_MAPPINGS": (
+                "oauth_bootstrap",
+                "github",
+                "team_role_mappings",
+            ),
+            "OAUTH_GITHUB_REQUIRE_MFA": ("oauth_bootstrap", "github", "require_mfa"),
+            "OAUTH_GITHUB_DEFAULT_ROLE": ("oauth_bootstrap", "github", "default_role"),
+            "OAUTH_GITHUB_FORCE_UPDATE": ("oauth_bootstrap", "github", "force_update"),
             "OTEL_EXPORTER_ENDPOINT": ("otel", "exporter_endpoint"),
             "OTEL_SERVICE_NAME": ("otel", "service_name"),
             "ACCOUNTS_SIGNUP_MODE": ("accounts", "signup_mode"),
@@ -1701,6 +1944,14 @@ class PlatformSettings(BaseSettings):
             value = values.pop(key)
             if len(target) == 1:
                 values[target[0]] = value
+                continue
+            if len(target) == 3:
+                section, subsection, field = target
+                nested = dict(values.get(section, {}))
+                subnested = dict(nested.get(subsection, {}))
+                subnested[field] = value
+                nested[subsection] = subnested
+                values[section] = nested
                 continue
             section, field = target
             if section == "profile":

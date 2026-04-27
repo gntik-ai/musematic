@@ -41,6 +41,12 @@ class IBORSyncRunStatus(StrEnum):
     failed = "failed"
 
 
+class OAuthProviderSource(StrEnum):
+    env_var = "env_var"
+    manual = "manual"
+    imported = "imported"
+
+
 class UserCredential(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "user_credentials"
 
@@ -235,10 +241,65 @@ class OAuthProvider(Base, UUIDMixin, TimestampMixin):
     group_role_mapping: Mapped[dict[str, str]] = mapped_column(JSONB, nullable=False, default=dict)
     default_role: Mapped[str] = mapped_column(String(length=64), nullable=False, default="member")
     require_mfa: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    source: Mapped[OAuthProviderSource] = mapped_column(
+        SAEnum(
+            OAuthProviderSource,
+            name="oauth_provider_source",
+            values_callable=lambda enum: [item.value for item in enum],
+        ),
+        nullable=False,
+        default=OAuthProviderSource.manual,
+    )
+    last_edited_by: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    last_edited_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    last_successful_auth_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
 
     links: Mapped[list[OAuthLink]] = relationship(
         "OAuthLink",
         back_populates="provider",
+        lazy="selectin",
+    )
+    rate_limits: Mapped[OAuthProviderRateLimit | None] = relationship(
+        "OAuthProviderRateLimit",
+        back_populates="provider",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        uselist=False,
+    )
+
+
+class OAuthProviderRateLimit(Base, UUIDMixin, TimestampMixin):
+    __tablename__ = "oauth_provider_rate_limits"
+    __table_args__ = (
+        UniqueConstraint("provider_id", name="uq_oauth_provider_rate_limits_provider"),
+    )
+
+    provider_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("oauth_providers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    per_ip_max: Mapped[int] = mapped_column(Integer, nullable=False)
+    per_ip_window: Mapped[int] = mapped_column(Integer, nullable=False)
+    per_user_max: Mapped[int] = mapped_column(Integer, nullable=False)
+    per_user_window: Mapped[int] = mapped_column(Integer, nullable=False)
+    global_max: Mapped[int] = mapped_column(Integer, nullable=False)
+    global_window: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    provider: Mapped[OAuthProvider] = relationship(
+        "OAuthProvider",
+        back_populates="rate_limits",
         lazy="selectin",
     )
 

@@ -15,6 +15,7 @@ from platform.auth.services.oauth_providers.google import GoogleOAuthProvider
 from platform.auth.services.oauth_service import OAuthService
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.dependencies import get_db
+from platform.common.secret_provider import MockSecretProvider, SecretProvider
 from typing import cast
 
 from fastapi import Depends, HTTPException, Request
@@ -23,6 +24,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 def build_oauth_service(request: Request, db: AsyncSession) -> OAuthService:
     settings = _get_settings(request)
+    secret_provider = cast(
+        SecretProvider,
+        getattr(request.app.state, "secret_provider", None)
+        or MockSecretProvider(settings, validate_paths=False),
+    )
     return OAuthService(
         repository=OAuthRepository(
             db,
@@ -47,6 +53,7 @@ def build_oauth_service(request: Request, db: AsyncSession) -> OAuthService:
             teams_endpoint=settings.auth.oauth_github_teams_url,
             org_membership_endpoint_template=settings.auth.oauth_github_org_membership_url_template,
         ),
+        secret_provider=secret_provider,
     )
 
 
