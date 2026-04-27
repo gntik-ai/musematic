@@ -61,6 +61,17 @@ def test_loki_alerts_require_lokirule_crd_capability() -> None:
     assert loki_alerts.rstrip().endswith('{{- end }}')
 
 
+def test_observability_namespace_creation_is_gated_for_helm_create_namespace() -> None:
+    template = (ROOT / 'deploy/helm/observability/templates/namespace.yaml').read_text()
+    values = (ROOT / 'deploy/helm/observability/values.yaml').read_text()
+    e2e_values = (ROOT / 'deploy/helm/observability/values-e2e.yaml').read_text()
+
+    assert template.startswith('{{- if .Values.createNamespace }}')
+    assert template.rstrip().endswith('{{- end }}')
+    assert values.startswith('createNamespace: false')
+    assert 'createNamespace: false' in e2e_values
+
+
 def test_makefile_renders_cluster_specific_kind_config() -> None:
     makefile = (ROOT / 'tests/e2e/Makefile').read_text()
     assert 'render-kind-config' in makefile

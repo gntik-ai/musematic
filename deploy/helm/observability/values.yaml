@@ -1,3 +1,5 @@
+createNamespace: false
+
 frontendNamespaces:
   - platform-control
 

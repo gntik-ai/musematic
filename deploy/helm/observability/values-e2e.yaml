@@ -3,6 +3,8 @@
 # make e2e-up. Never deploy this preset to production clusters.
 # Capacity envelope: <= 1 GiB total stack RAM on a 16 GiB laptop, 1h retention,
 # no persistent volumes, no renderer plugin, and no S3 bucket hook.
+createNamespace: false
+
 networkPolicy:
   enabled: false
 

@@ -1,3 +1,4 @@
+{{- if .Values.createNamespace }}
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -5,4 +6,4 @@ metadata:
   labels:
     kubernetes.io/metadata.name: {{ include "musematic-observability.namespace" . }}
 {{ include "musematic-observability.labels" . | indent 4 }}
-
+{{- end }}
