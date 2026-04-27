@@ -504,6 +504,9 @@ jobs:
           tar -xzf kubeconform.tar.gz kubeconform
           sudo install -m 0755 kubeconform /usr/local/bin/kubeconform
 
+      - name: Check Loki label cardinality
+        run: python scripts/ci/check_loki_label_cardinality.py
+
       - name: Lint charts
         run: |
           for chart in deploy/helm/*/; do

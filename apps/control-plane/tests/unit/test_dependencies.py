@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from platform.common import dependencies as common_dependencies
 from platform.common.config import PlatformSettings
 from platform.common.dependencies import (
     get_coordination_test_service_interface,
@@ -7,6 +8,7 @@ from platform.common.dependencies import (
     get_db,
     get_eval_suite_service_interface,
     get_opensearch_client,
+    get_structlog_logger,
     get_workspace,
 )
 from platform.common.exceptions import AuthorizationError, NotFoundError
@@ -89,6 +91,31 @@ def test_get_opensearch_client_reads_from_app_state() -> None:
     )
 
     assert get_opensearch_client(request) == "client"
+
+
+def test_get_structlog_logger_configures_each_provider_once(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    configured: list[tuple[str, str]] = []
+    logger = object()
+    common_dependencies._STRUCTLOG_PROVIDERS.clear()
+    monkeypatch.setattr(
+        common_dependencies,
+        "configure_logging",
+        lambda service_name, bounded_context: configured.append((service_name, bounded_context)),
+    )
+    monkeypatch.setattr(
+        common_dependencies,
+        "get_logger",
+        lambda name: (name, logger),
+    )
+
+    first = get_structlog_logger("api", "platform-control")
+    second = get_structlog_logger("api", "platform-control")
+
+    assert first == ("api.platform-control", logger)
+    assert second == ("api.platform-control", logger)
+    assert configured == [("api", "platform-control")]
 
 
 class _SessionLifecycleStub:

@@ -19,6 +19,7 @@ import (
 	"github.com/musematic/simulation-controller/internal/artifact_collector"
 	"github.com/musematic/simulation-controller/internal/ate_runner"
 	"github.com/musematic/simulation-controller/internal/event_streamer"
+	structuredlogging "github.com/musematic/simulation-controller/internal/logging"
 	"github.com/musematic/simulation-controller/internal/sim_manager"
 	"github.com/musematic/simulation-controller/pkg/metrics"
 	"github.com/musematic/simulation-controller/pkg/persistence"
@@ -108,7 +109,8 @@ func main() {
 }
 
 func run() error {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger := structuredlogging.Configure("simulation-controller", "platform-simulation")
+	slog.SetDefault(logger)
 	cfg := loadConfig()
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()

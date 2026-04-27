@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-audit-event-stream
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.dashboardLabels" . | indent 4 }}
+data:
+  audit-event-stream.json: |
+    {
+      "annotations": { "list": [] },
+      "description": "Audit-chain append stream captured transactionally by the audit bounded context.",
+      "editable": true,
+      "graphTooltip": 1,
+      "id": null,
+      "panels": [
+        { "id": 1, "type": "logs", "title": "Real-Time Audit Feed", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 }, "targets": [ { "expr": "{service=\"api\",bounded_context=\"audit\"} | json | message=\"audit.chain.appended\"", "refId": "A" } ], "options": { "dedupStrategy": "none", "enableLogDetails": true, "showLabels": true, "showTime": true, "sortOrder": "Descending" } },
+        { "id": 2, "type": "timeseries", "title": "Entries per Hour", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 8, "w": 8, "x": 0, "y": 10 }, "targets": [ { "expr": "sum(rate({service=\"api\",bounded_context=\"audit\"} | json | message=\"audit.chain.appended\" [1h]))", "refId": "A" } ] },
+        { "id": 3, "type": "table", "title": "Top Actors", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 8, "w": 8, "x": 8, "y": 10 }, "targets": [ { "expr": "topk(10, sum by (user_id) (count_over_time({bounded_context=\"audit\"} | json | user_id != \"\" [1h])))", "refId": "A" } ] },
+        { "id": 4, "type": "stat", "title": "Hash Chain Verify Status", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 8, "w": 8, "x": 16, "y": 10 }, "targets": [ { "expr": "last_over_time(audit_chain_verify_valid[1h])", "refId": "A" } ] },
+        { "id": 5, "type": "timeseries", "title": "Entries by Event Source", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 8, "w": 24, "x": 0, "y": 18 }, "targets": [ { "expr": "sum by (audit_event_source) (rate({bounded_context=\"audit\"} | json | message=\"audit.chain.appended\" [5m]))", "refId": "A" } ] }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "tags": ["musematic", "audit", "logs"],
+      "templating": { "list": [ { "name": "prometheus", "type": "datasource", "query": "prometheus", "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" } } ] },
+      "time": { "from": "now-1h", "to": "now" },
+      "timezone": "browser",
+      "title": "D11 Audit Event Stream",
+      "uid": "d11-audit-event-stream",
+      "version": 1
+    }

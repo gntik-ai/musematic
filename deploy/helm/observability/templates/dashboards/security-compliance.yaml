@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-security-compliance
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.dashboardLabels" . | indent 4 }}
+data:
+  security-compliance.json: |
+    {
+      "annotations": { "list": [] },
+      "description": "Security compliance status for SBOMs, CVEs, pen tests, rotations, JIT grants, and audit-chain integrity.",
+      "editable": true,
+      "graphTooltip": 1,
+      "id": null,
+      "panels": [
+        { "id": 1, "type": "stat", "title": "SBOM Publication Status", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 7, "w": 6, "x": 0, "y": 0 }, "targets": [ { "expr": "security_compliance_sbom_latest_published", "refId": "A" } ] },
+        { "id": 2, "type": "bargauge", "title": "CVE Counts by Severity", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 7, "w": 10, "x": 6, "y": 0 }, "targets": [ { "expr": "sum by (severity, dependency_scope) (security_compliance_cves_total)", "refId": "A" } ] },
+        { "id": 3, "type": "table", "title": "Pen-Test Findings by Status", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 7, "w": 8, "x": 16, "y": 0 }, "targets": [ { "expr": "sum by (pentest_status) (security_compliance_pentest_findings_total)", "refId": "A" } ] },
+        { "id": 4, "type": "table", "title": "Upcoming Rotations", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 8, "w": 8, "x": 0, "y": 7 }, "targets": [ { "expr": "{bounded_context=\"security_compliance\"} | json | message=~\".*rotation.*scheduled.*|.*rotation.*due.*\"", "refId": "A" } ] },
+        { "id": 5, "type": "logs", "title": "Active JIT Grants", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 8, "w": 8, "x": 8, "y": 7 }, "targets": [ { "expr": "{bounded_context=\"security_compliance\"} | json | message=~\".*jit.*grant.*\"", "refId": "A" } ], "options": { "dedupStrategy": "none", "enableLogDetails": true, "showLabels": true, "showTime": true, "sortOrder": "Descending" } },
+        { "id": 6, "type": "stat", "title": "Audit Chain Integrity", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 8, "w": 8, "x": 16, "y": 7 }, "targets": [ { "expr": "last_over_time(audit_chain_verify_valid[1h])", "refId": "A" } ] }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "tags": ["musematic", "security", "compliance"],
+      "templating": { "list": [ { "name": "prometheus", "type": "datasource", "query": "prometheus", "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" } } ] },
+      "time": { "from": "now-1h", "to": "now" },
+      "timezone": "browser",
+      "title": "D14 Security Compliance",
+      "uid": "d14-security-compliance",
+      "version": 1
+    }

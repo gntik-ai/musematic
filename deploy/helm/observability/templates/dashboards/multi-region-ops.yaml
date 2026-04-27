@@ -128,6 +128,28 @@ data:
             "defaults": { "unit": "d" },
             "overrides": []
           }
+        },
+        {
+          "id": 50,
+          "type": "logs",
+          "title": "Multi-Region Log Stream",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 10, "w": 12, "x": 0, "y": 24 },
+          "targets": [
+            { "expr": "{bounded_context=\"multi_region_ops\"} | json", "refId": "A" }
+          ],
+          "options": { "dedupStrategy": "none", "enableLogDetails": true, "showLabels": true, "showTime": true, "sortOrder": "Descending" }
+        },
+        {
+          "id": 51,
+          "type": "logs",
+          "title": "Replication Lag Log Events",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 10, "w": 12, "x": 12, "y": 24 },
+          "targets": [
+            { "expr": "{bounded_context=\"multi_region_ops\"} | json | message=~\".*replication.*lag.*|.*replication.*status.*\"", "refId": "A" }
+          ],
+          "options": { "dedupStrategy": "none", "enableLogDetails": true, "showLabels": true, "showTime": true, "sortOrder": "Descending" }
         }
       ],
       "refresh": "30s",

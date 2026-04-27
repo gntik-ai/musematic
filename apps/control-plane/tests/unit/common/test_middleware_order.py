@@ -8,6 +8,7 @@ def test_user_middleware_order_matches_contract() -> None:
 
     assert [middleware.cls.__name__ for middleware in app.user_middleware] == [
         "CorrelationMiddleware",
+        "CorrelationLoggingMiddleware",
         "AuthMiddleware",
         "MaintenanceGateMiddleware",
         "RateLimitMiddleware",

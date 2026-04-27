@@ -19,6 +19,7 @@ import (
 	"github.com/andrea-mucci/musematic/services/runtime-controller/internal/events"
 	"github.com/andrea-mucci/musematic/services/runtime-controller/internal/heartbeat"
 	"github.com/andrea-mucci/musematic/services/runtime-controller/internal/launcher"
+	structuredlogging "github.com/andrea-mucci/musematic/services/runtime-controller/internal/logging"
 	"github.com/andrea-mucci/musematic/services/runtime-controller/internal/reconciler"
 	"github.com/andrea-mucci/musematic/services/runtime-controller/internal/state"
 	"github.com/andrea-mucci/musematic/services/runtime-controller/internal/warmpool"
@@ -73,7 +74,8 @@ func main() {
 }
 
 func run() error {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	logger := structuredlogging.Configure("runtime-controller", "platform-execution")
+	slog.SetDefault(logger)
 	cfg, err := config.Load()
 	if err != nil {
 		return err

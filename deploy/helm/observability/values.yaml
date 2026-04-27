@@ -1,3 +1,10 @@
+frontendNamespaces:
+  - platform-control
+
+global:
+  frontendNamespaces:
+    - platform-control
+
 opentelemetry-collector:
   fullnameOverride: otel-collector
   mode: deployment
@@ -104,10 +111,24 @@ kube-prometheus-stack:
         searchNamespace: platform-observability
     additionalDataSources:
       - name: Jaeger
+        uid: jaeger
         type: jaeger
         access: proxy
         editable: false
         url: http://musematic-observability-jaeger-query:16686
+      - name: Loki
+        uid: loki
+        type: loki
+        access: proxy
+        editable: false
+        isDefault: false
+        url: http://observability-loki:3100
+        jsonData:
+          derivedFields:
+            - name: trace_id
+              matcherRegex: '"trace_id":"([A-Fa-f0-9]+)"'
+              datasourceUid: jaeger
+              url: "$${__value.raw}"
   alertmanager:
     alertmanagerSpec:
       storage:
@@ -173,3 +194,158 @@ jaeger:
   persistence:
     enabled: true
     size: 5Gi
+
+loki:
+  enabled: true
+  fullnameOverride: observability-loki
+  deploymentMode: SingleBinary
+  loki:
+    auth_enabled: false
+    commonConfig:
+      replication_factor: 1
+    limits_config:
+      retention_period: 336h
+    compactor:
+      retention_enabled: true
+      delete_request_store: s3
+    storage:
+      type: s3
+      bucketNames:
+        chunks: platform-loki-chunks
+        ruler: platform-loki-chunks
+        admin: platform-loki-chunks
+      s3:
+        endpoint: ${S3_ENDPOINT_URL}
+        access_key_id: ${S3_ACCESS_KEY}
+        secret_access_key: ${S3_SECRET_KEY}
+        s3ForcePathStyle: ${S3_USE_PATH_STYLE}
+        insecure: true
+    schemaConfig:
+      configs:
+        - from: "2024-01-01"
+          store: tsdb
+          object_store: s3
+          schema: v13
+          index:
+            prefix: loki_index_
+            period: 24h
+    rulerConfig:
+      storage:
+        type: s3
+        s3:
+          bucketnames: platform-loki-chunks
+  singleBinary:
+    replicas: 1
+    persistence:
+      enabled: true
+      size: 20Gi
+  read:
+    replicas: 0
+  write:
+    replicas: 0
+  backend:
+    replicas: 0
+  gateway:
+    enabled: false
+  extraArgs:
+    - -config.expand-env=true
+  extraEnv:
+    - name: S3_ENDPOINT_URL
+      valueFrom:
+        secretKeyRef:
+          name: minio-platform-credentials
+          key: S3_ENDPOINT_URL
+    - name: S3_ACCESS_KEY
+      valueFrom:
+        secretKeyRef:
+          name: minio-platform-credentials
+          key: S3_ACCESS_KEY
+    - name: S3_SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: minio-platform-credentials
+          key: S3_SECRET_KEY
+    - name: S3_USE_PATH_STYLE
+      valueFrom:
+        secretKeyRef:
+          name: minio-platform-credentials
+          key: S3_USE_PATH_STYLE
+          optional: true
+  retention:
+    hot: 336h
+    cold: 2160h
+  tenantRetentionOverrides: []
+
+promtail:
+  enabled: true
+  daemonset:
+    enabled: true
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    fsGroup: 10001
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+  config:
+    clients:
+      - url: http://observability-loki:3100/loki/api/v1/push
+    snippets:
+      extraRelabelConfigs:
+        - source_labels:
+            - __meta_kubernetes_namespace
+          regex: platform-control|platform-execution|platform-simulation|platform-data|platform-observability
+          action: keep
+      pipelineStages:
+        - cri: {}
+        - json:
+            expressions:
+              timestamp: timestamp
+              level: level
+              service: service
+              bounded_context: bounded_context
+              message: message
+              trace_id: trace_id
+              span_id: span_id
+              correlation_id: correlation_id
+              workspace_id: workspace_id
+              goal_id: goal_id
+              user_id: user_id
+              execution_id: execution_id
+        - labels:
+            level:
+            service:
+            bounded_context:
+        - timestamp:
+            source: timestamp
+            format: RFC3339Nano
+        - replace:
+            expression: 'Bearer [A-Za-z0-9\-_]+\.?[A-Za-z0-9\-_]*\.?[A-Za-z0-9\-_]*'
+            replace: '[REDACTED_TOKEN]'
+        - replace:
+            expression: 'sk-[A-Za-z0-9]{32,}|api_key=[A-Za-z0-9]{16,}|ghp_[A-Za-z0-9]{36}|AKIA[0-9A-Z]{16}'
+            replace: '[REDACTED_API_KEY]'
+        - replace:
+            expression: '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'
+            replace: '[REDACTED_EMAIL]'
+        - replace:
+            expression: '\b[0-9]{3}-[0-9]{2}-[0-9]{4}\b'
+            replace: '[REDACTED_SSN]'
+        - replace:
+            expression: '\b(?:[0-9][ -]*?){13,16}\b'
+            replace: '[REDACTED_CARD]'
+      extraScrapeConfigs: |
+        # Helm-rendered front-end namespace list. The promtail chart renders this
+        # through tpl, so deployments can append namespaces via frontendNamespaces.
+        {{- $namespaces := concat (list "platform-control" "platform-execution" "platform-simulation" "platform-data" "platform-observability") $.Values.global.frontendNamespaces | uniq }}
+        - job_name: kubernetes-pods-platform
+          kubernetes_sd_configs:
+            - role: pod
+          relabel_configs:
+            - source_labels: [__meta_kubernetes_namespace]
+              regex: {{ join "|" $namespaces | quote }}
+              action: keep

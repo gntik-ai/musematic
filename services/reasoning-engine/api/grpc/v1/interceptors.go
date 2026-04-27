@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 
+	structuredlogging "github.com/musematic/reasoning-engine/internal/logging"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -11,6 +12,7 @@ import (
 
 func UnaryInterceptor(logger *slog.Logger) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
+		ctx = structuredlogging.WithGRPCMetadata(ctx)
 		defer func() {
 			if recovered := recover(); recovered != nil {
 				if logger != nil {
@@ -21,7 +23,7 @@ func UnaryInterceptor(logger *slog.Logger) grpc.UnaryServerInterceptor {
 			}
 		}()
 		if logger != nil {
-			logger.Info("grpc unary request", "method", info.FullMethod)
+			logger.InfoContext(ctx, "grpc unary request", "method", info.FullMethod)
 		}
 		return handler(ctx, req)
 	}
@@ -29,6 +31,7 @@ func UnaryInterceptor(logger *slog.Logger) grpc.UnaryServerInterceptor {
 
 func StreamInterceptor(logger *slog.Logger) grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) (err error) {
+		wrapped := metadataServerStream{ServerStream: ss, ctx: structuredlogging.WithGRPCMetadata(ss.Context())}
 		defer func() {
 			if recovered := recover(); recovered != nil {
 				if logger != nil {
@@ -38,8 +41,17 @@ func StreamInterceptor(logger *slog.Logger) grpc.StreamServerInterceptor {
 			}
 		}()
 		if logger != nil {
-			logger.Info("grpc stream request", "method", info.FullMethod)
+			logger.InfoContext(wrapped.Context(), "grpc stream request", "method", info.FullMethod)
 		}
-		return handler(srv, ss)
+		return handler(srv, wrapped)
 	}
+}
+
+type metadataServerStream struct {
+	grpc.ServerStream
+	ctx context.Context
+}
+
+func (s metadataServerStream) Context() context.Context {
+	return s.ctx
 }

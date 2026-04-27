@@ -8,5 +8,11 @@ dependencies:
 - name: jaeger
   repository: https://jaegertracing.github.io/helm-charts
   version: 3.4.1
-digest: sha256:64b6f29c807b0522ce4bf764ae4a5765e2eb712ebee8c686964a554108200040
-generated: "2026-04-17T21:18:09.213840359+02:00"
+- name: loki
+  repository: https://grafana.github.io/helm-charts
+  version: 6.16.0
+- name: promtail
+  repository: https://grafana.github.io/helm-charts
+  version: 6.16.6
+digest: sha256:9ea0347c12a9d209e8f38e2ed56309908447911e5cc827e32eefa4ce004181e1
+generated: "2026-04-27T03:36:57.853552518+02:00"

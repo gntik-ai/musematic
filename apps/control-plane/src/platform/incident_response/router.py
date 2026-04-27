@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime
 from platform.common.dependencies import get_current_user
 from platform.common.exceptions import AuthorizationError
@@ -12,7 +13,10 @@ from platform.incident_response.dependencies import (
 from platform.incident_response.schemas import (
     IncidentDetailResponse,
     IncidentListItem,
+    IncidentRef,
     IncidentResolveRequest,
+    IncidentSeverity,
+    IncidentSignal,
     IntegrationCreateRequest,
     IntegrationResponse,
     IntegrationUpdateRequest,
@@ -30,6 +34,7 @@ from platform.incident_response.services.incident_service import IncidentService
 from platform.incident_response.services.integration_service import IntegrationService
 from platform.incident_response.services.post_mortem_service import PostMortemService
 from platform.incident_response.services.runbook_service import RunbookService
+from platform.incident_response.trigger_interface import get_incident_trigger
 from typing import Any
 from uuid import UUID
 
@@ -64,6 +69,41 @@ def _require_superadmin(current_user: dict[str, Any]) -> None:
 def _requester_id(current_user: dict[str, Any]) -> UUID | None:
     subject = current_user.get("sub")
     return UUID(str(subject)) if subject else None
+
+
+@router.post(
+    "/api/v1/internal/alerts/audit-chain-anomaly",
+    response_model=IncidentRef,
+    tags=["incident-response-internal-alerts"],
+)
+async def receive_audit_chain_anomaly_alert(payload: dict[str, Any]) -> IncidentRef:
+    alerts = payload.get("alerts")
+    alert = alerts[0] if isinstance(alerts, list) and alerts else payload
+    labels = alert.get("labels", {}) if isinstance(alert, dict) else {}
+    annotations = alert.get("annotations", {}) if isinstance(alert, dict) else {}
+    sequence_or_hash = (
+        labels.get("sequence_number")
+        or labels.get("entry_hash")
+        or annotations.get("sequence_number")
+        or annotations.get("entry_hash")
+        or alert.get("fingerprint")
+        or "unknown"
+    )
+    fingerprint = hashlib.sha256(f"audit_chain_anomaly:{sequence_or_hash}".encode()).hexdigest()
+    signal = IncidentSignal(
+        alert_rule_class="audit_chain_anomaly",
+        severity=IncidentSeverity.critical,
+        title="Audit chain integrity violation",
+        description=str(
+            annotations.get(
+                "description",
+                "Audit-chain mismatch or invalid-hash logs were emitted.",
+            )
+        ),
+        condition_fingerprint=fingerprint,
+        runbook_scenario="audit-chain-anomaly",
+    )
+    return await get_incident_trigger().fire(signal)
 
 
 @router.get(

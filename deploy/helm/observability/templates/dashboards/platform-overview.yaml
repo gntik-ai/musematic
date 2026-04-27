@@ -80,6 +80,26 @@ data:
               "refId": "A"
             }
           ]
+        },
+        {
+          "id": 50,
+          "type": "logs",
+          "title": "View Related Logs",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 10, "w": 24, "x": 0, "y": 16 },
+          "targets": [
+            {
+              "expr": "{service=~\"$service\"} | json",
+              "refId": "A"
+            }
+          ],
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "showLabels": true,
+            "showTime": true,
+            "sortOrder": "Descending"
+          }
         }
       ],
       "refresh": "30s",
@@ -112,6 +132,20 @@ data:
             "query": "label_values(up, namespace)",
             "refresh": 1,
             "regex": "platform-.*",
+            "type": "query"
+          },
+          {
+            "current": { "selected": true, "text": "All", "value": "$__all" },
+            "datasource": { "type": "loki", "uid": "loki" },
+            "hide": 0,
+            "includeAll": true,
+            "label": "Service",
+            "multi": true,
+            "name": "service",
+            "options": [],
+            "query": "label_values(service)",
+            "refresh": 1,
+            "regex": "",
             "type": "query"
           }
         ]

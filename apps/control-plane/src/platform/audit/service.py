@@ -15,6 +15,7 @@ from platform.audit.signing import AuditChainSigning
 from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
+from platform.common.logging import get_logger
 from uuid import UUID, uuid4
 
 GENESIS_HASH = "0" * 64
@@ -62,7 +63,7 @@ class AuditChainService:
             sequence_number=sequence_number,
             canonical_payload_hash=canonical_payload_hash,
         )
-        return await self.repository.insert_entry(
+        entry = await self.repository.insert_entry(
             sequence_number=sequence_number,
             previous_hash=previous_hash,
             entry_hash=entry_hash,
@@ -70,6 +71,14 @@ class AuditChainService:
             audit_event_source=audit_event_source,
             canonical_payload_hash=canonical_payload_hash,
         )
+        get_logger(__name__).info(
+            "audit.chain.appended",
+            sequence_number=sequence_number,
+            audit_event_source=audit_event_source,
+            canonical_payload_hash=canonical_payload_hash,
+            entry_hash=entry_hash,
+        )
+        return entry
 
     async def verify(
         self,

@@ -8,6 +8,7 @@ import (
 	sandboxv1 "github.com/andrea-mucci/musematic/services/sandbox-manager/api/grpc/v1"
 	"github.com/andrea-mucci/musematic/services/sandbox-manager/internal/artifacts"
 	"github.com/andrea-mucci/musematic/services/sandbox-manager/internal/executor"
+	structuredlogging "github.com/andrea-mucci/musematic/services/sandbox-manager/internal/logging"
 	"github.com/andrea-mucci/musematic/services/sandbox-manager/internal/logs"
 	"github.com/andrea-mucci/musematic/services/sandbox-manager/internal/sandbox"
 	"go.opentelemetry.io/otel"
@@ -184,8 +185,9 @@ func (s *SandboxServiceServer) CollectSandboxArtifacts(ctx context.Context, req 
 
 func UnaryLoggingInterceptor(logger *slog.Logger) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+		ctx = structuredlogging.WithGRPCMetadata(ctx)
 		if logger != nil {
-			logger.Info("grpc unary request", "method", info.FullMethod)
+			logger.InfoContext(ctx, "grpc unary request", "method", info.FullMethod)
 		}
 		return handler(ctx, req)
 	}
@@ -193,9 +195,19 @@ func UnaryLoggingInterceptor(logger *slog.Logger) grpc.UnaryServerInterceptor {
 
 func StreamLoggingInterceptor(logger *slog.Logger) grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		wrapped := metadataServerStream{ServerStream: ss, ctx: structuredlogging.WithGRPCMetadata(ss.Context())}
 		if logger != nil {
-			logger.Info("grpc stream request", "method", info.FullMethod)
+			logger.InfoContext(wrapped.Context(), "grpc stream request", "method", info.FullMethod)
 		}
-		return handler(srv, ss)
+		return handler(srv, wrapped)
 	}
+}
+
+type metadataServerStream struct {
+	grpc.ServerStream
+	ctx context.Context
+}
+
+func (s metadataServerStream) Context() context.Context {
+	return s.ctx
 }

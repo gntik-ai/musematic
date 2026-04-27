@@ -88,8 +88,9 @@ async def test_contract_service_compliance_rates_and_authorization() -> None:
     stored_contract = await bundle.repository.get_contract(created.id)
     assert stored_contract is not None
     snapshot = service._snapshot(stored_contract)
-    start = datetime.now(UTC) - timedelta(days=2)
-    end = datetime.now(UTC) + timedelta(days=1)
+    base_time = datetime.now(UTC).replace(hour=12, minute=0, second=0, microsecond=0)
+    start = base_time - timedelta(days=2)
+    end = base_time + timedelta(days=1)
 
     zero = await service.get_compliance_rates(
         ComplianceRateQuery(
@@ -109,14 +110,14 @@ async def test_contract_service_compliance_rates_and_authorization() -> None:
         execution_id=execution_id,
         contract_id=stored_contract.id,
         snapshot=snapshot,
-        created_at=datetime.now(UTC) - timedelta(hours=4),
+        created_at=base_time - timedelta(hours=4),
         workspace_id=workspace_id,
     )
     bundle.repository.seed_interaction_attachment(
         interaction_id=interaction_id,
         contract_id=stored_contract.id,
         snapshot=snapshot,
-        created_at=datetime.now(UTC) - timedelta(hours=2),
+        created_at=base_time - timedelta(hours=2),
         workspace_id=workspace_id,
     )
     await service.record_breach(

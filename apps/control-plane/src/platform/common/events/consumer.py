@@ -9,6 +9,9 @@ from platform.common.config import settings as default_settings
 from platform.common.events.envelope import EventEnvelope, parse_event_envelope
 from platform.common.exceptions import KafkaConsumerError
 from platform.common.kafka_tracing import extract_trace_context
+from platform.common.middleware.kafka_logging_consumer_middleware import (
+    run_with_event_logging_context,
+)
 from platform.common.tracing import trace
 from typing import Any
 
@@ -73,7 +76,7 @@ class EventConsumerManager:
                 topic = getattr(message, "topic", "events")
                 with _attached_context(context_module, extracted_context):
                     with tracer.start_as_current_span(f"kafka.consume.{topic}"):
-                        await handler(envelope)
+                        await run_with_event_logging_context(envelope, handler)
                 commit = getattr(consumer, "commit", None)
                 if commit is not None:
                     result = commit()

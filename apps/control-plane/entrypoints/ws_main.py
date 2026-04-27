@@ -8,6 +8,8 @@ from platform.auth.service import AuthService
 from platform.common import database
 from platform.common.config import PlatformSettings
 from platform.common.config import settings as default_settings
+from platform.common.logging import configure_logging
+from platform.common.middleware.correlation_logging_middleware import CorrelationLoggingMiddleware
 from platform.common.telemetry import setup_telemetry
 from platform.workspaces.dependencies import build_workspaces_service
 from platform.ws_hub.connection import ConnectionRegistry
@@ -96,6 +98,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 def create_ws_app(settings: PlatformSettings | None = None) -> FastAPI:
     resolved = _resolve_settings(settings)
+    configure_logging("ws", "platform-control")
     database.configure_database(resolved)
 
     app = FastAPI(lifespan=_lifespan)
@@ -111,6 +114,7 @@ def create_ws_app(settings: PlatformSettings | None = None) -> FastAPI:
         settings=resolved,
         visibility_filter=app.state.visibility_filter,
     )
+    app.add_middleware(CorrelationLoggingMiddleware)
     app.include_router(ws_router)
     setup_telemetry(
         service_name=f"{resolved.otel.service_name}-ws-hub",

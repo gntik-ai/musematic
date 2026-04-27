@@ -67,7 +67,9 @@ from platform.common.events.consumer import EventConsumerManager
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import PlatformError, platform_exception_handler
+from platform.common.logging import configure_logging
 from platform.common.middleware.api_versioning_middleware import ApiVersioningMiddleware
+from platform.common.middleware.correlation_logging_middleware import CorrelationLoggingMiddleware
 from platform.common.middleware.rate_limit_middleware import RateLimitMiddleware
 from platform.common.tagging.router import (
     admin_labels_router as tagging_admin_labels_router,
@@ -292,12 +294,27 @@ DEFAULT_OPENAPI_SECURITY: tuple[dict[str, list[str]], ...] = (
     {"apiKey": []},
 )
 
+PROFILE_SERVICE_NAMES: dict[str, str] = {
+    "api": "api",
+    "scheduler": "scheduler",
+    "worker": "worker",
+    "ws-hub": "ws",
+    "trust-certifier": "trust-certifier",
+    "context-engineering": "context-engineering",
+    "projection-indexer": "projection-indexer",
+    "agentops-testing": "agentops-testing",
+}
+
 
 def _platform_release_version() -> str:
     try:
         return package_version("musematic-control-plane")
     except PackageNotFoundError:
         return "0.1.0"
+
+
+def _service_name_for_profile(profile: str) -> str:
+    return PROFILE_SERVICE_NAMES.get(profile, profile)
 
 
 def _dedupe_tags(tags: list[str]) -> list[str]:
@@ -1208,6 +1225,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     resolved = settings or default_settings
     if resolved.profile != profile:
         resolved = resolved.model_copy(update={"profile": profile})
+    configure_logging(_service_name_for_profile(profile), "platform-control")
 
     database.configure_database(resolved)
 
@@ -1377,6 +1395,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.add_middleware(RateLimitMiddleware)
     app.add_middleware(MaintenanceGateMiddleware)
     app.add_middleware(AuthMiddleware)
+    app.add_middleware(CorrelationLoggingMiddleware)
     app.add_middleware(CorrelationMiddleware)
     app.include_router(health_router)
     consumer_manager = app.state.clients.get("kafka_consumer")
