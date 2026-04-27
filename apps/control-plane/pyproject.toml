@@ -79,7 +79,7 @@ where = ["src"]
 asyncio_mode = "auto"
 pythonpath = ["src", "tests"]
 testpaths = ["tests"]
-addopts = "-ra -m 'not integration'"
+addopts = "-ra -m 'not integration' --import-mode=importlib"
 markers = [
   "integration: requires external services or Docker-backed dependencies",
 ]

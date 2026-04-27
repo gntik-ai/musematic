@@ -69,6 +69,12 @@ from platform.common.events.producer import EventProducer
 from platform.common.exceptions import PlatformError, platform_exception_handler
 from platform.common.middleware.api_versioning_middleware import ApiVersioningMiddleware
 from platform.common.middleware.rate_limit_middleware import RateLimitMiddleware
+from platform.common.tagging.router import (
+    admin_labels_router as tagging_admin_labels_router,
+)
+from platform.common.tagging.router import labels_router as tagging_labels_router
+from platform.common.tagging.router import saved_views_router as tagging_saved_views_router
+from platform.common.tagging.router import tags_router as tagging_tags_router
 from platform.common.telemetry import setup_telemetry
 from platform.composition.events import register_composition_event_types
 from platform.composition.router import router as composition_router
@@ -1580,6 +1586,10 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(security_compliance_router)
         app.include_router(incident_response_router)
         app.include_router(multi_region_ops_router)
+        app.include_router(tagging_tags_router)
+        app.include_router(tagging_labels_router)
+        app.include_router(tagging_saved_views_router)
+        app.include_router(tagging_admin_labels_router)
 
     _register_deprecated_routes(app)
     _install_openapi_factory(app)

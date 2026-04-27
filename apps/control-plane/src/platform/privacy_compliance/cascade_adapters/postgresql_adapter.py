@@ -79,6 +79,9 @@ USER_IDENTITY_COLUMNS: dict[str, list[str]] = {
     "a2a_external_endpoints": ["created_by"],
     "content_moderation_policies": ["created_by"],
     "fairness_evaluations": ["evaluated_by"],
+    "entity_tags": ["created_by"],
+    "entity_labels": ["created_by"],
+    "saved_views": ["owner_id"],
 }
 
 

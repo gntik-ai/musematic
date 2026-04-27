@@ -238,6 +238,16 @@ class MultiRegionOpsSettings(BaseSettings):
     failover_plan_rehearsal_staleness_days: int = 90
 
 
+class TaggingSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="TAGGING_", extra="ignore")
+
+    label_expression_lru_size: int = 256
+    label_expression_redis_ttl_seconds: int = 86_400
+    cross_entity_search_max_visible_ids: int = 10_000
+    saved_view_share_propagation_target_seconds: int = 5
+    orphan_owner_resolution: str = "transfer_to_workspace_superadmin"
+
+
 class IncidentResponseSettings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="INCIDENT_RESPONSE_",
@@ -800,6 +810,7 @@ class PlatformSettings(BaseSettings):
     analytics: AnalyticsSettings = Field(default_factory=AnalyticsSettings)
     cost_governance: CostGovernanceSettings = Field(default_factory=CostGovernanceSettings)
     multi_region_ops: MultiRegionOpsSettings = Field(default_factory=MultiRegionOpsSettings)
+    tagging: TaggingSettings = Field(default_factory=TaggingSettings)
     incident_response: IncidentResponseSettings = Field(default_factory=IncidentResponseSettings)
     visibility: VisibilitySettings = Field(default_factory=VisibilitySettings)
     privacy_compliance: PrivacyComplianceSettings = Field(default_factory=PrivacyComplianceSettings)
@@ -1031,6 +1042,20 @@ class PlatformSettings(BaseSettings):
                 "multi_region_ops",
                 "failover_plan_rehearsal_staleness_days",
             ),
+            "TAGGING_LABEL_EXPRESSION_LRU_SIZE": ("tagging", "label_expression_lru_size"),
+            "TAGGING_LABEL_EXPRESSION_REDIS_TTL_SECONDS": (
+                "tagging",
+                "label_expression_redis_ttl_seconds",
+            ),
+            "TAGGING_CROSS_ENTITY_SEARCH_MAX_VISIBLE_IDS": (
+                "tagging",
+                "cross_entity_search_max_visible_ids",
+            ),
+            "TAGGING_SAVED_VIEW_SHARE_PROPAGATION_TARGET_SECONDS": (
+                "tagging",
+                "saved_view_share_propagation_target_seconds",
+            ),
+            "TAGGING_ORPHAN_OWNER_RESOLUTION": ("tagging", "orphan_owner_resolution"),
             "INCIDENT_RESPONSE_DELIVERY_RETRY_INITIAL_SECONDS": (
                 "incident_response",
                 "delivery_retry_initial_seconds",
