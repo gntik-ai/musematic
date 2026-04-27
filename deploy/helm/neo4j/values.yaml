@@ -1,85 +1,171 @@
+# @section -- Createnamespace
+# -- Configures `createNamespace` for the neo4j chart.
 createNamespace: true
 
+# @section -- Neo4J
+# -- Configures `neo4j` for the neo4j chart.
 neo4j:
+  # -- Configures `neo4j.fullnameOverride` for the neo4j chart.
   fullnameOverride: musematic-neo4j
+  # -- Configures `neo4j.disableLookups` for the neo4j chart.
   disableLookups: true
+  # -- Configures `neo4j.edition` for the neo4j chart.
   edition: community
+  # -- Configures `neo4j.minimumClusterSize` for the neo4j chart.
   minimumClusterSize: 1
+  # -- Configures `neo4j.name` for the neo4j chart.
   name: musematic-neo4j
+  # -- Configures `neo4j.password` for the neo4j chart.
   password: ""
+  # -- Configures `neo4j.passwordFromSecret` for the neo4j chart.
   passwordFromSecret: neo4j-credentials
+  # -- Configures `neo4j.acceptLicenseAgreement` for the neo4j chart.
   acceptLicenseAgreement: "yes"
+  # -- Configures `neo4j.resources` for the neo4j chart.
   resources:
+    # -- Configures `neo4j.resources.cpu` for the neo4j chart.
     cpu: "1"
+    # -- Configures `neo4j.resources.memory` for the neo4j chart.
     memory: 3Gi
+    # -- Configures `neo4j.resources.requests` for the neo4j chart.
     requests:
+      # -- Configures `neo4j.resources.requests.memory` for the neo4j chart.
       memory: 3Gi
+      # -- Configures `neo4j.resources.requests.cpu` for the neo4j chart.
       cpu: "1"
+    # -- Configures `neo4j.resources.limits` for the neo4j chart.
     limits:
+      # -- Configures `neo4j.resources.limits.memory` for the neo4j chart.
       memory: 4Gi
+      # -- Configures `neo4j.resources.limits.cpu` for the neo4j chart.
       cpu: "2"
+  # -- Configures `neo4j.config` for the neo4j chart.
   config:
+    # -- Configures `neo4j.config.server.memory.heap.initial_size` for the neo4j chart.
     server.memory.heap.initial_size: "1G"
+    # -- Configures `neo4j.config.server.memory.heap.max_size` for the neo4j chart.
     server.memory.heap.max_size: "2G"
+    # -- Configures `neo4j.config.server.memory.pagecache.size` for the neo4j chart.
     server.memory.pagecache.size: "1G"
+    # -- Configures `neo4j.config.dbms.security.procedures.unrestricted` for the neo4j chart.
     dbms.security.procedures.unrestricted: "apoc.*"
+    # -- Configures `neo4j.config.dbms.security.procedures.allowlist` for the neo4j chart.
     dbms.security.procedures.allowlist: "apoc.*"
+  # -- Configures `neo4j.env` for the neo4j chart.
   env:
+    # -- Configures `neo4j.env.NEO4J_PLUGINS` for the neo4j chart.
     NEO4J_PLUGINS: '["apoc"]'
+  # -- Configures `neo4j.neo4j` for the neo4j chart.
   neo4j:
+    # -- Configures `neo4j.neo4j.edition` for the neo4j chart.
     edition: community
+    # -- Configures `neo4j.neo4j.minimumClusterSize` for the neo4j chart.
     minimumClusterSize: 1
+    # -- Configures `neo4j.neo4j.name` for the neo4j chart.
     name: musematic-neo4j
+    # -- Configures `neo4j.neo4j.password` for the neo4j chart.
     password: ""
+    # -- Configures `neo4j.neo4j.passwordFromSecret` for the neo4j chart.
     passwordFromSecret: neo4j-credentials
+    # -- Configures `neo4j.neo4j.acceptLicenseAgreement` for the neo4j chart.
     acceptLicenseAgreement: "yes"
+    # -- Configures `neo4j.neo4j.resources` for the neo4j chart.
     resources:
+      # -- Configures `neo4j.neo4j.resources.cpu` for the neo4j chart.
       cpu: "1"
+      # -- Configures `neo4j.neo4j.resources.memory` for the neo4j chart.
       memory: 3Gi
+      # -- Configures `neo4j.neo4j.resources.requests` for the neo4j chart.
       requests:
+        # -- Configures `neo4j.neo4j.resources.requests.memory` for the neo4j chart.
         memory: 3Gi
+        # -- Configures `neo4j.neo4j.resources.requests.cpu` for the neo4j chart.
         cpu: "1"
+      # -- Configures `neo4j.neo4j.resources.limits` for the neo4j chart.
       limits:
+        # -- Configures `neo4j.neo4j.resources.limits.memory` for the neo4j chart.
         memory: 4Gi
+        # -- Configures `neo4j.neo4j.resources.limits.cpu` for the neo4j chart.
         cpu: "2"
+    # -- Configures `neo4j.neo4j.config` for the neo4j chart.
     config:
+      # -- Configures `neo4j.neo4j.config.server.memory.heap.initial_size` for the neo4j chart.
       server.memory.heap.initial_size: "1G"
+      # -- Configures `neo4j.neo4j.config.server.memory.heap.max_size` for the neo4j chart.
       server.memory.heap.max_size: "2G"
+      # -- Configures `neo4j.neo4j.config.server.memory.pagecache.size` for the neo4j chart.
       server.memory.pagecache.size: "1G"
+      # -- Configures `neo4j.neo4j.config.dbms.security.procedures.unrestricted` for the neo4j chart.
       dbms.security.procedures.unrestricted: "apoc.*"
+      # -- Configures `neo4j.neo4j.config.dbms.security.procedures.allowlist` for the neo4j chart.
       dbms.security.procedures.allowlist: "apoc.*"
+    # -- Configures `neo4j.neo4j.env` for the neo4j chart.
     env:
+      # -- Configures `neo4j.neo4j.env.NEO4J_PLUGINS` for the neo4j chart.
       NEO4J_PLUGINS: '["apoc"]'
+  # -- Configures `neo4j.volumes` for the neo4j chart.
   volumes:
+    # -- Configures `neo4j.volumes.data` for the neo4j chart.
     data:
+      # -- Configures `neo4j.volumes.data.mode` for the neo4j chart.
       mode: dynamic
+      # -- Configures `neo4j.volumes.data.dynamic` for the neo4j chart.
       dynamic:
+        # -- Configures `neo4j.volumes.data.dynamic.storageClassName` for the neo4j chart.
         storageClassName: standard
+        # -- Configures `neo4j.volumes.data.dynamic.requests` for the neo4j chart.
         requests:
+          # -- Configures `neo4j.volumes.data.dynamic.requests.storage` for the neo4j chart.
           storage: 20Gi
 
+# @section -- Persistence
+# -- Configures `persistence` for the neo4j chart.
 persistence:
+  # -- Configures `persistence.storageClassName` for the neo4j chart.
   storageClassName: standard
+  # -- Configures `persistence.size` for the neo4j chart.
   size: 20Gi
 
+# @section -- Service
+# -- Configures `service` for the neo4j chart.
 service:
+  # -- Configures `service.type` for the neo4j chart.
   type: ClusterIP
+  # -- Configures `service.boltPort` for the neo4j chart.
   boltPort: 7687
+  # -- Configures `service.httpPort` for the neo4j chart.
   httpPort: 7474
 
+# @section -- Schemainit
+# -- Configures `schemaInit` for the neo4j chart.
 schemaInit:
+  # -- Configures `schemaInit.enabled` for the neo4j chart.
   enabled: true
+  # -- Configures `schemaInit.image` for the neo4j chart.
   image: neo4j:5.21.2-enterprise
+  # -- Configures `schemaInit.retries` for the neo4j chart.
   retries: 60
+  # -- Configures `schemaInit.retryIntervalSeconds` for the neo4j chart.
   retryIntervalSeconds: 5
 
+# @section -- Backup
+# -- Configures `backup` for the neo4j chart.
 backup:
+  # -- Configures `backup.enabled` for the neo4j chart.
   enabled: true
+  # -- Configures `backup.schedule` for the neo4j chart.
   schedule: "0 3 * * *"
+  # -- Configures `backup.bucket` for the neo4j chart.
   bucket: backups
+  # -- Configures `backup.prefix` for the neo4j chart.
   prefix: neo4j
+  # -- Configures `backup.image` for the neo4j chart.
   image: neo4j:5.21.2-enterprise
+  # -- Configures `backup.dataClaimName` for the neo4j chart.
   dataClaimName: ""
 
+# @section -- Networkpolicy
+# -- Configures `networkPolicy` for the neo4j chart.
 networkPolicy:
+  # -- Configures `networkPolicy.enabled` for the neo4j chart.
   enabled: true

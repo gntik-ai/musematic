@@ -27,7 +27,7 @@ def test_documented_webhook_verification_snippet_round_trips_platform_signature(
 
 
 def _python_snippet() -> str:
-    docs_path = Path(__file__).parents[5] / "docs/integrations/webhook-verification.md"
+    docs_path = Path(__file__).parents[5] / "docs/developer-guide/mcp-integration.md"
     markdown = docs_path.read_text()
     start = markdown.index("```python") + len("```python")
     end = markdown.index("```", start)

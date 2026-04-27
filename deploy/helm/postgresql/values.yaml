@@ -1,32 +1,65 @@
+# @section -- Createnamespace
+# -- Configures `createNamespace` for the postgresql chart.
 createNamespace: true
 
+# @section -- Environment
+# -- Configures `environment` for the postgresql chart.
 environment: production
 
+# @section -- Postgresql
+# -- Configures `postgresql` for the postgresql chart.
 postgresql:
+  # -- Configures `postgresql.maxConnections` for the postgresql chart.
   maxConnections: "200"
 
+# @section -- Storage
+# -- Configures `storage` for the postgresql chart.
 storage:
+  # -- Configures `storage.size` for the postgresql chart.
   size: 100Gi
+  # -- Configures `storage.storageClass` for the postgresql chart.
   storageClass: standard
 
+# @section -- Resources
+# -- Configures `resources` for the postgresql chart.
 resources:
+  # -- Configures `resources.requests` for the postgresql chart.
   requests:
+    # -- Configures `resources.requests.cpu` for the postgresql chart.
     cpu: 1000m
+    # -- Configures `resources.requests.memory` for the postgresql chart.
     memory: 2Gi
+  # -- Configures `resources.limits` for the postgresql chart.
   limits:
+    # -- Configures `resources.limits.cpu` for the postgresql chart.
     cpu: 2000m
+    # -- Configures `resources.limits.memory` for the postgresql chart.
     memory: 4Gi
 
+# @section -- Pgbouncer
+# -- Configures `pgbouncer` for the postgresql chart.
 pgbouncer:
+  # -- Configures `pgbouncer.maxClientConn` for the postgresql chart.
   maxClientConn: 1000
+  # -- Configures `pgbouncer.defaultPoolSize` for the postgresql chart.
   defaultPoolSize: 10
+  # -- Configures `pgbouncer.maxDbConnections` for the postgresql chart.
   maxDbConnections: 200
 
+# @section -- Monitoring
+# -- Configures `monitoring` for the postgresql chart.
 monitoring:
+  # -- Configures `monitoring.enabled` for the postgresql chart.
   enabled: true
 
+# @section -- Credentials
+# -- Configures `credentials` for the postgresql chart.
 credentials:
+  # -- Configures `credentials.username` for the postgresql chart.
   username: musematic
+  # -- Configures `credentials.password` for the postgresql chart.
   password: change-me
+  # -- Configures `credentials.database` for the postgresql chart.
   database: musematic
+  # -- Configures `credentials.existingSecret` for the postgresql chart.
   existingSecret: ""

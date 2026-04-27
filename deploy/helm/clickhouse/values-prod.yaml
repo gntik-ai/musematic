@@ -1,18 +1,37 @@
+# @section -- Clickhouse
+# -- Configures `clickhouse` for the clickhouse chart.
 clickhouse:
+  # -- Configures `clickhouse.replicaCount` for the clickhouse chart.
   replicaCount: 2
+  # -- Configures `clickhouse.keeper` for the clickhouse chart.
   keeper:
+    # -- Configures `clickhouse.keeper.enabled` for the clickhouse chart.
     enabled: true
+    # -- Configures `clickhouse.keeper.replicaCount` for the clickhouse chart.
     replicaCount: 3
+  # -- Configures `clickhouse.resources` for the clickhouse chart.
   resources:
+    # -- Configures `clickhouse.resources.requests` for the clickhouse chart.
     requests:
+      # -- Configures `clickhouse.resources.requests.memory` for the clickhouse chart.
       memory: 8Gi
+      # -- Configures `clickhouse.resources.requests.cpu` for the clickhouse chart.
       cpu: "4"
+    # -- Configures `clickhouse.resources.limits` for the clickhouse chart.
     limits:
+      # -- Configures `clickhouse.resources.limits.memory` for the clickhouse chart.
       memory: 16Gi
+      # -- Configures `clickhouse.resources.limits.cpu` for the clickhouse chart.
       cpu: "4"
 
+# @section -- Persistence
+# -- Configures `persistence` for the clickhouse chart.
 persistence:
+  # -- Configures `persistence.size` for the clickhouse chart.
   size: 100Gi
 
+# @section -- Networkpolicy
+# -- Configures `networkPolicy` for the clickhouse chart.
 networkPolicy:
+  # -- Configures `networkPolicy.enabled` for the clickhouse chart.
   enabled: true

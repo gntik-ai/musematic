@@ -1,25 +1,51 @@
+# @section -- Redis Cluster
+# -- Configures `redis-cluster` for the redis chart.
 redis-cluster:
+  # -- Configures `redis-cluster.cluster` for the redis chart.
   cluster:
+    # -- Configures `redis-cluster.cluster.nodes` for the redis chart.
     nodes: 6
+    # -- Configures `redis-cluster.cluster.replicas` for the redis chart.
     replicas: 1
+  # -- Configures `redis-cluster.redis` for the redis chart.
   redis:
+    # -- Configures `redis-cluster.redis.maxmemory` for the redis chart.
     maxmemory: "4Gi"
+  # -- Configures `redis-cluster.persistence` for the redis chart.
   persistence:
+    # -- Configures `redis-cluster.persistence.size` for the redis chart.
     size: 100Gi
+  # -- Configures `redis-cluster.resources` for the redis chart.
   resources:
+    # -- Configures `redis-cluster.resources.requests` for the redis chart.
     requests:
+      # -- Configures `redis-cluster.resources.requests.cpu` for the redis chart.
       cpu: 1000m
+      # -- Configures `redis-cluster.resources.requests.memory` for the redis chart.
       memory: 2Gi
+    # -- Configures `redis-cluster.resources.limits` for the redis chart.
     limits:
+      # -- Configures `redis-cluster.resources.limits.cpu` for the redis chart.
       cpu: 2000m
+      # -- Configures `redis-cluster.resources.limits.memory` for the redis chart.
       memory: 5Gi
+  # -- Configures `redis-cluster.metrics` for the redis chart.
   metrics:
+    # -- Configures `redis-cluster.metrics.enabled` for the redis chart.
     enabled: true
+    # -- Configures `redis-cluster.metrics.serviceMonitor` for the redis chart.
     serviceMonitor:
+      # -- Configures `redis-cluster.metrics.serviceMonitor.enabled` for the redis chart.
       enabled: true
+  # -- Configures `redis-cluster.pdb` for the redis chart.
   pdb:
+    # -- Configures `redis-cluster.pdb.create` for the redis chart.
     create: true
+    # -- Configures `redis-cluster.pdb.maxUnavailable` for the redis chart.
     maxUnavailable: 1
 
+# @section -- Networkpolicy
+# -- Configures `networkPolicy` for the redis chart.
 networkPolicy:
+  # -- Configures `networkPolicy.enabled` for the redis chart.
   enabled: true

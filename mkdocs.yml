@@ -10,6 +10,9 @@ docs_dir: docs
 site_dir: site
 exclude_docs: |
   README.md
+  gen_env_vars.py
+  gen_helm_values.py
+  gen_openapi.py
 
 theme:
   name: material
@@ -97,41 +100,226 @@ markdown_extensions:
 plugins:
   - search:
       separator: '[\s\-\.]+'
+  - gen-files:
+      scripts:
+        - docs/gen_env_vars.py
+        - docs/gen_helm_values.py
+        - docs/gen_openapi.py
+  - i18n:
+      docs_structure: suffix
+      fallback_to_default: true
+      languages:
+        - locale: en
+          name: English
+          default: true
+          build: true
+        - locale: es
+          name: Espanol
+          build: true
+          site_name: musematic
+        - locale: de
+          name: Deutsch
+          build: true
+          site_name: musematic
+        - locale: fr
+          name: Francais
+          build: true
+          site_name: musematic
+        - locale: it
+          name: Italiano
+          build: true
+          site_name: musematic
+        - locale: zh
+          name: Simplified Chinese (zh-CN)
+          build: true
+          site_name: musematic
+  - redirects:
+      redirect_maps:
+        agents.md: developer-guide/building-agents.md
+        development/structured-logging.md: developer-guide/structured-logging.md
+        operations/grafana-metrics-logs-traces.md: operator-guide/observability.md
+        integrations/webhook-verification.md: developer-guide/mcp-integration.md
+        administration/audit-and-compliance.md: admin-guide/security-compliance.md
+        administration/integrations-and-credentials.md: admin-guide/system-config.md
+        features/074-security-compliance.md: release-notes/feature-074-security-compliance.md
+        features/075-model-catalog-fallback.md: release-notes/feature-075-model-catalog-fallback.md
+        features/076-privacy-compliance.md: release-notes/feature-076-privacy-compliance.md
+        system-architecture-v3.md: architecture/system-architecture.md
+        system-architecture-v5.md: architecture/system-architecture.md
+        software-architecture-v3.md: architecture/software-architecture.md
+        software-architecture-v5.md: architecture/software-architecture.md
+        functional-requirements-revised-v4.md: functional-requirements-revised-v6.md
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          options:
+            docstring_style: google
 
 extra:
+  version:
+    provider: mike
+    default: latest
+  localized_sections:
+    - getting-started
+    - user-guide
+    - admin-guide
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/gntik-ai/musematic
   generator: false
 
-# Navigation reflects the three-audience split: end users (Agents, Flows),
-# platform administrators (Administration), operators/SREs (Operations).
 nav:
   - Home: index.md
   - Getting Started:
-      - getting-started.md
-      - installation.md
-  - For End Users:
-      - Agents: agents.md
-      - Flows: flows.md
-  - Features:
-      - features/index.md
-  - Administration:
-      - administration/index.md
-      - Enabling Features: administration/enabling-features.md
-      - RBAC & Permissions: administration/rbac-and-permissions.md
-      - Quotas & Limits: administration/quotas-and-limits.md
-      - Integrations & Credentials: administration/integrations-and-credentials.md
-      - Multi-Tenancy: administration/multi-tenancy.md
-      - Observability: administration/observability.md
-      - Audit & Compliance: administration/audit-and-compliance.md
-      - Backup & Restore: administration/backup-and-restore.md
-      - Upgrades: administration/upgrades.md
-  - Reference:
-      - Configuration: reference/configuration.md
-      - Architecture:
-          - System Architecture: system-architecture-v3.md
-          - Software Architecture: software-architecture-v3.md
-          - Functional Requirements: functional-requirements-revised-v4.md
-  - FAQ: faq.md
-  - Roadmap: roadmap.md
+      - Overview: getting-started/index.md
+      - What Is Musematic: getting-started/what-is-musematic.md
+      - Quick Start: getting-started/quick-start.md
+      - Glossary: getting-started/glossary.md
+      - First Tutorial: getting-started/first-tutorial.md
+  - User Guide:
+      - Overview: user-guide/index.md
+      - Workbenches Overview: user-guide/workbenches-overview.md
+      - Consumer:
+          - Discovering Agents: user-guide/consumer/discovering-agents.md
+          - Starting a Conversation: user-guide/consumer/starting-conversation.md
+          - Observing Execution: user-guide/consumer/observing-execution.md
+          - Reasoning Traces: user-guide/consumer/reasoning-traces.md
+          - Alerts: user-guide/consumer/alerts.md
+      - Creator:
+          - Registering an Agent: user-guide/creator/registering-agent.md
+          - Choosing an FQN: user-guide/creator/fqn.md
+          - Purpose and Approach: user-guide/creator/purpose-approach.md
+          - Visibility and Tools: user-guide/creator/visibility-tools.md
+          - Packaging: user-guide/creator/packaging.md
+          - Certification: user-guide/creator/certification.md
+          - Publishing: user-guide/creator/publishing.md
+      - Workspace Collaboration:
+          - Goals: user-guide/workspace-collaboration/goals.md
+          - Multi-Agent Work: user-guide/workspace-collaboration/multi-agent.md
+          - Attention Requests: user-guide/workspace-collaboration/attention.md
+          - GID Correlation: user-guide/workspace-collaboration/gid-correlation.md
+  - Administrator Guide:
+      - Overview: admin-guide/index.md
+      - Identity and Access: admin-guide/identity-access.md
+      - Tenancy and Workspaces: admin-guide/tenancy-workspaces.md
+      - System Configuration: admin-guide/system-config.md
+      - Security and Compliance: admin-guide/security-compliance.md
+      - Operations Health: admin-guide/operations-health.md
+      - Cost and Billing: admin-guide/cost-billing.md
+      - Observability: admin-guide/observability.md
+      - Integrations: admin-guide/integrations.md
+      - Lifecycle: admin-guide/lifecycle.md
+      - Audit Logs: admin-guide/audit-logs.md
+  - Operator Guide:
+      - Overview: operator-guide/index.md
+      - Observability: operator-guide/observability.md
+      - Dashboards Reference: operator-guide/dashboards-reference.md
+      - Incident Response: operator-guide/incident-response.md
+      - Capacity Planning: operator-guide/capacity-planning.md
+      - Backup and Restore: operator-guide/backup-restore.md
+      - Multi-Region Failover: operator-guide/multi-region-failover.md
+      - LogQL Cookbook: operator-guide/logql-cookbook.md
+      - Runbooks: operator-guide/runbooks/index.md
+      - Runbook Library:
+          - Platform Upgrade: operator-guide/runbooks/platform-upgrade.md
+          - Database Migration Rollback: operator-guide/runbooks/database-migration-rollback.md
+          - Disaster Recovery Restore: operator-guide/runbooks/disaster-recovery-restore.md
+          - Multi-Region Failover and Failback: operator-guide/runbooks/multi-region-failover-failback.md
+          - Secret Rotation: operator-guide/runbooks/secret-rotation.md
+          - Capacity Expansion: operator-guide/runbooks/capacity-expansion.md
+          - Super Admin Break Glass: operator-guide/runbooks/super-admin-break-glass.md
+          - Incident Response Procedures: operator-guide/runbooks/incident-response-procedures.md
+          - Log Query Cookbook: operator-guide/runbooks/log-query-cookbook.md
+          - TLS Emergency Renewal: operator-guide/runbooks/tls-emergency-renewal.md
+  - Developer Guide:
+      - Overview: developer-guide/index.md
+      - Building Agents: developer-guide/building-agents.md
+      - Agent Card Spec: developer-guide/agent-card-spec.md
+      - Contract Authoring: developer-guide/contract-authoring.md
+      - Tool Gateway: developer-guide/tool-gateway.md
+      - Structured Logging: developer-guide/structured-logging.md
+      - MCP Integration: developer-guide/mcp-integration.md
+      - A2A Integration: developer-guide/a2a-integration.md
+      - SDK Usage: developer-guide/sdk-usage.md
+      - Reasoning Primitives: developer-guide/reasoning-primitives.md
+      - Evaluation Authoring: developer-guide/evaluation-authoring.md
+      - Self-Correction Tuning: developer-guide/self-correction-tuning.md
+  - API Reference:
+      - Overview: api-reference/index.md
+      - REST API: api-reference/rest-api.md
+      - OpenAPI Embeds: api-reference/openapi-embeds.md
+      - WebSocket API: api-reference/websocket-api.md
+      - A2A API: api-reference/a2a-api.md
+      - MCP API: api-reference/mcp-api.md
+      - Error Codes: api-reference/error-codes.md
+  - Architecture:
+      - Overview: architecture/index.md
+      - System Architecture: architecture/system-architecture.md
+      - Software Architecture: architecture/software-architecture.md
+      - Data Stores: architecture/data-stores.md
+      - Event Topology: architecture/event-topology.md
+      - Security, Trust, and Privacy: architecture/security-trust-privacy.md
+      - Observability Architecture: architecture/observability-architecture.md
+      - Architecture Decisions: architecture/architecture-decisions.md
+      - Bounded Contexts:
+          - Overview: architecture/bounded-contexts/index.md
+          - Auth: architecture/bounded-contexts/auth.md
+          - Accounts: architecture/bounded-contexts/accounts.md
+          - Workspaces: architecture/bounded-contexts/workspaces.md
+          - Registry: architecture/bounded-contexts/registry.md
+          - Governance: architecture/bounded-contexts/governance.md
+          - Audit: architecture/bounded-contexts/audit.md
+          - Notifications: architecture/bounded-contexts/notifications.md
+          - Workflows: architecture/bounded-contexts/workflows.md
+          - Execution: architecture/bounded-contexts/execution.md
+          - Runtime: architecture/bounded-contexts/runtime.md
+          - Reasoning: architecture/bounded-contexts/reasoning.md
+          - Sandbox: architecture/bounded-contexts/sandbox.md
+          - Simulation: architecture/bounded-contexts/simulation.md
+          - Analytics: architecture/bounded-contexts/analytics.md
+          - Cost Governance: architecture/bounded-contexts/cost-governance.md
+          - Incident Response: architecture/bounded-contexts/incident-response.md
+          - Multi-Region Ops: architecture/bounded-contexts/multi-region-ops.md
+          - Security Compliance: architecture/bounded-contexts/security-compliance.md
+          - Privacy Compliance: architecture/bounded-contexts/privacy-compliance.md
+          - Model Catalog: architecture/bounded-contexts/model-catalog.md
+          - Interactions: architecture/bounded-contexts/interactions.md
+          - Fleets: architecture/bounded-contexts/fleets.md
+          - Evaluation: architecture/bounded-contexts/evaluation.md
+          - Trust: architecture/bounded-contexts/trust.md
+          - Connectors: architecture/bounded-contexts/connectors.md
+          - Memory: architecture/bounded-contexts/memory.md
+          - Context Engineering: architecture/bounded-contexts/context-engineering.md
+          - Discovery: architecture/bounded-contexts/discovery.md
+          - Testing: architecture/bounded-contexts/testing.md
+          - Observability: architecture/bounded-contexts/observability.md
+      - Functional Requirements: functional-requirements-revised-v6.md
+  - Installation:
+      - Overview: installation/index.md
+      - kind: installation/kind.md
+      - k3s: installation/k3s.md
+      - Hetzner: installation/hetzner.md
+      - Managed Kubernetes: installation/managed-k8s.md
+      - Air-Gapped: installation/air-gapped.md
+  - Configuration:
+      - Overview: configuration/index.md
+      - Environment Variables: configuration/environment-variables.md
+      - Helm Values: configuration/helm-values.md
+      - Feature Flags: configuration/feature-flags.md
+      - URL Scheme: configuration/url-scheme.md
+      - TLS Strategy: configuration/tls-strategy.md
+      - Networking: configuration/networking.md
+  - Security:
+      - Overview: security/index.md
+      - Threat Model: security/threat-model.md
+      - Compliance Mapping: security/compliance-mapping.md
+      - Best Practices: security/best-practices.md
+      - Responsible Disclosure: security/responsible-disclosure.md
+  - Release Notes:
+      - Overview: release-notes/index.md
+      - v1.3.0: release-notes/v1.3.0.md
+      - Changelog: release-notes/changelog.md
+      - Security Compliance: release-notes/feature-074-security-compliance.md
+      - Model Catalog Fallback: release-notes/feature-075-model-catalog-fallback.md
+      - Privacy Compliance: release-notes/feature-076-privacy-compliance.md

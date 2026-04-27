@@ -1,342 +1,641 @@
+# @section -- Createnamespace
+# -- Configures `createNamespace` for the observability chart.
 createNamespace: false
 
+# @section -- Frontendnamespaces
+# -- Configures `frontendNamespaces` for the observability chart.
 frontendNamespaces:
   - platform-control
 
+# @section -- Networkpolicy
+# -- Configures `networkPolicy` for the observability chart.
 networkPolicy:
+  # -- Configures `networkPolicy.enabled` for the observability chart.
   enabled: true
+  # -- Configures `networkPolicy.platformNamespaces` for the observability chart.
   platformNamespaces:
     - platform-control
     - platform-execution
     - platform-simulation
     - platform-data
     - platform-ui
+  # -- Configures `networkPolicy.ingressControllerNamespaces` for the observability chart.
   ingressControllerNamespaces:
     - ingress-nginx
+  # -- Configures `networkPolicy.s3EgressCidrs` for the observability chart.
   s3EgressCidrs:
     - 0.0.0.0/0
 
+# @section -- Global
+# -- Configures `global` for the observability chart.
 global:
+  # -- Configures `global.frontendNamespaces` for the observability chart.
   frontendNamespaces:
     - platform-control
 
+# @section -- Opentelemetry Collector
+# -- Configures `opentelemetry-collector` for the observability chart.
 opentelemetry-collector:
+  # -- Configures `opentelemetry-collector.fullnameOverride` for the observability chart.
   fullnameOverride: otel-collector
+  # -- Configures `opentelemetry-collector.mode` for the observability chart.
   mode: deployment
+  # -- Configures `opentelemetry-collector.replicaCount` for the observability chart.
   replicaCount: 2
+  # -- Configures `opentelemetry-collector.image` for the observability chart.
   image:
+    # -- Configures `opentelemetry-collector.image.repository` for the observability chart.
     repository: otel/opentelemetry-collector-contrib
+  # -- Configures `opentelemetry-collector.command` for the observability chart.
   command:
+    # -- Configures `opentelemetry-collector.command.name` for the observability chart.
     name: otelcol-contrib
+  # -- Configures `opentelemetry-collector.serviceMonitor` for the observability chart.
   serviceMonitor:
+    # -- Configures `opentelemetry-collector.serviceMonitor.enabled` for the observability chart.
     enabled: false
+  # -- Configures `opentelemetry-collector.resources` for the observability chart.
   resources:
+    # -- Configures `opentelemetry-collector.resources.requests` for the observability chart.
     requests:
+      # -- Configures `opentelemetry-collector.resources.requests.cpu` for the observability chart.
       cpu: 250m
+      # -- Configures `opentelemetry-collector.resources.requests.memory` for the observability chart.
       memory: 256Mi
+    # -- Configures `opentelemetry-collector.resources.limits` for the observability chart.
     limits:
+      # -- Configures `opentelemetry-collector.resources.limits.cpu` for the observability chart.
       cpu: "1"
+      # -- Configures `opentelemetry-collector.resources.limits.memory` for the observability chart.
       memory: 512Mi
+  # -- Configures `opentelemetry-collector.ports` for the observability chart.
   ports:
+    # -- Configures `opentelemetry-collector.ports.otlp` for the observability chart.
     otlp:
+      # -- Configures `opentelemetry-collector.ports.otlp.enabled` for the observability chart.
       enabled: true
+      # -- Configures `opentelemetry-collector.ports.otlp.containerPort` for the observability chart.
       containerPort: 4317
+      # -- Configures `opentelemetry-collector.ports.otlp.servicePort` for the observability chart.
       servicePort: 4317
+      # -- Configures `opentelemetry-collector.ports.otlp.protocol` for the observability chart.
       protocol: TCP
+      # -- Configures `opentelemetry-collector.ports.otlp.appProtocol` for the observability chart.
       appProtocol: grpc
+    # -- Configures `opentelemetry-collector.ports.otlp-http` for the observability chart.
     otlp-http:
+      # -- Configures `opentelemetry-collector.ports.otlp-http.enabled` for the observability chart.
       enabled: true
+      # -- Configures `opentelemetry-collector.ports.otlp-http.containerPort` for the observability chart.
       containerPort: 4318
+      # -- Configures `opentelemetry-collector.ports.otlp-http.servicePort` for the observability chart.
       servicePort: 4318
+      # -- Configures `opentelemetry-collector.ports.otlp-http.protocol` for the observability chart.
       protocol: TCP
+    # -- Configures `opentelemetry-collector.ports.jaeger-compact` for the observability chart.
     jaeger-compact:
+      # -- Configures `opentelemetry-collector.ports.jaeger-compact.enabled` for the observability chart.
       enabled: false
+    # -- Configures `opentelemetry-collector.ports.jaeger-thrift` for the observability chart.
     jaeger-thrift:
+      # -- Configures `opentelemetry-collector.ports.jaeger-thrift.enabled` for the observability chart.
       enabled: false
+    # -- Configures `opentelemetry-collector.ports.jaeger-grpc` for the observability chart.
     jaeger-grpc:
+      # -- Configures `opentelemetry-collector.ports.jaeger-grpc.enabled` for the observability chart.
       enabled: false
+    # -- Configures `opentelemetry-collector.ports.zipkin` for the observability chart.
     zipkin:
+      # -- Configures `opentelemetry-collector.ports.zipkin.enabled` for the observability chart.
       enabled: false
+    # -- Configures `opentelemetry-collector.ports.metrics` for the observability chart.
     metrics:
+      # -- Configures `opentelemetry-collector.ports.metrics.enabled` for the observability chart.
       enabled: true
+      # -- Configures `opentelemetry-collector.ports.metrics.containerPort` for the observability chart.
       containerPort: 8889
+      # -- Configures `opentelemetry-collector.ports.metrics.servicePort` for the observability chart.
       servicePort: 8889
+      # -- Configures `opentelemetry-collector.ports.metrics.protocol` for the observability chart.
       protocol: TCP
+  # -- Configures `opentelemetry-collector.alternateConfig` for the observability chart.
   alternateConfig:
+    # -- Configures `opentelemetry-collector.alternateConfig.extensions` for the observability chart.
     extensions:
+      # -- Configures `opentelemetry-collector.alternateConfig.extensions.health_check` for the observability chart.
       health_check:
+        # -- Configures `opentelemetry-collector.alternateConfig.extensions.health_check.endpoint` for the observability chart.
         endpoint: 0.0.0.0:13133
+    # -- Configures `opentelemetry-collector.alternateConfig.receivers` for the observability chart.
     receivers:
+      # -- Configures `opentelemetry-collector.alternateConfig.receivers.otlp` for the observability chart.
       otlp:
+        # -- Configures `opentelemetry-collector.alternateConfig.receivers.otlp.protocols` for the observability chart.
         protocols:
+          # -- Configures `opentelemetry-collector.alternateConfig.receivers.otlp.protocols.grpc` for the observability chart.
           grpc:
+            # -- Configures `opentelemetry-collector.alternateConfig.receivers.otlp.protocols.grpc.endpoint` for the observability chart.
             endpoint: 0.0.0.0:4317
+          # -- Configures `opentelemetry-collector.alternateConfig.receivers.otlp.protocols.http` for the observability chart.
           http:
+            # -- Configures `opentelemetry-collector.alternateConfig.receivers.otlp.protocols.http.endpoint` for the observability chart.
             endpoint: 0.0.0.0:4318
+    # -- Configures `opentelemetry-collector.alternateConfig.processors` for the observability chart.
     processors:
+      # -- Configures `opentelemetry-collector.alternateConfig.processors.memory_limiter` for the observability chart.
       memory_limiter:
+        # -- Configures `opentelemetry-collector.alternateConfig.processors.memory_limiter.check_interval` for the observability chart.
         check_interval: 5s
+        # -- Configures `opentelemetry-collector.alternateConfig.processors.memory_limiter.limit_percentage` for the observability chart.
         limit_percentage: 80
+        # -- Configures `opentelemetry-collector.alternateConfig.processors.memory_limiter.spike_limit_percentage` for the observability chart.
         spike_limit_percentage: 25
+      # -- Configures `opentelemetry-collector.alternateConfig.processors.batch` for the observability chart.
       batch: {}
+      # -- Configures `opentelemetry-collector.alternateConfig.processors.transform/correlation` for the observability chart.
       transform/correlation:
+        # -- Configures `opentelemetry-collector.alternateConfig.processors.transform/correlation.error_mode` for the observability chart.
         error_mode: ignore
+        # -- Configures `opentelemetry-collector.alternateConfig.processors.transform/correlation.trace_statements` for the observability chart.
         trace_statements:
           - context: span
+            # -- Configures `opentelemetry-collector.alternateConfig.processors.transform/correlation.trace_statements.statements` for the observability chart.
             statements:
               - set(resource.attributes["correlation_id"], attributes["correlation_id"]) where attributes["correlation_id"] != nil
+    # -- Configures `opentelemetry-collector.alternateConfig.exporters` for the observability chart.
     exporters:
+      # -- Configures `opentelemetry-collector.alternateConfig.exporters.prometheus` for the observability chart.
       prometheus:
+        # -- Configures `opentelemetry-collector.alternateConfig.exporters.prometheus.endpoint` for the observability chart.
         endpoint: 0.0.0.0:8889
+      # -- Configures `opentelemetry-collector.alternateConfig.exporters.otlp/jaeger` for the observability chart.
       otlp/jaeger:
+        # -- Configures `opentelemetry-collector.alternateConfig.exporters.otlp/jaeger.endpoint` for the observability chart.
         endpoint: musematic-observability-jaeger-collector:4317
+        # -- Configures `opentelemetry-collector.alternateConfig.exporters.otlp/jaeger.tls` for the observability chart.
         tls:
+          # -- Configures `opentelemetry-collector.alternateConfig.exporters.otlp/jaeger.tls.insecure` for the observability chart.
           insecure: true
+    # -- Configures `opentelemetry-collector.alternateConfig.service` for the observability chart.
     service:
+      # -- Configures `opentelemetry-collector.alternateConfig.service.extensions` for the observability chart.
       extensions:
         - health_check
+      # -- Configures `opentelemetry-collector.alternateConfig.service.pipelines` for the observability chart.
       pipelines:
+        # -- Configures `opentelemetry-collector.alternateConfig.service.pipelines.traces` for the observability chart.
         traces:
+          # -- Configures `opentelemetry-collector.alternateConfig.service.pipelines.traces.receivers` for the observability chart.
           receivers:
             - otlp
+          # -- Configures `opentelemetry-collector.alternateConfig.service.pipelines.traces.processors` for the observability chart.
           processors:
             - memory_limiter
             - transform/correlation
             - batch
+          # -- Configures `opentelemetry-collector.alternateConfig.service.pipelines.traces.exporters` for the observability chart.
           exporters:
             - otlp/jaeger
+        # -- Configures `opentelemetry-collector.alternateConfig.service.pipelines.metrics` for the observability chart.
         metrics:
+          # -- Configures `opentelemetry-collector.alternateConfig.service.pipelines.metrics.receivers` for the observability chart.
           receivers:
             - otlp
+          # -- Configures `opentelemetry-collector.alternateConfig.service.pipelines.metrics.processors` for the observability chart.
           processors:
             - memory_limiter
             - batch
+          # -- Configures `opentelemetry-collector.alternateConfig.service.pipelines.metrics.exporters` for the observability chart.
           exporters:
             - prometheus
 
+# @section -- Kube Prometheus Stack
+# -- Configures `kube-prometheus-stack` for the observability chart.
 kube-prometheus-stack:
+  # -- Configures `kube-prometheus-stack.cleanPrometheusOperatorObjectNames` for the observability chart.
   cleanPrometheusOperatorObjectNames: true
+  # -- Configures `kube-prometheus-stack.grafana` for the observability chart.
   grafana:
+    # -- Configures `kube-prometheus-stack.grafana.adminPassword` for the observability chart.
     adminPassword: admin
+    # -- Configures `kube-prometheus-stack.grafana.plugins` for the observability chart.
     plugins:
       - grafana-image-renderer
+    # -- Configures `kube-prometheus-stack.grafana.sidecar` for the observability chart.
     sidecar:
+      # -- Configures `kube-prometheus-stack.grafana.sidecar.dashboards` for the observability chart.
       dashboards:
+        # -- Configures `kube-prometheus-stack.grafana.sidecar.dashboards.enabled` for the observability chart.
         enabled: true
+        # -- Configures `kube-prometheus-stack.grafana.sidecar.dashboards.label` for the observability chart.
         label: grafana_dashboard
+        # -- Configures `kube-prometheus-stack.grafana.sidecar.dashboards.labelValue` for the observability chart.
         labelValue: "1"
+        # -- Configures `kube-prometheus-stack.grafana.sidecar.dashboards.searchNamespace` for the observability chart.
         searchNamespace: platform-observability
+      # -- Configures `kube-prometheus-stack.grafana.sidecar.datasources` for the observability chart.
       datasources:
+        # -- Configures `kube-prometheus-stack.grafana.sidecar.datasources.enabled` for the observability chart.
         enabled: true
+        # -- Configures `kube-prometheus-stack.grafana.sidecar.datasources.label` for the observability chart.
         label: grafana_datasource
+        # -- Configures `kube-prometheus-stack.grafana.sidecar.datasources.labelValue` for the observability chart.
         labelValue: "1"
+        # -- Configures `kube-prometheus-stack.grafana.sidecar.datasources.searchNamespace` for the observability chart.
         searchNamespace: platform-observability
+  # -- Configures `kube-prometheus-stack.alertmanager` for the observability chart.
   alertmanager:
+    # -- Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec` for the observability chart.
     alertmanagerSpec:
+      # -- Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec.storage` for the observability chart.
       storage:
+        # -- Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate` for the observability chart.
         volumeClaimTemplate:
+          # -- Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec` for the observability chart.
           spec:
+            # -- Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.accessModes` for the observability chart.
             accessModes:
               - ReadWriteOnce
+            # -- Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources` for the observability chart.
             resources:
+              # -- Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources.requests` for the observability chart.
               requests:
+                # -- Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources.requests.storage` for the observability chart.
                 storage: 5Gi
+  # -- Configures `kube-prometheus-stack.prometheus` for the observability chart.
   prometheus:
+    # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec` for the observability chart.
     prometheusSpec:
+      # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.scrapeInterval` for the observability chart.
       scrapeInterval: 15s
+      # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.retention` for the observability chart.
       retention: 15d
+      # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.ruleSelector` for the observability chart.
       ruleSelector:
+        # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.ruleSelector.matchLabels` for the observability chart.
         matchLabels:
+          # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.ruleSelector.matchLabels.prometheus` for the observability chart.
           prometheus: musematic
+      # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.serviceMonitorSelector` for the observability chart.
       serviceMonitorSelector:
+        # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.serviceMonitorSelector.matchLabels` for the observability chart.
         matchLabels:
+          # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.serviceMonitorSelector.matchLabels.prometheus` for the observability chart.
           prometheus: musematic
+      # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.podMonitorSelector` for the observability chart.
       podMonitorSelector:
+        # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.podMonitorSelector.matchLabels` for the observability chart.
         matchLabels:
+          # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.podMonitorSelector.matchLabels.prometheus` for the observability chart.
           prometheus: musematic
+      # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec` for the observability chart.
       storageSpec:
+        # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate` for the observability chart.
         volumeClaimTemplate:
+          # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec` for the observability chart.
           spec:
+            # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.accessModes` for the observability chart.
             accessModes:
               - ReadWriteOnce
+            # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources` for the observability chart.
             resources:
+              # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests` for the observability chart.
               requests:
+                # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage` for the observability chart.
                 storage: 20Gi
 
+# @section -- Jaeger
+# -- Configures `jaeger` for the observability chart.
 jaeger:
+  # -- Configures `jaeger.provisionDataStore` for the observability chart.
   provisionDataStore:
+    # -- Configures `jaeger.provisionDataStore.cassandra` for the observability chart.
     cassandra: false
+    # -- Configures `jaeger.provisionDataStore.elasticsearch` for the observability chart.
     elasticsearch: false
+    # -- Configures `jaeger.provisionDataStore.kafka` for the observability chart.
     kafka: false
+  # -- Configures `jaeger.agent` for the observability chart.
   agent:
+    # -- Configures `jaeger.agent.enabled` for the observability chart.
     enabled: false
+  # -- Configures `jaeger.collector` for the observability chart.
   collector:
+    # -- Configures `jaeger.collector.enabled` for the observability chart.
     enabled: false
+  # -- Configures `jaeger.query` for the observability chart.
   query:
+    # -- Configures `jaeger.query.enabled` for the observability chart.
     enabled: false
+  # -- Configures `jaeger.allInOne` for the observability chart.
   allInOne:
+    # -- Configures `jaeger.allInOne.enabled` for the observability chart.
     enabled: true
+    # -- Configures `jaeger.allInOne.args` for the observability chart.
     args:
       - --collector.otlp.enabled=true
+    # -- Configures `jaeger.allInOne.service` for the observability chart.
     service:
+      # -- Configures `jaeger.allInOne.service.headless` for the observability chart.
       headless: false
+      # -- Configures `jaeger.allInOne.service.collector` for the observability chart.
       collector:
+        # -- Configures `jaeger.allInOne.service.collector.otlp` for the observability chart.
         otlp:
+          # -- Configures `jaeger.allInOne.service.collector.otlp.grpc` for the observability chart.
           grpc:
+            # -- Configures `jaeger.allInOne.service.collector.otlp.grpc.name` for the observability chart.
             name: otlp-grpc
+          # -- Configures `jaeger.allInOne.service.collector.otlp.http` for the observability chart.
           http:
+            # -- Configures `jaeger.allInOne.service.collector.otlp.http.name` for the observability chart.
             name: otlp-http
+  # -- Configures `jaeger.storage` for the observability chart.
   storage:
+    # -- Configures `jaeger.storage.type` for the observability chart.
     type: badger
+    # -- Configures `jaeger.storage.badger` for the observability chart.
     badger:
+      # -- Configures `jaeger.storage.badger.ephemeral` for the observability chart.
       ephemeral: false
+      # -- Configures `jaeger.storage.badger.persistence` for the observability chart.
       persistence:
+        # -- Configures `jaeger.storage.badger.persistence.mountPath` for the observability chart.
         mountPath: /mnt/data
+        # -- Configures `jaeger.storage.badger.persistence.useExistingPvcName` for the observability chart.
         useExistingPvcName: jaeger-badger
+  # -- Configures `jaeger.persistence` for the observability chart.
   persistence:
+    # -- Configures `jaeger.persistence.enabled` for the observability chart.
     enabled: true
+    # -- Configures `jaeger.persistence.size` for the observability chart.
     size: 5Gi
 
+# @section -- Loki
+# -- Configures `loki` for the observability chart.
 loki:
+  # -- Configures `loki.enabled` for the observability chart.
   enabled: true
+  # -- Configures `loki.fullnameOverride` for the observability chart.
   fullnameOverride: observability-loki
+  # -- Configures `loki.deploymentMode` for the observability chart.
   deploymentMode: SingleBinary
+  # -- Configures `loki.loki` for the observability chart.
   loki:
+    # -- Configures `loki.loki.auth_enabled` for the observability chart.
     auth_enabled: false
+    # -- Configures `loki.loki.commonConfig` for the observability chart.
     commonConfig:
+      # -- Configures `loki.loki.commonConfig.replication_factor` for the observability chart.
       replication_factor: 1
+    # -- Configures `loki.loki.limits_config` for the observability chart.
     limits_config:
+      # -- Configures `loki.loki.limits_config.retention_period` for the observability chart.
       retention_period: 336h
+    # -- Configures `loki.loki.compactor` for the observability chart.
     compactor:
+      # -- Configures `loki.loki.compactor.retention_enabled` for the observability chart.
       retention_enabled: true
+      # -- Configures `loki.loki.compactor.delete_request_store` for the observability chart.
       delete_request_store: s3
+    # -- Configures `loki.loki.storage` for the observability chart.
     storage:
+      # -- Configures `loki.loki.storage.type` for the observability chart.
       type: s3
+      # -- Configures `loki.loki.storage.bucketNames` for the observability chart.
       bucketNames:
+        # -- Configures `loki.loki.storage.bucketNames.chunks` for the observability chart.
         chunks: platform-loki-chunks
+        # -- Configures `loki.loki.storage.bucketNames.ruler` for the observability chart.
         ruler: platform-loki-chunks
+        # -- Configures `loki.loki.storage.bucketNames.admin` for the observability chart.
         admin: platform-loki-chunks
+      # -- Configures `loki.loki.storage.s3` for the observability chart.
       s3:
+        # -- Configures `loki.loki.storage.s3.endpoint` for the observability chart.
         endpoint: ${S3_ENDPOINT_URL}
+        # -- Configures `loki.loki.storage.s3.access_key_id` for the observability chart.
         access_key_id: ${S3_ACCESS_KEY}
+        # -- Configures `loki.loki.storage.s3.secret_access_key` for the observability chart.
         secret_access_key: ${S3_SECRET_KEY}
+        # -- Configures `loki.loki.storage.s3.s3ForcePathStyle` for the observability chart.
         s3ForcePathStyle: ${S3_USE_PATH_STYLE}
+        # -- Configures `loki.loki.storage.s3.insecure` for the observability chart.
         insecure: true
+    # -- Configures `loki.loki.schemaConfig` for the observability chart.
     schemaConfig:
+      # -- Configures `loki.loki.schemaConfig.configs` for the observability chart.
       configs:
         - from: "2024-01-01"
+          # -- Configures `loki.loki.schemaConfig.configs.store` for the observability chart.
           store: tsdb
+          # -- Configures `loki.loki.schemaConfig.configs.object_store` for the observability chart.
           object_store: s3
+          # -- Configures `loki.loki.schemaConfig.configs.schema` for the observability chart.
           schema: v13
+          # -- Configures `loki.loki.schemaConfig.configs.index` for the observability chart.
           index:
+            # -- Configures `loki.loki.schemaConfig.configs.index.prefix` for the observability chart.
             prefix: loki_index_
+            # -- Configures `loki.loki.schemaConfig.configs.index.period` for the observability chart.
             period: 24h
+    # -- Configures `loki.loki.rulerConfig` for the observability chart.
     rulerConfig:
+      # -- Configures `loki.loki.rulerConfig.storage` for the observability chart.
       storage:
+        # -- Configures `loki.loki.rulerConfig.storage.type` for the observability chart.
         type: s3
+        # -- Configures `loki.loki.rulerConfig.storage.s3` for the observability chart.
         s3:
+          # -- Configures `loki.loki.rulerConfig.storage.s3.bucketnames` for the observability chart.
           bucketnames: platform-loki-chunks
+  # -- Configures `loki.singleBinary` for the observability chart.
   singleBinary:
+    # -- Configures `loki.singleBinary.replicas` for the observability chart.
     replicas: 1
+    # -- Configures `loki.singleBinary.persistence` for the observability chart.
     persistence:
+      # -- Configures `loki.singleBinary.persistence.enabled` for the observability chart.
       enabled: true
+      # -- Configures `loki.singleBinary.persistence.size` for the observability chart.
       size: 20Gi
+  # -- Configures `loki.read` for the observability chart.
   read:
+    # -- Configures `loki.read.replicas` for the observability chart.
     replicas: 0
+  # -- Configures `loki.write` for the observability chart.
   write:
+    # -- Configures `loki.write.replicas` for the observability chart.
     replicas: 0
+  # -- Configures `loki.backend` for the observability chart.
   backend:
+    # -- Configures `loki.backend.replicas` for the observability chart.
     replicas: 0
+  # -- Configures `loki.gateway` for the observability chart.
   gateway:
+    # -- Configures `loki.gateway.enabled` for the observability chart.
     enabled: true
+  # -- Configures `loki.extraArgs` for the observability chart.
   extraArgs:
     - -config.expand-env=true
+  # -- Configures `loki.extraEnv` for the observability chart.
   extraEnv:
     - name: S3_ENDPOINT_URL
+      # -- Configures `loki.extraEnv.valueFrom` for the observability chart.
       valueFrom:
+        # -- Configures `loki.extraEnv.valueFrom.secretKeyRef` for the observability chart.
         secretKeyRef:
+          # -- Configures `loki.extraEnv.valueFrom.secretKeyRef.name` for the observability chart.
           name: minio-platform-credentials
+          # -- Configures `loki.extraEnv.valueFrom.secretKeyRef.key` for the observability chart.
           key: S3_ENDPOINT_URL
     - name: S3_ACCESS_KEY
+      # -- Configures `loki.extraEnv.valueFrom` for the observability chart.
       valueFrom:
+        # -- Configures `loki.extraEnv.valueFrom.secretKeyRef` for the observability chart.
         secretKeyRef:
+          # -- Configures `loki.extraEnv.valueFrom.secretKeyRef.name` for the observability chart.
           name: minio-platform-credentials
+          # -- Configures `loki.extraEnv.valueFrom.secretKeyRef.key` for the observability chart.
           key: S3_ACCESS_KEY
     - name: S3_SECRET_KEY
+      # -- Configures `loki.extraEnv.valueFrom` for the observability chart.
       valueFrom:
+        # -- Configures `loki.extraEnv.valueFrom.secretKeyRef` for the observability chart.
         secretKeyRef:
+          # -- Configures `loki.extraEnv.valueFrom.secretKeyRef.name` for the observability chart.
           name: minio-platform-credentials
+          # -- Configures `loki.extraEnv.valueFrom.secretKeyRef.key` for the observability chart.
           key: S3_SECRET_KEY
     - name: S3_USE_PATH_STYLE
+      # -- Configures `loki.extraEnv.valueFrom` for the observability chart.
       valueFrom:
+        # -- Configures `loki.extraEnv.valueFrom.secretKeyRef` for the observability chart.
         secretKeyRef:
+          # -- Configures `loki.extraEnv.valueFrom.secretKeyRef.name` for the observability chart.
           name: minio-platform-credentials
+          # -- Configures `loki.extraEnv.valueFrom.secretKeyRef.key` for the observability chart.
           key: S3_USE_PATH_STYLE
+          # -- Configures `loki.extraEnv.valueFrom.secretKeyRef.optional` for the observability chart.
           optional: true
+  # -- Configures `loki.retention` for the observability chart.
   retention:
+    # -- Configures `loki.retention.hot` for the observability chart.
     hot: 336h
+    # -- Configures `loki.retention.cold` for the observability chart.
     cold: 2160h
+  # -- Configures `loki.tenantRetentionOverrides` for the observability chart.
   tenantRetentionOverrides: []
 
+# @section -- Promtail
+# -- Configures `promtail` for the observability chart.
 promtail:
+  # -- Configures `promtail.enabled` for the observability chart.
   enabled: true
+  # -- Configures `promtail.daemonset` for the observability chart.
   daemonset:
+    # -- Configures `promtail.daemonset.enabled` for the observability chart.
     enabled: true
+  # -- Configures `promtail.podSecurityContext` for the observability chart.
   podSecurityContext:
+    # -- Configures `promtail.podSecurityContext.runAsNonRoot` for the observability chart.
     runAsNonRoot: true
+    # -- Configures `promtail.podSecurityContext.runAsUser` for the observability chart.
     runAsUser: 10001
+    # -- Configures `promtail.podSecurityContext.runAsGroup` for the observability chart.
     runAsGroup: 10001
+    # -- Configures `promtail.podSecurityContext.fsGroup` for the observability chart.
     fsGroup: 10001
+  # -- Configures `promtail.containerSecurityContext` for the observability chart.
   containerSecurityContext:
+    # -- Configures `promtail.containerSecurityContext.allowPrivilegeEscalation` for the observability chart.
     allowPrivilegeEscalation: false
+    # -- Configures `promtail.containerSecurityContext.readOnlyRootFilesystem` for the observability chart.
     readOnlyRootFilesystem: true
+    # -- Configures `promtail.containerSecurityContext.capabilities` for the observability chart.
     capabilities:
+      # -- Configures `promtail.containerSecurityContext.capabilities.drop` for the observability chart.
       drop:
         - ALL
+  # -- Configures `promtail.config` for the observability chart.
   config:
+    # -- Configures `promtail.config.clients` for the observability chart.
     clients:
       - url: http://observability-loki:3100/loki/api/v1/push
+    # -- Configures `promtail.config.snippets` for the observability chart.
     snippets:
+      # -- Configures `promtail.config.snippets.extraRelabelConfigs` for the observability chart.
       extraRelabelConfigs:
         - source_labels:
             - __meta_kubernetes_namespace
+          # -- Configures `promtail.config.snippets.extraRelabelConfigs.regex` for the observability chart.
           regex: platform-control|platform-execution|platform-simulation|platform-data|platform-observability
+          # -- Configures `promtail.config.snippets.extraRelabelConfigs.action` for the observability chart.
           action: keep
+      # -- Configures `promtail.config.snippets.pipelineStages` for the observability chart.
       pipelineStages:
         - cri: {}
         - json:
+            # -- Configures `promtail.config.snippets.pipelineStages.expressions` for the observability chart.
             expressions:
+              # -- Configures `promtail.config.snippets.pipelineStages.expressions.timestamp` for the observability chart.
               timestamp: timestamp
+              # -- Configures `promtail.config.snippets.pipelineStages.expressions.level` for the observability chart.
               level: level
+              # -- Configures `promtail.config.snippets.pipelineStages.expressions.service` for the observability chart.
               service: service
+              # -- Configures `promtail.config.snippets.pipelineStages.expressions.bounded_context` for the observability chart.
               bounded_context: bounded_context
+              # -- Configures `promtail.config.snippets.pipelineStages.expressions.message` for the observability chart.
               message: message
+              # -- Configures `promtail.config.snippets.pipelineStages.expressions.trace_id` for the observability chart.
               trace_id: trace_id
+              # -- Configures `promtail.config.snippets.pipelineStages.expressions.span_id` for the observability chart.
               span_id: span_id
+              # -- Configures `promtail.config.snippets.pipelineStages.expressions.correlation_id` for the observability chart.
               correlation_id: correlation_id
+              # -- Configures `promtail.config.snippets.pipelineStages.expressions.workspace_id` for the observability chart.
               workspace_id: workspace_id
+              # -- Configures `promtail.config.snippets.pipelineStages.expressions.goal_id` for the observability chart.
               goal_id: goal_id
+              # -- Configures `promtail.config.snippets.pipelineStages.expressions.user_id` for the observability chart.
               user_id: user_id
+              # -- Configures `promtail.config.snippets.pipelineStages.expressions.execution_id` for the observability chart.
               execution_id: execution_id
         - labels:
+            # -- Configures `promtail.config.snippets.pipelineStages.level` for the observability chart.
             level:
+            # -- Configures `promtail.config.snippets.pipelineStages.service` for the observability chart.
             service:
+            # -- Configures `promtail.config.snippets.pipelineStages.bounded_context` for the observability chart.
             bounded_context:
         - timestamp:
+            # -- Configures `promtail.config.snippets.pipelineStages.source` for the observability chart.
             source: timestamp
+            # -- Configures `promtail.config.snippets.pipelineStages.format` for the observability chart.
             format: RFC3339Nano
         - replace:
+            # -- Configures `promtail.config.snippets.pipelineStages.expression` for the observability chart.
             expression: 'Bearer [A-Za-z0-9\-_]+\.?[A-Za-z0-9\-_]*\.?[A-Za-z0-9\-_]*'
+            # -- Configures `promtail.config.snippets.pipelineStages.replace` for the observability chart.
             replace: '[REDACTED_TOKEN]'
         - replace:
+            # -- Configures `promtail.config.snippets.pipelineStages.expression` for the observability chart.
             expression: 'sk-[A-Za-z0-9]{32,}|api_key=[A-Za-z0-9]{16,}|ghp_[A-Za-z0-9]{36}|AKIA[0-9A-Z]{16}'
+            # -- Configures `promtail.config.snippets.pipelineStages.replace` for the observability chart.
             replace: '[REDACTED_API_KEY]'
         - replace:
+            # -- Configures `promtail.config.snippets.pipelineStages.expression` for the observability chart.
             expression: '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'
+            # -- Configures `promtail.config.snippets.pipelineStages.replace` for the observability chart.
             replace: '[REDACTED_EMAIL]'
         - replace:
+            # -- Configures `promtail.config.snippets.pipelineStages.expression` for the observability chart.
             expression: '\b[0-9]{3}-[0-9]{2}-[0-9]{4}\b'
+            # -- Configures `promtail.config.snippets.pipelineStages.replace` for the observability chart.
             replace: '[REDACTED_SSN]'
         - replace:
+            # -- Configures `promtail.config.snippets.pipelineStages.expression` for the observability chart.
             expression: '\b(?:[0-9][ -]*?){13,16}\b'
+            # -- Configures `promtail.config.snippets.pipelineStages.replace` for the observability chart.
             replace: '[REDACTED_CARD]'

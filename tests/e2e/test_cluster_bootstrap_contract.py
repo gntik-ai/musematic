@@ -1,9 +1,18 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
+
+import yaml
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def _load_yaml(relative_path: str) -> dict[str, Any]:
+    values = yaml.safe_load((ROOT / relative_path).read_text())
+    assert isinstance(values, dict)
+    return values
 
 
 def test_platform_chart_exists_for_e2e_bootstrap() -> None:
@@ -102,34 +111,35 @@ def test_loki_alerts_require_lokirule_crd_capability() -> None:
 
 def test_observability_namespace_creation_is_gated_for_helm_create_namespace() -> None:
     template = (ROOT / 'deploy/helm/observability/templates/namespace.yaml').read_text()
-    values = (ROOT / 'deploy/helm/observability/values.yaml').read_text()
-    e2e_values = (ROOT / 'deploy/helm/observability/values-e2e.yaml').read_text()
+    values = _load_yaml('deploy/helm/observability/values.yaml')
+    e2e_values = _load_yaml('deploy/helm/observability/values-e2e.yaml')
 
     assert template.startswith('{{- if .Values.createNamespace }}')
     assert template.rstrip().endswith('{{- end }}')
-    assert values.startswith('createNamespace: false')
-    assert 'createNamespace: false' in e2e_values
+    assert values['createNamespace'] is False
+    assert e2e_values['createNamespace'] is False
 
 
 def test_e2e_observability_loki_uses_kind_sized_ephemeral_storage() -> None:
-    e2e_values = (ROOT / 'deploy/helm/observability/values-e2e.yaml').read_text()
-    loki_section = e2e_values.split('\npromtail:\n', 1)[0].split('\nloki:\n', 1)[1]
+    e2e_values = _load_yaml('deploy/helm/observability/values-e2e.yaml')
+    loki = e2e_values['loki']
 
-    assert 'persistence:\n      enabled: false' in loki_section
-    assert 'emptyDir: {}' in loki_section
-    assert 'mountPath: /var/loki' in loki_section
-    assert 'chunksCache:\n    enabled: false' in loki_section
-    assert 'resultsCache:\n    enabled: false' in loki_section
+    assert loki['singleBinary']['persistence']['enabled'] is False
+    assert {'name': 'loki-data', 'emptyDir': {}} in loki['singleBinary']['extraVolumes']
+    assert {'name': 'loki-data', 'mountPath': '/var/loki'} in loki['singleBinary']['extraVolumeMounts']
+    assert loki['chunksCache']['enabled'] is False
+    assert loki['resultsCache']['enabled'] is False
 
 
 def test_e2e_observability_jaeger_uses_memory_without_badger_pvc() -> None:
     e2e_values = (ROOT / 'deploy/helm/observability/values-e2e.yaml').read_text()
-    jaeger_section = e2e_values.split('\nloki:\n', 1)[0].split('\njaeger:\n', 1)[1]
+    values = _load_yaml('deploy/helm/observability/values-e2e.yaml')
+    jaeger = values['jaeger']
 
-    assert 'type: memory' in jaeger_section
-    assert 'badger:\n      ephemeral: true' in jaeger_section
-    assert 'persistence:\n    enabled: false' in jaeger_section
-    assert 'SPAN_STORAGE_TYPE' not in jaeger_section
+    assert jaeger['storage']['type'] == 'memory'
+    assert jaeger['storage']['badger']['ephemeral'] is True
+    assert jaeger['persistence']['enabled'] is False
+    assert 'SPAN_STORAGE_TYPE' not in e2e_values
 
 
 def test_e2e_observability_promtail_uses_kind_host_log_permissions() -> None:
@@ -202,21 +212,21 @@ def test_install_script_runs_manual_init_jobs_and_ignores_completed_pods() -> No
 
 def test_platform_chart_creates_platform_data_namespace_once() -> None:
     template = (ROOT / 'deploy/helm/platform/templates/platform-data-namespace.yaml').read_text()
-    values = (ROOT / 'deploy/helm/platform/values.yaml').read_text()
+    values = _load_yaml('deploy/helm/platform/values.yaml')
     assert 'kind: Namespace' in template
-    assert 'platformDataNamespace:' in values
-    assert 'name: platform-data' in values
+    assert values['platformDataNamespace']['name'] == 'platform-data'
 
-    expected_sections = [
-        'postgresql:\n  enabled: true\n  createNamespace: false',
-        'redis:\n  enabled: true\n  createNamespace: false',
-        'minio:\n  enabled: true\n  createNamespace: false',
-        'qdrant:\n  enabled: true\n  createNamespace: false',
-        'neo4j:\n  enabled: true\n  createNamespace: false',
-        'clickhouse:\n  enabled: true\n  createNamespace: false',
+    data_subcharts = [
+        'postgresql',
+        'redis',
+        'minio',
+        'qdrant',
+        'neo4j',
+        'clickhouse',
     ]
-    for expected in expected_sections:
-        assert expected in values
+    for subchart in data_subcharts:
+        assert values[subchart]['enabled'] is True
+        assert values[subchart]['createNamespace'] is False
 
 
 def test_data_subcharts_gate_namespace_creation_and_kafka_listener_uses_valid_port() -> None:

@@ -1,293 +1,585 @@
+# @section -- Global
+# -- Configures `global` for the platform chart.
 global:
+  # -- Configures `global.environment` for the platform chart.
   environment: production
+  # -- Configures `global.domain` for the platform chart.
   domain: platform.local
 
+# @section -- Superadmin
+# -- Configures `superadmin` for the platform chart.
 superadmin:
+  # -- Configures `superadmin.username` for the platform chart.
   username: ""
+  # -- Configures `superadmin.email` for the platform chart.
   email: ""
+  # -- Configures `superadmin.passwordSecretRef` for the platform chart.
   passwordSecretRef: ""
+  # -- Configures `superadmin.mfaEnrollment` for the platform chart.
   mfaEnrollment: required_on_first_login
+  # -- Configures `superadmin.forcePasswordChange` for the platform chart.
   forcePasswordChange: true
 
+# @section -- Platforminstancename
+# -- Configures `platformInstanceName` for the platform chart.
 platformInstanceName: "Musematic Platform"
+# @section -- Tenantmode
+# -- Configures `tenantMode` for the platform chart.
 tenantMode: single
 
+# @section -- Platformdatanamespace
+# -- Configures `platformDataNamespace` for the platform chart.
 platformDataNamespace:
+  # -- Configures `platformDataNamespace.create` for the platform chart.
   create: true
+  # -- Configures `platformDataNamespace.name` for the platform chart.
   name: platform-data
 
+# @section -- Multi Region
+# -- Configures `multi_region` for the platform chart.
 multi_region:
+  # -- Configures `multi_region.enabled` for the platform chart.
   enabled: false
+  # -- Configures `multi_region.role` for the platform chart.
   role: primary
+  # -- Configures `multi_region.primaryRegion` for the platform chart.
   primaryRegion: ""
+  # -- Configures `multi_region.secondaryRegion` for the platform chart.
   secondaryRegion: ""
+  # -- Configures `multi_region.featureFlags` for the platform chart.
   featureFlags: {}
+  # -- Configures `multi_region.endpointRefs` for the platform chart.
   endpointRefs:
+    # -- Configures `multi_region.endpointRefs.postgresReplicaDsnRef` for the platform chart.
     postgresReplicaDsnRef: ""
+    # -- Configures `multi_region.endpointRefs.kafkaAdminBrokersRef` for the platform chart.
     kafkaAdminBrokersRef: ""
+    # -- Configures `multi_region.endpointRefs.s3EndpointUrlRef` for the platform chart.
     s3EndpointUrlRef: ""
+    # -- Configures `multi_region.endpointRefs.s3AccessKeyRef` for the platform chart.
     s3AccessKeyRef: ""
+    # -- Configures `multi_region.endpointRefs.s3SecretKeyRef` for the platform chart.
     s3SecretKeyRef: ""
+    # -- Configures `multi_region.endpointRefs.qdrantApiKeyRef` for the platform chart.
     qdrantApiKeyRef: ""
+    # -- Configures `multi_region.endpointRefs.neo4jUriRef` for the platform chart.
     neo4jUriRef: ""
+    # -- Configures `multi_region.endpointRefs.neo4jUserRef` for the platform chart.
     neo4jUserRef: ""
+    # -- Configures `multi_region.endpointRefs.neo4jPasswordRef` for the platform chart.
     neo4jPasswordRef: ""
+    # -- Configures `multi_region.endpointRefs.opensearchApiKeyRef` for the platform chart.
     opensearchApiKeyRef: ""
+  # -- Configures `multi_region.images` for the platform chart.
   images:
+    # -- Configures `multi_region.images.tools` for the platform chart.
     tools: ghcr.io/musematic/platform-tools:latest
+    # -- Configures `multi_region.images.kafkaMirrorMaker` for the platform chart.
     kafkaMirrorMaker: quay.io/strimzi/kafka:0.43.0-kafka-3.8.0
 
+# @section -- Postgresql
+# -- Configures `postgresql` for the platform chart.
 postgresql:
+  # -- Configures `postgresql.enabled` for the platform chart.
   enabled: true
+  # -- Configures `postgresql.createNamespace` for the platform chart.
   createNamespace: false
+  # -- Configures `postgresql.environment` for the platform chart.
   environment: production
+  # -- Configures `postgresql.credentials` for the platform chart.
   credentials:
+    # -- Configures `postgresql.credentials.username` for the platform chart.
     username: musematic
+    # -- Configures `postgresql.credentials.password` for the platform chart.
     password: change-me
+    # -- Configures `postgresql.credentials.database` for the platform chart.
     database: musematic
 
+# @section -- Redis
+# -- Configures `redis` for the platform chart.
 redis:
+  # -- Configures `redis.enabled` for the platform chart.
   enabled: true
+  # -- Configures `redis.createNamespace` for the platform chart.
   createNamespace: false
+  # -- Configures `redis.auth` for the platform chart.
   auth:
+    # -- Configures `redis.auth.password` for the platform chart.
     password: change-me
+  # -- Configures `redis.global` for the platform chart.
   global:
+    # -- Configures `redis.global.redis` for the platform chart.
     redis:
+      # -- Configures `redis.global.redis.password` for the platform chart.
       password: change-me
+  # -- Configures `redis.redis-cluster` for the platform chart.
   redis-cluster:
+    # -- Configures `redis.redis-cluster.fullnameOverride` for the platform chart.
     fullnameOverride: musematic-redis
+    # -- Configures `redis.redis-cluster.password` for the platform chart.
     password: change-me
+    # -- Configures `redis.redis-cluster.existingSecret` for the platform chart.
     existingSecret: redis-credentials
+    # -- Configures `redis.redis-cluster.existingSecretPasswordKey` for the platform chart.
     existingSecretPasswordKey: password
+  # -- Configures `redis.networkPolicy` for the platform chart.
   networkPolicy:
+    # -- Configures `redis.networkPolicy.enabled` for the platform chart.
     enabled: false
 
+# @section -- Kafka
+# -- Configures `kafka` for the platform chart.
 kafka:
+  # -- Configures `kafka.enabled` for the platform chart.
   enabled: true
+  # -- Configures `kafka.namespace` for the platform chart.
   namespace: platform-data
+  # -- Configures `kafka.clusterName` for the platform chart.
   clusterName: musematic-kafka
+  # -- Configures `kafka.combined` for the platform chart.
   combined: false
+  # -- Configures `kafka.brokerReplicas` for the platform chart.
   brokerReplicas: 3
+  # -- Configures `kafka.controllerReplicas` for the platform chart.
   controllerReplicas: 3
+  # -- Configures `kafka.combinedReplicas` for the platform chart.
   combinedReplicas: 1
+  # -- Configures `kafka.replicationFactor` for the platform chart.
   replicationFactor: 3
+  # -- Configures `kafka.minInsyncReplicas` for the platform chart.
   minInsyncReplicas: 2
 
+# @section -- Minio
+# -- Configures `minio` for the platform chart.
 minio:
+  # -- Configures `minio.enabled` for the platform chart.
   enabled: true
+  # -- Configures `minio.createNamespace` for the platform chart.
   createNamespace: false
+  # -- Configures `minio.namespace` for the platform chart.
   namespace: platform-data
+  # -- Configures `minio.minio` for the platform chart.
   minio:
+    # -- Configures `minio.minio.enabled` for the platform chart.
     enabled: true
+  # -- Configures `minio.standalone` for the platform chart.
   standalone: false
+  # -- Configures `minio.clusterName` for the platform chart.
   clusterName: musematic-minio
+  # -- Configures `minio.s3` for the platform chart.
   s3:
+    # -- Configures `minio.s3.endpointUrl` for the platform chart.
     endpointUrl: ""
+    # -- Configures `minio.s3.accessKey` for the platform chart.
     accessKey: platform
+    # -- Configures `minio.s3.secretKey` for the platform chart.
     secretKey: change-me
+    # -- Configures `minio.s3.region` for the platform chart.
     region: us-east-1
+    # -- Configures `minio.s3.bucketPrefix` for the platform chart.
     bucketPrefix: platform
 
+# @section -- Qdrant
+# -- Configures `qdrant` for the platform chart.
 qdrant:
+  # -- Configures `qdrant.enabled` for the platform chart.
   enabled: true
+  # -- Configures `qdrant.createNamespace` for the platform chart.
   createNamespace: false
+  # -- Configures `qdrant.qdrant` for the platform chart.
   qdrant:
+    # -- Configures `qdrant.qdrant.fullnameOverride` for the platform chart.
     fullnameOverride: musematic-qdrant
 
+# @section -- Neo4J
+# -- Configures `neo4j` for the platform chart.
 neo4j:
+  # -- Configures `neo4j.enabled` for the platform chart.
   enabled: true
+  # -- Configures `neo4j.createNamespace` for the platform chart.
   createNamespace: false
+  # -- Configures `neo4j.neo4j` for the platform chart.
   neo4j:
+    # -- Configures `neo4j.neo4j.fullnameOverride` for the platform chart.
     fullnameOverride: musematic-neo4j
+    # -- Configures `neo4j.neo4j.name` for the platform chart.
     name: musematic-neo4j
 
+# @section -- Clickhouse
+# -- Configures `clickhouse` for the platform chart.
 clickhouse:
+  # -- Configures `clickhouse.enabled` for the platform chart.
   enabled: true
+  # -- Configures `clickhouse.createNamespace` for the platform chart.
   createNamespace: false
 
+# @section -- Opensearch
+# -- Configures `opensearch` for the platform chart.
 opensearch:
+  # -- Configures `opensearch.enabled` for the platform chart.
   enabled: true
 
+# @section -- Controlplane
+# -- Configures `controlPlane` for the platform chart.
 controlPlane:
+  # -- Configures `controlPlane.enabled` for the platform chart.
   enabled: true
+  # -- Configures `controlPlane.image` for the platform chart.
   image:
+    # -- Configures `controlPlane.image.repository` for the platform chart.
     repository: ghcr.io/musematic/control-plane
+    # -- Configures `controlPlane.image.tag` for the platform chart.
     tag: latest
+    # -- Configures `controlPlane.image.pullPolicy` for the platform chart.
     pullPolicy: IfNotPresent
+  # -- Configures `controlPlane.common` for the platform chart.
   common:
+    # -- Configures `controlPlane.common.resources` for the platform chart.
     resources:
+      # -- Configures `controlPlane.common.resources.requests` for the platform chart.
       requests:
+        # -- Configures `controlPlane.common.resources.requests.cpu` for the platform chart.
         cpu: 250m
+        # -- Configures `controlPlane.common.resources.requests.memory` for the platform chart.
         memory: 256Mi
+      # -- Configures `controlPlane.common.resources.limits` for the platform chart.
       limits:
+        # -- Configures `controlPlane.common.resources.limits.cpu` for the platform chart.
         cpu: "1"
+        # -- Configures `controlPlane.common.resources.limits.memory` for the platform chart.
         memory: 512Mi
+    # -- Configures `controlPlane.common.featureE2EMode` for the platform chart.
     featureE2EMode: false
+    # -- Configures `controlPlane.common.mockLlmEnabled` for the platform chart.
     mockLlmEnabled: false
+    # -- Configures `controlPlane.common.zeroTrustVisibility` for the platform chart.
     zeroTrustVisibility: false
+    # -- Configures `controlPlane.common.otelExporterEndpoint` for the platform chart.
     otelExporterEndpoint: http://otel-collector.platform-observability.svc.cluster.local:4318
+    # -- Configures `controlPlane.common.otelServiceName` for the platform chart.
     otelServiceName: control-plane
+    # -- Configures `controlPlane.common.otelResourceAttributes` for the platform chart.
     otelResourceAttributes: deployment.environment=production
+    # -- Configures `controlPlane.common.wsClientBufferSize` for the platform chart.
     wsClientBufferSize: 1000
+    # -- Configures `controlPlane.common.wsHeartbeatIntervalSeconds` for the platform chart.
     wsHeartbeatIntervalSeconds: 30
+    # -- Configures `controlPlane.common.wsHeartbeatTimeoutSeconds` for the platform chart.
     wsHeartbeatTimeoutSeconds: 10
+  # -- Configures `controlPlane.privacy` for the platform chart.
   privacy:
+    # -- Configures `controlPlane.privacy.dsrEnabled` for the platform chart.
     dsrEnabled: false
+    # -- Configures `controlPlane.privacy.dlpEnabled` for the platform chart.
     dlpEnabled: false
+    # -- Configures `controlPlane.privacy.residencyEnforcementEnabled` for the platform chart.
     residencyEnforcementEnabled: false
+    # -- Configures `controlPlane.privacy.clickhousePiiTables` for the platform chart.
     clickhousePiiTables:
       - execution_metrics
       - agent_performance
       - token_usage
+  # -- Configures `controlPlane.connections` for the platform chart.
   connections:
+    # -- Configures `controlPlane.connections.postgresDsn` for the platform chart.
     postgresDsn: postgresql+asyncpg://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic
+    # -- Configures `controlPlane.connections.redisUrl` for the platform chart.
     redisUrl: redis://:change-me@musematic-redis.platform.svc.cluster.local:6379
+    # -- Configures `controlPlane.connections.redisTestMode` for the platform chart.
     redisTestMode: cluster
+    # -- Configures `controlPlane.connections.kafkaBrokers` for the platform chart.
     kafkaBrokers: musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092
+    # -- Configures `controlPlane.connections.qdrantHost` for the platform chart.
     qdrantHost: musematic-qdrant.platform.svc.cluster.local
+    # -- Configures `controlPlane.connections.qdrantPort` for the platform chart.
     qdrantPort: 6333
+    # -- Configures `controlPlane.connections.qdrantGrpcPort` for the platform chart.
     qdrantGrpcPort: 6334
+    # -- Configures `controlPlane.connections.neo4jUri` for the platform chart.
     neo4jUri: bolt://musematic-neo4j.platform.svc.cluster.local:7687
+    # -- Configures `controlPlane.connections.neo4jUser` for the platform chart.
     neo4jUser: neo4j
+    # -- Configures `controlPlane.connections.neo4jPassword` for the platform chart.
     neo4jPassword: neo4j
+    # -- Configures `controlPlane.connections.clickhouseHost` for the platform chart.
     clickhouseHost: musematic-clickhouse.platform.svc.cluster.local
+    # -- Configures `controlPlane.connections.clickhousePort` for the platform chart.
     clickhousePort: 8123
+    # -- Configures `controlPlane.connections.clickhouseUser` for the platform chart.
     clickhouseUser: default
+    # -- Configures `controlPlane.connections.clickhousePassword` for the platform chart.
     clickhousePassword: ""
+    # -- Configures `controlPlane.connections.clickhouseDatabase` for the platform chart.
     clickhouseDatabase: default
+    # -- Configures `controlPlane.connections.opensearchHosts` for the platform chart.
     opensearchHosts: http://musematic-opensearch.platform.svc.cluster.local:9200
+    # -- Configures `controlPlane.connections.opensearchUsername` for the platform chart.
     opensearchUsername: admin
+    # -- Configures `controlPlane.connections.opensearchPassword` for the platform chart.
     opensearchPassword: admin
+    # -- Configures `controlPlane.connections.s3EndpointUrl` for the platform chart.
     s3EndpointUrl: http://musematic-minio.platform-data.svc.cluster.local:9000
+    # -- Configures `controlPlane.connections.s3AccessKey` for the platform chart.
     s3AccessKey: platform
+    # -- Configures `controlPlane.connections.s3SecretKey` for the platform chart.
     s3SecretKey: change-me
+    # -- Configures `controlPlane.connections.s3Region` for the platform chart.
     s3Region: us-east-1
+    # -- Configures `controlPlane.connections.s3BucketPrefix` for the platform chart.
     s3BucketPrefix: platform
+    # -- Configures `controlPlane.connections.s3UsePathStyle` for the platform chart.
     s3UsePathStyle: true
+    # -- Configures `controlPlane.connections.s3Provider` for the platform chart.
     s3Provider: generic
+    # -- Configures `controlPlane.connections.grpcRuntimeController` for the platform chart.
     grpcRuntimeController: musematic-runtime-controller.platform.svc.cluster.local:50051
+    # -- Configures `controlPlane.connections.grpcReasoningEngine` for the platform chart.
     grpcReasoningEngine: reasoning-engine.platform.svc.cluster.local:50052
+    # -- Configures `controlPlane.connections.grpcSandboxManager` for the platform chart.
     grpcSandboxManager: sandbox-manager.platform.svc.cluster.local:50053
+    # -- Configures `controlPlane.connections.grpcSimulationController` for the platform chart.
     grpcSimulationController: musematic-simulation-controller.platform.svc.cluster.local:50055
+    # -- Configures `controlPlane.connections.authJwtSecretKey` for the platform chart.
     authJwtSecretKey: change-me
+    # -- Configures `controlPlane.connections.authMfaEncryptionKey` for the platform chart.
     authMfaEncryptionKey: ""
+    # -- Configures `controlPlane.connections.authJwtAlgorithm` for the platform chart.
     authJwtAlgorithm: HS256
+  # -- Configures `controlPlane.migration` for the platform chart.
   migration:
+    # -- Configures `controlPlane.migration.enabled` for the platform chart.
     enabled: true
+    # -- Configures `controlPlane.migration.backoffLimit` for the platform chart.
     backoffLimit: 3
+  # -- Configures `controlPlane.api` for the platform chart.
   api:
+    # -- Configures `controlPlane.api.enabled` for the platform chart.
     enabled: true
+    # -- Configures `controlPlane.api.replicaCount` for the platform chart.
     replicaCount: 1
+    # -- Configures `controlPlane.api.service` for the platform chart.
     service:
+      # -- Configures `controlPlane.api.service.type` for the platform chart.
       type: ClusterIP
+      # -- Configures `controlPlane.api.service.port` for the platform chart.
       port: 8000
+      # -- Configures `controlPlane.api.service.nodePort` for the platform chart.
       nodePort: null
+  # -- Configures `controlPlane.scheduler` for the platform chart.
   scheduler:
+    # -- Configures `controlPlane.scheduler.enabled` for the platform chart.
     enabled: true
+    # -- Configures `controlPlane.scheduler.replicaCount` for the platform chart.
     replicaCount: 1
+  # -- Configures `controlPlane.worker` for the platform chart.
   worker:
+    # -- Configures `controlPlane.worker.enabled` for the platform chart.
     enabled: true
+    # -- Configures `controlPlane.worker.replicaCount` for the platform chart.
     replicaCount: 1
+  # -- Configures `controlPlane.wsHub` for the platform chart.
   wsHub:
+    # -- Configures `controlPlane.wsHub.enabled` for the platform chart.
     enabled: true
+    # -- Configures `controlPlane.wsHub.replicaCount` for the platform chart.
     replicaCount: 1
+    # -- Configures `controlPlane.wsHub.service` for the platform chart.
     service:
+      # -- Configures `controlPlane.wsHub.service.type` for the platform chart.
       type: ClusterIP
+      # -- Configures `controlPlane.wsHub.service.port` for the platform chart.
       port: 8001
+      # -- Configures `controlPlane.wsHub.service.nodePort` for the platform chart.
       nodePort: null
 
+# @section -- Runtimecontroller
+# -- Configures `runtimeController` for the platform chart.
 runtimeController:
+  # -- Configures `runtimeController.enabled` for the platform chart.
   enabled: true
+  # -- Configures `runtimeController.image` for the platform chart.
   image:
+    # -- Configures `runtimeController.image.repository` for the platform chart.
     repository: ghcr.io/musematic/runtime-controller
+    # -- Configures `runtimeController.image.tag` for the platform chart.
     tag: latest
+  # -- Configures `runtimeController.secrets` for the platform chart.
   secrets:
+    # -- Configures `runtimeController.secrets.POSTGRES_DSN` for the platform chart.
     POSTGRES_DSN: postgres://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable
+    # -- Configures `runtimeController.secrets.REDIS_ADDR` for the platform chart.
     REDIS_ADDR: musematic-redis.platform.svc.cluster.local:6379
+    # -- Configures `runtimeController.secrets.REDIS_PASSWORD` for the platform chart.
     REDIS_PASSWORD: change-me
+    # -- Configures `runtimeController.secrets.KAFKA_BROKERS` for the platform chart.
     KAFKA_BROKERS: musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092
+    # -- Configures `runtimeController.secrets.S3_ENDPOINT_URL` for the platform chart.
     S3_ENDPOINT_URL: http://musematic-minio.platform-data.svc.cluster.local:9000
+    # -- Configures `runtimeController.secrets.S3_BUCKET` for the platform chart.
     S3_BUCKET: platform-execution-artifacts
+    # -- Configures `runtimeController.secrets.S3_ACCESS_KEY` for the platform chart.
     S3_ACCESS_KEY: platform
+    # -- Configures `runtimeController.secrets.S3_SECRET_KEY` for the platform chart.
     S3_SECRET_KEY: change-me
+    # -- Configures `runtimeController.secrets.S3_REGION` for the platform chart.
     S3_REGION: us-east-1
+    # -- Configures `runtimeController.secrets.S3_USE_PATH_STYLE` for the platform chart.
     S3_USE_PATH_STYLE: "true"
+    # -- Configures `runtimeController.secrets.K8S_DRY_RUN` for the platform chart.
     K8S_DRY_RUN: "false"
 
+# @section -- Reasoningengine
+# -- Configures `reasoningEngine` for the platform chart.
 reasoningEngine:
+  # -- Configures `reasoningEngine.enabled` for the platform chart.
   enabled: true
+  # -- Configures `reasoningEngine.image` for the platform chart.
   image:
+    # -- Configures `reasoningEngine.image.repository` for the platform chart.
     repository: ghcr.io/musematic/reasoning-engine
+    # -- Configures `reasoningEngine.image.tag` for the platform chart.
     tag: latest
+  # -- Configures `reasoningEngine.secrets` for the platform chart.
   secrets:
+    # -- Configures `reasoningEngine.secrets.POSTGRES_DSN` for the platform chart.
     POSTGRES_DSN: postgres://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable
+    # -- Configures `reasoningEngine.secrets.REDIS_ADDR` for the platform chart.
     REDIS_ADDR: musematic-redis.platform.svc.cluster.local:6379
+    # -- Configures `reasoningEngine.secrets.REDIS_PASSWORD` for the platform chart.
     REDIS_PASSWORD: change-me
+    # -- Configures `reasoningEngine.secrets.KAFKA_BROKERS` for the platform chart.
     KAFKA_BROKERS: musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092
+    # -- Configures `reasoningEngine.secrets.MINIO_ENDPOINT` for the platform chart.
     MINIO_ENDPOINT: http://musematic-minio.platform-data.svc.cluster.local:9000
+    # -- Configures `reasoningEngine.secrets.MINIO_BUCKET` for the platform chart.
     MINIO_BUCKET: reasoning-traces
 
+# @section -- Simulationcontroller
+# -- Configures `simulationController` for the platform chart.
 simulationController:
+  # -- Configures `simulationController.enabled` for the platform chart.
   enabled: true
+  # -- Configures `simulationController.image` for the platform chart.
   image:
+    # -- Configures `simulationController.image.repository` for the platform chart.
     repository: ghcr.io/musematic/simulation-controller
+    # -- Configures `simulationController.image.tag` for the platform chart.
     tag: latest
+  # -- Configures `simulationController.fullnameOverride` for the platform chart.
   fullnameOverride: musematic-simulation-controller
 
+# @section -- Sandboxmanager
+# -- Configures `sandboxManager` for the platform chart.
 sandboxManager:
+  # -- Configures `sandboxManager.enabled` for the platform chart.
   enabled: true
+  # -- Configures `sandboxManager.fullnameOverride` for the platform chart.
   fullnameOverride: sandbox-manager
+  # -- Configures `sandboxManager.image` for the platform chart.
   image:
+    # -- Configures `sandboxManager.image.repository` for the platform chart.
     repository: ghcr.io/musematic/sandbox-manager
+    # -- Configures `sandboxManager.image.tag` for the platform chart.
     tag: latest
+    # -- Configures `sandboxManager.image.pullPolicy` for the platform chart.
     pullPolicy: IfNotPresent
+  # -- Configures `sandboxManager.config` for the platform chart.
   config:
+    # -- Configures `sandboxManager.config.postgresDsn` for the platform chart.
     postgresDsn: postgres://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable
+    # -- Configures `sandboxManager.config.kafkaBrokers` for the platform chart.
     kafkaBrokers: musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092
+    # -- Configures `sandboxManager.config.minioEndpoint` for the platform chart.
     minioEndpoint: http://musematic-minio.platform-data.svc.cluster.local:9000
+    # -- Configures `sandboxManager.config.minioBucket` for the platform chart.
     minioBucket: platform-execution-artifacts
+    # -- Configures `sandboxManager.config.k8sNamespace` for the platform chart.
     k8sNamespace: platform-execution
 
+# @section -- Ui
+# -- Configures `ui` for the platform chart.
 ui:
+  # -- Configures `ui.enabled` for the platform chart.
   enabled: true
+  # -- Configures `ui.replicaCount` for the platform chart.
   replicaCount: 1
+  # -- Configures `ui.image` for the platform chart.
   image:
+    # -- Configures `ui.image.repository` for the platform chart.
     repository: ghcr.io/musematic/ui
+    # -- Configures `ui.image.tag` for the platform chart.
     tag: latest
+    # -- Configures `ui.image.pullPolicy` for the platform chart.
     pullPolicy: IfNotPresent
+  # -- Configures `ui.service` for the platform chart.
   service:
+    # -- Configures `ui.service.type` for the platform chart.
     type: ClusterIP
+    # -- Configures `ui.service.port` for the platform chart.
     port: 3000
+    # -- Configures `ui.service.nodePort` for the platform chart.
     nodePort: null
+  # -- Configures `ui.env` for the platform chart.
   env:
+    # -- Configures `ui.env.NEXT_PUBLIC_API_URL` for the platform chart.
     NEXT_PUBLIC_API_URL: http://localhost:8000
+    # -- Configures `ui.env.NEXT_PUBLIC_WS_URL` for the platform chart.
     NEXT_PUBLIC_WS_URL: ws://localhost:8001/ws
+    # -- Configures `ui.env.NEXT_PUBLIC_APP_ENV` for the platform chart.
     NEXT_PUBLIC_APP_ENV: production
 
+# @section -- Mockoauth
+# -- Configures `mockOAuth` for the platform chart.
 mockOAuth:
+  # -- Configures `mockOAuth.google` for the platform chart.
   google:
+    # -- Configures `mockOAuth.google.enabled` for the platform chart.
     enabled: false
+    # -- Configures `mockOAuth.google.image` for the platform chart.
     image:
+      # -- Configures `mockOAuth.google.image.repository` for the platform chart.
       repository: ghcr.io/musematic/mock-google-oidc
+      # -- Configures `mockOAuth.google.image.tag` for the platform chart.
       tag: latest
+      # -- Configures `mockOAuth.google.image.pullPolicy` for the platform chart.
       pullPolicy: IfNotPresent
+    # -- Configures `mockOAuth.google.replicas` for the platform chart.
     replicas: 1
+    # -- Configures `mockOAuth.google.service` for the platform chart.
     service:
+      # -- Configures `mockOAuth.google.service.type` for the platform chart.
       type: ClusterIP
+      # -- Configures `mockOAuth.google.service.port` for the platform chart.
       port: 8080
+      # -- Configures `mockOAuth.google.service.nodePort` for the platform chart.
       nodePort: null
+    # -- Configures `mockOAuth.google.resources` for the platform chart.
     resources: {}
+    # -- Configures `mockOAuth.google.seedUsers` for the platform chart.
     seedUsers: []
+  # -- Configures `mockOAuth.github` for the platform chart.
   github:
+    # -- Configures `mockOAuth.github.enabled` for the platform chart.
     enabled: false
+    # -- Configures `mockOAuth.github.image` for the platform chart.
     image:
+      # -- Configures `mockOAuth.github.image.repository` for the platform chart.
       repository: ghcr.io/musematic/mock-github-oauth
+      # -- Configures `mockOAuth.github.image.tag` for the platform chart.
       tag: latest
+      # -- Configures `mockOAuth.github.image.pullPolicy` for the platform chart.
       pullPolicy: IfNotPresent
+    # -- Configures `mockOAuth.github.replicas` for the platform chart.
     replicas: 1
+    # -- Configures `mockOAuth.github.service` for the platform chart.
     service:
+      # -- Configures `mockOAuth.github.service.type` for the platform chart.
       type: ClusterIP
+      # -- Configures `mockOAuth.github.service.port` for the platform chart.
       port: 8080
+      # -- Configures `mockOAuth.github.service.nodePort` for the platform chart.
       nodePort: null
+    # -- Configures `mockOAuth.github.resources` for the platform chart.
     resources: {}
+    # -- Configures `mockOAuth.github.seedUsers` for the platform chart.
     seedUsers: []

@@ -3,7 +3,9 @@ from __future__ import annotations
 from platform.accounts.schemas import (
     AcceptInvitationRequest,
     CreateInvitationRequest,
+    ProfileUpdateRequest,
     RegisterRequest,
+    ResendVerificationRequest,
     VerifyEmailRequest,
 )
 from platform.auth.schemas import RoleType
@@ -65,3 +67,33 @@ def test_create_invitation_request_normalizes_email_and_requires_roles() -> None
 
     with pytest.raises(ValidationError):
         CreateInvitationRequest(email="invitee@example.com", roles=[])
+
+
+def test_email_requests_reject_invalid_addresses() -> None:
+    with pytest.raises(ValidationError):
+        RegisterRequest(
+            email="not-an-email",
+            display_name="Jane Smith",
+            password="StrongP@ssw0rd!",
+        )
+    with pytest.raises(ValidationError):
+        ResendVerificationRequest(email="not-an-email")
+
+
+def test_profile_update_request_validates_locale_text_and_presence() -> None:
+    payload = ProfileUpdateRequest(
+        locale="en",
+        timezone=" UTC ",
+        display_name=" Jane Smith ",
+    )
+
+    assert payload.locale == "en"
+    assert payload.timezone == "UTC"
+    assert payload.display_name == "Jane Smith"
+
+    with pytest.raises(ValidationError):
+        ProfileUpdateRequest()
+    with pytest.raises(ValidationError):
+        ProfileUpdateRequest(locale="zz")
+    with pytest.raises(ValidationError):
+        ProfileUpdateRequest(timezone=" ")

@@ -1,15 +1,34 @@
+# @section -- Standalone
+# -- Configures `standalone` for the minio chart.
 standalone: false
+# @section -- Servers
+# -- Configures `servers` for the minio chart.
 servers: 4
+# @section -- Volumesperserver
+# -- Configures `volumesPerServer` for the minio chart.
 volumesPerServer: 4
+# @section -- Storagesize
+# -- Configures `storageSize` for the minio chart.
 storageSize: 100Gi
 
+# @section -- Resources
+# -- Configures `resources` for the minio chart.
 resources:
+  # -- Configures `resources.requests` for the minio chart.
   requests:
+    # -- Configures `resources.requests.memory` for the minio chart.
     memory: 4Gi
+    # -- Configures `resources.requests.cpu` for the minio chart.
     cpu: "1"
+  # -- Configures `resources.limits` for the minio chart.
   limits:
+    # -- Configures `resources.limits.memory` for the minio chart.
     memory: 8Gi
+    # -- Configures `resources.limits.cpu` for the minio chart.
     cpu: "2"
 
+# @section -- Networkpolicy
+# -- Configures `networkPolicy` for the minio chart.
 networkPolicy:
+  # -- Configures `networkPolicy.enabled` for the minio chart.
   enabled: true

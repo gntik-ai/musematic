@@ -1,39 +1,79 @@
+# @section -- Replicacount
+# -- Configures `replicaCount` for the simulation-controller chart.
 replicaCount: 1
 
+# @section -- Image
+# -- Configures `image` for the simulation-controller chart.
 image:
+  # -- Configures `image.repository` for the simulation-controller chart.
   repository: musematic/simulation-controller
+  # -- Configures `image.tag` for the simulation-controller chart.
   tag: latest
+  # -- Configures `image.pullPolicy` for the simulation-controller chart.
   pullPolicy: IfNotPresent
 
+# @section -- Serviceaccount
+# -- Configures `serviceAccount` for the simulation-controller chart.
 serviceAccount:
+  # -- Configures `serviceAccount.create` for the simulation-controller chart.
   create: true
+  # -- Configures `serviceAccount.name` for the simulation-controller chart.
   name: ""
 
+# @section -- Service
+# -- Configures `service` for the simulation-controller chart.
 service:
+  # -- Configures `service.type` for the simulation-controller chart.
   type: ClusterIP
+  # -- Configures `service.port` for the simulation-controller chart.
   port: 50055
 
+# @section -- Resources
+# -- Configures `resources` for the simulation-controller chart.
 resources:
+  # -- Configures `resources.requests` for the simulation-controller chart.
   requests:
+    # -- Configures `resources.requests.cpu` for the simulation-controller chart.
     cpu: 250m
+    # -- Configures `resources.requests.memory` for the simulation-controller chart.
     memory: 128Mi
+  # -- Configures `resources.limits` for the simulation-controller chart.
   limits:
+    # -- Configures `resources.limits.cpu` for the simulation-controller chart.
     cpu: 500m
+    # -- Configures `resources.limits.memory` for the simulation-controller chart.
     memory: 256Mi
 
+# @section -- Env
+# -- Configures `env` for the simulation-controller chart.
 env:
+  # -- Configures `env.GRPC_PORT` for the simulation-controller chart.
   GRPC_PORT: "50055"
+  # -- Configures `env.SIMULATION_BUCKET` for the simulation-controller chart.
   SIMULATION_BUCKET: simulation-artifacts
+  # -- Configures `env.SIMULATION_NAMESPACE` for the simulation-controller chart.
   SIMULATION_NAMESPACE: platform-simulation
+  # -- Configures `env.ORPHAN_SCAN_INTERVAL_SECONDS` for the simulation-controller chart.
   ORPHAN_SCAN_INTERVAL_SECONDS: "60"
+  # -- Configures `env.DEFAULT_MAX_DURATION_SECONDS` for the simulation-controller chart.
   DEFAULT_MAX_DURATION_SECONDS: "3600"
+  # -- Configures `env.OTEL_EXPORTER_OTLP_ENDPOINT` for the simulation-controller chart.
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.platform-observability.svc.cluster.local:4317
+  # -- Configures `env.OTEL_SERVICE_NAME` for the simulation-controller chart.
   OTEL_SERVICE_NAME: simulation-controller
+  # -- Configures `env.OTEL_RESOURCE_ATTRIBUTES` for the simulation-controller chart.
   OTEL_RESOURCE_ATTRIBUTES: deployment.environment=production
 
+# @section -- Secrets
+# -- Configures `secrets` for the simulation-controller chart.
 secrets:
+  # -- Configures `secrets.POSTGRES_DSN` for the simulation-controller chart.
   POSTGRES_DSN: ""
+  # -- Configures `secrets.KAFKA_BROKERS` for the simulation-controller chart.
   KAFKA_BROKERS: ""
+  # -- Configures `secrets.S3_ENDPOINT_URL` for the simulation-controller chart.
   S3_ENDPOINT_URL: ""
+  # -- Configures `secrets.S3_ACCESS_KEY` for the simulation-controller chart.
   S3_ACCESS_KEY: minioadmin
+  # -- Configures `secrets.S3_SECRET_KEY` for the simulation-controller chart.
   S3_SECRET_KEY: minioadmin

@@ -1,35 +1,71 @@
+# @section -- Neo4J
+# -- Configures `neo4j` for the neo4j chart.
 neo4j:
+  # -- Configures `neo4j.edition` for the neo4j chart.
   edition: enterprise
+  # -- Configures `neo4j.minimumClusterSize` for the neo4j chart.
   minimumClusterSize: 3
+  # -- Configures `neo4j.resources` for the neo4j chart.
   resources:
+    # -- Configures `neo4j.resources.cpu` for the neo4j chart.
     cpu: "2"
+    # -- Configures `neo4j.resources.memory` for the neo4j chart.
     memory: 6Gi
+    # -- Configures `neo4j.resources.requests` for the neo4j chart.
     requests:
+      # -- Configures `neo4j.resources.requests.memory` for the neo4j chart.
       memory: 6Gi
+      # -- Configures `neo4j.resources.requests.cpu` for the neo4j chart.
       cpu: "2"
+    # -- Configures `neo4j.resources.limits` for the neo4j chart.
     limits:
+      # -- Configures `neo4j.resources.limits.memory` for the neo4j chart.
       memory: 8Gi
+      # -- Configures `neo4j.resources.limits.cpu` for the neo4j chart.
       cpu: "4"
+  # -- Configures `neo4j.neo4j` for the neo4j chart.
   neo4j:
+    # -- Configures `neo4j.neo4j.edition` for the neo4j chart.
     edition: enterprise
+    # -- Configures `neo4j.neo4j.minimumClusterSize` for the neo4j chart.
     minimumClusterSize: 3
+    # -- Configures `neo4j.neo4j.resources` for the neo4j chart.
     resources:
+      # -- Configures `neo4j.neo4j.resources.cpu` for the neo4j chart.
       cpu: "2"
+      # -- Configures `neo4j.neo4j.resources.memory` for the neo4j chart.
       memory: 6Gi
+      # -- Configures `neo4j.neo4j.resources.requests` for the neo4j chart.
       requests:
+        # -- Configures `neo4j.neo4j.resources.requests.memory` for the neo4j chart.
         memory: 6Gi
+        # -- Configures `neo4j.neo4j.resources.requests.cpu` for the neo4j chart.
         cpu: "2"
+      # -- Configures `neo4j.neo4j.resources.limits` for the neo4j chart.
       limits:
+        # -- Configures `neo4j.neo4j.resources.limits.memory` for the neo4j chart.
         memory: 8Gi
+        # -- Configures `neo4j.neo4j.resources.limits.cpu` for the neo4j chart.
         cpu: "4"
+  # -- Configures `neo4j.volumes` for the neo4j chart.
   volumes:
+    # -- Configures `neo4j.volumes.data` for the neo4j chart.
     data:
+      # -- Configures `neo4j.volumes.data.dynamic` for the neo4j chart.
       dynamic:
+        # -- Configures `neo4j.volumes.data.dynamic.requests` for the neo4j chart.
         requests:
+          # -- Configures `neo4j.volumes.data.dynamic.requests.storage` for the neo4j chart.
           storage: 100Gi
 
+# @section -- Persistence
+# -- Configures `persistence` for the neo4j chart.
 persistence:
+  # -- Configures `persistence.size` for the neo4j chart.
   size: 100Gi
 
+# @section -- Networkpolicy
+# -- Configures `networkPolicy` for the neo4j chart.
 networkPolicy:
+  # -- Configures `networkPolicy.enabled` for the neo4j chart.
   enabled: true

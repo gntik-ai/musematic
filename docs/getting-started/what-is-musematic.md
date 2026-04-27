@@ -1,0 +1,13 @@
+# What Is Musematic?
+
+Musematic is a governed orchestration platform for teams that run agents, workflows, and multi-agent systems in production. It brings together agent registration, conversation workflows, fleet operations, policy enforcement, semantic evaluation, observability, cost controls, and audit evidence in one platform.
+
+The core idea is simple: an agent should be easy to discover and invoke, but hard to run outside the boundaries that the organization has set. Musematic treats agents as registered, versioned, observable software assets. Each agent has an FQN, lifecycle state, visibility rules, trust metadata, and operational history. Workflows then compose those agents with approval gates, runtime isolation, reasoning traces, retries, and compensation behavior.
+
+Different users see different parts of the same system. Consumers discover agents, start conversations, and observe execution. Creators register agents, describe their purpose and approach, package revisions, and move them through certification. Workspace admins manage members, goals, policies, and visibility. Super admins control platform-wide identity, OAuth, multi-region operations, maintenance windows, and emergency recovery. Operators run the Kubernetes platform, keep observability healthy, rotate secrets, restore backups, and execute runbooks during incidents. Developers extend the platform through APIs, SDKs, MCP integrations, webhooks, and bounded-context services.
+
+Musematic is differentiated by the way it combines product workflows with platform controls. A user can start with a conversation, but the platform still preserves GID correlation, workspace visibility, policy decisions, cost attribution, and audit events. An operator can chase a production incident from a Grafana panel to a runbook. A compliance reviewer can connect certification evidence, moderation policy, privacy impact, and immutable audit-chain events.
+
+The docs are organized around those jobs. The [User Guide](../user-guide/index.md) explains day-to-day work. The [Administrator Guide](../admin-guide/index.md) covers control-plane administration. The [Operator Guide](../operator-guide/index.md) covers running the platform. The [Developer Guide](../developer-guide/index.md) covers extension points. The [Installation](../installation/index.md), [Configuration](../configuration/index.md), [Security](../security/index.md), and [API Reference](../api-reference/index.md) sections provide the technical material needed to deploy and integrate Musematic.
+
+For a repository-level overview, see the [project README](https://github.com/gntik-ai/musematic/blob/main/README.md).

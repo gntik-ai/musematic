@@ -1,42 +1,71 @@
+# @section -- Opensearch
+# -- Configures `opensearch` for the opensearch chart.
 opensearch:
+  # -- Configures `opensearch.fullnameOverride` for the opensearch chart.
   fullnameOverride: "musematic-opensearch"
+  # -- Configures `opensearch.masterService` for the opensearch chart.
   masterService: "musematic-opensearch"
+  # -- Configures `opensearch.replicas` for the opensearch chart.
   replicas: 1
+  # -- Configures `opensearch.image` for the opensearch chart.
   image:
+    # -- Configures `opensearch.image.repository` for the opensearch chart.
     repository: opensearchproject/opensearch
+    # -- Configures `opensearch.image.tag` for the opensearch chart.
     tag: "2.18.0"
+  # -- Configures `opensearch.extraEnvs` for the opensearch chart.
   extraEnvs:
     # Mirrors OPENSEARCH_* runtime config consumed by AsyncOpenSearchClient.
     - name: OPENSEARCH_JAVA_OPTS
+      # -- Configures `opensearch.extraEnvs.value` for the opensearch chart.
       value: "-Xms1g -Xmx1g"
     - name: DISABLE_SECURITY_PLUGIN
+      # -- Configures `opensearch.extraEnvs.value` for the opensearch chart.
       value: "false"
     - name: AWS_EC2_METADATA_DISABLED
+      # -- Configures `opensearch.extraEnvs.value` for the opensearch chart.
       value: "true"
     - name: AWS_REGION
+      # -- Configures `opensearch.extraEnvs.value` for the opensearch chart.
       value: "us-east-1"
     - name: AWS_DEFAULT_REGION
+      # -- Configures `opensearch.extraEnvs.value` for the opensearch chart.
       value: "us-east-1"
     - name: AWS_ACCESS_KEY_ID
+      # -- Configures `opensearch.extraEnvs.valueFrom` for the opensearch chart.
       valueFrom:
+        # -- Configures `opensearch.extraEnvs.valueFrom.secretKeyRef` for the opensearch chart.
         secretKeyRef:
+          # -- Configures `opensearch.extraEnvs.valueFrom.secretKeyRef.name` for the opensearch chart.
           name: minio-platform-credentials
+          # -- Configures `opensearch.extraEnvs.valueFrom.secretKeyRef.key` for the opensearch chart.
           key: MINIO_ACCESS_KEY
     - name: AWS_SECRET_ACCESS_KEY
+      # -- Configures `opensearch.extraEnvs.valueFrom` for the opensearch chart.
       valueFrom:
+        # -- Configures `opensearch.extraEnvs.valueFrom.secretKeyRef` for the opensearch chart.
         secretKeyRef:
+          # -- Configures `opensearch.extraEnvs.valueFrom.secretKeyRef.name` for the opensearch chart.
           name: minio-platform-credentials
+          # -- Configures `opensearch.extraEnvs.valueFrom.secretKeyRef.key` for the opensearch chart.
           key: MINIO_SECRET_KEY
+  # -- Configures `opensearch.plugins` for the opensearch chart.
   plugins:
+    # -- Configures `opensearch.plugins.enabled` for the opensearch chart.
     enabled: true
+    # -- Configures `opensearch.plugins.installList` for the opensearch chart.
     installList:
       - analysis-icu
       - repository-s3
+  # -- Configures `opensearch.keystore` for the opensearch chart.
   keystore:
     - secretName: opensearch-keystore-bootstrap
+  # -- Configures `opensearch.extraInitContainers` for the opensearch chart.
   extraInitContainers:
     - name: configure-s3-keystore
+      # -- Configures `opensearch.extraInitContainers.image` for the opensearch chart.
       image: opensearchproject/opensearch:2.18.0
+      # -- Configures `opensearch.extraInitContainers.command` for the opensearch chart.
       command:
         - /bin/sh
         - -ec
@@ -44,81 +73,151 @@ opensearch:
           export OPENSEARCH_PATH_CONF=/tmp/keystore
           echo "$S3_ACCESS_KEY" | /usr/share/opensearch/bin/opensearch-keystore add -xf s3.client.default.access_key
           echo "$S3_SECRET_KEY" | /usr/share/opensearch/bin/opensearch-keystore add -xf s3.client.default.secret_key
+      # -- Configures `opensearch.extraInitContainers.env` for the opensearch chart.
       env:
         - name: S3_ACCESS_KEY
+          # -- Configures `opensearch.extraInitContainers.env.valueFrom` for the opensearch chart.
           valueFrom:
+            # -- Configures `opensearch.extraInitContainers.env.valueFrom.secretKeyRef` for the opensearch chart.
             secretKeyRef:
+              # -- Configures `opensearch.extraInitContainers.env.valueFrom.secretKeyRef.name` for the opensearch chart.
               name: minio-platform-credentials
+              # -- Configures `opensearch.extraInitContainers.env.valueFrom.secretKeyRef.key` for the opensearch chart.
               key: MINIO_ACCESS_KEY
         - name: S3_SECRET_KEY
+          # -- Configures `opensearch.extraInitContainers.env.valueFrom` for the opensearch chart.
           valueFrom:
+            # -- Configures `opensearch.extraInitContainers.env.valueFrom.secretKeyRef` for the opensearch chart.
             secretKeyRef:
+              # -- Configures `opensearch.extraInitContainers.env.valueFrom.secretKeyRef.name` for the opensearch chart.
               name: minio-platform-credentials
+              # -- Configures `opensearch.extraInitContainers.env.valueFrom.secretKeyRef.key` for the opensearch chart.
               key: MINIO_SECRET_KEY
+      # -- Configures `opensearch.extraInitContainers.volumeMounts` for the opensearch chart.
       volumeMounts:
         - name: keystore
+          # -- Configures `opensearch.extraInitContainers.volumeMounts.mountPath` for the opensearch chart.
           mountPath: /tmp/keystore
+  # -- Configures `opensearch.extraVolumes` for the opensearch chart.
   extraVolumes:
     - name: synonyms
+      # -- Configures `opensearch.extraVolumes.configMap` for the opensearch chart.
       configMap:
+        # -- Configures `opensearch.extraVolumes.configMap.name` for the opensearch chart.
         name: opensearch-synonyms
+  # -- Configures `opensearch.extraVolumeMounts` for the opensearch chart.
   extraVolumeMounts:
     - name: synonyms
+      # -- Configures `opensearch.extraVolumeMounts.mountPath` for the opensearch chart.
       mountPath: /usr/share/opensearch/config/synonyms
+      # -- Configures `opensearch.extraVolumeMounts.readOnly` for the opensearch chart.
       readOnly: true
+  # -- Configures `opensearch.persistence` for the opensearch chart.
   persistence:
+    # -- Configures `opensearch.persistence.enabled` for the opensearch chart.
     enabled: true
+    # -- Configures `opensearch.persistence.storageClass` for the opensearch chart.
     storageClass: ""
+    # -- Configures `opensearch.persistence.size` for the opensearch chart.
     size: 10Gi
+  # -- Configures `opensearch.service` for the opensearch chart.
   service:
+    # -- Configures `opensearch.service.type` for the opensearch chart.
     type: ClusterIP
+    # -- Configures `opensearch.service.port` for the opensearch chart.
     port: 9200
+  # -- Configures `opensearch.resources` for the opensearch chart.
   resources:
+    # -- Configures `opensearch.resources.requests` for the opensearch chart.
     requests:
+      # -- Configures `opensearch.resources.requests.cpu` for the opensearch chart.
       cpu: "500m"
+      # -- Configures `opensearch.resources.requests.memory` for the opensearch chart.
       memory: "2Gi"
+    # -- Configures `opensearch.resources.limits` for the opensearch chart.
     limits:
+      # -- Configures `opensearch.resources.limits.cpu` for the opensearch chart.
       cpu: "1"
+      # -- Configures `opensearch.resources.limits.memory` for the opensearch chart.
       memory: "2Gi"
 
+# @section -- Opensearch Dashboards
+# -- Configures `opensearch-dashboards` for the opensearch chart.
 opensearch-dashboards:
+  # -- Configures `opensearch-dashboards.enabled` for the opensearch chart.
   enabled: true
+  # -- Configures `opensearch-dashboards.fullnameOverride` for the opensearch chart.
   fullnameOverride: "musematic-opensearch-dashboards"
+  # -- Configures `opensearch-dashboards.image` for the opensearch chart.
   image:
+    # -- Configures `opensearch-dashboards.image.repository` for the opensearch chart.
     repository: opensearchproject/opensearch-dashboards
+    # -- Configures `opensearch-dashboards.image.tag` for the opensearch chart.
     tag: "2.18.0"
+  # -- Configures `opensearch-dashboards.extraEnvs` for the opensearch chart.
   extraEnvs:
     # Dashboards uses the same OPENSEARCH_HOSTS endpoint the control plane will call.
     - name: OPENSEARCH_HOSTS
+      # -- Configures `opensearch-dashboards.extraEnvs.value` for the opensearch chart.
       value: '["http://musematic-opensearch:9200"]'
     - name: DISABLE_SECURITY_DASHBOARDS_PLUGIN
+      # -- Configures `opensearch-dashboards.extraEnvs.value` for the opensearch chart.
       value: "false"
+  # -- Configures `opensearch-dashboards.resources` for the opensearch chart.
   resources:
+    # -- Configures `opensearch-dashboards.resources.requests` for the opensearch chart.
     requests:
+      # -- Configures `opensearch-dashboards.resources.requests.cpu` for the opensearch chart.
       cpu: "200m"
+      # -- Configures `opensearch-dashboards.resources.requests.memory` for the opensearch chart.
       memory: "512Mi"
+    # -- Configures `opensearch-dashboards.resources.limits` for the opensearch chart.
     limits:
+      # -- Configures `opensearch-dashboards.resources.limits.cpu` for the opensearch chart.
       cpu: "500m"
+      # -- Configures `opensearch-dashboards.resources.limits.memory` for the opensearch chart.
       memory: "512Mi"
 
+# @section -- Credentials
+# -- Configures `credentials` for the opensearch chart.
 credentials:
+  # -- Configures `credentials.username` for the opensearch chart.
   username: admin
+  # -- Configures `credentials.password` for the opensearch chart.
   password: ""
 
+# @section -- Networkpolicy
+# -- Configures `networkPolicy` for the opensearch chart.
 networkPolicy:
+  # -- Configures `networkPolicy.enabled` for the opensearch chart.
   enabled: true
 
+# @section -- Initjob
+# -- Configures `initJob` for the opensearch chart.
 initJob:
+  # -- Configures `initJob.enabled` for the opensearch chart.
   enabled: true
+  # -- Configures `initJob.image` for the opensearch chart.
   image:
+    # -- Configures `initJob.image.repository` for the opensearch chart.
     repository: python
+    # -- Configures `initJob.image.tag` for the opensearch chart.
     tag: "3.12-slim"
+  # -- Configures `initJob.backoffLimit` for the opensearch chart.
   backoffLimit: 4
+  # -- Configures `initJob.opensearchUrl` for the opensearch chart.
   opensearchUrl: "http://musematic-opensearch:9200"
+  # -- Configures `initJob.snapshotRepository` for the opensearch chart.
   snapshotRepository:
+    # -- Configures `initJob.snapshotRepository.name` for the opensearch chart.
     name: "opensearch-backups"
+    # -- Configures `initJob.snapshotRepository.type` for the opensearch chart.
     type: "s3"
+    # -- Configures `initJob.snapshotRepository.bucket` for the opensearch chart.
     bucket: "backups"
+    # -- Configures `initJob.snapshotRepository.basePath` for the opensearch chart.
     basePath: "backups/opensearch"
+    # -- Configures `initJob.snapshotRepository.endpoint` for the opensearch chart.
     endpoint: "http://musematic-minio.platform-data:9000"
+    # -- Configures `initJob.snapshotRepository.region` for the opensearch chart.
     region: "us-east-1"

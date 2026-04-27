@@ -1,40 +1,72 @@
+# @section -- Opensearch
+# -- Configures `opensearch` for the opensearch chart.
 opensearch:
+  # -- Configures `opensearch.replicas` for the opensearch chart.
   replicas: 3
+  # -- Configures `opensearch.extraEnvs` for the opensearch chart.
   extraEnvs:
     - name: OPENSEARCH_JAVA_OPTS
+      # -- Configures `opensearch.extraEnvs.value` for the opensearch chart.
       value: "-Xms8g -Xmx8g"
     - name: DISABLE_SECURITY_PLUGIN
+      # -- Configures `opensearch.extraEnvs.value` for the opensearch chart.
       value: "false"
     - name: AWS_EC2_METADATA_DISABLED
+      # -- Configures `opensearch.extraEnvs.value` for the opensearch chart.
       value: "true"
     - name: AWS_REGION
+      # -- Configures `opensearch.extraEnvs.value` for the opensearch chart.
       value: "us-east-1"
     - name: AWS_DEFAULT_REGION
+      # -- Configures `opensearch.extraEnvs.value` for the opensearch chart.
       value: "us-east-1"
     - name: AWS_ACCESS_KEY_ID
+      # -- Configures `opensearch.extraEnvs.valueFrom` for the opensearch chart.
       valueFrom:
+        # -- Configures `opensearch.extraEnvs.valueFrom.secretKeyRef` for the opensearch chart.
         secretKeyRef:
+          # -- Configures `opensearch.extraEnvs.valueFrom.secretKeyRef.name` for the opensearch chart.
           name: minio-platform-credentials
+          # -- Configures `opensearch.extraEnvs.valueFrom.secretKeyRef.key` for the opensearch chart.
           key: MINIO_ACCESS_KEY
     - name: AWS_SECRET_ACCESS_KEY
+      # -- Configures `opensearch.extraEnvs.valueFrom` for the opensearch chart.
       valueFrom:
+        # -- Configures `opensearch.extraEnvs.valueFrom.secretKeyRef` for the opensearch chart.
         secretKeyRef:
+          # -- Configures `opensearch.extraEnvs.valueFrom.secretKeyRef.name` for the opensearch chart.
           name: minio-platform-credentials
+          # -- Configures `opensearch.extraEnvs.valueFrom.secretKeyRef.key` for the opensearch chart.
           key: MINIO_SECRET_KEY
+  # -- Configures `opensearch.persistence` for the opensearch chart.
   persistence:
+    # -- Configures `opensearch.persistence.size` for the opensearch chart.
     size: 100Gi
+    # -- Configures `opensearch.persistence.storageClass` for the opensearch chart.
     storageClass: "fast"
+  # -- Configures `opensearch.resources` for the opensearch chart.
   resources:
+    # -- Configures `opensearch.resources.requests` for the opensearch chart.
     requests:
+      # -- Configures `opensearch.resources.requests.cpu` for the opensearch chart.
       cpu: "2"
+      # -- Configures `opensearch.resources.requests.memory` for the opensearch chart.
       memory: "16Gi"
+    # -- Configures `opensearch.resources.limits` for the opensearch chart.
     limits:
+      # -- Configures `opensearch.resources.limits.cpu` for the opensearch chart.
       cpu: "4"
+      # -- Configures `opensearch.resources.limits.memory` for the opensearch chart.
       memory: "16Gi"
 
+# @section -- Opensearch Dashboards
+# -- Configures `opensearch-dashboards` for the opensearch chart.
 opensearch-dashboards:
+  # -- Configures `opensearch-dashboards.extraEnvs` for the opensearch chart.
   extraEnvs:
     - name: OPENSEARCH_HOSTS
+      # -- Configures `opensearch-dashboards.extraEnvs.value` for the opensearch chart.
       value: '["https://musematic-opensearch:9200"]'
     - name: DISABLE_SECURITY_DASHBOARDS_PLUGIN
+      # -- Configures `opensearch-dashboards.extraEnvs.value` for the opensearch chart.
       value: "false"

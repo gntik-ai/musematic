@@ -1,9 +1,19 @@
+# @section -- Replicacount
+# -- Configures `replicaCount` for the runtime-controller chart.
 replicaCount: 3
 
+# @section -- Resources
+# -- Configures `resources` for the runtime-controller chart.
 resources:
+  # -- Configures `resources.requests` for the runtime-controller chart.
   requests:
+    # -- Configures `resources.requests.cpu` for the runtime-controller chart.
     cpu: "1"
+    # -- Configures `resources.requests.memory` for the runtime-controller chart.
     memory: 1Gi
+  # -- Configures `resources.limits` for the runtime-controller chart.
   limits:
+    # -- Configures `resources.limits.cpu` for the runtime-controller chart.
     cpu: "2"
+    # -- Configures `resources.limits.memory` for the runtime-controller chart.
     memory: 2Gi

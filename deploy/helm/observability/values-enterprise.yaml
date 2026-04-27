@@ -4,94 +4,184 @@
 # Capacity envelope: ~16 GiB total stack RAM, 10M metric series, 10k logs/s,
 # 100k traces/s, Prometheus 30d local retention with Thanos object storage, Loki
 # 14d hot + 90d cold retention on S3.
+# @section -- Networkpolicy
+# -- Configures `networkPolicy` for the observability chart.
 networkPolicy:
+  # -- Configures `networkPolicy.enabled` for the observability chart.
   enabled: true
 
+# @section -- Opentelemetry Collector
+# -- Configures `opentelemetry-collector` for the observability chart.
 opentelemetry-collector:
+  # -- Configures `opentelemetry-collector.replicaCount` for the observability chart.
   replicaCount: 3
+  # -- Configures `opentelemetry-collector.autoscaling` for the observability chart.
   autoscaling:
+    # -- Configures `opentelemetry-collector.autoscaling.enabled` for the observability chart.
     enabled: true
+    # -- Configures `opentelemetry-collector.autoscaling.minReplicas` for the observability chart.
     minReplicas: 3
+    # -- Configures `opentelemetry-collector.autoscaling.maxReplicas` for the observability chart.
     maxReplicas: 10
 
+# @section -- Kube Prometheus Stack
+# -- Configures `kube-prometheus-stack` for the observability chart.
 kube-prometheus-stack:
+  # -- Configures `kube-prometheus-stack.grafana` for the observability chart.
   grafana:
+    # -- Configures `kube-prometheus-stack.grafana.replicas` for the observability chart.
     replicas: 2
+    # -- Configures `kube-prometheus-stack.grafana.plugins` for the observability chart.
     plugins:
       - grafana-image-renderer
+    # -- Configures `kube-prometheus-stack.grafana.persistence` for the observability chart.
     persistence:
+      # -- Configures `kube-prometheus-stack.grafana.persistence.enabled` for the observability chart.
       enabled: false
+    # -- Configures `kube-prometheus-stack.grafana.database` for the observability chart.
     database:
+      # -- Configures `kube-prometheus-stack.grafana.database.type` for the observability chart.
       type: postgres
+  # -- Configures `kube-prometheus-stack.prometheus` for the observability chart.
   prometheus:
+    # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec` for the observability chart.
     prometheusSpec:
+      # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.replicas` for the observability chart.
       replicas: 2
+      # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.retention` for the observability chart.
       retention: 30d
+      # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.thanos` for the observability chart.
       thanos:
+        # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.thanos.objectStorageConfig` for the observability chart.
         objectStorageConfig:
+          # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.thanos.objectStorageConfig.existingSecret` for the observability chart.
           existingSecret:
+            # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.thanos.objectStorageConfig.existingSecret.name` for the observability chart.
             name: minio-platform-credentials
+            # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.thanos.objectStorageConfig.existingSecret.key` for the observability chart.
             key: thanos.yaml
+      # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec` for the observability chart.
       storageSpec:
+        # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate` for the observability chart.
         volumeClaimTemplate:
+          # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec` for the observability chart.
           spec:
+            # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources` for the observability chart.
             resources:
+              # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests` for the observability chart.
               requests:
+                # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage` for the observability chart.
                 storage: 50Gi
 
+# @section -- Jaeger
+# -- Configures `jaeger` for the observability chart.
 jaeger:
+  # -- Configures `jaeger.allInOne` for the observability chart.
   allInOne:
+    # -- Configures `jaeger.allInOne.enabled` for the observability chart.
     enabled: false
+  # -- Configures `jaeger.collector` for the observability chart.
   collector:
+    # -- Configures `jaeger.collector.enabled` for the observability chart.
     enabled: true
+  # -- Configures `jaeger.query` for the observability chart.
   query:
+    # -- Configures `jaeger.query.enabled` for the observability chart.
     enabled: true
+  # -- Configures `jaeger.storage` for the observability chart.
   storage:
+    # -- Configures `jaeger.storage.type` for the observability chart.
     type: elasticsearch
+  # -- Configures `jaeger.persistence` for the observability chart.
   persistence:
+    # -- Configures `jaeger.persistence.enabled` for the observability chart.
     enabled: false
 
+# @section -- Loki
+# -- Configures `loki` for the observability chart.
 loki:
+  # -- Configures `loki.deploymentMode` for the observability chart.
   deploymentMode: Distributed
+  # -- Configures `loki.loki` for the observability chart.
   loki:
+    # -- Configures `loki.loki.limits_config` for the observability chart.
     limits_config:
+      # -- Configures `loki.loki.limits_config.retention_period` for the observability chart.
       retention_period: 336h
+    # -- Configures `loki.loki.compactor` for the observability chart.
     compactor:
+      # -- Configures `loki.loki.compactor.retention_enabled` for the observability chart.
       retention_enabled: true
+      # -- Configures `loki.loki.compactor.delete_request_store` for the observability chart.
       delete_request_store: s3
+    # -- Configures `loki.loki.storage` for the observability chart.
     storage:
+      # -- Configures `loki.loki.storage.type` for the observability chart.
       type: s3
+      # -- Configures `loki.loki.storage.bucketNames` for the observability chart.
       bucketNames:
+        # -- Configures `loki.loki.storage.bucketNames.chunks` for the observability chart.
         chunks: platform-loki-chunks
+        # -- Configures `loki.loki.storage.bucketNames.ruler` for the observability chart.
         ruler: platform-loki-chunks
+        # -- Configures `loki.loki.storage.bucketNames.admin` for the observability chart.
         admin: platform-loki-chunks
+    # -- Configures `loki.loki.schemaConfig` for the observability chart.
     schemaConfig:
+      # -- Configures `loki.loki.schemaConfig.configs` for the observability chart.
       configs:
         - from: "2024-01-01"
+          # -- Configures `loki.loki.schemaConfig.configs.store` for the observability chart.
           store: tsdb
+          # -- Configures `loki.loki.schemaConfig.configs.object_store` for the observability chart.
           object_store: s3
+          # -- Configures `loki.loki.schemaConfig.configs.schema` for the observability chart.
           schema: v13
+          # -- Configures `loki.loki.schemaConfig.configs.index` for the observability chart.
           index:
+            # -- Configures `loki.loki.schemaConfig.configs.index.prefix` for the observability chart.
             prefix: loki_index_
+            # -- Configures `loki.loki.schemaConfig.configs.index.period` for the observability chart.
             period: 24h
+  # -- Configures `loki.retention` for the observability chart.
   retention:
+    # -- Configures `loki.retention.hot` for the observability chart.
     hot: 336h
+    # -- Configures `loki.retention.cold` for the observability chart.
     cold: 2160h
+  # -- Configures `loki.singleBinary` for the observability chart.
   singleBinary:
+    # -- Configures `loki.singleBinary.replicas` for the observability chart.
     replicas: 0
+  # -- Configures `loki.ingester` for the observability chart.
   ingester:
+    # -- Configures `loki.ingester.replicas` for the observability chart.
     replicas: 3
+    # -- Configures `loki.ingester.maxUnavailable` for the observability chart.
     maxUnavailable: 1
+  # -- Configures `loki.querier` for the observability chart.
   querier:
+    # -- Configures `loki.querier.replicas` for the observability chart.
     replicas: 3
+    # -- Configures `loki.querier.maxUnavailable` for the observability chart.
     maxUnavailable: 1
+  # -- Configures `loki.queryFrontend` for the observability chart.
   queryFrontend:
+    # -- Configures `loki.queryFrontend.replicas` for the observability chart.
     replicas: 2
+    # -- Configures `loki.queryFrontend.maxUnavailable` for the observability chart.
     maxUnavailable: 1
+  # -- Configures `loki.distributor` for the observability chart.
   distributor:
+    # -- Configures `loki.distributor.replicas` for the observability chart.
     replicas: 2
+    # -- Configures `loki.distributor.maxUnavailable` for the observability chart.
     maxUnavailable: 1
+  # -- Configures `loki.compactor` for the observability chart.
   compactor:
+    # -- Configures `loki.compactor.replicas` for the observability chart.
     replicas: 1
+  # -- Configures `loki.gateway` for the observability chart.
   gateway:
+    # -- Configures `loki.gateway.enabled` for the observability chart.
     enabled: true

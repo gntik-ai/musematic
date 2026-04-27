@@ -2,103 +2,203 @@
 # Purpose: single-node dev/kind installs with persistent hot data and no S3 dependency.
 # Capacity envelope: <= 1 GiB total stack RAM, 7d Prometheus retention, 24h Loki retention,
 # approximately 100k metric series, 10 logs/s, and 100 traces/s.
+# @section -- Networkpolicy
+# -- Configures `networkPolicy` for the observability chart.
 networkPolicy:
+  # -- Configures `networkPolicy.enabled` for the observability chart.
   enabled: false
 
+# @section -- Opentelemetry Collector
+# -- Configures `opentelemetry-collector` for the observability chart.
 opentelemetry-collector:
+  # -- Configures `opentelemetry-collector.replicaCount` for the observability chart.
   replicaCount: 1
+  # -- Configures `opentelemetry-collector.resources` for the observability chart.
   resources:
+    # -- Configures `opentelemetry-collector.resources.requests` for the observability chart.
     requests:
+      # -- Configures `opentelemetry-collector.resources.requests.cpu` for the observability chart.
       cpu: 50m
+      # -- Configures `opentelemetry-collector.resources.requests.memory` for the observability chart.
       memory: 96Mi
+    # -- Configures `opentelemetry-collector.resources.limits` for the observability chart.
     limits:
+      # -- Configures `opentelemetry-collector.resources.limits.cpu` for the observability chart.
       cpu: 250m
+      # -- Configures `opentelemetry-collector.resources.limits.memory` for the observability chart.
       memory: 192Mi
 
+# @section -- Kube Prometheus Stack
+# -- Configures `kube-prometheus-stack` for the observability chart.
 kube-prometheus-stack:
+  # -- Configures `kube-prometheus-stack.grafana` for the observability chart.
   grafana:
+    # -- Configures `kube-prometheus-stack.grafana.replicas` for the observability chart.
     replicas: 1
+    # -- Configures `kube-prometheus-stack.grafana.plugins` for the observability chart.
     plugins: []
+    # -- Configures `kube-prometheus-stack.grafana.resources` for the observability chart.
     resources:
+      # -- Configures `kube-prometheus-stack.grafana.resources.requests` for the observability chart.
       requests:
+        # -- Configures `kube-prometheus-stack.grafana.resources.requests.cpu` for the observability chart.
         cpu: 50m
+        # -- Configures `kube-prometheus-stack.grafana.resources.requests.memory` for the observability chart.
         memory: 128Mi
+      # -- Configures `kube-prometheus-stack.grafana.resources.limits` for the observability chart.
       limits:
+        # -- Configures `kube-prometheus-stack.grafana.resources.limits.cpu` for the observability chart.
         cpu: 250m
+        # -- Configures `kube-prometheus-stack.grafana.resources.limits.memory` for the observability chart.
         memory: 256Mi
+  # -- Configures `kube-prometheus-stack.alertmanager` for the observability chart.
   alertmanager:
+    # -- Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec` for the observability chart.
     alertmanagerSpec:
+      # -- Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec.replicas` for the observability chart.
       replicas: 1
+      # -- Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec.storage` for the observability chart.
       storage:
+        # -- Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate` for the observability chart.
         volumeClaimTemplate:
+          # -- Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec` for the observability chart.
           spec:
+            # -- Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources` for the observability chart.
             resources:
+              # -- Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources.requests` for the observability chart.
               requests:
+                # -- Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources.requests.storage` for the observability chart.
                 storage: 1Gi
+  # -- Configures `kube-prometheus-stack.prometheus` for the observability chart.
   prometheus:
+    # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec` for the observability chart.
     prometheusSpec:
+      # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.replicas` for the observability chart.
       replicas: 1
+      # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.retention` for the observability chart.
       retention: 7d
+      # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.resources` for the observability chart.
       resources:
+        # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.resources.requests` for the observability chart.
         requests:
+          # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.resources.requests.cpu` for the observability chart.
           cpu: 100m
+          # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.resources.requests.memory` for the observability chart.
           memory: 192Mi
+        # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.resources.limits` for the observability chart.
         limits:
+          # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.resources.limits.cpu` for the observability chart.
           cpu: 500m
+          # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.resources.limits.memory` for the observability chart.
           memory: 384Mi
+      # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec` for the observability chart.
       storageSpec:
+        # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate` for the observability chart.
         volumeClaimTemplate:
+          # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec` for the observability chart.
           spec:
+            # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources` for the observability chart.
             resources:
+              # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests` for the observability chart.
               requests:
+                # -- Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage` for the observability chart.
                 storage: 2Gi
 
+# @section -- Jaeger
+# -- Configures `jaeger` for the observability chart.
 jaeger:
+  # -- Configures `jaeger.storage` for the observability chart.
   storage:
+    # -- Configures `jaeger.storage.type` for the observability chart.
     type: badger
+    # -- Configures `jaeger.storage.badger` for the observability chart.
     badger:
+      # -- Configures `jaeger.storage.badger.ephemeral` for the observability chart.
       ephemeral: false
+      # -- Configures `jaeger.storage.badger.persistence` for the observability chart.
       persistence:
+        # -- Configures `jaeger.storage.badger.persistence.mountPath` for the observability chart.
         mountPath: /mnt/data
+        # -- Configures `jaeger.storage.badger.persistence.useExistingPvcName` for the observability chart.
         useExistingPvcName: jaeger-badger
+  # -- Configures `jaeger.persistence` for the observability chart.
   persistence:
+    # -- Configures `jaeger.persistence.enabled` for the observability chart.
     enabled: true
+    # -- Configures `jaeger.persistence.size` for the observability chart.
     size: 1Gi
 
+# @section -- Loki
+# -- Configures `loki` for the observability chart.
 loki:
+  # -- Configures `loki.deploymentMode` for the observability chart.
   deploymentMode: SingleBinary
+  # -- Configures `loki.loki` for the observability chart.
   loki:
+    # -- Configures `loki.loki.limits_config` for the observability chart.
     limits_config:
+      # -- Configures `loki.loki.limits_config.retention_period` for the observability chart.
       retention_period: 24h
+    # -- Configures `loki.loki.compactor` for the observability chart.
     compactor:
+      # -- Configures `loki.loki.compactor.retention_enabled` for the observability chart.
       retention_enabled: true
+      # -- Configures `loki.loki.compactor.delete_request_store` for the observability chart.
       delete_request_store: filesystem
+    # -- Configures `loki.loki.storage` for the observability chart.
     storage:
+      # -- Configures `loki.loki.storage.type` for the observability chart.
       type: filesystem
+    # -- Configures `loki.loki.schemaConfig` for the observability chart.
     schemaConfig:
+      # -- Configures `loki.loki.schemaConfig.configs` for the observability chart.
       configs:
         - from: "2024-01-01"
+          # -- Configures `loki.loki.schemaConfig.configs.store` for the observability chart.
           store: tsdb
+          # -- Configures `loki.loki.schemaConfig.configs.object_store` for the observability chart.
           object_store: filesystem
+          # -- Configures `loki.loki.schemaConfig.configs.schema` for the observability chart.
           schema: v13
+          # -- Configures `loki.loki.schemaConfig.configs.index` for the observability chart.
           index:
+            # -- Configures `loki.loki.schemaConfig.configs.index.prefix` for the observability chart.
             prefix: loki_index_
+            # -- Configures `loki.loki.schemaConfig.configs.index.period` for the observability chart.
             period: 24h
+    # -- Configures `loki.loki.rulerConfig` for the observability chart.
     rulerConfig:
+      # -- Configures `loki.loki.rulerConfig.storage` for the observability chart.
       storage:
+        # -- Configures `loki.loki.rulerConfig.storage.type` for the observability chart.
         type: local
+  # -- Configures `loki.singleBinary` for the observability chart.
   singleBinary:
+    # -- Configures `loki.singleBinary.replicas` for the observability chart.
     replicas: 1
+    # -- Configures `loki.singleBinary.persistence` for the observability chart.
     persistence:
+      # -- Configures `loki.singleBinary.persistence.enabled` for the observability chart.
       enabled: true
+      # -- Configures `loki.singleBinary.persistence.size` for the observability chart.
       size: 2Gi
+  # -- Configures `loki.extraEnv` for the observability chart.
   extraEnv: []
 
+# @section -- Promtail
+# -- Configures `promtail` for the observability chart.
 promtail:
+  # -- Configures `promtail.resources` for the observability chart.
   resources:
+    # -- Configures `promtail.resources.requests` for the observability chart.
     requests:
+      # -- Configures `promtail.resources.requests.cpu` for the observability chart.
       cpu: 25m
+      # -- Configures `promtail.resources.requests.memory` for the observability chart.
       memory: 64Mi
+    # -- Configures `promtail.resources.limits` for the observability chart.
     limits:
+      # -- Configures `promtail.resources.limits.cpu` for the observability chart.
       cpu: 100m
+      # -- Configures `promtail.resources.limits.memory` for the observability chart.
       memory: 128Mi

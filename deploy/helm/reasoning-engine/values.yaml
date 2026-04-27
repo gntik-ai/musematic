@@ -1,40 +1,81 @@
+# @section -- Replicacount
+# -- Configures `replicaCount` for the reasoning-engine chart.
 replicaCount: 2
 
+# @section -- Image
+# -- Configures `image` for the reasoning-engine chart.
 image:
+  # -- Configures `image.repository` for the reasoning-engine chart.
   repository: ghcr.io/andrea-mucci/musematic/reasoning-engine
+  # -- Configures `image.tag` for the reasoning-engine chart.
   tag: latest
+  # -- Configures `image.pullPolicy` for the reasoning-engine chart.
   pullPolicy: IfNotPresent
 
+# @section -- Grpcport
+# -- Configures `grpcPort` for the reasoning-engine chart.
 grpcPort: 50052
 
+# @section -- Resources
+# -- Configures `resources` for the reasoning-engine chart.
 resources:
+  # -- Configures `resources.requests` for the reasoning-engine chart.
   requests:
+    # -- Configures `resources.requests.cpu` for the reasoning-engine chart.
     cpu: 250m
+    # -- Configures `resources.requests.memory` for the reasoning-engine chart.
     memory: 128Mi
+  # -- Configures `resources.limits` for the reasoning-engine chart.
   limits:
+    # -- Configures `resources.limits.cpu` for the reasoning-engine chart.
     cpu: 500m
+    # -- Configures `resources.limits.memory` for the reasoning-engine chart.
     memory: 256Mi
 
+# @section -- Config
+# -- Configures `config` for the reasoning-engine chart.
 config:
+  # -- Configures `config.maxTotConcurrency` for the reasoning-engine chart.
   maxTotConcurrency: "10"
+  # -- Configures `config.traceBufferSize` for the reasoning-engine chart.
   traceBufferSize: "10000"
+  # -- Configures `config.tracePayloadThreshold` for the reasoning-engine chart.
   tracePayloadThreshold: "65536"
+  # -- Configures `config.budgetDefaultTTLSeconds` for the reasoning-engine chart.
   budgetDefaultTTLSeconds: "3600"
+  # -- Configures `config.otelExporterOtlpEndpoint` for the reasoning-engine chart.
   otelExporterOtlpEndpoint: http://otel-collector.platform-observability.svc.cluster.local:4317
+  # -- Configures `config.otelServiceName` for the reasoning-engine chart.
   otelServiceName: reasoning-engine
+  # -- Configures `config.otelResourceAttributes` for the reasoning-engine chart.
   otelResourceAttributes: deployment.environment=production
 
+# @section -- Configsecretref
+# -- Configures `configSecretRef` for the reasoning-engine chart.
 configSecretRef: reasoning-engine-config
 
+# @section -- Secrets
+# -- Configures `secrets` for the reasoning-engine chart.
 secrets:
+  # -- Configures `secrets.POSTGRES_DSN` for the reasoning-engine chart.
   POSTGRES_DSN: ""
+  # -- Configures `secrets.REDIS_ADDR` for the reasoning-engine chart.
   REDIS_ADDR: ""
+  # -- Configures `secrets.REDIS_PASSWORD` for the reasoning-engine chart.
   REDIS_PASSWORD: ""
+  # -- Configures `secrets.KAFKA_BROKERS` for the reasoning-engine chart.
   KAFKA_BROKERS: ""
+  # -- Configures `secrets.MINIO_ENDPOINT` for the reasoning-engine chart.
   MINIO_ENDPOINT: ""
+  # -- Configures `secrets.MINIO_BUCKET` for the reasoning-engine chart.
   MINIO_BUCKET: reasoning-traces
 
+# @section -- Hpa
+# -- Configures `hpa` for the reasoning-engine chart.
 hpa:
+  # -- Configures `hpa.minReplicas` for the reasoning-engine chart.
   minReplicas: 2
+  # -- Configures `hpa.maxReplicas` for the reasoning-engine chart.
   maxReplicas: 10
+  # -- Configures `hpa.targetCPUUtilizationPercentage` for the reasoning-engine chart.
   targetCPUUtilizationPercentage: 70

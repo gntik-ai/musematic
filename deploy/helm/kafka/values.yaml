@@ -1,216 +1,383 @@
+# @section -- Clustername
+# -- Configures `clusterName` for the kafka chart.
 clusterName: musematic-kafka
+# @section -- Namespace
+# -- Configures `namespace` for the kafka chart.
 namespace: platform-data
+# @section -- Kafkaversion
+# -- Configures `kafkaVersion` for the kafka chart.
 kafkaVersion: "4.1.1"
+# @section -- Metadataversion
+# -- Configures `metadataVersion` for the kafka chart.
 metadataVersion: "4.1-IV1"
+# @section -- Replicationfactor
+# -- Configures `replicationFactor` for the kafka chart.
 replicationFactor: 3
+# @section -- Mininsyncreplicas
+# -- Configures `minInsyncReplicas` for the kafka chart.
 minInsyncReplicas: 2
+# @section -- Logretentionms
+# -- Configures `logRetentionMs` for the kafka chart.
 logRetentionMs: 604800000
+# @section -- Dlqretentionms
+# -- Configures `dlqRetentionMs` for the kafka chart.
 dlqRetentionMs: 2592000000
+# @section -- Dlqpartitions
+# -- Configures `dlqPartitions` for the kafka chart.
 dlqPartitions: 6
+# @section -- Metricsport
+# -- Configures `metricsPort` for the kafka chart.
 metricsPort: 9404
+# @section -- Combined
+# -- Configures `combined` for the kafka chart.
 combined: false
+# @section -- Brokerreplicas
+# -- Configures `brokerReplicas` for the kafka chart.
 brokerReplicas: 3
+# @section -- Controllerreplicas
+# -- Configures `controllerReplicas` for the kafka chart.
 controllerReplicas: 3
+# @section -- Combinedreplicas
+# -- Configures `combinedReplicas` for the kafka chart.
 combinedReplicas: 1
+# @section -- Networkpolicy
+# -- Configures `networkPolicy` for the kafka chart.
 networkPolicy:
+  # -- Configures `networkPolicy.enabled` for the kafka chart.
   enabled: false
+# @section -- Storage
+# -- Configures `storage` for the kafka chart.
 storage:
+  # -- Configures `storage.size` for the kafka chart.
   size: 100Gi
+  # -- Configures `storage.class` for the kafka chart.
   class: standard
+# @section -- Topics
+# -- Configures `topics` for the kafka chart.
 topics:
   - name: a2a.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: accounts.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: agentops.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: agentops.behavioral
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 2592000000
   - name: analytics.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: auth.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: communication.broadcast
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 259200000
   - name: composition.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: connector.delivery
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 12
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 259200000
   - name: connector.ingress
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 12
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 259200000
   - name: context.quality
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: context_engineering.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: discovery.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: debug_logging.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: evaluation.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 2592000000
   - name: event.bus
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: execution.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 12
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: fleet.health
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: governance.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: interaction.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 12
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   # Attention pattern — agent-initiated urgency signals (see constitution AD-3.13); distinct from monitor.alerts
   - name: interaction.attention
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: marketplace.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: mcp.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: memory.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: model.catalog.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: monitor.alerts
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 1209600000
   - name: notifications.alerts
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 1209600000
   - name: policy.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: policy.gate.allowed
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: policy.gate.blocked
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: privacy.consent.revoked
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: privacy.deletion.cascaded
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: privacy.dlp.event
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: privacy.dsr.completed
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: privacy.dsr.failed
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: privacy.dsr.in_progress
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: privacy.dsr.received
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: privacy.dsr.scheduled_with_hold
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: privacy.pia.approved
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: privacy.pia.drafted
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: privacy.pia.rejected
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: privacy.pia.submitted_for_review
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: privacy.pia.superseded
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: privacy.residency.configured
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: privacy.residency.removed
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: privacy.residency.violated
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: registry.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: runtime.lifecycle
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 259200000
   - name: runtime.reasoning
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 12
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: runtime.selfcorrection
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 12
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: sandbox.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 259200000
   - name: security.audit.chain.verified
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 2592000000
   - name: security.jit.issued
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 2592000000
   - name: security.jit.revoked
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 2592000000
   - name: security.pentest.finding.raised
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 2592000000
   - name: security.sbom.published
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 2592000000
   - name: security.scan.completed
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 2592000000
   - name: security.secret.rotated
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 2592000000
   - name: simulation.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 259200000
   - name: testing.results
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 2592000000
   - name: trust.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 2592000000
   - name: workflow.runtime
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 12
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: workflow.triggers
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 12
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: workspace.goal
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: workspaces.events
+    # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
