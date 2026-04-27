@@ -16,6 +16,7 @@ def utcnow() -> datetime:
 
 
 class PrivacyEventType(StrEnum):
+    dsr_submitted = "privacy.dsr.submitted"
     dsr_received = "privacy.dsr.received"
     dsr_scheduled_with_hold = "privacy.dsr.scheduled_with_hold"
     dsr_in_progress = "privacy.dsr.in_progress"
@@ -43,6 +44,7 @@ class DSRLifecyclePayload(BaseModel):
     workspace_id: UUID | None = None
     tombstone_id: UUID | None = None
     failure_reason: str | None = None
+    source: str | None = None
 
 
 class DeletionCascadedPayload(BaseModel):
@@ -89,6 +91,7 @@ class ConsentRevokedPayload(BaseModel):
 
 
 PRIVACY_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
+    PrivacyEventType.dsr_submitted.value: DSRLifecyclePayload,
     PrivacyEventType.dsr_received.value: DSRLifecyclePayload,
     PrivacyEventType.dsr_scheduled_with_hold.value: DSRLifecyclePayload,
     PrivacyEventType.dsr_in_progress.value: DSRLifecyclePayload,

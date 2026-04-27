@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from base64 import urlsafe_b64decode
 from datetime import UTC, datetime, timedelta
 from platform.privacy_compliance.events import (
     DSRLifecyclePayload,
@@ -76,6 +77,17 @@ class DSRService:
             status=status,
         )
         return [DSRResponse.model_validate(item) for item in items]
+
+    async def list_for_subject(
+        self,
+        subject_user_id: UUID,
+        limit: int,
+        cursor: str | None,
+    ) -> list[DSRResponse]:
+        offset = _decode_offset_cursor(cursor)
+        items = await self.repository.list_dsrs(subject_user_id=subject_user_id)
+        limited = items[offset : offset + limit]
+        return [DSRResponse.model_validate(item) for item in limited]
 
     async def get_request(self, dsr_id: UUID) -> DSRResponse:
         return DSRResponse.model_validate(await self._get_dsr(dsr_id))
@@ -177,3 +189,12 @@ class DSRService:
             correlation_ctx=make_correlation(),
         )
 
+
+def _decode_offset_cursor(cursor: str | None) -> int:
+    if cursor is None:
+        return 0
+    try:
+        decoded = urlsafe_b64decode(cursor.encode("ascii")).decode("ascii")
+        return max(0, int(decoded))
+    except (ValueError, UnicodeDecodeError):
+        return 0

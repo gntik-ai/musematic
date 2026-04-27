@@ -64,7 +64,7 @@ export function NotificationBell() {
 
   const alertsQuery = useAppQuery<AlertListResponse>(
     ["alert-feed", userId ?? "none"],
-    () => api.get<AlertListResponse>("/me/alerts?limit=20"),
+    () => api.get<AlertListResponse>("/me/alerts?limit=5"),
     { enabled: Boolean(userId), staleTime: 15_000 },
   );
   const unreadQuery = useAppQuery<UnreadCountResponse>(
@@ -145,6 +145,13 @@ export function NotificationBell() {
             );
           })
         )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          className="justify-center font-medium"
+          onClick={() => window.location.assign("/notifications")}
+        >
+          See all
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

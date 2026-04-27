@@ -17,7 +17,7 @@ from platform.notifications.models import (
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -132,6 +132,18 @@ class NotificationsRepository:
             alert.read = True
             await self.session.flush()
         return alert
+
+    async def mark_all_read(self, user_id: UUID) -> int:
+        result = await self.session.execute(
+            update(UserAlert)
+            .where(
+                UserAlert.user_id == user_id,
+                UserAlert.read.is_(False),
+            )
+            .values(read=True)
+        )
+        await self.session.flush()
+        return int(getattr(result, "rowcount", 0) or 0)
 
     async def get_unread_count(self, user_id: UUID) -> int:
         total = await self.session.scalar(

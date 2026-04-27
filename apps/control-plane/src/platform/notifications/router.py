@@ -5,6 +5,7 @@ from platform.notifications.dependencies import get_notifications_service
 from platform.notifications.routers.channels_router import router as channels_router
 from platform.notifications.schemas import (
     AlertListResponse,
+    MarkAllReadResponse,
     UnreadCountResponse,
     UserAlertDetail,
     UserAlertRead,
@@ -64,6 +65,14 @@ async def get_unread_count(
     service: AlertService = Depends(get_notifications_service),
 ) -> UnreadCountResponse:
     return await service.get_unread_count(_user_id(current_user))
+
+
+@router.post("/alerts/mark-all-read", response_model=MarkAllReadResponse)
+async def mark_all_alerts_read(
+    current_user: dict[str, Any] = Depends(get_current_user),
+    service: AlertService = Depends(get_notifications_service),
+) -> MarkAllReadResponse:
+    return await service.mark_all_read(_user_id(current_user))
 
 
 @router.patch("/alerts/{alert_id}/read", response_model=UserAlertRead)

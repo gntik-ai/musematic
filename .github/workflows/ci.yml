@@ -46,6 +46,8 @@ jobs:
           filters: |
             python:
               - 'apps/control-plane/**'
+              - 'scripts/check-me-endpoint-scope.py'
+              - 'scripts/tests/test_check_me_endpoint_scope.py'
               - '!apps/control-plane/**/*.md'
             go-reasoning:
               - 'services/reasoning-engine/**'
@@ -201,6 +203,10 @@ jobs:
 
       - name: Lint sensitive log leakage
         run: python ../../ci/check_sensitive_logs.py tests src
+
+      - name: Check /me endpoint scoping
+        working-directory: .
+        run: python scripts/check-me-endpoint-scope.py
 
   typecheck-python:
     name: Type-check Python

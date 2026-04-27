@@ -30,6 +30,12 @@ class SessionRevokedPayload(BaseModel):
     reason: str
 
 
+class SessionsRevokedAllOthersPayload(BaseModel):
+    user_id: UUID
+    current_session_id: UUID
+    sessions_revoked: int
+
+
 class MfaEnrolledPayload(BaseModel):
     user_id: UUID
     method: str
@@ -44,6 +50,18 @@ class PermissionDeniedPayload(BaseModel):
 
 class ApiKeyRotatedPayload(BaseModel):
     service_account_id: UUID
+
+
+class ApiKeyCreatedPayload(BaseModel):
+    user_id: UUID
+    service_account_id: UUID
+    source: str = "user_self"
+
+
+class ApiKeyRevokedPayload(BaseModel):
+    user_id: UUID
+    service_account_id: UUID
+    source: str = "user_self"
 
 
 class IBORSyncCompletedPayload(BaseModel):
@@ -144,9 +162,12 @@ AUTH_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     "auth.user.authenticated": UserAuthenticatedPayload,
     "auth.user.locked": UserLockedPayload,
     "auth.session.revoked": SessionRevokedPayload,
+    "auth.session.revoked_all_others": SessionsRevokedAllOthersPayload,
     "auth.mfa.enrolled": MfaEnrolledPayload,
     "auth.permission.denied": PermissionDeniedPayload,
     "auth.apikey.rotated": ApiKeyRotatedPayload,
+    "auth.api_key.created": ApiKeyCreatedPayload,
+    "auth.api_key.revoked": ApiKeyRevokedPayload,
     "ibor_sync_completed": IBORSyncCompletedPayload,
     "auth.oauth.sign_in_succeeded": OAuthSignInSucceededPayload,
     "auth.oauth.sign_in_failed": OAuthSignInFailedPayload,

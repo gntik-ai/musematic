@@ -47,6 +47,7 @@ from platform.notifications.schemas import (
     ChannelConfigCreate,
     ChannelConfigRead,
     ChannelConfigUpdate,
+    MarkAllReadResponse,
     UnreadCountResponse,
     UserAlertDetail,
     UserAlertRead,
@@ -303,8 +304,44 @@ class AlertService:
         )
         return UserAlertRead.model_validate(alert)
 
+    async def mark_all_read(self, user_id: UUID) -> MarkAllReadResponse:
+        updated = await self.repo.mark_all_read(user_id)
+        await publish_alert_read(
+            self.producer,
+            AlertReadPayload(
+                alert_id=uuid4(),
+                user_id=user_id,
+                unread_count=0,
+            ),
+            CorrelationContext(correlation_id=uuid4()),
+        )
+        return MarkAllReadResponse(updated=updated, unread_count=0)
+
     async def get_unread_count(self, user_id: UUID) -> UnreadCountResponse:
         return UnreadCountResponse(count=await self.repo.get_unread_count(user_id))
+
+    async def test_notification(self, user_id: UUID, event_type: str) -> UserAlertRead:
+        alert_settings = await self.get_or_default_settings(user_id)
+        alert = await self.repo.create_alert(
+            user_id=user_id,
+            interaction_id=None,
+            source_reference={"type": "notification_test", "event_type": event_type},
+            alert_type=event_type,
+            title=f"Test notification: {event_type}",
+            body="This is a test notification generated from your preferences page.",
+            urgency="medium",
+            delivery_method=(
+                alert_settings.delivery_method
+                if alert_settings.delivery_method != DeliveryMethod.in_app
+                else None
+            ),
+        )
+        user = await self._resolve_user(str(user_id))
+        if user is None:
+            await self._publish_in_app(alert)
+        else:
+            await self._dispatch_for_settings(alert, alert_settings, user)
+        return UserAlertRead.model_validate(alert)
 
     async def list_channel_configs(self, user_id: UUID) -> list[ChannelConfigRead]:
         return [

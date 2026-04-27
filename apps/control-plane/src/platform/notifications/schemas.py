@@ -29,6 +29,9 @@ class UserAlertSettingsRead(BaseModel):
     state_transitions: list[str]
     delivery_method: DeliveryMethod
     webhook_url: str | None
+    per_channel_preferences: dict[str, list[str]] = Field(default_factory=dict)
+    digest_mode: dict[str, str] = Field(default_factory=dict)
+    quiet_hours: dict[str, Any] | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -83,6 +86,11 @@ class AlertListResponse(BaseModel):
 
 class UnreadCountResponse(BaseModel):
     count: int
+
+
+class MarkAllReadResponse(BaseModel):
+    updated: int
+    unread_count: int = 0
 
 
 class QuietHoursConfig(BaseModel):

@@ -18,6 +18,7 @@ class NotificationsEventType(StrEnum):
     webhook_registered = "notifications.webhook.registered"
     webhook_deactivated = "notifications.webhook.deactivated"
     webhook_secret_rotated = "notifications.webhook.rotated"
+    preferences_updated = "notifications.preferences.updated"
     delivery_attempted = "notifications.delivery.attempted"
     delivery_dead_lettered = "notifications.delivery.dead_lettered"
     dlq_depth_threshold_reached = "notifications.dlq.depth.threshold_reached"
@@ -74,6 +75,12 @@ class WebhookSecretRotatedPayload(BaseModel):
     occurred_at: datetime
 
 
+class NotificationPreferencesUpdatedPayload(BaseModel):
+    user_id: UUID
+    actor_id: UUID
+    occurred_at: datetime
+
+
 class DeliveryAttemptedPayload(BaseModel):
     delivery_id: UUID | None = None
     alert_id: UUID | None = None
@@ -109,6 +116,7 @@ NOTIFICATIONS_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     NotificationsEventType.webhook_registered.value: WebhookRegisteredPayload,
     NotificationsEventType.webhook_deactivated.value: WebhookDeactivatedPayload,
     NotificationsEventType.webhook_secret_rotated.value: WebhookSecretRotatedPayload,
+    NotificationsEventType.preferences_updated.value: NotificationPreferencesUpdatedPayload,
     NotificationsEventType.delivery_attempted.value: DeliveryAttemptedPayload,
     NotificationsEventType.delivery_dead_lettered.value: DeliveryDeadLetteredPayload,
     NotificationsEventType.dlq_depth_threshold_reached.value: DlqDepthThresholdReachedPayload,
@@ -181,6 +189,20 @@ async def publish_channel_config_changed(
         payload=payload,
         correlation_ctx=correlation_ctx,
         topic="monitor.alerts",
+    )
+
+
+async def publish_notification_preferences_updated(
+    producer: EventProducer | None,
+    payload: NotificationPreferencesUpdatedPayload,
+    correlation_ctx: CorrelationContext,
+) -> None:
+    await _publish(
+        producer=producer,
+        event_type=NotificationsEventType.preferences_updated,
+        key=str(payload.user_id),
+        payload=payload,
+        correlation_ctx=correlation_ctx,
     )
 
 

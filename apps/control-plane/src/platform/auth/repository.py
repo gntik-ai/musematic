@@ -21,7 +21,7 @@ from platform.common.models.user import User as PlatformUser
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import and_, delete, or_, select, update
+from sqlalchemy import and_, delete, func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -369,6 +369,7 @@ class AuthRepository:
         key_hash: str,
         role: str,
         workspace_id: UUID | None,
+        created_by_user_id: UUID | None = None,
     ) -> ServiceAccountCredential:
         credential = ServiceAccountCredential(
             service_account_id=sa_id,
@@ -377,10 +378,47 @@ class AuthRepository:
             role=role,
             status="active",
             workspace_id=workspace_id,
+            created_by_user_id=created_by_user_id,
         )
         self.db.add(credential)
         await self.db.flush()
         return credential
+
+    async def count_active_service_accounts_for_user(self, user_id: UUID) -> int:
+        result = await self.db.execute(
+            select(func.count(ServiceAccountCredential.id)).where(
+                ServiceAccountCredential.created_by_user_id == user_id,
+                ServiceAccountCredential.status == "active",
+            )
+        )
+        return int(result.scalar_one() or 0)
+
+    async def list_service_accounts_for_user(
+        self,
+        user_id: UUID,
+    ) -> list[ServiceAccountCredential]:
+        result = await self.db.execute(
+            select(ServiceAccountCredential)
+            .where(ServiceAccountCredential.created_by_user_id == user_id)
+            .order_by(
+                ServiceAccountCredential.created_at.desc(),
+                ServiceAccountCredential.id.desc(),
+            )
+        )
+        return list(result.scalars().all())
+
+    async def get_service_account_for_user(
+        self,
+        user_id: UUID,
+        sa_id: UUID,
+    ) -> ServiceAccountCredential | None:
+        result = await self.db.execute(
+            select(ServiceAccountCredential).where(
+                ServiceAccountCredential.service_account_id == sa_id,
+                ServiceAccountCredential.created_by_user_id == user_id,
+            )
+        )
+        return result.scalar_one_or_none()
 
     async def update_service_account_key_hash(
         self,
@@ -408,6 +446,17 @@ class AuthRepository:
             .where(ServiceAccountCredential.service_account_id == sa_id)
             .values(status="revoked")
         )
+
+    async def revoke_service_account_for_user(self, user_id: UUID, sa_id: UUID) -> bool:
+        result = await self.db.execute(
+            update(ServiceAccountCredential)
+            .where(
+                ServiceAccountCredential.service_account_id == sa_id,
+                ServiceAccountCredential.created_by_user_id == user_id,
+            )
+            .values(status="revoked")
+        )
+        return bool(getattr(result, "rowcount", 0))
 
     async def get_connector_by_name(self, name: str) -> IBORConnector | None:
         result = await self.db.execute(select(IBORConnector).where(IBORConnector.name == name))
