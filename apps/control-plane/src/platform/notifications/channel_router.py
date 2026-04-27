@@ -389,7 +389,7 @@ class ChannelRouter:
     ) -> str:
         webhook_row = cast(Any, webhook)
         delivery_row = cast(Any, delivery)
-        secret = await self.secrets.get(webhook_row.signing_secret_ref, key="hmac_secret")
+        secret = await _read_hmac_secret(self.secrets, webhook_row.signing_secret_ref)
         webhook_deliverer = cast(
             WebhookDeliverer,
             self.deliverers.get(DeliveryMethod.webhook),
@@ -570,6 +570,24 @@ def _event_payload(envelope: object) -> dict[str, Any]:
         dict[str, Any],
         _jsonable_payload(getattr(envelope, "__dict__", {"payload": str(envelope)})),
     )
+
+
+async def _read_hmac_secret(secrets: object, path: str) -> str:
+    get_secret = getattr(secrets, "get", None)
+    if callable(get_secret):
+        value = await cast(Any, get_secret)(path, key="hmac_secret")
+        if isinstance(value, str):
+            return value
+
+    read_secret = getattr(secrets, "read_secret", None)
+    if callable(read_secret):
+        payload = await cast(Any, read_secret)(path)
+        if isinstance(payload, dict):
+            value = payload.get("hmac_secret")
+            if isinstance(value, str):
+                return value
+
+    raise AttributeError("secret provider must expose get() or read_secret() for hmac_secret")
 
 
 def _jsonable_payload(value: object) -> Any:

@@ -17,6 +17,16 @@ CANONICAL_SECRET_PATH_RE = re.compile(
     r"[a-zA-Z0-9_/-]+$"
 )
 
+__all__ = [
+    "CredentialPolicyDeniedError",
+    "CredentialUnavailableError",
+    "HealthStatus",
+    "InvalidVaultPathError",
+    "MockSecretProvider",
+    "SecretProvider",
+    "validate_secret_path",
+]
+
 
 @dataclass(frozen=True, slots=True)
 class HealthStatus:

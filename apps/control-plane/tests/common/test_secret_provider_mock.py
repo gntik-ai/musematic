@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from platform.common.secret_provider import (
+    CredentialPolicyDeniedError,
     CredentialUnavailableError,
     InvalidVaultPathError,
     MockSecretProvider,
@@ -87,6 +88,36 @@ async def test_mock_provider_put_persists_values(tmp_path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_mock_provider_put_merges_existing_file_and_supports_version_noops(tmp_path) -> None:
+    secrets_file = tmp_path / ".vault-secrets.json"
+    existing_path = "secret/data/musematic/dev/oauth/google"
+    new_path = "secret/data/musematic/dev/oauth/github"
+    secrets_file.write_text(json.dumps({existing_path: "google-secret"}), encoding="utf-8")
+    provider = MockSecretProvider(_settings(str(secrets_file)))
+
+    await provider.put(new_path, {"client_secret": "github-secret"})
+    await provider.delete_version(new_path, 1)
+
+    content = json.loads(secrets_file.read_text(encoding="utf-8"))
+    assert content[existing_path] == "google-secret"
+    assert content[new_path] == {"client_secret": "github-secret"}
+    assert await provider.list_versions(new_path) == [1]
+
+
+@pytest.mark.asyncio
+async def test_mock_provider_resolves_relative_secret_file(monkeypatch, tmp_path) -> None:
+    monkeypatch.chdir(tmp_path)
+    path = "secret/data/musematic/dev/oauth/google"
+    (tmp_path / ".vault-secrets.json").write_text(
+        json.dumps({path: "relative-secret"}),
+        encoding="utf-8",
+    )
+    provider = MockSecretProvider(_settings(".vault-secrets.json"))
+
+    assert await provider.get(path) == "relative-secret"
+
+
+@pytest.mark.asyncio
 async def test_mock_provider_health_check_reports_file_state(tmp_path) -> None:
     secrets_file = tmp_path / ".vault-secrets.json"
     provider = MockSecretProvider(_settings(str(secrets_file)))
@@ -96,3 +127,18 @@ async def test_mock_provider_health_check_reports_file_state(tmp_path) -> None:
     secrets_file.write_text("{}", encoding="utf-8")
 
     assert (await provider.health_check()).status == "green"
+
+
+@pytest.mark.asyncio
+async def test_mock_provider_health_check_reports_invalid_json(tmp_path) -> None:
+    secrets_file = tmp_path / ".vault-secrets.json"
+    secrets_file.write_text("{", encoding="utf-8")
+    provider = MockSecretProvider(_settings(str(secrets_file)))
+
+    assert (await provider.health_check()).status == "red"
+
+
+def test_credential_policy_denied_sets_error_code() -> None:
+    error = CredentialPolicyDeniedError("secret-key")
+
+    assert error.code == "CREDENTIAL_POLICY_DENIED"

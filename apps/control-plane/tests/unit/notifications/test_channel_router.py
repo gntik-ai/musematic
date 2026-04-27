@@ -8,8 +8,12 @@ from platform.notifications.channel_router import (
     _event_payload,
     _first_backoff,
     _jsonable_payload,
+    _redacted_payload,
     _retry_delay_seconds,
     _verdict_action,
+)
+from platform.notifications.channel_router import (
+    _read_hmac_secret as _read_channel_hmac_secret,
 )
 from platform.notifications.models import (
     AlertDeliveryOutcome,
@@ -156,6 +160,37 @@ class SecretsStub:
     async def read_secret(self, path):
         del path
         return {"hmac_secret": "secret"}
+
+
+class LegacySecretsStub:
+    async def get(self, path, *, key):
+        assert path == "secret/path"
+        assert key == "hmac_secret"
+        return "legacy-secret"
+
+
+class NonStringGetSecretsStub:
+    async def get(self, path, *, key):
+        del path, key
+        return None
+
+    async def read_secret(self, path):
+        del path
+        return {"hmac_secret": "fallback-secret"}
+
+
+class MissingHmacSecretsStub:
+    async def get(self, path, *, key):
+        del path, key
+        return None
+
+    async def read_secret(self, path):
+        del path
+        return {}
+
+
+class UnsupportedDeliveryMethod:
+    value = "pager"
 
 
 class ProducerStub:
@@ -383,6 +418,21 @@ async def test_route_sms_and_missing_deliverer_edges() -> None:
             webhook=WebhookDelivererStub(),
         ).get(DeliveryMethod.sms)
 
+    unsupported_method = UnsupportedDeliveryMethod()
+    unsupported_config = SimpleNamespace(
+        channel_type=unsupported_method,
+        target="pager-target",
+        quiet_hours=None,
+        alert_type_filter=None,
+        severity_floor=None,
+        extra=None,
+    )
+    unsupported = await _router(RepoStub(configs=[unsupported_config])).route(
+        _alert(),
+        _recipient(),
+    )
+    assert unsupported.attempts[0].error_detail == "deliverer_not_registered"
+
 
 @pytest.mark.asyncio
 async def test_route_workspace_event_creates_pending_and_policy_dead_letter_deliveries() -> None:
@@ -473,3 +523,27 @@ def test_channel_router_private_helpers_cover_default_and_object_edges() -> None
     assert _verdict_action(SimpleNamespace(action="redact")) == "redact"
     assert _event_payload(SimpleNamespace(value=uuid4()))["value"]
     assert _jsonable_payload((uuid4(), datetime.now(UTC)))
+    assert _redacted_payload(
+        SimpleNamespace(action="redact", redacted_payload={"title": "Redacted"})
+    ) == {"title": "Redacted"}
+
+
+@pytest.mark.asyncio
+async def test_channel_router_hmac_secret_helper_supports_legacy_get_and_errors() -> None:
+    assert await _read_channel_hmac_secret(LegacySecretsStub(), "secret/path") == "legacy-secret"
+    assert (
+        await _read_channel_hmac_secret(NonStringGetSecretsStub(), "secret/path")
+        == "fallback-secret"
+    )
+
+    with pytest.raises(AttributeError):
+        await _read_channel_hmac_secret(object(), "secret/path")
+    with pytest.raises(AttributeError):
+        await _read_channel_hmac_secret(MissingHmacSecretsStub(), "secret/path")
+
+
+@pytest.mark.asyncio
+async def test_channel_router_existing_workspace_delivery_lookup_is_optional() -> None:
+    router = _router(RepoStub())
+
+    assert await router._get_existing_workspace_delivery(uuid4(), uuid4()) is None
