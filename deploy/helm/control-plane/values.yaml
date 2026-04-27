@@ -1,117 +1,232 @@
+# @section -- Image
+# -- Configures `image` for the control-plane chart.
 image:
+  # -- Configures `image.repository` for the control-plane chart.
   repository: ghcr.io/musematic/control-plane
+  # -- Configures `image.tag` for the control-plane chart.
   tag: latest
+  # -- Configures `image.pullPolicy` for the control-plane chart.
   pullPolicy: IfNotPresent
 
+# @section -- Common
+# -- Configures `common` for the control-plane chart.
 common:
+  # -- Configures `common.resources` for the control-plane chart.
   resources:
+    # -- Configures `common.resources.requests` for the control-plane chart.
     requests:
+      # -- Configures `common.resources.requests.cpu` for the control-plane chart.
       cpu: 250m
+      # -- Configures `common.resources.requests.memory` for the control-plane chart.
       memory: 256Mi
+    # -- Configures `common.resources.limits` for the control-plane chart.
     limits:
+      # -- Configures `common.resources.limits.cpu` for the control-plane chart.
       cpu: "1"
+      # -- Configures `common.resources.limits.memory` for the control-plane chart.
       memory: 512Mi
+  # -- Configures `common.featureE2EMode` for the control-plane chart.
   featureE2EMode: false
+  # -- Configures `common.mockLlmEnabled` for the control-plane chart.
   mockLlmEnabled: false
+  # -- Configures `common.zeroTrustVisibility` for the control-plane chart.
   zeroTrustVisibility: false
+  # -- Configures `common.otelExporterEndpoint` for the control-plane chart.
   otelExporterEndpoint: http://otel-collector.platform-observability.svc.cluster.local:4318
+  # -- Configures `common.otelServiceName` for the control-plane chart.
   otelServiceName: control-plane
+  # -- Configures `common.otelResourceAttributes` for the control-plane chart.
   otelResourceAttributes: deployment.environment=production
+  # -- Configures `common.wsClientBufferSize` for the control-plane chart.
   wsClientBufferSize: 1000
+  # -- Configures `common.wsHeartbeatIntervalSeconds` for the control-plane chart.
   wsHeartbeatIntervalSeconds: 30
+  # -- Configures `common.wsHeartbeatTimeoutSeconds` for the control-plane chart.
   wsHeartbeatTimeoutSeconds: 10
+  # -- Configures `common.extraEnv` for the control-plane chart.
   extraEnv: {}
 
+# @section -- Privacy
+# -- Configures `privacy` for the control-plane chart.
 privacy:
+  # -- Configures `privacy.dsrEnabled` for the control-plane chart.
   dsrEnabled: false
+  # -- Configures `privacy.dlpEnabled` for the control-plane chart.
   dlpEnabled: false
+  # -- Configures `privacy.residencyEnforcementEnabled` for the control-plane chart.
   residencyEnforcementEnabled: false
+  # -- Configures `privacy.clickhousePiiTables` for the control-plane chart.
   clickhousePiiTables:
     - execution_metrics
     - agent_performance
     - token_usage
 
+# @section -- Securitycompliance
+# -- Configures `securityCompliance` for the control-plane chart.
 securityCompliance:
+  # -- Configures `securityCompliance.manualEvidenceBucket` for the control-plane chart.
   manualEvidenceBucket: compliance-evidence
 
+# @section -- Connections
+# -- Configures `connections` for the control-plane chart.
 connections:
+  # -- Configures `connections.postgresDsn` for the control-plane chart.
   postgresDsn: postgresql+asyncpg://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic
+  # -- Configures `connections.redisUrl` for the control-plane chart.
   redisUrl: redis://:change-me@musematic-redis.platform.svc.cluster.local:6379
+  # -- Configures `connections.redisTestMode` for the control-plane chart.
   redisTestMode: cluster
+  # -- Configures `connections.kafkaBrokers` for the control-plane chart.
   kafkaBrokers: musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092
+  # -- Configures `connections.qdrantHost` for the control-plane chart.
   qdrantHost: musematic-qdrant.platform.svc.cluster.local
+  # -- Configures `connections.qdrantPort` for the control-plane chart.
   qdrantPort: 6333
+  # -- Configures `connections.qdrantGrpcPort` for the control-plane chart.
   qdrantGrpcPort: 6334
+  # -- Configures `connections.neo4jUri` for the control-plane chart.
   neo4jUri: bolt://musematic-neo4j.platform.svc.cluster.local:7687
+  # -- Configures `connections.neo4jUser` for the control-plane chart.
   neo4jUser: neo4j
+  # -- Configures `connections.neo4jPassword` for the control-plane chart.
   neo4jPassword: neo4j
+  # -- Configures `connections.clickhouseHost` for the control-plane chart.
   clickhouseHost: musematic-clickhouse.platform.svc.cluster.local
+  # -- Configures `connections.clickhousePort` for the control-plane chart.
   clickhousePort: 8123
+  # -- Configures `connections.clickhouseUser` for the control-plane chart.
   clickhouseUser: default
+  # -- Configures `connections.clickhousePassword` for the control-plane chart.
   clickhousePassword: ""
+  # -- Configures `connections.clickhouseDatabase` for the control-plane chart.
   clickhouseDatabase: default
+  # -- Configures `connections.opensearchHosts` for the control-plane chart.
   opensearchHosts: http://musematic-opensearch.platform.svc.cluster.local:9200
+  # -- Configures `connections.opensearchUsername` for the control-plane chart.
   opensearchUsername: admin
+  # -- Configures `connections.opensearchPassword` for the control-plane chart.
   opensearchPassword: admin
+  # -- Configures `connections.s3EndpointUrl` for the control-plane chart.
   s3EndpointUrl: http://musematic-minio.platform-data.svc.cluster.local:9000
+  # -- Configures `connections.s3AccessKey` for the control-plane chart.
   s3AccessKey: platform
+  # -- Configures `connections.s3SecretKey` for the control-plane chart.
   s3SecretKey: change-me
+  # -- Configures `connections.s3Region` for the control-plane chart.
   s3Region: us-east-1
+  # -- Configures `connections.s3BucketPrefix` for the control-plane chart.
   s3BucketPrefix: platform
+  # -- Configures `connections.s3UsePathStyle` for the control-plane chart.
   s3UsePathStyle: true
+  # -- Configures `connections.s3Provider` for the control-plane chart.
   s3Provider: generic
+  # -- Configures `connections.grpcRuntimeController` for the control-plane chart.
   grpcRuntimeController: musematic-runtime-controller.platform.svc.cluster.local:50051
+  # -- Configures `connections.grpcReasoningEngine` for the control-plane chart.
   grpcReasoningEngine: reasoning-engine.platform.svc.cluster.local:50052
+  # -- Configures `connections.grpcSandboxManager` for the control-plane chart.
   grpcSandboxManager: sandbox-manager.platform.svc.cluster.local:50053
+  # -- Configures `connections.grpcSimulationController` for the control-plane chart.
   grpcSimulationController: musematic-simulation-controller.platform.svc.cluster.local:50055
+  # -- Configures `connections.authJwtSecretKey` for the control-plane chart.
   authJwtSecretKey: change-me
+  # -- Configures `connections.authMfaEncryptionKey` for the control-plane chart.
   authMfaEncryptionKey: ""
+  # -- Configures `connections.authJwtAlgorithm` for the control-plane chart.
   authJwtAlgorithm: HS256
+  # -- Configures `connections.rotatingSecrets` for the control-plane chart.
   rotatingSecrets: {}
 
+# @section -- Auth
+# -- Configures `auth` for the control-plane chart.
 auth:
+  # -- Configures `auth.oauth` for the control-plane chart.
   oauth:
+    # -- Configures `auth.oauth.rateLimitMax` for the control-plane chart.
     rateLimitMax: 10
+    # -- Configures `auth.oauth.rateLimitWindow` for the control-plane chart.
     rateLimitWindow: 60
+    # -- Configures `auth.oauth.google` for the control-plane chart.
     google:
+      # -- Configures `auth.oauth.google.authorizeUrl` for the control-plane chart.
       authorizeUrl: https://accounts.google.com/o/oauth2/v2/auth
+      # -- Configures `auth.oauth.google.tokenUrl` for the control-plane chart.
       tokenUrl: https://oauth2.googleapis.com/token
+      # -- Configures `auth.oauth.google.tokenInfoUrl` for the control-plane chart.
       tokenInfoUrl: https://oauth2.googleapis.com/tokeninfo
+    # -- Configures `auth.oauth.github` for the control-plane chart.
     github:
+      # -- Configures `auth.oauth.github.authorizeUrl` for the control-plane chart.
       authorizeUrl: https://github.com/login/oauth/authorize
+      # -- Configures `auth.oauth.github.tokenUrl` for the control-plane chart.
       tokenUrl: https://github.com/login/oauth/access_token
+      # -- Configures `auth.oauth.github.userUrl` for the control-plane chart.
       userUrl: https://api.github.com/user
+      # -- Configures `auth.oauth.github.emailsUrl` for the control-plane chart.
       emailsUrl: https://api.github.com/user/emails
+      # -- Configures `auth.oauth.github.teamsUrl` for the control-plane chart.
       teamsUrl: https://api.github.com/user/teams
+      # -- Configures `auth.oauth.github.orgMembershipUrlTemplate` for the control-plane chart.
       orgMembershipUrlTemplate: https://api.github.com/user/memberships/orgs/{org}
 
+# @section -- Migration
+# -- Configures `migration` for the control-plane chart.
 migration:
+  # -- Configures `migration.enabled` for the control-plane chart.
   enabled: true
+  # -- Configures `migration.hook` for the control-plane chart.
   hook: pre-install,pre-upgrade
+  # -- Configures `migration.backoffLimit` for the control-plane chart.
   backoffLimit: 3
+  # -- Configures `migration.retryAttempts` for the control-plane chart.
   retryAttempts: 1
+  # -- Configures `migration.retryDelaySeconds` for the control-plane chart.
   retryDelaySeconds: 5
 
+# @section -- Api
+# -- Configures `api` for the control-plane chart.
 api:
+  # -- Configures `api.enabled` for the control-plane chart.
   enabled: true
+  # -- Configures `api.replicaCount` for the control-plane chart.
   replicaCount: 1
+  # -- Configures `api.service` for the control-plane chart.
   service:
+    # -- Configures `api.service.type` for the control-plane chart.
     type: ClusterIP
+    # -- Configures `api.service.port` for the control-plane chart.
     port: 8000
+    # -- Configures `api.service.nodePort` for the control-plane chart.
     nodePort: null
 
+# @section -- Scheduler
+# -- Configures `scheduler` for the control-plane chart.
 scheduler:
+  # -- Configures `scheduler.enabled` for the control-plane chart.
   enabled: true
+  # -- Configures `scheduler.replicaCount` for the control-plane chart.
   replicaCount: 1
 
+# @section -- Worker
+# -- Configures `worker` for the control-plane chart.
 worker:
+  # -- Configures `worker.enabled` for the control-plane chart.
   enabled: true
+  # -- Configures `worker.replicaCount` for the control-plane chart.
   replicaCount: 1
 
+# @section -- Wshub
+# -- Configures `wsHub` for the control-plane chart.
 wsHub:
+  # -- Configures `wsHub.enabled` for the control-plane chart.
   enabled: true
+  # -- Configures `wsHub.replicaCount` for the control-plane chart.
   replicaCount: 1
+  # -- Configures `wsHub.service` for the control-plane chart.
   service:
+    # -- Configures `wsHub.service.type` for the control-plane chart.
     type: ClusterIP
+    # -- Configures `wsHub.service.port` for the control-plane chart.
     port: 8001
+    # -- Configures `wsHub.service.nodePort` for the control-plane chart.
     nodePort: null

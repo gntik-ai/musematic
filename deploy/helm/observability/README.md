@@ -1,95 +1,313 @@
-# Musematic Observability Chart
+# musematic-observability
 
-`deploy/helm/observability/` is the umbrella chart for Prometheus, Grafana,
-Alertmanager, Jaeger, Loki, Promtail, and the OTEL Collector. It installs into
-`platform-observability` and ships all dashboard, alert-rule, and Grafana
-datasource ConfigMaps used by the E2E journeys.
+![Version: 0.2.0](https://img.shields.io/badge/Version-0.2.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.1.0](https://img.shields.io/badge/AppVersion-0.1.0-informational?style=flat-square)
 
-## Install
+Unified observability stack for Musematic.
 
-```bash
-helm upgrade --install observability ./deploy/helm/observability \
-  --namespace platform-observability \
-  --create-namespace \
-  -f ./deploy/helm/observability/values-minimal.yaml \
-  --wait
-```
+## Requirements
 
-Presets:
+| Repository | Name | Version |
+|------------|------|---------|
+| https://grafana.github.io/helm-charts | loki | 6.16.0 |
+| https://grafana.github.io/helm-charts | promtail | 6.16.6 |
+| https://jaegertracing.github.io/helm-charts | jaeger | 3.4.1 |
+| https://open-telemetry.github.io/opentelemetry-helm-charts | opentelemetry-collector | 0.108.1 |
+| https://prometheus-community.github.io/helm-charts | kube-prometheus-stack | 65.8.1 |
 
-| Preset | Use | Capacity Envelope |
-|---|---|---|
-| `minimal` | dev/kind with persistence | <= 1 GiB RAM, 100k series, 10 logs/s, 100 traces/s |
-| `standard` | small production | ~4 GiB RAM, 1M series, 100 logs/s, 1k traces/s |
-| `enterprise` | HA production | ~16 GiB RAM, 10M series, 10k logs/s, 100k traces/s |
-| `e2e` | CI kind only | <= 1 GiB RAM, 1h retention, no PVs, no S3 |
+## Values
 
-The equivalent CLI path is:
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| createNamespace | bool | `false` | Configures `createNamespace` for the observability chart. |
+| frontendNamespaces | list | `["platform-control"]` | Configures `frontendNamespaces` for the observability chart. |
+| global | object | `{"frontendNamespaces":["platform-control"]}` | Configures `global` for the observability chart. |
+| global.frontendNamespaces | list | `["platform-control"]` | Configures `global.frontendNamespaces` for the observability chart. |
+| jaeger | object | `{"agent":{"enabled":false},"allInOne":{"args":["--collector.otlp.enabled=true"],"enabled":true,"service":{"collector":{"otlp":{"grpc":{"name":"otlp-grpc"},"http":{"name":"otlp-http"}}},"headless":false}},"collector":{"enabled":false},"persistence":{"enabled":true,"size":"5Gi"},"provisionDataStore":{"cassandra":false,"elasticsearch":false,"kafka":false},"query":{"enabled":false},"storage":{"badger":{"ephemeral":false,"persistence":{"mountPath":"/mnt/data","useExistingPvcName":"jaeger-badger"}},"type":"badger"}}` | Configures `jaeger` for the observability chart. |
+| jaeger.agent | object | `{"enabled":false}` | Configures `jaeger.agent` for the observability chart. |
+| jaeger.agent.enabled | bool | `false` | Configures `jaeger.agent.enabled` for the observability chart. |
+| jaeger.allInOne | object | `{"args":["--collector.otlp.enabled=true"],"enabled":true,"service":{"collector":{"otlp":{"grpc":{"name":"otlp-grpc"},"http":{"name":"otlp-http"}}},"headless":false}}` | Configures `jaeger.allInOne` for the observability chart. |
+| jaeger.allInOne.args | list | `["--collector.otlp.enabled=true"]` | Configures `jaeger.allInOne.args` for the observability chart. |
+| jaeger.allInOne.enabled | bool | `true` | Configures `jaeger.allInOne.enabled` for the observability chart. |
+| jaeger.allInOne.service | object | `{"collector":{"otlp":{"grpc":{"name":"otlp-grpc"},"http":{"name":"otlp-http"}}},"headless":false}` | Configures `jaeger.allInOne.service` for the observability chart. |
+| jaeger.allInOne.service.collector | object | `{"otlp":{"grpc":{"name":"otlp-grpc"},"http":{"name":"otlp-http"}}}` | Configures `jaeger.allInOne.service.collector` for the observability chart. |
+| jaeger.allInOne.service.collector.otlp | object | `{"grpc":{"name":"otlp-grpc"},"http":{"name":"otlp-http"}}` | Configures `jaeger.allInOne.service.collector.otlp` for the observability chart. |
+| jaeger.allInOne.service.collector.otlp.grpc | object | `{"name":"otlp-grpc"}` | Configures `jaeger.allInOne.service.collector.otlp.grpc` for the observability chart. |
+| jaeger.allInOne.service.collector.otlp.grpc.name | string | `"otlp-grpc"` | Configures `jaeger.allInOne.service.collector.otlp.grpc.name` for the observability chart. |
+| jaeger.allInOne.service.collector.otlp.http | object | `{"name":"otlp-http"}` | Configures `jaeger.allInOne.service.collector.otlp.http` for the observability chart. |
+| jaeger.allInOne.service.collector.otlp.http.name | string | `"otlp-http"` | Configures `jaeger.allInOne.service.collector.otlp.http.name` for the observability chart. |
+| jaeger.allInOne.service.headless | bool | `false` | Configures `jaeger.allInOne.service.headless` for the observability chart. |
+| jaeger.collector | object | `{"enabled":false}` | Configures `jaeger.collector` for the observability chart. |
+| jaeger.collector.enabled | bool | `false` | Configures `jaeger.collector.enabled` for the observability chart. |
+| jaeger.persistence | object | `{"enabled":true,"size":"5Gi"}` | Configures `jaeger.persistence` for the observability chart. |
+| jaeger.persistence.enabled | bool | `true` | Configures `jaeger.persistence.enabled` for the observability chart. |
+| jaeger.persistence.size | string | `"5Gi"` | Configures `jaeger.persistence.size` for the observability chart. |
+| jaeger.provisionDataStore | object | `{"cassandra":false,"elasticsearch":false,"kafka":false}` | Configures `jaeger.provisionDataStore` for the observability chart. |
+| jaeger.provisionDataStore.cassandra | bool | `false` | Configures `jaeger.provisionDataStore.cassandra` for the observability chart. |
+| jaeger.provisionDataStore.elasticsearch | bool | `false` | Configures `jaeger.provisionDataStore.elasticsearch` for the observability chart. |
+| jaeger.provisionDataStore.kafka | bool | `false` | Configures `jaeger.provisionDataStore.kafka` for the observability chart. |
+| jaeger.query | object | `{"enabled":false}` | Configures `jaeger.query` for the observability chart. |
+| jaeger.query.enabled | bool | `false` | Configures `jaeger.query.enabled` for the observability chart. |
+| jaeger.storage | object | `{"badger":{"ephemeral":false,"persistence":{"mountPath":"/mnt/data","useExistingPvcName":"jaeger-badger"}},"type":"badger"}` | Configures `jaeger.storage` for the observability chart. |
+| jaeger.storage.badger | object | `{"ephemeral":false,"persistence":{"mountPath":"/mnt/data","useExistingPvcName":"jaeger-badger"}}` | Configures `jaeger.storage.badger` for the observability chart. |
+| jaeger.storage.badger.ephemeral | bool | `false` | Configures `jaeger.storage.badger.ephemeral` for the observability chart. |
+| jaeger.storage.badger.persistence | object | `{"mountPath":"/mnt/data","useExistingPvcName":"jaeger-badger"}` | Configures `jaeger.storage.badger.persistence` for the observability chart. |
+| jaeger.storage.badger.persistence.mountPath | string | `"/mnt/data"` | Configures `jaeger.storage.badger.persistence.mountPath` for the observability chart. |
+| jaeger.storage.badger.persistence.useExistingPvcName | string | `"jaeger-badger"` | Configures `jaeger.storage.badger.persistence.useExistingPvcName` for the observability chart. |
+| jaeger.storage.type | string | `"badger"` | Configures `jaeger.storage.type` for the observability chart. |
+| kube-prometheus-stack | object | `{"alertmanager":{"alertmanagerSpec":{"storage":{"volumeClaimTemplate":{"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}}}}}}},"cleanPrometheusOperatorObjectNames":true,"grafana":{"adminPassword":"admin","plugins":["grafana-image-renderer"],"sidecar":{"dashboards":{"enabled":true,"label":"grafana_dashboard","labelValue":"1","searchNamespace":"platform-observability"},"datasources":{"enabled":true,"label":"grafana_datasource","labelValue":"1","searchNamespace":"platform-observability"}}},"prometheus":{"prometheusSpec":{"podMonitorSelector":{"matchLabels":{"prometheus":"musematic"}},"retention":"15d","ruleSelector":{"matchLabels":{"prometheus":"musematic"}},"scrapeInterval":"15s","serviceMonitorSelector":{"matchLabels":{"prometheus":"musematic"}},"storageSpec":{"volumeClaimTemplate":{"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"20Gi"}}}}}}}}` | Configures `kube-prometheus-stack` for the observability chart. |
+| kube-prometheus-stack.alertmanager | object | `{"alertmanagerSpec":{"storage":{"volumeClaimTemplate":{"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}}}}}}}` | Configures `kube-prometheus-stack.alertmanager` for the observability chart. |
+| kube-prometheus-stack.alertmanager.alertmanagerSpec | object | `{"storage":{"volumeClaimTemplate":{"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}}}}}}` | Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec` for the observability chart. |
+| kube-prometheus-stack.alertmanager.alertmanagerSpec.storage | object | `{"volumeClaimTemplate":{"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}}}}}` | Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec.storage` for the observability chart. |
+| kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate | object | `{"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}}}}` | Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate` for the observability chart. |
+| kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec | object | `{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}}}` | Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec` for the observability chart. |
+| kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.accessModes | list | `["ReadWriteOnce"]` | Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.accessModes` for the observability chart. |
+| kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources | object | `{"requests":{"storage":"5Gi"}}` | Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources` for the observability chart. |
+| kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources.requests | object | `{"storage":"5Gi"}` | Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources.requests` for the observability chart. |
+| kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources.requests.storage | string | `"5Gi"` | Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources.requests.storage` for the observability chart. |
+| kube-prometheus-stack.cleanPrometheusOperatorObjectNames | bool | `true` | Configures `kube-prometheus-stack.cleanPrometheusOperatorObjectNames` for the observability chart. |
+| kube-prometheus-stack.grafana | object | `{"adminPassword":"admin","plugins":["grafana-image-renderer"],"sidecar":{"dashboards":{"enabled":true,"label":"grafana_dashboard","labelValue":"1","searchNamespace":"platform-observability"},"datasources":{"enabled":true,"label":"grafana_datasource","labelValue":"1","searchNamespace":"platform-observability"}}}` | Configures `kube-prometheus-stack.grafana` for the observability chart. |
+| kube-prometheus-stack.grafana.adminPassword | string | `"admin"` | Configures `kube-prometheus-stack.grafana.adminPassword` for the observability chart. |
+| kube-prometheus-stack.grafana.plugins | list | `["grafana-image-renderer"]` | Configures `kube-prometheus-stack.grafana.plugins` for the observability chart. |
+| kube-prometheus-stack.grafana.sidecar | object | `{"dashboards":{"enabled":true,"label":"grafana_dashboard","labelValue":"1","searchNamespace":"platform-observability"},"datasources":{"enabled":true,"label":"grafana_datasource","labelValue":"1","searchNamespace":"platform-observability"}}` | Configures `kube-prometheus-stack.grafana.sidecar` for the observability chart. |
+| kube-prometheus-stack.grafana.sidecar.dashboards | object | `{"enabled":true,"label":"grafana_dashboard","labelValue":"1","searchNamespace":"platform-observability"}` | Configures `kube-prometheus-stack.grafana.sidecar.dashboards` for the observability chart. |
+| kube-prometheus-stack.grafana.sidecar.dashboards.enabled | bool | `true` | Configures `kube-prometheus-stack.grafana.sidecar.dashboards.enabled` for the observability chart. |
+| kube-prometheus-stack.grafana.sidecar.dashboards.label | string | `"grafana_dashboard"` | Configures `kube-prometheus-stack.grafana.sidecar.dashboards.label` for the observability chart. |
+| kube-prometheus-stack.grafana.sidecar.dashboards.labelValue | string | `"1"` | Configures `kube-prometheus-stack.grafana.sidecar.dashboards.labelValue` for the observability chart. |
+| kube-prometheus-stack.grafana.sidecar.dashboards.searchNamespace | string | `"platform-observability"` | Configures `kube-prometheus-stack.grafana.sidecar.dashboards.searchNamespace` for the observability chart. |
+| kube-prometheus-stack.grafana.sidecar.datasources | object | `{"enabled":true,"label":"grafana_datasource","labelValue":"1","searchNamespace":"platform-observability"}` | Configures `kube-prometheus-stack.grafana.sidecar.datasources` for the observability chart. |
+| kube-prometheus-stack.grafana.sidecar.datasources.enabled | bool | `true` | Configures `kube-prometheus-stack.grafana.sidecar.datasources.enabled` for the observability chart. |
+| kube-prometheus-stack.grafana.sidecar.datasources.label | string | `"grafana_datasource"` | Configures `kube-prometheus-stack.grafana.sidecar.datasources.label` for the observability chart. |
+| kube-prometheus-stack.grafana.sidecar.datasources.labelValue | string | `"1"` | Configures `kube-prometheus-stack.grafana.sidecar.datasources.labelValue` for the observability chart. |
+| kube-prometheus-stack.grafana.sidecar.datasources.searchNamespace | string | `"platform-observability"` | Configures `kube-prometheus-stack.grafana.sidecar.datasources.searchNamespace` for the observability chart. |
+| kube-prometheus-stack.prometheus | object | `{"prometheusSpec":{"podMonitorSelector":{"matchLabels":{"prometheus":"musematic"}},"retention":"15d","ruleSelector":{"matchLabels":{"prometheus":"musematic"}},"scrapeInterval":"15s","serviceMonitorSelector":{"matchLabels":{"prometheus":"musematic"}},"storageSpec":{"volumeClaimTemplate":{"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"20Gi"}}}}}}}` | Configures `kube-prometheus-stack.prometheus` for the observability chart. |
+| kube-prometheus-stack.prometheus.prometheusSpec | object | `{"podMonitorSelector":{"matchLabels":{"prometheus":"musematic"}},"retention":"15d","ruleSelector":{"matchLabels":{"prometheus":"musematic"}},"scrapeInterval":"15s","serviceMonitorSelector":{"matchLabels":{"prometheus":"musematic"}},"storageSpec":{"volumeClaimTemplate":{"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"20Gi"}}}}}}` | Configures `kube-prometheus-stack.prometheus.prometheusSpec` for the observability chart. |
+| kube-prometheus-stack.prometheus.prometheusSpec.podMonitorSelector | object | `{"matchLabels":{"prometheus":"musematic"}}` | Configures `kube-prometheus-stack.prometheus.prometheusSpec.podMonitorSelector` for the observability chart. |
+| kube-prometheus-stack.prometheus.prometheusSpec.podMonitorSelector.matchLabels | object | `{"prometheus":"musematic"}` | Configures `kube-prometheus-stack.prometheus.prometheusSpec.podMonitorSelector.matchLabels` for the observability chart. |
+| kube-prometheus-stack.prometheus.prometheusSpec.podMonitorSelector.matchLabels.prometheus | string | `"musematic"` | Configures `kube-prometheus-stack.prometheus.prometheusSpec.podMonitorSelector.matchLabels.prometheus` for the observability chart. |
+| kube-prometheus-stack.prometheus.prometheusSpec.retention | string | `"15d"` | Configures `kube-prometheus-stack.prometheus.prometheusSpec.retention` for the observability chart. |
+| kube-prometheus-stack.prometheus.prometheusSpec.ruleSelector | object | `{"matchLabels":{"prometheus":"musematic"}}` | Configures `kube-prometheus-stack.prometheus.prometheusSpec.ruleSelector` for the observability chart. |
+| kube-prometheus-stack.prometheus.prometheusSpec.ruleSelector.matchLabels | object | `{"prometheus":"musematic"}` | Configures `kube-prometheus-stack.prometheus.prometheusSpec.ruleSelector.matchLabels` for the observability chart. |
+| kube-prometheus-stack.prometheus.prometheusSpec.ruleSelector.matchLabels.prometheus | string | `"musematic"` | Configures `kube-prometheus-stack.prometheus.prometheusSpec.ruleSelector.matchLabels.prometheus` for the observability chart. |
+| kube-prometheus-stack.prometheus.prometheusSpec.scrapeInterval | string | `"15s"` | Configures `kube-prometheus-stack.prometheus.prometheusSpec.scrapeInterval` for the observability chart. |
+| kube-prometheus-stack.prometheus.prometheusSpec.serviceMonitorSelector | object | `{"matchLabels":{"prometheus":"musematic"}}` | Configures `kube-prometheus-stack.prometheus.prometheusSpec.serviceMonitorSelector` for the observability chart. |
+| kube-prometheus-stack.prometheus.prometheusSpec.serviceMonitorSelector.matchLabels | object | `{"prometheus":"musematic"}` | Configures `kube-prometheus-stack.prometheus.prometheusSpec.serviceMonitorSelector.matchLabels` for the observability chart. |
+| kube-prometheus-stack.prometheus.prometheusSpec.serviceMonitorSelector.matchLabels.prometheus | string | `"musematic"` | Configures `kube-prometheus-stack.prometheus.prometheusSpec.serviceMonitorSelector.matchLabels.prometheus` for the observability chart. |
+| kube-prometheus-stack.prometheus.prometheusSpec.storageSpec | object | `{"volumeClaimTemplate":{"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"20Gi"}}}}}` | Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec` for the observability chart. |
+| kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate | object | `{"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"20Gi"}}}}` | Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate` for the observability chart. |
+| kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec | object | `{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"20Gi"}}}` | Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec` for the observability chart. |
+| kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.accessModes | list | `["ReadWriteOnce"]` | Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.accessModes` for the observability chart. |
+| kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources | object | `{"requests":{"storage":"20Gi"}}` | Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources` for the observability chart. |
+| kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests | object | `{"storage":"20Gi"}` | Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests` for the observability chart. |
+| kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage | string | `"20Gi"` | Configures `kube-prometheus-stack.prometheus.prometheusSpec.storageSpec.volumeClaimTemplate.spec.resources.requests.storage` for the observability chart. |
+| loki | object | `{"backend":{"replicas":0},"deploymentMode":"SingleBinary","enabled":true,"extraArgs":["-config.expand-env=true"],"extraEnv":[{"name":"S3_ENDPOINT_URL","valueFrom":{"secretKeyRef":{"key":"S3_ENDPOINT_URL","name":"minio-platform-credentials"}}},{"name":"S3_ACCESS_KEY","valueFrom":{"secretKeyRef":{"key":"S3_ACCESS_KEY","name":"minio-platform-credentials"}}},{"name":"S3_SECRET_KEY","valueFrom":{"secretKeyRef":{"key":"S3_SECRET_KEY","name":"minio-platform-credentials"}}},{"name":"S3_USE_PATH_STYLE","valueFrom":{"secretKeyRef":{"key":"S3_USE_PATH_STYLE","name":"minio-platform-credentials","optional":true}}}],"fullnameOverride":"observability-loki","gateway":{"enabled":true},"loki":{"auth_enabled":false,"commonConfig":{"replication_factor":1},"compactor":{"delete_request_store":"s3","retention_enabled":true},"limits_config":{"retention_period":"336h"},"rulerConfig":{"storage":{"s3":{"bucketnames":"platform-loki-chunks"},"type":"s3"}},"schemaConfig":{"configs":[{"from":"2024-01-01","index":{"period":"24h","prefix":"loki_index_"},"object_store":"s3","schema":"v13","store":"tsdb"}]},"storage":{"bucketNames":{"admin":"platform-loki-chunks","chunks":"platform-loki-chunks","ruler":"platform-loki-chunks"},"s3":{"access_key_id":"${S3_ACCESS_KEY}","endpoint":"${S3_ENDPOINT_URL}","insecure":true,"s3ForcePathStyle":"${S3_USE_PATH_STYLE}","secret_access_key":"${S3_SECRET_KEY}"},"type":"s3"}},"read":{"replicas":0},"retention":{"cold":"2160h","hot":"336h"},"singleBinary":{"persistence":{"enabled":true,"size":"20Gi"},"replicas":1},"tenantRetentionOverrides":[],"write":{"replicas":0}}` | Configures `loki` for the observability chart. |
+| loki.backend | object | `{"replicas":0}` | Configures `loki.backend` for the observability chart. |
+| loki.backend.replicas | int | `0` | Configures `loki.backend.replicas` for the observability chart. |
+| loki.deploymentMode | string | `"SingleBinary"` | Configures `loki.deploymentMode` for the observability chart. |
+| loki.enabled | bool | `true` | Configures `loki.enabled` for the observability chart. |
+| loki.extraArgs | list | `["-config.expand-env=true"]` | Configures `loki.extraArgs` for the observability chart. |
+| loki.extraEnv | list | `[{"name":"S3_ENDPOINT_URL","valueFrom":{"secretKeyRef":{"key":"S3_ENDPOINT_URL","name":"minio-platform-credentials"}}},{"name":"S3_ACCESS_KEY","valueFrom":{"secretKeyRef":{"key":"S3_ACCESS_KEY","name":"minio-platform-credentials"}}},{"name":"S3_SECRET_KEY","valueFrom":{"secretKeyRef":{"key":"S3_SECRET_KEY","name":"minio-platform-credentials"}}},{"name":"S3_USE_PATH_STYLE","valueFrom":{"secretKeyRef":{"key":"S3_USE_PATH_STYLE","name":"minio-platform-credentials","optional":true}}}]` | Configures `loki.extraEnv` for the observability chart. |
+| loki.extraEnv[0].valueFrom | object | `{"secretKeyRef":{"key":"S3_ENDPOINT_URL","name":"minio-platform-credentials"}}` | Configures `loki.extraEnv.valueFrom` for the observability chart. |
+| loki.extraEnv[0].valueFrom.secretKeyRef | object | `{"key":"S3_ENDPOINT_URL","name":"minio-platform-credentials"}` | Configures `loki.extraEnv.valueFrom.secretKeyRef` for the observability chart. |
+| loki.extraEnv[0].valueFrom.secretKeyRef.key | string | `"S3_ENDPOINT_URL"` | Configures `loki.extraEnv.valueFrom.secretKeyRef.key` for the observability chart. |
+| loki.extraEnv[0].valueFrom.secretKeyRef.name | string | `"minio-platform-credentials"` | Configures `loki.extraEnv.valueFrom.secretKeyRef.name` for the observability chart. |
+| loki.extraEnv[1].valueFrom | object | `{"secretKeyRef":{"key":"S3_ACCESS_KEY","name":"minio-platform-credentials"}}` | Configures `loki.extraEnv.valueFrom` for the observability chart. |
+| loki.extraEnv[1].valueFrom.secretKeyRef | object | `{"key":"S3_ACCESS_KEY","name":"minio-platform-credentials"}` | Configures `loki.extraEnv.valueFrom.secretKeyRef` for the observability chart. |
+| loki.extraEnv[1].valueFrom.secretKeyRef.key | string | `"S3_ACCESS_KEY"` | Configures `loki.extraEnv.valueFrom.secretKeyRef.key` for the observability chart. |
+| loki.extraEnv[1].valueFrom.secretKeyRef.name | string | `"minio-platform-credentials"` | Configures `loki.extraEnv.valueFrom.secretKeyRef.name` for the observability chart. |
+| loki.extraEnv[2].valueFrom | object | `{"secretKeyRef":{"key":"S3_SECRET_KEY","name":"minio-platform-credentials"}}` | Configures `loki.extraEnv.valueFrom` for the observability chart. |
+| loki.extraEnv[2].valueFrom.secretKeyRef | object | `{"key":"S3_SECRET_KEY","name":"minio-platform-credentials"}` | Configures `loki.extraEnv.valueFrom.secretKeyRef` for the observability chart. |
+| loki.extraEnv[2].valueFrom.secretKeyRef.key | string | `"S3_SECRET_KEY"` | Configures `loki.extraEnv.valueFrom.secretKeyRef.key` for the observability chart. |
+| loki.extraEnv[2].valueFrom.secretKeyRef.name | string | `"minio-platform-credentials"` | Configures `loki.extraEnv.valueFrom.secretKeyRef.name` for the observability chart. |
+| loki.extraEnv[3].valueFrom | object | `{"secretKeyRef":{"key":"S3_USE_PATH_STYLE","name":"minio-platform-credentials","optional":true}}` | Configures `loki.extraEnv.valueFrom` for the observability chart. |
+| loki.extraEnv[3].valueFrom.secretKeyRef | object | `{"key":"S3_USE_PATH_STYLE","name":"minio-platform-credentials","optional":true}` | Configures `loki.extraEnv.valueFrom.secretKeyRef` for the observability chart. |
+| loki.extraEnv[3].valueFrom.secretKeyRef.key | string | `"S3_USE_PATH_STYLE"` | Configures `loki.extraEnv.valueFrom.secretKeyRef.key` for the observability chart. |
+| loki.extraEnv[3].valueFrom.secretKeyRef.name | string | `"minio-platform-credentials"` | Configures `loki.extraEnv.valueFrom.secretKeyRef.name` for the observability chart. |
+| loki.extraEnv[3].valueFrom.secretKeyRef.optional | bool | `true` | Configures `loki.extraEnv.valueFrom.secretKeyRef.optional` for the observability chart. |
+| loki.fullnameOverride | string | `"observability-loki"` | Configures `loki.fullnameOverride` for the observability chart. |
+| loki.gateway | object | `{"enabled":true}` | Configures `loki.gateway` for the observability chart. |
+| loki.gateway.enabled | bool | `true` | Configures `loki.gateway.enabled` for the observability chart. |
+| loki.loki | object | `{"auth_enabled":false,"commonConfig":{"replication_factor":1},"compactor":{"delete_request_store":"s3","retention_enabled":true},"limits_config":{"retention_period":"336h"},"rulerConfig":{"storage":{"s3":{"bucketnames":"platform-loki-chunks"},"type":"s3"}},"schemaConfig":{"configs":[{"from":"2024-01-01","index":{"period":"24h","prefix":"loki_index_"},"object_store":"s3","schema":"v13","store":"tsdb"}]},"storage":{"bucketNames":{"admin":"platform-loki-chunks","chunks":"platform-loki-chunks","ruler":"platform-loki-chunks"},"s3":{"access_key_id":"${S3_ACCESS_KEY}","endpoint":"${S3_ENDPOINT_URL}","insecure":true,"s3ForcePathStyle":"${S3_USE_PATH_STYLE}","secret_access_key":"${S3_SECRET_KEY}"},"type":"s3"}}` | Configures `loki.loki` for the observability chart. |
+| loki.loki.auth_enabled | bool | `false` | Configures `loki.loki.auth_enabled` for the observability chart. |
+| loki.loki.commonConfig | object | `{"replication_factor":1}` | Configures `loki.loki.commonConfig` for the observability chart. |
+| loki.loki.commonConfig.replication_factor | int | `1` | Configures `loki.loki.commonConfig.replication_factor` for the observability chart. |
+| loki.loki.compactor | object | `{"delete_request_store":"s3","retention_enabled":true}` | Configures `loki.loki.compactor` for the observability chart. |
+| loki.loki.compactor.delete_request_store | string | `"s3"` | Configures `loki.loki.compactor.delete_request_store` for the observability chart. |
+| loki.loki.compactor.retention_enabled | bool | `true` | Configures `loki.loki.compactor.retention_enabled` for the observability chart. |
+| loki.loki.limits_config | object | `{"retention_period":"336h"}` | Configures `loki.loki.limits_config` for the observability chart. |
+| loki.loki.limits_config.retention_period | string | `"336h"` | Configures `loki.loki.limits_config.retention_period` for the observability chart. |
+| loki.loki.rulerConfig | object | `{"storage":{"s3":{"bucketnames":"platform-loki-chunks"},"type":"s3"}}` | Configures `loki.loki.rulerConfig` for the observability chart. |
+| loki.loki.rulerConfig.storage | object | `{"s3":{"bucketnames":"platform-loki-chunks"},"type":"s3"}` | Configures `loki.loki.rulerConfig.storage` for the observability chart. |
+| loki.loki.rulerConfig.storage.s3 | object | `{"bucketnames":"platform-loki-chunks"}` | Configures `loki.loki.rulerConfig.storage.s3` for the observability chart. |
+| loki.loki.rulerConfig.storage.s3.bucketnames | string | `"platform-loki-chunks"` | Configures `loki.loki.rulerConfig.storage.s3.bucketnames` for the observability chart. |
+| loki.loki.rulerConfig.storage.type | string | `"s3"` | Configures `loki.loki.rulerConfig.storage.type` for the observability chart. |
+| loki.loki.schemaConfig | object | `{"configs":[{"from":"2024-01-01","index":{"period":"24h","prefix":"loki_index_"},"object_store":"s3","schema":"v13","store":"tsdb"}]}` | Configures `loki.loki.schemaConfig` for the observability chart. |
+| loki.loki.schemaConfig.configs | list | `[{"from":"2024-01-01","index":{"period":"24h","prefix":"loki_index_"},"object_store":"s3","schema":"v13","store":"tsdb"}]` | Configures `loki.loki.schemaConfig.configs` for the observability chart. |
+| loki.loki.schemaConfig.configs[0].index | object | `{"period":"24h","prefix":"loki_index_"}` | Configures `loki.loki.schemaConfig.configs.index` for the observability chart. |
+| loki.loki.schemaConfig.configs[0].index.period | string | `"24h"` | Configures `loki.loki.schemaConfig.configs.index.period` for the observability chart. |
+| loki.loki.schemaConfig.configs[0].index.prefix | string | `"loki_index_"` | Configures `loki.loki.schemaConfig.configs.index.prefix` for the observability chart. |
+| loki.loki.schemaConfig.configs[0].object_store | string | `"s3"` | Configures `loki.loki.schemaConfig.configs.object_store` for the observability chart. |
+| loki.loki.schemaConfig.configs[0].schema | string | `"v13"` | Configures `loki.loki.schemaConfig.configs.schema` for the observability chart. |
+| loki.loki.schemaConfig.configs[0].store | string | `"tsdb"` | Configures `loki.loki.schemaConfig.configs.store` for the observability chart. |
+| loki.loki.storage | object | `{"bucketNames":{"admin":"platform-loki-chunks","chunks":"platform-loki-chunks","ruler":"platform-loki-chunks"},"s3":{"access_key_id":"${S3_ACCESS_KEY}","endpoint":"${S3_ENDPOINT_URL}","insecure":true,"s3ForcePathStyle":"${S3_USE_PATH_STYLE}","secret_access_key":"${S3_SECRET_KEY}"},"type":"s3"}` | Configures `loki.loki.storage` for the observability chart. |
+| loki.loki.storage.bucketNames | object | `{"admin":"platform-loki-chunks","chunks":"platform-loki-chunks","ruler":"platform-loki-chunks"}` | Configures `loki.loki.storage.bucketNames` for the observability chart. |
+| loki.loki.storage.bucketNames.admin | string | `"platform-loki-chunks"` | Configures `loki.loki.storage.bucketNames.admin` for the observability chart. |
+| loki.loki.storage.bucketNames.chunks | string | `"platform-loki-chunks"` | Configures `loki.loki.storage.bucketNames.chunks` for the observability chart. |
+| loki.loki.storage.bucketNames.ruler | string | `"platform-loki-chunks"` | Configures `loki.loki.storage.bucketNames.ruler` for the observability chart. |
+| loki.loki.storage.s3 | object | `{"access_key_id":"${S3_ACCESS_KEY}","endpoint":"${S3_ENDPOINT_URL}","insecure":true,"s3ForcePathStyle":"${S3_USE_PATH_STYLE}","secret_access_key":"${S3_SECRET_KEY}"}` | Configures `loki.loki.storage.s3` for the observability chart. |
+| loki.loki.storage.s3.access_key_id | string | `"${S3_ACCESS_KEY}"` | Configures `loki.loki.storage.s3.access_key_id` for the observability chart. |
+| loki.loki.storage.s3.endpoint | string | `"${S3_ENDPOINT_URL}"` | Configures `loki.loki.storage.s3.endpoint` for the observability chart. |
+| loki.loki.storage.s3.insecure | bool | `true` | Configures `loki.loki.storage.s3.insecure` for the observability chart. |
+| loki.loki.storage.s3.s3ForcePathStyle | string | `"${S3_USE_PATH_STYLE}"` | Configures `loki.loki.storage.s3.s3ForcePathStyle` for the observability chart. |
+| loki.loki.storage.s3.secret_access_key | string | `"${S3_SECRET_KEY}"` | Configures `loki.loki.storage.s3.secret_access_key` for the observability chart. |
+| loki.loki.storage.type | string | `"s3"` | Configures `loki.loki.storage.type` for the observability chart. |
+| loki.read | object | `{"replicas":0}` | Configures `loki.read` for the observability chart. |
+| loki.read.replicas | int | `0` | Configures `loki.read.replicas` for the observability chart. |
+| loki.retention | object | `{"cold":"2160h","hot":"336h"}` | Configures `loki.retention` for the observability chart. |
+| loki.retention.cold | string | `"2160h"` | Configures `loki.retention.cold` for the observability chart. |
+| loki.retention.hot | string | `"336h"` | Configures `loki.retention.hot` for the observability chart. |
+| loki.singleBinary | object | `{"persistence":{"enabled":true,"size":"20Gi"},"replicas":1}` | Configures `loki.singleBinary` for the observability chart. |
+| loki.singleBinary.persistence | object | `{"enabled":true,"size":"20Gi"}` | Configures `loki.singleBinary.persistence` for the observability chart. |
+| loki.singleBinary.persistence.enabled | bool | `true` | Configures `loki.singleBinary.persistence.enabled` for the observability chart. |
+| loki.singleBinary.persistence.size | string | `"20Gi"` | Configures `loki.singleBinary.persistence.size` for the observability chart. |
+| loki.singleBinary.replicas | int | `1` | Configures `loki.singleBinary.replicas` for the observability chart. |
+| loki.tenantRetentionOverrides | list | `[]` | Configures `loki.tenantRetentionOverrides` for the observability chart. |
+| loki.write | object | `{"replicas":0}` | Configures `loki.write` for the observability chart. |
+| loki.write.replicas | int | `0` | Configures `loki.write.replicas` for the observability chart. |
+| networkPolicy | object | `{"enabled":true,"ingressControllerNamespaces":["ingress-nginx"],"platformNamespaces":["platform-control","platform-execution","platform-simulation","platform-data","platform-ui"],"s3EgressCidrs":["0.0.0.0/0"]}` | Configures `networkPolicy` for the observability chart. |
+| networkPolicy.enabled | bool | `true` | Configures `networkPolicy.enabled` for the observability chart. |
+| networkPolicy.ingressControllerNamespaces | list | `["ingress-nginx"]` | Configures `networkPolicy.ingressControllerNamespaces` for the observability chart. |
+| networkPolicy.platformNamespaces | list | `["platform-control","platform-execution","platform-simulation","platform-data","platform-ui"]` | Configures `networkPolicy.platformNamespaces` for the observability chart. |
+| networkPolicy.s3EgressCidrs | list | `["0.0.0.0/0"]` | Configures `networkPolicy.s3EgressCidrs` for the observability chart. |
+| opentelemetry-collector | object | `{"alternateConfig":{"exporters":{"otlp/jaeger":{"endpoint":"musematic-observability-jaeger-collector:4317","tls":{"insecure":true}},"prometheus":{"endpoint":"0.0.0.0:8889"}},"extensions":{"health_check":{"endpoint":"0.0.0.0:13133"}},"processors":{"batch":{},"memory_limiter":{"check_interval":"5s","limit_percentage":80,"spike_limit_percentage":25},"transform/correlation":{"error_mode":"ignore","trace_statements":[{"context":"span","statements":["set(resource.attributes[\"correlation_id\"], attributes[\"correlation_id\"]) where attributes[\"correlation_id\"] != nil"]}]}},"receivers":{"otlp":{"protocols":{"grpc":{"endpoint":"0.0.0.0:4317"},"http":{"endpoint":"0.0.0.0:4318"}}}},"service":{"extensions":["health_check"],"pipelines":{"metrics":{"exporters":["prometheus"],"processors":["memory_limiter","batch"],"receivers":["otlp"]},"traces":{"exporters":["otlp/jaeger"],"processors":["memory_limiter","transform/correlation","batch"],"receivers":["otlp"]}}}},"command":{"name":"otelcol-contrib"},"fullnameOverride":"otel-collector","image":{"repository":"otel/opentelemetry-collector-contrib"},"mode":"deployment","ports":{"jaeger-compact":{"enabled":false},"jaeger-grpc":{"enabled":false},"jaeger-thrift":{"enabled":false},"metrics":{"containerPort":8889,"enabled":true,"protocol":"TCP","servicePort":8889},"otlp":{"appProtocol":"grpc","containerPort":4317,"enabled":true,"protocol":"TCP","servicePort":4317},"otlp-http":{"containerPort":4318,"enabled":true,"protocol":"TCP","servicePort":4318},"zipkin":{"enabled":false}},"replicaCount":2,"resources":{"limits":{"cpu":"1","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}},"serviceMonitor":{"enabled":false}}` | Configures `opentelemetry-collector` for the observability chart. |
+| opentelemetry-collector.alternateConfig | object | `{"exporters":{"otlp/jaeger":{"endpoint":"musematic-observability-jaeger-collector:4317","tls":{"insecure":true}},"prometheus":{"endpoint":"0.0.0.0:8889"}},"extensions":{"health_check":{"endpoint":"0.0.0.0:13133"}},"processors":{"batch":{},"memory_limiter":{"check_interval":"5s","limit_percentage":80,"spike_limit_percentage":25},"transform/correlation":{"error_mode":"ignore","trace_statements":[{"context":"span","statements":["set(resource.attributes[\"correlation_id\"], attributes[\"correlation_id\"]) where attributes[\"correlation_id\"] != nil"]}]}},"receivers":{"otlp":{"protocols":{"grpc":{"endpoint":"0.0.0.0:4317"},"http":{"endpoint":"0.0.0.0:4318"}}}},"service":{"extensions":["health_check"],"pipelines":{"metrics":{"exporters":["prometheus"],"processors":["memory_limiter","batch"],"receivers":["otlp"]},"traces":{"exporters":["otlp/jaeger"],"processors":["memory_limiter","transform/correlation","batch"],"receivers":["otlp"]}}}}` | Configures `opentelemetry-collector.alternateConfig` for the observability chart. |
+| opentelemetry-collector.alternateConfig.exporters | object | `{"otlp/jaeger":{"endpoint":"musematic-observability-jaeger-collector:4317","tls":{"insecure":true}},"prometheus":{"endpoint":"0.0.0.0:8889"}}` | Configures `opentelemetry-collector.alternateConfig.exporters` for the observability chart. |
+| opentelemetry-collector.alternateConfig.exporters.otlp/jaeger | object | `{"endpoint":"musematic-observability-jaeger-collector:4317","tls":{"insecure":true}}` | Configures `opentelemetry-collector.alternateConfig.exporters.otlp/jaeger` for the observability chart. |
+| opentelemetry-collector.alternateConfig.exporters.otlp/jaeger.endpoint | string | `"musematic-observability-jaeger-collector:4317"` | Configures `opentelemetry-collector.alternateConfig.exporters.otlp/jaeger.endpoint` for the observability chart. |
+| opentelemetry-collector.alternateConfig.exporters.otlp/jaeger.tls | object | `{"insecure":true}` | Configures `opentelemetry-collector.alternateConfig.exporters.otlp/jaeger.tls` for the observability chart. |
+| opentelemetry-collector.alternateConfig.exporters.otlp/jaeger.tls.insecure | bool | `true` | Configures `opentelemetry-collector.alternateConfig.exporters.otlp/jaeger.tls.insecure` for the observability chart. |
+| opentelemetry-collector.alternateConfig.exporters.prometheus | object | `{"endpoint":"0.0.0.0:8889"}` | Configures `opentelemetry-collector.alternateConfig.exporters.prometheus` for the observability chart. |
+| opentelemetry-collector.alternateConfig.exporters.prometheus.endpoint | string | `"0.0.0.0:8889"` | Configures `opentelemetry-collector.alternateConfig.exporters.prometheus.endpoint` for the observability chart. |
+| opentelemetry-collector.alternateConfig.extensions | object | `{"health_check":{"endpoint":"0.0.0.0:13133"}}` | Configures `opentelemetry-collector.alternateConfig.extensions` for the observability chart. |
+| opentelemetry-collector.alternateConfig.extensions.health_check | object | `{"endpoint":"0.0.0.0:13133"}` | Configures `opentelemetry-collector.alternateConfig.extensions.health_check` for the observability chart. |
+| opentelemetry-collector.alternateConfig.extensions.health_check.endpoint | string | `"0.0.0.0:13133"` | Configures `opentelemetry-collector.alternateConfig.extensions.health_check.endpoint` for the observability chart. |
+| opentelemetry-collector.alternateConfig.processors | object | `{"batch":{},"memory_limiter":{"check_interval":"5s","limit_percentage":80,"spike_limit_percentage":25},"transform/correlation":{"error_mode":"ignore","trace_statements":[{"context":"span","statements":["set(resource.attributes[\"correlation_id\"], attributes[\"correlation_id\"]) where attributes[\"correlation_id\"] != nil"]}]}}` | Configures `opentelemetry-collector.alternateConfig.processors` for the observability chart. |
+| opentelemetry-collector.alternateConfig.processors.batch | object | `{}` | Configures `opentelemetry-collector.alternateConfig.processors.batch` for the observability chart. |
+| opentelemetry-collector.alternateConfig.processors.memory_limiter | object | `{"check_interval":"5s","limit_percentage":80,"spike_limit_percentage":25}` | Configures `opentelemetry-collector.alternateConfig.processors.memory_limiter` for the observability chart. |
+| opentelemetry-collector.alternateConfig.processors.memory_limiter.check_interval | string | `"5s"` | Configures `opentelemetry-collector.alternateConfig.processors.memory_limiter.check_interval` for the observability chart. |
+| opentelemetry-collector.alternateConfig.processors.memory_limiter.limit_percentage | int | `80` | Configures `opentelemetry-collector.alternateConfig.processors.memory_limiter.limit_percentage` for the observability chart. |
+| opentelemetry-collector.alternateConfig.processors.memory_limiter.spike_limit_percentage | int | `25` | Configures `opentelemetry-collector.alternateConfig.processors.memory_limiter.spike_limit_percentage` for the observability chart. |
+| opentelemetry-collector.alternateConfig.processors.transform/correlation | object | `{"error_mode":"ignore","trace_statements":[{"context":"span","statements":["set(resource.attributes[\"correlation_id\"], attributes[\"correlation_id\"]) where attributes[\"correlation_id\"] != nil"]}]}` | Configures `opentelemetry-collector.alternateConfig.processors.transform/correlation` for the observability chart. |
+| opentelemetry-collector.alternateConfig.processors.transform/correlation.error_mode | string | `"ignore"` | Configures `opentelemetry-collector.alternateConfig.processors.transform/correlation.error_mode` for the observability chart. |
+| opentelemetry-collector.alternateConfig.processors.transform/correlation.trace_statements | list | `[{"context":"span","statements":["set(resource.attributes[\"correlation_id\"], attributes[\"correlation_id\"]) where attributes[\"correlation_id\"] != nil"]}]` | Configures `opentelemetry-collector.alternateConfig.processors.transform/correlation.trace_statements` for the observability chart. |
+| opentelemetry-collector.alternateConfig.processors.transform/correlation.trace_statements[0].statements | list | `["set(resource.attributes[\"correlation_id\"], attributes[\"correlation_id\"]) where attributes[\"correlation_id\"] != nil"]` | Configures `opentelemetry-collector.alternateConfig.processors.transform/correlation.trace_statements.statements` for the observability chart. |
+| opentelemetry-collector.alternateConfig.receivers | object | `{"otlp":{"protocols":{"grpc":{"endpoint":"0.0.0.0:4317"},"http":{"endpoint":"0.0.0.0:4318"}}}}` | Configures `opentelemetry-collector.alternateConfig.receivers` for the observability chart. |
+| opentelemetry-collector.alternateConfig.receivers.otlp | object | `{"protocols":{"grpc":{"endpoint":"0.0.0.0:4317"},"http":{"endpoint":"0.0.0.0:4318"}}}` | Configures `opentelemetry-collector.alternateConfig.receivers.otlp` for the observability chart. |
+| opentelemetry-collector.alternateConfig.receivers.otlp.protocols | object | `{"grpc":{"endpoint":"0.0.0.0:4317"},"http":{"endpoint":"0.0.0.0:4318"}}` | Configures `opentelemetry-collector.alternateConfig.receivers.otlp.protocols` for the observability chart. |
+| opentelemetry-collector.alternateConfig.receivers.otlp.protocols.grpc | object | `{"endpoint":"0.0.0.0:4317"}` | Configures `opentelemetry-collector.alternateConfig.receivers.otlp.protocols.grpc` for the observability chart. |
+| opentelemetry-collector.alternateConfig.receivers.otlp.protocols.grpc.endpoint | string | `"0.0.0.0:4317"` | Configures `opentelemetry-collector.alternateConfig.receivers.otlp.protocols.grpc.endpoint` for the observability chart. |
+| opentelemetry-collector.alternateConfig.receivers.otlp.protocols.http | object | `{"endpoint":"0.0.0.0:4318"}` | Configures `opentelemetry-collector.alternateConfig.receivers.otlp.protocols.http` for the observability chart. |
+| opentelemetry-collector.alternateConfig.receivers.otlp.protocols.http.endpoint | string | `"0.0.0.0:4318"` | Configures `opentelemetry-collector.alternateConfig.receivers.otlp.protocols.http.endpoint` for the observability chart. |
+| opentelemetry-collector.alternateConfig.service | object | `{"extensions":["health_check"],"pipelines":{"metrics":{"exporters":["prometheus"],"processors":["memory_limiter","batch"],"receivers":["otlp"]},"traces":{"exporters":["otlp/jaeger"],"processors":["memory_limiter","transform/correlation","batch"],"receivers":["otlp"]}}}` | Configures `opentelemetry-collector.alternateConfig.service` for the observability chart. |
+| opentelemetry-collector.alternateConfig.service.extensions | list | `["health_check"]` | Configures `opentelemetry-collector.alternateConfig.service.extensions` for the observability chart. |
+| opentelemetry-collector.alternateConfig.service.pipelines | object | `{"metrics":{"exporters":["prometheus"],"processors":["memory_limiter","batch"],"receivers":["otlp"]},"traces":{"exporters":["otlp/jaeger"],"processors":["memory_limiter","transform/correlation","batch"],"receivers":["otlp"]}}` | Configures `opentelemetry-collector.alternateConfig.service.pipelines` for the observability chart. |
+| opentelemetry-collector.alternateConfig.service.pipelines.metrics | object | `{"exporters":["prometheus"],"processors":["memory_limiter","batch"],"receivers":["otlp"]}` | Configures `opentelemetry-collector.alternateConfig.service.pipelines.metrics` for the observability chart. |
+| opentelemetry-collector.alternateConfig.service.pipelines.metrics.exporters | list | `["prometheus"]` | Configures `opentelemetry-collector.alternateConfig.service.pipelines.metrics.exporters` for the observability chart. |
+| opentelemetry-collector.alternateConfig.service.pipelines.metrics.processors | list | `["memory_limiter","batch"]` | Configures `opentelemetry-collector.alternateConfig.service.pipelines.metrics.processors` for the observability chart. |
+| opentelemetry-collector.alternateConfig.service.pipelines.metrics.receivers | list | `["otlp"]` | Configures `opentelemetry-collector.alternateConfig.service.pipelines.metrics.receivers` for the observability chart. |
+| opentelemetry-collector.alternateConfig.service.pipelines.traces | object | `{"exporters":["otlp/jaeger"],"processors":["memory_limiter","transform/correlation","batch"],"receivers":["otlp"]}` | Configures `opentelemetry-collector.alternateConfig.service.pipelines.traces` for the observability chart. |
+| opentelemetry-collector.alternateConfig.service.pipelines.traces.exporters | list | `["otlp/jaeger"]` | Configures `opentelemetry-collector.alternateConfig.service.pipelines.traces.exporters` for the observability chart. |
+| opentelemetry-collector.alternateConfig.service.pipelines.traces.processors | list | `["memory_limiter","transform/correlation","batch"]` | Configures `opentelemetry-collector.alternateConfig.service.pipelines.traces.processors` for the observability chart. |
+| opentelemetry-collector.alternateConfig.service.pipelines.traces.receivers | list | `["otlp"]` | Configures `opentelemetry-collector.alternateConfig.service.pipelines.traces.receivers` for the observability chart. |
+| opentelemetry-collector.command | object | `{"name":"otelcol-contrib"}` | Configures `opentelemetry-collector.command` for the observability chart. |
+| opentelemetry-collector.command.name | string | `"otelcol-contrib"` | Configures `opentelemetry-collector.command.name` for the observability chart. |
+| opentelemetry-collector.fullnameOverride | string | `"otel-collector"` | Configures `opentelemetry-collector.fullnameOverride` for the observability chart. |
+| opentelemetry-collector.image | object | `{"repository":"otel/opentelemetry-collector-contrib"}` | Configures `opentelemetry-collector.image` for the observability chart. |
+| opentelemetry-collector.image.repository | string | `"otel/opentelemetry-collector-contrib"` | Configures `opentelemetry-collector.image.repository` for the observability chart. |
+| opentelemetry-collector.mode | string | `"deployment"` | Configures `opentelemetry-collector.mode` for the observability chart. |
+| opentelemetry-collector.ports | object | `{"jaeger-compact":{"enabled":false},"jaeger-grpc":{"enabled":false},"jaeger-thrift":{"enabled":false},"metrics":{"containerPort":8889,"enabled":true,"protocol":"TCP","servicePort":8889},"otlp":{"appProtocol":"grpc","containerPort":4317,"enabled":true,"protocol":"TCP","servicePort":4317},"otlp-http":{"containerPort":4318,"enabled":true,"protocol":"TCP","servicePort":4318},"zipkin":{"enabled":false}}` | Configures `opentelemetry-collector.ports` for the observability chart. |
+| opentelemetry-collector.ports.jaeger-compact | object | `{"enabled":false}` | Configures `opentelemetry-collector.ports.jaeger-compact` for the observability chart. |
+| opentelemetry-collector.ports.jaeger-compact.enabled | bool | `false` | Configures `opentelemetry-collector.ports.jaeger-compact.enabled` for the observability chart. |
+| opentelemetry-collector.ports.jaeger-grpc | object | `{"enabled":false}` | Configures `opentelemetry-collector.ports.jaeger-grpc` for the observability chart. |
+| opentelemetry-collector.ports.jaeger-grpc.enabled | bool | `false` | Configures `opentelemetry-collector.ports.jaeger-grpc.enabled` for the observability chart. |
+| opentelemetry-collector.ports.jaeger-thrift | object | `{"enabled":false}` | Configures `opentelemetry-collector.ports.jaeger-thrift` for the observability chart. |
+| opentelemetry-collector.ports.jaeger-thrift.enabled | bool | `false` | Configures `opentelemetry-collector.ports.jaeger-thrift.enabled` for the observability chart. |
+| opentelemetry-collector.ports.metrics | object | `{"containerPort":8889,"enabled":true,"protocol":"TCP","servicePort":8889}` | Configures `opentelemetry-collector.ports.metrics` for the observability chart. |
+| opentelemetry-collector.ports.metrics.containerPort | int | `8889` | Configures `opentelemetry-collector.ports.metrics.containerPort` for the observability chart. |
+| opentelemetry-collector.ports.metrics.enabled | bool | `true` | Configures `opentelemetry-collector.ports.metrics.enabled` for the observability chart. |
+| opentelemetry-collector.ports.metrics.protocol | string | `"TCP"` | Configures `opentelemetry-collector.ports.metrics.protocol` for the observability chart. |
+| opentelemetry-collector.ports.metrics.servicePort | int | `8889` | Configures `opentelemetry-collector.ports.metrics.servicePort` for the observability chart. |
+| opentelemetry-collector.ports.otlp | object | `{"appProtocol":"grpc","containerPort":4317,"enabled":true,"protocol":"TCP","servicePort":4317}` | Configures `opentelemetry-collector.ports.otlp` for the observability chart. |
+| opentelemetry-collector.ports.otlp-http | object | `{"containerPort":4318,"enabled":true,"protocol":"TCP","servicePort":4318}` | Configures `opentelemetry-collector.ports.otlp-http` for the observability chart. |
+| opentelemetry-collector.ports.otlp-http.containerPort | int | `4318` | Configures `opentelemetry-collector.ports.otlp-http.containerPort` for the observability chart. |
+| opentelemetry-collector.ports.otlp-http.enabled | bool | `true` | Configures `opentelemetry-collector.ports.otlp-http.enabled` for the observability chart. |
+| opentelemetry-collector.ports.otlp-http.protocol | string | `"TCP"` | Configures `opentelemetry-collector.ports.otlp-http.protocol` for the observability chart. |
+| opentelemetry-collector.ports.otlp-http.servicePort | int | `4318` | Configures `opentelemetry-collector.ports.otlp-http.servicePort` for the observability chart. |
+| opentelemetry-collector.ports.otlp.appProtocol | string | `"grpc"` | Configures `opentelemetry-collector.ports.otlp.appProtocol` for the observability chart. |
+| opentelemetry-collector.ports.otlp.containerPort | int | `4317` | Configures `opentelemetry-collector.ports.otlp.containerPort` for the observability chart. |
+| opentelemetry-collector.ports.otlp.enabled | bool | `true` | Configures `opentelemetry-collector.ports.otlp.enabled` for the observability chart. |
+| opentelemetry-collector.ports.otlp.protocol | string | `"TCP"` | Configures `opentelemetry-collector.ports.otlp.protocol` for the observability chart. |
+| opentelemetry-collector.ports.otlp.servicePort | int | `4317` | Configures `opentelemetry-collector.ports.otlp.servicePort` for the observability chart. |
+| opentelemetry-collector.ports.zipkin | object | `{"enabled":false}` | Configures `opentelemetry-collector.ports.zipkin` for the observability chart. |
+| opentelemetry-collector.ports.zipkin.enabled | bool | `false` | Configures `opentelemetry-collector.ports.zipkin.enabled` for the observability chart. |
+| opentelemetry-collector.replicaCount | int | `2` | Configures `opentelemetry-collector.replicaCount` for the observability chart. |
+| opentelemetry-collector.resources | object | `{"limits":{"cpu":"1","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Configures `opentelemetry-collector.resources` for the observability chart. |
+| opentelemetry-collector.resources.limits | object | `{"cpu":"1","memory":"512Mi"}` | Configures `opentelemetry-collector.resources.limits` for the observability chart. |
+| opentelemetry-collector.resources.limits.cpu | string | `"1"` | Configures `opentelemetry-collector.resources.limits.cpu` for the observability chart. |
+| opentelemetry-collector.resources.limits.memory | string | `"512Mi"` | Configures `opentelemetry-collector.resources.limits.memory` for the observability chart. |
+| opentelemetry-collector.resources.requests | object | `{"cpu":"250m","memory":"256Mi"}` | Configures `opentelemetry-collector.resources.requests` for the observability chart. |
+| opentelemetry-collector.resources.requests.cpu | string | `"250m"` | Configures `opentelemetry-collector.resources.requests.cpu` for the observability chart. |
+| opentelemetry-collector.resources.requests.memory | string | `"256Mi"` | Configures `opentelemetry-collector.resources.requests.memory` for the observability chart. |
+| opentelemetry-collector.serviceMonitor | object | `{"enabled":false}` | Configures `opentelemetry-collector.serviceMonitor` for the observability chart. |
+| opentelemetry-collector.serviceMonitor.enabled | bool | `false` | Configures `opentelemetry-collector.serviceMonitor.enabled` for the observability chart. |
+| promtail | object | `{"config":{"clients":[{"url":"http://observability-loki:3100/loki/api/v1/push"}],"snippets":{"extraRelabelConfigs":[{"action":"keep","regex":"platform-control|platform-execution|platform-simulation|platform-data|platform-observability","source_labels":["__meta_kubernetes_namespace"]}],"pipelineStages":[{"cri":{}},{"json":{"expressions":{"bounded_context":"bounded_context","correlation_id":"correlation_id","execution_id":"execution_id","goal_id":"goal_id","level":"level","message":"message","service":"service","span_id":"span_id","timestamp":"timestamp","trace_id":"trace_id","user_id":"user_id","workspace_id":"workspace_id"}}},{"labels":{"bounded_context":null,"level":null,"service":null}},{"timestamp":{"format":"RFC3339Nano","source":"timestamp"}},{"replace":{"expression":"Bearer [A-Za-z0-9\\-_]+\\.?[A-Za-z0-9\\-_]*\\.?[A-Za-z0-9\\-_]*","replace":"[REDACTED_TOKEN]"}},{"replace":{"expression":"sk-[A-Za-z0-9]{32,}|api_key=[A-Za-z0-9]{16,}|ghp_[A-Za-z0-9]{36}|AKIA[0-9A-Z]{16}","replace":"[REDACTED_API_KEY]"}},{"replace":{"expression":"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}","replace":"[REDACTED_EMAIL]"}},{"replace":{"expression":"\\b[0-9]{3}-[0-9]{2}-[0-9]{4}\\b","replace":"[REDACTED_SSN]"}},{"replace":{"expression":"\\b(?:[0-9][ -]*?){13,16}\\b","replace":"[REDACTED_CARD]"}}]}},"containerSecurityContext":{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true},"daemonset":{"enabled":true},"enabled":true,"podSecurityContext":{"fsGroup":10001,"runAsGroup":10001,"runAsNonRoot":true,"runAsUser":10001}}` | Configures `promtail` for the observability chart. |
+| promtail.config | object | `{"clients":[{"url":"http://observability-loki:3100/loki/api/v1/push"}],"snippets":{"extraRelabelConfigs":[{"action":"keep","regex":"platform-control|platform-execution|platform-simulation|platform-data|platform-observability","source_labels":["__meta_kubernetes_namespace"]}],"pipelineStages":[{"cri":{}},{"json":{"expressions":{"bounded_context":"bounded_context","correlation_id":"correlation_id","execution_id":"execution_id","goal_id":"goal_id","level":"level","message":"message","service":"service","span_id":"span_id","timestamp":"timestamp","trace_id":"trace_id","user_id":"user_id","workspace_id":"workspace_id"}}},{"labels":{"bounded_context":null,"level":null,"service":null}},{"timestamp":{"format":"RFC3339Nano","source":"timestamp"}},{"replace":{"expression":"Bearer [A-Za-z0-9\\-_]+\\.?[A-Za-z0-9\\-_]*\\.?[A-Za-z0-9\\-_]*","replace":"[REDACTED_TOKEN]"}},{"replace":{"expression":"sk-[A-Za-z0-9]{32,}|api_key=[A-Za-z0-9]{16,}|ghp_[A-Za-z0-9]{36}|AKIA[0-9A-Z]{16}","replace":"[REDACTED_API_KEY]"}},{"replace":{"expression":"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}","replace":"[REDACTED_EMAIL]"}},{"replace":{"expression":"\\b[0-9]{3}-[0-9]{2}-[0-9]{4}\\b","replace":"[REDACTED_SSN]"}},{"replace":{"expression":"\\b(?:[0-9][ -]*?){13,16}\\b","replace":"[REDACTED_CARD]"}}]}}` | Configures `promtail.config` for the observability chart. |
+| promtail.config.clients | list | `[{"url":"http://observability-loki:3100/loki/api/v1/push"}]` | Configures `promtail.config.clients` for the observability chart. |
+| promtail.config.snippets | object | `{"extraRelabelConfigs":[{"action":"keep","regex":"platform-control|platform-execution|platform-simulation|platform-data|platform-observability","source_labels":["__meta_kubernetes_namespace"]}],"pipelineStages":[{"cri":{}},{"json":{"expressions":{"bounded_context":"bounded_context","correlation_id":"correlation_id","execution_id":"execution_id","goal_id":"goal_id","level":"level","message":"message","service":"service","span_id":"span_id","timestamp":"timestamp","trace_id":"trace_id","user_id":"user_id","workspace_id":"workspace_id"}}},{"labels":{"bounded_context":null,"level":null,"service":null}},{"timestamp":{"format":"RFC3339Nano","source":"timestamp"}},{"replace":{"expression":"Bearer [A-Za-z0-9\\-_]+\\.?[A-Za-z0-9\\-_]*\\.?[A-Za-z0-9\\-_]*","replace":"[REDACTED_TOKEN]"}},{"replace":{"expression":"sk-[A-Za-z0-9]{32,}|api_key=[A-Za-z0-9]{16,}|ghp_[A-Za-z0-9]{36}|AKIA[0-9A-Z]{16}","replace":"[REDACTED_API_KEY]"}},{"replace":{"expression":"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}","replace":"[REDACTED_EMAIL]"}},{"replace":{"expression":"\\b[0-9]{3}-[0-9]{2}-[0-9]{4}\\b","replace":"[REDACTED_SSN]"}},{"replace":{"expression":"\\b(?:[0-9][ -]*?){13,16}\\b","replace":"[REDACTED_CARD]"}}]}` | Configures `promtail.config.snippets` for the observability chart. |
+| promtail.config.snippets.extraRelabelConfigs | list | `[{"action":"keep","regex":"platform-control|platform-execution|platform-simulation|platform-data|platform-observability","source_labels":["__meta_kubernetes_namespace"]}]` | Configures `promtail.config.snippets.extraRelabelConfigs` for the observability chart. |
+| promtail.config.snippets.extraRelabelConfigs[0].action | string | `"keep"` | Configures `promtail.config.snippets.extraRelabelConfigs.action` for the observability chart. |
+| promtail.config.snippets.extraRelabelConfigs[0].regex | string | `"platform-control|platform-execution|platform-simulation|platform-data|platform-observability"` | Configures `promtail.config.snippets.extraRelabelConfigs.regex` for the observability chart. |
+| promtail.config.snippets.pipelineStages | list | `[{"cri":{}},{"json":{"expressions":{"bounded_context":"bounded_context","correlation_id":"correlation_id","execution_id":"execution_id","goal_id":"goal_id","level":"level","message":"message","service":"service","span_id":"span_id","timestamp":"timestamp","trace_id":"trace_id","user_id":"user_id","workspace_id":"workspace_id"}}},{"labels":{"bounded_context":null,"level":null,"service":null}},{"timestamp":{"format":"RFC3339Nano","source":"timestamp"}},{"replace":{"expression":"Bearer [A-Za-z0-9\\-_]+\\.?[A-Za-z0-9\\-_]*\\.?[A-Za-z0-9\\-_]*","replace":"[REDACTED_TOKEN]"}},{"replace":{"expression":"sk-[A-Za-z0-9]{32,}|api_key=[A-Za-z0-9]{16,}|ghp_[A-Za-z0-9]{36}|AKIA[0-9A-Z]{16}","replace":"[REDACTED_API_KEY]"}},{"replace":{"expression":"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}","replace":"[REDACTED_EMAIL]"}},{"replace":{"expression":"\\b[0-9]{3}-[0-9]{2}-[0-9]{4}\\b","replace":"[REDACTED_SSN]"}},{"replace":{"expression":"\\b(?:[0-9][ -]*?){13,16}\\b","replace":"[REDACTED_CARD]"}}]` | Configures `promtail.config.snippets.pipelineStages` for the observability chart. |
+| promtail.config.snippets.pipelineStages[1].json.expressions | object | `{"bounded_context":"bounded_context","correlation_id":"correlation_id","execution_id":"execution_id","goal_id":"goal_id","level":"level","message":"message","service":"service","span_id":"span_id","timestamp":"timestamp","trace_id":"trace_id","user_id":"user_id","workspace_id":"workspace_id"}` | Configures `promtail.config.snippets.pipelineStages.expressions` for the observability chart. |
+| promtail.config.snippets.pipelineStages[1].json.expressions.bounded_context | string | `"bounded_context"` | Configures `promtail.config.snippets.pipelineStages.expressions.bounded_context` for the observability chart. |
+| promtail.config.snippets.pipelineStages[1].json.expressions.correlation_id | string | `"correlation_id"` | Configures `promtail.config.snippets.pipelineStages.expressions.correlation_id` for the observability chart. |
+| promtail.config.snippets.pipelineStages[1].json.expressions.execution_id | string | `"execution_id"` | Configures `promtail.config.snippets.pipelineStages.expressions.execution_id` for the observability chart. |
+| promtail.config.snippets.pipelineStages[1].json.expressions.goal_id | string | `"goal_id"` | Configures `promtail.config.snippets.pipelineStages.expressions.goal_id` for the observability chart. |
+| promtail.config.snippets.pipelineStages[1].json.expressions.level | string | `"level"` | Configures `promtail.config.snippets.pipelineStages.expressions.level` for the observability chart. |
+| promtail.config.snippets.pipelineStages[1].json.expressions.message | string | `"message"` | Configures `promtail.config.snippets.pipelineStages.expressions.message` for the observability chart. |
+| promtail.config.snippets.pipelineStages[1].json.expressions.service | string | `"service"` | Configures `promtail.config.snippets.pipelineStages.expressions.service` for the observability chart. |
+| promtail.config.snippets.pipelineStages[1].json.expressions.span_id | string | `"span_id"` | Configures `promtail.config.snippets.pipelineStages.expressions.span_id` for the observability chart. |
+| promtail.config.snippets.pipelineStages[1].json.expressions.timestamp | string | `"timestamp"` | Configures `promtail.config.snippets.pipelineStages.expressions.timestamp` for the observability chart. |
+| promtail.config.snippets.pipelineStages[1].json.expressions.trace_id | string | `"trace_id"` | Configures `promtail.config.snippets.pipelineStages.expressions.trace_id` for the observability chart. |
+| promtail.config.snippets.pipelineStages[1].json.expressions.user_id | string | `"user_id"` | Configures `promtail.config.snippets.pipelineStages.expressions.user_id` for the observability chart. |
+| promtail.config.snippets.pipelineStages[1].json.expressions.workspace_id | string | `"workspace_id"` | Configures `promtail.config.snippets.pipelineStages.expressions.workspace_id` for the observability chart. |
+| promtail.config.snippets.pipelineStages[2].labels.bounded_context | string | `nil` | Configures `promtail.config.snippets.pipelineStages.bounded_context` for the observability chart. |
+| promtail.config.snippets.pipelineStages[2].labels.level | string | `nil` | Configures `promtail.config.snippets.pipelineStages.level` for the observability chart. |
+| promtail.config.snippets.pipelineStages[2].labels.service | string | `nil` | Configures `promtail.config.snippets.pipelineStages.service` for the observability chart. |
+| promtail.config.snippets.pipelineStages[3].timestamp.format | string | `"RFC3339Nano"` | Configures `promtail.config.snippets.pipelineStages.format` for the observability chart. |
+| promtail.config.snippets.pipelineStages[3].timestamp.source | string | `"timestamp"` | Configures `promtail.config.snippets.pipelineStages.source` for the observability chart. |
+| promtail.config.snippets.pipelineStages[4].replace.expression | string | `"Bearer [A-Za-z0-9\\-_]+\\.?[A-Za-z0-9\\-_]*\\.?[A-Za-z0-9\\-_]*"` | Configures `promtail.config.snippets.pipelineStages.expression` for the observability chart. |
+| promtail.config.snippets.pipelineStages[4].replace.replace | string | `"[REDACTED_TOKEN]"` | Configures `promtail.config.snippets.pipelineStages.replace` for the observability chart. |
+| promtail.config.snippets.pipelineStages[5].replace.expression | string | `"sk-[A-Za-z0-9]{32,}|api_key=[A-Za-z0-9]{16,}|ghp_[A-Za-z0-9]{36}|AKIA[0-9A-Z]{16}"` | Configures `promtail.config.snippets.pipelineStages.expression` for the observability chart. |
+| promtail.config.snippets.pipelineStages[5].replace.replace | string | `"[REDACTED_API_KEY]"` | Configures `promtail.config.snippets.pipelineStages.replace` for the observability chart. |
+| promtail.config.snippets.pipelineStages[6].replace.expression | string | `"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"` | Configures `promtail.config.snippets.pipelineStages.expression` for the observability chart. |
+| promtail.config.snippets.pipelineStages[6].replace.replace | string | `"[REDACTED_EMAIL]"` | Configures `promtail.config.snippets.pipelineStages.replace` for the observability chart. |
+| promtail.config.snippets.pipelineStages[7].replace.expression | string | `"\\b[0-9]{3}-[0-9]{2}-[0-9]{4}\\b"` | Configures `promtail.config.snippets.pipelineStages.expression` for the observability chart. |
+| promtail.config.snippets.pipelineStages[7].replace.replace | string | `"[REDACTED_SSN]"` | Configures `promtail.config.snippets.pipelineStages.replace` for the observability chart. |
+| promtail.config.snippets.pipelineStages[8].replace.expression | string | `"\\b(?:[0-9][ -]*?){13,16}\\b"` | Configures `promtail.config.snippets.pipelineStages.expression` for the observability chart. |
+| promtail.config.snippets.pipelineStages[8].replace.replace | string | `"[REDACTED_CARD]"` | Configures `promtail.config.snippets.pipelineStages.replace` for the observability chart. |
+| promtail.containerSecurityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true}` | Configures `promtail.containerSecurityContext` for the observability chart. |
+| promtail.containerSecurityContext.allowPrivilegeEscalation | bool | `false` | Configures `promtail.containerSecurityContext.allowPrivilegeEscalation` for the observability chart. |
+| promtail.containerSecurityContext.capabilities | object | `{"drop":["ALL"]}` | Configures `promtail.containerSecurityContext.capabilities` for the observability chart. |
+| promtail.containerSecurityContext.capabilities.drop | list | `["ALL"]` | Configures `promtail.containerSecurityContext.capabilities.drop` for the observability chart. |
+| promtail.containerSecurityContext.readOnlyRootFilesystem | bool | `true` | Configures `promtail.containerSecurityContext.readOnlyRootFilesystem` for the observability chart. |
+| promtail.daemonset | object | `{"enabled":true}` | Configures `promtail.daemonset` for the observability chart. |
+| promtail.daemonset.enabled | bool | `true` | Configures `promtail.daemonset.enabled` for the observability chart. |
+| promtail.enabled | bool | `true` | Configures `promtail.enabled` for the observability chart. |
+| promtail.podSecurityContext | object | `{"fsGroup":10001,"runAsGroup":10001,"runAsNonRoot":true,"runAsUser":10001}` | Configures `promtail.podSecurityContext` for the observability chart. |
+| promtail.podSecurityContext.fsGroup | int | `10001` | Configures `promtail.podSecurityContext.fsGroup` for the observability chart. |
+| promtail.podSecurityContext.runAsGroup | int | `10001` | Configures `promtail.podSecurityContext.runAsGroup` for the observability chart. |
+| promtail.podSecurityContext.runAsNonRoot | bool | `true` | Configures `promtail.podSecurityContext.runAsNonRoot` for the observability chart. |
+| promtail.podSecurityContext.runAsUser | int | `10001` | Configures `promtail.podSecurityContext.runAsUser` for the observability chart. |
 
-```bash
-platform-cli observability install --preset standard --wait
-platform-cli observability status
-```
-
-## S3 Bucket Setup
-
-`standard` and `enterprise` use S3-compatible storage for Loki chunks and run
-the `loki-bucket-init` pre-install hook. The hook expects the
-`minio-platform-credentials` secret to exist in `platform-observability`.
-Production installs should install the platform chart first or pre-create that
-generic-S3 secret. `minimal` and `e2e` use filesystem storage and skip the hook.
-
-## Datasources
-
-Grafana datasource provisioning is sidecar-driven. The chart renders three
-ConfigMaps labelled `grafana_datasource: "1"`:
-
-| Datasource | UID | Contract |
-|---|---|---|
-| Prometheus | `prometheus` | Default metrics datasource |
-| Loki | `loki` | Derived fields for `trace_id` -> Jaeger and `correlation_id` -> Loki query |
-| Jaeger | `jaeger` | Trace datasource referenced by the Loki derived field |
-
-After install, verify:
-
-```bash
-kubectl -n platform-observability port-forward svc/observability-grafana 3000:80
-curl -fsS http://localhost:3000/api/health
-```
-
-## Dashboards And Alerts
-
-Dashboard inventory is versioned at
-`specs/085-extended-e2e-journey/contracts/dashboard-inventory.md`. The chart
-currently ships 22 dashboard ConfigMaps; `trust-content-moderation.yaml` is the
-feature 078 dashboard that was absent from the brownfield 21-row list.
-
-Alert rules are rendered from `templates/alerts/`. Loki label-cardinality rules
-are enforced by the feature 084 lint:
-`scripts/ci/check_loki_label_cardinality.py`.
-
-## Uninstall
-
-```bash
-platform-cli observability uninstall
-platform-cli observability uninstall --purge-pvcs
-```
-
-Without `--purge-pvcs`, the CLI lists Helm-owned PVCs, CRDs, webhooks, and
-ConfigMaps that may remain after `helm uninstall`. With `--purge-pvcs`, it asks
-for confirmation before deleting those residual resources.
-
-## Troubleshooting
-
-| Symptom | Check |
-|---|---|
-| PVC pending in `minimal` | Verify the cluster has a default StorageClass or switch to `values-e2e.yaml` for ephemeral CI. |
-| S3 bucket creation fails | Confirm `minio-platform-credentials` exists and contains `S3_ENDPOINT_URL`, `S3_ACCESS_KEY`, and `S3_SECRET_KEY`. |
-| Renderer OOMs | Use `minimal` or `e2e`, where `grafana-image-renderer` is disabled, or raise Grafana memory limits. |
-| Datasource duplicates | Confirm `kube-prometheus-stack.grafana.additionalDataSources` is not reintroduced in tenant overlays. |
-
-## Tested Distributions
-
-The everyday CI target is kind via `tests/e2e/cluster/install.sh` with
-`values-e2e.yaml`. k3s and managed-cluster smoke results are tracked by feature
-085 validation tasks.
+----------------------------------------------
+Autogenerated from chart metadata using [helm-docs v1.13.1](https://github.com/norwoodj/helm-docs/releases/v1.13.1)

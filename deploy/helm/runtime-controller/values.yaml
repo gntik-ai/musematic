@@ -1,48 +1,98 @@
+# @section -- Replicacount
+# -- Configures `replicaCount` for the runtime-controller chart.
 replicaCount: 1
 
+# @section -- Image
+# -- Configures `image` for the runtime-controller chart.
 image:
+  # -- Configures `image.repository` for the runtime-controller chart.
   repository: ghcr.io/andrea-mucci/musematic/runtime-controller
+  # -- Configures `image.tag` for the runtime-controller chart.
   tag: latest
+  # -- Configures `image.pullPolicy` for the runtime-controller chart.
   pullPolicy: IfNotPresent
 
+# @section -- Grpcport
+# -- Configures `grpcPort` for the runtime-controller chart.
 grpcPort: 50051
+# @section -- Httpport
+# -- Configures `httpPort` for the runtime-controller chart.
 httpPort: 8080
 
+# @section -- Resources
+# -- Configures `resources` for the runtime-controller chart.
 resources:
+  # -- Configures `resources.requests` for the runtime-controller chart.
   requests:
+    # -- Configures `resources.requests.cpu` for the runtime-controller chart.
     cpu: 250m
+    # -- Configures `resources.requests.memory` for the runtime-controller chart.
     memory: 256Mi
+  # -- Configures `resources.limits` for the runtime-controller chart.
   limits:
+    # -- Configures `resources.limits.cpu` for the runtime-controller chart.
     cpu: "1"
+    # -- Configures `resources.limits.memory` for the runtime-controller chart.
     memory: 512Mi
 
+# @section -- Configsecretref
+# -- Configures `configSecretRef` for the runtime-controller chart.
 configSecretRef: runtime-controller-config
 
+# @section -- Secrets
+# -- Configures `secrets` for the runtime-controller chart.
 secrets:
+  # -- Configures `secrets.POSTGRES_DSN` for the runtime-controller chart.
   POSTGRES_DSN: ""
+  # -- Configures `secrets.REDIS_ADDR` for the runtime-controller chart.
   REDIS_ADDR: ""
+  # -- Configures `secrets.REDIS_PASSWORD` for the runtime-controller chart.
   REDIS_PASSWORD: ""
+  # -- Configures `secrets.KAFKA_BROKERS` for the runtime-controller chart.
   KAFKA_BROKERS: ""
+  # -- Configures `secrets.S3_ENDPOINT_URL` for the runtime-controller chart.
   S3_ENDPOINT_URL: ""
+  # -- Configures `secrets.S3_BUCKET` for the runtime-controller chart.
   S3_BUCKET: ""
+  # -- Configures `secrets.S3_ACCESS_KEY` for the runtime-controller chart.
   S3_ACCESS_KEY: ""
+  # -- Configures `secrets.S3_SECRET_KEY` for the runtime-controller chart.
   S3_SECRET_KEY: ""
+  # -- Configures `secrets.S3_REGION` for the runtime-controller chart.
   S3_REGION: us-east-1
+  # -- Configures `secrets.S3_USE_PATH_STYLE` for the runtime-controller chart.
   S3_USE_PATH_STYLE: "true"
+  # -- Configures `secrets.K8S_DRY_RUN` for the runtime-controller chart.
   K8S_DRY_RUN: "false"
 
+# @section -- Config
+# -- Configures `config` for the runtime-controller chart.
 config:
+  # -- Configures `config.k8sNamespace` for the runtime-controller chart.
   k8sNamespace: platform-execution
+  # -- Configures `config.reconcileInterval` for the runtime-controller chart.
   reconcileInterval: 30s
+  # -- Configures `config.heartbeatTimeout` for the runtime-controller chart.
   heartbeatTimeout: 60s
+  # -- Configures `config.heartbeatCheckInterval` for the runtime-controller chart.
   heartbeatCheckInterval: 10s
+  # -- Configures `config.warmPoolIdleTimeout` for the runtime-controller chart.
   warmPoolIdleTimeout: 5m
+  # -- Configures `config.warmPoolReplenishInterval` for the runtime-controller chart.
   warmPoolReplenishInterval: 30s
+  # -- Configures `config.stopGracePeriod` for the runtime-controller chart.
   stopGracePeriod: 30s
+  # -- Configures `config.agentPackagePresignTTL` for the runtime-controller chart.
   agentPackagePresignTTL: 2h
+  # -- Configures `config.otelExporterOtlpEndpoint` for the runtime-controller chart.
   otelExporterOtlpEndpoint: http://otel-collector.platform-observability.svc.cluster.local:4317
+  # -- Configures `config.otelServiceName` for the runtime-controller chart.
   otelServiceName: runtime-controller
+  # -- Configures `config.otelResourceAttributes` for the runtime-controller chart.
   otelResourceAttributes: deployment.environment=production
 
+# @section -- Networkpolicy
+# -- Configures `networkPolicy` for the runtime-controller chart.
 networkPolicy:
+  # -- Configures `networkPolicy.enabled` for the runtime-controller chart.
   enabled: true

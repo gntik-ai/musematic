@@ -1,9 +1,23 @@
+# @section -- Combined
+# -- Configures `combined` for the kafka chart.
 combined: true
+# @section -- Combinedreplicas
+# -- Configures `combinedReplicas` for the kafka chart.
 combinedReplicas: 1
+# @section -- Replicationfactor
+# -- Configures `replicationFactor` for the kafka chart.
 replicationFactor: 1
+# @section -- Mininsyncreplicas
+# -- Configures `minInsyncReplicas` for the kafka chart.
 minInsyncReplicas: 1
+# @section -- Storage
+# -- Configures `storage` for the kafka chart.
 storage:
+  # -- Configures `storage.size` for the kafka chart.
   size: 5Gi
+# @section -- Networkpolicy
+# -- Configures `networkPolicy` for the kafka chart.
 networkPolicy:
+  # -- Configures `networkPolicy.enabled` for the kafka chart.
   enabled: false
 

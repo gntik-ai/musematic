@@ -1,32 +1,64 @@
+# @section -- Global
+# -- Configures `global` for the platform chart.
 global:
+  # -- Configures `global.environment` for the platform chart.
   environment: production
 
+# @section -- Multi Region
+# -- Configures `multi_region` for the platform chart.
 multi_region:
+  # -- Configures `multi_region.enabled` for the platform chart.
   enabled: true
+  # -- Configures `multi_region.role` for the platform chart.
   role: secondary
+  # -- Configures `multi_region.primaryRegion` for the platform chart.
   primaryRegion: eu-west
+  # -- Configures `multi_region.secondaryRegion` for the platform chart.
   secondaryRegion: us-east
+  # -- Configures `multi_region.featureFlags` for the platform chart.
   featureFlags:
+    # -- Configures `multi_region.featureFlags.FEATURE_MULTI_REGION` for the platform chart.
     FEATURE_MULTI_REGION: "true"
+    # -- Configures `multi_region.featureFlags.FEATURE_MAINTENANCE_MODE` for the platform chart.
     FEATURE_MAINTENANCE_MODE: "true"
+  # -- Configures `multi_region.endpointRefs` for the platform chart.
   endpointRefs:
+    # -- Configures `multi_region.endpointRefs.postgresReplicaDsnRef` for the platform chart.
     postgresReplicaDsnRef: secret/data/multi-region/postgres/replica-dsn
+    # -- Configures `multi_region.endpointRefs.kafkaAdminBrokersRef` for the platform chart.
     kafkaAdminBrokersRef: secret/data/multi-region/kafka/admin-brokers
+    # -- Configures `multi_region.endpointRefs.s3EndpointUrlRef` for the platform chart.
     s3EndpointUrlRef: secret/data/multi-region/s3/endpoint-url
+    # -- Configures `multi_region.endpointRefs.s3AccessKeyRef` for the platform chart.
     s3AccessKeyRef: secret/data/multi-region/s3/access-key
+    # -- Configures `multi_region.endpointRefs.s3SecretKeyRef` for the platform chart.
     s3SecretKeyRef: secret/data/multi-region/s3/secret-key
+    # -- Configures `multi_region.endpointRefs.qdrantApiKeyRef` for the platform chart.
     qdrantApiKeyRef: secret/data/multi-region/qdrant/api-key
+    # -- Configures `multi_region.endpointRefs.neo4jUriRef` for the platform chart.
     neo4jUriRef: secret/data/multi-region/neo4j/uri
+    # -- Configures `multi_region.endpointRefs.neo4jUserRef` for the platform chart.
     neo4jUserRef: secret/data/multi-region/neo4j/user
+    # -- Configures `multi_region.endpointRefs.neo4jPasswordRef` for the platform chart.
     neo4jPasswordRef: secret/data/multi-region/neo4j/password
+    # -- Configures `multi_region.endpointRefs.opensearchApiKeyRef` for the platform chart.
     opensearchApiKeyRef: secret/data/multi-region/opensearch/api-key
+  # -- Configures `multi_region.images` for the platform chart.
   images:
+    # -- Configures `multi_region.images.tools` for the platform chart.
     tools: ghcr.io/musematic/platform-tools:latest
+    # -- Configures `multi_region.images.kafkaMirrorMaker` for the platform chart.
     kafkaMirrorMaker: quay.io/strimzi/kafka:0.43.0-kafka-3.8.0
 
+# @section -- Controlplane
+# -- Configures `controlPlane` for the platform chart.
 controlPlane:
+  # -- Configures `controlPlane.common` for the platform chart.
   common:
+    # -- Configures `controlPlane.common.extraEnv` for the platform chart.
     extraEnv:
+      # -- Configures `controlPlane.common.extraEnv.FEATURE_MULTI_REGION` for the platform chart.
       FEATURE_MULTI_REGION: "true"
+      # -- Configures `controlPlane.common.extraEnv.FEATURE_MAINTENANCE_MODE` for the platform chart.
       FEATURE_MAINTENANCE_MODE: "true"
 

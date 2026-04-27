@@ -1,50 +1,101 @@
+# @section -- Createnamespace
+# -- Configures `createNamespace` for the clickhouse chart.
 createNamespace: true
 
+# @section -- Clickhouse
+# -- Configures `clickhouse` for the clickhouse chart.
 clickhouse:
+  # -- Configures `clickhouse.image` for the clickhouse chart.
   image: clickhouse/clickhouse-server:24.3
+  # -- Configures `clickhouse.replicaCount` for the clickhouse chart.
   replicaCount: 2
+  # -- Configures `clickhouse.keeper` for the clickhouse chart.
   keeper:
+    # -- Configures `clickhouse.keeper.enabled` for the clickhouse chart.
     enabled: true
+    # -- Configures `clickhouse.keeper.replicaCount` for the clickhouse chart.
     replicaCount: 3
+    # -- Configures `clickhouse.keeper.image` for the clickhouse chart.
     image: clickhouse/clickhouse-keeper:24.3
+  # -- Configures `clickhouse.auth` for the clickhouse chart.
   auth:
+    # -- Configures `clickhouse.auth.user` for the clickhouse chart.
     user: default
+    # -- Configures `clickhouse.auth.password` for the clickhouse chart.
     password: ""
+  # -- Configures `clickhouse.resources` for the clickhouse chart.
   resources:
+    # -- Configures `clickhouse.resources.requests` for the clickhouse chart.
     requests:
+      # -- Configures `clickhouse.resources.requests.memory` for the clickhouse chart.
       memory: 4Gi
+      # -- Configures `clickhouse.resources.requests.cpu` for the clickhouse chart.
       cpu: "2"
+    # -- Configures `clickhouse.resources.limits` for the clickhouse chart.
     limits:
+      # -- Configures `clickhouse.resources.limits.memory` for the clickhouse chart.
       memory: 8Gi
+      # -- Configures `clickhouse.resources.limits.cpu` for the clickhouse chart.
       cpu: "4"
+  # -- Configures `clickhouse.config` for the clickhouse chart.
   config:
+    # -- Configures `clickhouse.config.max_memory_usage` for the clickhouse chart.
     max_memory_usage: "4000000000"
+    # -- Configures `clickhouse.config.max_insert_block_size` for the clickhouse chart.
     max_insert_block_size: 1048576
+  # -- Configures `clickhouse.clusterName` for the clickhouse chart.
   clusterName: musematic-clickhouse
 
+# @section -- Persistence
+# -- Configures `persistence` for the clickhouse chart.
 persistence:
+  # -- Configures `persistence.storageClassName` for the clickhouse chart.
   storageClassName: standard
+  # -- Configures `persistence.size` for the clickhouse chart.
   size: 50Gi
+  # -- Configures `persistence.keeperSize` for the clickhouse chart.
   keeperSize: 5Gi
 
+# @section -- Service
+# -- Configures `service` for the clickhouse chart.
 service:
+  # -- Configures `service.type` for the clickhouse chart.
   type: ClusterIP
+  # -- Configures `service.httpPort` for the clickhouse chart.
   httpPort: 8123
+  # -- Configures `service.nativePort` for the clickhouse chart.
   nativePort: 9000
+  # -- Configures `service.interserverHttpPort` for the clickhouse chart.
   interserverHttpPort: 9009
 
+# @section -- Schemainit
+# -- Configures `schemaInit` for the clickhouse chart.
 schemaInit:
+  # -- Configures `schemaInit.enabled` for the clickhouse chart.
   enabled: true
+  # -- Configures `schemaInit.image` for the clickhouse chart.
   image: clickhouse/clickhouse-server:24.3
+  # -- Configures `schemaInit.retries` for the clickhouse chart.
   retries: 60
+  # -- Configures `schemaInit.retryIntervalSeconds` for the clickhouse chart.
   retryIntervalSeconds: 5
 
+# @section -- Backup
+# -- Configures `backup` for the clickhouse chart.
 backup:
+  # -- Configures `backup.enabled` for the clickhouse chart.
   enabled: true
+  # -- Configures `backup.schedule` for the clickhouse chart.
   schedule: "0 4 * * *"
+  # -- Configures `backup.image` for the clickhouse chart.
   image: altinity/clickhouse-backup:2.5
+  # -- Configures `backup.bucket` for the clickhouse chart.
   bucket: backups
+  # -- Configures `backup.prefix` for the clickhouse chart.
   prefix: clickhouse
 
+# @section -- Networkpolicy
+# -- Configures `networkPolicy` for the clickhouse chart.
 networkPolicy:
+  # -- Configures `networkPolicy.enabled` for the clickhouse chart.
   enabled: true

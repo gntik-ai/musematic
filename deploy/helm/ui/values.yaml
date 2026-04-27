@@ -1,24 +1,49 @@
+# @section -- Replicacount
+# -- Configures `replicaCount` for the ui chart.
 replicaCount: 1
 
+# @section -- Image
+# -- Configures `image` for the ui chart.
 image:
+  # -- Configures `image.repository` for the ui chart.
   repository: ghcr.io/musematic/ui
+  # -- Configures `image.tag` for the ui chart.
   tag: latest
+  # -- Configures `image.pullPolicy` for the ui chart.
   pullPolicy: IfNotPresent
 
+# @section -- Service
+# -- Configures `service` for the ui chart.
 service:
+  # -- Configures `service.type` for the ui chart.
   type: ClusterIP
+  # -- Configures `service.port` for the ui chart.
   port: 3000
+  # -- Configures `service.nodePort` for the ui chart.
   nodePort: null
 
+# @section -- Env
+# -- Configures `env` for the ui chart.
 env:
+  # -- Configures `env.NEXT_PUBLIC_API_URL` for the ui chart.
   NEXT_PUBLIC_API_URL: http://localhost:8000
+  # -- Configures `env.NEXT_PUBLIC_WS_URL` for the ui chart.
   NEXT_PUBLIC_WS_URL: ws://localhost:8000/ws
+  # -- Configures `env.NEXT_PUBLIC_APP_ENV` for the ui chart.
   NEXT_PUBLIC_APP_ENV: production
 
+# @section -- Resources
+# -- Configures `resources` for the ui chart.
 resources:
+  # -- Configures `resources.requests` for the ui chart.
   requests:
+    # -- Configures `resources.requests.cpu` for the ui chart.
     cpu: 100m
+    # -- Configures `resources.requests.memory` for the ui chart.
     memory: 128Mi
+  # -- Configures `resources.limits` for the ui chart.
   limits:
+    # -- Configures `resources.limits.cpu` for the ui chart.
     cpu: 500m
+    # -- Configures `resources.limits.memory` for the ui chart.
     memory: 512Mi

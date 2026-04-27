@@ -1,12 +1,28 @@
+# @section -- Brokerreplicas
+# -- Configures `brokerReplicas` for the kafka chart.
 brokerReplicas: 3
+# @section -- Controllerreplicas
+# -- Configures `controllerReplicas` for the kafka chart.
 controllerReplicas: 3
+# @section -- Storage
+# -- Configures `storage` for the kafka chart.
 storage:
+  # -- Configures `storage.size` for the kafka chart.
   size: 100Gi
+  # -- Configures `storage.class` for the kafka chart.
   class: standard
+# @section -- Resources
+# -- Configures `resources` for the kafka chart.
 resources:
+  # -- Configures `resources.requests` for the kafka chart.
   requests:
+    # -- Configures `resources.requests.memory` for the kafka chart.
     memory: 4Gi
+    # -- Configures `resources.requests.cpu` for the kafka chart.
     cpu: "1"
+# @section -- Networkpolicy
+# -- Configures `networkPolicy` for the kafka chart.
 networkPolicy:
+  # -- Configures `networkPolicy.enabled` for the kafka chart.
   enabled: true
 

@@ -1,45 +1,98 @@
+# @section -- Createnamespace
+# -- Configures `createNamespace` for the minio chart.
 createNamespace: true
 
+# @section -- Minio
+# -- Configures `minio` for the minio chart.
 minio:
+  # -- Configures `minio.enabled` for the minio chart.
   enabled: true
 
+# @section -- S3
+# -- Configures `s3` for the minio chart.
 s3:
+  # -- Configures `s3.endpointUrl` for the minio chart.
   endpointUrl: ""
+  # -- Configures `s3.accessKey` for the minio chart.
   accessKey: ""
+  # -- Configures `s3.secretKey` for the minio chart.
   secretKey: ""
+  # -- Configures `s3.region` for the minio chart.
   region: us-east-1
+  # -- Configures `s3.bucketPrefix` for the minio chart.
   bucketPrefix: platform
 
+# @section -- Clustername
+# -- Configures `clusterName` for the minio chart.
 clusterName: musematic-minio
+# @section -- Namespace
+# -- Configures `namespace` for the minio chart.
 namespace: platform-data
+# @section -- Standalone
+# -- Configures `standalone` for the minio chart.
 standalone: false
+# @section -- Servers
+# -- Configures `servers` for the minio chart.
 servers: 4
+# @section -- Volumesperserver
+# -- Configures `volumesPerServer` for the minio chart.
 volumesPerServer: 4
+# @section -- Storageclass
+# -- Configures `storageClass` for the minio chart.
 storageClass: standard
+# @section -- Storagesize
+# -- Configures `storageSize` for the minio chart.
 storageSize: 100Gi
+# @section -- Consoleenabled
+# -- Configures `consoleEnabled` for the minio chart.
 consoleEnabled: true
 
+# @section -- Images
+# -- Configures `images` for the minio chart.
 images:
+  # -- Configures `images.minio` for the minio chart.
   minio:
+    # -- Configures `images.minio.repository` for the minio chart.
     repository: minio/minio
+    # -- Configures `images.minio.tag` for the minio chart.
     tag: latest
+  # -- Configures `images.mc` for the minio chart.
   mc:
+    # -- Configures `images.mc.repository` for the minio chart.
     repository: minio/mc
+    # -- Configures `images.mc.tag` for the minio chart.
     tag: latest
 
+# @section -- Resources
+# -- Configures `resources` for the minio chart.
 resources:
+  # -- Configures `resources.requests` for the minio chart.
   requests:
+    # -- Configures `resources.requests.cpu` for the minio chart.
     cpu: "500m"
+    # -- Configures `resources.requests.memory` for the minio chart.
     memory: 1Gi
+  # -- Configures `resources.limits` for the minio chart.
   limits:
+    # -- Configures `resources.limits.cpu` for the minio chart.
     cpu: "1000m"
+    # -- Configures `resources.limits.memory` for the minio chart.
     memory: 2Gi
 
+# @section -- Networkpolicy
+# -- Configures `networkPolicy` for the minio chart.
 networkPolicy:
+  # -- Configures `networkPolicy.enabled` for the minio chart.
   enabled: true
 
+# @section -- Bucketinit
+# -- Configures `bucketInit` for the minio chart.
 bucketInit:
+  # -- Configures `bucketInit.enabled` for the minio chart.
   enabled: true
 
+# @section -- Buckets
+# -- Configures `buckets` for the minio chart.
 buckets:
+  # -- Configures `buckets.executionArtifactsRetentionDays` for the minio chart.
   executionArtifactsRetentionDays: 90

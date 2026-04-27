@@ -1,35 +1,66 @@
+# @section -- Createnamespace
+# -- Configures `createNamespace` for the redis chart.
 createNamespace: true
 
+# @section -- Auth
+# -- Configures `auth` for the redis chart.
 auth:
+  # -- Configures `auth.password` for the redis chart.
   password: change-me
 
+# @section -- Global
+# -- Configures `global` for the redis chart.
 global:
+  # -- Configures `global.redis` for the redis chart.
   redis:
+    # -- Configures `global.redis.password` for the redis chart.
     password: change-me
 
+# @section -- Redis Cluster
+# -- Configures `redis-cluster` for the redis chart.
 redis-cluster:
+  # -- Configures `redis-cluster.image` for the redis chart.
   image:
+    # -- Configures `redis-cluster.image.repository` for the redis chart.
     repository: bitnamilegacy/redis-cluster
+    # -- Configures `redis-cluster.image.tag` for the redis chart.
     tag: 8.2.1-debian-12-r0
+  # -- Configures `redis-cluster.fullnameOverride` for the redis chart.
   fullnameOverride: musematic-redis
+  # -- Configures `redis-cluster.password` for the redis chart.
   password: change-me
+  # -- Configures `redis-cluster.existingSecret` for the redis chart.
   existingSecret: redis-credentials
+  # -- Configures `redis-cluster.existingSecretPasswordKey` for the redis chart.
   existingSecretPasswordKey: password
+  # -- Configures `redis-cluster.persistence` for the redis chart.
   persistence:
+    # -- Configures `redis-cluster.persistence.enabled` for the redis chart.
     enabled: true
+    # -- Configures `redis-cluster.persistence.appendonly` for the redis chart.
     appendonly: "yes"
+    # -- Configures `redis-cluster.persistence.appendfsync` for the redis chart.
     appendfsync: "everysec"
+  # -- Configures `redis-cluster.redis` for the redis chart.
   redis:
+    # -- Configures `redis-cluster.redis.maxmemoryPolicy` for the redis chart.
     maxmemoryPolicy: "allkeys-lru"
+    # -- Configures `redis-cluster.redis.extraFlags` for the redis chart.
     extraFlags:
       - "--cluster-node-timeout"
       - "15000"
       - "--cluster-require-full-coverage"
       - "no"
+  # -- Configures `redis-cluster.service` for the redis chart.
   service:
+    # -- Configures `redis-cluster.service.type` for the redis chart.
     type: ClusterIP
+    # -- Configures `redis-cluster.service.port` for the redis chart.
     port: 6379
 
+# @section -- Networkpolicy
+# -- Configures `networkPolicy` for the redis chart.
 networkPolicy:
+  # -- Configures `networkPolicy.enabled` for the redis chart.
   enabled: false
 

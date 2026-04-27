@@ -1,40 +1,82 @@
+# @section -- Createnamespace
+# -- Configures `createNamespace` for the qdrant chart.
 createNamespace: true
 
+# @section -- Qdrant
+# -- Configures `qdrant` for the qdrant chart.
 qdrant:
+  # -- Configures `qdrant.replicaCount` for the qdrant chart.
   replicaCount: 3
+  # -- Configures `qdrant.config` for the qdrant chart.
   config:
+    # -- Configures `qdrant.config.cluster` for the qdrant chart.
     cluster:
+      # -- Configures `qdrant.config.cluster.enabled` for the qdrant chart.
       enabled: true
+      # -- Configures `qdrant.config.cluster.p2p` for the qdrant chart.
       p2p:
+        # -- Configures `qdrant.config.cluster.p2p.port` for the qdrant chart.
         port: 6335
+    # -- Configures `qdrant.config.storage` for the qdrant chart.
     storage:
+      # -- Configures `qdrant.config.storage.hnsw_index` for the qdrant chart.
       hnsw_index:
+        # -- Configures `qdrant.config.storage.hnsw_index.m` for the qdrant chart.
         m: 16
+        # -- Configures `qdrant.config.storage.hnsw_index.ef_construct` for the qdrant chart.
         ef_construct: 128
+  # -- Configures `qdrant.persistence` for the qdrant chart.
   persistence:
+    # -- Configures `qdrant.persistence.storageClassName` for the qdrant chart.
     storageClassName: standard
+    # -- Configures `qdrant.persistence.size` for the qdrant chart.
     size: 50Gi
+  # -- Configures `qdrant.resources` for the qdrant chart.
   resources:
+    # -- Configures `qdrant.resources.requests` for the qdrant chart.
     requests:
+      # -- Configures `qdrant.resources.requests.memory` for the qdrant chart.
       memory: 2Gi
+      # -- Configures `qdrant.resources.requests.cpu` for the qdrant chart.
       cpu: "1"
   # QDRANT__* environment variables map to nested Qdrant config keys.
+  # -- Configures `qdrant.env` for the qdrant chart.
   env:
     - name: QDRANT__SERVICE__API_KEY
+      # -- Configures `qdrant.env.valueFrom` for the qdrant chart.
       valueFrom:
+        # -- Configures `qdrant.env.valueFrom.secretKeyRef` for the qdrant chart.
         secretKeyRef:
+          # -- Configures `qdrant.env.valueFrom.secretKeyRef.name` for the qdrant chart.
           name: qdrant-api-key
+          # -- Configures `qdrant.env.valueFrom.secretKeyRef.key` for the qdrant chart.
           key: QDRANT_API_KEY
+# @section -- Collections
+# -- Configures `collections` for the qdrant chart.
 collections:
+  # -- Configures `collections.dimensions` for the qdrant chart.
   dimensions: 768
+  # -- Configures `collections.replicationFactor` for the qdrant chart.
   replicationFactor: 2
+# @section -- Networkpolicy
+# -- Configures `networkPolicy` for the qdrant chart.
 networkPolicy:
+  # -- Configures `networkPolicy.enabled` for the qdrant chart.
   enabled: true
+# @section -- Backup
+# -- Configures `backup` for the qdrant chart.
 backup:
+  # -- Configures `backup.enabled` for the qdrant chart.
   enabled: true
+  # -- Configures `backup.schedule` for the qdrant chart.
   schedule: "0 2 * * *"
+  # -- Configures `backup.bucket` for the qdrant chart.
   bucket: backups
+  # -- Configures `backup.prefix` for the qdrant chart.
   prefix: qdrant
+  # -- Configures `backup.image` for the qdrant chart.
   image:
+    # -- Configures `backup.image.repository` for the qdrant chart.
     repository: ghcr.io/gntik-ai/musematic-control-plane
+    # -- Configures `backup.image.tag` for the qdrant chart.
     tag: latest

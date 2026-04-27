@@ -1,23 +1,47 @@
+# @section -- Redis Cluster
+# -- Configures `redis-cluster` for the redis chart.
 redis-cluster:
+  # -- Configures `redis-cluster.architecture` for the redis chart.
   architecture: standalone
+  # -- Configures `redis-cluster.cluster` for the redis chart.
   cluster:
+    # -- Configures `redis-cluster.cluster.nodes` for the redis chart.
     nodes: 1
+    # -- Configures `redis-cluster.cluster.replicas` for the redis chart.
     replicas: 0
+  # -- Configures `redis-cluster.redis` for the redis chart.
   redis:
+    # -- Configures `redis-cluster.redis.maxmemory` for the redis chart.
     maxmemory: "1Gi"
+  # -- Configures `redis-cluster.persistence` for the redis chart.
   persistence:
+    # -- Configures `redis-cluster.persistence.size` for the redis chart.
     size: 10Gi
+  # -- Configures `redis-cluster.resources` for the redis chart.
   resources:
+    # -- Configures `redis-cluster.resources.requests` for the redis chart.
     requests:
+      # -- Configures `redis-cluster.resources.requests.cpu` for the redis chart.
       cpu: 250m
+      # -- Configures `redis-cluster.resources.requests.memory` for the redis chart.
       memory: 512Mi
+    # -- Configures `redis-cluster.resources.limits` for the redis chart.
     limits:
+      # -- Configures `redis-cluster.resources.limits.cpu` for the redis chart.
       cpu: 500m
+      # -- Configures `redis-cluster.resources.limits.memory` for the redis chart.
       memory: 1Gi
+  # -- Configures `redis-cluster.metrics` for the redis chart.
   metrics:
+    # -- Configures `redis-cluster.metrics.enabled` for the redis chart.
     enabled: false
+  # -- Configures `redis-cluster.pdb` for the redis chart.
   pdb:
+    # -- Configures `redis-cluster.pdb.create` for the redis chart.
     create: false
 
+# @section -- Networkpolicy
+# -- Configures `networkPolicy` for the redis chart.
 networkPolicy:
+  # -- Configures `networkPolicy.enabled` for the redis chart.
   enabled: false

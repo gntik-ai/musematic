@@ -1,16 +1,36 @@
+# @section -- Qdrant
+# -- Configures `qdrant` for the qdrant chart.
 qdrant:
+  # -- Configures `qdrant.replicaCount` for the qdrant chart.
   replicaCount: 1
+  # -- Configures `qdrant.config` for the qdrant chart.
   config:
+    # -- Configures `qdrant.config.cluster` for the qdrant chart.
     cluster:
+      # -- Configures `qdrant.config.cluster.enabled` for the qdrant chart.
       enabled: false
+  # -- Configures `qdrant.persistence` for the qdrant chart.
   persistence:
+    # -- Configures `qdrant.persistence.size` for the qdrant chart.
     size: 10Gi
+  # -- Configures `qdrant.resources` for the qdrant chart.
   resources:
+    # -- Configures `qdrant.resources.requests` for the qdrant chart.
     requests:
+      # -- Configures `qdrant.resources.requests.memory` for the qdrant chart.
       memory: 512Mi
+# @section -- Collections
+# -- Configures `collections` for the qdrant chart.
 collections:
+  # -- Configures `collections.replicationFactor` for the qdrant chart.
   replicationFactor: 1
+# @section -- Networkpolicy
+# -- Configures `networkPolicy` for the qdrant chart.
 networkPolicy:
+  # -- Configures `networkPolicy.enabled` for the qdrant chart.
   enabled: false
+# @section -- Backup
+# -- Configures `backup` for the qdrant chart.
 backup:
+  # -- Configures `backup.enabled` for the qdrant chart.
   enabled: false

@@ -1,21 +1,303 @@
-# Platform Helm Chart
+# musematic-platform
 
-## OAuth Provider Redirects
+![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.1.0](https://img.shields.io/badge/AppVersion-0.1.0-informational?style=flat-square)
 
-Google and GitHub provider consoles should continue to use the backend callback
-URL:
+Composite Musematic platform chart used by production and E2E deployments.
 
-```text
-https://<platform-api-host>/api/v1/auth/oauth/{provider}/callback
-```
+## Requirements
 
-UPD-037 changes only the frontend handoff after the backend has validated the
-OAuth callback. Successful and failed browser flows now land on:
+| Repository | Name | Version |
+|------------|------|---------|
+| file://../../../services/sandbox-manager/deploy/helm/sandbox-manager | sandboxManager(sandbox-manager) | 0.1.0 |
+| file://../clickhouse | clickhouse(musematic-clickhouse) | 0.1.0 |
+| file://../control-plane | controlPlane(musematic-control-plane) | 0.1.0 |
+| file://../kafka | kafka(musematic-kafka) | 0.1.0 |
+| file://../minio | minio(musematic-minio) | 0.1.0 |
+| file://../neo4j | neo4j(musematic-neo4j) | 0.1.0 |
+| file://../opensearch | opensearch(musematic-opensearch) | 0.1.0 |
+| file://../postgresql | postgresql(musematic-postgresql) | 0.1.0 |
+| file://../qdrant | qdrant(musematic-qdrant) | 0.1.0 |
+| file://../reasoning-engine | reasoningEngine(reasoning-engine) | 0.1.0 |
+| file://../redis | redis(musematic-redis) | 0.1.0 |
+| file://../runtime-controller | runtimeController(musematic-runtime-controller) | 0.1.0 |
+| file://../simulation-controller | simulationController(simulation-controller) | 0.1.0 |
+| file://../ui | ui(musematic-ui) | 0.1.0 |
 
-```text
-https://<platform-web-host>/auth/oauth/{provider}/callback
-```
+## Values
 
-No Google or GitHub console reconfiguration is needed for this frontend callback
-page. Keep the backend `redirect_uri` value configured in the admin OAuth
-provider settings and chart values.
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| clickhouse | object | `{"createNamespace":false,"enabled":true}` | Configures `clickhouse` for the platform chart. |
+| clickhouse.createNamespace | bool | `false` | Configures `clickhouse.createNamespace` for the platform chart. |
+| clickhouse.enabled | bool | `true` | Configures `clickhouse.enabled` for the platform chart. |
+| controlPlane | object | `{"api":{"enabled":true,"replicaCount":1,"service":{"nodePort":null,"port":8000,"type":"ClusterIP"}},"common":{"featureE2EMode":false,"mockLlmEnabled":false,"otelExporterEndpoint":"http://otel-collector.platform-observability.svc.cluster.local:4318","otelResourceAttributes":"deployment.environment=production","otelServiceName":"control-plane","resources":{"limits":{"cpu":"1","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}},"wsClientBufferSize":1000,"wsHeartbeatIntervalSeconds":30,"wsHeartbeatTimeoutSeconds":10,"zeroTrustVisibility":false},"connections":{"authJwtAlgorithm":"HS256","authJwtSecretKey":"change-me","authMfaEncryptionKey":"","clickhouseDatabase":"default","clickhouseHost":"musematic-clickhouse.platform.svc.cluster.local","clickhousePassword":"","clickhousePort":8123,"clickhouseUser":"default","grpcReasoningEngine":"reasoning-engine.platform.svc.cluster.local:50052","grpcRuntimeController":"musematic-runtime-controller.platform.svc.cluster.local:50051","grpcSandboxManager":"sandbox-manager.platform.svc.cluster.local:50053","grpcSimulationController":"musematic-simulation-controller.platform.svc.cluster.local:50055","kafkaBrokers":"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092","neo4jPassword":"neo4j","neo4jUri":"bolt://musematic-neo4j.platform.svc.cluster.local:7687","neo4jUser":"neo4j","opensearchHosts":"http://musematic-opensearch.platform.svc.cluster.local:9200","opensearchPassword":"admin","opensearchUsername":"admin","postgresDsn":"postgresql+asyncpg://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic","qdrantGrpcPort":6334,"qdrantHost":"musematic-qdrant.platform.svc.cluster.local","qdrantPort":6333,"redisTestMode":"cluster","redisUrl":"redis://:change-me@musematic-redis.platform.svc.cluster.local:6379","s3AccessKey":"platform","s3BucketPrefix":"platform","s3EndpointUrl":"http://musematic-minio.platform-data.svc.cluster.local:9000","s3Provider":"generic","s3Region":"us-east-1","s3SecretKey":"change-me","s3UsePathStyle":true},"enabled":true,"image":{"pullPolicy":"IfNotPresent","repository":"ghcr.io/musematic/control-plane","tag":"latest"},"migration":{"backoffLimit":3,"enabled":true},"privacy":{"clickhousePiiTables":["execution_metrics","agent_performance","token_usage"],"dlpEnabled":false,"dsrEnabled":false,"residencyEnforcementEnabled":false},"scheduler":{"enabled":true,"replicaCount":1},"worker":{"enabled":true,"replicaCount":1},"wsHub":{"enabled":true,"replicaCount":1,"service":{"nodePort":null,"port":8001,"type":"ClusterIP"}}}` | Configures `controlPlane` for the platform chart. |
+| controlPlane.api | object | `{"enabled":true,"replicaCount":1,"service":{"nodePort":null,"port":8000,"type":"ClusterIP"}}` | Configures `controlPlane.api` for the platform chart. |
+| controlPlane.api.enabled | bool | `true` | Configures `controlPlane.api.enabled` for the platform chart. |
+| controlPlane.api.replicaCount | int | `1` | Configures `controlPlane.api.replicaCount` for the platform chart. |
+| controlPlane.api.service | object | `{"nodePort":null,"port":8000,"type":"ClusterIP"}` | Configures `controlPlane.api.service` for the platform chart. |
+| controlPlane.api.service.nodePort | string | `nil` | Configures `controlPlane.api.service.nodePort` for the platform chart. |
+| controlPlane.api.service.port | int | `8000` | Configures `controlPlane.api.service.port` for the platform chart. |
+| controlPlane.api.service.type | string | `"ClusterIP"` | Configures `controlPlane.api.service.type` for the platform chart. |
+| controlPlane.common | object | `{"featureE2EMode":false,"mockLlmEnabled":false,"otelExporterEndpoint":"http://otel-collector.platform-observability.svc.cluster.local:4318","otelResourceAttributes":"deployment.environment=production","otelServiceName":"control-plane","resources":{"limits":{"cpu":"1","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}},"wsClientBufferSize":1000,"wsHeartbeatIntervalSeconds":30,"wsHeartbeatTimeoutSeconds":10,"zeroTrustVisibility":false}` | Configures `controlPlane.common` for the platform chart. |
+| controlPlane.common.featureE2EMode | bool | `false` | Configures `controlPlane.common.featureE2EMode` for the platform chart. |
+| controlPlane.common.mockLlmEnabled | bool | `false` | Configures `controlPlane.common.mockLlmEnabled` for the platform chart. |
+| controlPlane.common.otelExporterEndpoint | string | `"http://otel-collector.platform-observability.svc.cluster.local:4318"` | Configures `controlPlane.common.otelExporterEndpoint` for the platform chart. |
+| controlPlane.common.otelResourceAttributes | string | `"deployment.environment=production"` | Configures `controlPlane.common.otelResourceAttributes` for the platform chart. |
+| controlPlane.common.otelServiceName | string | `"control-plane"` | Configures `controlPlane.common.otelServiceName` for the platform chart. |
+| controlPlane.common.resources | object | `{"limits":{"cpu":"1","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}}` | Configures `controlPlane.common.resources` for the platform chart. |
+| controlPlane.common.resources.limits | object | `{"cpu":"1","memory":"512Mi"}` | Configures `controlPlane.common.resources.limits` for the platform chart. |
+| controlPlane.common.resources.limits.cpu | string | `"1"` | Configures `controlPlane.common.resources.limits.cpu` for the platform chart. |
+| controlPlane.common.resources.limits.memory | string | `"512Mi"` | Configures `controlPlane.common.resources.limits.memory` for the platform chart. |
+| controlPlane.common.resources.requests | object | `{"cpu":"250m","memory":"256Mi"}` | Configures `controlPlane.common.resources.requests` for the platform chart. |
+| controlPlane.common.resources.requests.cpu | string | `"250m"` | Configures `controlPlane.common.resources.requests.cpu` for the platform chart. |
+| controlPlane.common.resources.requests.memory | string | `"256Mi"` | Configures `controlPlane.common.resources.requests.memory` for the platform chart. |
+| controlPlane.common.wsClientBufferSize | int | `1000` | Configures `controlPlane.common.wsClientBufferSize` for the platform chart. |
+| controlPlane.common.wsHeartbeatIntervalSeconds | int | `30` | Configures `controlPlane.common.wsHeartbeatIntervalSeconds` for the platform chart. |
+| controlPlane.common.wsHeartbeatTimeoutSeconds | int | `10` | Configures `controlPlane.common.wsHeartbeatTimeoutSeconds` for the platform chart. |
+| controlPlane.common.zeroTrustVisibility | bool | `false` | Configures `controlPlane.common.zeroTrustVisibility` for the platform chart. |
+| controlPlane.connections | object | `{"authJwtAlgorithm":"HS256","authJwtSecretKey":"change-me","authMfaEncryptionKey":"","clickhouseDatabase":"default","clickhouseHost":"musematic-clickhouse.platform.svc.cluster.local","clickhousePassword":"","clickhousePort":8123,"clickhouseUser":"default","grpcReasoningEngine":"reasoning-engine.platform.svc.cluster.local:50052","grpcRuntimeController":"musematic-runtime-controller.platform.svc.cluster.local:50051","grpcSandboxManager":"sandbox-manager.platform.svc.cluster.local:50053","grpcSimulationController":"musematic-simulation-controller.platform.svc.cluster.local:50055","kafkaBrokers":"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092","neo4jPassword":"neo4j","neo4jUri":"bolt://musematic-neo4j.platform.svc.cluster.local:7687","neo4jUser":"neo4j","opensearchHosts":"http://musematic-opensearch.platform.svc.cluster.local:9200","opensearchPassword":"admin","opensearchUsername":"admin","postgresDsn":"postgresql+asyncpg://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic","qdrantGrpcPort":6334,"qdrantHost":"musematic-qdrant.platform.svc.cluster.local","qdrantPort":6333,"redisTestMode":"cluster","redisUrl":"redis://:change-me@musematic-redis.platform.svc.cluster.local:6379","s3AccessKey":"platform","s3BucketPrefix":"platform","s3EndpointUrl":"http://musematic-minio.platform-data.svc.cluster.local:9000","s3Provider":"generic","s3Region":"us-east-1","s3SecretKey":"change-me","s3UsePathStyle":true}` | Configures `controlPlane.connections` for the platform chart. |
+| controlPlane.connections.authJwtAlgorithm | string | `"HS256"` | Configures `controlPlane.connections.authJwtAlgorithm` for the platform chart. |
+| controlPlane.connections.authJwtSecretKey | string | `"change-me"` | Configures `controlPlane.connections.authJwtSecretKey` for the platform chart. |
+| controlPlane.connections.authMfaEncryptionKey | string | `""` | Configures `controlPlane.connections.authMfaEncryptionKey` for the platform chart. |
+| controlPlane.connections.clickhouseDatabase | string | `"default"` | Configures `controlPlane.connections.clickhouseDatabase` for the platform chart. |
+| controlPlane.connections.clickhouseHost | string | `"musematic-clickhouse.platform.svc.cluster.local"` | Configures `controlPlane.connections.clickhouseHost` for the platform chart. |
+| controlPlane.connections.clickhousePassword | string | `""` | Configures `controlPlane.connections.clickhousePassword` for the platform chart. |
+| controlPlane.connections.clickhousePort | int | `8123` | Configures `controlPlane.connections.clickhousePort` for the platform chart. |
+| controlPlane.connections.clickhouseUser | string | `"default"` | Configures `controlPlane.connections.clickhouseUser` for the platform chart. |
+| controlPlane.connections.grpcReasoningEngine | string | `"reasoning-engine.platform.svc.cluster.local:50052"` | Configures `controlPlane.connections.grpcReasoningEngine` for the platform chart. |
+| controlPlane.connections.grpcRuntimeController | string | `"musematic-runtime-controller.platform.svc.cluster.local:50051"` | Configures `controlPlane.connections.grpcRuntimeController` for the platform chart. |
+| controlPlane.connections.grpcSandboxManager | string | `"sandbox-manager.platform.svc.cluster.local:50053"` | Configures `controlPlane.connections.grpcSandboxManager` for the platform chart. |
+| controlPlane.connections.grpcSimulationController | string | `"musematic-simulation-controller.platform.svc.cluster.local:50055"` | Configures `controlPlane.connections.grpcSimulationController` for the platform chart. |
+| controlPlane.connections.kafkaBrokers | string | `"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092"` | Configures `controlPlane.connections.kafkaBrokers` for the platform chart. |
+| controlPlane.connections.neo4jPassword | string | `"neo4j"` | Configures `controlPlane.connections.neo4jPassword` for the platform chart. |
+| controlPlane.connections.neo4jUri | string | `"bolt://musematic-neo4j.platform.svc.cluster.local:7687"` | Configures `controlPlane.connections.neo4jUri` for the platform chart. |
+| controlPlane.connections.neo4jUser | string | `"neo4j"` | Configures `controlPlane.connections.neo4jUser` for the platform chart. |
+| controlPlane.connections.opensearchHosts | string | `"http://musematic-opensearch.platform.svc.cluster.local:9200"` | Configures `controlPlane.connections.opensearchHosts` for the platform chart. |
+| controlPlane.connections.opensearchPassword | string | `"admin"` | Configures `controlPlane.connections.opensearchPassword` for the platform chart. |
+| controlPlane.connections.opensearchUsername | string | `"admin"` | Configures `controlPlane.connections.opensearchUsername` for the platform chart. |
+| controlPlane.connections.postgresDsn | string | `"postgresql+asyncpg://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic"` | Configures `controlPlane.connections.postgresDsn` for the platform chart. |
+| controlPlane.connections.qdrantGrpcPort | int | `6334` | Configures `controlPlane.connections.qdrantGrpcPort` for the platform chart. |
+| controlPlane.connections.qdrantHost | string | `"musematic-qdrant.platform.svc.cluster.local"` | Configures `controlPlane.connections.qdrantHost` for the platform chart. |
+| controlPlane.connections.qdrantPort | int | `6333` | Configures `controlPlane.connections.qdrantPort` for the platform chart. |
+| controlPlane.connections.redisTestMode | string | `"cluster"` | Configures `controlPlane.connections.redisTestMode` for the platform chart. |
+| controlPlane.connections.redisUrl | string | `"redis://:change-me@musematic-redis.platform.svc.cluster.local:6379"` | Configures `controlPlane.connections.redisUrl` for the platform chart. |
+| controlPlane.connections.s3AccessKey | string | `"platform"` | Configures `controlPlane.connections.s3AccessKey` for the platform chart. |
+| controlPlane.connections.s3BucketPrefix | string | `"platform"` | Configures `controlPlane.connections.s3BucketPrefix` for the platform chart. |
+| controlPlane.connections.s3EndpointUrl | string | `"http://musematic-minio.platform-data.svc.cluster.local:9000"` | Configures `controlPlane.connections.s3EndpointUrl` for the platform chart. |
+| controlPlane.connections.s3Provider | string | `"generic"` | Configures `controlPlane.connections.s3Provider` for the platform chart. |
+| controlPlane.connections.s3Region | string | `"us-east-1"` | Configures `controlPlane.connections.s3Region` for the platform chart. |
+| controlPlane.connections.s3SecretKey | string | `"change-me"` | Configures `controlPlane.connections.s3SecretKey` for the platform chart. |
+| controlPlane.connections.s3UsePathStyle | bool | `true` | Configures `controlPlane.connections.s3UsePathStyle` for the platform chart. |
+| controlPlane.enabled | bool | `true` | Configures `controlPlane.enabled` for the platform chart. |
+| controlPlane.image | object | `{"pullPolicy":"IfNotPresent","repository":"ghcr.io/musematic/control-plane","tag":"latest"}` | Configures `controlPlane.image` for the platform chart. |
+| controlPlane.image.pullPolicy | string | `"IfNotPresent"` | Configures `controlPlane.image.pullPolicy` for the platform chart. |
+| controlPlane.image.repository | string | `"ghcr.io/musematic/control-plane"` | Configures `controlPlane.image.repository` for the platform chart. |
+| controlPlane.image.tag | string | `"latest"` | Configures `controlPlane.image.tag` for the platform chart. |
+| controlPlane.migration | object | `{"backoffLimit":3,"enabled":true}` | Configures `controlPlane.migration` for the platform chart. |
+| controlPlane.migration.backoffLimit | int | `3` | Configures `controlPlane.migration.backoffLimit` for the platform chart. |
+| controlPlane.migration.enabled | bool | `true` | Configures `controlPlane.migration.enabled` for the platform chart. |
+| controlPlane.privacy | object | `{"clickhousePiiTables":["execution_metrics","agent_performance","token_usage"],"dlpEnabled":false,"dsrEnabled":false,"residencyEnforcementEnabled":false}` | Configures `controlPlane.privacy` for the platform chart. |
+| controlPlane.privacy.clickhousePiiTables | list | `["execution_metrics","agent_performance","token_usage"]` | Configures `controlPlane.privacy.clickhousePiiTables` for the platform chart. |
+| controlPlane.privacy.dlpEnabled | bool | `false` | Configures `controlPlane.privacy.dlpEnabled` for the platform chart. |
+| controlPlane.privacy.dsrEnabled | bool | `false` | Configures `controlPlane.privacy.dsrEnabled` for the platform chart. |
+| controlPlane.privacy.residencyEnforcementEnabled | bool | `false` | Configures `controlPlane.privacy.residencyEnforcementEnabled` for the platform chart. |
+| controlPlane.scheduler | object | `{"enabled":true,"replicaCount":1}` | Configures `controlPlane.scheduler` for the platform chart. |
+| controlPlane.scheduler.enabled | bool | `true` | Configures `controlPlane.scheduler.enabled` for the platform chart. |
+| controlPlane.scheduler.replicaCount | int | `1` | Configures `controlPlane.scheduler.replicaCount` for the platform chart. |
+| controlPlane.worker | object | `{"enabled":true,"replicaCount":1}` | Configures `controlPlane.worker` for the platform chart. |
+| controlPlane.worker.enabled | bool | `true` | Configures `controlPlane.worker.enabled` for the platform chart. |
+| controlPlane.worker.replicaCount | int | `1` | Configures `controlPlane.worker.replicaCount` for the platform chart. |
+| controlPlane.wsHub | object | `{"enabled":true,"replicaCount":1,"service":{"nodePort":null,"port":8001,"type":"ClusterIP"}}` | Configures `controlPlane.wsHub` for the platform chart. |
+| controlPlane.wsHub.enabled | bool | `true` | Configures `controlPlane.wsHub.enabled` for the platform chart. |
+| controlPlane.wsHub.replicaCount | int | `1` | Configures `controlPlane.wsHub.replicaCount` for the platform chart. |
+| controlPlane.wsHub.service | object | `{"nodePort":null,"port":8001,"type":"ClusterIP"}` | Configures `controlPlane.wsHub.service` for the platform chart. |
+| controlPlane.wsHub.service.nodePort | string | `nil` | Configures `controlPlane.wsHub.service.nodePort` for the platform chart. |
+| controlPlane.wsHub.service.port | int | `8001` | Configures `controlPlane.wsHub.service.port` for the platform chart. |
+| controlPlane.wsHub.service.type | string | `"ClusterIP"` | Configures `controlPlane.wsHub.service.type` for the platform chart. |
+| global | object | `{"domain":"platform.local","environment":"production"}` | Configures `global` for the platform chart. |
+| global.domain | string | `"platform.local"` | Configures `global.domain` for the platform chart. |
+| global.environment | string | `"production"` | Configures `global.environment` for the platform chart. |
+| kafka | object | `{"brokerReplicas":3,"clusterName":"musematic-kafka","combined":false,"combinedReplicas":1,"controllerReplicas":3,"enabled":true,"minInsyncReplicas":2,"namespace":"platform-data","replicationFactor":3}` | Configures `kafka` for the platform chart. |
+| kafka.brokerReplicas | int | `3` | Configures `kafka.brokerReplicas` for the platform chart. |
+| kafka.clusterName | string | `"musematic-kafka"` | Configures `kafka.clusterName` for the platform chart. |
+| kafka.combined | bool | `false` | Configures `kafka.combined` for the platform chart. |
+| kafka.combinedReplicas | int | `1` | Configures `kafka.combinedReplicas` for the platform chart. |
+| kafka.controllerReplicas | int | `3` | Configures `kafka.controllerReplicas` for the platform chart. |
+| kafka.enabled | bool | `true` | Configures `kafka.enabled` for the platform chart. |
+| kafka.minInsyncReplicas | int | `2` | Configures `kafka.minInsyncReplicas` for the platform chart. |
+| kafka.namespace | string | `"platform-data"` | Configures `kafka.namespace` for the platform chart. |
+| kafka.replicationFactor | int | `3` | Configures `kafka.replicationFactor` for the platform chart. |
+| minio | object | `{"clusterName":"musematic-minio","createNamespace":false,"enabled":true,"minio":{"enabled":true},"namespace":"platform-data","s3":{"accessKey":"platform","bucketPrefix":"platform","endpointUrl":"","region":"us-east-1","secretKey":"change-me"},"standalone":false}` | Configures `minio` for the platform chart. |
+| minio.clusterName | string | `"musematic-minio"` | Configures `minio.clusterName` for the platform chart. |
+| minio.createNamespace | bool | `false` | Configures `minio.createNamespace` for the platform chart. |
+| minio.enabled | bool | `true` | Configures `minio.enabled` for the platform chart. |
+| minio.minio | object | `{"enabled":true}` | Configures `minio.minio` for the platform chart. |
+| minio.minio.enabled | bool | `true` | Configures `minio.minio.enabled` for the platform chart. |
+| minio.namespace | string | `"platform-data"` | Configures `minio.namespace` for the platform chart. |
+| minio.s3 | object | `{"accessKey":"platform","bucketPrefix":"platform","endpointUrl":"","region":"us-east-1","secretKey":"change-me"}` | Configures `minio.s3` for the platform chart. |
+| minio.s3.accessKey | string | `"platform"` | Configures `minio.s3.accessKey` for the platform chart. |
+| minio.s3.bucketPrefix | string | `"platform"` | Configures `minio.s3.bucketPrefix` for the platform chart. |
+| minio.s3.endpointUrl | string | `""` | Configures `minio.s3.endpointUrl` for the platform chart. |
+| minio.s3.region | string | `"us-east-1"` | Configures `minio.s3.region` for the platform chart. |
+| minio.s3.secretKey | string | `"change-me"` | Configures `minio.s3.secretKey` for the platform chart. |
+| minio.standalone | bool | `false` | Configures `minio.standalone` for the platform chart. |
+| mockOAuth | object | `{"github":{"enabled":false,"image":{"pullPolicy":"IfNotPresent","repository":"ghcr.io/musematic/mock-github-oauth","tag":"latest"},"replicas":1,"resources":{},"seedUsers":[],"service":{"nodePort":null,"port":8080,"type":"ClusterIP"}},"google":{"enabled":false,"image":{"pullPolicy":"IfNotPresent","repository":"ghcr.io/musematic/mock-google-oidc","tag":"latest"},"replicas":1,"resources":{},"seedUsers":[],"service":{"nodePort":null,"port":8080,"type":"ClusterIP"}}}` | Configures `mockOAuth` for the platform chart. |
+| mockOAuth.github | object | `{"enabled":false,"image":{"pullPolicy":"IfNotPresent","repository":"ghcr.io/musematic/mock-github-oauth","tag":"latest"},"replicas":1,"resources":{},"seedUsers":[],"service":{"nodePort":null,"port":8080,"type":"ClusterIP"}}` | Configures `mockOAuth.github` for the platform chart. |
+| mockOAuth.github.enabled | bool | `false` | Configures `mockOAuth.github.enabled` for the platform chart. |
+| mockOAuth.github.image | object | `{"pullPolicy":"IfNotPresent","repository":"ghcr.io/musematic/mock-github-oauth","tag":"latest"}` | Configures `mockOAuth.github.image` for the platform chart. |
+| mockOAuth.github.image.pullPolicy | string | `"IfNotPresent"` | Configures `mockOAuth.github.image.pullPolicy` for the platform chart. |
+| mockOAuth.github.image.repository | string | `"ghcr.io/musematic/mock-github-oauth"` | Configures `mockOAuth.github.image.repository` for the platform chart. |
+| mockOAuth.github.image.tag | string | `"latest"` | Configures `mockOAuth.github.image.tag` for the platform chart. |
+| mockOAuth.github.replicas | int | `1` | Configures `mockOAuth.github.replicas` for the platform chart. |
+| mockOAuth.github.resources | object | `{}` | Configures `mockOAuth.github.resources` for the platform chart. |
+| mockOAuth.github.seedUsers | list | `[]` | Configures `mockOAuth.github.seedUsers` for the platform chart. |
+| mockOAuth.github.service | object | `{"nodePort":null,"port":8080,"type":"ClusterIP"}` | Configures `mockOAuth.github.service` for the platform chart. |
+| mockOAuth.github.service.nodePort | string | `nil` | Configures `mockOAuth.github.service.nodePort` for the platform chart. |
+| mockOAuth.github.service.port | int | `8080` | Configures `mockOAuth.github.service.port` for the platform chart. |
+| mockOAuth.github.service.type | string | `"ClusterIP"` | Configures `mockOAuth.github.service.type` for the platform chart. |
+| mockOAuth.google | object | `{"enabled":false,"image":{"pullPolicy":"IfNotPresent","repository":"ghcr.io/musematic/mock-google-oidc","tag":"latest"},"replicas":1,"resources":{},"seedUsers":[],"service":{"nodePort":null,"port":8080,"type":"ClusterIP"}}` | Configures `mockOAuth.google` for the platform chart. |
+| mockOAuth.google.enabled | bool | `false` | Configures `mockOAuth.google.enabled` for the platform chart. |
+| mockOAuth.google.image | object | `{"pullPolicy":"IfNotPresent","repository":"ghcr.io/musematic/mock-google-oidc","tag":"latest"}` | Configures `mockOAuth.google.image` for the platform chart. |
+| mockOAuth.google.image.pullPolicy | string | `"IfNotPresent"` | Configures `mockOAuth.google.image.pullPolicy` for the platform chart. |
+| mockOAuth.google.image.repository | string | `"ghcr.io/musematic/mock-google-oidc"` | Configures `mockOAuth.google.image.repository` for the platform chart. |
+| mockOAuth.google.image.tag | string | `"latest"` | Configures `mockOAuth.google.image.tag` for the platform chart. |
+| mockOAuth.google.replicas | int | `1` | Configures `mockOAuth.google.replicas` for the platform chart. |
+| mockOAuth.google.resources | object | `{}` | Configures `mockOAuth.google.resources` for the platform chart. |
+| mockOAuth.google.seedUsers | list | `[]` | Configures `mockOAuth.google.seedUsers` for the platform chart. |
+| mockOAuth.google.service | object | `{"nodePort":null,"port":8080,"type":"ClusterIP"}` | Configures `mockOAuth.google.service` for the platform chart. |
+| mockOAuth.google.service.nodePort | string | `nil` | Configures `mockOAuth.google.service.nodePort` for the platform chart. |
+| mockOAuth.google.service.port | int | `8080` | Configures `mockOAuth.google.service.port` for the platform chart. |
+| mockOAuth.google.service.type | string | `"ClusterIP"` | Configures `mockOAuth.google.service.type` for the platform chart. |
+| multi_region | object | `{"enabled":false,"endpointRefs":{"kafkaAdminBrokersRef":"","neo4jPasswordRef":"","neo4jUriRef":"","neo4jUserRef":"","opensearchApiKeyRef":"","postgresReplicaDsnRef":"","qdrantApiKeyRef":"","s3AccessKeyRef":"","s3EndpointUrlRef":"","s3SecretKeyRef":""},"featureFlags":{},"images":{"kafkaMirrorMaker":"quay.io/strimzi/kafka:0.43.0-kafka-3.8.0","tools":"ghcr.io/musematic/platform-tools:latest"},"primaryRegion":"","role":"primary","secondaryRegion":""}` | Configures `multi_region` for the platform chart. |
+| multi_region.enabled | bool | `false` | Configures `multi_region.enabled` for the platform chart. |
+| multi_region.endpointRefs | object | `{"kafkaAdminBrokersRef":"","neo4jPasswordRef":"","neo4jUriRef":"","neo4jUserRef":"","opensearchApiKeyRef":"","postgresReplicaDsnRef":"","qdrantApiKeyRef":"","s3AccessKeyRef":"","s3EndpointUrlRef":"","s3SecretKeyRef":""}` | Configures `multi_region.endpointRefs` for the platform chart. |
+| multi_region.endpointRefs.kafkaAdminBrokersRef | string | `""` | Configures `multi_region.endpointRefs.kafkaAdminBrokersRef` for the platform chart. |
+| multi_region.endpointRefs.neo4jPasswordRef | string | `""` | Configures `multi_region.endpointRefs.neo4jPasswordRef` for the platform chart. |
+| multi_region.endpointRefs.neo4jUriRef | string | `""` | Configures `multi_region.endpointRefs.neo4jUriRef` for the platform chart. |
+| multi_region.endpointRefs.neo4jUserRef | string | `""` | Configures `multi_region.endpointRefs.neo4jUserRef` for the platform chart. |
+| multi_region.endpointRefs.opensearchApiKeyRef | string | `""` | Configures `multi_region.endpointRefs.opensearchApiKeyRef` for the platform chart. |
+| multi_region.endpointRefs.postgresReplicaDsnRef | string | `""` | Configures `multi_region.endpointRefs.postgresReplicaDsnRef` for the platform chart. |
+| multi_region.endpointRefs.qdrantApiKeyRef | string | `""` | Configures `multi_region.endpointRefs.qdrantApiKeyRef` for the platform chart. |
+| multi_region.endpointRefs.s3AccessKeyRef | string | `""` | Configures `multi_region.endpointRefs.s3AccessKeyRef` for the platform chart. |
+| multi_region.endpointRefs.s3EndpointUrlRef | string | `""` | Configures `multi_region.endpointRefs.s3EndpointUrlRef` for the platform chart. |
+| multi_region.endpointRefs.s3SecretKeyRef | string | `""` | Configures `multi_region.endpointRefs.s3SecretKeyRef` for the platform chart. |
+| multi_region.featureFlags | object | `{}` | Configures `multi_region.featureFlags` for the platform chart. |
+| multi_region.images | object | `{"kafkaMirrorMaker":"quay.io/strimzi/kafka:0.43.0-kafka-3.8.0","tools":"ghcr.io/musematic/platform-tools:latest"}` | Configures `multi_region.images` for the platform chart. |
+| multi_region.images.kafkaMirrorMaker | string | `"quay.io/strimzi/kafka:0.43.0-kafka-3.8.0"` | Configures `multi_region.images.kafkaMirrorMaker` for the platform chart. |
+| multi_region.images.tools | string | `"ghcr.io/musematic/platform-tools:latest"` | Configures `multi_region.images.tools` for the platform chart. |
+| multi_region.primaryRegion | string | `""` | Configures `multi_region.primaryRegion` for the platform chart. |
+| multi_region.role | string | `"primary"` | Configures `multi_region.role` for the platform chart. |
+| multi_region.secondaryRegion | string | `""` | Configures `multi_region.secondaryRegion` for the platform chart. |
+| neo4j | object | `{"createNamespace":false,"enabled":true,"neo4j":{"fullnameOverride":"musematic-neo4j","name":"musematic-neo4j"}}` | Configures `neo4j` for the platform chart. |
+| neo4j.createNamespace | bool | `false` | Configures `neo4j.createNamespace` for the platform chart. |
+| neo4j.enabled | bool | `true` | Configures `neo4j.enabled` for the platform chart. |
+| neo4j.neo4j | object | `{"fullnameOverride":"musematic-neo4j","name":"musematic-neo4j"}` | Configures `neo4j.neo4j` for the platform chart. |
+| neo4j.neo4j.fullnameOverride | string | `"musematic-neo4j"` | Configures `neo4j.neo4j.fullnameOverride` for the platform chart. |
+| neo4j.neo4j.name | string | `"musematic-neo4j"` | Configures `neo4j.neo4j.name` for the platform chart. |
+| opensearch | object | `{"enabled":true}` | Configures `opensearch` for the platform chart. |
+| opensearch.enabled | bool | `true` | Configures `opensearch.enabled` for the platform chart. |
+| platformDataNamespace | object | `{"create":true,"name":"platform-data"}` | Configures `platformDataNamespace` for the platform chart. |
+| platformDataNamespace.create | bool | `true` | Configures `platformDataNamespace.create` for the platform chart. |
+| platformDataNamespace.name | string | `"platform-data"` | Configures `platformDataNamespace.name` for the platform chart. |
+| platformInstanceName | string | `"Musematic Platform"` | Configures `platformInstanceName` for the platform chart. |
+| postgresql | object | `{"createNamespace":false,"credentials":{"database":"musematic","password":"change-me","username":"musematic"},"enabled":true,"environment":"production"}` | Configures `postgresql` for the platform chart. |
+| postgresql.createNamespace | bool | `false` | Configures `postgresql.createNamespace` for the platform chart. |
+| postgresql.credentials | object | `{"database":"musematic","password":"change-me","username":"musematic"}` | Configures `postgresql.credentials` for the platform chart. |
+| postgresql.credentials.database | string | `"musematic"` | Configures `postgresql.credentials.database` for the platform chart. |
+| postgresql.credentials.password | string | `"change-me"` | Configures `postgresql.credentials.password` for the platform chart. |
+| postgresql.credentials.username | string | `"musematic"` | Configures `postgresql.credentials.username` for the platform chart. |
+| postgresql.enabled | bool | `true` | Configures `postgresql.enabled` for the platform chart. |
+| postgresql.environment | string | `"production"` | Configures `postgresql.environment` for the platform chart. |
+| qdrant | object | `{"createNamespace":false,"enabled":true,"qdrant":{"fullnameOverride":"musematic-qdrant"}}` | Configures `qdrant` for the platform chart. |
+| qdrant.createNamespace | bool | `false` | Configures `qdrant.createNamespace` for the platform chart. |
+| qdrant.enabled | bool | `true` | Configures `qdrant.enabled` for the platform chart. |
+| qdrant.qdrant | object | `{"fullnameOverride":"musematic-qdrant"}` | Configures `qdrant.qdrant` for the platform chart. |
+| qdrant.qdrant.fullnameOverride | string | `"musematic-qdrant"` | Configures `qdrant.qdrant.fullnameOverride` for the platform chart. |
+| reasoningEngine | object | `{"enabled":true,"image":{"repository":"ghcr.io/musematic/reasoning-engine","tag":"latest"},"secrets":{"KAFKA_BROKERS":"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092","MINIO_BUCKET":"reasoning-traces","MINIO_ENDPOINT":"http://musematic-minio.platform-data.svc.cluster.local:9000","POSTGRES_DSN":"postgres://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable","REDIS_ADDR":"musematic-redis.platform.svc.cluster.local:6379","REDIS_PASSWORD":"change-me"}}` | Configures `reasoningEngine` for the platform chart. |
+| reasoningEngine.enabled | bool | `true` | Configures `reasoningEngine.enabled` for the platform chart. |
+| reasoningEngine.image | object | `{"repository":"ghcr.io/musematic/reasoning-engine","tag":"latest"}` | Configures `reasoningEngine.image` for the platform chart. |
+| reasoningEngine.image.repository | string | `"ghcr.io/musematic/reasoning-engine"` | Configures `reasoningEngine.image.repository` for the platform chart. |
+| reasoningEngine.image.tag | string | `"latest"` | Configures `reasoningEngine.image.tag` for the platform chart. |
+| reasoningEngine.secrets | object | `{"KAFKA_BROKERS":"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092","MINIO_BUCKET":"reasoning-traces","MINIO_ENDPOINT":"http://musematic-minio.platform-data.svc.cluster.local:9000","POSTGRES_DSN":"postgres://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable","REDIS_ADDR":"musematic-redis.platform.svc.cluster.local:6379","REDIS_PASSWORD":"change-me"}` | Configures `reasoningEngine.secrets` for the platform chart. |
+| reasoningEngine.secrets.KAFKA_BROKERS | string | `"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092"` | Configures `reasoningEngine.secrets.KAFKA_BROKERS` for the platform chart. |
+| reasoningEngine.secrets.MINIO_BUCKET | string | `"reasoning-traces"` | Configures `reasoningEngine.secrets.MINIO_BUCKET` for the platform chart. |
+| reasoningEngine.secrets.MINIO_ENDPOINT | string | `"http://musematic-minio.platform-data.svc.cluster.local:9000"` | Configures `reasoningEngine.secrets.MINIO_ENDPOINT` for the platform chart. |
+| reasoningEngine.secrets.POSTGRES_DSN | string | `"postgres://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable"` | Configures `reasoningEngine.secrets.POSTGRES_DSN` for the platform chart. |
+| reasoningEngine.secrets.REDIS_ADDR | string | `"musematic-redis.platform.svc.cluster.local:6379"` | Configures `reasoningEngine.secrets.REDIS_ADDR` for the platform chart. |
+| reasoningEngine.secrets.REDIS_PASSWORD | string | `"change-me"` | Configures `reasoningEngine.secrets.REDIS_PASSWORD` for the platform chart. |
+| redis | object | `{"auth":{"password":"change-me"},"createNamespace":false,"enabled":true,"global":{"redis":{"password":"change-me"}},"networkPolicy":{"enabled":false},"redis-cluster":{"existingSecret":"redis-credentials","existingSecretPasswordKey":"password","fullnameOverride":"musematic-redis","password":"change-me"}}` | Configures `redis` for the platform chart. |
+| redis.auth | object | `{"password":"change-me"}` | Configures `redis.auth` for the platform chart. |
+| redis.auth.password | string | `"change-me"` | Configures `redis.auth.password` for the platform chart. |
+| redis.createNamespace | bool | `false` | Configures `redis.createNamespace` for the platform chart. |
+| redis.enabled | bool | `true` | Configures `redis.enabled` for the platform chart. |
+| redis.global | object | `{"redis":{"password":"change-me"}}` | Configures `redis.global` for the platform chart. |
+| redis.global.redis | object | `{"password":"change-me"}` | Configures `redis.global.redis` for the platform chart. |
+| redis.global.redis.password | string | `"change-me"` | Configures `redis.global.redis.password` for the platform chart. |
+| redis.networkPolicy | object | `{"enabled":false}` | Configures `redis.networkPolicy` for the platform chart. |
+| redis.networkPolicy.enabled | bool | `false` | Configures `redis.networkPolicy.enabled` for the platform chart. |
+| redis.redis-cluster | object | `{"existingSecret":"redis-credentials","existingSecretPasswordKey":"password","fullnameOverride":"musematic-redis","password":"change-me"}` | Configures `redis.redis-cluster` for the platform chart. |
+| redis.redis-cluster.existingSecret | string | `"redis-credentials"` | Configures `redis.redis-cluster.existingSecret` for the platform chart. |
+| redis.redis-cluster.existingSecretPasswordKey | string | `"password"` | Configures `redis.redis-cluster.existingSecretPasswordKey` for the platform chart. |
+| redis.redis-cluster.fullnameOverride | string | `"musematic-redis"` | Configures `redis.redis-cluster.fullnameOverride` for the platform chart. |
+| redis.redis-cluster.password | string | `"change-me"` | Configures `redis.redis-cluster.password` for the platform chart. |
+| runtimeController | object | `{"enabled":true,"image":{"repository":"ghcr.io/musematic/runtime-controller","tag":"latest"},"secrets":{"K8S_DRY_RUN":"false","KAFKA_BROKERS":"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092","POSTGRES_DSN":"postgres://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable","REDIS_ADDR":"musematic-redis.platform.svc.cluster.local:6379","REDIS_PASSWORD":"change-me","S3_ACCESS_KEY":"platform","S3_BUCKET":"platform-execution-artifacts","S3_ENDPOINT_URL":"http://musematic-minio.platform-data.svc.cluster.local:9000","S3_REGION":"us-east-1","S3_SECRET_KEY":"change-me","S3_USE_PATH_STYLE":"true"}}` | Configures `runtimeController` for the platform chart. |
+| runtimeController.enabled | bool | `true` | Configures `runtimeController.enabled` for the platform chart. |
+| runtimeController.image | object | `{"repository":"ghcr.io/musematic/runtime-controller","tag":"latest"}` | Configures `runtimeController.image` for the platform chart. |
+| runtimeController.image.repository | string | `"ghcr.io/musematic/runtime-controller"` | Configures `runtimeController.image.repository` for the platform chart. |
+| runtimeController.image.tag | string | `"latest"` | Configures `runtimeController.image.tag` for the platform chart. |
+| runtimeController.secrets | object | `{"K8S_DRY_RUN":"false","KAFKA_BROKERS":"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092","POSTGRES_DSN":"postgres://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable","REDIS_ADDR":"musematic-redis.platform.svc.cluster.local:6379","REDIS_PASSWORD":"change-me","S3_ACCESS_KEY":"platform","S3_BUCKET":"platform-execution-artifacts","S3_ENDPOINT_URL":"http://musematic-minio.platform-data.svc.cluster.local:9000","S3_REGION":"us-east-1","S3_SECRET_KEY":"change-me","S3_USE_PATH_STYLE":"true"}` | Configures `runtimeController.secrets` for the platform chart. |
+| runtimeController.secrets.K8S_DRY_RUN | string | `"false"` | Configures `runtimeController.secrets.K8S_DRY_RUN` for the platform chart. |
+| runtimeController.secrets.KAFKA_BROKERS | string | `"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092"` | Configures `runtimeController.secrets.KAFKA_BROKERS` for the platform chart. |
+| runtimeController.secrets.POSTGRES_DSN | string | `"postgres://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable"` | Configures `runtimeController.secrets.POSTGRES_DSN` for the platform chart. |
+| runtimeController.secrets.REDIS_ADDR | string | `"musematic-redis.platform.svc.cluster.local:6379"` | Configures `runtimeController.secrets.REDIS_ADDR` for the platform chart. |
+| runtimeController.secrets.REDIS_PASSWORD | string | `"change-me"` | Configures `runtimeController.secrets.REDIS_PASSWORD` for the platform chart. |
+| runtimeController.secrets.S3_ACCESS_KEY | string | `"platform"` | Configures `runtimeController.secrets.S3_ACCESS_KEY` for the platform chart. |
+| runtimeController.secrets.S3_BUCKET | string | `"platform-execution-artifacts"` | Configures `runtimeController.secrets.S3_BUCKET` for the platform chart. |
+| runtimeController.secrets.S3_ENDPOINT_URL | string | `"http://musematic-minio.platform-data.svc.cluster.local:9000"` | Configures `runtimeController.secrets.S3_ENDPOINT_URL` for the platform chart. |
+| runtimeController.secrets.S3_REGION | string | `"us-east-1"` | Configures `runtimeController.secrets.S3_REGION` for the platform chart. |
+| runtimeController.secrets.S3_SECRET_KEY | string | `"change-me"` | Configures `runtimeController.secrets.S3_SECRET_KEY` for the platform chart. |
+| runtimeController.secrets.S3_USE_PATH_STYLE | string | `"true"` | Configures `runtimeController.secrets.S3_USE_PATH_STYLE` for the platform chart. |
+| sandboxManager | object | `{"config":{"k8sNamespace":"platform-execution","kafkaBrokers":"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092","minioBucket":"platform-execution-artifacts","minioEndpoint":"http://musematic-minio.platform-data.svc.cluster.local:9000","postgresDsn":"postgres://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable"},"enabled":true,"fullnameOverride":"sandbox-manager","image":{"pullPolicy":"IfNotPresent","repository":"ghcr.io/musematic/sandbox-manager","tag":"latest"}}` | Configures `sandboxManager` for the platform chart. |
+| sandboxManager.config | object | `{"k8sNamespace":"platform-execution","kafkaBrokers":"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092","minioBucket":"platform-execution-artifacts","minioEndpoint":"http://musematic-minio.platform-data.svc.cluster.local:9000","postgresDsn":"postgres://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable"}` | Configures `sandboxManager.config` for the platform chart. |
+| sandboxManager.config.k8sNamespace | string | `"platform-execution"` | Configures `sandboxManager.config.k8sNamespace` for the platform chart. |
+| sandboxManager.config.kafkaBrokers | string | `"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092"` | Configures `sandboxManager.config.kafkaBrokers` for the platform chart. |
+| sandboxManager.config.minioBucket | string | `"platform-execution-artifacts"` | Configures `sandboxManager.config.minioBucket` for the platform chart. |
+| sandboxManager.config.minioEndpoint | string | `"http://musematic-minio.platform-data.svc.cluster.local:9000"` | Configures `sandboxManager.config.minioEndpoint` for the platform chart. |
+| sandboxManager.config.postgresDsn | string | `"postgres://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic?sslmode=disable"` | Configures `sandboxManager.config.postgresDsn` for the platform chart. |
+| sandboxManager.enabled | bool | `true` | Configures `sandboxManager.enabled` for the platform chart. |
+| sandboxManager.fullnameOverride | string | `"sandbox-manager"` | Configures `sandboxManager.fullnameOverride` for the platform chart. |
+| sandboxManager.image | object | `{"pullPolicy":"IfNotPresent","repository":"ghcr.io/musematic/sandbox-manager","tag":"latest"}` | Configures `sandboxManager.image` for the platform chart. |
+| sandboxManager.image.pullPolicy | string | `"IfNotPresent"` | Configures `sandboxManager.image.pullPolicy` for the platform chart. |
+| sandboxManager.image.repository | string | `"ghcr.io/musematic/sandbox-manager"` | Configures `sandboxManager.image.repository` for the platform chart. |
+| sandboxManager.image.tag | string | `"latest"` | Configures `sandboxManager.image.tag` for the platform chart. |
+| simulationController | object | `{"enabled":true,"fullnameOverride":"musematic-simulation-controller","image":{"repository":"ghcr.io/musematic/simulation-controller","tag":"latest"}}` | Configures `simulationController` for the platform chart. |
+| simulationController.enabled | bool | `true` | Configures `simulationController.enabled` for the platform chart. |
+| simulationController.fullnameOverride | string | `"musematic-simulation-controller"` | Configures `simulationController.fullnameOverride` for the platform chart. |
+| simulationController.image | object | `{"repository":"ghcr.io/musematic/simulation-controller","tag":"latest"}` | Configures `simulationController.image` for the platform chart. |
+| simulationController.image.repository | string | `"ghcr.io/musematic/simulation-controller"` | Configures `simulationController.image.repository` for the platform chart. |
+| simulationController.image.tag | string | `"latest"` | Configures `simulationController.image.tag` for the platform chart. |
+| superadmin | object | `{"email":"","forcePasswordChange":true,"mfaEnrollment":"required_on_first_login","passwordSecretRef":"","username":""}` | Configures `superadmin` for the platform chart. |
+| superadmin.email | string | `""` | Configures `superadmin.email` for the platform chart. |
+| superadmin.forcePasswordChange | bool | `true` | Configures `superadmin.forcePasswordChange` for the platform chart. |
+| superadmin.mfaEnrollment | string | `"required_on_first_login"` | Configures `superadmin.mfaEnrollment` for the platform chart. |
+| superadmin.passwordSecretRef | string | `""` | Configures `superadmin.passwordSecretRef` for the platform chart. |
+| superadmin.username | string | `""` | Configures `superadmin.username` for the platform chart. |
+| tenantMode | string | `"single"` | Configures `tenantMode` for the platform chart. |
+| ui | object | `{"enabled":true,"env":{"NEXT_PUBLIC_API_URL":"http://localhost:8000","NEXT_PUBLIC_APP_ENV":"production","NEXT_PUBLIC_WS_URL":"ws://localhost:8001/ws"},"image":{"pullPolicy":"IfNotPresent","repository":"ghcr.io/musematic/ui","tag":"latest"},"replicaCount":1,"service":{"nodePort":null,"port":3000,"type":"ClusterIP"}}` | Configures `ui` for the platform chart. |
+| ui.enabled | bool | `true` | Configures `ui.enabled` for the platform chart. |
+| ui.env | object | `{"NEXT_PUBLIC_API_URL":"http://localhost:8000","NEXT_PUBLIC_APP_ENV":"production","NEXT_PUBLIC_WS_URL":"ws://localhost:8001/ws"}` | Configures `ui.env` for the platform chart. |
+| ui.env.NEXT_PUBLIC_API_URL | string | `"http://localhost:8000"` | Configures `ui.env.NEXT_PUBLIC_API_URL` for the platform chart. |
+| ui.env.NEXT_PUBLIC_APP_ENV | string | `"production"` | Configures `ui.env.NEXT_PUBLIC_APP_ENV` for the platform chart. |
+| ui.env.NEXT_PUBLIC_WS_URL | string | `"ws://localhost:8001/ws"` | Configures `ui.env.NEXT_PUBLIC_WS_URL` for the platform chart. |
+| ui.image | object | `{"pullPolicy":"IfNotPresent","repository":"ghcr.io/musematic/ui","tag":"latest"}` | Configures `ui.image` for the platform chart. |
+| ui.image.pullPolicy | string | `"IfNotPresent"` | Configures `ui.image.pullPolicy` for the platform chart. |
+| ui.image.repository | string | `"ghcr.io/musematic/ui"` | Configures `ui.image.repository` for the platform chart. |
+| ui.image.tag | string | `"latest"` | Configures `ui.image.tag` for the platform chart. |
+| ui.replicaCount | int | `1` | Configures `ui.replicaCount` for the platform chart. |
+| ui.service | object | `{"nodePort":null,"port":3000,"type":"ClusterIP"}` | Configures `ui.service` for the platform chart. |
+| ui.service.nodePort | string | `nil` | Configures `ui.service.nodePort` for the platform chart. |
+| ui.service.port | int | `3000` | Configures `ui.service.port` for the platform chart. |
+| ui.service.type | string | `"ClusterIP"` | Configures `ui.service.type` for the platform chart. |
+
+----------------------------------------------
+Autogenerated from chart metadata using [helm-docs v1.13.1](https://github.com/norwoodj/helm-docs/releases/v1.13.1)
