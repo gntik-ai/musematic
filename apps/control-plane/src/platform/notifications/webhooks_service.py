@@ -73,7 +73,7 @@ class OutboundWebhookService:
             created_by=actor_id,
         )
         secret_ref = f"secret/data/notifications/webhook-secrets/{webhook.id}"
-        await self.secrets.write_secret(secret_ref, {"hmac_secret": secret})
+        await self.secrets.put(secret_ref, {"hmac_secret": secret})
         updated = await self.repo.update_outbound_webhook(
             webhook.id,
             signing_secret_ref=secret_ref,
@@ -114,7 +114,7 @@ class OutboundWebhookService:
         webhook = await self.repo.get_outbound_webhook(webhook_id)
         if webhook is None:
             raise WebhookNotFoundError(webhook_id)
-        await self.secrets.write_secret(
+        await self.secrets.put(
             webhook.signing_secret_ref,
             {"hmac_secret": _new_hmac_secret()},
         )
@@ -246,8 +246,7 @@ class OutboundWebhookService:
         if failure_reason is not None:
             return WebhookDeliveryRead.model_validate(delivery)
 
-        secret_payload = await self.secrets.read_secret(webhook.signing_secret_ref)
-        secret = str(secret_payload.get("hmac_secret", ""))
+        secret = await self.secrets.get(webhook.signing_secret_ref, key="hmac_secret")
         outcome, error_detail, _idempotency_key = await self.deliverer.send_signed(
             webhook_id=webhook.id,
             event_id=event_id,

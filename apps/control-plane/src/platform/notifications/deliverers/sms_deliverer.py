@@ -195,6 +195,14 @@ def _extra(config: object | None) -> dict[str, Any]:
 async def _read_secret(secrets: object | None, path: str) -> dict[str, Any]:
     if secrets is None:
         return {}
+    get_secret = getattr(secrets, "get", None)
+    if callable(get_secret):
+        payload: dict[str, Any] = {}
+        for key in ("account_sid", "auth_token", "default_sender", "sender"):
+            value = await cast(Any, get_secret)(path, key=key)
+            if value:
+                payload[key] = value
+        return payload
     read_secret = getattr(secrets, "read_secret", None)
     if not callable(read_secret):
         return {}

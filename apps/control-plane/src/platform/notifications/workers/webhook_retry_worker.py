@@ -171,9 +171,14 @@ def _next_retry_delay(error_detail: str | None, backoff: list[int], attempts: in
 
 
 async def _read_secret(secrets: object, path: str) -> dict[str, Any]:
-    read_secret = cast(Any, secrets).read_secret
-    value = await read_secret(path)
-    return value if isinstance(value, dict) else {}
+    get_secret = getattr(secrets, "get", None)
+    if callable(get_secret):
+        return {"hmac_secret": await cast(Any, get_secret)(path, key="hmac_secret")}
+    read_secret = getattr(secrets, "read_secret", None)
+    if callable(read_secret):
+        value = await cast(Any, read_secret)(path)
+        return value if isinstance(value, dict) else {}
+    return {}
 
 
 async def _acquire_lease(redis: object, delivery_id: object) -> bool:
