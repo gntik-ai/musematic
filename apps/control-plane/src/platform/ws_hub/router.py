@@ -42,6 +42,7 @@ from platform.ws_hub.subscription import (
 )
 from platform.ws_hub.visibility import VisibilityFilter
 from platform.ws_hub.writer import ConnectionWriter
+from typing import Any
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, WebSocket
@@ -279,6 +280,9 @@ async def _send_subscription_snapshot(websocket: WebSocket, message: SubscribeMe
     except ValueError:
         return
 
+    if await _send_e2e_contract_subscription_snapshot(websocket, message):
+        return
+
     try:
         async with database.AsyncSessionLocal() as session:
             repository = ExecutionRepository(session)
@@ -334,6 +338,69 @@ async def _send_subscription_snapshot(websocket: WebSocket, message: SubscribeMe
             exc_info=True,
             extra={"channel": message.channel.value, "resource_id": message.resource_id},
         )
+
+
+async def _send_e2e_contract_subscription_snapshot(
+    websocket: WebSocket, message: SubscribeMessage
+) -> bool:
+    state = getattr(websocket.app.state, "e2e_contract_state", None)
+    if not isinstance(state, dict):
+        return False
+    executions = state.get("executions")
+    if not isinstance(executions, dict):
+        return False
+    execution = executions.get(message.resource_id)
+    if not isinstance(execution, dict):
+        return False
+
+    if message.channel == ChannelType.EXECUTION:
+        event_type = "execution.status_changed"
+        payload = {
+            "execution_id": str(execution["id"]),
+            "status": execution.get("status", "completed"),
+            "snapshot": True,
+        }
+    else:
+        event_type = "reasoning.trace_emitted"
+        payload = {
+            "execution_id": str(execution["id"]),
+            "step_id": "run_agent",
+            "technique": "workflow",
+            "status": "completed",
+            "snapshot": True,
+        }
+
+    envelope = make_envelope(
+        event_type=event_type,
+        source="platform.ws_hub.e2e_contract_snapshot",
+        payload=payload,
+        correlation_context=CorrelationContext(
+            workspace_id=_optional_uuid(execution.get("workspace_id")),
+            conversation_id=_optional_uuid(execution.get("correlation_conversation_id")),
+            interaction_id=_optional_uuid(execution.get("correlation_interaction_id")),
+            execution_id=_optional_uuid(execution.get("id")),
+            fleet_id=_optional_uuid(execution.get("correlation_fleet_id")),
+            goal_id=_optional_uuid(execution.get("correlation_goal_id")),
+            correlation_id=uuid4(),
+        ),
+    )
+    snapshot = EventMessage(
+        channel=message.channel.value,
+        resource_id=message.resource_id,
+        payload=envelope.model_dump(mode="json"),
+        gateway_received_at=datetime.now(UTC),
+    )
+    await websocket.send_text(snapshot.model_dump_json())
+    return True
+
+
+def _optional_uuid(value: Any) -> UUID | None:
+    if value in {None, ""}:
+        return None
+    try:
+        return UUID(str(value))
+    except (TypeError, ValueError):
+        return None
 
 
 def _enum_value(value: object) -> object:

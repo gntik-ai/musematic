@@ -41,7 +41,10 @@ from platform.common.exceptions import AuthorizationError, ValidationError
 from types import SimpleNamespace, TracebackType
 from uuid import UUID, uuid4
 
+import httpx
 import pytest
+from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 from starlette.requests import Request
 
 
@@ -843,6 +846,35 @@ async def test_debug_capture_middleware_records_redacted_http_exchange(monkeypat
     assert records[0]["request_body"] == '{"password": "[REDACTED]"}'
     assert records[0]["response_headers"]["set-cookie"] == "[REDACTED]"
     assert records[0]["response_body"] == '{"token": "[REDACTED]"}'
+
+
+@pytest.mark.asyncio
+async def test_debug_capture_middleware_passes_through_sse_stream() -> None:
+    app = FastAPI()
+    app.state.settings = PlatformSettings()
+    app.state.clients = {}
+    app.add_middleware(DebugCaptureMiddleware)
+
+    @app.post("/stream")
+    async def stream() -> StreamingResponse:
+        async def events():
+            yield "event: started\n\n"
+            yield "event: completed\n\n"
+
+        return StreamingResponse(events(), media_type="text/event-stream")
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://testserver",
+        timeout=1.0,
+    ) as client:
+        async with client.stream("POST", "/stream", json={"input": "stream"}) as response:
+            assert response.status_code == 200
+            events = [
+                line async for line in response.aiter_lines() if line.startswith("event:")
+            ]
+
+    assert events == ["event: started", "event: completed"]
 
 
 @pytest.mark.asyncio

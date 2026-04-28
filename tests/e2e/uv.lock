@@ -428,6 +428,7 @@ dependencies = [
     { name = "pytest-asyncio" },
     { name = "pytest-html" },
     { name = "pytest-timeout" },
+    { name = "pyyaml" },
     { name = "websockets" },
 ]
 
@@ -453,6 +454,7 @@ requires-dist = [
     { name = "pytest-html" },
     { name = "pytest-timeout" },
     { name = "pytest-xdist", marker = "extra == 'e2e'", specifier = ">=3.6" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "websockets" },
 ]
 provides-extras = ["e2e"]

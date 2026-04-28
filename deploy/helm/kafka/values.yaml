@@ -52,6 +52,12 @@ storage:
   size: 100Gi
   # -- Configures `storage.class` for the kafka chart.
   class: standard
+# @section -- Jvmoptions
+# -- Configures `jvmOptions` for Kafka node pools.
+jvmOptions: {}
+# @section -- Resources
+# -- Configures `resources` for Kafka node pools.
+resources: {}
 # @section -- Topics
 # -- Configures `topics` for the kafka chart.
 topics:
@@ -141,6 +147,11 @@ topics:
     # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: fleet.health
+    # -- Configures `topics.partitions` for the kafka chart.
+    partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
+    retentionMs: 604800000
+  - name: fleet.events
     # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
     # -- Configures `topics.retentionMs` for the kafka chart.

@@ -8,7 +8,7 @@ RELEASE_NAME ?= amp
 NAMESPACE ?= platform
 
 PYTEST ?= python3 -m pytest
-E2E_TEST_PATHS ?= tests test_*.py
+E2E_TEST_PATHS ?= suites
 E2E_JOURNEY_WORKERS ?= 4
 KIND_CONFIG_TEMPLATE := cluster/kind-config.yaml
 KIND_CONFIG_RENDERED := /tmp/kind-config-$(CLUSTER_NAME).yaml
@@ -42,7 +42,8 @@ e2e-down:
 	@rm -f $(KIND_CONFIG_RENDERED)
 
 e2e-test:
-	@$(PYTEST) $(E2E_TEST_PATHS)
+	@mkdir -p reports
+	@$(PYTEST) $(E2E_TEST_PATHS) --junitxml=reports/junit.xml --html=reports/report.html --self-contained-html
 
 e2e-journeys:
 	@mkdir -p reports
@@ -86,14 +87,16 @@ e2e-j09:
 
 e2e-chaos:
 	@if [ -d chaos ] && find chaos -type f \( -name 'test_*.py' -o -name '*_test.py' \) | grep -q .; then \
-		$(PYTEST) chaos; \
+		mkdir -p reports; \
+		$(PYTEST) chaos --junitxml=reports/chaos-junit.xml --html=reports/chaos-report.html --self-contained-html; \
 	else \
 		echo "[e2e] no chaos suites found; skipping"; \
 	fi
 
 e2e-perf:
 	@if [ -d performance ] && find performance -type f \( -name 'test_*.py' -o -name '*_test.py' \) | grep -q .; then \
-		$(PYTEST) performance; \
+		mkdir -p reports; \
+		$(PYTEST) performance --junitxml=reports/performance-junit.xml --html=reports/performance-report.html --self-contained-html; \
 	else \
 		echo "[e2e] no performance suites found; skipping"; \
 	fi

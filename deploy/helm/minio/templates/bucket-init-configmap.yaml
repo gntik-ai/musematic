@@ -21,6 +21,11 @@ data:
       mc mb --ignore-existing "local/$1"
     }
 
+    create_platform_bucket() {
+      create_bucket "$1"
+      create_bucket "platform-$1"
+    }
+
     apply_expiry() {
       mc ilm rule add "local/$1" --expire-days "$2" >/dev/null 2>&1 || true
     }
@@ -29,16 +34,16 @@ data:
       mc ilm rule add "local/$1" --expire-days 7 --noncurrent-expire-days 7 >/dev/null 2>&1 || true
     }
 
-    create_bucket agent-packages
-    create_bucket connector-dead-letters
-    create_bucket execution-artifacts
-    create_bucket execution-task-plans
-    create_bucket reasoning-traces
-    create_bucket sandbox-outputs
-    create_bucket evidence-bundles
-    create_bucket simulation-artifacts
-    create_bucket backups
-    create_bucket forensic-exports
+    create_platform_bucket agent-packages
+    create_platform_bucket connector-dead-letters
+    create_platform_bucket execution-artifacts
+    create_platform_bucket execution-task-plans
+    create_platform_bucket reasoning-traces
+    create_platform_bucket sandbox-outputs
+    create_platform_bucket evidence-bundles
+    create_platform_bucket simulation-artifacts
+    create_platform_bucket backups
+    create_platform_bucket forensic-exports
 
     apply_expiry execution-artifacts {{ .Values.buckets.executionArtifactsRetentionDays }}
     apply_expiry execution-task-plans 30
@@ -48,7 +53,7 @@ data:
     apply_expiry backups 30
     apply_expiry forensic-exports 90
 
-    for bucket in agent-packages connector-dead-letters execution-artifacts execution-task-plans reasoning-traces sandbox-outputs evidence-bundles simulation-artifacts backups forensic-exports; do
+    for bucket in agent-packages connector-dead-letters execution-artifacts execution-task-plans reasoning-traces sandbox-outputs evidence-bundles simulation-artifacts backups forensic-exports platform-agent-packages platform-connector-dead-letters platform-execution-artifacts platform-execution-task-plans platform-reasoning-traces platform-sandbox-outputs platform-evidence-bundles platform-simulation-artifacts platform-backups platform-forensic-exports; do
       apply_cleanup_rule "${bucket}"
     done
 
@@ -80,22 +85,40 @@ data:
           "Resource": [
             "arn:aws:s3:::agent-packages",
             "arn:aws:s3:::agent-packages/*",
+            "arn:aws:s3:::platform-agent-packages",
+            "arn:aws:s3:::platform-agent-packages/*",
             "arn:aws:s3:::connector-dead-letters",
             "arn:aws:s3:::connector-dead-letters/*",
+            "arn:aws:s3:::platform-connector-dead-letters",
+            "arn:aws:s3:::platform-connector-dead-letters/*",
             "arn:aws:s3:::execution-artifacts",
             "arn:aws:s3:::execution-artifacts/*",
+            "arn:aws:s3:::platform-execution-artifacts",
+            "arn:aws:s3:::platform-execution-artifacts/*",
             "arn:aws:s3:::execution-task-plans",
             "arn:aws:s3:::execution-task-plans/*",
+            "arn:aws:s3:::platform-execution-task-plans",
+            "arn:aws:s3:::platform-execution-task-plans/*",
             "arn:aws:s3:::reasoning-traces",
             "arn:aws:s3:::reasoning-traces/*",
+            "arn:aws:s3:::platform-reasoning-traces",
+            "arn:aws:s3:::platform-reasoning-traces/*",
             "arn:aws:s3:::sandbox-outputs",
             "arn:aws:s3:::sandbox-outputs/*",
+            "arn:aws:s3:::platform-sandbox-outputs",
+            "arn:aws:s3:::platform-sandbox-outputs/*",
             "arn:aws:s3:::evidence-bundles",
             "arn:aws:s3:::evidence-bundles/*",
+            "arn:aws:s3:::platform-evidence-bundles",
+            "arn:aws:s3:::platform-evidence-bundles/*",
             "arn:aws:s3:::backups",
             "arn:aws:s3:::backups/*",
+            "arn:aws:s3:::platform-backups",
+            "arn:aws:s3:::platform-backups/*",
             "arn:aws:s3:::forensic-exports",
-            "arn:aws:s3:::forensic-exports/*"
+            "arn:aws:s3:::forensic-exports/*",
+            "arn:aws:s3:::platform-forensic-exports",
+            "arn:aws:s3:::platform-forensic-exports/*"
           ]
         }
       ]

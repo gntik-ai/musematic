@@ -12,6 +12,8 @@ from platform.auth.exceptions import (
     OAuthUnlinkLastMethodError,
 )
 from platform.auth.schemas import OAuthProviderType
+from platform.auth.services.oauth_service import OAuthUserIdentity
+from platform.common.exceptions import ValidationError
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -615,3 +617,127 @@ async def test_oauth_internal_helpers_cover_error_paths(monkeypatch, auth_settin
     )
     with pytest.raises(OAuthStateInvalidError):
         await service._consume_state(mismatch_state, "google")
+
+
+@pytest.mark.asyncio
+async def test_oauth_secret_provider_and_serializer_edge_paths(monkeypatch, auth_settings) -> None:
+    class SecretProviderStub:
+        def __init__(self) -> None:
+            self.put_calls: list[tuple[str, dict[str, str]]] = []
+            self.flushed: list[str] = []
+
+        async def get(self, reference: str) -> str:
+            assert reference == "vault/github"
+            return "provider-secret"
+
+        async def put(self, reference: str, value: dict[str, str]) -> None:
+            self.put_calls.append((reference, value))
+
+        async def flush_cache(self, reference: str) -> None:
+            self.flushed.append(reference)
+
+        async def list_versions(self, reference: str) -> list[int]:
+            assert reference
+            return [1, 2]
+
+    provider = build_provider(provider_type="github")
+    provider.source = SimpleNamespace(value="env")
+    service, _, auth_repository, *_ = build_oauth_service_fixture(auth_settings, provider=provider)
+    secret_provider = SecretProviderStub()
+    service.secret_provider = secret_provider  # type: ignore[assignment]
+
+    assert await service._resolve_secret("vault/github") == "provider-secret"
+    await service._put_secret("vault/github", "rotated")
+    await service._flush_secret_cache("vault/github")
+    assert await service._list_secret_versions("vault/github") == [1, 2]
+    assert secret_provider.put_calls == [("vault/github", {"value": "rotated"})]
+    assert secret_provider.flushed == ["vault/github"]
+
+    service.secret_provider = None
+    with pytest.raises(ValidationError):
+        service._require_secret_provider()
+
+    assert service._provider_client("google") is service.google_provider
+    assert service._provider_client("github") is service.github_provider
+    signed = service._sign_state("nonce")
+    assert service._verify_state(signed) == "nonce"
+    with pytest.raises(OAuthStateInvalidError):
+        service._verify_state(f"{signed}tampered")
+
+    assert service._secret_env_key("vault/github-token") == "OAUTH_SECRET_VAULT_GITHUB_TOKEN"
+    assert service._parse_optional_uuid(None) is None
+    user_id = uuid4()
+    assert service._parse_optional_uuid(str(user_id)) == user_id
+
+    snapshot = service._provider_snapshot(provider)
+    assert snapshot is not None
+    assert snapshot["source"] == "env"
+    assert service._provider_snapshot(None) is None
+    assert service._diff_provider(None, snapshot)["created"] is True
+    diff = service._diff_provider(
+        {"display_name": "Old", "enabled": True},
+        {"display_name": "New", "enabled": True},
+    )
+    assert diff == {"display_name": {"before": "Old", "after": "New"}}
+
+    now = datetime.now(UTC)
+    history = service._serialize_history_entry(
+        SimpleNamespace(
+            created_at=now,
+            actor_id=user_id,
+            action="provider_updated",
+            changed_fields={
+                "client_id": {"before": "old", "after": "new"},
+                "ignored": "same",
+            },
+        )
+    )
+    assert history.before == {"client_id": "old"}
+    assert history.after == {"client_id": "new"}
+
+    auth_repository.roles_by_user[user_id] = [SimpleNamespace(role="viewer")]
+    auth_repository.enrollments_by_user[user_id] = SimpleNamespace(status="active")
+    identity = OAuthUserIdentity(
+        external_id="external",
+        email="fallback@example.com",
+        name="Fallback User",
+        locale="en",
+        timezone="UTC",
+        avatar_url="https://images.example.com/avatar.png",
+        groups=[],
+    )
+    payload = await service._build_user_payload(
+        user_id=user_id,
+        platform_user=SimpleNamespace(
+            email="fallback@example.com",
+            display_name=None,
+            status="active",
+        ),
+        identity=identity,
+    )
+    assert payload["display_name"] == "fallback"
+    assert payload["roles"] == ["viewer"]
+    assert payload["mfa_enrolled"] is True
+
+    assert service._initial_user_status(
+        OAuthUserIdentity(
+            external_id="external",
+            email="incomplete@example.com",
+            name=None,
+            locale=None,
+            timezone=None,
+            avatar_url=None,
+            groups=[],
+        )
+    ).value == "pending_profile_completion"
+
+    admin_approval_settings = auth_settings.model_copy(
+        update={
+            "accounts": auth_settings.accounts.model_copy(
+                update={"signup_mode": "admin_approval"}
+            )
+        }
+    )
+    admin_service, *_ = build_oauth_service_fixture(admin_approval_settings, provider=provider)
+    assert admin_service._initial_user_status(identity).value == "pending_approval"
+    assert service._initial_user_status(identity).value == "active"
