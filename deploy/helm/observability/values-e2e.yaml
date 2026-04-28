@@ -209,9 +209,17 @@ loki:
 # @section -- Promtail
 # -- Configures `promtail` for the observability chart.
 promtail:
-  # Disable the chart default /ready probe in kind because this preset keeps
+  # Probe Promtail's HTTP server instead of /ready because this preset keeps
   # Promtail idle with no scrape targets.
-  readinessProbe: null
+  readinessProbe:
+    httpGet:
+      path: /metrics
+      port: http-metrics
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 1
+    successThreshold: 1
+    failureThreshold: 5
   # -- Configures `promtail.config` for the observability chart.
   config:
     # -- Configures `promtail.config.snippets` for the observability chart.
