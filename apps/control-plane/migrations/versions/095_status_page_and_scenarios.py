@@ -326,7 +326,7 @@ def _seed_system_status_workspace() -> None:
     op.execute(
         sa.text(
             """
-            WITH system_user AS (
+            WITH status_owner_user AS (
                 INSERT INTO users (email, display_name, status)
                 VALUES (:email, 'System Status', 'active')
                 ON CONFLICT (email) DO UPDATE
@@ -334,7 +334,7 @@ def _seed_system_status_workspace() -> None:
                 RETURNING id
             ),
             owner AS (
-                SELECT id FROM system_user
+                SELECT id FROM status_owner_user
                 UNION
                 SELECT id FROM users WHERE email = :email
                 LIMIT 1
