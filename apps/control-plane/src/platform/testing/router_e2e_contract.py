@@ -2,6 +2,7 @@ from __future__ import annotations
 
 # mypy: disable-error-code="no-any-return"
 import hashlib
+from collections.abc import Mapping
 from datetime import UTC, datetime
 from platform.common.dependencies import get_current_user
 from typing import Any
@@ -359,6 +360,7 @@ async def create_agent(request: Request, payload: dict[str, Any]) -> dict[str, A
 
 @router.post("/api/v1/agents/upload", status_code=status.HTTP_201_CREATED)
 async def upload_agent(request: Request) -> dict[str, Any]:
+    form: Mapping[str, Any]
     try:
         form = await request.form()
     except Exception:
