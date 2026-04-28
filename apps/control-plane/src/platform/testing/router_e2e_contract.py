@@ -84,8 +84,11 @@ def _state(request: Request) -> dict[str, Any]:
         "artifacts": {},
         "certifications": {},
         "contracts": {},
+        "policies": {},
+        "policy_attachments": {},
         "secrets": {},
         "visibility_grants": set(),
+        "workspace_visibility": {},
         "events": {},
         "ws_events": [],
         "db_values": {},
@@ -113,7 +116,16 @@ def _state(request: Request) -> dict[str, Any]:
 
 
 def _items(values: Any) -> dict[str, Any]:
-    return {"items": list(values)}
+    items = list(values)
+    return {"items": items, "total": len(items)}
+
+
+def _default_workspace_visibility(workspace_id: str) -> dict[str, Any]:
+    return {
+        "workspace_id": workspace_id,
+        "visibility_agents": ["*"],
+        "visibility_tools": ["*"],
+    }
 
 
 def _user_email(current_user: dict[str, Any] | None) -> str:
@@ -540,6 +552,30 @@ async def archive_workspace(request: Request, workspace_id: str) -> dict[str, An
         raise HTTPException(status_code=404)
     workspace["status"] = "archived"
     return workspace
+
+
+@router.put("/api/v1/workspaces/{workspace_id}/visibility")
+async def update_workspace_visibility(
+    request: Request, workspace_id: str, payload: dict[str, Any]
+) -> dict[str, Any]:
+    if workspace_id not in _state(request)["workspaces"]:
+        raise HTTPException(status_code=404)
+    visibility = {
+        "workspace_id": workspace_id,
+        "visibility_agents": list(payload.get("visibility_agents") or []),
+        "visibility_tools": list(payload.get("visibility_tools") or []),
+    }
+    _state(request).setdefault("workspace_visibility", {})[workspace_id] = visibility
+    return visibility
+
+
+@router.get("/api/v1/workspaces/{workspace_id}/visibility")
+async def get_workspace_visibility(request: Request, workspace_id: str) -> dict[str, Any]:
+    if workspace_id not in _state(request)["workspaces"]:
+        raise HTTPException(status_code=404)
+    return _state(request).setdefault("workspace_visibility", {}).get(
+        workspace_id, _default_workspace_visibility(workspace_id)
+    )
 
 
 @router.post("/api/v1/workspaces/{workspace_id}/members", status_code=status.HTTP_201_CREATED)
@@ -1212,29 +1248,68 @@ async def sanitize_output(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 @router.post("/api/v1/policies", status_code=status.HTTP_201_CREATED)
-async def create_policy(payload: dict[str, Any]) -> dict[str, Any]:
-    return {"id": payload.get("name", str(uuid4())), **payload}
+async def create_policy(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
+    policy_id = str(payload.get("id") or payload.get("name") or uuid4())
+    workspace_id = str(payload.get("workspace_id") or _workspace_id_from_request(request))
+    policy = {
+        **payload,
+        "id": policy_id,
+        "name": payload.get("name") or policy_id,
+        "scope_type": payload.get("scope_type", "workspace"),
+        "workspace_id": workspace_id,
+        "rules": payload.get("rules", {}),
+        "status": payload.get("status", "active"),
+        "created_at": payload.get("created_at", _now()),
+    }
+    _state(request).setdefault("policies", {})[policy_id] = policy
+    return policy
 
 
 @router.get("/api/v1/policies")
-async def list_policies() -> dict[str, Any]:
-    return _items([])
-
-
-@router.delete("/api/v1/policies/{policy_id}")
-async def delete_policy(policy_id: str) -> Response:
-    del policy_id
-    return Response(status_code=204)
+async def list_policies(
+    request: Request, workspace_id: str | None = Query(default=None)
+) -> dict[str, Any]:
+    policies = list(_state(request).setdefault("policies", {}).values())
+    if workspace_id:
+        policies = [item for item in policies if item.get("workspace_id") == workspace_id]
+    return _items(policies)
 
 
 @router.post("/api/v1/policies/bindings", status_code=status.HTTP_201_CREATED)
-async def create_policy_binding(payload: dict[str, Any]) -> dict[str, Any]:
-    return {"id": str(uuid4()), **payload}
+async def create_policy_binding(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
+    binding = {"id": str(uuid4()), **payload}
+    _state(request).setdefault("policy_attachments", {})[binding["id"]] = binding
+    return binding
 
 
 @router.delete("/api/v1/policies/bindings/{binding_id}")
-async def delete_policy_binding(binding_id: str) -> Response:
-    del binding_id
+async def delete_policy_binding(request: Request, binding_id: str) -> Response:
+    _state(request).setdefault("policy_attachments", {}).pop(binding_id, None)
+    return Response(status_code=204)
+
+
+@router.get("/api/v1/policies/{policy_id}")
+async def get_policy(request: Request, policy_id: str) -> dict[str, Any]:
+    policy = _state(request).setdefault("policies", {}).get(policy_id)
+    if not policy:
+        raise HTTPException(status_code=404)
+    return policy
+
+
+@router.post("/api/v1/policies/{policy_id}/attach", status_code=status.HTTP_201_CREATED)
+async def attach_policy(
+    request: Request, policy_id: str, payload: dict[str, Any]
+) -> dict[str, Any]:
+    if policy_id not in _state(request).setdefault("policies", {}):
+        raise HTTPException(status_code=404)
+    attachment = {"id": str(uuid4()), "policy_id": policy_id, **payload}
+    _state(request).setdefault("policy_attachments", {})[attachment["id"]] = attachment
+    return attachment
+
+
+@router.delete("/api/v1/policies/{policy_id}")
+async def delete_policy(request: Request, policy_id: str) -> Response:
+    _state(request).setdefault("policies", {}).pop(policy_id, None)
     return Response(status_code=204)
 
 
