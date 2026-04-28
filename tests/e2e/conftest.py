@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from fixtures.http_client import AuthenticatedAsyncClient
+
 pytest_plugins = [
     "fixtures.http_client",
     "fixtures.ws_client",
@@ -50,9 +52,11 @@ def kafka_bootstrap() -> str:
 
 
 @pytest.fixture(scope="session", autouse=True)
-async def ensure_seeded(http_client) -> None:
-    response = await http_client.post("/api/v1/_e2e/seed", json={"scope": "all"})
-    assert response.status_code == 200, response.text
+async def ensure_seeded(platform_api_url: str) -> None:
+    async with AuthenticatedAsyncClient(platform_api_url) as client:
+        await client.login_as("admin@e2e.test", "e2e-test-password")
+        response = await client.post("/api/v1/_e2e/seed", json={"scope": "all"})
+        assert response.status_code == 200, response.text
 
 
 @pytest.fixture(autouse=True)
