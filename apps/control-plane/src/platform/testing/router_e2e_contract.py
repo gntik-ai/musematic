@@ -252,6 +252,16 @@ def _create_background_task(app: Any, coro: Any) -> None:
     task.add_done_callback(tasks.discard)
 
 
+def _replay_delays(first_delay: float) -> tuple[float, ...]:
+    return (
+        first_delay,
+        first_delay + 2.0,
+        first_delay + 10.0,
+        first_delay + 30.0,
+        first_delay + 60.0,
+    )
+
+
 async def _emit_event(
     request: Request,
     topic: str,
@@ -301,7 +311,7 @@ async def _emit_event(
     raw = envelope.model_dump_json().encode("utf-8")
     await _publish_raw_event(request.app, topic, key, raw)
     if replay_after_seconds is not None:
-        for delay in (replay_after_seconds, replay_after_seconds + 2.0):
+        for delay in _replay_delays(replay_after_seconds):
             _create_background_task(
                 request.app,
                 _publish_raw_event_after(request.app, topic, key, raw, delay),
