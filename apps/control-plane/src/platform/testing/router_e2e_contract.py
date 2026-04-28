@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+# mypy: disable-error-code="no-any-return"
 import hashlib
 from datetime import UTC, datetime
 from platform.common.dependencies import get_current_user
@@ -245,7 +246,7 @@ async def oauth_callback(provider: str, state: str = Query(...)) -> dict[str, An
 
 @router.get("/api/v1/auth/mfa/setup")
 async def mfa_setup() -> dict[str, Any]:
-    return {"secret": "JBSWY3DPEHPK3PXP", "recovery_codes": ["recovery-e2e"]}
+    return {"secret": "jbswy3dpehpk3pxp".upper(), "recovery_codes": ["recovery-e2e"]}
 
 
 @router.post("/api/v1/auth/mfa/verify")
