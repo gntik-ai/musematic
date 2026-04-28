@@ -698,8 +698,8 @@ run_manual_init_jobs() {
 
 wait_for_rollouts() {
   wait_for_active_pods "${PLATFORM_DATA_NAMESPACE}" "${PLATFORM_READY_TIMEOUT}"
-  wait_for_active_pods "${NAMESPACE}" "${PLATFORM_READY_TIMEOUT}"
   wait_for_deployment_rollouts "${NAMESPACE}" "${PLATFORM_READY_TIMEOUT}"
+  wait_for_active_pods "${NAMESPACE}" "${PLATFORM_READY_TIMEOUT}"
 }
 
 seed_baseline() {
