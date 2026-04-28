@@ -158,6 +158,16 @@ def test_e2e_observability_promtail_uses_kind_host_log_permissions() -> None:
     assert 'fsGroup: 0' in promtail_section
 
 
+def test_e2e_observability_uses_pullable_prometheus_operator_webhook_patch_image() -> None:
+    values = _load_yaml('deploy/helm/observability/values-e2e.yaml')
+    patch_image = values['kube-prometheus-stack']['prometheusOperator']['admissionWebhooks']['patch']['image']
+
+    assert patch_image['registry'] == 'registry.k8s.io'
+    assert patch_image['repository'] == 'ingress-nginx/kube-webhook-certgen'
+    assert patch_image['tag'] == 'v1.5.3'
+    assert patch_image['sha'] == ''
+
+
 def test_makefile_renders_cluster_specific_kind_config() -> None:
     makefile = (ROOT / 'tests/e2e/Makefile').read_text()
     assert 'render-kind-config' in makefile
