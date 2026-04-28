@@ -2,14 +2,17 @@ from __future__ import annotations
 
 # mypy: disable-error-code="no-any-return"
 import hashlib
+import json
+import tarfile
 from collections.abc import Mapping
 from datetime import UTC, datetime
+from io import BytesIO
 from platform.common.dependencies import get_current_user
 from typing import Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
-from fastapi.responses import RedirectResponse, StreamingResponse
+from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
 
 router = APIRouter(tags=["_e2e-contract"])
 
@@ -36,6 +39,7 @@ def _state(request: Request) -> dict[str, Any]:
             },
         },
         "agents": {},
+        "agent_revisions": {},
         "workspaces": {
             BASE_WORKSPACE_ID: {
                 "id": BASE_WORKSPACE_ID,
@@ -86,6 +90,10 @@ def _state(request: Request) -> dict[str, Any]:
         "contracts": {},
         "policies": {},
         "policy_attachments": {},
+        "eval_sets": {},
+        "eval_cases": {},
+        "eval_runs": {},
+        "gate_checks": {},
         "secrets": {},
         "visibility_grants": set(),
         "workspace_visibility": {},
@@ -108,6 +116,7 @@ def _state(request: Request) -> dict[str, Any]:
             "local_name": local_name,
             "fqn": fqn,
             "role_type": role_type,
+            "role_types": [role_type],
             "workspace_id": BASE_WORKSPACE_ID,
             "status": "active",
         }
@@ -162,6 +171,75 @@ def _record_ws(request: Request, channel: str, event: str, payload: dict[str, An
 
 def _workspace_id_from_request(request: Request) -> str:
     return request.headers.get("x-workspace-id") or BASE_WORKSPACE_ID
+
+
+async def _uploaded_package_bytes(form: Mapping[str, Any]) -> bytes:
+    package = form.get("package")
+    if package is None or not hasattr(package, "read"):
+        return b""
+    content = await package.read()
+    return content if isinstance(content, bytes) else bytes(content)
+
+
+def _manifest_from_package(content: bytes) -> dict[str, Any]:
+    if not content:
+        return {}
+    try:
+        with tarfile.open(fileobj=BytesIO(content), mode="r:gz") as archive:
+            member = next(
+                (
+                    item
+                    for item in archive.getmembers()
+                    if item.isfile() and item.name.rsplit("/", 1)[-1] == "manifest.json"
+                ),
+                None,
+            )
+            if member is None:
+                return {}
+            extracted = archive.extractfile(member)
+            if extracted is None:
+                return {}
+            payload = json.loads(extracted.read().decode("utf-8"))
+    except (OSError, tarfile.TarError, json.JSONDecodeError, UnicodeDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _agent_by_id(state: dict[str, Any], agent_id: str) -> dict[str, Any] | None:
+    item = state["agents"].get(agent_id)
+    if item:
+        return item
+    for candidate in state["agents"].values():
+        if candidate.get("id") == agent_id or candidate.get("fqn") == agent_id:
+            return candidate
+    return None
+
+
+def _certifications_for_agent(state: dict[str, Any], agent_id: str) -> list[dict[str, Any]]:
+    return [
+        cert
+        for cert in state["certifications"].values()
+        if cert.get("agent_id") == agent_id or cert.get("agent_fqn") == agent_id
+    ]
+
+
+def _marketplace_listing(agent: dict[str, Any], state: dict[str, Any]) -> dict[str, Any]:
+    certs = _certifications_for_agent(state, str(agent["id"]))
+    certification_status = (
+        "active" if any(item.get("status") == "active" for item in certs) else "uncertified"
+    )
+    description = agent.get("purpose") or agent.get("description") or "E2E marketplace listing"
+    return {
+        "agent_id": agent["id"],
+        "id": agent["id"],
+        "fqn": agent["fqn"],
+        "status": agent.get("status", "active"),
+        "display_name": agent.get("display_name") or agent.get("local_name"),
+        "description": description,
+        "certification_status": certification_status,
+        "relevance_score": 0.99,
+        "tags": list(agent.get("tags") or []),
+    }
 
 
 def _stable_output(payload: dict[str, Any]) -> str:
@@ -361,10 +439,13 @@ async def create_agent(request: Request, payload: dict[str, Any]) -> dict[str, A
     agent = {
         "id": fqn,
         "namespace": namespace,
+        "namespace_name": namespace,
         "local_name": local_name,
         "fqn": fqn,
         "role_type": payload.get("role_type", "executor"),
+        "role_types": payload.get("role_types") or [payload.get("role_type", "executor")],
         "workspace_id": payload.get("workspace_id", BASE_WORKSPACE_ID),
+        "status": payload.get("status", "active"),
     }
     agents[fqn] = agent
     return agent
@@ -377,15 +458,22 @@ async def upload_agent(request: Request) -> dict[str, Any]:
         form = await request.form()
     except Exception:
         form = {}
+    package_bytes = await _uploaded_package_bytes(form)
+    manifest = _manifest_from_package(package_bytes)
     namespace_name = str(form.get("namespace_name") or "default")
-    local_name = f"seeded-{uuid4().hex[:8]}"
+    local_name = str(manifest.get("local_name") or f"seeded-{uuid4().hex[:8]}")
     fqn = f"{namespace_name}:{local_name}"
+    role_types = [str(item) for item in manifest.get("role_types") or ["executor"]]
+    if not role_types:
+        role_types = ["executor"]
+    digest = hashlib.sha256(package_bytes or fqn.encode()).hexdigest()
     revision_id = str(uuid4())
     revision = {
         "id": revision_id,
         "agent_id": fqn,
         "status": "active",
-        "version": "1.0.0",
+        "version": manifest.get("version", "1.0.0"),
+        "sha256_digest": digest,
         "created_at": _now(),
     }
     agent = {
@@ -394,12 +482,22 @@ async def upload_agent(request: Request) -> dict[str, Any]:
         "namespace_name": namespace_name,
         "local_name": local_name,
         "fqn": fqn,
-        "role_type": "executor",
+        "role_type": role_types[0],
+        "role_types": role_types,
         "workspace_id": _workspace_id_from_request(request),
         "status": "active",
+        "purpose": manifest.get("purpose") or "E2E uploaded agent",
+        "approach": manifest.get("approach"),
+        "tags": list(manifest.get("tags") or []),
+        "display_name": manifest.get("display_name") or local_name.replace("-", " ").title(),
+        "maturity_level": manifest.get("maturity_level", 1),
+        "reasoning_modes": list(manifest.get("reasoning_modes") or ["deterministic"]),
+        "visibility_agents": ["*"],
+        "visibility_tools": ["*"],
         "current_revision": revision,
     }
     _state(request)["agents"][fqn] = agent
+    _state(request).setdefault("agent_revisions", {}).setdefault(fqn, []).append(revision)
     return {"created": True, "agent_profile": agent, "revision": revision}
 
 
@@ -413,6 +511,11 @@ async def resolve_agent(request: Request, fqn: str = Query(...)) -> dict[str, An
     if not item:
         raise HTTPException(status_code=404)
     return item
+
+
+@router.get("/api/v1/agents/resolve/{fqn:path}")
+async def resolve_agent_path(request: Request, fqn: str) -> dict[str, Any]:
+    return await resolve_agent(request, fqn=fqn)
 
 
 @router.get("/api/v1/agents/search")
@@ -433,13 +536,33 @@ async def search_agents(request: Request, pattern: str = Query("*")) -> dict[str
 async def list_agents(
     request: Request,
     namespace: str | None = Query(default=None),
+    status: str | None = Query(default=None),
+    fqn_pattern: str | None = Query(default=None),
+    keyword: str | None = Query(default=None),
+    limit: int = Query(default=100),
+    offset: int = Query(default=0),
     workspace_id: str | None = Query(default=None),
 ) -> dict[str, Any]:
     del workspace_id
     agents = list(_state(request)["agents"].values())
     if namespace:
         agents = [item for item in agents if item.get("namespace") == namespace]
-    return _items(agents)
+    if status:
+        agents = [item for item in agents if item.get("status") == status]
+    if fqn_pattern and fqn_pattern.endswith(":*"):
+        fqn_namespace = fqn_pattern.split(":", 1)[0]
+        agents = [item for item in agents if item.get("namespace") == fqn_namespace]
+    if keyword:
+        lowered = keyword.lower()
+        agents = [
+            item
+            for item in agents
+            if lowered in str(item.get("purpose", "")).lower()
+            or lowered in str(item.get("approach", "")).lower()
+            or lowered in " ".join(str(tag) for tag in item.get("tags", [])).lower()
+        ] or agents
+    total = len(agents)
+    return {"items": agents[offset : offset + limit], "total": total}
 
 
 @router.post("/api/v1/agents/{fqn}/visibility-grants", status_code=status.HTTP_201_CREATED)
@@ -464,9 +587,72 @@ async def set_agent_visibility(request: Request, agent_id: str) -> dict[str, Any
     return {"id": agent_id}
 
 
+@router.patch("/api/v1/agents/{agent_id}")
+async def patch_agent(request: Request, agent_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    agent = _agent_by_id(_state(request), agent_id)
+    if not agent:
+        raise HTTPException(status_code=404)
+    agent.update(payload)
+    if visibility_agents := payload.get("visibility_agents"):
+        agent["visibility_agents"] = list(visibility_agents)
+        if "*" in agent["visibility_agents"]:
+            _state(request)["visibility_grants"].add(str(agent["id"]))
+    if visibility_tools := payload.get("visibility_tools"):
+        agent["visibility_tools"] = list(visibility_tools)
+    return agent
+
+
+@router.get("/api/v1/agents/{agent_id}/revisions")
+async def list_agent_revisions(request: Request, agent_id: str) -> dict[str, Any]:
+    state = _state(request)
+    agent = _agent_by_id(state, agent_id)
+    if not agent:
+        raise HTTPException(status_code=404)
+    revisions = state.setdefault("agent_revisions", {}).get(str(agent["id"])) or [
+        agent["current_revision"]
+    ]
+    return _items(revisions)
+
+
+@router.post("/api/v1/agents/{agent_id}/transition")
+async def transition_agent(
+    request: Request, agent_id: str, payload: dict[str, Any]
+) -> dict[str, Any]:
+    agent = _agent_by_id(_state(request), agent_id)
+    if not agent:
+        raise HTTPException(status_code=404)
+    agent["status"] = (
+        payload.get("target_status") or payload.get("status") or agent.get("status", "active")
+    )
+    return agent
+
+
+@router.post("/api/v1/agents/{agent_id}/maturity")
+async def update_agent_maturity(
+    request: Request, agent_id: str, payload: dict[str, Any]
+) -> dict[str, Any]:
+    agent = _agent_by_id(_state(request), agent_id)
+    if not agent:
+        raise HTTPException(status_code=404)
+    agent["maturity_level"] = payload.get("maturity_level", agent.get("maturity_level", 1))
+    return agent
+
+
 @router.post("/api/v1/trust/agents/{agent_id}/certifications", status_code=status.HTTP_201_CREATED)
-async def certify_agent(agent_id: str, payload: dict[str, Any]) -> dict[str, Any]:
-    return {"id": str(uuid4()), "agent_id": agent_id, "status": payload.get("status", "active")}
+async def certify_agent(request: Request, agent_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+    cert = {
+        "id": str(uuid4()),
+        "agent_id": agent_id,
+        "status": payload.get("status", "active"),
+        **payload,
+    }
+    _state(request)["certifications"][cert["id"]] = cert
+    return cert
+
+
+@router.get("/api/v1/trust/agents/{agent_id}/certifications")
+async def list_agent_certifications(request: Request, agent_id: str) -> dict[str, Any]:
+    return _items(_certifications_for_agent(_state(request), agent_id))
 
 
 @router.get("/api/v1/agents/{fqn}")
@@ -475,11 +661,12 @@ async def get_agent(
     fqn: str,
     current_user: dict[str, Any] = Depends(get_current_user),
 ) -> dict[str, Any]:
-    item = _state(request)["agents"].get(fqn)
+    state = _state(request)
+    item = _agent_by_id(state, fqn)
     if not item:
         raise HTTPException(status_code=404)
     if fqn.startswith("test-finance:") and not _is_admin(current_user):
-        if fqn not in _state(request)["visibility_grants"]:
+        if fqn not in state["visibility_grants"]:
             raise HTTPException(status_code=403)
     return item
 
@@ -832,6 +1019,142 @@ async def get_score(request: Request, execution_id: str) -> dict[str, Any]:
     )
 
 
+@router.post("/api/v1/evaluations/eval-sets", status_code=status.HTTP_201_CREATED)
+async def create_eval_set(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
+    eval_set = {"id": str(uuid4()), **payload}
+    _state(request)["eval_sets"][eval_set["id"]] = eval_set
+    return eval_set
+
+
+@router.post(
+    "/api/v1/evaluations/eval-sets/{eval_set_id}/cases",
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_eval_case(
+    request: Request, eval_set_id: str, payload: dict[str, Any]
+) -> dict[str, Any]:
+    case = {"id": str(uuid4()), "eval_set_id": eval_set_id, **payload}
+    _state(request)["eval_cases"].setdefault(eval_set_id, []).append(case)
+    return case
+
+
+@router.post(
+    "/api/v1/evaluations/eval-sets/{eval_set_id}/run",
+    status_code=status.HTTP_201_CREATED,
+)
+async def run_eval_set(
+    request: Request, eval_set_id: str, payload: dict[str, Any]
+) -> dict[str, Any]:
+    run = {
+        "id": str(uuid4()),
+        "eval_set_id": eval_set_id,
+        "status": "completed",
+        "agent_fqn": payload.get("agent_fqn"),
+        "agent_id": payload.get("agent_id"),
+    }
+    _state(request)["eval_runs"][run["id"]] = run
+    return run
+
+
+@router.get("/api/v1/evaluations/runs")
+async def list_eval_runs(
+    request: Request,
+    agent_fqn: str | None = Query(default=None),
+    page: int = Query(default=1),
+    page_size: int = Query(default=20),
+) -> dict[str, Any]:
+    runs = list(_state(request)["eval_runs"].values())
+    if agent_fqn:
+        runs = [item for item in runs if item.get("agent_fqn") == agent_fqn]
+    start = max(page - 1, 0) * page_size
+    return {"items": runs[start : start + page_size], "total": len(runs)}
+
+
+@router.get("/api/v1/evaluations/runs/{run_id}")
+async def get_eval_run(request: Request, run_id: str) -> dict[str, Any]:
+    run = _state(request)["eval_runs"].get(run_id)
+    if not run:
+        raise HTTPException(status_code=404)
+    return run
+
+
+@router.get("/api/v1/evaluations/runs/{run_id}/verdicts")
+async def list_eval_verdicts(request: Request, run_id: str) -> dict[str, Any]:
+    if run_id not in _state(request)["eval_runs"]:
+        raise HTTPException(status_code=404)
+    return _items([{"id": str(uuid4()), "run_id": run_id, "verdict": "pass"}])
+
+
+@router.post("/api/v1/marketplace/search")
+async def marketplace_search(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
+    state = _state(request)
+    results = [
+        _marketplace_listing(agent, state)
+        for agent in state["agents"].values()
+        if agent.get("status") == "published"
+    ]
+    return {
+        "query": payload.get("query", ""),
+        "has_results": bool(results),
+        "results": results,
+        "total": len(results),
+    }
+
+
+@router.get("/api/v1/marketplace/agents/{agent_id}/quality")
+async def marketplace_quality(request: Request, agent_id: str) -> dict[str, Any]:
+    agent = _agent_by_id(_state(request), agent_id)
+    if not agent:
+        raise HTTPException(status_code=404)
+    certs = _certifications_for_agent(_state(request), str(agent["id"]))
+    return {
+        "agent_id": agent["id"],
+        "certification_compliance": "certified"
+        if any(item.get("status") == "active" for item in certs)
+        else "uncertified",
+        "has_data": True,
+        "satisfaction_count": 1,
+    }
+
+
+@router.get("/api/v1/marketplace/agents/{agent_id}", response_model=None)
+async def marketplace_agent(request: Request, agent_id: str) -> Any:
+    state = _state(request)
+    agent = _agent_by_id(state, agent_id)
+    if not agent:
+        raise HTTPException(status_code=404)
+    workspace_id = _workspace_id_from_request(request)
+    visibility_agents = list(agent.get("visibility_agents") or ["*"])
+    if workspace_id != agent.get("workspace_id") and "*" not in visibility_agents:
+        return JSONResponse(
+            status_code=403,
+            content={"error": {"code": "MARKETPLACE_VISIBILITY_DENIED"}},
+        )
+    return _marketplace_listing(agent, state)
+
+
+@router.post("/api/v1/agentops/{agent_fqn}/gate-check", status_code=status.HTTP_201_CREATED)
+async def create_gate_check(
+    request: Request, agent_fqn: str, payload: dict[str, Any]
+) -> dict[str, Any]:
+    check = {"id": str(uuid4()), "agent_fqn": agent_fqn, "status": "passed", **payload}
+    _state(request)["gate_checks"].setdefault(agent_fqn, []).append(check)
+    return check
+
+
+@router.get("/api/v1/agentops/{agent_fqn}/gate-checks")
+async def list_gate_checks(
+    request: Request,
+    agent_fqn: str,
+    revision_id: str | None = Query(default=None),
+    limit: int = Query(default=20),
+) -> dict[str, Any]:
+    checks = list(_state(request)["gate_checks"].get(agent_fqn, []))
+    if revision_id:
+        checks = [item for item in checks if item.get("revision_id") == revision_id]
+    return _items(checks[:limit])
+
+
 @router.post("/api/v1/agentops/drift-signals", status_code=status.HTTP_201_CREATED)
 async def drift_signal(payload: dict[str, Any]) -> dict[str, Any]:
     return {"id": str(uuid4()), **payload}
@@ -1181,6 +1504,25 @@ async def delete_certifier(certifier_id: str) -> Response:
 async def create_certification(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
     cert = {"id": str(uuid4()), "status": "pending", **payload}
     _state(request)["certifications"][cert["id"]] = cert
+    return cert
+
+
+@router.post("/api/v1/trust/certifications/{cert_id}/evidence", status_code=status.HTTP_201_CREATED)
+async def attach_certification_evidence(
+    request: Request, cert_id: str, payload: dict[str, Any]
+) -> dict[str, Any]:
+    cert = _state(request)["certifications"].setdefault(
+        cert_id, {"id": cert_id, "status": "pending"}
+    )
+    evidence = {"id": str(uuid4()), "certification_id": cert_id, **payload}
+    cert.setdefault("evidence", []).append(evidence)
+    return evidence
+
+
+@router.post("/api/v1/trust/certifications/{cert_id}/activate")
+async def activate_certification(request: Request, cert_id: str) -> dict[str, Any]:
+    cert = _state(request)["certifications"].setdefault(cert_id, {"id": cert_id})
+    cert["status"] = "active"
     return cert
 
 
