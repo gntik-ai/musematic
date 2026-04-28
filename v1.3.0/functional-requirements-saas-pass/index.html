@@ -1,0 +1,6164 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Multi-tenant agent orchestration platform — agent lifecycle, workflow execution, fleet coordination, trust governance.">
+      
+      
+      
+        <link rel="canonical" href="https://gntik-ai.github.io/musematic/v1.3.0/functional-requirements-saas-pass/">
+      
+      
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.5.45">
+    
+    
+      
+        <title>Functional Requirements — SaaS Transformation Pass - musematic</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.0253249f.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.06af60db.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#functional-requirements-saas-transformation-pass" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="musematic" class="md-header__button md-logo" aria-label="musematic" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19.5 17c-.14 0-.26 0-.39.04L17.5 13.8c.45-.45.75-1.09.75-1.8a2.5 2.5 0 0 0-2.5-2.5c-.14 0-.25 0-.4.04L13.74 6.3c.47-.46.76-1.09.76-1.8a2.5 2.5 0 0 0-5 0c0 .7.29 1.34.76 1.79L8.65 9.54c-.15-.04-.26-.04-.4-.04a2.5 2.5 0 0 0-2.5 2.5c0 .71.29 1.34.75 1.79l-1.61 3.25C4.76 17 4.64 17 4.5 17a2.5 2.5 0 0 0 0 5A2.5 2.5 0 0 0 7 19.5c0-.7-.29-1.34-.76-1.79l1.62-3.25c.14.04.26.04.39.04s.25 0 .38-.04l1.63 3.25c-.47.45-.76 1.09-.76 1.79a2.5 2.5 0 0 0 5 0A2.5 2.5 0 0 0 12 17c-.13 0-.26 0-.39.04L10 13.8c.45-.45.75-1.09.75-1.8 0-.7-.29-1.33-.75-1.79l1.61-3.25c.13.04.26.04.39.04s.26 0 .39-.04L14 10.21a2.5 2.5 0 0 0 1.75 4.29c.13 0 .25 0 .38-.04l1.63 3.25c-.47.45-.76 1.09-.76 1.79a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0-2.5-2.5m-15 3.5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1m8.5-1c0 .55-.45 1-1 1s-1-.45-1-1 .45-1 1-1 1 .45 1 1M7.25 12c0-.55.45-1 1-1s1 .45 1 1-.45 1-1 1-1-.45-1-1M11 4.5c0-.55.45-1 1-1s1 .45 1 1-.45 1-1 1-1-.45-1-1m3.75 7.5c0-.55.45-1 1-1s1 .45 1 1-.45 1-1 1-1-.45-1-1m4.75 8.5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            musematic
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Functional Requirements — SaaS Transformation Pass
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+      <div class="md-header__option">
+  <div class="md-select">
+    
+    <button class="md-header__button md-icon" aria-label="Select language">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"/></svg>
+    </button>
+    <div class="md-select__inner">
+      <ul class="md-select__list">
+        
+          <li class="md-select__item">
+            <a href="./" hreflang="en" class="md-select__link">
+              English
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../es/functional-requirements-saas-pass/" hreflang="es" class="md-select__link">
+              Espanol
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../de/functional-requirements-saas-pass/" hreflang="de" class="md-select__link">
+              Deutsch
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../fr/functional-requirements-saas-pass/" hreflang="fr" class="md-select__link">
+              Francais
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../it/functional-requirements-saas-pass/" hreflang="it" class="md-select__link">
+              Italiano
+            </a>
+          </li>
+        
+          <li class="md-select__item">
+            <a href="../zh/functional-requirements-saas-pass/" hreflang="zh" class="md-select__link">
+              Simplified Chinese (zh-CN)
+            </a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</div>
+    
+    
+      <label class="md-header__button md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+      </label>
+      <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/gntik-ai/musematic" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    gntik-ai/musematic
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../getting-started/" class="md-tabs__link">
+          
+  
+    
+  
+  Getting Started
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../user-guide/" class="md-tabs__link">
+          
+  
+    
+  
+  User Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../admin-guide/" class="md-tabs__link">
+          
+  
+    
+  
+  Administrator Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../operator-guide/" class="md-tabs__link">
+          
+  
+    
+  
+  Operator Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../developer-guide/" class="md-tabs__link">
+          
+  
+    
+  
+  Developer Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../api-reference/" class="md-tabs__link">
+          
+  
+    
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../architecture/" class="md-tabs__link">
+          
+  
+    
+  
+  Architecture
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../installation/" class="md-tabs__link">
+          
+  
+    
+  
+  Installation
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../configuration/" class="md-tabs__link">
+          
+  
+    
+  
+  Configuration
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../security/" class="md-tabs__link">
+          
+  
+    
+  
+  Security
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../release-notes/" class="md-tabs__link">
+          
+  
+    
+  
+  Release Notes
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="musematic" class="md-nav__button md-logo" aria-label="musematic" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19.5 17c-.14 0-.26 0-.39.04L17.5 13.8c.45-.45.75-1.09.75-1.8a2.5 2.5 0 0 0-2.5-2.5c-.14 0-.25 0-.4.04L13.74 6.3c.47-.46.76-1.09.76-1.8a2.5 2.5 0 0 0-5 0c0 .7.29 1.34.76 1.79L8.65 9.54c-.15-.04-.26-.04-.4-.04a2.5 2.5 0 0 0-2.5 2.5c0 .71.29 1.34.75 1.79l-1.61 3.25C4.76 17 4.64 17 4.5 17a2.5 2.5 0 0 0 0 5A2.5 2.5 0 0 0 7 19.5c0-.7-.29-1.34-.76-1.79l1.62-3.25c.14.04.26.04.39.04s.25 0 .38-.04l1.63 3.25c-.47.45-.76 1.09-.76 1.79a2.5 2.5 0 0 0 5 0A2.5 2.5 0 0 0 12 17c-.13 0-.26 0-.39.04L10 13.8c.45-.45.75-1.09.75-1.8 0-.7-.29-1.33-.75-1.79l1.61-3.25c.13.04.26.04.39.04s.26 0 .39-.04L14 10.21a2.5 2.5 0 0 0 1.75 4.29c.13 0 .25 0 .38-.04l1.63 3.25c-.47.45-.76 1.09-.76 1.79a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0-2.5-2.5m-15 3.5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1m8.5-1c0 .55-.45 1-1 1s-1-.45-1-1 .45-1 1-1 1 .45 1 1M7.25 12c0-.55.45-1 1-1s1 .45 1 1-.45 1-1 1-1-.45-1-1M11 4.5c0-.55.45-1 1-1s1 .45 1 1-.45 1-1 1-1-.45-1-1m3.75 7.5c0-.55.45-1 1-1s1 .45 1 1-.45 1-1 1-1-.45-1-1m4.75 8.5c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1"/></svg>
+
+    </a>
+    musematic
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/gntik-ai/musematic" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    gntik-ai/musematic
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Home
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../getting-started/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Getting Started
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_2" id="__nav_2_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            Getting Started
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/what-is-musematic/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    What Is Musematic
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/quick-start/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Quick Start
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/glossary/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Glossary
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/first-tutorial/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    First Tutorial
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../user-guide/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    User Guide
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            User Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/workbenches-overview/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Workbenches Overview
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_3" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Consumer
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
+            <span class="md-nav__icon md-icon"></span>
+            Consumer
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/consumer/discovering-agents/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Discovering Agents
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/consumer/starting-conversation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Starting a Conversation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/consumer/observing-execution/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Observing Execution
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/consumer/reasoning-traces/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Reasoning Traces
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/consumer/alerts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Alerts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Creator
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
+            <span class="md-nav__icon md-icon"></span>
+            Creator
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/creator/registering-agent/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Registering an Agent
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/creator/fqn/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Choosing an FQN
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/creator/purpose-approach/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Purpose and Approach
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/creator/visibility-tools/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Visibility and Tools
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/creator/packaging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Packaging
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/creator/certification/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Certification
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/creator/publishing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Publishing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Workspace Collaboration
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
+            <span class="md-nav__icon md-icon"></span>
+            Workspace Collaboration
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/workspace-collaboration/goals/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Goals
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/workspace-collaboration/multi-agent/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Multi-Agent Work
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/workspace-collaboration/attention/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Attention Requests
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/workspace-collaboration/gid-correlation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    GID Correlation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../admin-guide/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Administrator Guide
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_4" id="__nav_4_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            Administrator Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin-guide/identity-access/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Identity and Access
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin-guide/tenancy-workspaces/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tenancy and Workspaces
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin-guide/system-config/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    System Configuration
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin-guide/security-compliance/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Security and Compliance
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin-guide/operations-health/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Operations Health
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin-guide/cost-billing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cost and Billing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin-guide/observability/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Observability
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin-guide/integrations/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Integrations
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin-guide/lifecycle/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Lifecycle
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin-guide/audit-logs/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Audit Logs
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+          
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../operator-guide/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Operator Guide
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_5" id="__nav_5_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            Operator Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operator-guide/observability/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Observability
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operator-guide/dashboards-reference/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Dashboards Reference
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operator-guide/incident-response/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Incident Response
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operator-guide/capacity-planning/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Capacity Planning
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operator-guide/backup-restore/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Backup and Restore
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operator-guide/multi-region-failover/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Multi-Region Failover
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operator-guide/logql-cookbook/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    LogQL Cookbook
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operator-guide/runbooks/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Runbooks
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5_10" >
+        
+          
+          <label class="md-nav__link" for="__nav_5_10" id="__nav_5_10_label" tabindex="0">
+            
+  
+  <span class="md-ellipsis">
+    Runbook Library
+  </span>
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_5_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5_10">
+            <span class="md-nav__icon md-icon"></span>
+            Runbook Library
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operator-guide/runbooks/platform-upgrade/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Platform Upgrade
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operator-guide/runbooks/database-migration-rollback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Database Migration Rollback
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operator-guide/runbooks/disaster-recovery-restore/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Disaster Recovery Restore
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operator-guide/runbooks/multi-region-failover-failback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Multi-Region Failover and Failback
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operator-guide/runbooks/secret-rotation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Secret Rotation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operator-guide/runbooks/capacity-expansion/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Capacity Expansion
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operator-guide/runbooks/super-admin-break-glass/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Super Admin Break Glass
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operator-guide/runbooks/incident-response-procedures/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Incident Response Procedures
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operator-guide/runbooks/log-query-cookbook/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Log Query Cookbook
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../operator-guide/runbooks/tls-emergency-renewal/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    TLS Emergency Renewal
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../developer-guide/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Developer Guide
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            Developer Guide
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../developer-guide/building-agents/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Building Agents
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../developer-guide/agent-card-spec/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Agent Card Spec
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../developer-guide/contract-authoring/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Contract Authoring
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../developer-guide/tool-gateway/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Tool Gateway
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../developer-guide/structured-logging/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Structured Logging
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../developer-guide/mcp-integration/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    MCP Integration
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../developer-guide/a2a-integration/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    A2A Integration
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../developer-guide/sdk-usage/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    SDK Usage
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../developer-guide/reasoning-primitives/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Reasoning Primitives
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../developer-guide/evaluation-authoring/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Evaluation Authoring
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../developer-guide/self-correction-tuning/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Self-Correction Tuning
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../api-reference/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    API Reference
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_7" id="__nav_7_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            API Reference
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api-reference/rest-api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    REST API
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api-reference/openapi-embeds/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    OpenAPI Embeds
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api-reference/websocket-api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    WebSocket API
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api-reference/a2a-api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    A2A API
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api-reference/mcp-api/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    MCP API
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api-reference/error-codes/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Error Codes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../architecture/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Architecture
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8" id="__nav_8_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            Architecture
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/system-architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    System Architecture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/software-architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Software Architecture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/data-stores/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Data Stores
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/event-topology/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Event Topology
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/security-trust-privacy/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Security, Trust, and Privacy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/observability-architecture/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Observability Architecture
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/architecture-decisions/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Architecture Decisions
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8_9" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../architecture/bounded-contexts/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Bounded Contexts
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_8_9" id="__nav_8_9_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_8_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8_9">
+            <span class="md-nav__icon md-icon"></span>
+            Bounded Contexts
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/auth/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Auth
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/accounts/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Accounts
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/workspaces/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Workspaces
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/registry/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Registry
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/governance/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Governance
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/audit/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Audit
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/notifications/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Notifications
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/workflows/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Workflows
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/execution/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Execution
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/runtime/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Runtime
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/reasoning/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Reasoning
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/sandbox/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Sandbox
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/simulation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Simulation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/analytics/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Analytics
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/cost-governance/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Cost Governance
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/incident-response/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Incident Response
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/multi-region-ops/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Multi-Region Ops
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/security-compliance/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Security Compliance
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/privacy-compliance/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Privacy Compliance
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/model-catalog/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Model Catalog
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/interactions/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Interactions
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/fleets/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Fleets
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/evaluation/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Evaluation
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/trust/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Trust
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/connectors/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Connectors
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/memory/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Memory
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/context-engineering/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Context Engineering
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/discovery/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Discovery
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/testing/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Testing
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../architecture/bounded-contexts/observability/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Observability
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../functional-requirements-revised-v6/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Functional Requirements
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../installation/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Installation
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_9" id="__nav_9_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            Installation
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/kind/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    kind
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/k3s/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    k3s
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/hetzner/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Hetzner
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/managed-k8s/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Managed Kubernetes
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/air-gapped/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Air-Gapped
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../configuration/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Configuration
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_10" id="__nav_10_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            Configuration
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/environment-variables/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Environment Variables
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/helm-values/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Helm Values
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/feature-flags/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Feature Flags
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/url-scheme/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    URL Scheme
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/tls-strategy/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    TLS Strategy
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/networking/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Networking
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../security/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Security
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_11" id="__nav_11_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            Security
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security/threat-model/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Threat Model
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security/compliance-mapping/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Compliance Mapping
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security/best-practices/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Best Practices
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security/responsible-disclosure/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Responsible Disclosure
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_12" >
+        
+          
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../release-notes/" class="md-nav__link ">
+              
+  
+  <span class="md-ellipsis">
+    Release Notes
+  </span>
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_12" id="__nav_12_label" tabindex="0">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_12">
+            <span class="md-nav__icon md-icon"></span>
+            Release Notes
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release-notes/v1.3.0/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    v1.3.0
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release-notes/changelog/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Changelog
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release-notes/feature-074-security-compliance/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Security Compliance
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release-notes/feature-075-model-catalog-fallback/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Model Catalog Fallback
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../release-notes/feature-076-privacy-compliance/" class="md-nav__link">
+        
+  
+  <span class="md-ellipsis">
+    Privacy Compliance
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#119-tenant-architecture-upd-046" class="md-nav__link">
+    <span class="md-ellipsis">
+      119. Tenant Architecture (UPD-046)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="119. Tenant Architecture (UPD-046)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fr-685-tenant-as-a-first-class-entity" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-685 Tenant as a First-Class Entity
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-686-tenant-kinds" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-686 Tenant Kinds
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-687-tenant-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-687 Tenant Schema
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-688-default-tenant-provisioning" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-688 Default Tenant Provisioning
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-689-hostname-to-tenant-resolution-middleware" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-689 Hostname-to-Tenant Resolution Middleware
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-690-postgresql-row-level-security-on-tenant-scoped-tables" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-690 PostgreSQL Row-Level Security on Tenant-Scoped Tables
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-691-privileged-db-role-for-cross-tenant-queries" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-691 Privileged DB Role for Cross-Tenant Queries
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-692-subdomain-based-cookie-scoping" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-692 Subdomain-based Cookie Scoping
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-693-per-tenant-oauth-provider-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-693 Per-Tenant OAuth Provider Configuration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-694-per-tenant-vault-path-scoping" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-694 Per-Tenant Vault Path Scoping
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-695-tenant-admin-workbench-super-admin" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-695 Tenant Admin Workbench (Super Admin)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-696-tenant-suspension-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-696 Tenant Suspension Behavior
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-697-tenant-deletion-two-phase" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-697 Tenant Deletion (Two-Phase)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-698-tenant-audit-chain-inclusion" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-698 Tenant Audit Chain Inclusion
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-699-tenant-cost-attribution-inclusion" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-699 Tenant Cost Attribution Inclusion
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-700-tenant-data-residency-enforcement" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-700 Tenant Data Residency Enforcement
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-701-per-tenant-branding-enterprise-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-701 Per-Tenant Branding (Enterprise Only)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-702-tenant-status-page-subdomain" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-702 Tenant Status Page Subdomain
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-703-tenant-e2e-test-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-703 Tenant E2E Test Coverage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-704-tenant-listing-for-authenticated-users" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-704 Tenant Listing for Authenticated Users
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-705-default-tenant-self-healing-constraints" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-705 Default Tenant Self-Healing Constraints
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#120-plans-subscriptions-quotas-upd-047" class="md-nav__link">
+    <span class="md-ellipsis">
+      120. Plans, Subscriptions, Quotas (UPD-047)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="120. Plans, Subscriptions, Quotas (UPD-047)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fr-706-plans-table-with-configurable-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-706 Plans Table with Configurable Parameters
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-707-plan-version-configurable-parameters" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-707 Plan Version Configurable Parameters
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-708-plan-version-immutability" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-708 Plan Version Immutability
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-709-subscription-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-709 Subscription Schema
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-710-three-free-plans-by-default" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-710 Three Free Plans by Default
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-711-quota-enforcement-synchronous-check" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-711 Quota Enforcement Synchronous Check
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-712-active-compute-time-counting" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-712 Active Compute Time Counting
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-713-hard-cap-enforcement-free-tier" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-713 Hard Cap Enforcement (Free Tier)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-714-overage-authorization-pro-tier-with-overage-enabled" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-714 Overage Authorization (Pro Tier with Overage Enabled)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-715-overage-pricing-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-715 Overage Pricing Configuration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-716-quota-reset-periods" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-716 Quota Reset Periods
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-717-plan-upgrade-and-downgrade" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-717 Plan Upgrade and Downgrade
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-718-plan-configuration-admin-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-718 Plan Configuration Admin UI
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-719-plan-version-history" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-719 Plan Version History
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-720-subscription-admin-dashboard" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-720 Subscription Admin Dashboard
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-721-subscription-status-transitions" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-721 Subscription Status Transitions
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-722-plans-subscriptions-quotas-e2e-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-722 Plans, Subscriptions, Quotas E2E Coverage
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#121-public-signup-default-tenant-only-upd-048" class="md-nav__link">
+    <span class="md-ellipsis">
+      121. Public Signup, Default Tenant Only (UPD-048)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="121. Public Signup, Default Tenant Only (UPD-048)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fr-723-public-signup-restricted-to-default-tenant" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-723 Public Signup Restricted to Default Tenant
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-724-signup-creates-user-in-default-tenant-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-724 Signup Creates User in Default Tenant Only
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-725-free-workspace-auto-creation-on-first-signup" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-725 Free Workspace Auto-Creation on First Signup
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-726-onboarding-wizard" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-726 Onboarding Wizard
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-727-enterprise-tenant-user-provisioning" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-727 Enterprise Tenant User Provisioning
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-728-tenant-admin-onboarding-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-728 Tenant Admin Onboarding Flow
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-729-per-tenant-branding-visible-at-signuplogin" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-729 Per-Tenant Branding Visible at Signup/Login
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-730-default-tenant-user-cannot-login-at-enterprise-subdomain" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-730 Default Tenant User Cannot Login at Enterprise Subdomain
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-731-cross-tenant-user-memberships" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-731 Cross-Tenant User Memberships
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-732-public-signup-e2e-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-732 Public Signup E2E Coverage
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#122-marketplace-scope-upd-049" class="md-nav__link">
+    <span class="md-ellipsis">
+      122. Marketplace Scope (UPD-049)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="122. Marketplace Scope (UPD-049)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fr-733-marketplace-scopes" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-733 Marketplace Scopes
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-734-public-marketplace-visibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-734 Public Marketplace Visibility
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-735-enterprise-tenant-consumption-of-public-marketplace-per-contract-flag" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-735 Enterprise Tenant Consumption of Public Marketplace (Per-Contract Flag)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-736-marketplace-publication-review-public-scope-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-736 Marketplace Publication Review (Public Scope Only)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-737-marketplace-submission-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-737 Marketplace Submission UI
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-738-marketplace-review-admin-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-738 Marketplace Review Admin UI
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-739-marketplace-discovery-per-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-739 Marketplace Discovery Per Scope
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-740-agent-cross-tenant-read-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-740 Agent Cross-Tenant Read Access
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-741-marketplace-scope-e2e-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-741 Marketplace Scope E2E Coverage
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#123-abuse-prevention-and-trust-safety-upd-050" class="md-nav__link">
+    <span class="md-ellipsis">
+      123. Abuse Prevention and Trust &amp; Safety (UPD-050)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="123. Abuse Prevention and Trust & Safety (UPD-050)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fr-742-free-tier-cost-protection-hard" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-742 Free Tier Cost Protection (Hard)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-743-disposable-email-domain-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-743 Disposable Email Domain Detection
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-744-velocity-rules-on-signup" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-744 Velocity Rules on Signup
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-745-captcha-on-signup-configurable" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-745 CAPTCHA on Signup (Configurable)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-746-account-suspension-automation" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-746 Account Suspension Automation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-747-per-ip-geo-blocking-optional" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-747 Per-IP Geo-Blocking (Optional)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-748-ml-based-fraud-scoring-optional-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-748 ML-Based Fraud Scoring (Optional Integration)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-749-abuse-prevention-admin-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-749 Abuse Prevention Admin UI
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-750-abuse-prevention-e2e-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-750 Abuse Prevention E2E Coverage
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#124-data-lifecycle-tenant-and-workspace-upd-051" class="md-nav__link">
+    <span class="md-ellipsis">
+      124. Data Lifecycle (Tenant and Workspace) (UPD-051)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="124. Data Lifecycle (Tenant and Workspace) (UPD-051)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fr-751-workspace-data-export-freepro" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-751 Workspace Data Export (Free/Pro)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-752-workspace-deletion-freepro" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-752 Workspace Deletion (Free/Pro)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-753-tenant-data-export-enterprise" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-753 Tenant Data Export (Enterprise)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-754-tenant-deletion-cascade-enterprise" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-754 Tenant Deletion Cascade (Enterprise)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-755-data-processing-agreement-dpa-per-tenant" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-755 Data Processing Agreement (DPA) per Tenant
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-756-sub-processors-public-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-756 Sub-Processors Public List
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-757-tenant-suspension-data-retention" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-757 Tenant Suspension Data Retention
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-758-gdpr-article-28-compliance-for-enterprise" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-758 GDPR Article 28 Compliance for Enterprise
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-759-backup-separation-by-tenant" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-759 Backup Separation by Tenant
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-760-data-lifecycle-e2e-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-760 Data Lifecycle E2E Coverage
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#125-billing-and-overage-upd-052" class="md-nav__link">
+    <span class="md-ellipsis">
+      125. Billing and Overage (UPD-052)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="125. Billing and Overage (UPD-052)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fr-761-paymentprovider-abstraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-761 PaymentProvider Abstraction
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-762-stripe-as-first-concrete-implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-762 Stripe as First Concrete Implementation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-763-stripe-webhooks-at-apiwebhooksstripe" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-763 Stripe Webhooks at /api/webhooks/stripe
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-764-webhook-event-handlers" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-764 Webhook Event Handlers
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-765-free-plan-card-on-file-allowed" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-765 Free Plan Card-on-File Allowed
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-766-overage-authorization-ux" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-766 Overage Authorization UX
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-767-overage-authorization-with-optional-cap" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-767 Overage Authorization with Optional Cap
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-768-failed-payment-grace-period" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-768 Failed Payment Grace Period
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-769-subscription-cancellation-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-769 Subscription Cancellation Flow
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-770-stripe-customer-portal-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-770 Stripe Customer Portal Integration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-771-invoices-and-receipts" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-771 Invoices and Receipts
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-772-billing-dashboard-per-workspace-profree" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-772 Billing Dashboard Per Workspace (Pro/Free)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-773-billing-dashboard-per-tenant-enterprise" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-773 Billing Dashboard Per Tenant (Enterprise)
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-774-stripe-test-mode-for-dev-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-774 Stripe Test Mode for Dev Environment
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-775-billing-e2e-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-775 Billing E2E Coverage
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#126-hetzner-productiondev-helm-and-ingress-topology-upd-053" class="md-nav__link">
+    <span class="md-ellipsis">
+      126. Hetzner Production+Dev Helm and Ingress Topology (UPD-053)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="126. Hetzner Production+Dev Helm and Ingress Topology (UPD-053)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fr-776-two-separate-kubernetes-clusters" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-776 Two Separate Kubernetes Clusters
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-777-cluster-sizing-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-777 Cluster Sizing Profiles
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-778-hetzner-cloud-load-balancer-per-cluster" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-778 Hetzner Cloud Load Balancer per Cluster
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-779-dns-topology" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-779 DNS Topology
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-780-wildcard-tls-per-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-780 Wildcard TLS per Environment
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-781-cert-manager-lets-encrypt-dns-01-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-781 cert-manager + Let's Encrypt DNS-01 Configuration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-782-per-tenant-ingress-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-782 Per-Tenant Ingress Routing
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-783-helm-chart-overlay-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-783 Helm Chart Overlay Structure
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-784-helm-chart-manages-tenant-subdomains-via-wildcard-ingress" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-784 Helm Chart Manages Tenant Subdomains via Wildcard Ingress
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-785-per-environment-stripe-webhook-endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-785 Per-Environment Stripe Webhook Endpoints
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-786-tenant-subdomain-dns-automation" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-786 Tenant Subdomain DNS Automation
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-787-hetzner-dns-provider-api-token" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-787 Hetzner DNS Provider API Token
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-788-status-page-cluster-independence" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-788 Status Page Cluster Independence
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-789-helm-values-for-hetzner-specific-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-789 Helm Values for Hetzner-Specific Configuration
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-790-helm-chart-test-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-790 Helm Chart Test Coverage
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-791-hetzner-topology-e2e-coverage" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-791 Hetzner Topology E2E Coverage
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#127-saas-comprehensive-e2e-upd-054" class="md-nav__link">
+    <span class="md-ellipsis">
+      127. SaaS Comprehensive E2E (UPD-054)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="127. SaaS Comprehensive E2E (UPD-054)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fr-792-j22-tenant-provisioning-journey" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-792 J22 Tenant Provisioning Journey
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-793-j23-quota-enforcement-journey" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-793 J23 Quota Enforcement Journey
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-794-j24-enterprise-tenant-provisioning-journey" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-794 J24 Enterprise Tenant Provisioning Journey
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-795-j25-marketplace-multi-scope-journey" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-795 J25 Marketplace Multi-Scope Journey
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-796-j26-abuse-prevention-journey" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-796 J26 Abuse Prevention Journey
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-797-j27-tenant-lifecycle-cancellation-journey" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-797 J27 Tenant Lifecycle Cancellation Journey
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-798-j28-billing-lifecycle-journey" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-798 J28 Billing Lifecycle Journey
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-799-j29-hetzner-topology-journey" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-799 J29 Hetzner Topology Journey
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-800-j30-plan-versioning-journey" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-800 J30 Plan Versioning Journey
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-801-j31-cross-tenant-isolation-verification-journey" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-801 J31 Cross-Tenant Isolation Verification Journey
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-802-j32-stripe-webhook-idempotency-journey" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-802 J32 Stripe Webhook Idempotency Journey
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-803-j33-trial-to-paid-conversion-journey" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-803 J33 Trial-to-Paid Conversion Journey
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-804-j34-subscription-cancellation-and-reactivation-journey" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-804 J34 Subscription Cancellation and Reactivation Journey
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-805-j35-wildcard-tls-renewal-journey" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-805 J35 Wildcard TLS Renewal Journey
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-806-j36-default-tenant-constraint-journey" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-806 J36 Default Tenant Constraint Journey
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-807-j37-plan-free-cost-protection-journey" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-807 J37 Plan Free Cost Protection Journey
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fr-808-saas-e2e-suite-completion-criterion" class="md-nav__link">
+    <span class="md-ellipsis">
+      FR-808 SaaS E2E Suite Completion Criterion
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+  
+  
+
+
+<h1 id="functional-requirements-saas-transformation-pass">Functional Requirements — SaaS Transformation Pass<a class="headerlink" href="#functional-requirements-saas-transformation-pass" title="Permanent link">&para;</a></h1>
+<blockquote>
+<p>This document contains the new functional requirements added by the SaaS transformation pass (UPD-046 through UPD-054). It complements <code>functional-requirements-revised-v6.md</code> (which covers FR-001 through FR-682). FRs in this document are FR-685 onward, organized into sections 119 through 126.</p>
+<p><strong>Backward-compatibility note</strong>: The <code>PLATFORM_TENANT_MODE=single|multi</code> setting (FR-585) is <strong>superseded by this pass</strong>. The platform is always multi-tenant after this pass; the default tenant is created at install time and contains all Free/Pro users. FR-002, FR-030, FR-468, FR-549, FR-585, FR-549 are revised as noted in their respective FRs and in the SaaS constitution.</p>
+</blockquote>
+<hr />
+<h2 id="119-tenant-architecture-upd-046">119. Tenant Architecture (UPD-046)<a class="headerlink" href="#119-tenant-architecture-upd-046" title="Permanent link">&para;</a></h2>
+<h3 id="fr-685-tenant-as-a-first-class-entity">FR-685 Tenant as a First-Class Entity<a class="headerlink" href="#fr-685-tenant-as-a-first-class-entity" title="Permanent link">&para;</a></h3>
+<p>The platform shall introduce a <code>Tenant</code> entity that represents the unit of subdomain-isolated logical separation. Every workspace, user-membership, agent, execution, audit entry, cost record, secret reference, and any other tenant-scoped resource shall carry a <code>tenant_id</code> foreign key referencing the <code>tenants</code> table. Cross-tenant data access is forbidden except by platform-staff endpoints under <code>/api/v1/platform/*</code>.</p>
+<h3 id="fr-686-tenant-kinds">FR-686 Tenant Kinds<a class="headerlink" href="#fr-686-tenant-kinds" title="Permanent link">&para;</a></h3>
+<p>A tenant has one of two kinds:
+- <code>default</code> — the SaaS public tenant, exactly one per platform installation, hosting all Free and Pro users. Its slug is <code>default</code>, its subdomain is <code>app</code>, it cannot be renamed, suspended, or deleted, and a database constraint enforces uniqueness of <code>kind="default"</code>.
+- <code>enterprise</code> — one per contracted Enterprise customer, manually provisioned by super admin. Each enterprise tenant has a unique slug (e.g., <code>acme</code>) which becomes its subdomain (<code>acme.musematic.ai</code>).</p>
+<p>No other kinds exist.</p>
+<h3 id="fr-687-tenant-schema">FR-687 Tenant Schema<a class="headerlink" href="#fr-687-tenant-schema" title="Permanent link">&para;</a></h3>
+<p>The <code>tenants</code> table shall contain at minimum: <code>id</code> (UUID primary key), <code>slug</code> (text, unique, kebab-case, validated regex <code>^[a-z][a-z0-9-]{1,30}[a-z0-9]$</code>), <code>kind</code> (<code>default</code> | <code>enterprise</code>), <code>subdomain</code> (text, derived from slug or explicitly set), <code>display_name</code> (text), <code>region</code> (text, references region catalog from FR-468), <code>data_isolation_mode</code> (<code>pool</code> | <code>silo</code>, default <code>pool</code>), <code>branding_config_json</code> (jsonb, Enterprise-only), <code>subscription_id</code> (FK to subscriptions, nullable for default tenant which has per-workspace subscriptions), <code>status</code> (<code>active</code> | <code>suspended</code> | <code>pending_deletion</code>), <code>created_at</code> (timestamp), <code>created_by_super_admin_id</code> (FK to users, nullable for default tenant), <code>dpa_signed_at</code> (timestamp), <code>dpa_version</code> (text), <code>contract_metadata_json</code> (jsonb, Enterprise-only).</p>
+<h3 id="fr-688-default-tenant-provisioning">FR-688 Default Tenant Provisioning<a class="headerlink" href="#fr-688-default-tenant-provisioning" title="Permanent link">&para;</a></h3>
+<p>On platform install, the seeder shall create the default tenant with <code>slug="default"</code>, <code>subdomain="app"</code>, <code>kind="default"</code>, <code>display_name="Musematic"</code>, <code>region</code> from <code>PLATFORM_DEFAULT_REGION</code> env var. Migration scripts shall backfill <code>tenant_id="&lt;default-tenant-uuid&gt;"</code> into all existing rows of tenant-scoped tables, preserving all existing data without loss.</p>
+<h3 id="fr-689-hostname-to-tenant-resolution-middleware">FR-689 Hostname-to-Tenant Resolution Middleware<a class="headerlink" href="#fr-689-hostname-to-tenant-resolution-middleware" title="Permanent link">&para;</a></h3>
+<p>The platform shall implement a middleware that runs first in the HTTP request pipeline. The middleware extracts the tenant from the <code>Host</code> header by stripping the platform domain (<code>musematic.ai</code> or <code>dev.musematic.ai</code>) and the optional API/Grafana prefix (<code>api</code>, <code>grafana</code>). The remainder maps to a tenant slug; the lookup populates the request context with the resolved <code>Tenant</code> row. Requests with unrecognized hostnames return HTTP 404 with a generic message that does not reveal whether the tenant exists.</p>
+<h3 id="fr-690-postgresql-row-level-security-on-tenant-scoped-tables">FR-690 PostgreSQL Row-Level Security on Tenant-Scoped Tables<a class="headerlink" href="#fr-690-postgresql-row-level-security-on-tenant-scoped-tables" title="Permanent link">&para;</a></h3>
+<p>Every tenant-scoped table shall have a <code>CREATE POLICY tenant_isolation</code> RLS policy with the predicate <code>USING (tenant_id = current_setting('app.tenant_id')::uuid)</code>. The application middleware shall execute <code>SET LOCAL app.tenant_id = '&lt;tenant-uuid&gt;'</code> at the start of every request transaction. RLS is a defense-in-depth backstop; application code must still filter explicitly.</p>
+<h3 id="fr-691-privileged-db-role-for-cross-tenant-queries">FR-691 Privileged DB Role for Cross-Tenant Queries<a class="headerlink" href="#fr-691-privileged-db-role-for-cross-tenant-queries" title="Permanent link">&para;</a></h3>
+<p>A separate PostgreSQL role <code>musematic_platform_staff</code> shall have <code>BYPASSRLS</code> privilege. Only platform-staff endpoints (<code>/api/v1/platform/*</code>) may use this role, via a dedicated database connection pool. The application database role <code>musematic_app</code> does NOT have <code>BYPASSRLS</code>.</p>
+<h3 id="fr-692-subdomain-based-cookie-scoping">FR-692 Subdomain-based Cookie Scoping<a class="headerlink" href="#fr-692-subdomain-based-cookie-scoping" title="Permanent link">&para;</a></h3>
+<p>Authentication cookies shall be scoped to the tenant's subdomain (<code>Domain=acme.musematic.ai</code> for tenant <code>acme</code>, <code>Domain=app.musematic.ai</code> for default). No cross-subdomain cookie leakage occurs. The default tenant's cookies do NOT have <code>Domain=.musematic.ai</code> (which would leak to enterprise tenants).</p>
+<h3 id="fr-693-per-tenant-oauth-provider-configuration">FR-693 Per-Tenant OAuth Provider Configuration<a class="headerlink" href="#fr-693-per-tenant-oauth-provider-configuration" title="Permanent link">&para;</a></h3>
+<p>Each tenant shall have its own OAuth provider configuration (Google, GitHub) configured by super admin (or by the tenant admin in Enterprise tenants). OAuth callback URLs are tenant-specific (<code>https://acme.musematic.ai/auth/oauth/google/callback</code>). The OAuth admin page (UPD-041) operates per-tenant. Default tenant has a platform-managed default OAuth config.</p>
+<h3 id="fr-694-per-tenant-vault-path-scoping">FR-694 Per-Tenant Vault Path Scoping<a class="headerlink" href="#fr-694-per-tenant-vault-path-scoping" title="Permanent link">&para;</a></h3>
+<p>Vault paths for tenant-owned resources shall include the tenant slug: <code>secret/data/musematic/{env}/tenants/{tenant_slug}/{domain}/{resource}</code>. The default tenant uses paths <code>secret/data/musematic/{env}/tenants/default/...</code>. Cross-tenant Vault access is forbidden by Vault policies that grant tenant-scoped read access only.</p>
+<h3 id="fr-695-tenant-admin-workbench-super-admin">FR-695 Tenant Admin Workbench (Super Admin)<a class="headerlink" href="#fr-695-tenant-admin-workbench-super-admin" title="Permanent link">&para;</a></h3>
+<p>The admin workbench (UPD-036) shall include a <code>/admin/tenants</code> page operational from this pass forward (no longer feature-flag gated). The page lists all tenants with kind, status, region, subscription state, member count, last-active timestamp. Super admin actions: create new Enterprise tenant (with form: slug, name, region, subscription plan, contract metadata, DPA upload), suspend tenant, delete tenant (with cascade preview and 2PA per FR-561), edit tenant config, switch impersonation context to that tenant.</p>
+<h3 id="fr-696-tenant-suspension-behavior">FR-696 Tenant Suspension Behavior<a class="headerlink" href="#fr-696-tenant-suspension-behavior" title="Permanent link">&para;</a></h3>
+<p>A suspended tenant shall: reject all login attempts (returns HTTP 503 with explanatory message), block all background workers from processing tenant-scoped events, retain all data, allow super admin to reactivate at any time. Suspension reasons are logged in audit chain.</p>
+<h3 id="fr-697-tenant-deletion-two-phase">FR-697 Tenant Deletion (Two-Phase)<a class="headerlink" href="#fr-697-tenant-deletion-two-phase" title="Permanent link">&para;</a></h3>
+<p>Deletion is two-phase: phase 1 marks tenant <code>pending_deletion</code>, blocks all access, schedules a deletion grace period (default 30 days, configurable per plan); phase 2 (after grace period or super admin force) cascades to all tenant-scoped tables, drops Vault paths, removes OAuth callbacks, removes DNS records (UPD-053), final tombstone audit entry. Until phase 2, super admin can recover the tenant.</p>
+<h3 id="fr-698-tenant-audit-chain-inclusion">FR-698 Tenant Audit Chain Inclusion<a class="headerlink" href="#fr-698-tenant-audit-chain-inclusion" title="Permanent link">&para;</a></h3>
+<p>Every audit chain entry shall include <code>tenant_id</code> as an additional field. The chain hash includes this field. Cross-tenant audit queries are platform-staff-only.</p>
+<h3 id="fr-699-tenant-cost-attribution-inclusion">FR-699 Tenant Cost Attribution Inclusion<a class="headerlink" href="#fr-699-tenant-cost-attribution-inclusion" title="Permanent link">&para;</a></h3>
+<p>Every cost record (UPD-027) shall include <code>tenant_id</code>. Per-tenant cost dashboards (super admin) show platform infrastructure cost vs tenant subscription revenue (gross margin per tenant for platform-staff insight). Per-tenant chargeback to workspaces continues as before.</p>
+<h3 id="fr-700-tenant-data-residency-enforcement">FR-700 Tenant Data Residency Enforcement<a class="headerlink" href="#fr-700-tenant-data-residency-enforcement" title="Permanent link">&para;</a></h3>
+<p>The <code>tenant.region</code> field, combined with FR-468 query-time enforcement, ensures all tenant data lives in the configured region. Cross-region transfers blocked at query level. Super admin sets the region at tenant creation; changing region requires data migration (out of scope this pass — handled as ops procedure).</p>
+<h3 id="fr-701-per-tenant-branding-enterprise-only">FR-701 Per-Tenant Branding (Enterprise Only)<a class="headerlink" href="#fr-701-per-tenant-branding-enterprise-only" title="Permanent link">&para;</a></h3>
+<p>Enterprise tenants shall be able to configure: logo URL, primary color, secondary color, favicon, login page background. These are stored in <code>tenant.branding_config_json</code>. Default tenant uses platform-default branding (Musematic logo, neutral colors). Pro/Free workspaces in the default tenant cannot customize branding (constitution rule 14).</p>
+<h3 id="fr-702-tenant-status-page-subdomain">FR-702 Tenant Status Page Subdomain<a class="headerlink" href="#fr-702-tenant-status-page-subdomain" title="Permanent link">&para;</a></h3>
+<p>Each tenant shall have its own status page subdomain when status page is provisioned: <code>status.acme.musematic.ai</code> for <code>acme</code>, <code>status.musematic.ai</code> for default. The status page deployment (UPD-045) is extended to per-tenant routing.</p>
+<h3 id="fr-703-tenant-e2e-test-coverage">FR-703 Tenant E2E Test Coverage<a class="headerlink" href="#fr-703-tenant-e2e-test-coverage" title="Permanent link">&para;</a></h3>
+<p>A new E2E journey <strong>J22 Tenant Provisioning</strong> shall exercise: super admin creates an Enterprise tenant, super admin assigns plan, super admin invites first tenant admin, tenant admin completes onboarding, tenant admin invites a second user, second user logs in successfully and CANNOT log into another tenant. Cross-tenant isolation verified.</p>
+<h3 id="fr-704-tenant-listing-for-authenticated-users">FR-704 Tenant Listing for Authenticated Users<a class="headerlink" href="#fr-704-tenant-listing-for-authenticated-users" title="Permanent link">&para;</a></h3>
+<p>A user authenticated via SSO/OAuth at one tenant shall NOT see other tenants. The "tenant switcher" UI (if any) only appears for users with explicit memberships across tenants. Listing of available tenants for a user is via <code>/api/v1/me/memberships</code> returning only tenants where the user has membership.</p>
+<h3 id="fr-705-default-tenant-self-healing-constraints">FR-705 Default Tenant Self-Healing Constraints<a class="headerlink" href="#fr-705-default-tenant-self-healing-constraints" title="Permanent link">&para;</a></h3>
+<p>A migration that would attempt to delete or rename the default tenant shall fail at the database level (CHECK constraint or trigger). The default tenant is hardcoded by slug <code>default</code> and kind <code>default</code>; admin UI prevents deletion attempts and explains why.</p>
+<hr />
+<h2 id="120-plans-subscriptions-quotas-upd-047">120. Plans, Subscriptions, Quotas (UPD-047)<a class="headerlink" href="#120-plans-subscriptions-quotas-upd-047" title="Permanent link">&para;</a></h2>
+<h3 id="fr-706-plans-table-with-configurable-parameters">FR-706 Plans Table with Configurable Parameters<a class="headerlink" href="#fr-706-plans-table-with-configurable-parameters" title="Permanent link">&para;</a></h3>
+<p>The <code>plans</code> table shall contain at minimum: <code>id</code> (UUID), <code>slug</code> (text, e.g., <code>free</code>, <code>pro</code>, <code>enterprise</code>), <code>display_name</code>, <code>description</code>, <code>tier</code> (<code>free</code> | <code>pro</code> | <code>enterprise</code>), <code>is_public</code> (boolean — Enterprise is <code>false</code>, doesn't appear in public pricing), <code>is_active</code> (boolean), <code>allowed_model_tier</code> (text — e.g., <code>cheap_only</code> for Free), <code>created_at</code>. Plans have versions (separate <code>plan_versions</code> table) holding the configurable parameters.</p>
+<h3 id="fr-707-plan-version-configurable-parameters">FR-707 Plan Version Configurable Parameters<a class="headerlink" href="#fr-707-plan-version-configurable-parameters" title="Permanent link">&para;</a></h3>
+<p>Each <code>plan_versions</code> row shall contain super-admin-configurable parameters:
+- <code>version</code> (integer, monotonic per plan)
+- <code>price_monthly</code> (decimal, in EUR, 0 = no overage allowed for any quota of this plan)
+- <code>executions_per_day</code> (integer, 0 = unlimited)
+- <code>executions_per_month</code> (integer, 0 = unlimited)
+- <code>minutes_per_day</code> (integer, 0 = unlimited)
+- <code>minutes_per_month</code> (integer, 0 = unlimited)
+- <code>max_workspaces</code> (integer, 0 = unlimited)
+- <code>max_agents_per_workspace</code> (integer, 0 = unlimited; counts only agents with at least one active revision per FR-674)
+- <code>max_users_per_workspace</code> (integer, 0 = unlimited)
+- <code>overage_price_per_minute</code> (decimal, 0 = no overage allowed)
+- <code>trial_days</code> (integer, default 0)
+- <code>published_at</code> (timestamp, null until published)
+- <code>deprecated_at</code> (timestamp, null while accepting new subscriptions)</p>
+<p>A value of 0 for any quota parameter means <strong>unlimited</strong> per user requirement.</p>
+<h3 id="fr-708-plan-version-immutability">FR-708 Plan Version Immutability<a class="headerlink" href="#fr-708-plan-version-immutability" title="Permanent link">&para;</a></h3>
+<p>Once a plan version is <code>published_at</code>, it MUST NOT be modified. Editing parameters creates a new plan version (auto-increment <code>version</code>). Existing subscriptions remain pinned to their plan version. The admin UI shows version history with diffs.</p>
+<h3 id="fr-709-subscription-schema">FR-709 Subscription Schema<a class="headerlink" href="#fr-709-subscription-schema" title="Permanent link">&para;</a></h3>
+<p>The <code>subscriptions</code> table shall contain at minimum: <code>id</code> (UUID), <code>tenant_id</code> (FK), <code>scope_type</code> (<code>workspace</code> | <code>tenant</code>), <code>scope_id</code> (UUID — the workspace or tenant being subscribed), <code>plan_id</code> (FK), <code>plan_version</code> (integer), <code>status</code> (<code>trial</code> | <code>active</code> | <code>past_due</code> | <code>cancellation_pending</code> | <code>canceled</code> | <code>suspended</code>), <code>started_at</code>, <code>current_period_start</code>, <code>current_period_end</code>, <code>cancel_at_period_end</code> (boolean), <code>payment_method_id</code> (FK to payment_methods, nullable for Free), <code>stripe_subscription_id</code> (text, nullable for Free), <code>created_by_user_id</code> (FK), <code>created_at</code>. Constraint: subscriptions in default tenant have <code>scope_type='workspace'</code>; subscriptions in enterprise tenants have <code>scope_type='tenant'</code>.</p>
+<h3 id="fr-710-three-free-plans-by-default">FR-710 Three Free Plans by Default<a class="headerlink" href="#fr-710-three-free-plans-by-default" title="Permanent link">&para;</a></h3>
+<p>On platform install, three plans are seeded:
+- <code>free</code> plan: tier <code>free</code>, price 0, executions_per_day 50, executions_per_month 100, minutes_per_day 30, minutes_per_month 100, max_workspaces 1, max_agents_per_workspace 5, max_users_per_workspace 3, overage_price_per_minute 0 (NO overage), allowed_model_tier <code>cheap_only</code>, trial_days 0
+- <code>pro</code> plan: tier <code>pro</code>, price 49 EUR, executions_per_day 500, executions_per_month 5000, minutes_per_day 240, minutes_per_month 2400, max_workspaces 5, max_agents_per_workspace 50, max_users_per_workspace 25, overage_price_per_minute 0.10 EUR, allowed_model_tier <code>all</code>, trial_days 14
+- <code>enterprise</code> plan: tier <code>enterprise</code>, price 0 (negotiated per contract), all quotas 0 (unlimited), overage 0 (no overage by default — contract custom), allowed_model_tier <code>all</code>, trial_days 0, <code>is_public=false</code></p>
+<p>These defaults are super-admin-editable; on plan parameter change, a new version is created.</p>
+<h3 id="fr-711-quota-enforcement-synchronous-check">FR-711 Quota Enforcement Synchronous Check<a class="headerlink" href="#fr-711-quota-enforcement-synchronous-check" title="Permanent link">&para;</a></h3>
+<p>Before launching an execution, creating a workspace, registering an agent, inviting a user: the platform shall execute synchronous quota check against the workspace's (or tenant's, for Enterprise) subscription's plan version. If exceeded, the operation is rejected with HTTP 402 (for billable resources) or HTTP 403 (for capacity quotas like max_workspaces). Free plan ALWAYS hard-caps; Pro plan triggers the overage authorization flow if <code>overage_price_per_minute &gt; 0</code>.</p>
+<h3 id="fr-712-active-compute-time-counting">FR-712 Active Compute Time Counting<a class="headerlink" href="#fr-712-active-compute-time-counting" title="Permanent link">&para;</a></h3>
+<p>The "minutes" quota counts active compute time only: from the moment an agent runtime pod begins processing a step to the moment it releases the slot. Excluded: queue wait time, sandbox provisioning, approval gate waits, attention request waits, idle time. Implementation: the runtime emits <code>execution.compute.start</code> and <code>execution.compute.end</code> events; a metering service aggregates these per (tenant_id, workspace_id, billing_period).</p>
+<h3 id="fr-713-hard-cap-enforcement-free-tier">FR-713 Hard Cap Enforcement (Free Tier)<a class="headerlink" href="#fr-713-hard-cap-enforcement-free-tier" title="Permanent link">&para;</a></h3>
+<p>A workspace on a Free plan whose execution-minute or execution-count quota is exhausted shall: reject new execution requests with HTTP 402 + body <code>{"error":"quota_exceeded","quota":"minutes_per_month","reset_at":"&lt;timestamp&gt;","upgrade_url":"/upgrade"}</code>. UI shows a clear "Upgrade to Pro" CTA. No grace period. No overage option.</p>
+<h3 id="fr-714-overage-authorization-pro-tier-with-overage-enabled">FR-714 Overage Authorization (Pro Tier with Overage Enabled)<a class="headerlink" href="#fr-714-overage-authorization-pro-tier-with-overage-enabled" title="Permanent link">&para;</a></h3>
+<p>A workspace on a Pro plan with <code>overage_price_per_minute &gt; 0</code> whose quota is exhausted shall: pause execution with status <code>paused_quota_exceeded</code>, send notification to workspace admin via UPD-042 notification center channel(s) with subject "Authorize overage for this period", body explaining estimated overage cost based on recent burn rate, button to authorize. Authorization records <code>overage_authorizations</code> row with <code>(workspace_id, billing_period_start, authorized_at, authorized_by_user_id, max_overage_eur)</code> — defaulting to "unlimited until period end" or capped at user-set value. After authorization, paused executions resume.</p>
+<h3 id="fr-715-overage-pricing-configuration">FR-715 Overage Pricing Configuration<a class="headerlink" href="#fr-715-overage-pricing-configuration" title="Permanent link">&para;</a></h3>
+<p>The <code>overage_price_per_minute</code> from the plan version applies. When 0, overage is unavailable (hard cap regardless of card on file). Per-tenant Enterprise contracts can override via custom contract metadata (out of scope auto-enforcement; super admin tracks).</p>
+<h3 id="fr-716-quota-reset-periods">FR-716 Quota Reset Periods<a class="headerlink" href="#fr-716-quota-reset-periods" title="Permanent link">&para;</a></h3>
+<p>Daily quotas reset at midnight in the tenant's region timezone (configurable). Monthly quotas reset on the 1<sup>st</sup> of the month at the same boundary OR on subscription anniversary date — choice configurable per plan via <code>quota_period_anchor</code> ∈ {<code>calendar_month</code>, <code>subscription_anniversary</code>}. Default: <code>calendar_month</code> for Free, <code>subscription_anniversary</code> for Pro/Enterprise.</p>
+<h3 id="fr-717-plan-upgrade-and-downgrade">FR-717 Plan Upgrade and Downgrade<a class="headerlink" href="#fr-717-plan-upgrade-and-downgrade" title="Permanent link">&para;</a></h3>
+<p>A workspace can upgrade plans at any time. Upgrade takes effect immediately with prorated billing (Stripe handles proration). The plan version of the upgrade is the current published version of the new plan. Downgrade scheduled for next period boundary by default (data exceeding new plan limits triggers cleanup notification per FR-742). Super admin can override downgrade timing per plan.</p>
+<h3 id="fr-718-plan-configuration-admin-ui">FR-718 Plan Configuration Admin UI<a class="headerlink" href="#fr-718-plan-configuration-admin-ui" title="Permanent link">&para;</a></h3>
+<p>Super admin shall have a <code>/admin/plans</code> page listing all plans with current published version. Per-plan: edit (creates new version, requires "Publish" action), view version history, mark version deprecated (no new subscriptions on that version), see active subscription count per version.</p>
+<h3 id="fr-719-plan-version-history">FR-719 Plan Version History<a class="headerlink" href="#fr-719-plan-version-history" title="Permanent link">&para;</a></h3>
+<p>The <code>/admin/plans/{plan_id}/history</code> page shall show all versions with diffs (parameter-by-parameter), publication timestamps, and deprecation status. Each version shows count of subscriptions still on it.</p>
+<h3 id="fr-720-subscription-admin-dashboard">FR-720 Subscription Admin Dashboard<a class="headerlink" href="#fr-720-subscription-admin-dashboard" title="Permanent link">&para;</a></h3>
+<p>Super admin shall have <code>/admin/subscriptions</code> listing all subscriptions across tenants. Filters: tenant, plan, status, payment status. Drill into subscription detail with: status timeline, payment history, current period usage, plan version, upgrade/downgrade history.</p>
+<h3 id="fr-721-subscription-status-transitions">FR-721 Subscription Status Transitions<a class="headerlink" href="#fr-721-subscription-status-transitions" title="Permanent link">&para;</a></h3>
+<p>Allowed status transitions:
+- <code>trial</code> → <code>active</code> (after first successful payment or trial conversion)
+- <code>trial</code> → <code>canceled</code> (user abandons trial)
+- <code>active</code> → <code>past_due</code> (payment failure, FR-739)
+- <code>past_due</code> → <code>active</code> (payment recovers)
+- <code>past_due</code> → <code>suspended</code> (after retry exhaustion + grace period)
+- <code>suspended</code> → <code>active</code> (manual super admin action)
+- <code>*</code> → <code>cancellation_pending</code> (user requests cancellation, takes effect at period end)
+- <code>cancellation_pending</code> → <code>canceled</code> (period ends)</p>
+<p>Other transitions are illegal and rejected.</p>
+<h3 id="fr-722-plans-subscriptions-quotas-e2e-coverage">FR-722 Plans, Subscriptions, Quotas E2E Coverage<a class="headerlink" href="#fr-722-plans-subscriptions-quotas-e2e-coverage" title="Permanent link">&para;</a></h3>
+<p>A new E2E journey <strong>J23 Quota Enforcement</strong> shall exercise: Free workspace hits hard cap, Pro workspace triggers overage flow with authorization, Enterprise tenant ignores caps, plan upgrade applies new quotas immediately, plan downgrade scheduled for period end. Cross-checks with cost attribution dashboard (UPD-027) and notification center (UPD-042).</p>
+<hr />
+<h2 id="121-public-signup-default-tenant-only-upd-048">121. Public Signup, Default Tenant Only (UPD-048)<a class="headerlink" href="#121-public-signup-default-tenant-only-upd-048" title="Permanent link">&para;</a></h2>
+<h3 id="fr-723-public-signup-restricted-to-default-tenant">FR-723 Public Signup Restricted to Default Tenant<a class="headerlink" href="#fr-723-public-signup-restricted-to-default-tenant" title="Permanent link">&para;</a></h3>
+<p>The public signup page (UPD-037 <code>/signup</code>) shall be available only at <code>app.musematic.ai/signup</code> (the default tenant subdomain). Visiting <code>https://acme.musematic.ai/signup</code> returns 404 (Enterprise tenants do not allow public signup). Enterprise tenants invite users via tenant admin only.</p>
+<h3 id="fr-724-signup-creates-user-in-default-tenant-only">FR-724 Signup Creates User in Default Tenant Only<a class="headerlink" href="#fr-724-signup-creates-user-in-default-tenant-only" title="Permanent link">&para;</a></h3>
+<p>Public signup creates a user with <code>tenant_id=&lt;default-tenant-uuid&gt;</code>. No tenant is created at signup time. The user lands in the default tenant and proceeds with workspace creation in default tenant context.</p>
+<h3 id="fr-725-free-workspace-auto-creation-on-first-signup">FR-725 Free Workspace Auto-Creation on First Signup<a class="headerlink" href="#fr-725-free-workspace-auto-creation-on-first-signup" title="Permanent link">&para;</a></h3>
+<p>On a user's first signup confirmation (after email verification, after any required admin approval per FR-016 — though the default tenant typically has approval disabled), a Free-plan workspace is automatically created with the user as <code>workspace_owner</code>. The user lands on the workspace dashboard.</p>
+<h3 id="fr-726-onboarding-wizard">FR-726 Onboarding Wizard<a class="headerlink" href="#fr-726-onboarding-wizard" title="Permanent link">&para;</a></h3>
+<p>After workspace auto-creation, an onboarding wizard guides the user through: name your workspace, optionally invite teammates (via UPD-042 invite flow), create your first agent (link to creation wizard from UPD-022), or skip and explore. Wizard is dismissible.</p>
+<h3 id="fr-727-enterprise-tenant-user-provisioning">FR-727 Enterprise Tenant User Provisioning<a class="headerlink" href="#fr-727-enterprise-tenant-user-provisioning" title="Permanent link">&para;</a></h3>
+<p>Enterprise tenants are provisioned by super admin via <code>/admin/tenants/new</code>. The form collects: tenant slug, display name, region, plan (Enterprise plan version), contract metadata (DPA file upload, contract reference), first tenant admin email. On submit: tenant row created, DNS record created (UPD-053), TLS cert provisioned (Let's Encrypt automation), first tenant admin invited via email, audit chain entry recorded with super admin principal.</p>
+<h3 id="fr-728-tenant-admin-onboarding-flow">FR-728 Tenant Admin Onboarding Flow<a class="headerlink" href="#fr-728-tenant-admin-onboarding-flow" title="Permanent link">&para;</a></h3>
+<p>The first tenant admin of an Enterprise tenant receives an invitation email with link to <code>https://acme.musematic.ai/setup</code>. The setup flow: accept terms, create password (or link OAuth), set up MFA (mandatory for tenant admins), create first workspace, invite teammates, configure tenant SSO (optional). After completion, tenant is <code>active</code>.</p>
+<h3 id="fr-729-per-tenant-branding-visible-at-signuplogin">FR-729 Per-Tenant Branding Visible at Signup/Login<a class="headerlink" href="#fr-729-per-tenant-branding-visible-at-signuplogin" title="Permanent link">&para;</a></h3>
+<p>At <code>acme.musematic.ai/login</code>, the tenant's branding (logo, colors per FR-701) is applied to the login page. At <code>app.musematic.ai/login</code>, default Musematic branding is applied.</p>
+<h3 id="fr-730-default-tenant-user-cannot-login-at-enterprise-subdomain">FR-730 Default Tenant User Cannot Login at Enterprise Subdomain<a class="headerlink" href="#fr-730-default-tenant-user-cannot-login-at-enterprise-subdomain" title="Permanent link">&para;</a></h3>
+<p>A user registered in default tenant attempting to log in at <code>acme.musematic.ai/login</code> is rejected with HTTP 401 + message "This account is not associated with this organization. Did you mean to log in at app.musematic.ai?". No information leakage about whether the email exists in any tenant.</p>
+<h3 id="fr-731-cross-tenant-user-memberships">FR-731 Cross-Tenant User Memberships<a class="headerlink" href="#fr-731-cross-tenant-user-memberships" title="Permanent link">&para;</a></h3>
+<p>A user CAN have memberships in multiple tenants if explicitly invited. Each membership is a separate row in <code>user_memberships</code> with <code>(user_id, tenant_id, default_workspace_id, created_at)</code>. The user logs in at the appropriate subdomain for each tenant. SSO/OAuth providers are tenant-scoped (FR-693), so the SSO at <code>acme</code> may differ from the SSO at default; the same user may use email+password in default and OIDC in <code>acme</code>.</p>
+<h3 id="fr-732-public-signup-e2e-coverage">FR-732 Public Signup E2E Coverage<a class="headerlink" href="#fr-732-public-signup-e2e-coverage" title="Permanent link">&para;</a></h3>
+<p>Extend J19 (UPD-037 New User Signup) to verify: signup at <code>app.musematic.ai/signup</code> succeeds, signup at <code>acme.musematic.ai/signup</code> returns 404, free workspace auto-created, user redirected to onboarding wizard. New journey <strong>J24 Enterprise Tenant Provisioning</strong> covers super admin manual tenant creation flow.</p>
+<hr />
+<h2 id="122-marketplace-scope-upd-049">122. Marketplace Scope (UPD-049)<a class="headerlink" href="#122-marketplace-scope-upd-049" title="Permanent link">&para;</a></h2>
+<h3 id="fr-733-marketplace-scopes">FR-733 Marketplace Scopes<a class="headerlink" href="#fr-733-marketplace-scopes" title="Permanent link">&para;</a></h3>
+<p>Agents and shared resources have a <code>marketplace_scope</code> field with allowed values:
+- <code>workspace</code> — visible only within the publishing workspace
+- <code>tenant</code> — visible to all workspaces within the publishing tenant
+- <code>public_default_tenant</code> — visible to all users of the default tenant (free/pro public marketplace, Anthropic-style hub)</p>
+<p>Enterprise tenants cannot publish to <code>public_default_tenant</code>. Free/Pro workspaces in default tenant can publish to any of the three scopes.</p>
+<h3 id="fr-734-public-marketplace-visibility">FR-734 Public Marketplace Visibility<a class="headerlink" href="#fr-734-public-marketplace-visibility" title="Permanent link">&para;</a></h3>
+<p>Resources with <code>marketplace_scope=public_default_tenant</code> are visible to all users of the default tenant. They appear in the marketplace search and discovery (FR-234 et seq) for users in default tenant.</p>
+<h3 id="fr-735-enterprise-tenant-consumption-of-public-marketplace-per-contract-flag">FR-735 Enterprise Tenant Consumption of Public Marketplace (Per-Contract Flag)<a class="headerlink" href="#fr-735-enterprise-tenant-consumption-of-public-marketplace-per-contract-flag" title="Permanent link">&para;</a></h3>
+<p>By default, Enterprise tenants do NOT see public marketplace resources. Super admin can enable <code>tenant.feature_flags.consume_public_marketplace=true</code> per Enterprise tenant (per-contract). When enabled, Enterprise users can browse and use (read-only) resources from the public default-tenant marketplace, but cannot publish to it.</p>
+<h3 id="fr-736-marketplace-publication-review-public-scope-only">FR-736 Marketplace Publication Review (Public Scope Only)<a class="headerlink" href="#fr-736-marketplace-publication-review-public-scope-only" title="Permanent link">&para;</a></h3>
+<p>Publishing to <code>public_default_tenant</code> requires platform-staff review (similar to app store submissions). The publication state machine: <code>draft</code> → <code>pending_review</code> (user submits) → <code>approved</code> | <code>rejected</code> (platform staff decision) → <code>published</code> (after approval) → <code>deprecated</code>. Reviewers verify: agent doesn't violate ToS, agent is not a security risk, agent doesn't impersonate other entities, agent description is accurate.</p>
+<h3 id="fr-737-marketplace-submission-ui">FR-737 Marketplace Submission UI<a class="headerlink" href="#fr-737-marketplace-submission-ui" title="Permanent link">&para;</a></h3>
+<p>The creator workbench shall include a marketplace submission flow at <code>/agent-management/{fqn}/publish</code> allowing the user to choose <code>marketplace_scope</code>. Scopes <code>workspace</code> and <code>tenant</code> publish immediately. Scope <code>public_default_tenant</code> requires submission with description, category, tags, and goes to platform-staff review queue.</p>
+<h3 id="fr-738-marketplace-review-admin-ui">FR-738 Marketplace Review Admin UI<a class="headerlink" href="#fr-738-marketplace-review-admin-ui" title="Permanent link">&para;</a></h3>
+<p>Super admin shall have <code>/admin/marketplace-review</code> page listing pending submissions with filters by category, submitter tenant, submission age. Per submission: review the agent (test runs in sandbox), see submitter trust history, approve / reject with reason, communicate decision back to submitter via notification.</p>
+<h3 id="fr-739-marketplace-discovery-per-scope">FR-739 Marketplace Discovery Per Scope<a class="headerlink" href="#fr-739-marketplace-discovery-per-scope" title="Permanent link">&para;</a></h3>
+<p>The marketplace UI (FR-234) shall scope discovery according to the user's tenant context:
+- Default tenant user: sees workspace-scope from their workspace, tenant-scope from default tenant, public-scope (visible to all default tenant)
+- Enterprise tenant user: sees workspace-scope from their workspace, tenant-scope from their tenant, plus public-scope if <code>consume_public_marketplace</code> enabled for their tenant</p>
+<h3 id="fr-740-agent-cross-tenant-read-access">FR-740 Agent Cross-Tenant Read Access<a class="headerlink" href="#fr-740-agent-cross-tenant-read-access" title="Permanent link">&para;</a></h3>
+<p>When an Enterprise tenant consumes a public marketplace agent, the agent is loaded read-only with metadata clearly indicating "from public marketplace, not editable". Execution proceeds in the consuming tenant's runtime; cost attribution to consuming tenant. Forking the agent into the consuming tenant's workspace is allowed; the fork becomes a regular <code>tenant</code> or <code>workspace</code> scoped agent in the new home.</p>
+<h3 id="fr-741-marketplace-scope-e2e-coverage">FR-741 Marketplace Scope E2E Coverage<a class="headerlink" href="#fr-741-marketplace-scope-e2e-coverage" title="Permanent link">&para;</a></h3>
+<p>A new E2E journey <strong>J25 Marketplace Multi-Scope</strong> shall exercise: default-tenant user publishes agent to public scope, super admin reviews and approves, second default-tenant user discovers and runs the agent, Enterprise tenant with <code>consume_public_marketplace=true</code> discovers and runs (read-only), Enterprise tenant without flag does NOT see the agent. Cross-tenant isolation for tenant-scope agents verified.</p>
+<hr />
+<h2 id="123-abuse-prevention-and-trust-safety-upd-050">123. Abuse Prevention and Trust &amp; Safety (UPD-050)<a class="headerlink" href="#123-abuse-prevention-and-trust-safety-upd-050" title="Permanent link">&para;</a></h2>
+<h3 id="fr-742-free-tier-cost-protection-hard">FR-742 Free Tier Cost Protection (Hard)<a class="headerlink" href="#fr-742-free-tier-cost-protection-hard" title="Permanent link">&para;</a></h3>
+<p>The Free plan shall be economically protected via:
+- Allowed model tier <code>cheap_only</code> (FR-707): no GPT-4, no Claude Opus, no premium models
+- Hard caps with no overage option
+- Maximum execution time per run (default 5 minutes wall-clock)
+- Maximum reasoning depth (default 3 layers)
+- Maximum context size (default 8192 tokens)</p>
+<p>These limits are configurable in the plan version parameters (extension to FR-707) and enforced at runtime.</p>
+<h3 id="fr-743-disposable-email-domain-detection">FR-743 Disposable Email Domain Detection<a class="headerlink" href="#fr-743-disposable-email-domain-detection" title="Permanent link">&para;</a></h3>
+<p>Public signup at <code>app.musematic.ai/signup</code> shall reject emails from a maintained disposable-email-provider list (default list embedded; updateable via cron from a public source like <code>disposable-email-domains</code> GitHub project). Rejected with HTTP 400 + message "Please use a non-disposable email address". Super admin can override per email if needed.</p>
+<h3 id="fr-744-velocity-rules-on-signup">FR-744 Velocity Rules on Signup<a class="headerlink" href="#fr-744-velocity-rules-on-signup" title="Permanent link">&para;</a></h3>
+<p>The platform shall track signup velocity per IP, ASN, and email domain. Default thresholds:
+- 5 signups per IP per hour (HTTP 429)
+- 50 signups per ASN per hour (HTTP 429)
+- 20 signups per email domain per day (warning notification to super admin)</p>
+<p>Thresholds configurable in <code>/admin/security/abuse-prevention</code>.</p>
+<h3 id="fr-745-captcha-on-signup-configurable">FR-745 CAPTCHA on Signup (Configurable)<a class="headerlink" href="#fr-745-captcha-on-signup-configurable" title="Permanent link">&para;</a></h3>
+<p>Optional CAPTCHA (hCaptcha or Cloudflare Turnstile, configurable) on signup. Activatable by super admin. When activated, signup form requires successful CAPTCHA solve. Default: disabled until abuse spike detected; super admin can auto-enable via abuse-prevention page.</p>
+<h3 id="fr-746-account-suspension-automation">FR-746 Account Suspension Automation<a class="headerlink" href="#fr-746-account-suspension-automation" title="Permanent link">&para;</a></h3>
+<p>The platform shall support automated suspension of free-tier users matching abuse patterns:
+- Multiple Free workspaces from same IP within short window
+- Cost burn rate exceeding thresholds (despite hard cap)
+- Reported abuse by other users
+- Failed payment attempts from card stuffing patterns</p>
+<p>Suspended users see "Account suspended pending review" with appeal contact. Super admin reviews queue at <code>/admin/security/suspensions</code>.</p>
+<h3 id="fr-747-per-ip-geo-blocking-optional">FR-747 Per-IP Geo-Blocking (Optional)<a class="headerlink" href="#fr-747-per-ip-geo-blocking-optional" title="Permanent link">&para;</a></h3>
+<p>Super admin can configure geo-blocking lists at <code>/admin/security/geo-policy</code>: allow-list mode (only specified countries) or block-list mode (block specified countries). Useful for blocking high-abuse regions. Defaults: empty (no geo restriction). Geolocation via MaxMind GeoLite2 (open source) or paid GeoIP2.</p>
+<h3 id="fr-748-ml-based-fraud-scoring-optional-integration">FR-748 ML-Based Fraud Scoring (Optional Integration)<a class="headerlink" href="#fr-748-ml-based-fraud-scoring-optional-integration" title="Permanent link">&para;</a></h3>
+<p>The platform shall support optional integration with external fraud-scoring services (MaxMind minFraud, Sift). When enabled (super admin at <code>/admin/security/fraud-scoring</code>), signups receive a fraud score; high-score signups are auto-suspended pending review. Disabled by default; opt-in.</p>
+<h3 id="fr-749-abuse-prevention-admin-ui">FR-749 Abuse Prevention Admin UI<a class="headerlink" href="#fr-749-abuse-prevention-admin-ui" title="Permanent link">&para;</a></h3>
+<p>Super admin shall have <code>/admin/security/abuse-prevention</code> showing: signup velocity dashboards, suspension queue, CAPTCHA status, geo-block config, fraud scoring config, recent abuse incidents. Actions: suspend user, lift suspension, ban IP, ban email domain, force CAPTCHA enable, edit thresholds.</p>
+<h3 id="fr-750-abuse-prevention-e2e-coverage">FR-750 Abuse Prevention E2E Coverage<a class="headerlink" href="#fr-750-abuse-prevention-e2e-coverage" title="Permanent link">&para;</a></h3>
+<p>A new E2E journey <strong>J26 Abuse Prevention</strong> shall exercise: bot creating 10 signups from same IP triggers velocity block, disposable email rejected, suspended account login blocked with appropriate message, super admin lifts suspension, suspended user can re-login.</p>
+<hr />
+<h2 id="124-data-lifecycle-tenant-and-workspace-upd-051">124. Data Lifecycle (Tenant and Workspace) (UPD-051)<a class="headerlink" href="#124-data-lifecycle-tenant-and-workspace-upd-051" title="Permanent link">&para;</a></h2>
+<h3 id="fr-751-workspace-data-export-freepro">FR-751 Workspace Data Export (Free/Pro)<a class="headerlink" href="#fr-751-workspace-data-export-freepro" title="Permanent link">&para;</a></h3>
+<p>A workspace owner or admin (default tenant) shall be able to export their workspace data via <code>/workspaces/{id}/data-export</code>. Export includes: agents, revisions, executions, audit log, conversations, costs, members. Format: ZIP with structured JSON files + raw artifacts. Email notification on completion with download link valid 7 days. Implementation: async background job, atomic.</p>
+<h3 id="fr-752-workspace-deletion-freepro">FR-752 Workspace Deletion (Free/Pro)<a class="headerlink" href="#fr-752-workspace-deletion-freepro" title="Permanent link">&para;</a></h3>
+<p>Workspace owner can request deletion at <code>/workspaces/{id}/settings</code> with typed confirmation. Two-phase: phase 1 marks <code>pending_deletion</code> and emails owner with 7-day cancel link; phase 2 (after 7 days) cascades deletion of all workspace-scoped resources. Tombstone audit entry retained 90 days then purged.</p>
+<h3 id="fr-753-tenant-data-export-enterprise">FR-753 Tenant Data Export (Enterprise)<a class="headerlink" href="#fr-753-tenant-data-export-enterprise" title="Permanent link">&para;</a></h3>
+<p>A tenant admin (or super admin) of an Enterprise tenant shall be able to export the entire tenant data via <code>/admin/tenants/{id}/data-export</code>. Same format as workspace export but tenant-scoped. Useful for contractual data egress at contract end.</p>
+<h3 id="fr-754-tenant-deletion-cascade-enterprise">FR-754 Tenant Deletion Cascade (Enterprise)<a class="headerlink" href="#fr-754-tenant-deletion-cascade-enterprise" title="Permanent link">&para;</a></h3>
+<p>Per FR-697, Enterprise tenant deletion is two-phase. Cascade includes: all workspaces, all agents, all executions, all audit (final tombstone export to S3 retained per regulatory requirements separately), all secrets in Vault paths, all DNS records, all TLS certs revoked, all subscription records.</p>
+<h3 id="fr-755-data-processing-agreement-dpa-per-tenant">FR-755 Data Processing Agreement (DPA) per Tenant<a class="headerlink" href="#fr-755-data-processing-agreement-dpa-per-tenant" title="Permanent link">&para;</a></h3>
+<p>Every tenant shall have a DPA on file. Default tenant: standard DPA shown clickwrap-style at signup, version pinned per user signup. Enterprise tenant: custom DPA uploaded by super admin at tenant creation, signed by both parties out-of-band, file hash stored.</p>
+<h3 id="fr-756-sub-processors-public-list">FR-756 Sub-Processors Public List<a class="headerlink" href="#fr-756-sub-processors-public-list" title="Permanent link">&para;</a></h3>
+<p>The platform shall publish a public sub-processors list at <code>https://musematic.ai/legal/sub-processors</code> listing all third-party services that process customer data: Anthropic (LLM), OpenAI (LLM), Hetzner (infrastructure), Stripe (billing), SendGrid or Postmark (email), MaxMind (fraud, if enabled). Updated at least quarterly. Customers notified via email on changes (subscribe-only via DPA).</p>
+<h3 id="fr-757-tenant-suspension-data-retention">FR-757 Tenant Suspension Data Retention<a class="headerlink" href="#fr-757-tenant-suspension-data-retention" title="Permanent link">&para;</a></h3>
+<p>A suspended tenant's data is retained but inaccessible. After 90 days suspended (configurable), super admin can: reactivate, force-delete, or extend suspension. Default policy: 90 days suspension + 30 days deletion grace = 120 days total before purge.</p>
+<h3 id="fr-758-gdpr-article-28-compliance-for-enterprise">FR-758 GDPR Article 28 Compliance for Enterprise<a class="headerlink" href="#fr-758-gdpr-article-28-compliance-for-enterprise" title="Permanent link">&para;</a></h3>
+<p>Enterprise contracts include GDPR Article 28 controller-processor terms. Super admin manages compliance evidence (DPA, sub-processors, technical &amp; organizational measures documentation) via <code>/admin/legal/gdpr</code> page.</p>
+<h3 id="fr-759-backup-separation-by-tenant">FR-759 Backup Separation by Tenant<a class="headerlink" href="#fr-759-backup-separation-by-tenant" title="Permanent link">&para;</a></h3>
+<p>Backups (UPD-024 + UPD-025) shall be tenant-aware: deleted tenants' data is purged from backups within 30 days (regulatory deletion timeline). Backup index includes <code>tenant_id</code> for selective restore.</p>
+<h3 id="fr-760-data-lifecycle-e2e-coverage">FR-760 Data Lifecycle E2E Coverage<a class="headerlink" href="#fr-760-data-lifecycle-e2e-coverage" title="Permanent link">&para;</a></h3>
+<p>A new E2E journey <strong>J27 Tenant Lifecycle Cancellation</strong> shall exercise: Enterprise tenant requests cancellation, super admin initiates deletion phase 1, tenant data export downloaded, 30-day grace passes, phase 2 cascade executes, DNS removed, all data verified purged. Workspace deletion path covered as part of J20 extension.</p>
+<hr />
+<h2 id="125-billing-and-overage-upd-052">125. Billing and Overage (UPD-052)<a class="headerlink" href="#125-billing-and-overage-upd-052" title="Permanent link">&para;</a></h2>
+<h3 id="fr-761-paymentprovider-abstraction">FR-761 PaymentProvider Abstraction<a class="headerlink" href="#fr-761-paymentprovider-abstraction" title="Permanent link">&para;</a></h3>
+<p>The platform shall implement a <code>PaymentProvider</code> interface (Python and Go) abstracting payment operations: <code>create_customer</code>, <code>attach_payment_method</code>, <code>create_subscription</code>, <code>update_subscription</code>, <code>cancel_subscription</code>, <code>report_usage</code>, <code>charge_overage</code>, <code>handle_webhook</code>. Concrete implementations live at <code>apps/control-plane/src/platform/billing/providers/</code>. Stripe is the first impl.</p>
+<h3 id="fr-762-stripe-as-first-concrete-implementation">FR-762 Stripe as First Concrete Implementation<a class="headerlink" href="#fr-762-stripe-as-first-concrete-implementation" title="Permanent link">&para;</a></h3>
+<p>The Stripe <code>PaymentProvider</code> shall use Stripe's Subscriptions API for fixed-price plans, Stripe's Usage Records for metered overage, Stripe Tax for IVA OSS handling (Spanish entity selling to EU), Stripe Customer Portal for self-service subscription management. SDK: <code>stripe-python</code> and <code>stripe-go</code>.</p>
+<h3 id="fr-763-stripe-webhooks-at-apiwebhooksstripe">FR-763 Stripe Webhooks at <code>/api/webhooks/stripe</code><a class="headerlink" href="#fr-763-stripe-webhooks-at-apiwebhooksstripe" title="Permanent link">&para;</a></h3>
+<p>The platform shall expose <code>POST /api/webhooks/stripe</code> (single endpoint, NOT tenant-scoped by hostname — Stripe sends to one URL). Handler verifies HMAC signature using Stripe webhook secret, parses event, resolves tenant via Stripe customer ID lookup, dispatches to appropriate handler. Idempotency: Stripe event ID stored in <code>processed_webhooks</code> table, duplicate events return 200 immediately.</p>
+<h3 id="fr-764-webhook-event-handlers">FR-764 Webhook Event Handlers<a class="headerlink" href="#fr-764-webhook-event-handlers" title="Permanent link">&para;</a></h3>
+<p>At minimum, the platform handles these Stripe events:
+- <code>customer.subscription.created</code> — sync subscription state
+- <code>customer.subscription.updated</code> — sync state changes
+- <code>customer.subscription.deleted</code> — handle cancellation
+- <code>invoice.payment_succeeded</code> — extend subscription period
+- <code>invoice.payment_failed</code> — start grace period (FR-768)
+- <code>customer.subscription.trial_will_end</code> — notify user 3 days before
+- <code>payment_method.attached</code> — register payment method
+- <code>charge.dispute.created</code> — auto-suspend, alert super admin</p>
+<h3 id="fr-765-free-plan-card-on-file-allowed">FR-765 Free Plan Card-on-File Allowed<a class="headerlink" href="#fr-765-free-plan-card-on-file-allowed" title="Permanent link">&para;</a></h3>
+<p>Per user requirement (a), Free workspaces CAN have a card on file. The card enables: future upgrade to Pro without re-entering card, optional overage if user upgrades and overage applies. Card on file does NOT enable overage on Free (constitution rule 25).</p>
+<h3 id="fr-766-overage-authorization-ux">FR-766 Overage Authorization UX<a class="headerlink" href="#fr-766-overage-authorization-ux" title="Permanent link">&para;</a></h3>
+<p>Per FR-714: when Pro workspace hits 100% quota with <code>overage_price_per_minute &gt; 0</code>, executions pause. Notification with action button "Authorize overage for this period" (UX option C). Authorization records <code>overage_authorizations</code> row. Authorization is per-period; new period requires new authorization.</p>
+<h3 id="fr-767-overage-authorization-with-optional-cap">FR-767 Overage Authorization with Optional Cap<a class="headerlink" href="#fr-767-overage-authorization-with-optional-cap" title="Permanent link">&para;</a></h3>
+<p>The authorization UI lets the user set: "Authorize unlimited overage for the period" or "Authorize up to N euros of overage". Once cap reached, executions pause again with notification.</p>
+<h3 id="fr-768-failed-payment-grace-period">FR-768 Failed Payment Grace Period<a class="headerlink" href="#fr-768-failed-payment-grace-period" title="Permanent link">&para;</a></h3>
+<p>Per user requirement (b): when a Pro subscription's payment fails (Stripe <code>invoice.payment_failed</code>), the platform initiates 7-day grace period. During grace: workspace continues operating with subscription status <code>past_due</code>, daily reminder emails sent (3 reminders over 7 days), Stripe Smart Retries attempt re-charge. On day 7 if still failed: subscription status <code>suspended</code>, workspace downgraded to Free plan with notification, data exceeding Free limits triggers cleanup notification per FR-742.</p>
+<h3 id="fr-769-subscription-cancellation-flow">FR-769 Subscription Cancellation Flow<a class="headerlink" href="#fr-769-subscription-cancellation-flow" title="Permanent link">&para;</a></h3>
+<p>User can cancel subscription at <code>/workspaces/{id}/billing/cancel</code>. Cancellation effective at period end by default (status <code>cancellation_pending</code>). Optional immediate cancellation with prorated refund (super admin policy). On cancellation, workspace downgrades to Free at period end. Cancellation reasons collected for retention analysis.</p>
+<h3 id="fr-770-stripe-customer-portal-integration">FR-770 Stripe Customer Portal Integration<a class="headerlink" href="#fr-770-stripe-customer-portal-integration" title="Permanent link">&para;</a></h3>
+<p>For self-service subscription management (update card, view invoices, cancel), the platform shall embed or link Stripe Customer Portal at <code>/workspaces/{id}/billing/portal</code>. Portal session created server-side with workspace's Stripe customer ID. Portal returns user to platform after actions; webhooks sync state.</p>
+<h3 id="fr-771-invoices-and-receipts">FR-771 Invoices and Receipts<a class="headerlink" href="#fr-771-invoices-and-receipts" title="Permanent link">&para;</a></h3>
+<p>Invoices generated by Stripe (auto-emailed to billing email). Platform shall provide a <code>/workspaces/{id}/billing/invoices</code> page listing invoices with download links to Stripe-hosted PDFs. Tenant admin (Enterprise) sees tenant-level invoices.</p>
+<h3 id="fr-772-billing-dashboard-per-workspace-profree">FR-772 Billing Dashboard Per Workspace (Pro/Free)<a class="headerlink" href="#fr-772-billing-dashboard-per-workspace-profree" title="Permanent link">&para;</a></h3>
+<p>A workspace owner shall have <code>/workspaces/{id}/billing</code> showing: current plan, current period usage (executions, minutes) with progress bars vs quota, projected end-of-period usage and overage estimate, payment method, recent invoices, upgrade/downgrade actions, cancel subscription action.</p>
+<h3 id="fr-773-billing-dashboard-per-tenant-enterprise">FR-773 Billing Dashboard Per Tenant (Enterprise)<a class="headerlink" href="#fr-773-billing-dashboard-per-tenant-enterprise" title="Permanent link">&para;</a></h3>
+<p>Enterprise tenant admin shall have <code>/admin/tenants/{id}/billing</code> showing tenant-level subscription state, invoices, contract status. Cost rollup across all tenant workspaces.</p>
+<h3 id="fr-774-stripe-test-mode-for-dev-environment">FR-774 Stripe Test Mode for Dev Environment<a class="headerlink" href="#fr-774-stripe-test-mode-for-dev-environment" title="Permanent link">&para;</a></h3>
+<p>Per constitution rule "Dev cluster isolation is real": dev environment uses Stripe test mode. Production uses Stripe live mode. Configuration via <code>PLATFORM_STRIPE_MODE=test|live</code> env var. Test cards (Stripe documented) usable in dev.</p>
+<h3 id="fr-775-billing-e2e-coverage">FR-775 Billing E2E Coverage<a class="headerlink" href="#fr-775-billing-e2e-coverage" title="Permanent link">&para;</a></h3>
+<p>A new E2E journey <strong>J28 Billing Lifecycle</strong> shall exercise: workspace upgrade Free→Pro with card, successful first payment, hit overage threshold and authorize, payment failure triggers grace period, payment recovery, payment failure exhausts grace and downgrades, subscription cancellation, period-end downgrade, refund flow.</p>
+<hr />
+<h2 id="126-hetzner-productiondev-helm-and-ingress-topology-upd-053">126. Hetzner Production+Dev Helm and Ingress Topology (UPD-053)<a class="headerlink" href="#126-hetzner-productiondev-helm-and-ingress-topology-upd-053" title="Permanent link">&para;</a></h2>
+<h3 id="fr-776-two-separate-kubernetes-clusters">FR-776 Two Separate Kubernetes Clusters<a class="headerlink" href="#fr-776-two-separate-kubernetes-clusters" title="Permanent link">&para;</a></h3>
+<p>The production deployment topology shall consist of two physically separated Hetzner Cloud Kubernetes clusters: <code>musematic-prod</code> and <code>musematic-dev</code>. Each cluster is provisioned independently via Terraform, has its own kubeconfig, and runs its own platform Helm release.</p>
+<h3 id="fr-777-cluster-sizing-profiles">FR-777 Cluster Sizing Profiles<a class="headerlink" href="#fr-777-cluster-sizing-profiles" title="Permanent link">&para;</a></h3>
+<p>Production cluster default: 1 control plane (CCX33) + 3 worker nodes (CCX53), Hetzner network zone <code>eu-central</code>, dedicated Cloud Load Balancer (<code>lb21</code> size).
+Dev cluster default: 1 control plane (CCX21) + 1 worker node (CCX21), same network zone, smaller LB (<code>lb11</code> size).
+Both sizes documented in Terraform variables, super admin overridable.</p>
+<h3 id="fr-778-hetzner-cloud-load-balancer-per-cluster">FR-778 Hetzner Cloud Load Balancer per Cluster<a class="headerlink" href="#fr-778-hetzner-cloud-load-balancer-per-cluster" title="Permanent link">&para;</a></h3>
+<p>Each cluster shall have a dedicated Hetzner Cloud Load Balancer fronting its NGINX Ingress Controller. LB annotations on the ingress-nginx Service:
+- <code>load-balancer.hetzner.cloud/location: nbg1</code>
+- <code>load-balancer.hetzner.cloud/network-zone: eu-central</code>
+- <code>load-balancer.hetzner.cloud/use-private-ip: "true"</code>
+- <code>load-balancer.hetzner.cloud/uses-proxyprotocol: "true"</code> (optional, for source IP preservation)
+- <code>load-balancer.hetzner.cloud/name: musematic-prod-lb</code> / <code>musematic-dev-lb</code></p>
+<p>LB exposes ports 80 (redirect to 443) and 443.</p>
+<h3 id="fr-779-dns-topology">FR-779 DNS Topology<a class="headerlink" href="#fr-779-dns-topology" title="Permanent link">&para;</a></h3>
+<p>Production DNS at Hetzner DNS (or Cloudflare DNS, super admin choice):
+- <code>musematic.ai</code> → A/AAAA → prod LB IPs (apex, redirects to <code>app.musematic.ai</code>)
+- <code>app.musematic.ai</code> → CNAME → <code>musematic.ai</code> (or A/AAAA)
+- <code>api.musematic.ai</code> → A/AAAA → prod LB IPs
+- <code>grafana.musematic.ai</code> → A/AAAA → prod LB IPs
+- <code>*.musematic.ai</code> → wildcard A/AAAA → prod LB IPs (covers Enterprise tenant subdomains)
+- <code>dev.musematic.ai</code> → A/AAAA → dev LB IPs
+- <code>*.dev.musematic.ai</code> → wildcard A/AAAA → dev LB IPs
+- <code>api.dev.musematic.ai</code> → CNAME → <code>dev.musematic.ai</code> (also <code>dev.api.musematic.ai</code> per spec)
+- <code>dev.api.musematic.ai</code> → A/AAAA → dev LB IPs
+- <code>dev.grafana.musematic.ai</code> → A/AAAA → dev LB IPs</p>
+<p>CAA record:
+- <code>musematic.ai</code> → CAA <code>0 issue "letsencrypt.org"</code></p>
+<h3 id="fr-780-wildcard-tls-per-environment">FR-780 Wildcard TLS per Environment<a class="headerlink" href="#fr-780-wildcard-tls-per-environment" title="Permanent link">&para;</a></h3>
+<p>Production wildcard cert: <code>*.musematic.ai</code> (covers <code>app</code>, <code>api</code>, <code>grafana</code>, <code>acme</code>, <code>acme.api</code>, <code>acme.grafana</code>, etc.). Dev wildcard cert: <code>*.dev.musematic.ai</code>. Issued via cert-manager + Let's Encrypt DNS-01 challenge against Hetzner DNS API. Renewal automated 30 days before expiry.</p>
+<h3 id="fr-781-cert-manager-lets-encrypt-dns-01-configuration">FR-781 cert-manager + Let's Encrypt DNS-01 Configuration<a class="headerlink" href="#fr-781-cert-manager-lets-encrypt-dns-01-configuration" title="Permanent link">&para;</a></h3>
+<p>The Helm chart shall ship cert-manager configuration including:
+- ClusterIssuer <code>letsencrypt-prod</code> (production) and <code>letsencrypt-staging</code> (testing)
+- DNS-01 solver using Hetzner DNS via webhook (e.g., <code>cert-manager-webhook-hetzner</code> from community)
+- API token stored in Vault (UPD-040) at <code>secret/data/musematic/{env}/cert-manager/hetzner-dns-token</code>
+- Two Certificate resources per environment: wildcard <code>*.musematic.ai</code> and apex <code>musematic.ai</code> (for prod), <code>*.dev.musematic.ai</code> and <code>dev.musematic.ai</code> (for dev)</p>
+<h3 id="fr-782-per-tenant-ingress-routing">FR-782 Per-Tenant Ingress Routing<a class="headerlink" href="#fr-782-per-tenant-ingress-routing" title="Permanent link">&para;</a></h3>
+<p>Production ingress shall route by Host header:
+- Apex <code>musematic.ai</code> → frontend pod (or 301 redirect to <code>app.musematic.ai</code>)
+- <code>app.musematic.ai</code> → frontend pod with default tenant context
+- <code>api.musematic.ai</code> → control plane API pod
+- <code>grafana.musematic.ai</code> → Grafana service (with admin SSO gate)
+- <code>*.musematic.ai</code> (any subdomain matching tenant slug pattern) → frontend pod with subdomain extracted
+- <code>*.api.musematic.ai</code> → control plane API pod with subdomain extracted
+- <code>*.grafana.musematic.ai</code> → Grafana with tenant-scoped dashboard set
+- <code>status.musematic.ai</code> and <code>*.status.musematic.ai</code> → status page service (independent pod)</p>
+<p>Dev environment mirrors with <code>dev.</code> prefix per FR-779.</p>
+<h3 id="fr-783-helm-chart-overlay-structure">FR-783 Helm Chart Overlay Structure<a class="headerlink" href="#fr-783-helm-chart-overlay-structure" title="Permanent link">&para;</a></h3>
+<p>The platform Helm chart shall ship with three values overlays:
+- <code>values.yaml</code> — sensible defaults
+- <code>values-prod.yaml</code> — production overrides (full sizing, HA, real Stripe, prod DNS, prod Vault HA)
+- <code>values-dev.yaml</code> — dev overrides (smaller sizing, single replicas, Stripe test mode, dev DNS, dev Vault standalone)</p>
+<p>Each overlay is checked into <code>deploy/helm/platform/</code> and version-controlled.</p>
+<h3 id="fr-784-helm-chart-manages-tenant-subdomains-via-wildcard-ingress">FR-784 Helm Chart Manages Tenant Subdomains via Wildcard Ingress<a class="headerlink" href="#fr-784-helm-chart-manages-tenant-subdomains-via-wildcard-ingress" title="Permanent link">&para;</a></h3>
+<p>The wildcard ingress (<code>*.musematic.ai</code>) is configured at install time. New Enterprise tenants need NO ingress changes — the wildcard catches them automatically. Only DNS automation (FR-786) is needed when adding a tenant.</p>
+<h3 id="fr-785-per-environment-stripe-webhook-endpoints">FR-785 Per-Environment Stripe Webhook Endpoints<a class="headerlink" href="#fr-785-per-environment-stripe-webhook-endpoints" title="Permanent link">&para;</a></h3>
+<p>Production Stripe webhook: <code>https://api.musematic.ai/api/webhooks/stripe</code> configured in Stripe live mode. Dev Stripe webhook: <code>https://dev.api.musematic.ai/api/webhooks/stripe</code> configured in Stripe test mode. Webhook secrets stored in Vault under <code>secret/data/musematic/{env}/billing/stripe-webhook-secret</code>.</p>
+<h3 id="fr-786-tenant-subdomain-dns-automation">FR-786 Tenant Subdomain DNS Automation<a class="headerlink" href="#fr-786-tenant-subdomain-dns-automation" title="Permanent link">&para;</a></h3>
+<p>On Enterprise tenant creation, the platform shall automate DNS record creation via Hetzner DNS API (or Cloudflare DNS API, configured per <code>PLATFORM_DNS_PROVIDER</code>). The automation creates: A/AAAA for <code>&lt;slug&gt;.musematic.ai</code>, A/AAAA for <code>&lt;slug&gt;.api.musematic.ai</code>, A/AAAA for <code>&lt;slug&gt;.grafana.musematic.ai</code>. On tenant deletion (phase 2), records are removed.</p>
+<h3 id="fr-787-hetzner-dns-provider-api-token">FR-787 Hetzner DNS Provider API Token<a class="headerlink" href="#fr-787-hetzner-dns-provider-api-token" title="Permanent link">&para;</a></h3>
+<p>The Hetzner DNS API token is stored in Vault at <code>secret/data/musematic/{env}/dns/hetzner-token</code>. The token has scope: write to <code>musematic.ai</code> zone only. Token rotation per UPD-024 secret rotation procedure.</p>
+<h3 id="fr-788-status-page-cluster-independence">FR-788 Status Page Cluster Independence<a class="headerlink" href="#fr-788-status-page-cluster-independence" title="Permanent link">&para;</a></h3>
+<p>Per UPD-045 constitution rule 49: status page shall NOT live in the same cluster as the platform. Hosted on either: (a) Cloudflare Pages with static generation, or (b) a tiny dedicated Hetzner VM with nginx serving static files. CronJob in production cluster polls health and pushes regenerated content to the independent host.</p>
+<h3 id="fr-789-helm-values-for-hetzner-specific-configuration">FR-789 Helm Values for Hetzner-Specific Configuration<a class="headerlink" href="#fr-789-helm-values-for-hetzner-specific-configuration" title="Permanent link">&para;</a></h3>
+<p>The Helm chart shall expose Hetzner-specific values:
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">hetzner</span><span class="p">:</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">loadBalancer</span><span class="p">:</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="nt">location</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">nbg1</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="nt">networkZone</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">eu-central</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="nt">usePrivateIp</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="nt">proxyProtocol</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">musematic-prod-lb</span><span class="w">  </span><span class="c1"># or musematic-dev-lb</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="nt">dns</span><span class="p">:</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">    </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hetzner</span><span class="w">  </span><span class="c1"># or cloudflare</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">    </span><span class="nt">apiTokenSecretRef</span><span class="p">:</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hetzner-dns-token</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">      </span><span class="nt">key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">token</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="w">    </span><span class="nt">zone</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">musematic.ai</span>
+</span></code></pre></div></p>
+<h3 id="fr-790-helm-chart-test-coverage">FR-790 Helm Chart Test Coverage<a class="headerlink" href="#fr-790-helm-chart-test-coverage" title="Permanent link">&para;</a></h3>
+<p>Helm chart shall be tested via:
+- <code>helm lint</code> in CI
+- <code>helm template</code> snapshot tests against expected output
+- <code>helm install --dry-run</code> against a kind cluster
+- Full deployment test on dev cluster as part of CI promotion gate</p>
+<h3 id="fr-791-hetzner-topology-e2e-coverage">FR-791 Hetzner Topology E2E Coverage<a class="headerlink" href="#fr-791-hetzner-topology-e2e-coverage" title="Permanent link">&para;</a></h3>
+<p>A new E2E journey <strong>J29 Hetzner Topology</strong> shall exercise (in dev cluster): platform install via Helm, DNS records visible, TLS certs issued, default tenant accessible at <code>app.dev.musematic.ai</code>, Enterprise tenant creation triggers DNS automation, new tenant subdomain accessible within 5 minutes, tenant deletion removes DNS, no leaked subdomains.</p>
+<hr />
+<h2 id="127-saas-comprehensive-e2e-upd-054">127. SaaS Comprehensive E2E (UPD-054)<a class="headerlink" href="#127-saas-comprehensive-e2e-upd-054" title="Permanent link">&para;</a></h2>
+<h3 id="fr-792-j22-tenant-provisioning-journey">FR-792 J22 Tenant Provisioning Journey<a class="headerlink" href="#fr-792-j22-tenant-provisioning-journey" title="Permanent link">&para;</a></h3>
+<p>Already specified in FR-703. Comprehensive coverage: super admin creates tenant, DPA upload, tenant subdomain DNS appears, TLS issues, first admin invite, login at tenant subdomain, cross-tenant isolation verified.</p>
+<h3 id="fr-793-j23-quota-enforcement-journey">FR-793 J23 Quota Enforcement Journey<a class="headerlink" href="#fr-793-j23-quota-enforcement-journey" title="Permanent link">&para;</a></h3>
+<p>Already specified in FR-722. Free hard cap, Pro overage authorization flow, Enterprise unlimited verification.</p>
+<h3 id="fr-794-j24-enterprise-tenant-provisioning-journey">FR-794 J24 Enterprise Tenant Provisioning Journey<a class="headerlink" href="#fr-794-j24-enterprise-tenant-provisioning-journey" title="Permanent link">&para;</a></h3>
+<p>Already specified in FR-732. Manual creation flow with DNS, TLS, branding, SSO config.</p>
+<h3 id="fr-795-j25-marketplace-multi-scope-journey">FR-795 J25 Marketplace Multi-Scope Journey<a class="headerlink" href="#fr-795-j25-marketplace-multi-scope-journey" title="Permanent link">&para;</a></h3>
+<p>Already specified in FR-741. Public marketplace with review, Enterprise consume flag, cross-tenant isolation.</p>
+<h3 id="fr-796-j26-abuse-prevention-journey">FR-796 J26 Abuse Prevention Journey<a class="headerlink" href="#fr-796-j26-abuse-prevention-journey" title="Permanent link">&para;</a></h3>
+<p>Already specified in FR-750. Bot detection, disposable email, suspension flow.</p>
+<h3 id="fr-797-j27-tenant-lifecycle-cancellation-journey">FR-797 J27 Tenant Lifecycle Cancellation Journey<a class="headerlink" href="#fr-797-j27-tenant-lifecycle-cancellation-journey" title="Permanent link">&para;</a></h3>
+<p>Already specified in FR-760. Cancellation, deletion grace, data export, cascade purge.</p>
+<h3 id="fr-798-j28-billing-lifecycle-journey">FR-798 J28 Billing Lifecycle Journey<a class="headerlink" href="#fr-798-j28-billing-lifecycle-journey" title="Permanent link">&para;</a></h3>
+<p>Already specified in FR-775. Upgrade, payment, overage, grace period, downgrade, cancellation.</p>
+<h3 id="fr-799-j29-hetzner-topology-journey">FR-799 J29 Hetzner Topology Journey<a class="headerlink" href="#fr-799-j29-hetzner-topology-journey" title="Permanent link">&para;</a></h3>
+<p>Already specified in FR-791. DNS automation, TLS, tenant subdomain provisioning.</p>
+<h3 id="fr-800-j30-plan-versioning-journey">FR-800 J30 Plan Versioning Journey<a class="headerlink" href="#fr-800-j30-plan-versioning-journey" title="Permanent link">&para;</a></h3>
+<p>Super admin edits Pro plan parameters → new plan version published. Existing Pro subscriptions remain on old version. New signups land on new version. Existing Pro user can opt-in upgrade to new version with prorated billing. Plan history page shows diffs. Constraint: editing already-published version is rejected.</p>
+<h3 id="fr-801-j31-cross-tenant-isolation-verification-journey">FR-801 J31 Cross-Tenant Isolation Verification Journey<a class="headerlink" href="#fr-801-j31-cross-tenant-isolation-verification-journey" title="Permanent link">&para;</a></h3>
+<p>Comprehensive negative test: User A in default tenant, User B in tenant Acme. Verify: A cannot read B's workspaces, agents, executions, audit, costs, secrets. B cannot read A's data. Direct API attempts with crafted requests return 404 (no information leak about whether resource exists). RLS enforced via positive test (privileged platform-staff role can see both, regular role sees only their tenant).</p>
+<h3 id="fr-802-j32-stripe-webhook-idempotency-journey">FR-802 J32 Stripe Webhook Idempotency Journey<a class="headerlink" href="#fr-802-j32-stripe-webhook-idempotency-journey" title="Permanent link">&para;</a></h3>
+<p>Send duplicate webhook events from Stripe (test mode replay). Verify: first event processed; second event short-circuits with HTTP 200 idempotent response; <code>processed_webhooks</code> table prevents reprocessing. Verify subscription state correct (no double-extension of period).</p>
+<h3 id="fr-803-j33-trial-to-paid-conversion-journey">FR-803 J33 Trial-to-Paid Conversion Journey<a class="headerlink" href="#fr-803-j33-trial-to-paid-conversion-journey" title="Permanent link">&para;</a></h3>
+<p>User signs up Pro with 14-day trial. Verify: status <code>trial</code>, no payment yet, full Pro features. On day 11 receives <code>trial_will_end</code> notification. On day 14 trial ends, Stripe charges card, status transitions to <code>active</code>. If card fails, status <code>past_due</code> and grace begins.</p>
+<h3 id="fr-804-j34-subscription-cancellation-and-reactivation-journey">FR-804 J34 Subscription Cancellation and Reactivation Journey<a class="headerlink" href="#fr-804-j34-subscription-cancellation-and-reactivation-journey" title="Permanent link">&para;</a></h3>
+<p>Pro user cancels subscription. Status → <code>cancellation_pending</code>. User retains Pro until period end. User changes mind before period end → reactivates → status → <code>active</code>. After period end without reactivation: <code>canceled</code>, downgraded to Free.</p>
+<h3 id="fr-805-j35-wildcard-tls-renewal-journey">FR-805 J35 Wildcard TLS Renewal Journey<a class="headerlink" href="#fr-805-j35-wildcard-tls-renewal-journey" title="Permanent link">&para;</a></h3>
+<p>Force a near-expiry simulation (set cert ttl low in dev). Verify: cert-manager auto-renews 30 days before expiry. Verify: no service interruption during renewal. Verify: alert fires if renewal fails.</p>
+<h3 id="fr-806-j36-default-tenant-constraint-journey">FR-806 J36 Default Tenant Constraint Journey<a class="headerlink" href="#fr-806-j36-default-tenant-constraint-journey" title="Permanent link">&para;</a></h3>
+<p>Attempt various forbidden operations on default tenant: delete via API → blocked with HTTP 403. Suspend via API → blocked. Rename via API → blocked. Migration that would drop or alter the default tenant row fails at constraint check. Default tenant always exists in healthy state.</p>
+<h3 id="fr-807-j37-plan-free-cost-protection-journey">FR-807 J37 Plan Free Cost Protection Journey<a class="headerlink" href="#fr-807-j37-plan-free-cost-protection-journey" title="Permanent link">&para;</a></h3>
+<p>Free user attempts to use premium model (e.g., GPT-4) → execution rejected with quota_exceeded for premium model tier. Free user attempts large context window → rejected. Free user runs many small executions until quota exhausted → hard cap with HTTP 402. Verify zero overage cost incurred.</p>
+<h3 id="fr-808-saas-e2e-suite-completion-criterion">FR-808 SaaS E2E Suite Completion Criterion<a class="headerlink" href="#fr-808-saas-e2e-suite-completion-criterion" title="Permanent link">&para;</a></h3>
+<p>The SaaS pass is complete when J22 through J37 (16 new journeys) all pass against a deployed dev cluster, plus regression of J01 through J21 (21 prior journeys, post-tenant-refactor). Total: 37 journeys × ~30 assertion points = ~1100+ E2E assertions.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; musematic contributors
+    </div>
+  
+  
+</div>
+      
+        <div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/gntik-ai/musematic" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    <script id="__config" type="application/json">{"base": "..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "navigation.tracking", "navigation.indexes", "navigation.path", "toc.follow", "search.highlight", "search.share", "search.suggest", "content.code.copy", "content.code.annotate", "content.tabs.link", "content.tooltips", "announce.dismiss"], "search": "../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.83f73b43.min.js"></script>
+      
+    
+  </body>
+</html>

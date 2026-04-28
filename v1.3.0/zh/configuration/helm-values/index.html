@@ -12054,6 +12054,48 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td><code>"ClusterIP"</code></td>
 <td>Configures <code>ui.service.type</code> for the platform chart.</td>
 </tr>
+<tr>
+<td>webStatus</td>
+<td>object</td>
+<td><code>{"enabled":false,"host":"status.local","image":{"repository":"","tag":""},"replicaCount":2}</code></td>
+<td>Configures the independent public status page deployment.</td>
+</tr>
+<tr>
+<td>webStatus.enabled</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>webStatus.enabled</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>webStatus.host</td>
+<td>string</td>
+<td><code>"status.local"</code></td>
+<td>Configures <code>webStatus.host</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>webStatus.image</td>
+<td>object</td>
+<td><code>{"repository":"","tag":""}</code></td>
+<td>Configures <code>webStatus.image</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>webStatus.image.repository</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>webStatus.image.repository</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>webStatus.image.tag</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>webStatus.image.tag</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>webStatus.replicaCount</td>
+<td>int</td>
+<td><code>2</code></td>
+<td>Configures <code>webStatus.replicaCount</code> for the platform chart.</td>
+</tr>
 </tbody>
 </table>
 <hr />
