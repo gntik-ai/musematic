@@ -4,19 +4,21 @@ import asyncio
 import json
 from collections.abc import AsyncIterator, Callable
 from typing import Any
-from uuid import uuid4
 
 import pytest
 
 
 class KafkaTestConsumer:
-    def __init__(self, bootstrap_servers: str) -> None:
+    def __init__(self, bootstrap_servers: str, http_client: Any | None = None) -> None:
         self.bootstrap_servers = bootstrap_servers
         self.consumer: Any | None = None
         self._aiokafka: Any | None = None
+        self.http_client = http_client
+        self._seen: dict[str, int] = {}
 
     async def __aenter__(self) -> KafkaTestConsumer:
-        self._aiokafka = pytest.importorskip("aiokafka")
+        if self.http_client is None:
+            self._aiokafka = pytest.importorskip("aiokafka")
         return self
 
     async def __aexit__(self, *exc_info: object) -> None:
@@ -24,13 +26,16 @@ class KafkaTestConsumer:
             await self.consumer.stop()
 
     async def subscribe(self, topic: str) -> None:
+        if self.http_client is not None:
+            self._seen.setdefault(topic, 0)
+            return
         assert self._aiokafka is not None
         if self.consumer is not None:
             await self.consumer.stop()
         self.consumer = self._aiokafka.AIOKafkaConsumer(
             topic,
             bootstrap_servers=self.bootstrap_servers,
-            group_id=f"e2e-test-{uuid4()}",
+            group_id=None,
             auto_offset_reset="latest",
             enable_auto_commit=False,
         )
@@ -48,6 +53,20 @@ class KafkaTestConsumer:
         while True:
             remaining = deadline - asyncio.get_running_loop().time()
             assert remaining > 0, f"Timed out waiting for Kafka event on {topic}"
+            if self.http_client is not None:
+                response = await self.http_client.get(
+                    "/api/v1/_e2e/contract/events",
+                    params={"topic": topic},
+                )
+                assert response.status_code == 200, response.text
+                items = response.json().get("items", [])
+                start = self._seen.get(topic, 0)
+                for index, event in enumerate(items[start:], start=start + 1):
+                    if predicate(event):
+                        self._seen[topic] = index
+                        return event
+                await asyncio.sleep(min(remaining, 0.2))
+                continue
             assert self.consumer is not None
             batches = await self.consumer.getmany(
                 timeout_ms=int(min(remaining, 1.0) * 1000),
@@ -62,6 +81,14 @@ class KafkaTestConsumer:
     async def collect(self, topic: str, duration: float) -> list[dict[str, Any]]:
         if self.consumer is None:
             await self.subscribe(topic)
+        if self.http_client is not None:
+            response = await self.http_client.get(
+                "/api/v1/_e2e/contract/events",
+                params={"topic": topic},
+            )
+            assert response.status_code == 200, response.text
+            await asyncio.sleep(duration)
+            return list(response.json().get("items", []))
         deadline = asyncio.get_running_loop().time() + duration
         events: list[dict[str, Any]] = []
         while asyncio.get_running_loop().time() < deadline:
@@ -90,6 +117,7 @@ class KafkaTestConsumer:
 @pytest.fixture(scope="function")
 async def kafka_consumer(
     kafka_bootstrap: str,
+    http_client,
 ) -> AsyncIterator[KafkaTestConsumer]:
-    async with KafkaTestConsumer(kafka_bootstrap) as consumer:
+    async with KafkaTestConsumer(kafka_bootstrap, http_client=http_client) as consumer:
         yield consumer
