@@ -28,7 +28,11 @@ ALLOWED_CHAOS_NAMESPACES = {"platform-execution", "platform-data"}
 
 
 def _seeders_root() -> Path:
-    return Path(__file__).resolve().parents[5] / "tests" / "e2e"
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "tests" / "e2e"
+        if (candidate / "seeders" / "base.py").is_file():
+            return candidate
+    return Path("/app/tests/e2e")
 
 
 def _ensure_seeders_on_path() -> None:

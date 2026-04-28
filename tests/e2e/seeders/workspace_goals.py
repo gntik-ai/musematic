@@ -36,10 +36,24 @@ class Seeder(SeederBase):
             )
             if workspace_response.status_code == 409:
                 skipped += 1
+                workspace_id = await client.workspace_id()
             else:
                 seeded += 1
-            workspace_id = workspace.get("id") or WORKSPACE_NAME
+                workspace_id = workspace.get("id") or await client.workspace_id()
+            goals_response = await client.client.get(
+                f"/api/v1/workspaces/{workspace_id}/goals",
+                headers=client._auth_headers(),
+            )
+            goals_response.raise_for_status()
+            existing_titles = {
+                item.get("title")
+                for item in goals_response.json().get("items", [])
+                if isinstance(item, dict)
+            }
             for gid, state, title in GOALS:
+                if title in existing_titles:
+                    skipped += 1
+                    continue
                 response = await client.post(
                     f"/api/v1/workspaces/{workspace_id}/goals",
                     {
@@ -51,6 +65,21 @@ class Seeder(SeederBase):
                 if response.status_code == 409:
                     skipped += 1
                 else:
+                    goal = response.json()
+                    if state != "open" and goal.get("id"):
+                        targets = (
+                            ["in_progress", "completed"]
+                            if state == "completed"
+                            else [state]
+                        )
+                        for target in targets:
+                            transition = await client.client.patch(
+                                f"/api/v1/workspaces/{workspace_id}/goals/{goal['id']}",
+                                json={"status": target},
+                                headers=client._auth_headers(),
+                            )
+                            if transition.status_code != 409:
+                                transition.raise_for_status()
                     seeded += 1
         return SeedRunSummary(
             seeded={self.name: seeded},

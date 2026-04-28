@@ -306,6 +306,6 @@ def test_e2e_workflow_frees_runner_disk_before_bootstrap() -> None:
 
 def test_e2e_test_target_uses_versioned_test_paths() -> None:
     makefile = (ROOT / 'tests/e2e/Makefile').read_text()
-    assert 'E2E_TEST_PATHS ?= tests test_*.py' in makefile
+    assert 'E2E_TEST_PATHS ?= suites' in makefile
     assert '$(PYTEST) $(E2E_TEST_PATHS)' in makefile
     assert '$(PYTEST) suites' not in makefile
