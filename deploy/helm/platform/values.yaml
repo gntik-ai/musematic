@@ -528,6 +528,22 @@ ui:
     # -- Configures `ui.env.NEXT_PUBLIC_APP_ENV` for the platform chart.
     NEXT_PUBLIC_APP_ENV: production
 
+# @section -- Webstatus
+# -- Configures the independent public status page deployment.
+webStatus:
+  # -- Configures `webStatus.enabled` for the platform chart.
+  enabled: false
+  # -- Configures `webStatus.replicaCount` for the platform chart.
+  replicaCount: 2
+  # -- Configures `webStatus.image` for the platform chart.
+  image:
+    # -- Configures `webStatus.image.repository` for the platform chart.
+    repository: ""
+    # -- Configures `webStatus.image.tag` for the platform chart.
+    tag: ""
+  # -- Configures `webStatus.host` for the platform chart.
+  host: status.local
+
 # @section -- Mockoauth
 # -- Configures `mockOAuth` for the platform chart.
 mockOAuth:

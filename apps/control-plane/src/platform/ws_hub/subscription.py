@@ -20,6 +20,7 @@ class ChannelType(StrEnum):
     TESTING = "testing"
     ALERTS = "alerts"
     ATTENTION = "attention"
+    PLATFORM_STATUS = "platform-status"
 
 
 CHANNEL_TOPIC_MAP: Final[dict[ChannelType, Sequence[str]]] = {
@@ -34,6 +35,11 @@ CHANNEL_TOPIC_MAP: Final[dict[ChannelType, Sequence[str]]] = {
     ChannelType.TESTING: ("testing.results",),
     ChannelType.ALERTS: ("monitor.alerts", "notifications.alerts"),
     ChannelType.ATTENTION: ("interaction.attention",),
+    ChannelType.PLATFORM_STATUS: (
+        "multi_region_ops.events",
+        "incident_response.events",
+        "platform.status.derived",
+    ),
 }
 
 WORKSPACE_SCOPED_CHANNELS: Final[set[ChannelType]] = {
@@ -47,7 +53,14 @@ WORKSPACE_SCOPED_CHANNELS: Final[set[ChannelType]] = {
     ChannelType.SIMULATION,
     ChannelType.TESTING,
 }
-USER_SCOPED_CHANNELS: Final[set[ChannelType]] = {ChannelType.ALERTS, ChannelType.ATTENTION}
+USER_SCOPED_GLOBAL_CHANNELS: Final[frozenset[ChannelType]] = frozenset(
+    {
+        ChannelType.ALERTS,
+        ChannelType.ATTENTION,
+        ChannelType.PLATFORM_STATUS,
+    }
+)
+USER_SCOPED_CHANNELS: Final[frozenset[ChannelType]] = USER_SCOPED_GLOBAL_CHANNELS
 
 
 def subscription_key(channel: ChannelType, resource_id: str) -> str:

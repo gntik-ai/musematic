@@ -1,4 +1,4 @@
-export const LOCALES = ["en", "es", "fr", "de", "ja", "zh-CN"] as const;
+export const LOCALES = ["en", "es", "fr", "de", "it", "ja", "zh-CN"] as const;
 
 export type Locale = (typeof LOCALES)[number];
 
@@ -22,6 +22,9 @@ export const NAMESPACES = [
   "fleets",
   "agents",
   "evaluation",
+  "platformStatus",
+  "simulations",
+  "discovery",
   "trust",
   "dashboard",
   "home",

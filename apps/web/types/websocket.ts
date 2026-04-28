@@ -7,6 +7,7 @@ export type WsConnectionState =
 export type WsChannel =
   | "alerts"
   | "governance-verdicts"
+  | "platform-status"
   | "warm-pool"
   | string;
 

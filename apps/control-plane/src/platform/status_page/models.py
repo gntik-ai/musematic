@@ -13,6 +13,9 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
+    UUID as SQLUUID,
+)
+from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -21,9 +24,6 @@ from sqlalchemy import (
     String,
     Text,
     text,
-)
-from sqlalchemy import (
-    UUID as SQLUUID,
 )
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.orm import Mapped, mapped_column

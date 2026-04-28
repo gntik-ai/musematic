@@ -51,6 +51,21 @@ def test_broken_reference_exits_one(tmp_path: Path) -> None:
     assert "FR-999" in output
 
 
+def test_multiple_fr_documents_are_combined(tmp_path: Path) -> None:
+    docs = tmp_path / "docs"
+    docs.mkdir()
+    base_doc = docs / "functional-requirements-revised-v6.md"
+    saas_doc = docs / "functional-requirements-saas-pass.md"
+    base_doc.write_text("### FR-001 First\n", encoding="utf-8")
+    saas_doc.write_text("### FR-685 SaaS pass\n", encoding="utf-8")
+    (docs / "page.md").write_text("See FR-001 and FR-685.\n", encoding="utf-8")
+
+    status, output = check_doc_references.check_references(docs, (base_doc, saas_doc))
+
+    assert status == 0
+    assert "No broken FR references" in output
+
+
 def test_uncovered_frs_are_informational(tmp_path: Path) -> None:
     docs = tmp_path / "docs"
     docs.mkdir()

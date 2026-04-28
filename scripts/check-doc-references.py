@@ -4,10 +4,15 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 
 FR_RE = re.compile(r"\bFR-\d{3}\b")
 FR_HEADING_RE = re.compile(r"^###\s+(FR-\d{3})\b", re.MULTILINE)
+DEFAULT_FR_DOCS = (
+    Path("docs/functional-requirements-revised-v6.md"),
+    Path("docs/functional-requirements-saas-pass.md"),
+)
 
 
 def load_fr_numbers(fr_doc: Path) -> set[str]:
@@ -20,10 +25,24 @@ def load_fr_numbers(fr_doc: Path) -> set[str]:
     return numbers
 
 
-def scan_doc_references(docs_root: Path, fr_doc: Path) -> dict[str, set[str]]:
+def _normalize_fr_docs(fr_docs: Path | Sequence[Path]) -> tuple[Path, ...]:
+    if isinstance(fr_docs, Path):
+        return (fr_docs,)
+    return tuple(fr_docs)
+
+
+def load_known_fr_numbers(fr_docs: Path | Sequence[Path]) -> set[str]:
+    known: set[str] = set()
+    for fr_doc in _normalize_fr_docs(fr_docs):
+        known.update(load_fr_numbers(fr_doc))
+    return known
+
+
+def scan_doc_references(docs_root: Path, fr_docs: Path | Sequence[Path]) -> dict[str, set[str]]:
+    canonical_docs = {path.resolve() for path in _normalize_fr_docs(fr_docs)}
     refs: dict[str, set[str]] = {}
     for path in sorted(docs_root.rglob("*.md")):
-        if path.resolve() == fr_doc.resolve():
+        if path.resolve() in canonical_docs:
             continue
         text = path.read_text(encoding="utf-8")
         found = set(FR_RE.findall(text))
@@ -32,13 +51,13 @@ def scan_doc_references(docs_root: Path, fr_doc: Path) -> dict[str, set[str]]:
     return refs
 
 
-def check_references(docs_root: Path, fr_doc: Path) -> tuple[int, str]:
+def check_references(docs_root: Path, fr_docs: Path | Sequence[Path]) -> tuple[int, str]:
     try:
-        known = load_fr_numbers(fr_doc)
+        known = load_known_fr_numbers(fr_docs)
     except ValueError as exc:
         return 2, f"{exc}\n"
 
-    refs_by_file = scan_doc_references(docs_root, fr_doc)
+    refs_by_file = scan_doc_references(docs_root, fr_docs)
     referenced = set().union(*refs_by_file.values()) if refs_by_file else set()
     broken: list[tuple[str, str]] = []
     for path, refs in refs_by_file.items():
@@ -68,14 +87,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--fr-doc",
         type=Path,
-        default=Path("docs/functional-requirements-revised-v6.md"),
+        action="append",
+        dest="fr_docs",
+        help="Canonical FR document to load. May be provided multiple times.",
     )
     return parser
 
 
 def main() -> int:
     args = build_parser().parse_args()
-    status, output = check_references(args.docs_root, args.fr_doc)
+    fr_docs = tuple(args.fr_docs) if args.fr_docs else DEFAULT_FR_DOCS
+    status, output = check_references(args.docs_root, fr_docs)
     stream = sys.stderr if status else sys.stdout
     stream.write(output)
     return status
