@@ -22,7 +22,7 @@ class StatusPageError(PlatformError):
         self.status_code = status_code
 
 
-class SubscriptionNotFound(StatusPageError):
+class SubscriptionNotFoundError(StatusPageError):
     def __init__(self) -> None:
         super().__init__(
             "status.subscription.not_found",
@@ -31,7 +31,7 @@ class SubscriptionNotFound(StatusPageError):
         )
 
 
-class ConfirmationTokenInvalid(StatusPageError):
+class ConfirmationTokenInvalidError(StatusPageError):
     def __init__(self) -> None:
         super().__init__(
             "status.subscription.confirmation_token_invalid",
@@ -40,7 +40,7 @@ class ConfirmationTokenInvalid(StatusPageError):
         )
 
 
-class ConfirmationTokenExpired(StatusPageError):
+class ConfirmationTokenExpiredError(StatusPageError):
     def __init__(self) -> None:
         super().__init__(
             "status.subscription.confirmation_token_expired",
@@ -49,7 +49,7 @@ class ConfirmationTokenExpired(StatusPageError):
         )
 
 
-class RateLimitExceeded(StatusPageError):
+class RateLimitExceededError(StatusPageError):
     def __init__(self, retry_after_seconds: int) -> None:
         super().__init__(
             "status.subscription.rate_limit_exceeded",
@@ -59,7 +59,7 @@ class RateLimitExceeded(StatusPageError):
         )
 
 
-class SubscriptionAlreadyConfirmed(StatusPageError):
+class SubscriptionAlreadyConfirmedError(StatusPageError):
     def __init__(self) -> None:
         super().__init__(
             "status.subscription.already_confirmed",
@@ -68,7 +68,7 @@ class SubscriptionAlreadyConfirmed(StatusPageError):
         )
 
 
-class WebhookVerificationFailed(StatusPageError):
+class WebhookVerificationFailedError(StatusPageError):
     def __init__(self, reason: str = "delivery_failed") -> None:
         super().__init__(
             "status.subscription.webhook_verification_failed",
