@@ -2,7 +2,7 @@
 set -euo pipefail
 
 RELEASE_NAME="${RELEASE_NAME:-amp}"
-NAMESPACES=(platform platform-execution platform-data platform-observability)
+NAMESPACES=(platform platform-execution platform-data platform-observability strimzi-system)
 
 section() {
   printf '\n===== %s =====\n' "$1"

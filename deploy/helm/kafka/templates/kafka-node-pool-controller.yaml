@@ -10,10 +10,17 @@ spec:
   replicas: {{ .Values.controllerReplicas }}
   roles:
     - controller
+  {{- with .Values.jvmOptions }}
+  jvmOptions:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with .Values.resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   storage:
     type: persistent-claim
     size: {{ .Values.storage.size | quote }}
     class: {{ .Values.storage.class | quote }}
     deleteClaim: false
 {{- end }}
-

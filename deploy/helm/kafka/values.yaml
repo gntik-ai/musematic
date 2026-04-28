@@ -52,6 +52,12 @@ storage:
   size: 100Gi
   # -- Configures `storage.class` for the kafka chart.
   class: standard
+# @section -- Jvmoptions
+# -- Configures `jvmOptions` for Kafka node pools.
+jvmOptions: {}
+# @section -- Resources
+# -- Configures `resources` for Kafka node pools.
+resources: {}
 # @section -- Topics
 # -- Configures `topics` for the kafka chart.
 topics:

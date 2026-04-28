@@ -652,7 +652,15 @@ wait_for_kafka_ready() {
   if ! kubectl get kafka -n "${KAFKA_NAMESPACE}" "${KAFKA_CLUSTER_NAME}" >/dev/null 2>&1; then
     return
   fi
-  kubectl wait --for=condition=Ready -n "${KAFKA_NAMESPACE}" "kafka/${KAFKA_CLUSTER_NAME}" --timeout="${PLATFORM_READY_TIMEOUT}"
+  if kubectl wait --for=condition=Ready -n "${KAFKA_NAMESPACE}" "kafka/${KAFKA_CLUSTER_NAME}" --timeout="${PLATFORM_READY_TIMEOUT}"; then
+    return
+  fi
+
+  echo "[e2e] Kafka cluster ${KAFKA_CLUSTER_NAME} did not become Ready in ${KAFKA_NAMESPACE}" >&2
+  kubectl get kafka -n "${KAFKA_NAMESPACE}" "${KAFKA_CLUSTER_NAME}" -o yaml >&2 || true
+  kubectl get pods -n "${KAFKA_NAMESPACE}" -l "strimzi.io/cluster=${KAFKA_CLUSTER_NAME}" -o wide >&2 || true
+  kubectl describe pods -n "${KAFKA_NAMESPACE}" -l "strimzi.io/cluster=${KAFKA_CLUSTER_NAME}" >&2 || true
+  exit 1
 }
 
 wait_for_kafka_topics_ready() {

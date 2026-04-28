@@ -64,6 +64,16 @@ kafka:
   combinedReplicas: 1
   replicationFactor: 1
   minInsyncReplicas: 1
+  jvmOptions:
+    "-Xms": 256m
+    "-Xmx": 512m
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
   storage:
     size: 2Gi
     class: standard
