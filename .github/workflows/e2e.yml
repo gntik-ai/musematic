@@ -55,7 +55,7 @@ jobs:
     name: e2e
     needs: [check-previous-failures]
     if: always() && (github.event_name != 'schedule' || needs.check-previous-failures.result == 'success')
-    runs-on: ubuntu-latest-8-cores
+    runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
       run:
