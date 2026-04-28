@@ -6319,6 +6319,12 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>Configures <code>dlqRetentionMs</code> for the kafka chart.</td>
 </tr>
 <tr>
+<td>jvmOptions</td>
+<td>object</td>
+<td><code>{}</code></td>
+<td>Configures <code>jvmOptions</code> for Kafka node pools.</td>
+</tr>
+<tr>
 <td>kafkaVersion</td>
 <td>string</td>
 <td><code>"4.1.1"</code></td>
@@ -6373,6 +6379,12 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>Configures <code>replicationFactor</code> for the kafka chart.</td>
 </tr>
 <tr>
+<td>resources</td>
+<td>object</td>
+<td><code>{}</code></td>
+<td>Configures <code>resources</code> for Kafka node pools.</td>
+</tr>
+<tr>
 <td>storage</td>
 <td>object</td>
 <td><code>{"class":"standard","size":"100Gi"}</code></td>
@@ -6393,7 +6405,7 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>topics</td>
 <td>list</td>
-<td><code>[{"name":"a2a.events","partitions":6,"retentionMs":604800000},{"name":"accounts.events","partitions":6,"retentionMs":604800000},{"name":"agentops.events","partitions":6,"retentionMs":604800000},{"name":"agentops.behavioral","partitions":6,"retentionMs":2592000000},{"name":"analytics.events","partitions":6,"retentionMs":604800000},{"name":"auth.events","partitions":6,"retentionMs":604800000},{"name":"communication.broadcast","partitions":6,"retentionMs":259200000},{"name":"composition.events","partitions":6,"retentionMs":604800000},{"name":"connector.delivery","partitions":12,"retentionMs":259200000},{"name":"connector.ingress","partitions":12,"retentionMs":259200000},{"name":"context.quality","partitions":6,"retentionMs":604800000},{"name":"context_engineering.events","partitions":6,"retentionMs":604800000},{"name":"discovery.events","partitions":6,"retentionMs":604800000},{"name":"debug_logging.events","partitions":6,"retentionMs":604800000},{"name":"evaluation.events","partitions":6,"retentionMs":2592000000},{"name":"event.bus","partitions":6,"retentionMs":604800000},{"name":"execution.events","partitions":12,"retentionMs":604800000},{"name":"fleet.health","partitions":6,"retentionMs":604800000},{"name":"governance.events","partitions":6,"retentionMs":604800000},{"name":"interaction.events","partitions":12,"retentionMs":604800000},{"name":"interaction.attention","partitions":6,"retentionMs":604800000},{"name":"marketplace.events","partitions":6,"retentionMs":604800000},{"name":"mcp.events","partitions":6,"retentionMs":604800000},{"name":"memory.events","partitions":6,"retentionMs":604800000},{"name":"model.catalog.events","partitions":6,"retentionMs":604800000},{"name":"monitor.alerts","partitions":6,"retentionMs":1209600000},{"name":"notifications.alerts","partitions":6,"retentionMs":1209600000},{"name":"policy.events","partitions":6,"retentionMs":604800000},{"name":"policy.gate.allowed","partitions":6,"retentionMs":604800000},{"name":"policy.gate.blocked","partitions":6,"retentionMs":604800000},{"name":"privacy.consent.revoked","partitions":6,"retentionMs":604800000},{"name":"privacy.deletion.cascaded","partitions":6,"retentionMs":604800000},{"name":"privacy.dlp.event","partitions":6,"retentionMs":604800000},{"name":"privacy.dsr.completed","partitions":6,"retentionMs":604800000},{"name":"privacy.dsr.failed","partitions":6,"retentionMs":604800000},{"name":"privacy.dsr.in_progress","partitions":6,"retentionMs":604800000},{"name":"privacy.dsr.received","partitions":6,"retentionMs":604800000},{"name":"privacy.dsr.scheduled_with_hold","partitions":6,"retentionMs":604800000},{"name":"privacy.pia.approved","partitions":6,"retentionMs":604800000},{"name":"privacy.pia.drafted","partitions":6,"retentionMs":604800000},{"name":"privacy.pia.rejected","partitions":6,"retentionMs":604800000},{"name":"privacy.pia.submitted_for_review","partitions":6,"retentionMs":604800000},{"name":"privacy.pia.superseded","partitions":6,"retentionMs":604800000},{"name":"privacy.residency.configured","partitions":6,"retentionMs":604800000},{"name":"privacy.residency.removed","partitions":6,"retentionMs":604800000},{"name":"privacy.residency.violated","partitions":6,"retentionMs":604800000},{"name":"registry.events","partitions":6,"retentionMs":604800000},{"name":"runtime.lifecycle","partitions":6,"retentionMs":259200000},{"name":"runtime.reasoning","partitions":12,"retentionMs":604800000},{"name":"runtime.selfcorrection","partitions":12,"retentionMs":604800000},{"name":"sandbox.events","partitions":6,"retentionMs":259200000},{"name":"security.audit.chain.verified","partitions":6,"retentionMs":2592000000},{"name":"security.jit.issued","partitions":6,"retentionMs":2592000000},{"name":"security.jit.revoked","partitions":6,"retentionMs":2592000000},{"name":"security.pentest.finding.raised","partitions":6,"retentionMs":2592000000},{"name":"security.sbom.published","partitions":6,"retentionMs":2592000000},{"name":"security.scan.completed","partitions":6,"retentionMs":2592000000},{"name":"security.secret.rotated","partitions":6,"retentionMs":2592000000},{"name":"simulation.events","partitions":6,"retentionMs":259200000},{"name":"testing.results","partitions":6,"retentionMs":2592000000},{"name":"trust.events","partitions":6,"retentionMs":2592000000},{"name":"workflow.runtime","partitions":12,"retentionMs":604800000},{"name":"workflow.triggers","partitions":12,"retentionMs":604800000},{"name":"workspace.goal","partitions":6,"retentionMs":604800000},{"name":"workspaces.events","partitions":6,"retentionMs":604800000}]</code></td>
+<td><code>[{"name":"a2a.events","partitions":6,"retentionMs":604800000},{"name":"accounts.events","partitions":6,"retentionMs":604800000},{"name":"agentops.events","partitions":6,"retentionMs":604800000},{"name":"agentops.behavioral","partitions":6,"retentionMs":2592000000},{"name":"analytics.events","partitions":6,"retentionMs":604800000},{"name":"auth.events","partitions":6,"retentionMs":604800000},{"name":"communication.broadcast","partitions":6,"retentionMs":259200000},{"name":"composition.events","partitions":6,"retentionMs":604800000},{"name":"connector.delivery","partitions":12,"retentionMs":259200000},{"name":"connector.ingress","partitions":12,"retentionMs":259200000},{"name":"context.quality","partitions":6,"retentionMs":604800000},{"name":"context_engineering.events","partitions":6,"retentionMs":604800000},{"name":"discovery.events","partitions":6,"retentionMs":604800000},{"name":"debug_logging.events","partitions":6,"retentionMs":604800000},{"name":"evaluation.events","partitions":6,"retentionMs":2592000000},{"name":"event.bus","partitions":6,"retentionMs":604800000},{"name":"execution.events","partitions":12,"retentionMs":604800000},{"name":"fleet.health","partitions":6,"retentionMs":604800000},{"name":"fleet.events","partitions":6,"retentionMs":604800000},{"name":"governance.events","partitions":6,"retentionMs":604800000},{"name":"interaction.events","partitions":12,"retentionMs":604800000},{"name":"interaction.attention","partitions":6,"retentionMs":604800000},{"name":"marketplace.events","partitions":6,"retentionMs":604800000},{"name":"mcp.events","partitions":6,"retentionMs":604800000},{"name":"memory.events","partitions":6,"retentionMs":604800000},{"name":"model.catalog.events","partitions":6,"retentionMs":604800000},{"name":"monitor.alerts","partitions":6,"retentionMs":1209600000},{"name":"notifications.alerts","partitions":6,"retentionMs":1209600000},{"name":"policy.events","partitions":6,"retentionMs":604800000},{"name":"policy.gate.allowed","partitions":6,"retentionMs":604800000},{"name":"policy.gate.blocked","partitions":6,"retentionMs":604800000},{"name":"privacy.consent.revoked","partitions":6,"retentionMs":604800000},{"name":"privacy.deletion.cascaded","partitions":6,"retentionMs":604800000},{"name":"privacy.dlp.event","partitions":6,"retentionMs":604800000},{"name":"privacy.dsr.completed","partitions":6,"retentionMs":604800000},{"name":"privacy.dsr.failed","partitions":6,"retentionMs":604800000},{"name":"privacy.dsr.in_progress","partitions":6,"retentionMs":604800000},{"name":"privacy.dsr.received","partitions":6,"retentionMs":604800000},{"name":"privacy.dsr.scheduled_with_hold","partitions":6,"retentionMs":604800000},{"name":"privacy.pia.approved","partitions":6,"retentionMs":604800000},{"name":"privacy.pia.drafted","partitions":6,"retentionMs":604800000},{"name":"privacy.pia.rejected","partitions":6,"retentionMs":604800000},{"name":"privacy.pia.submitted_for_review","partitions":6,"retentionMs":604800000},{"name":"privacy.pia.superseded","partitions":6,"retentionMs":604800000},{"name":"privacy.residency.configured","partitions":6,"retentionMs":604800000},{"name":"privacy.residency.removed","partitions":6,"retentionMs":604800000},{"name":"privacy.residency.violated","partitions":6,"retentionMs":604800000},{"name":"registry.events","partitions":6,"retentionMs":604800000},{"name":"runtime.lifecycle","partitions":6,"retentionMs":259200000},{"name":"runtime.reasoning","partitions":12,"retentionMs":604800000},{"name":"runtime.selfcorrection","partitions":12,"retentionMs":604800000},{"name":"sandbox.events","partitions":6,"retentionMs":259200000},{"name":"security.audit.chain.verified","partitions":6,"retentionMs":2592000000},{"name":"security.jit.issued","partitions":6,"retentionMs":2592000000},{"name":"security.jit.revoked","partitions":6,"retentionMs":2592000000},{"name":"security.pentest.finding.raised","partitions":6,"retentionMs":2592000000},{"name":"security.sbom.published","partitions":6,"retentionMs":2592000000},{"name":"security.scan.completed","partitions":6,"retentionMs":2592000000},{"name":"security.secret.rotated","partitions":6,"retentionMs":2592000000},{"name":"simulation.events","partitions":6,"retentionMs":259200000},{"name":"testing.results","partitions":6,"retentionMs":2592000000},{"name":"trust.events","partitions":6,"retentionMs":2592000000},{"name":"workflow.runtime","partitions":12,"retentionMs":604800000},{"name":"workflow.triggers","partitions":12,"retentionMs":604800000},{"name":"workspace.goal","partitions":6,"retentionMs":604800000},{"name":"workspaces.events","partitions":6,"retentionMs":604800000}]</code></td>
 <td>Configures <code>topics</code> for the kafka chart.</td>
 </tr>
 <tr>
@@ -6519,7 +6531,7 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>topics[19].partitions</td>
 <td>int</td>
-<td><code>12</code></td>
+<td><code>6</code></td>
 <td>Configures <code>topics.partitions</code> for the kafka chart.</td>
 </tr>
 <tr>
@@ -6543,7 +6555,7 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>topics[20].partitions</td>
 <td>int</td>
-<td><code>6</code></td>
+<td><code>12</code></td>
 <td>Configures <code>topics.partitions</code> for the kafka chart.</td>
 </tr>
 <tr>
@@ -6609,7 +6621,7 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>topics[25].retentionMs</td>
 <td>int</td>
-<td><code>1209600000</code></td>
+<td><code>604800000</code></td>
 <td>Configures <code>topics.retentionMs</code> for the kafka chart.</td>
 </tr>
 <tr>
@@ -6633,7 +6645,7 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>topics[27].retentionMs</td>
 <td>int</td>
-<td><code>604800000</code></td>
+<td><code>1209600000</code></td>
 <td>Configures <code>topics.retentionMs</code> for the kafka chart.</td>
 </tr>
 <tr>
@@ -6897,19 +6909,19 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>topics[47].retentionMs</td>
 <td>int</td>
-<td><code>259200000</code></td>
+<td><code>604800000</code></td>
 <td>Configures <code>topics.retentionMs</code> for the kafka chart.</td>
 </tr>
 <tr>
 <td>topics[48].partitions</td>
 <td>int</td>
-<td><code>12</code></td>
+<td><code>6</code></td>
 <td>Configures <code>topics.partitions</code> for the kafka chart.</td>
 </tr>
 <tr>
 <td>topics[48].retentionMs</td>
 <td>int</td>
-<td><code>604800000</code></td>
+<td><code>259200000</code></td>
 <td>Configures <code>topics.retentionMs</code> for the kafka chart.</td>
 </tr>
 <tr>
@@ -6939,13 +6951,13 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>topics[50].partitions</td>
 <td>int</td>
-<td><code>6</code></td>
+<td><code>12</code></td>
 <td>Configures <code>topics.partitions</code> for the kafka chart.</td>
 </tr>
 <tr>
 <td>topics[50].retentionMs</td>
 <td>int</td>
-<td><code>259200000</code></td>
+<td><code>604800000</code></td>
 <td>Configures <code>topics.retentionMs</code> for the kafka chart.</td>
 </tr>
 <tr>
@@ -6957,7 +6969,7 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>topics[51].retentionMs</td>
 <td>int</td>
-<td><code>2592000000</code></td>
+<td><code>259200000</code></td>
 <td>Configures <code>topics.retentionMs</code> for the kafka chart.</td>
 </tr>
 <tr>
@@ -7041,7 +7053,7 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>topics[58].retentionMs</td>
 <td>int</td>
-<td><code>259200000</code></td>
+<td><code>2592000000</code></td>
 <td>Configures <code>topics.retentionMs</code> for the kafka chart.</td>
 </tr>
 <tr>
@@ -7053,7 +7065,7 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>topics[59].retentionMs</td>
 <td>int</td>
-<td><code>2592000000</code></td>
+<td><code>259200000</code></td>
 <td>Configures <code>topics.retentionMs</code> for the kafka chart.</td>
 </tr>
 <tr>
@@ -7083,13 +7095,13 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>topics[61].partitions</td>
 <td>int</td>
-<td><code>12</code></td>
+<td><code>6</code></td>
 <td>Configures <code>topics.partitions</code> for the kafka chart.</td>
 </tr>
 <tr>
 <td>topics[61].retentionMs</td>
 <td>int</td>
-<td><code>604800000</code></td>
+<td><code>2592000000</code></td>
 <td>Configures <code>topics.retentionMs</code> for the kafka chart.</td>
 </tr>
 <tr>
@@ -7107,7 +7119,7 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>topics[63].partitions</td>
 <td>int</td>
-<td><code>6</code></td>
+<td><code>12</code></td>
 <td>Configures <code>topics.partitions</code> for the kafka chart.</td>
 </tr>
 <tr>
@@ -7124,6 +7136,18 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 </tr>
 <tr>
 <td>topics[64].retentionMs</td>
+<td>int</td>
+<td><code>604800000</code></td>
+<td>Configures <code>topics.retentionMs</code> for the kafka chart.</td>
+</tr>
+<tr>
+<td>topics[65].partitions</td>
+<td>int</td>
+<td><code>6</code></td>
+<td>Configures <code>topics.partitions</code> for the kafka chart.</td>
+</tr>
+<tr>
+<td>topics[65].retentionMs</td>
 <td>int</td>
 <td><code>604800000</code></td>
 <td>Configures <code>topics.retentionMs</code> for the kafka chart.</td>
