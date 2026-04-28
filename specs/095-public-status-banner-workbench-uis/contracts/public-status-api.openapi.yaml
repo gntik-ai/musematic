@@ -1,0 +1,218 @@
+openapi: 3.1.0
+info:
+  title: Public Status Page API
+  version: "0.1.0"
+  description: |
+    Public (auth-exempt) endpoints backing `apps/web-status/`. Mounted under
+    `/api/v1/public/...` and added to `EXEMPT_PATHS`/`EXEMPT_PREFIXES` in
+    `apps/control-plane/src/platform/common/auth_middleware.py`.
+
+    These endpoints MUST remain reachable when the main authenticated platform
+    is unavailable (Constitution Rule 49). They are served by the
+    `status-api` runtime profile in the `platform-edge` namespace and read
+    from a Redis hot-cache populated by the snapshot generator.
+
+    Rate limit: 1 req/s per IP default; 5 req/s burst. 429 with Retry-After.
+
+servers:
+  - url: https://status.musematic.ai/api/v1
+    description: Production
+  - url: https://{env}.status.musematic.ai/api/v1
+    description: Per-environment
+    variables:
+      env: { default: staging }
+
+paths:
+  /public/status:
+    get:
+      summary: Current platform status snapshot
+      operationId: getPublicStatus
+      responses:
+        '200':
+          description: Snapshot returned
+          headers:
+            Cache-Control:
+              schema: { type: string, example: "public, max-age=30" }
+            X-Snapshot-Age-Seconds:
+              schema: { type: integer }
+              description: Age of the served snapshot in seconds.
+            X-Snapshot-Source:
+              schema: { type: string, enum: [redis, postgres, fallback] }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PlatformStatusSnapshot' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+        '503':
+          description: Snapshot generator unhealthy and no fallback available
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /public/components/{componentId}:
+    get:
+      summary: Per-component current status + 30-day history
+      operationId: getPublicComponent
+      parameters:
+        - in: path
+          name: componentId
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Component detail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ComponentDetail' }
+        '404': { description: Unknown component }
+
+  /public/incidents:
+    get:
+      summary: Active and recently-resolved incidents
+      operationId: listPublicIncidents
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [active, resolved] }
+        - in: query
+          name: since
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Incident list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  incidents:
+                    type: array
+                    items: { $ref: '#/components/schemas/PublicIncident' }
+
+  /public/status/feed.rss:
+    get:
+      summary: RSS 2.0 feed of incident lifecycle events
+      operationId: getPublicStatusRss
+      responses:
+        '200':
+          description: RSS feed
+          content:
+            application/rss+xml: { schema: { type: string } }
+
+  /public/status/feed.atom:
+    get:
+      summary: Atom 1.0 feed of incident lifecycle events
+      operationId: getPublicStatusAtom
+      responses:
+        '200':
+          description: Atom feed
+          content:
+            application/atom+xml: { schema: { type: string } }
+
+components:
+  schemas:
+    PlatformStatusSnapshot:
+      type: object
+      required: [overall_state, components, generated_at]
+      properties:
+        generated_at: { type: string, format: date-time }
+        overall_state:
+          type: string
+          enum: [operational, degraded, partial_outage, full_outage, maintenance]
+        components:
+          type: array
+          items: { $ref: '#/components/schemas/ComponentStatus' }
+        active_incidents:
+          type: array
+          items: { $ref: '#/components/schemas/PublicIncident' }
+        scheduled_maintenance:
+          type: array
+          items: { $ref: '#/components/schemas/MaintenanceWindow' }
+        active_maintenance:
+          oneOf:
+            - { $ref: '#/components/schemas/MaintenanceWindow' }
+            - { type: 'null' }
+        recently_resolved_incidents:
+          type: array
+          items: { $ref: '#/components/schemas/PublicIncident' }
+        uptime_30d:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              pct: { type: number, format: float }
+              incidents: { type: integer }
+
+    ComponentStatus:
+      type: object
+      required: [id, name, state, last_check_at]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        state:
+          type: string
+          enum: [operational, degraded, partial_outage, full_outage, maintenance]
+        last_check_at: { type: string, format: date-time }
+        uptime_30d_pct: { type: number, format: float }
+
+    ComponentDetail:
+      allOf:
+        - { $ref: '#/components/schemas/ComponentStatus' }
+        - type: object
+          properties:
+            history_30d:
+              type: array
+              items:
+                type: object
+                properties:
+                  at: { type: string, format: date-time }
+                  state: { type: string }
+
+    PublicIncident:
+      type: object
+      properties:
+        id: { type: string }
+        title: { type: string }
+        severity: { type: string, enum: [info, warning, high, critical] }
+        started_at: { type: string, format: date-time }
+        resolved_at: { type: string, format: date-time, nullable: true }
+        components_affected:
+          type: array
+          items: { type: string }
+        last_update_at: { type: string, format: date-time }
+        last_update_summary: { type: string }
+        updates:
+          type: array
+          items:
+            type: object
+            properties:
+              at: { type: string, format: date-time }
+              text: { type: string }
+
+    MaintenanceWindow:
+      type: object
+      properties:
+        window_id: { type: string }
+        title: { type: string }
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        blocks_writes: { type: boolean }
+        components_affected:
+          type: array
+          items: { type: string }
+
+    Error:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+        request_id: { type: string }
+
+  responses:
+    RateLimited:
+      description: Too many requests
+      headers:
+        Retry-After:
+          schema: { type: integer }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }

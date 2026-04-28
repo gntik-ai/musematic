@@ -90,6 +90,8 @@ USER_IDENTITY_COLUMNS: dict[str, list[str]] = {
     "saved_views": ["owner_id"],
     "user_preferences": ["user_id"],
     "contract_templates": ["created_by_user_id"],
+    "platform_status_snapshots": ["created_by"],
+    "status_subscriptions": ["user_id"],
 }
 
 

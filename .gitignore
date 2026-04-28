@@ -281,3 +281,13 @@ test-results/
 
 # E2E harness artifacts
 tests/e2e/reports/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform.lock.hcl
+
+# Go build artifacts
+*.exe

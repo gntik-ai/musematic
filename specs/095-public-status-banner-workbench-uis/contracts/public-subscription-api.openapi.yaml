@@ -1,0 +1,145 @@
+openapi: 3.1.0
+info:
+  title: Public Subscription API
+  version: "0.1.0"
+  description: |
+    Public (auth-exempt) endpoints for anonymous-visitor subscriptions to
+    platform status events. Email channel uses confirm-opt-in; webhook +
+    Slack channels reuse the existing `OutboundWebhook` table per research
+    R7 (HMAC signing via `notifications/deliverers/webhook_deliverer.py`,
+    Constitution Rule 17).
+
+    All POST endpoints are rate-limited per IP (default 5 req/min, burst 10).
+
+paths:
+  /public/subscribe/email:
+    post:
+      summary: Submit email subscription (sends confirmation email)
+      operationId: subscribeEmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EmailSubscribeRequest' }
+      responses:
+        '202':
+          description: Confirmation email sent. Subscription remains inactive until visitor clicks the confirmation link.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: "If the email is valid, a confirmation link has been sent." }
+        '422': { description: Invalid email or scope }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /public/subscribe/email/confirm:
+    get:
+      summary: Confirm email subscription via tokenized link
+      operationId: confirmEmail
+      parameters:
+        - in: query
+          name: token
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Subscription activated. Renders a confirmation page.
+        '410': { description: Token expired or already used }
+        '404': { description: Token not found }
+
+  /public/subscribe/email/unsubscribe:
+    get:
+      summary: Unsubscribe via tokenized link from email footer
+      operationId: unsubscribeEmail
+      parameters:
+        - in: query
+          name: token
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Unsubscribed }
+        '404': { description: Token not found }
+
+  /public/subscribe/webhook:
+    post:
+      summary: Register an outbound webhook subscription
+      operationId: subscribeWebhook
+      description: |
+        Visitor (or authenticated user) registers a webhook URL. Server
+        immediately delivers a signed test ping. The subscription becomes
+        active only when the test ping receives 2xx and the URL is verified.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WebhookSubscribeRequest' }
+      responses:
+        '202':
+          description: Test ping dispatched. Subscription pending verification.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WebhookSubscribeResponse' }
+        '422': { description: Invalid URL or unsupported scheme }
+
+  /public/subscribe/slack:
+    post:
+      summary: Register a Slack incoming webhook subscription
+      operationId: subscribeSlack
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [webhook_url]
+              properties:
+                webhook_url: { type: string, format: uri }
+                scope_components:
+                  type: array
+                  items: { type: string }
+      responses:
+        '202': { description: Test message dispatched }
+
+components:
+  schemas:
+    EmailSubscribeRequest:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, format: email }
+        scope_components:
+          type: array
+          items: { type: string }
+          description: Empty or omitted = all components.
+
+    WebhookSubscribeRequest:
+      type: object
+      required: [url]
+      properties:
+        url: { type: string, format: uri }
+        scope_components:
+          type: array
+          items: { type: string }
+        contact_email:
+          type: string
+          format: email
+          description: Optional. Used to notify on persistent delivery failures.
+
+    WebhookSubscribeResponse:
+      type: object
+      properties:
+        subscription_id: { type: string }
+        signing_secret_hint:
+          type: string
+          description: First 6 + last 4 of the HMAC signing secret (full value retrieved by authenticated subscription owner via /api/v1/me/status-subscriptions).
+        verification_state:
+          type: string
+          enum: [pending, verified, failed]
+
+  responses:
+    RateLimited:
+      description: Too many requests
+      headers:
+        Retry-After:
+          schema: { type: integer }

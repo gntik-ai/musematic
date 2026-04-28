@@ -37,3 +37,8 @@ Go 1.25.x for `services/reasoning-engine`; Python 3.12+ for `apps/control-plane`
 <!-- MANUAL ADDITIONS START -->
 UPD-038 corrections: six README files total; root `LICENSE`/`CONTRIBUTING.md`/`SECURITY.md` absent and out of scope; docs links match today's `docs/` tree; `docs/assets/` is created here; `make dev-up` is verified; GitHub repo is `gntik-ai/musematic`; `ci.yml` owns the per-PR README filter; `gh` uses `GITHUB_TOKEN`/`GH_TOKEN`; CI installs `pandoc`; cold-cache quick start can exceed 5 minutes; feature 083 vendor reuse is unconfirmed; native-speaker reviews are an external gate.
 <!-- MANUAL ADDITIONS END -->
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->
