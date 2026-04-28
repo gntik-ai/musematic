@@ -235,6 +235,18 @@ class MockLLMService:
             streaming_chunks,
         )
 
+    async def clear_queue(self, prompt_pattern: str | None = None) -> None:
+        await self.provider.clear_queue(prompt_pattern)
+
+    async def get_calls(
+        self,
+        *,
+        pattern: str | None = None,
+        since: str | None = None,
+    ) -> list[dict[str, Any]]:
+        records = await self.provider.get_calls(pattern=pattern, since=since)
+        return [record.model_dump(mode="json") for record in records]
+
 
 class KafkaObserver:
     def __init__(self, settings: PlatformSettings) -> None:

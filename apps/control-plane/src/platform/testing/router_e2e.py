@@ -13,6 +13,8 @@ from platform.testing.schemas_e2e import (
     E2EUserProvisionRequest,
     E2EUserProvisionResponse,
     KafkaEventsResponse,
+    MockLLMCallsResponse,
+    MockLLMClearRequest,
     MockLLMSetRequest,
     MockLLMSetResponse,
     ResetRequest,
@@ -168,6 +170,33 @@ async def set_mock_llm_response(
         payload.streaming_chunks,
     )
     return MockLLMSetResponse(queue_depth=queue_depth)
+
+
+@router.get("/mock-llm/calls", response_model=MockLLMCallsResponse)
+async def get_mock_llm_calls(
+    request: Request,
+    pattern: str | None = Query(default=None),
+    since: datetime | None = Query(default=None),
+    current_user: dict[str, Any] = Depends(require_admin_or_e2e_scope),
+) -> MockLLMCallsResponse:
+    del current_user
+    service = build_mock_llm_service(_redis(request))
+    records = await service.get_calls(
+        pattern=pattern,
+        since=since.isoformat() if since else None,
+    )
+    return MockLLMCallsResponse(calls=records)
+
+
+@router.post("/mock-llm/clear", status_code=204)
+async def clear_mock_llm(
+    payload: MockLLMClearRequest,
+    request: Request,
+    current_user: dict[str, Any] = Depends(require_admin_or_e2e_scope),
+) -> None:
+    del current_user
+    service = build_mock_llm_service(_redis(request))
+    await service.clear_queue(payload.prompt_pattern)
 
 
 @router.get("/kafka/events", response_model=KafkaEventsResponse)

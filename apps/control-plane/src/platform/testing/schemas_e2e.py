@@ -99,6 +99,15 @@ class MockLLMSetResponse(BaseModel):
     queue_depth: dict[str, int]
 
 
+class MockLLMClearRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    prompt_pattern: str | None = None
+
+
+class MockLLMCallsResponse(BaseModel):
+    calls: list[dict[str, Any]] = Field(default_factory=list)
+
+
 class KafkaEventRecord(BaseModel):
     topic: str
     partition: int
