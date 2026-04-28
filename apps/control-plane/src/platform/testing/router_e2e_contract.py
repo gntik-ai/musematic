@@ -90,6 +90,7 @@ def _state(request: Request) -> dict[str, Any]:
         "contracts": {},
         "policies": {},
         "policy_attachments": {},
+        "governance_chains": {},
         "eval_sets": {},
         "eval_cases": {},
         "eval_runs": {},
@@ -762,6 +763,49 @@ async def get_workspace_visibility(request: Request, workspace_id: str) -> dict[
         raise HTTPException(status_code=404)
     return _state(request).setdefault("workspace_visibility", {}).get(
         workspace_id, _default_workspace_visibility(workspace_id)
+    )
+
+
+@router.put("/api/v1/workspaces/{workspace_id}/governance-chain")
+async def update_workspace_governance_chain(
+    request: Request, workspace_id: str, payload: dict[str, Any]
+) -> dict[str, Any]:
+    state = _state(request)
+    if workspace_id not in state["workspaces"]:
+        raise HTTPException(status_code=404)
+    chain_id = str(payload.get("id") or f"{workspace_id}:governance-chain")
+    chain = {
+        "id": chain_id,
+        "workspace_id": workspace_id,
+        "observer_fqns": list(payload.get("observer_fqns") or []),
+        "judge_fqns": list(payload.get("judge_fqns") or []),
+        "enforcer_fqns": list(payload.get("enforcer_fqns") or []),
+        "policy_binding_ids": list(payload.get("policy_binding_ids") or []),
+        "verdict_to_action_mapping": dict(payload.get("verdict_to_action_mapping") or {}),
+        "status": payload.get("status", "active"),
+        "updated_at": _now(),
+    }
+    state.setdefault("governance_chains", {})[workspace_id] = chain
+    return chain
+
+
+@router.get("/api/v1/workspaces/{workspace_id}/governance-chain")
+async def get_workspace_governance_chain(request: Request, workspace_id: str) -> dict[str, Any]:
+    state = _state(request)
+    if workspace_id not in state["workspaces"]:
+        raise HTTPException(status_code=404)
+    return state.setdefault("governance_chains", {}).get(
+        workspace_id,
+        {
+            "id": f"{workspace_id}:governance-chain",
+            "workspace_id": workspace_id,
+            "observer_fqns": [],
+            "judge_fqns": [],
+            "enforcer_fqns": [],
+            "policy_binding_ids": [],
+            "verdict_to_action_mapping": {},
+            "status": "unconfigured",
+        },
     )
 
 
