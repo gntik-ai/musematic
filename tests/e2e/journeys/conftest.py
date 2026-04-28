@@ -154,6 +154,12 @@ class JourneyContext:
     prefix: str
 
 
+@dataclass(slots=True)
+class OAuthProvisionedIdentity:
+    user_id: UUID
+    email: str
+
+
 class AuthenticatedAsyncClient:
     def __init__(
         self,
@@ -625,6 +631,36 @@ async def ensure_journey_personas(platform_api_url: str) -> dict[str, str]:
     return providers
 
 
+@pytest_asyncio.fixture(scope="session")
+async def admin_oauth_identity(
+    platform_api_url: str,
+    mock_google_oidc: str,
+    ensure_journey_personas: dict[str, str],
+) -> OAuthProvisionedIdentity:
+    del ensure_journey_personas
+    if _use_password_login("admin"):
+        return OAuthProvisionedIdentity(
+            user_id=_persona_user_id("admin"),
+            email=_persona_email("admin"),
+        )
+
+    worker_id = os.environ.get("PYTEST_XDIST_WORKER", "master")
+    async with AuthenticatedAsyncClient(platform_api_url) as client:
+        provisioned = await oauth_login(
+            client,
+            provider="google",
+            mock_server=mock_google_oidc,
+            login=_env("JOURNEY_ADMIN_GOOGLE_LOGIN", f"{worker_id}-admin"),
+        )
+        assert provisioned.access_token is not None
+        claims = _decode_access_token(provisioned.access_token)
+        await _grant_required_consents(provisioned)
+        return OAuthProvisionedIdentity(
+            user_id=UUID(str(claims["sub"])),
+            email=str(claims.get("email") or _persona_email("admin")),
+        )
+
+
 @pytest_asyncio.fixture(autouse=True)
 async def cleanup_journey_resources(
     request: pytest.FixtureRequest,
@@ -659,9 +695,8 @@ async def cleanup_journey_resources(
 @pytest_asyncio.fixture
 async def admin_client(
     http_client: AuthenticatedAsyncClient,
-    mock_google_oidc: str,
     ensure_journey_personas: dict[str, str],
-    journey_context: JourneyContext,
+    admin_oauth_identity: OAuthProvisionedIdentity,
 ) -> AuthenticatedAsyncClient:
     del ensure_journey_personas
     if _use_password_login("admin"):
@@ -673,21 +708,11 @@ async def admin_client(
             default_email=_persona_email("admin"),
         )
 
-    # Provision the backing account through the same OAuth path used by real users,
-    # then mint the elevated journey token against that persisted user id.
-    provisioned = await oauth_login(
-        http_client.clone(),
-        provider="google",
-        mock_server=mock_google_oidc,
-        login=_env("JOURNEY_ADMIN_GOOGLE_LOGIN", f"{journey_context.journey_id}-admin"),
-    )
-    assert provisioned.access_token is not None
-    claims = _decode_access_token(provisioned.access_token)
-    user_id = UUID(str(claims["sub"]))
-    email = str(claims.get("email") or _persona_email("admin"))
+    # The backing account is provisioned once per xdist worker through OAuth;
+    # each test then receives a fresh elevated journey token for isolation.
     token = _mint_access_token(
-        user_id=user_id,
-        email=email,
+        user_id=admin_oauth_identity.user_id,
+        email=admin_oauth_identity.email,
         role_names=_persona_roles("admin"),
     )
     client = http_client.clone()
