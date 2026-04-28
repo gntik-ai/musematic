@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 # mypy: disable-error-code="no-any-return"
+import asyncio
 import hashlib
 import json
 import tarfile
@@ -241,6 +242,16 @@ def _correlation_context(
     )
 
 
+def _create_background_task(app: Any, coro: Any) -> None:
+    task = asyncio.create_task(coro)
+    tasks = getattr(app.state, "e2e_contract_background_tasks", None)
+    if not isinstance(tasks, set):
+        tasks = set()
+        app.state.e2e_contract_background_tasks = tasks
+    tasks.add(task)
+    task.add_done_callback(tasks.discard)
+
+
 async def _emit_event(
     request: Request,
     topic: str,
@@ -254,6 +265,7 @@ async def _emit_event(
     execution_id: str | None = None,
     goal_id: str | None = None,
     agent_fqn: str | None = None,
+    replay_after_seconds: float | None = None,
 ) -> dict[str, Any]:
     correlation = _correlation_dict(
         workspace_id=workspace_id,
@@ -278,7 +290,7 @@ async def _emit_event(
         source="platform.testing.e2e_contract",
         payload=payload,
         correlation_context=_correlation_context(
-            workspace_id=workspace_id,
+            workspace_id=None,
             conversation_id=conversation_id,
             interaction_id=interaction_id,
             execution_id=execution_id,
@@ -287,8 +299,18 @@ async def _emit_event(
         ),
     )
     raw = envelope.model_dump_json().encode("utf-8")
+    await _publish_raw_event(request.app, topic, key, raw)
+    if replay_after_seconds is not None:
+        for delay in (replay_after_seconds, replay_after_seconds + 2.0):
+            _create_background_task(
+                request.app,
+                _publish_raw_event_after(request.app, topic, key, raw, delay),
+            )
+    return event
 
-    fanout = getattr(request.app.state, "fanout", None)
+
+async def _publish_raw_event(app: Any, topic: str, key: str, raw: bytes) -> None:
+    fanout = getattr(app.state, "fanout", None)
     route_event = getattr(fanout, "_route_event", None)
     if callable(route_event):
         try:
@@ -296,7 +318,7 @@ async def _emit_event(
         except Exception:
             pass
 
-    clients = getattr(request.app.state, "clients", {})
+    clients = getattr(app.state, "clients", {})
     producer = clients.get("kafka") if isinstance(clients, dict) else None
     ensure_producer = getattr(producer, "_ensure_producer", None)
     if callable(ensure_producer):
@@ -305,7 +327,13 @@ async def _emit_event(
             await kafka.send_and_wait(topic, raw, key=key.encode("utf-8"))
         except Exception:
             pass
-    return event
+
+
+async def _publish_raw_event_after(
+    app: Any, topic: str, key: str, raw: bytes, delay_seconds: float
+) -> None:
+    await asyncio.sleep(delay_seconds)
+    await _publish_raw_event(app, topic, key, raw)
 
 
 def _default_workspace_settings(workspace_id: str) -> dict[str, Any]:
@@ -1411,6 +1439,7 @@ async def create_execution(request: Request, payload: dict[str, Any]) -> dict[st
         interaction_id=str(interaction_id) if interaction_id else None,
         execution_id=execution_id,
         goal_id=str(goal_id) if goal_id else None,
+        replay_after_seconds=1.0,
     )
     await _emit_event(
         request,
@@ -1428,6 +1457,7 @@ async def create_execution(request: Request, payload: dict[str, Any]) -> dict[st
         interaction_id=str(interaction_id) if interaction_id else None,
         execution_id=execution_id,
         goal_id=str(goal_id) if goal_id else None,
+        replay_after_seconds=1.0,
     )
     if payload.get("contract_id") or payload.get("action") == "secret.lookup":
         _record_event(
@@ -1961,6 +1991,7 @@ async def attention(
         else None,
         goal_id=goal_id or None,
         agent_fqn=source_agent_fqn,
+        replay_after_seconds=1.0,
     )
     _record_ws(request, "attention", "attention.requested", event_payload)
     _record_ws(request, "attention", "request.created", event_payload)
