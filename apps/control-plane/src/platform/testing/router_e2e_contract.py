@@ -114,6 +114,8 @@ def _state(request: Request) -> dict[str, Any]:
         "network_partitions": {},
         "slow_policies": {},
         "s3_credentials_revoked": False,
+        "warm_pool_capacity": 1,
+        "warm_pool_ready": 1,
     }
     for namespace, local_name, role_type in (
         ("default", "seeded-executor", "executor"),
@@ -1567,6 +1569,7 @@ async def create_execution(request: Request, payload: dict[str, Any]) -> dict[st
             "trace.step",
             {"execution_id": execution_id, "sequence": 1, "status": "completed"},
         )
+    state["warm_pool_ready"] = max(int(state.get("warm_pool_ready") or 0), 1)
     _record_ws(request, "runtime", "warm_pool.replenished", {"ready": 1})
     await _emit_event(
         request,
@@ -1701,8 +1704,32 @@ async def reprioritize_execution(
 
 
 @router.get("/api/v1/runtime/warm-pool")
-async def warm_pool() -> dict[str, Any]:
-    return {"ready": 1, "capacity": 1}
+async def warm_pool(request: Request) -> dict[str, Any]:
+    state = _state(request)
+    return {
+        "ready": int(state.get("warm_pool_ready") or 0),
+        "capacity": int(state.get("warm_pool_capacity") or 0),
+    }
+
+
+@router.post("/api/v1/runtime/warm-pool/fill")
+async def fill_warm_pool(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
+    size = max(int(payload.get("size") or 1), 0)
+    state = _state(request)
+    state["warm_pool_ready"] = size
+    state["warm_pool_capacity"] = max(int(state.get("warm_pool_capacity") or 0), size)
+    return {"ready": size, "capacity": state["warm_pool_capacity"]}
+
+
+@router.post("/api/v1/runtime/warm-pool/drain")
+async def drain_warm_pool(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
+    del payload
+    state = _state(request)
+    state["warm_pool_ready"] = 0
+    return {
+        "ready": 0,
+        "capacity": int(state.get("warm_pool_capacity") or 0),
+    }
 
 
 @router.post("/api/v1/secrets", status_code=status.HTTP_201_CREATED)
