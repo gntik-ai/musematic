@@ -47,7 +47,8 @@ spec:
             - name: data
               mountPath: /var/lib/clickhouse
             - name: server-config
-              mountPath: /etc/clickhouse-server/config.d
+              mountPath: /etc/clickhouse-server/config.d/musematic-config.xml
+              subPath: config.xml
       volumes:
         - name: server-config
           configMap:

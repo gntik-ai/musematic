@@ -5,7 +5,10 @@ from platform.common.exceptions import AuthorizationError, ValidationError
 from platform.execution.exceptions import ExecutionNotFoundError
 from platform.interactions.exceptions import InteractionNotFoundError
 from platform.trust.contract_schemas import AgentContractUpdate, ComplianceRateQuery
+from platform.trust.contract_service import ContractService
 from platform.trust.exceptions import ContractConflictError, ContractNotFoundError
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -329,3 +332,181 @@ async def test_contract_service_handles_update_race_and_numeric_limit_strings(mo
             actor_id,
             workspace_id=workspace_id,
         )
+
+
+def test_contract_service_preview_and_validation_helpers_cover_optional_terms() -> None:
+    valid_uuid = uuid4()
+    contract = SimpleNamespace(
+        expected_outputs={"required": ["summary", "score"]},
+        quality_thresholds={"accuracy": 0.95},
+        time_constraint_seconds=30,
+        cost_limit_tokens=5,
+        escalation_conditions={"on": "secret"},
+        success_criteria={"must": "pass"},
+        enforcement_policy="escalate",
+    )
+
+    assert ContractService._preview_clauses(contract) == [
+        "task_scope",
+        "enforcement_policy",
+        "expected_outputs",
+        "quality_thresholds",
+        "time_constraint_seconds",
+        "cost_limit_tokens",
+        "escalation_conditions",
+        "success_criteria",
+    ]
+    assert ContractService._preview_violations(
+        contract,
+        {
+            "output": {"summary": "ok"},
+            "tokens": 8,
+            "force_violation": True,
+            "note": "contains secret",
+        },
+    ) == [
+        "expected_outputs",
+        "cost_limit_tokens",
+        "success_criteria",
+        "escalation_conditions",
+    ]
+    assert ContractService._preview_violations(
+        contract,
+        {"output": {"summary": "ok", "score": 1}, "tokens": 3},
+    ) == []
+
+    minimal = SimpleNamespace(
+        expected_outputs={},
+        quality_thresholds={},
+        time_constraint_seconds=None,
+        cost_limit_tokens=None,
+        escalation_conditions={},
+        success_criteria={},
+        enforcement_policy="warn",
+    )
+    assert ContractService._preview_clauses(minimal) == ["task_scope", "enforcement_policy"]
+    assert ContractService._to_uuid_or_none(valid_uuid) == valid_uuid
+    assert ContractService._to_uuid_or_none(str(valid_uuid)) == valid_uuid
+    assert ContractService._to_uuid_or_none("not-a-uuid") is None
+    ContractService._validate_contract_payload(
+        {
+            "enforcement_policy": "warn",
+            "time_constraint_seconds": "1",
+            "cost_limit_tokens": None,
+            "expected_outputs": {},
+        }
+    )
+    with pytest.raises(ValidationError):
+        ContractService._validate_contract_payload(
+            {
+                "enforcement_policy": "warn",
+                "time_constraint_seconds": 0,
+                "cost_limit_tokens": None,
+            }
+        )
+
+
+@pytest.mark.asyncio
+async def test_contract_service_preview_template_and_revision_edges() -> None:
+    bundle = build_trust_bundle()
+    service = bundle.contract_service
+    workspace_id = uuid4()
+    actor_id = uuid4()
+    created = await service.create_contract(
+        build_contract_create().model_copy(
+            update={
+                "expected_outputs": {"required": ["summary"]},
+                "quality_thresholds": {"accuracy": 0.9},
+                "time_constraint_seconds": 30,
+                "cost_limit_tokens": 10,
+                "escalation_conditions": {"on": "secret"},
+                "success_criteria": {"must": "pass"},
+                "enforcement_policy": "escalate",
+            }
+        ),
+        workspace_id,
+        actor_id,
+    )
+
+    with pytest.raises(ValidationError):
+        await service.preview_contract(
+            created.id,
+            {"output": {}},
+            use_mock=False,
+            cost_acknowledged=False,
+            workspace_id=workspace_id,
+        )
+    preview = await service.preview_contract(
+        created.id,
+        {"output": {}, "tokens": 12, "note": "secret"},
+        use_mock=False,
+        cost_acknowledged=True,
+        workspace_id=workspace_id,
+    )
+    assert preview.final_action == "escalate"
+    assert preview.mock_response is None
+    assert preview.was_fallback is False
+
+    now = datetime.now(UTC)
+    template_id = uuid4()
+    template = SimpleNamespace(
+        id=template_id,
+        name="PII guardrail",
+        description="Detects sensitive fields",
+        category="trust",
+        template_content={
+            "task_scope": "PII review",
+            "expected_outputs": {"required": ["summary"]},
+            "quality_thresholds": {"accuracy": 0.9},
+            "time_constraint_seconds": 60,
+            "cost_limit_tokens": 100,
+            "escalation_conditions": {"on": "secret"},
+            "success_criteria": {"must": "redact"},
+            "enforcement_policy": "warn",
+        },
+        version_number=2,
+        forked_from_template_id=None,
+        created_by_user_id=None,
+        is_platform_authored=True,
+        is_published=True,
+        created_at=now,
+        updated_at=now,
+    )
+    bundle.repository.list_contract_templates = AsyncMock(return_value=[template])
+    bundle.repository.get_contract_template = AsyncMock(return_value=None)
+    templates = await service.list_templates()
+    assert templates.total == 1
+    with pytest.raises(ContractNotFoundError):
+        await service.fork_template(template_id, "agent:new", workspace_id, actor_id)
+
+    template.is_published = False
+    bundle.repository.get_contract_template = AsyncMock(return_value=template)
+    with pytest.raises(ContractNotFoundError):
+        await service.fork_template(template_id, "agent:new", workspace_id, actor_id)
+
+    template.is_published = True
+    forked = await service.fork_template(template_id, "agent:new", workspace_id, actor_id)
+    assert forked.agent_id == "agent:new"
+    assert forked.escalation_conditions["_forked_from_template_id"] == str(template_id)
+
+    revision_id = uuid4()
+    profile_id = uuid4()
+    bundle.repository.get_agent_revision_with_profile = AsyncMock(
+        return_value=(
+            SimpleNamespace(workspace_id=workspace_id, agent_profile_id=profile_id),
+            SimpleNamespace(id=profile_id, fqn=created.agent_id),
+        )
+    )
+    await service.attach_to_revision(
+        created.id,
+        revision_id,
+        actor_id,
+        workspace_id=workspace_id,
+    )
+    stored = await bundle.repository.get_contract(created.id)
+    assert stored is not None
+    assert stored.attached_revision_id == revision_id
+
+    bundle.repository.get_agent_revision_with_profile = AsyncMock(return_value=None)
+    with pytest.raises(ValidationError):
+        await service.attach_to_revision(created.id, uuid4(), actor_id, workspace_id=workspace_id)

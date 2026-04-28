@@ -33,12 +33,24 @@ include-package-data = true
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["fixtures*", "journeys*", "seeders*"]
-exclude = ["cluster*", "chaos*", "performance*", "reports*", "suites*", "tests*"]
+include = ["fixtures*", "journeys*", "seeders*", "suites*", "performance*"]
+exclude = ["cluster*", "chaos*", "reports*", "tests*"]
 
 [tool.setuptools.package-data]
 journeys = ["fixtures/*.tar.gz"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["journeys", "tests", "test_chart_identity.py", "test_cluster_bootstrap_contract.py"]
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = [
+  "suites",
+  "tests",
+  "test_chart_identity.py",
+  "test_cluster_bootstrap_contract.py",
+]
+markers = [
+  "slow: test takes more than 30 seconds",
+  "requires_warm_pool: test assumes the runtime warm pool is filled",
+  "journey: extended user journey scenario",
+]

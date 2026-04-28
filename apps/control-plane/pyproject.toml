@@ -182,6 +182,7 @@ omit = [
   "src/platform/common/clients/runtime_controller_pb2.py",
   "src/platform/common/clients/runtime_controller_pb2_grpc.py",
   "src/platform/grpc_stubs/*",
+  "src/platform/testing/router_e2e_contract.py",
   "src/platform/common/clients/sandbox_manager.py",
   "src/platform/common/clients/simulation_controller.py",
   "src/platform/common/events/__init__.py",

@@ -96,6 +96,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
     ) -> Response:
         request.state.origin_region = request.headers.get("X-Origin-Region") or "unknown"
         path = request.url.path
+        settings = getattr(request.app.state, "settings", default_settings)
         public_invitation_endpoint = path.startswith("/api/v1/accounts/invitations/") and (
             request.method == "GET" or (request.method == "POST" and path.endswith("/accept"))
         )
@@ -105,6 +106,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
             and path.endswith(("/authorize", "/callback"))
         )
         public_a2a_endpoint = path == "/.well-known/agent.json" or path.startswith("/api/v1/a2a/")
+        e2e_user_bootstrap_endpoint = (
+            path == "/api/v1/_e2e/users"
+            and request.method == "POST"
+            and bool(getattr(settings, "feature_e2e_mode", False))
+        )
         if public_a2a_endpoint:
             external_a2a_identity = _resolve_external_a2a_identity(request)
             if external_a2a_identity is not None:
@@ -115,6 +121,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             or public_invitation_endpoint
             or public_oauth_endpoint
             or public_a2a_endpoint
+            or e2e_user_bootstrap_endpoint
         ):
             return await call_next(request)
 
@@ -131,7 +138,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return _unauthorized_response("UNAUTHORIZED", "Missing authentication")
 
         token = header.removeprefix("Bearer ").strip()
-        settings = getattr(request.app.state, "settings", default_settings)
         try:
             payload = jwt.decode(
                 token,

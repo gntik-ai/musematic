@@ -64,6 +64,16 @@ kafka:
   combinedReplicas: 1
   replicationFactor: 1
   minInsyncReplicas: 1
+  jvmOptions:
+    "-Xms": 256m
+    "-Xmx": 512m
+  resources:
+    requests:
+      cpu: 100m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
   storage:
     size: 2Gi
     class: standard
@@ -128,6 +138,7 @@ qdrant:
 neo4j:
   neo4j:
     fullnameOverride: musematic-neo4j
+    password: test-neo4j
     image:
       customImage: mirror.gcr.io/library/neo4j:5.21.0
     resources:
@@ -151,7 +162,7 @@ neo4j:
     image: mirror.gcr.io/library/neo4j:5.21.0
 
 clickhouse:
-  enabled: false
+  enabled: true
   clickhouse:
     replicaCount: 1
     keeper:
@@ -163,12 +174,12 @@ clickhouse:
     resources:
       requests:
         cpu: 250m
-        memory: 512Mi
-      limits:
-        cpu: 500m
         memory: 1Gi
+      limits:
+        cpu: "1"
+        memory: 4Gi
     config:
-      max_memory_usage: "536870912"
+      max_memory_usage: "2147483648"
       max_insert_block_size: 262144
   persistence:
     size: 2Gi
@@ -270,6 +281,7 @@ controlPlane:
         orgMembershipUrlTemplate: http://mock-github-oauth.platform.svc.cluster.local:8080/user/memberships/orgs/{org}
   connections:
     kafkaBrokers: musematic-kafka-kafka-bootstrap.strimzi-system.svc.cluster.local:9092
+    neo4jPassword: test-neo4j
     redisTestMode: cluster
     # E2E-only deterministic Fernet key; not used outside local kind tests.
     authMfaEncryptionKey: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=

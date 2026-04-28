@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from platform.common import database
@@ -33,25 +34,37 @@ class DebugCaptureMiddleware:
         response_status = 500
         response_headers: dict[str, str] = {}
         receive_consumed = False
+        receive_empty_sent = False
+        disconnect_event = asyncio.Event()
+        passthrough_response = False
         start = time.perf_counter()
 
         async def replay_receive() -> Message:
-            nonlocal receive_consumed
+            nonlocal receive_consumed, receive_empty_sent
             if receive_consumed:
-                return {"type": "http.request", "body": b"", "more_body": False}
+                if not receive_empty_sent:
+                    receive_empty_sent = True
+                    return {"type": "http.request", "body": b"", "more_body": False}
+                await disconnect_event.wait()
+                return {"type": "http.disconnect"}
             receive_consumed = True
             return {"type": "http.request", "body": request_body, "more_body": False}
 
         async def capture_send(message: Message) -> None:
-            nonlocal response_status, response_headers
-            buffered_messages.append(message)
+            nonlocal response_status, response_headers, passthrough_response
             if message["type"] == "http.response.start":
                 response_status = int(message["status"])
                 response_headers = {
                     key.decode("latin-1"): value.decode("latin-1")
                     for key, value in message.get("headers", [])
                 }
-            elif message["type"] == "http.response.body":
+                content_type = response_headers.get("content-type", "").split(";", 1)[0].lower()
+                passthrough_response = content_type == "text/event-stream"
+            if passthrough_response:
+                await send(message)
+                return
+            buffered_messages.append(message)
+            if message["type"] == "http.response.body":
                 response_chunks.append(cast(bytes, message.get("body", b"")))
 
         await self.app(scope, replay_receive, capture_send)

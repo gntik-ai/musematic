@@ -166,6 +166,34 @@ wait_for_observability_stack() {
   done
 }
 
+is_kubectl_port_forward_pid() {
+  local pid="$1"
+  local args
+
+  [[ "$pid" =~ ^[0-9]+$ ]] || return 1
+  args="$(ps -p "$pid" -o args= 2>/dev/null || true)"
+  [[ "$args" == *kubectl* && "$args" == *port-forward* ]]
+}
+
+reset_observability_port_forwards() {
+  local pid_file
+  local pid
+
+  if [[ ! -d "${OBSERVABILITY_PORT_FORWARD_DIR}" ]]; then
+    return
+  fi
+
+  for pid_file in "${OBSERVABILITY_PORT_FORWARD_DIR}"/*.pid; do
+    [[ -e "$pid_file" ]] || continue
+    pid="$(cat "$pid_file" 2>/dev/null || true)"
+    if is_kubectl_port_forward_pid "$pid"; then
+      kill "$pid" >/dev/null 2>&1 || true
+    fi
+  done
+
+  rm -rf "${OBSERVABILITY_PORT_FORWARD_DIR}"
+}
+
 start_observability_port_forward() {
   local name="$1"
   local target="$2"
@@ -174,7 +202,7 @@ start_observability_port_forward() {
   local pid_file="${OBSERVABILITY_PORT_FORWARD_DIR}/${name}.pid"
   local log_file="${OBSERVABILITY_PORT_FORWARD_DIR}/${name}.log"
 
-  if [[ -f "$pid_file" ]] && kill -0 "$(cat "$pid_file")" >/dev/null 2>&1; then
+  if [[ -f "$pid_file" ]] && is_kubectl_port_forward_pid "$(cat "$pid_file" 2>/dev/null || true)"; then
     return
   fi
   mkdir -p "${OBSERVABILITY_PORT_FORWARD_DIR}"
@@ -210,6 +238,7 @@ PY
 
 start_observability_port_forwards() {
   echo "[e2e] starting observability port-forwards under ${OBSERVABILITY_PORT_FORWARD_DIR}"
+  reset_observability_port_forwards
   start_observability_port_forward loki "svc/observability-loki-gateway" 3100 80
   start_observability_port_forward prometheus "svc/observability-kube-prometh-prometheus" 9090 9090
   start_observability_port_forward grafana "svc/observability-grafana" 3000 80
@@ -623,7 +652,15 @@ wait_for_kafka_ready() {
   if ! kubectl get kafka -n "${KAFKA_NAMESPACE}" "${KAFKA_CLUSTER_NAME}" >/dev/null 2>&1; then
     return
   fi
-  kubectl wait --for=condition=Ready -n "${KAFKA_NAMESPACE}" "kafka/${KAFKA_CLUSTER_NAME}" --timeout="${PLATFORM_READY_TIMEOUT}"
+  if kubectl wait --for=condition=Ready -n "${KAFKA_NAMESPACE}" "kafka/${KAFKA_CLUSTER_NAME}" --timeout="${PLATFORM_READY_TIMEOUT}"; then
+    return
+  fi
+
+  echo "[e2e] Kafka cluster ${KAFKA_CLUSTER_NAME} did not become Ready in ${KAFKA_NAMESPACE}" >&2
+  kubectl get kafka -n "${KAFKA_NAMESPACE}" "${KAFKA_CLUSTER_NAME}" -o yaml >&2 || true
+  kubectl get pods -n "${KAFKA_NAMESPACE}" -l "strimzi.io/cluster=${KAFKA_CLUSTER_NAME}" -o wide >&2 || true
+  kubectl describe pods -n "${KAFKA_NAMESPACE}" -l "strimzi.io/cluster=${KAFKA_CLUSTER_NAME}" >&2 || true
+  exit 1
 }
 
 wait_for_kafka_topics_ready() {
@@ -661,8 +698,8 @@ run_manual_init_jobs() {
 
 wait_for_rollouts() {
   wait_for_active_pods "${PLATFORM_DATA_NAMESPACE}" "${PLATFORM_READY_TIMEOUT}"
-  wait_for_active_pods "${NAMESPACE}" "${PLATFORM_READY_TIMEOUT}"
   wait_for_deployment_rollouts "${NAMESPACE}" "${PLATFORM_READY_TIMEOUT}"
+  wait_for_active_pods "${NAMESPACE}" "${PLATFORM_READY_TIMEOUT}"
 }
 
 seed_baseline() {

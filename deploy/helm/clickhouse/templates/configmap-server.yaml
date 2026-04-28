@@ -7,11 +7,10 @@ data:
   config.xml: |
     <clickhouse>
       <listen_host>0.0.0.0</listen_host>
+      <listen_try>1</listen_try>
       <http_port>{{ .Values.service.httpPort }}</http_port>
       <tcp_port>{{ .Values.service.nativePort }}</tcp_port>
       <interserver_http_port>{{ .Values.service.interserverHttpPort }}</interserver_http_port>
-      <max_memory_usage>{{ .Values.clickhouse.config.max_memory_usage }}</max_memory_usage>
-      <max_insert_block_size>{{ .Values.clickhouse.config.max_insert_block_size }}</max_insert_block_size>
 {{- if .Values.clickhouse.keeper.enabled }}
       <zookeeper>
         <node>

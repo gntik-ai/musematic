@@ -28,7 +28,11 @@ ALLOWED_CHAOS_NAMESPACES = {"platform-execution", "platform-data"}
 
 
 def _seeders_root() -> Path:
-    return Path(__file__).resolve().parents[5] / "tests" / "e2e"
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "tests" / "e2e"
+        if (candidate / "seeders" / "base.py").is_file():
+            return candidate
+    return Path("/app/tests/e2e")
 
 
 def _ensure_seeders_on_path() -> None:
@@ -234,6 +238,18 @@ class MockLLMService:
             response,
             streaming_chunks,
         )
+
+    async def clear_queue(self, prompt_pattern: str | None = None) -> None:
+        await self.provider.clear_queue(prompt_pattern)
+
+    async def get_calls(
+        self,
+        *,
+        pattern: str | None = None,
+        since: str | None = None,
+    ) -> list[dict[str, Any]]:
+        records = await self.provider.get_calls(pattern=pattern, since=since)
+        return [record.model_dump(mode="json") for record in records]
 
 
 class KafkaObserver:

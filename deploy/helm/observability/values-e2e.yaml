@@ -46,6 +46,24 @@ opentelemetry-collector:
 # @section -- Kube Prometheus Stack
 # -- Configures `kube-prometheus-stack` for the observability chart.
 kube-prometheus-stack:
+  # -- Configures `kube-prometheus-stack.prometheusOperator` for the observability chart.
+  prometheusOperator:
+    # -- Configures `kube-prometheus-stack.prometheusOperator.admissionWebhooks` for the observability chart.
+    admissionWebhooks:
+      # Chart 65.8.1 defaults to a certgen tag that intermittently exposes stale
+      # registry descriptors to kind runners; pin a current patch image for e2e.
+      # -- Configures `kube-prometheus-stack.prometheusOperator.admissionWebhooks.patch` for the observability chart.
+      patch:
+        # -- Configures `kube-prometheus-stack.prometheusOperator.admissionWebhooks.patch.image` for the observability chart.
+        image:
+          # -- Configures `kube-prometheus-stack.prometheusOperator.admissionWebhooks.patch.image.registry` for the observability chart.
+          registry: registry.k8s.io
+          # -- Configures `kube-prometheus-stack.prometheusOperator.admissionWebhooks.patch.image.repository` for the observability chart.
+          repository: ingress-nginx/kube-webhook-certgen
+          # -- Configures `kube-prometheus-stack.prometheusOperator.admissionWebhooks.patch.image.tag` for the observability chart.
+          tag: v1.5.3
+          # -- Configures `kube-prometheus-stack.prometheusOperator.admissionWebhooks.patch.image.sha` for the observability chart.
+          sha: ""
   # -- Configures `kube-prometheus-stack.grafana` for the observability chart.
   grafana:
     # -- Configures `kube-prometheus-stack.grafana.replicas` for the observability chart.
@@ -209,6 +227,25 @@ loki:
 # @section -- Promtail
 # -- Configures `promtail` for the observability chart.
 promtail:
+  # Probe Promtail's HTTP server instead of /ready because this preset keeps
+  # Promtail idle with no scrape targets.
+  readinessProbe:
+    httpGet:
+      path: /metrics
+      port: http-metrics
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 1
+    successThreshold: 1
+    failureThreshold: 5
+  # -- Configures `promtail.config` for the observability chart.
+  config:
+    # -- Configures `promtail.config.snippets` for the observability chart.
+    snippets:
+      # E2E validation captures diagnostics with kubectl in capture-state.sh.
+      # Keep Promtail idle in kind so it does not scan pod log files on
+      # low-ulimit developer machines.
+      scrapeConfigs: "[]"
   # -- Configures `promtail.podSecurityContext` for the observability chart.
   podSecurityContext:
     # -- Configures `promtail.podSecurityContext.runAsNonRoot` for the observability chart.

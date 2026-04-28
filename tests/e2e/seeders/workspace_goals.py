@@ -1,0 +1,94 @@
+from __future__ import annotations
+
+from seeders._client import E2ESeederClient
+from seeders.base import SeederBase, SeedRunSummary
+
+
+WORKSPACE_NAME = "test-workspace-alpha"
+GOALS = (
+    ("gid-open-001", "open", "Test open goal"),
+    ("gid-inprogress-001", "in_progress", "Test in-progress goal"),
+    ("gid-completed-001", "completed", "Test completed goal"),
+    ("gid-cancelled-001", "cancelled", "Test cancelled goal"),
+)
+
+
+class Seeder(SeederBase):
+    name = "workspace_goals"
+    dependencies = ("users",)
+
+    async def seed(self) -> SeedRunSummary:
+        seeded = 0
+        skipped = 0
+        async with E2ESeederClient() as client:
+            workspace_response = await client.post(
+                "/api/v1/workspaces",
+                {
+                    "name": WORKSPACE_NAME,
+                    "description": "E2E Workspace Alpha",
+                },
+                workspace_scoped=False,
+            )
+            workspace = (
+                workspace_response.json()
+                if workspace_response.content
+                else {"id": WORKSPACE_NAME}
+            )
+            if workspace_response.status_code == 409:
+                skipped += 1
+                workspace_id = await client.workspace_id()
+            else:
+                seeded += 1
+                workspace_id = workspace.get("id") or await client.workspace_id()
+            goals_response = await client.client.get(
+                f"/api/v1/workspaces/{workspace_id}/goals",
+                headers=client._auth_headers(),
+            )
+            goals_response.raise_for_status()
+            existing_titles = {
+                item.get("title")
+                for item in goals_response.json().get("items", [])
+                if isinstance(item, dict)
+            }
+            for gid, state, title in GOALS:
+                if title in existing_titles:
+                    skipped += 1
+                    continue
+                response = await client.post(
+                    f"/api/v1/workspaces/{workspace_id}/goals",
+                    {
+                        "title": title,
+                        "description": f"E2E baseline goal {gid} in {state} state.",
+                    },
+                    workspace_scoped=False,
+                )
+                if response.status_code == 409:
+                    skipped += 1
+                else:
+                    goal = response.json()
+                    if state != "open" and goal.get("id"):
+                        targets = (
+                            ["in_progress", "completed"]
+                            if state == "completed"
+                            else [state]
+                        )
+                        for target in targets:
+                            transition = await client.client.patch(
+                                f"/api/v1/workspaces/{workspace_id}/goals/{goal['id']}",
+                                json={"status": target},
+                                headers=client._auth_headers(),
+                            )
+                            if transition.status_code != 409:
+                                transition.raise_for_status()
+                    seeded += 1
+        return SeedRunSummary(
+            seeded={self.name: seeded},
+            skipped={self.name: skipped},
+        )
+
+    async def reset(self, *, include_baseline: bool = True) -> dict[str, int]:
+        if not include_baseline:
+            return {self.name: 0}
+        async with E2ESeederClient() as client:
+            response = await client.delete(f"/api/v1/workspaces/{WORKSPACE_NAME}")
+        return {self.name: 0 if response.status_code == 404 else 1}

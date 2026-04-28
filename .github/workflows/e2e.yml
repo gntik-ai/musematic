@@ -8,6 +8,8 @@ name: E2E
 
 permissions:
   contents: read
+  actions: read
+  issues: write
 
 concurrency:
   group: e2e-${{ github.head_ref || github.run_id }}
@@ -20,8 +22,39 @@ env:
   PORT_WS: 8082
 
 jobs:
+  check-previous-failures:
+    name: check previous nightly failures
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    outputs:
+      should_create_issue: ${{ steps.nightly.outputs.should_create_issue }}
+    steps:
+      - name: Check previous nightly failures
+        id: nightly
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          mapfile -t conclusions < <(gh run list \
+            --workflow e2e.yml \
+            --branch main \
+            --event schedule \
+            --limit 5 \
+            --json conclusion \
+            --jq '[.[] | select(.conclusion != null and .conclusion != "") | .conclusion][0:2][]')
+          if [ "${#conclusions[@]}" -eq 2 ] \
+            && [ "${conclusions[0]}" = "failure" ] \
+            && [ "${conclusions[1]}" = "failure" ]; then
+            echo "should_create_issue=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_create_issue=false" >> "$GITHUB_OUTPUT"
+          fi
+
   e2e:
     name: e2e
+    needs: [check-previous-failures]
+    if: always() && (github.event_name != 'schedule' || needs.check-previous-failures.result == 'success')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     defaults:
@@ -125,3 +158,14 @@ jobs:
       - name: Tear down kind cluster
         if: always()
         run: make e2e-down || true
+
+      - name: Create issue after third consecutive nightly failure
+        if: failure() && github.event_name == 'schedule' && needs.check-previous-failures.outputs.should_create_issue == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh issue create \
+            --title "E2E nightly failing on main (3rd consecutive night)" \
+            --body "The scheduled E2E workflow has failed for three consecutive nightly runs on main.\n\nCurrent run: ${RUN_URL}\n\nArtifact: e2e-reports-${{ github.run_id }}"

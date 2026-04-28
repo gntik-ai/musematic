@@ -145,13 +145,27 @@ def test_e2e_observability_jaeger_uses_memory_without_badger_pvc() -> None:
 def test_e2e_observability_promtail_uses_kind_host_log_permissions() -> None:
     values = (ROOT / 'deploy/helm/observability/values.yaml').read_text()
     e2e_values = (ROOT / 'deploy/helm/observability/values-e2e.yaml').read_text()
+    e2e_values_dict = _load_yaml('deploy/helm/observability/values-e2e.yaml')
     promtail_section = e2e_values.split('\npromtail:\n', 1)[1]
+    readiness_probe = e2e_values_dict['promtail']['readinessProbe']
 
     assert 'extraScrapeConfigs' not in values
+    assert readiness_probe['httpGet']['path'] == '/metrics'
+    assert readiness_probe['httpGet']['port'] == 'http-metrics'
     assert 'runAsNonRoot: false' in promtail_section
     assert 'runAsUser: 0' in promtail_section
     assert 'runAsGroup: 0' in promtail_section
     assert 'fsGroup: 0' in promtail_section
+
+
+def test_e2e_observability_uses_pullable_prometheus_operator_webhook_patch_image() -> None:
+    values = _load_yaml('deploy/helm/observability/values-e2e.yaml')
+    patch_image = values['kube-prometheus-stack']['prometheusOperator']['admissionWebhooks']['patch']['image']
+
+    assert patch_image['registry'] == 'registry.k8s.io'
+    assert patch_image['repository'] == 'ingress-nginx/kube-webhook-certgen'
+    assert patch_image['tag'] == 'v1.5.3'
+    assert patch_image['sha'] == ''
 
 
 def test_makefile_renders_cluster_specific_kind_config() -> None:
@@ -210,6 +224,14 @@ def test_install_script_runs_manual_init_jobs_and_ignores_completed_pods() -> No
     assert 'kubectl rollout restart -n "${NAMESPACE}" "$deployment"' in install_script
 
 
+def test_install_script_prints_kafka_diagnostics_on_readiness_timeout() -> None:
+    install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
+
+    assert 'Kafka cluster ${KAFKA_CLUSTER_NAME} did not become Ready' in install_script
+    assert 'kubectl get kafka -n "${KAFKA_NAMESPACE}" "${KAFKA_CLUSTER_NAME}" -o yaml' in install_script
+    assert 'kubectl describe pods -n "${KAFKA_NAMESPACE}" -l "strimzi.io/cluster=${KAFKA_CLUSTER_NAME}"' in install_script
+
+
 def test_platform_chart_creates_platform_data_namespace_once() -> None:
     template = (ROOT / 'deploy/helm/platform/templates/platform-data-namespace.yaml').read_text()
     values = _load_yaml('deploy/helm/platform/values.yaml')
@@ -244,10 +266,24 @@ def test_data_subcharts_gate_namespace_creation_and_kafka_listener_uses_valid_po
 
     kafka_template = (ROOT / 'deploy/helm/kafka/templates/kafka.yaml').read_text()
     kafka_network_policy = (ROOT / 'deploy/helm/kafka/templates/network-policy.yaml').read_text()
+    kafka_combined_pool = (ROOT / 'deploy/helm/kafka/templates/kafka-node-pool-combined.yaml').read_text()
     assert 'port: 9093' in kafka_template
     assert 'port: 9091' not in kafka_template
     assert 'port: 9093' in kafka_network_policy
     assert 'port: 9091' not in kafka_network_policy
+    assert '{{- with .Values.jvmOptions }}' in kafka_combined_pool
+    assert '{{- with .Values.resources }}' in kafka_combined_pool
+
+
+def test_e2e_kafka_uses_kind_sized_node_pool_resources() -> None:
+    values = _load_yaml('tests/e2e/cluster/values-e2e.yaml')
+    kafka = values['kafka']
+
+    assert kafka['combined'] is True
+    assert kafka['jvmOptions']['-Xms'] == '256m'
+    assert kafka['jvmOptions']['-Xmx'] == '512m'
+    assert kafka['resources']['requests'] == {'cpu': '100m', 'memory': '512Mi'}
+    assert kafka['resources']['limits'] == {'cpu': '500m', 'memory': '1Gi'}
 
 
 def test_cnpg_templates_use_current_monitoring_and_postgresql_fields() -> None:
@@ -291,6 +327,7 @@ def test_capture_state_collects_jobs_and_descriptions() -> None:
     assert 'kubectl get jobs -A' in script
     assert 'kubectl describe jobs -A' in script
     assert 'kubectl describe -n "${namespace}" "${pod}"' in script
+    assert 'strimzi-system' in script
 
 
 def test_e2e_workflow_frees_runner_disk_before_bootstrap() -> None:
@@ -306,6 +343,6 @@ def test_e2e_workflow_frees_runner_disk_before_bootstrap() -> None:
 
 def test_e2e_test_target_uses_versioned_test_paths() -> None:
     makefile = (ROOT / 'tests/e2e/Makefile').read_text()
-    assert 'E2E_TEST_PATHS ?= tests test_*.py' in makefile
+    assert 'E2E_TEST_PATHS ?= suites' in makefile
     assert '$(PYTEST) $(E2E_TEST_PATHS)' in makefile
     assert '$(PYTEST) suites' not in makefile

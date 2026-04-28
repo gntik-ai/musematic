@@ -216,6 +216,44 @@ async def test_neo4j_client_methods(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_neo4j_client_passes_configured_auth(monkeypatch) -> None:
+    calls: dict[str, object] = {}
+
+    class FakeAsyncGraphDatabase:
+        @staticmethod
+        def driver(uri: str, **kwargs) -> object:
+            calls["uri"] = uri
+            calls["kwargs"] = kwargs
+            return object()
+
+    monkeypatch.setattr(
+        "platform.common.clients.neo4j.import_module",
+        lambda name: SimpleNamespace(AsyncGraphDatabase=FakeAsyncGraphDatabase)
+        if name == "neo4j"
+        else SimpleNamespace(),
+    )
+
+    client = AsyncNeo4jClient(
+        PlatformSettings(
+            NEO4J_URL="bolt://neo4j:7687",
+            NEO4J_USER="neo4j",
+            NEO4J_PASSWORD="secret",
+            GRAPH_MODE="neo4j",
+        )
+    )
+
+    await client.connect()
+
+    assert calls == {
+        "uri": "bolt://neo4j:7687",
+        "kwargs": {
+            "auth": ("neo4j", "secret"),
+            "max_connection_pool_size": 50,
+        },
+    }
+
+
+@pytest.mark.asyncio
 async def test_clickhouse_client_methods(monkeypatch) -> None:
     class FakeResult:
         column_names: ClassVar[list[str]] = ["ok"]
