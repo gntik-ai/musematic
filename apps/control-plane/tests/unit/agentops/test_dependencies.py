@@ -19,6 +19,7 @@ from platform.agentops.dependencies import (
     resolve_workspace_id,
 )
 from platform.common.exceptions import ValidationError
+from platform.evaluation.models import ATERunStatus
 from platform.registry.models import AgentProfile, AgentRevision, LifecycleStatus
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -283,6 +284,128 @@ async def test_registry_adapter_fallback_and_passthrough_paths() -> None:
         adjustments=[],
         actor_id=uuid4(),
     ) is None
+
+
+@pytest.mark.asyncio
+async def test_registry_adapter_profile_state_update_and_empty_revision_edges() -> None:
+    workspace_id = uuid4()
+    profile_id = uuid4()
+    revision_id = uuid4()
+    passthrough_service = SimpleNamespace(
+        get_profile_state=AsyncMock(return_value={"agent_fqn": "finance:agent"}),
+        update_profile_fields=AsyncMock(return_value={"display_name": "Updated"}),
+    )
+    passthrough = AgentOpsRegistryAdapter(
+        session=SimpleNamespace(),  # type: ignore[arg-type]
+        registry_service=passthrough_service,
+    )
+    assert await passthrough.get_profile_state("finance:agent", workspace_id) == {
+        "agent_fqn": "finance:agent"
+    }
+    assert await passthrough.update_profile_fields(
+        "finance:agent",
+        workspace_id,
+        {"display_name": "Updated"},
+    ) == {"display_name": "Updated"}
+
+    session = SimpleNamespace(flush=AsyncMock())
+    adapter = AgentOpsRegistryAdapter(session=session)  # type: ignore[arg-type]
+    profile = AgentProfile(
+        id=profile_id,
+        workspace_id=workspace_id,
+        namespace_id=None,
+        local_name="agent",
+        fqn="finance:agent",
+        display_name="Finance Agent",
+        purpose="Purpose",
+        approach="Approach",
+        role_types=["assistant"],
+        custom_role_description=None,
+        visibility_agents=[],
+        visibility_tools=[],
+        mcp_server_refs=[],
+        tags=[],
+        status=LifecycleStatus.published,
+        maturity_level=1,
+        embedding_status="pending",
+        needs_reindex=False,
+        created_by=uuid4(),
+    )
+    adapter.repository.get_by_fqn = AsyncMock(side_effect=[None, profile, profile])  # type: ignore[method-assign]
+    adapter.repository.get_latest_revision = AsyncMock(  # type: ignore[method-assign]
+        side_effect=[None, SimpleNamespace(id=revision_id)]
+    )
+
+    assert await adapter.get_profile_state("missing:agent", workspace_id) is None
+    state_without_revision = await adapter.get_profile_state("finance:agent", workspace_id)
+    assert state_without_revision is not None
+    assert state_without_revision["revision_id"] is None
+
+    updated = await adapter.update_profile_fields(
+        "finance:agent",
+        workspace_id,
+        {
+            "display_name": "Renamed Agent",
+            "purpose": "New purpose",
+            "immutable": "ignored",
+        },
+    )
+    assert updated is not None
+    assert updated["display_name"] == "Renamed Agent"
+    assert profile.needs_reindex is True
+
+
+@pytest.mark.asyncio
+async def test_agentops_eval_and_trust_adapter_edge_paths() -> None:
+    workspace_id = uuid4()
+    repository = SimpleNamespace(
+        list_ate_configs=AsyncMock(return_value=([SimpleNamespace(id=uuid4())], 1)),
+        get_ate_config=AsyncMock(return_value=SimpleNamespace(id=uuid4(), scenarios=[{}])),
+        create_ate_run=AsyncMock(side_effect=lambda run: run),
+    )
+    eval_adapter = AgentOpsEvalAdapter(
+        eval_suite_service=SimpleNamespace(get_run_summary=AsyncMock(return_value={})),
+        evaluation_repository=repository,  # type: ignore[arg-type]
+    )
+    run = await eval_adapter.start_ate_run(
+        ate_config_id=uuid4(),
+        workspace_id=workspace_id,
+        agent_fqn="finance:agent",
+        candidate_revision_id=uuid4(),
+    )
+    assert run.status == ATERunStatus.pre_check_failed
+    assert {item["field"] for item in run.pre_check_errors} >= {
+        "id",
+        "name",
+        "input_data",
+        "expected_output",
+    }
+
+    recertification_service = SimpleNamespace(
+        create_trigger=AsyncMock(),
+        repository=SimpleNamespace(
+            list_triggers=AsyncMock(return_value=[]),
+            list_expiry_approaching_certifications=AsyncMock(
+                return_value=[
+                    SimpleNamespace(agent_id="other:agent"),
+                    SimpleNamespace(agent_id="finance:agent"),
+                ]
+            ),
+        ),
+    )
+    trust_adapter = AgentOpsTrustAdapter(
+        certification_service=SimpleNamespace(
+            is_agent_certified=AsyncMock(return_value=False),
+            expire_stale=AsyncMock(return_value=0),
+            repository=SimpleNamespace(get_latest_certification_for_agent=AsyncMock()),
+        ),
+        trust_tier_service=SimpleNamespace(get_tier=AsyncMock()),
+        recertification_service=recertification_service,
+    )
+
+    await trust_adapter.trigger_recertification("finance:agent", uuid4(), "policy.changed")
+    assert recertification_service.create_trigger.await_count == 1
+    assert len(await trust_adapter.list_upcoming_expirations("finance:agent", 14)) == 1
 
 
 def test_resolve_workspace_id_supports_explicit_role_and_errors() -> None:

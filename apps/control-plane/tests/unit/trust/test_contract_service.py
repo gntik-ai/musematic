@@ -5,7 +5,9 @@ from platform.common.exceptions import AuthorizationError, ValidationError
 from platform.execution.exceptions import ExecutionNotFoundError
 from platform.interactions.exceptions import InteractionNotFoundError
 from platform.trust.contract_schemas import AgentContractUpdate, ComplianceRateQuery
+from platform.trust.contract_service import ContractService
 from platform.trust.exceptions import ContractConflictError, ContractNotFoundError
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -328,4 +330,76 @@ async def test_contract_service_handles_update_race_and_numeric_limit_strings(mo
             AgentContractUpdate(task_scope="updated"),
             actor_id,
             workspace_id=workspace_id,
+        )
+
+
+def test_contract_service_preview_and_validation_helpers_cover_optional_terms() -> None:
+    valid_uuid = uuid4()
+    contract = SimpleNamespace(
+        expected_outputs={"required": ["summary", "score"]},
+        quality_thresholds={"accuracy": 0.95},
+        time_constraint_seconds=30,
+        cost_limit_tokens=5,
+        escalation_conditions={"on": "secret"},
+        success_criteria={"must": "pass"},
+        enforcement_policy="escalate",
+    )
+
+    assert ContractService._preview_clauses(contract) == [
+        "task_scope",
+        "enforcement_policy",
+        "expected_outputs",
+        "quality_thresholds",
+        "time_constraint_seconds",
+        "cost_limit_tokens",
+        "escalation_conditions",
+        "success_criteria",
+    ]
+    assert ContractService._preview_violations(
+        contract,
+        {
+            "output": {"summary": "ok"},
+            "tokens": 8,
+            "force_violation": True,
+            "note": "contains secret",
+        },
+    ) == [
+        "expected_outputs",
+        "cost_limit_tokens",
+        "success_criteria",
+        "escalation_conditions",
+    ]
+    assert ContractService._preview_violations(
+        contract,
+        {"output": {"summary": "ok", "score": 1}, "tokens": 3},
+    ) == []
+
+    minimal = SimpleNamespace(
+        expected_outputs={},
+        quality_thresholds={},
+        time_constraint_seconds=None,
+        cost_limit_tokens=None,
+        escalation_conditions={},
+        success_criteria={},
+        enforcement_policy="warn",
+    )
+    assert ContractService._preview_clauses(minimal) == ["task_scope", "enforcement_policy"]
+    assert ContractService._to_uuid_or_none(valid_uuid) == valid_uuid
+    assert ContractService._to_uuid_or_none(str(valid_uuid)) == valid_uuid
+    assert ContractService._to_uuid_or_none("not-a-uuid") is None
+    ContractService._validate_contract_payload(
+        {
+            "enforcement_policy": "warn",
+            "time_constraint_seconds": "1",
+            "cost_limit_tokens": None,
+            "expected_outputs": {},
+        }
+    )
+    with pytest.raises(ValidationError):
+        ContractService._validate_contract_payload(
+            {
+                "enforcement_policy": "warn",
+                "time_constraint_seconds": 0,
+                "cost_limit_tokens": None,
+            }
         )
