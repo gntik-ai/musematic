@@ -107,6 +107,7 @@ def _state(request: Request) -> dict[str, Any]:
         "events": {},
         "ws_events": [],
         "mock_llm": {},
+        "mock_llm_calls": [],
         "me_alert_settings": {},
         "db_values": {},
     }
@@ -459,6 +460,20 @@ def _stable_output(payload: dict[str, Any]) -> str:
     if payload.get("prompt_pattern") == "agent_response":
         return "fixed-alpha"
     return "ok"
+
+
+def _record_mock_llm_call(request: Request, payload: dict[str, Any], response: str) -> str:
+    prompt_pattern = str(payload.get("prompt_pattern") or "default")
+    call = {
+        "id": str(uuid4()),
+        "prompt_pattern": prompt_pattern,
+        "pattern": prompt_pattern,
+        "prompt": str(payload.get("input") or payload.get("prompt") or ""),
+        "response": response,
+        "created_at": _now(),
+    }
+    _state(request).setdefault("mock_llm_calls", []).append(call)
+    return response
 
 
 @router.get("/api/v1/_e2e/contract/events")
@@ -1347,6 +1362,7 @@ async def create_execution(request: Request, payload: dict[str, Any]) -> dict[st
     conversation_id = payload.get("correlation_conversation_id")
     interaction_id = payload.get("correlation_interaction_id")
     goal_id = payload.get("correlation_goal_id") or payload.get("goal_id")
+    output = _record_mock_llm_call(request, payload, _stable_output(payload))
     execution = {
         "id": execution_id,
         "workspace_id": workspace_id,
@@ -1360,8 +1376,8 @@ async def create_execution(request: Request, payload: dict[str, Any]) -> dict[st
         "correlation_conversation_id": conversation_id,
         "correlation_interaction_id": interaction_id,
         "correlation_goal_id": goal_id,
-        "response": _stable_output(payload),
-        "output": _stable_output(payload),
+        "response": output,
+        "output": output,
         "created_at": _now(),
         "completed_at": "2026-01-01T00:00:00+00:00",
     }
@@ -1899,7 +1915,9 @@ async def attention(
     current_user: dict[str, Any] = Depends(get_current_user),
 ) -> JSONResponse:
     workspace_id = str(payload.get("workspace_id") or _workspace_id_from_request(request))
-    target_identity = str(payload.get("target_identity") or _user_id(current_user))
+    target_identity = str(
+        payload.get("target_identity") or payload.get("target_id") or _user_id(current_user)
+    )
     source_agent_fqn = request.headers.get("x-agent-fqn") or str(
         payload.get("source_agent_fqn") or "default:seeded-executor"
     )
@@ -1926,6 +1944,11 @@ async def attention(
         source_reference={"type": "attention_request", "id": item["id"]},
     )
     event_payload = {**item, "alert_already_created": True}
+    _record_event(
+        request,
+        "interaction.events",
+        {**event_payload, "key": target_identity, "event_type": "interaction.attention"},
+    )
     await _emit_event(
         request,
         "interaction.attention",
@@ -1940,6 +1963,7 @@ async def attention(
         agent_fqn=source_agent_fqn,
     )
     _record_ws(request, "attention", "attention.requested", event_payload)
+    _record_ws(request, "attention", "request.created", event_payload)
     return JSONResponse(
         content=item,
         status_code=status.HTTP_201_CREATED,
@@ -2277,6 +2301,46 @@ async def set_mock_llm_response(request: Request, payload: dict[str, Any]) -> di
     queue = _state(request).setdefault("mock_llm", {}).setdefault(prompt_pattern, [])
     queue.append(payload)
     return {"queue_depth": {prompt_pattern: len(queue)}}
+
+
+@router.get("/api/v1/_e2e/mock-llm/calls")
+async def list_mock_llm_calls(
+    request: Request,
+    pattern: str | None = Query(default=None),
+    since: str | None = Query(default=None),
+) -> dict[str, Any]:
+    calls = list(_state(request).setdefault("mock_llm_calls", []))
+    if pattern:
+        calls = [
+            item
+            for item in calls
+            if item.get("prompt_pattern") == pattern or item.get("pattern") == pattern
+        ]
+    if since:
+        try:
+            since_dt = datetime.fromisoformat(since)
+        except ValueError:
+            since_dt = None
+        if since_dt is not None:
+            if since_dt.tzinfo is None:
+                since_dt = since_dt.replace(tzinfo=UTC)
+            filtered_calls = []
+            for item in calls:
+                created_at = datetime.fromisoformat(str(item.get("created_at")))
+                if created_at.tzinfo is None:
+                    created_at = created_at.replace(tzinfo=UTC)
+                if created_at >= since_dt:
+                    filtered_calls.append(item)
+            calls = filtered_calls
+    return {"calls": calls}
+
+
+@router.post("/api/v1/_e2e/mock-llm/clear")
+async def clear_mock_llm(request: Request) -> dict[str, Any]:
+    state = _state(request)
+    state["mock_llm"] = {}
+    state["mock_llm_calls"] = []
+    return {"cleared": True}
 
 
 @router.put("/api/v1/me/alert-settings")
