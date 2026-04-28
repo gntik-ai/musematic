@@ -39,7 +39,7 @@ VALID_CONTEXTS = {
     "workflows",
     "workspaces",
 }
-JOURNEY_FILE_PATTERN = re.compile(r"test_j\d{2}_[a-z_]+\.py$")
+JOURNEY_FILE_PATTERN = re.compile(r"test_j\d{2}_[a-z0-9_]+\.py$")
 HELPER_ASSERT_NAMES = {"wait_for_execution", "assert_event_order", "assert_checkpoint_resumed"}
 HELPER_CALLS_REQUIRING_JOURNEY_ID = {
     "attach_contract",
