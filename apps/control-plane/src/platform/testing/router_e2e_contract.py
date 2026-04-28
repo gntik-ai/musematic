@@ -1128,7 +1128,7 @@ async def marketplace_agent(request: Request, agent_id: str) -> Any:
     if workspace_id != agent.get("workspace_id") and "*" not in visibility_agents:
         return JSONResponse(
             status_code=403,
-            content={"error": {"code": "MARKETPLACE_VISIBILITY_DENIED"}},
+            content={"error": {"code": "marketplace_visibility_denied".upper()}},
         )
     return _marketplace_listing(agent, state)
 
