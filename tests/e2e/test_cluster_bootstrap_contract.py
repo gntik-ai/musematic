@@ -145,9 +145,11 @@ def test_e2e_observability_jaeger_uses_memory_without_badger_pvc() -> None:
 def test_e2e_observability_promtail_uses_kind_host_log_permissions() -> None:
     values = (ROOT / 'deploy/helm/observability/values.yaml').read_text()
     e2e_values = (ROOT / 'deploy/helm/observability/values-e2e.yaml').read_text()
+    e2e_values_dict = _load_yaml('deploy/helm/observability/values-e2e.yaml')
     promtail_section = e2e_values.split('\npromtail:\n', 1)[1]
 
     assert 'extraScrapeConfigs' not in values
+    assert e2e_values_dict['promtail']['readinessProbe'] is None
     assert 'runAsNonRoot: false' in promtail_section
     assert 'runAsUser: 0' in promtail_section
     assert 'runAsGroup: 0' in promtail_section
