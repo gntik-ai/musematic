@@ -40,6 +40,7 @@ def _state(request: Request) -> dict[str, Any]:
                 "id": BASE_WORKSPACE_ID,
                 "name": "test-workspace-alpha",
                 "display_name": "test-workspace-alpha",
+                "status": "active",
             }
         },
         "workspace_name_index": {"test-workspace-alpha": BASE_WORKSPACE_ID},
@@ -456,6 +457,7 @@ async def create_workspace(request: Request, payload: dict[str, Any]) -> dict[st
         "id": workspace_id,
         "name": name,
         "display_name": payload.get("display_name") or payload.get("description") or name,
+        "status": "active",
     }
     state["workspaces"][workspace_id] = workspace
     state["workspace_name_index"][name] = workspace_id
@@ -465,6 +467,16 @@ async def create_workspace(request: Request, payload: dict[str, Any]) -> dict[st
 @router.get("/api/v1/workspaces")
 async def list_workspaces(request: Request) -> dict[str, Any]:
     return _items(_state(request)["workspaces"].values())
+
+
+@router.get("/api/v1/workspaces/{workspace_id}")
+async def get_workspace(request: Request, workspace_id: str) -> dict[str, Any]:
+    state = _state(request)
+    key = state["workspace_name_index"].get(workspace_id, workspace_id)
+    workspace = state["workspaces"].get(key)
+    if not workspace:
+        raise HTTPException(status_code=404)
+    return workspace
 
 
 @router.delete("/api/v1/workspaces/{workspace_id}")
