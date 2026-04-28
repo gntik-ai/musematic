@@ -118,7 +118,7 @@
 
 ## Phase 8: Polish & Cross-Cutting Concerns
 
-- [ ] T032 [P] Verify migration integrity: run `make migrate-check` to confirm migration 053 applies cleanly on top of 052; verify `registry_agent_profiles.mcp_server_refs` column exists and defaults to `[]`
+- [X] T032 [P] Verify migration integrity: run `make migrate-check` to confirm migration 053 applies cleanly on top of 052; verify `registry_agent_profiles.mcp_server_refs` column exists and defaults to `[]`
 - [X] T033 [P] Add `mcp/dependencies.py` with `get_mcp_service()`, `get_mcp_tool_registry()` FastAPI dependency factories following the pattern in `a2a_gateway/` — inject `MCPRepository`, `MCPService`, `MCPToolRegistry` via `Depends` in `mcp/router.py` and `a2a_gateway/router.py`
 - [X] T034 Validate acceptance scenarios S1–S25 from `specs/066-mcp-integration/quickstart.md` against the implemented endpoints and service interfaces
 
