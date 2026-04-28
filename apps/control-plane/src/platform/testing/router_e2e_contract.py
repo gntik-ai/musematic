@@ -111,6 +111,9 @@ def _state(request: Request) -> dict[str, Any]:
         "mock_llm_calls": [],
         "me_alert_settings": {},
         "db_values": {},
+        "network_partitions": {},
+        "slow_policies": {},
+        "s3_credentials_revoked": False,
     }
     for namespace, local_name, role_type in (
         ("default", "seeded-executor", "executor"),
@@ -544,6 +547,111 @@ async def kafka_events(
     return {"events": items, "total": len(items)}
 
 
+@router.post("/api/v1/_e2e/kafka/burst", status_code=status.HTTP_201_CREATED)
+async def kafka_burst(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
+    topic = str(payload.get("topic") or "execution.events")
+    count = int(payload.get("count") or 1)
+    burst_id = str(uuid4())
+    for index in range(max(count, 0)):
+        _record_event(
+            request,
+            topic,
+            {
+                "id": f"{burst_id}:{index}",
+                "burst_id": burst_id,
+                "event_type": "e2e.kafka.burst",
+                "sequence": index,
+                "topic": topic,
+            },
+        )
+    return {"id": burst_id, "topic": topic, "count": count}
+
+
+@router.post("/api/v1/_e2e/chaos/restart-statefulset")
+async def restart_statefulset(payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "restarted": True,
+        "namespace": payload.get("namespace"),
+        "name": payload.get("name"),
+        "restarted_at": _now(),
+    }
+
+
+@router.post("/api/v1/_e2e/chaos/partition-network", status_code=status.HTTP_201_CREATED)
+async def partition_network(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
+    name = f"e2e-partition-{uuid4().hex[:12]}"
+    partition = {
+        "network_policy_name": name,
+        "partitioned": True,
+        "from_namespace": payload.get("from_namespace"),
+        "to_namespace": payload.get("to_namespace"),
+        "ttl_seconds": payload.get("ttl_seconds"),
+        "created_at": _now(),
+    }
+    _state(request)["network_partitions"][name] = partition
+    return partition
+
+
+@router.delete("/api/v1/_e2e/chaos/partition-network/{network_policy_name}")
+async def delete_network_partition(request: Request, network_policy_name: str) -> Response:
+    _state(request)["network_partitions"].pop(network_policy_name, None)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/api/v1/_e2e/policies/slow", status_code=status.HTTP_201_CREATED)
+async def create_slow_policy(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
+    policy_id = str(uuid4())
+    policy = {
+        "id": policy_id,
+        "delay_seconds": payload.get("delay_seconds"),
+        "created_at": _now(),
+    }
+    state = _state(request)
+    state["slow_policies"][policy_id] = policy
+    state["db_values"].setdefault("audit_timeout_reasons", {})[policy_id] = (
+        "policy evaluation exceeded E2E timeout"
+    )
+    return policy
+
+
+@router.delete("/api/v1/_e2e/policies/slow/{policy_id}")
+async def delete_slow_policy(request: Request, policy_id: str) -> Response:
+    state = _state(request)
+    state["slow_policies"].pop(policy_id, None)
+    state["db_values"].setdefault("audit_timeout_reasons", {}).pop(policy_id, None)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/api/v1/_e2e/chaos/kill-pod")
+async def kill_pod(payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "killed": [
+            {
+                "namespace": payload.get("namespace"),
+                "label_selector": payload.get("label_selector"),
+                "name": "e2e-simulated-pod",
+                "deleted_at": _now(),
+            }
+        ],
+        "count": int(payload.get("count") or 1),
+    }
+
+
+@router.post("/api/v1/_e2e/chaos/s3/rotate-credentials")
+async def rotate_s3_credentials(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
+    token = str(uuid4())
+    if payload.get("mode") == "revoke":
+        _state(request)["s3_credentials_revoked"] = True
+    return {"restore_token": token, "mode": payload.get("mode"), "rotated": True}
+
+
+@router.post("/api/v1/_e2e/chaos/s3/restore-credentials")
+async def restore_s3_credentials(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
+    del payload
+    _state(request)["s3_credentials_revoked"] = False
+    return {"restored": True}
+
+
 @router.get("/api/v1/_e2e/contract/ws-events")
 async def contract_ws_events(
     request: Request,
@@ -574,6 +682,13 @@ async def contract_db_fetchval(request: Request, payload: dict[str, Any]) -> dic
     if "from trust_surveillance_signals" in query:
         signal_id = str(args[0]) if args else ""
         return {"value": 1 if signal_id in state["db_values"].get("trust_signals", set()) else 0}
+    if "from audit_events" in query and "timeout_reason" in query:
+        correlation_id = str(args[0]) if args else ""
+        return {
+            "value": state["db_values"]
+            .get("audit_timeout_reasons", {})
+            .get(correlation_id)
+        }
     return {"value": None}
 
 
@@ -1387,13 +1502,20 @@ def _execution_event_for(payload: dict[str, Any]) -> dict[str, Any]:
 
 @router.post("/api/v1/executions", status_code=status.HTTP_201_CREATED)
 async def create_execution(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
-    if "ignore previous instructions" in str(payload.get("input", "")).lower():
+    state = _state(request)
+    input_text = str(payload.get("input") or "")
+    lowered_input = input_text.lower()
+    if "ignore previous instructions" in lowered_input:
         _record_event(
             request,
             "trust.events",
             {"event_type": "trust.screener.blocked", "agent_fqn": payload.get("agent_fqn")},
         )
         raise HTTPException(status_code=400, detail="blocked by E2E pre-screener")
+    if state["network_partitions"] and "needs data" in lowered_input:
+        raise HTTPException(status_code=503, detail="dependency unreachable during E2E partition")
+    if state["slow_policies"] and "slow policy" in lowered_input:
+        raise HTTPException(status_code=503, detail="policy evaluation timed out")
 
     execution_id = str(uuid4())
     workspace_id = str(payload.get("workspace_id") or _workspace_id_from_request(request))
@@ -1419,7 +1541,8 @@ async def create_execution(request: Request, payload: dict[str, Any]) -> dict[st
         "created_at": _now(),
         "completed_at": "2026-01-01T00:00:00+00:00",
     }
-    state = _state(request)
+    if payload.get("reasoning_mode") == "cot":
+        execution["trace_ack"] = 1
     state["executions"][execution_id] = execution
     if interaction_id:
         assistant_message = {
@@ -1437,6 +1560,13 @@ async def create_execution(request: Request, payload: dict[str, Any]) -> dict[st
     if payload.get("gid"):
         event["gid"] = payload["gid"]
     _record_event(request, "execution.events", event)
+    if payload.get("reasoning_mode") == "cot":
+        _record_ws(
+            request,
+            "reasoning",
+            "trace.step",
+            {"execution_id": execution_id, "sequence": 1, "status": "completed"},
+        )
     _record_ws(request, "runtime", "warm_pool.replenished", {"ready": 1})
     await _emit_event(
         request,
@@ -2460,7 +2590,14 @@ async def me_unread_alert_count(
 
 
 @router.post("/api/v1/storage/artifacts", status_code=status.HTTP_201_CREATED)
-async def create_artifact(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
+async def create_artifact(
+    request: Request, payload: dict[str, Any]
+) -> dict[str, Any] | JSONResponse:
+    if _state(request).get("s3_credentials_revoked"):
+        return JSONResponse(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            content={"detail": "S3CredentialError: credentials revoked"},
+        )
     artifact_id = str(uuid4())
     content = str(payload.get("content") or "")
     checksum = payload.get("sha256") or hashlib.sha256(content.encode()).hexdigest()
