@@ -8,8 +8,9 @@ from collections.abc import Mapping
 from datetime import UTC, datetime
 from io import BytesIO
 from platform.common.dependencies import get_current_user
+from platform.common.events.envelope import CorrelationContext, make_envelope
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse, StreamingResponse
@@ -84,13 +85,18 @@ def _state(request: Request) -> dict[str, Any]:
         "conversation_messages": {},
         "conversation_branches": {},
         "interactions": {},
+        "interaction_messages": {},
         "alerts": {},
+        "attention_requests": {},
         "artifacts": {},
         "certifications": {},
         "contracts": {},
         "policies": {},
         "policy_attachments": {},
         "governance_chains": {},
+        "workspace_settings": {},
+        "agent_decision_configs": {},
+        "goal_messages": {},
         "eval_sets": {},
         "eval_cases": {},
         "eval_runs": {},
@@ -100,6 +106,8 @@ def _state(request: Request) -> dict[str, Any]:
         "workspace_visibility": {},
         "events": {},
         "ws_events": [],
+        "mock_llm": {},
+        "me_alert_settings": {},
         "db_values": {},
     }
     for namespace, local_name, role_type in (
@@ -172,6 +180,210 @@ def _record_ws(request: Request, channel: str, event: str, payload: dict[str, An
 
 def _workspace_id_from_request(request: Request) -> str:
     return request.headers.get("x-workspace-id") or BASE_WORKSPACE_ID
+
+
+def _user_id(current_user: dict[str, Any] | None) -> str:
+    if not current_user:
+        return BASE_USER_ID
+    return str(current_user.get("sub") or current_user.get("id") or BASE_USER_ID)
+
+
+def _uuid_or_none(value: Any) -> UUID | None:
+    if value in {None, ""}:
+        return None
+    try:
+        return UUID(str(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _correlation_dict(
+    *,
+    workspace_id: str | None = None,
+    conversation_id: str | None = None,
+    interaction_id: str | None = None,
+    execution_id: str | None = None,
+    goal_id: str | None = None,
+    agent_fqn: str | None = None,
+) -> dict[str, Any]:
+    return {
+        key: value
+        for key, value in {
+            "workspace_id": workspace_id,
+            "conversation_id": conversation_id,
+            "interaction_id": interaction_id,
+            "execution_id": execution_id,
+            "goal_id": goal_id,
+            "agent_fqn": agent_fqn,
+        }.items()
+        if value is not None
+    }
+
+
+def _correlation_context(
+    *,
+    workspace_id: str | None = None,
+    conversation_id: str | None = None,
+    interaction_id: str | None = None,
+    execution_id: str | None = None,
+    goal_id: str | None = None,
+    agent_fqn: str | None = None,
+) -> CorrelationContext:
+    return CorrelationContext(
+        workspace_id=_uuid_or_none(workspace_id),
+        conversation_id=_uuid_or_none(conversation_id),
+        interaction_id=_uuid_or_none(interaction_id),
+        execution_id=_uuid_or_none(execution_id),
+        goal_id=_uuid_or_none(goal_id),
+        agent_fqn=agent_fqn,
+        correlation_id=uuid4(),
+    )
+
+
+async def _emit_event(
+    request: Request,
+    topic: str,
+    *,
+    key: str,
+    event_type: str,
+    payload: dict[str, Any],
+    workspace_id: str | None = None,
+    conversation_id: str | None = None,
+    interaction_id: str | None = None,
+    execution_id: str | None = None,
+    goal_id: str | None = None,
+    agent_fqn: str | None = None,
+) -> dict[str, Any]:
+    correlation = _correlation_dict(
+        workspace_id=workspace_id,
+        conversation_id=conversation_id,
+        interaction_id=interaction_id,
+        execution_id=execution_id,
+        goal_id=goal_id,
+        agent_fqn=agent_fqn,
+    )
+    event = _record_event(
+        request,
+        topic,
+        {
+            "key": key,
+            "event_type": event_type,
+            "payload": payload,
+            "correlation_context": correlation,
+        },
+    )
+    envelope = make_envelope(
+        event_type=event_type,
+        source="platform.testing.e2e_contract",
+        payload=payload,
+        correlation_context=_correlation_context(
+            workspace_id=workspace_id,
+            conversation_id=conversation_id,
+            interaction_id=interaction_id,
+            execution_id=execution_id,
+            goal_id=goal_id,
+            agent_fqn=agent_fqn,
+        ),
+    )
+    raw = envelope.model_dump_json().encode("utf-8")
+
+    fanout = getattr(request.app.state, "fanout", None)
+    route_event = getattr(fanout, "_route_event", None)
+    if callable(route_event):
+        try:
+            await route_event(topic, raw)
+        except Exception:
+            pass
+
+    clients = getattr(request.app.state, "clients", {})
+    producer = clients.get("kafka") if isinstance(clients, dict) else None
+    ensure_producer = getattr(producer, "_ensure_producer", None)
+    if callable(ensure_producer):
+        try:
+            kafka = await ensure_producer()
+            await kafka.send_and_wait(topic, raw, key=key.encode("utf-8"))
+        except Exception:
+            pass
+    return event
+
+
+def _default_workspace_settings(workspace_id: str) -> dict[str, Any]:
+    return {
+        "workspace_id": workspace_id,
+        "subscribed_agents": [],
+        "updated_at": _now(),
+    }
+
+
+def _default_alert_settings(user_id: str) -> dict[str, Any]:
+    return {
+        "user_id": user_id,
+        "state_transitions": [],
+        "delivery_method": "in_app",
+        "webhook_url": None,
+        "updated_at": _now(),
+    }
+
+
+def _message_count(state: dict[str, Any], conversation_id: str) -> int:
+    return sum(
+        1
+        for item in state["interaction_messages"].values()
+        if item.get("conversation_id") == conversation_id
+    ) + sum(
+        1
+        for item in state["conversation_messages"].values()
+        if item.get("conversation_id") == conversation_id
+    )
+
+
+def _conversation_with_count(state: dict[str, Any], conversation: dict[str, Any]) -> dict[str, Any]:
+    return {
+        **conversation,
+        "message_count": _message_count(state, str(conversation["id"])),
+    }
+
+
+def _add_me_alert(
+    request: Request,
+    *,
+    user_id: str,
+    workspace_id: str,
+    title: str,
+    alert_type: str,
+    source_reference: dict[str, Any],
+) -> dict[str, Any]:
+    alert = {
+        "id": str(uuid4()),
+        "user_id": user_id,
+        "workspace_id": workspace_id,
+        "title": title,
+        "alert_type": alert_type,
+        "source_reference": source_reference,
+        "read": False,
+        "created_at": _now(),
+    }
+    _state(request)["alerts"][alert["id"]] = alert
+    return alert
+
+
+def _execution_step(execution: dict[str, Any]) -> dict[str, Any]:
+    agent_fqn = execution.get("agent_fqn") or "default:seeded-executor"
+    return {
+        "step_id": "run_agent",
+        "execution_id": execution["id"],
+        "name": "Run selected agent",
+        "status": "completed",
+        "parameters": execution.get("input_parameters") or {"input": execution.get("input")},
+        "considered_agents": [agent_fqn],
+        "selected_agent_fqn": agent_fqn,
+        "started_at": execution.get("created_at"),
+        "completed_at": execution.get("completed_at"),
+    }
+
+
+def _goal_gid(goal: dict[str, Any], goal_id: str) -> str:
+    return str(goal.get("gid") or goal_id)
 
 
 async def _uploaded_package_bytes(form: Mapping[str, Any]) -> bytes:
@@ -252,6 +464,31 @@ def _stable_output(payload: dict[str, Any]) -> str:
 @router.get("/api/v1/_e2e/contract/events")
 async def contract_events(request: Request, topic: str = Query(...)) -> dict[str, Any]:
     return _items(_event_store(request, topic))
+
+
+@router.get("/api/v1/_e2e/kafka/events")
+async def kafka_events(
+    request: Request,
+    topic: str = Query(...),
+    key: str | None = Query(default=None),
+    limit: int = Query(default=200),
+) -> dict[str, Any]:
+    del limit
+    items = [
+        {
+            "topic": topic,
+            "key": item.get("key"),
+            "payload": {
+                field: value
+                for field, value in item.items()
+                if field not in {"key", "recorded_at"}
+            },
+            "recorded_at": item.get("recorded_at"),
+        }
+        for item in _event_store(request, topic)
+        if key is None or item.get("key") == key
+    ]
+    return {"events": items, "total": len(items)}
 
 
 @router.get("/api/v1/_e2e/contract/ws-events")
@@ -766,6 +1003,61 @@ async def get_workspace_visibility(request: Request, workspace_id: str) -> dict[
     )
 
 
+@router.patch("/api/v1/workspaces/{workspace_id}/settings")
+async def patch_workspace_settings(
+    request: Request, workspace_id: str, payload: dict[str, Any]
+) -> dict[str, Any]:
+    state = _state(request)
+    if workspace_id not in state["workspaces"]:
+        raise HTTPException(status_code=404)
+    settings = state.setdefault("workspace_settings", {}).setdefault(
+        workspace_id, _default_workspace_settings(workspace_id)
+    )
+    if "subscribed_agents" in payload:
+        settings["subscribed_agents"] = list(payload.get("subscribed_agents") or [])
+    settings["updated_at"] = _now()
+    return settings
+
+
+@router.get("/api/v1/workspaces/{workspace_id}/settings")
+async def get_workspace_settings(request: Request, workspace_id: str) -> dict[str, Any]:
+    state = _state(request)
+    if workspace_id not in state["workspaces"]:
+        raise HTTPException(status_code=404)
+    return state.setdefault("workspace_settings", {}).setdefault(
+        workspace_id, _default_workspace_settings(workspace_id)
+    )
+
+
+@router.put("/api/v1/workspaces/{workspace_id}/agent-decision-configs/{agent_fqn}")
+async def put_agent_decision_config(
+    request: Request, workspace_id: str, agent_fqn: str, payload: dict[str, Any]
+) -> dict[str, Any]:
+    state = _state(request)
+    if workspace_id not in state["workspaces"]:
+        raise HTTPException(status_code=404)
+    config = {
+        "workspace_id": workspace_id,
+        "agent_fqn": agent_fqn,
+        "response_decision_strategy": payload.get("response_decision_strategy", "keyword"),
+        "response_decision_config": dict(payload.get("response_decision_config") or {}),
+        "updated_at": _now(),
+    }
+    state.setdefault("agent_decision_configs", {})[f"{workspace_id}:{agent_fqn}"] = config
+    return config
+
+
+@router.get("/api/v1/workspaces/{workspace_id}/agent-decision-configs/{agent_fqn}")
+async def get_agent_decision_config(
+    request: Request, workspace_id: str, agent_fqn: str
+) -> dict[str, Any]:
+    state = _state(request)
+    config = state.setdefault("agent_decision_configs", {}).get(f"{workspace_id}:{agent_fqn}")
+    if not config:
+        raise HTTPException(status_code=404)
+    return config
+
+
 @router.put("/api/v1/workspaces/{workspace_id}/governance-chain")
 async def update_workspace_governance_chain(
     request: Request, workspace_id: str, payload: dict[str, Any]
@@ -858,15 +1150,30 @@ async def list_goals(request: Request, workspace_id: str) -> dict[str, Any]:
 async def create_goal(
     request: Request, workspace_id: str, payload: dict[str, Any]
 ) -> dict[str, Any]:
+    if workspace_id not in _state(request)["workspaces"]:
+        raise HTTPException(status_code=404)
     goal_id = str(uuid4())
     goal = {
         "id": goal_id,
         "gid": goal_id,
         "workspace_id": workspace_id,
         "title": payload.get("title"),
-        "state": "open",
+        "description": payload.get("description"),
+        "auto_complete_timeout_seconds": payload.get("auto_complete_timeout_seconds"),
+        "status": "open",
+        "state": "ready",
+        "created_at": _now(),
     }
     _state(request)["goals"][goal_id] = goal
+    await _emit_event(
+        request,
+        "workspaces.events",
+        key=workspace_id,
+        event_type="workspaces.goal.created",
+        payload={"workspace_id": workspace_id, "goal_id": goal_id, "gid": goal_id},
+        workspace_id=workspace_id,
+        goal_id=goal_id,
+    )
     return goal
 
 
@@ -877,6 +1184,7 @@ async def patch_goal(
     del workspace_id
     goal = _state(request)["goals"].setdefault(goal_id, {"id": goal_id, "gid": goal_id})
     goal["state"] = payload.get("status") or payload.get("state") or goal.get("state", "open")
+    goal["status"] = payload.get("status") or goal.get("status", "open")
     return goal
 
 
@@ -885,9 +1193,120 @@ async def get_goal(request: Request, workspace_id: str, goal_id: str) -> dict[st
     del workspace_id
     goal = _state(request)["goals"].setdefault(
         goal_id,
-        {"id": goal_id, "gid": goal_id, "workspace_id": BASE_WORKSPACE_ID, "state": "open"},
+        {
+            "id": goal_id,
+            "gid": goal_id,
+            "workspace_id": BASE_WORKSPACE_ID,
+            "status": "open",
+            "state": "open",
+        },
     )
     return goal
+
+
+@router.post(
+    "/api/v1/workspaces/{workspace_id}/goals/{goal_id}/messages",
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_goal_message(
+    request: Request,
+    workspace_id: str,
+    goal_id: str,
+    payload: dict[str, Any],
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> JSONResponse:
+    state = _state(request)
+    goal = state["goals"].get(goal_id)
+    if not goal or goal.get("workspace_id") != workspace_id:
+        raise HTTPException(status_code=404)
+    if goal.get("state") == "complete":
+        raise HTTPException(status_code=409, detail="goal is complete")
+
+    agent_fqn = request.headers.get("x-agent-fqn")
+    participant_identity = agent_fqn or _user_id(current_user)
+    message_id = str(uuid4())
+    gid = request.headers.get("x-goal-id") or _goal_gid(goal, goal_id)
+    message = {
+        "id": message_id,
+        "workspace_id": workspace_id,
+        "goal_id": goal_id,
+        "gid": gid,
+        "interaction_id": payload.get("interaction_id"),
+        "participant_identity": participant_identity,
+        "message_type": "agent" if agent_fqn else "user",
+        "content": payload.get("content"),
+        "metadata": dict(payload.get("metadata") or {}),
+        "created_at": _now(),
+    }
+    state.setdefault("goal_messages", {}).setdefault(goal_id, []).append(message)
+    if not agent_fqn and goal.get("state") == "ready":
+        goal["state"] = "working"
+    if payload.get("interaction_id") and payload["interaction_id"] in state["interactions"]:
+        state["interactions"][payload["interaction_id"]]["goal_id"] = goal_id
+    return JSONResponse(
+        content=message,
+        status_code=status.HTTP_201_CREATED,
+        headers={"X-Goal-Id": gid},
+    )
+
+
+@router.get("/api/v1/workspaces/{workspace_id}/goals/{goal_id}/messages")
+async def list_goal_messages(
+    request: Request,
+    workspace_id: str,
+    goal_id: str,
+    page: int = Query(default=1),
+    page_size: int = Query(default=50),
+) -> dict[str, Any]:
+    del workspace_id
+    start = max(page - 1, 0) * page_size
+    items = list(_state(request).setdefault("goal_messages", {}).get(goal_id, []))
+    return {"items": items[start : start + page_size], "total": len(items)}
+
+
+@router.get("/api/v1/workspaces/{workspace_id}/goals/{goal_id}/messages/{message_id}/rationale")
+async def goal_message_rationale(
+    request: Request, workspace_id: str, goal_id: str, message_id: str
+) -> dict[str, Any]:
+    del goal_id, message_id
+    state = _state(request)
+    settings = state.setdefault("workspace_settings", {}).setdefault(
+        workspace_id, _default_workspace_settings(workspace_id)
+    )
+    items = [
+        {
+            "agent_fqn": agent_fqn,
+            "decision": "skip" if "notification" in agent_fqn else "respond",
+            "strategy": state.setdefault("agent_decision_configs", {})
+            .get(f"{workspace_id}:{agent_fqn}", {})
+            .get("response_decision_strategy", "keyword"),
+            "reason": "E2E deterministic collaboration routing",
+        }
+        for agent_fqn in settings.get("subscribed_agents", [])
+    ]
+    return _items(items)
+
+
+@router.post("/api/v1/workspaces/{workspace_id}/goals/{goal_id}/transition")
+async def transition_goal(
+    request: Request, workspace_id: str, goal_id: str, payload: dict[str, Any]
+) -> dict[str, Any]:
+    del workspace_id
+    goal = _state(request)["goals"].get(goal_id)
+    if not goal:
+        raise HTTPException(status_code=404)
+    old_state = str(goal.get("state") or "open")
+    new_state = str(payload.get("target_state") or payload.get("state") or old_state)
+    goal["state"] = new_state
+    if new_state == "complete":
+        goal["status"] = "closed"
+    return {
+        "goal_id": goal_id,
+        "old_state": old_state,
+        "new_state": new_state,
+        "reason": payload.get("reason"),
+        "gid": goal.get("gid"),
+    }
 
 
 def _execution_event_for(payload: dict[str, Any]) -> dict[str, Any]:
@@ -924,22 +1343,76 @@ async def create_execution(request: Request, payload: dict[str, Any]) -> dict[st
         raise HTTPException(status_code=400, detail="blocked by E2E pre-screener")
 
     execution_id = str(uuid4())
+    workspace_id = str(payload.get("workspace_id") or _workspace_id_from_request(request))
+    conversation_id = payload.get("correlation_conversation_id")
+    interaction_id = payload.get("correlation_interaction_id")
+    goal_id = payload.get("correlation_goal_id") or payload.get("goal_id")
     execution = {
         "id": execution_id,
+        "workspace_id": workspace_id,
         "state": "completed",
         "status": "completed",
         "agent_fqn": payload.get("agent_fqn"),
         "input": payload.get("input"),
+        "input_parameters": payload.get("input_parameters") or {},
+        "workflow_definition_id": payload.get("workflow_definition_id"),
+        "trigger_type": payload.get("trigger_type"),
+        "correlation_conversation_id": conversation_id,
+        "correlation_interaction_id": interaction_id,
+        "correlation_goal_id": goal_id,
         "response": _stable_output(payload),
         "output": _stable_output(payload),
+        "created_at": _now(),
         "completed_at": "2026-01-01T00:00:00+00:00",
     }
-    _state(request)["executions"][execution_id] = execution
+    state = _state(request)
+    state["executions"][execution_id] = execution
+    if interaction_id:
+        assistant_message = {
+            "id": str(uuid4()),
+            "interaction_id": str(interaction_id),
+            "conversation_id": str(conversation_id) if conversation_id else None,
+            "workspace_id": workspace_id,
+            "message_type": "assistant",
+            "content": execution["output"],
+            "execution_id": execution_id,
+            "created_at": _now(),
+        }
+        state.setdefault("interaction_messages", {})[assistant_message["id"]] = assistant_message
     event = {"execution_id": execution_id, **_execution_event_for(payload)}
     if payload.get("gid"):
         event["gid"] = payload["gid"]
     _record_event(request, "execution.events", event)
     _record_ws(request, "runtime", "warm_pool.replenished", {"ready": 1})
+    await _emit_event(
+        request,
+        "execution.events",
+        key=execution_id,
+        event_type="execution.status_changed",
+        payload={"execution_id": execution_id, "status": "completed"},
+        workspace_id=workspace_id,
+        conversation_id=str(conversation_id) if conversation_id else None,
+        interaction_id=str(interaction_id) if interaction_id else None,
+        execution_id=execution_id,
+        goal_id=str(goal_id) if goal_id else None,
+    )
+    await _emit_event(
+        request,
+        "runtime.reasoning",
+        key=execution_id,
+        event_type="reasoning.trace_emitted",
+        payload={
+            "execution_id": execution_id,
+            "step_id": "run_agent",
+            "technique": "workflow",
+            "status": "completed",
+        },
+        workspace_id=workspace_id,
+        conversation_id=str(conversation_id) if conversation_id else None,
+        interaction_id=str(interaction_id) if interaction_id else None,
+        execution_id=execution_id,
+        goal_id=str(goal_id) if goal_id else None,
+    )
     if payload.get("contract_id") or payload.get("action") == "secret.lookup":
         _record_event(
             request,
@@ -955,6 +1428,66 @@ async def get_execution(request: Request, execution_id: str) -> dict[str, Any]:
     if not execution:
         raise HTTPException(status_code=404)
     return execution
+
+
+@router.get("/api/v1/executions/{execution_id}/task-plan")
+async def execution_task_plan(request: Request, execution_id: str) -> list[dict[str, Any]]:
+    execution = _state(request)["executions"].get(execution_id)
+    if not execution:
+        raise HTTPException(status_code=404)
+    return [_execution_step(execution)]
+
+
+@router.get("/api/v1/executions/{execution_id}/task-plan/{step_id}")
+async def execution_task_plan_step(
+    request: Request, execution_id: str, step_id: str
+) -> dict[str, Any]:
+    execution = _state(request)["executions"].get(execution_id)
+    if not execution:
+        raise HTTPException(status_code=404)
+    step = _execution_step(execution)
+    step["step_id"] = step_id
+    return step
+
+
+@router.get("/api/v1/executions/{execution_id}/reasoning-trace")
+async def execution_reasoning_trace(
+    request: Request, execution_id: str, step_id: str | None = Query(default=None)
+) -> dict[str, Any]:
+    execution = _state(request)["executions"].get(execution_id)
+    if not execution:
+        raise HTTPException(status_code=404)
+    step = _execution_step(execution)
+    if step_id:
+        step["step_id"] = step_id
+    return {
+        "execution_id": execution_id,
+        "steps": [
+            {
+                "step_id": step["step_id"],
+                "technique": "workflow",
+                "status": "completed",
+                "summary": "E2E contract reasoning trace",
+            }
+        ],
+    }
+
+
+@router.get("/api/v1/executions/{execution_id}/journal")
+async def execution_journal(request: Request, execution_id: str) -> dict[str, Any]:
+    execution = _state(request)["executions"].get(execution_id)
+    if not execution:
+        raise HTTPException(status_code=404)
+    return _items(
+        [
+            {
+                "id": str(uuid4()),
+                "execution_id": execution_id,
+                "event_type": "execution.completed",
+                "created_at": execution.get("completed_at"),
+            }
+        ]
+    )
 
 
 @router.post("/api/v1/executions/{execution_id}/rollback")
@@ -1360,16 +1893,114 @@ async def ibor_sync(request: Request, payload: dict[str, Any]) -> dict[str, Any]
 
 
 @router.post("/api/v1/interactions/attention", status_code=status.HTTP_201_CREATED)
-async def attention(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
-    item = {"id": str(uuid4()), **payload}
-    _record_event(request, "interaction.events", {"event_type": "interaction.attention", **item})
-    _record_ws(request, "attention", "request.created", item)
+async def attention(
+    request: Request,
+    payload: dict[str, Any],
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> JSONResponse:
+    workspace_id = str(payload.get("workspace_id") or _workspace_id_from_request(request))
+    target_identity = str(payload.get("target_identity") or _user_id(current_user))
+    source_agent_fqn = request.headers.get("x-agent-fqn") or str(
+        payload.get("source_agent_fqn") or "default:seeded-executor"
+    )
+    goal_id = str(payload.get("related_goal_id") or request.headers.get("x-goal-id") or "")
+    item = {
+        "id": str(uuid4()),
+        "workspace_id": workspace_id,
+        "source_agent_fqn": source_agent_fqn,
+        "target_identity": target_identity,
+        "status": "pending",
+        "created_at": _now(),
+        **payload,
+    }
+    item["source_agent_fqn"] = source_agent_fqn
+    item["target_identity"] = target_identity
+    item["related_goal_id"] = goal_id or payload.get("related_goal_id")
+    _state(request).setdefault("attention_requests", {})[item["id"]] = item
+    _add_me_alert(
+        request,
+        user_id=target_identity,
+        workspace_id=workspace_id,
+        title="Attention requested",
+        alert_type="attention_request",
+        source_reference={"type": "attention_request", "id": item["id"]},
+    )
+    event_payload = {**item, "alert_already_created": True}
+    await _emit_event(
+        request,
+        "interaction.attention",
+        key=target_identity,
+        event_type="attention.requested",
+        payload=event_payload,
+        workspace_id=workspace_id,
+        interaction_id=str(payload.get("related_interaction_id"))
+        if payload.get("related_interaction_id")
+        else None,
+        goal_id=goal_id or None,
+        agent_fqn=source_agent_fqn,
+    )
+    _record_ws(request, "attention", "attention.requested", event_payload)
+    return JSONResponse(
+        content=item,
+        status_code=status.HTTP_201_CREATED,
+        headers={"X-Goal-Id": request.headers.get("x-goal-id") or goal_id},
+    )
+
+
+@router.get("/api/v1/interactions/attention")
+async def list_attention(
+    request: Request,
+    status_filter: str | None = Query(default=None, alias="status"),
+    page: int = Query(default=1),
+    page_size: int = Query(default=50),
+) -> dict[str, Any]:
+    items = list(_state(request).setdefault("attention_requests", {}).values())
+    if status_filter:
+        items = [item for item in items if item.get("status") == status_filter]
+    start = max(page - 1, 0) * page_size
+    return {"items": items[start : start + page_size], "total": len(items)}
+
+
+@router.post("/api/v1/interactions/attention/{attention_id}/resolve")
+async def resolve_attention(
+    request: Request, attention_id: str, payload: dict[str, Any]
+) -> dict[str, Any]:
+    del payload
+    item = _state(request).setdefault("attention_requests", {}).get(attention_id)
+    if not item:
+        raise HTTPException(status_code=404)
+    item["status"] = "resolved"
+    item["resolved_at"] = _now()
     return item
 
 
+@router.get("/api/v1/interactions")
+async def list_interactions(
+    request: Request,
+    conversation_id: str | None = Query(default=None),
+    workspace_id: str | None = Query(default=None),
+) -> dict[str, Any]:
+    items = list(_state(request)["interactions"].values())
+    if conversation_id:
+        items = [item for item in items if item.get("conversation_id") == conversation_id]
+    if workspace_id:
+        items = [item for item in items if item.get("workspace_id") == workspace_id]
+    return _items(items)
+
+
 @router.post("/api/v1/interactions", status_code=status.HTTP_201_CREATED)
+@router.post("/api/v1/interactions/", status_code=status.HTTP_201_CREATED)
 async def create_interaction(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
-    item = {"id": str(uuid4()), **payload}
+    workspace_id = str(payload.get("workspace_id") or _workspace_id_from_request(request))
+    item = {
+        "id": str(uuid4()),
+        "workspace_id": workspace_id,
+        "state": payload.get("state", "created"),
+        "conversation_id": payload.get("conversation_id"),
+        "goal_id": payload.get("goal_id"),
+        "created_at": _now(),
+        **payload,
+    }
     _state(request)["interactions"][item["id"]] = item
     if gid := payload.get("gid"):
         _state(request)["goals"].setdefault(str(gid), {"gid": gid})["state"] = "in_progress"
@@ -1379,6 +2010,135 @@ async def create_interaction(request: Request, payload: dict[str, Any]) -> dict[
             request, "execution.events", {"event_type": "execution.completed", "gid": gid}
         )
     return item
+
+
+@router.post("/api/v1/interactions/{interaction_id}/transition")
+async def transition_interaction(
+    request: Request,
+    interaction_id: str,
+    payload: dict[str, Any],
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    interaction = _state(request)["interactions"].get(interaction_id)
+    if not interaction:
+        raise HTTPException(status_code=404)
+    trigger = str(payload.get("trigger") or payload.get("target_state") or "")
+    old_state = str(interaction.get("state") or "created")
+    new_state = {
+        "ready": "ready",
+        "start": "running",
+        "complete": "completed",
+    }.get(trigger, trigger or old_state)
+    interaction["state"] = new_state
+    interaction["updated_at"] = _now()
+    conversation_id = interaction.get("conversation_id")
+    workspace_id = str(interaction.get("workspace_id") or _workspace_id_from_request(request))
+    if conversation_id and new_state in {"running", "completed"}:
+        event_type = "interaction.started" if new_state == "running" else "interaction.completed"
+        await _emit_event(
+            request,
+            "interaction.events",
+            key=str(conversation_id),
+            event_type=event_type,
+            payload={
+                "interaction_id": interaction_id,
+                "conversation_id": conversation_id,
+                "state": new_state,
+            },
+            workspace_id=workspace_id,
+            conversation_id=str(conversation_id),
+            interaction_id=interaction_id,
+            goal_id=str(interaction.get("goal_id")) if interaction.get("goal_id") else None,
+        )
+    if new_state == "completed":
+        user_id = _user_id(current_user)
+        settings = _state(request).setdefault("me_alert_settings", {}).get(user_id, {})
+        if "any_to_complete" in set(settings.get("state_transitions") or []):
+            _add_me_alert(
+                request,
+                user_id=user_id,
+                workspace_id=workspace_id,
+                title="Interaction transitioned to completed",
+                alert_type="state_transition",
+                source_reference={"type": "interaction", "id": interaction_id},
+            )
+    return {**interaction, "old_state": old_state}
+
+
+@router.post("/api/v1/interactions/{interaction_id}/messages", status_code=status.HTTP_201_CREATED)
+async def create_interaction_message(
+    request: Request, interaction_id: str, payload: dict[str, Any]
+) -> dict[str, Any]:
+    interaction = _state(request)["interactions"].get(interaction_id)
+    if not interaction:
+        raise HTTPException(status_code=404)
+    message = {
+        "id": str(uuid4()),
+        "interaction_id": interaction_id,
+        "conversation_id": interaction.get("conversation_id"),
+        "workspace_id": interaction.get("workspace_id"),
+        "message_type": payload.get("message_type", "user"),
+        "content": payload.get("content"),
+        "metadata": dict(payload.get("metadata") or {}),
+        "created_at": _now(),
+    }
+    _state(request).setdefault("interaction_messages", {})[message["id"]] = message
+    if conversation_id := interaction.get("conversation_id"):
+        await _emit_event(
+            request,
+            "interaction.events",
+            key=str(conversation_id),
+            event_type="message.received",
+            payload=message,
+            workspace_id=str(interaction.get("workspace_id")),
+            conversation_id=str(conversation_id),
+            interaction_id=interaction_id,
+            goal_id=str(interaction.get("goal_id")) if interaction.get("goal_id") else None,
+        )
+    return message
+
+
+@router.get("/api/v1/interactions/{interaction_id}/messages")
+async def list_interaction_messages(request: Request, interaction_id: str) -> dict[str, Any]:
+    items = [
+        item
+        for item in _state(request).setdefault("interaction_messages", {}).values()
+        if item.get("interaction_id") == interaction_id
+    ]
+    return _items(items)
+
+
+@router.post("/api/v1/interactions/{interaction_id}/inject")
+async def inject_interaction_message(
+    request: Request, interaction_id: str, payload: dict[str, Any]
+) -> dict[str, Any]:
+    interaction = _state(request)["interactions"].get(interaction_id)
+    if not interaction:
+        raise HTTPException(status_code=404)
+    message = {
+        "id": str(uuid4()),
+        "interaction_id": interaction_id,
+        "conversation_id": interaction.get("conversation_id"),
+        "workspace_id": interaction.get("workspace_id"),
+        "message_type": "injection",
+        "content": payload.get("content"),
+        "metadata": dict(payload.get("metadata") or {}),
+        "created_at": _now(),
+    }
+    _state(request).setdefault("interaction_messages", {})[message["id"]] = message
+    if conversation_id := interaction.get("conversation_id"):
+        await _emit_event(
+            request,
+            "interaction.events",
+            key=str(conversation_id),
+            event_type="message.received",
+            payload=message,
+            workspace_id=str(interaction.get("workspace_id")),
+            conversation_id=str(conversation_id),
+            interaction_id=interaction_id,
+            goal_id=str(interaction.get("goal_id")) if interaction.get("goal_id") else None,
+        )
+    return message
 
 
 @router.post("/api/v1/interactions/response-decisions", status_code=status.HTTP_201_CREATED)
@@ -1429,9 +2189,29 @@ async def dismiss_alert(request: Request, alert_id: str) -> dict[str, Any]:
 
 @router.post("/api/v1/interactions/conversations", status_code=status.HTTP_201_CREATED)
 async def create_conversation(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
-    conversation = {"id": str(uuid4()), "state": "open", **payload}
+    workspace_id = str(payload.get("workspace_id") or _workspace_id_from_request(request))
+    conversation = {
+        "id": str(uuid4()),
+        "workspace_id": workspace_id,
+        "state": "open",
+        "message_count": 0,
+        "created_at": _now(),
+        **payload,
+    }
     _state(request)["conversations"][conversation["id"]] = conversation
-    return conversation
+    return _conversation_with_count(_state(request), conversation)
+
+
+@router.get("/api/v1/interactions/conversations")
+async def list_conversations(request: Request) -> dict[str, Any]:
+    state = _state(request)
+    workspace_id = _workspace_id_from_request(request)
+    items = [
+        _conversation_with_count(state, item)
+        for item in state["conversations"].values()
+        if item.get("workspace_id") == workspace_id
+    ]
+    return _items(items)
 
 
 @router.post(
@@ -1477,7 +2257,101 @@ async def close_conversation(request: Request, conversation_id: str) -> dict[str
 
 @router.get("/api/v1/interactions/conversations/{conversation_id}")
 async def get_conversation(request: Request, conversation_id: str) -> dict[str, Any]:
-    return _state(request)["conversations"][conversation_id]
+    state = _state(request)
+    return _conversation_with_count(state, state["conversations"][conversation_id])
+
+
+@router.get("/api/v1/interactions/conversations/{conversation_id}/interactions")
+async def list_conversation_interactions(request: Request, conversation_id: str) -> dict[str, Any]:
+    items = [
+        item
+        for item in _state(request)["interactions"].values()
+        if item.get("conversation_id") == conversation_id
+    ]
+    return _items(items)
+
+
+@router.post("/api/v1/_e2e/mock-llm/set-response")
+async def set_mock_llm_response(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
+    prompt_pattern = str(payload.get("prompt_pattern") or "default")
+    queue = _state(request).setdefault("mock_llm", {}).setdefault(prompt_pattern, [])
+    queue.append(payload)
+    return {"queue_depth": {prompt_pattern: len(queue)}}
+
+
+@router.put("/api/v1/me/alert-settings")
+async def put_me_alert_settings(
+    request: Request,
+    payload: dict[str, Any],
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    user_id = _user_id(current_user)
+    settings = {
+        **_default_alert_settings(user_id),
+        **payload,
+        "user_id": user_id,
+        "updated_at": _now(),
+    }
+    _state(request).setdefault("me_alert_settings", {})[user_id] = settings
+    return settings
+
+
+@router.get("/api/v1/me/alert-settings")
+async def get_me_alert_settings(
+    request: Request, current_user: dict[str, Any] = Depends(get_current_user)
+) -> dict[str, Any]:
+    user_id = _user_id(current_user)
+    return _state(request).setdefault("me_alert_settings", {}).setdefault(
+        user_id, _default_alert_settings(user_id)
+    )
+
+
+@router.get("/api/v1/me/alerts")
+async def list_me_alerts(
+    request: Request,
+    read: str | None = Query(default=None),
+    limit: int = Query(default=50),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    user_id = _user_id(current_user)
+    items = [
+        item
+        for item in _state(request)["alerts"].values()
+        if item.get("user_id") == user_id
+    ]
+    if read == "unread":
+        items = [item for item in items if not item.get("read")]
+    elif read == "read":
+        items = [item for item in items if item.get("read")]
+    items = sorted(items, key=lambda item: str(item.get("created_at", "")), reverse=True)
+    return {"items": items[:limit], "total": len(items)}
+
+
+@router.patch("/api/v1/me/alerts/{alert_id}/read")
+async def mark_me_alert_read(
+    request: Request,
+    alert_id: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    alert = _state(request)["alerts"].get(alert_id)
+    if not alert or alert.get("user_id") != _user_id(current_user):
+        raise HTTPException(status_code=404)
+    alert["read"] = True
+    alert["read_at"] = _now()
+    return alert
+
+
+@router.get("/api/v1/me/alerts/unread-count")
+async def me_unread_alert_count(
+    request: Request, current_user: dict[str, Any] = Depends(get_current_user)
+) -> dict[str, Any]:
+    user_id = _user_id(current_user)
+    count = sum(
+        1
+        for item in _state(request)["alerts"].values()
+        if item.get("user_id") == user_id and not item.get("read")
+    )
+    return {"count": count}
 
 
 @router.post("/api/v1/storage/artifacts", status_code=status.HTTP_201_CREATED)
