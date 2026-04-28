@@ -121,6 +121,7 @@ class JourneyIdUsageCollector(ast.NodeVisitor):
         self.generic_visit(node)
 
 
+@pytest.mark.journey
 @pytest.mark.parametrize("journey_file", [None], ids=["all-journeys"])
 def test_all_journeys_meet_structure(journey_file) -> None:
     del journey_file

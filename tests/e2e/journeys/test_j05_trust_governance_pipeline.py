@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 from time import monotonic
 from typing import Any
 from uuid import UUID
@@ -43,14 +44,18 @@ async def _wait_for_kafka_event(
     *,
     topic: str,
     predicate,
+    since: datetime | None = None,
     timeout: float = 30.0,
 ) -> dict[str, Any]:
     deadline = monotonic() + timeout
     last_events: list[dict[str, Any]] = []
+    params: dict[str, Any] = {"topic": topic, "limit": 200}
+    if since is not None:
+        params["since"] = since.isoformat()
     while monotonic() < deadline:
         response = await client.get(
             "/api/v1/_e2e/kafka/events",
-            params={"topic": topic, "limit": 200},
+            params=params,
         )
         response.raise_for_status()
         last_events = response.json().get("events", [])
@@ -74,6 +79,7 @@ async def test_j05_trust_governance_pipeline(
 ) -> None:
     assert trust_reviewer_client.access_token is not None
 
+    kafka_since = datetime.now(UTC) - timedelta(seconds=1)
     workspace_id = UUID(str(workspace_with_agents["workspace_id"]))
     admin_workspace = admin_client.clone(default_headers=_workspace_headers(workspace_id))
     reviewer_workspace = trust_reviewer_client.clone(default_headers=_workspace_headers(workspace_id))
@@ -178,11 +184,14 @@ async def test_j05_trust_governance_pipeline(
         obvious_block_event = await _wait_for_kafka_event(
             admin_client,
             topic="trust.events",
-            predicate=lambda event: event["payload"].get("event_type") == "trust.screener.blocked",
+            predicate=lambda event: event["payload"].get("event_type") == "trust.screener.blocked"
+            and event["payload"].get("agent_fqn") == executor["fqn"],
+            since=kafka_since,
         )
         assert obvious_block_event["payload"]["agent_fqn"] == executor["fqn"]
 
     with journey_step("A subtle violation is routed through the full governance pipeline"):
+        pipeline_since = datetime.now(UTC) - timedelta(seconds=1)
         pipeline = await reviewer_workspace.post(
             "/api/v1/governance/pipeline/run",
             json={
@@ -206,6 +215,7 @@ async def test_j05_trust_governance_pipeline(
             topic="governance.events",
             predicate=lambda event: event["payload"].get("event_type")
             == "governance.verdict.issued",
+            since=pipeline_since,
         )
         assert verdict_event["payload"]["verdict"] in {"allow", "deny"}
         assert verdict_event["payload"]["event_type"] == "governance.verdict.issued"
@@ -273,6 +283,7 @@ async def test_j05_trust_governance_pipeline(
 
     with journey_step("Contract breach execution is blocked and publishes a trust surveillance signal"):
         assert contract_payload is not None
+        breach_since = datetime.now(UTC) - timedelta(seconds=1)
         breached = await admin_workspace.post(
             "/api/v1/executions",
             json={
@@ -288,7 +299,9 @@ async def test_j05_trust_governance_pipeline(
         breach_event = await _wait_for_kafka_event(
             admin_client,
             topic="trust.events",
-            predicate=lambda event: event["payload"].get("event_type") == "trust.contract.violated",
+            predicate=lambda event: event["payload"].get("event_type") == "trust.contract.violated"
+            and event["payload"].get("agent_fqn") == executor["fqn"],
+            since=breach_since,
         )
         assert breach_execution["id"]
         assert breach_event["payload"]["agent_fqn"] == executor["fqn"]

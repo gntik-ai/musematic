@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from html import escape
 from pathlib import Path
 from xml.etree.ElementTree import Element, ElementTree, SubElement
@@ -16,6 +16,10 @@ from journeys.helpers.narrative import (
     reset_journey_step_records,
 )
 
+_RECORDS_PROPERTY = "journey_step_records"
+_ARTIFACTS_PROPERTY = "journey_artifact_records"
+_CASE_REPORTS: dict[str, "JourneyCaseReport"] = {}
+
 
 @dataclass(slots=True)
 class JourneyCaseReport:
@@ -27,14 +31,15 @@ class JourneyCaseReport:
 
 
 def pytest_configure(config) -> None:
+    global _CASE_REPORTS
     reports_dir = Path(str(config.rootpath)) / "reports"
     reports_dir.mkdir(parents=True, exist_ok=True)
-    config._journey_case_reports = {}
+    _CASE_REPORTS = {}
+    config._journey_case_reports = _CASE_REPORTS
 
 
 def pytest_runtest_setup(item) -> None:
-    del item
-    reset_journey_step_records()
+    reset_journey_step_records(item.nodeid)
 
 
 @pytest.hookimpl(hookwrapper=True)
@@ -45,20 +50,60 @@ def pytest_runtest_makereport(item, call):
         return
 
     case_reports: dict[str, JourneyCaseReport] = getattr(item.config, "_journey_case_reports", {})
+    records = collect_journey_step_records(report.nodeid)
+    artifacts = collect_journey_artifact_records(report.nodeid)
+    report.user_properties.append((_RECORDS_PROPERTY, [asdict(record) for record in records]))
+    report.user_properties.append((_ARTIFACTS_PROPERTY, [asdict(artifact) for artifact in artifacts]))
     case_reports[report.nodeid] = JourneyCaseReport(
         nodeid=report.nodeid,
         outcome=report.outcome,
         duration_s=report.duration,
-        records=collect_journey_step_records(),
-        artifacts=collect_journey_artifact_records(),
+        records=records,
+        artifacts=artifacts,
+    )
+
+
+def pytest_runtest_logreport(report) -> None:
+    if report.when != "call":
+        return
+
+    records_payload = _user_property(report, _RECORDS_PROPERTY)
+    artifacts_payload = _user_property(report, _ARTIFACTS_PROPERTY)
+    if records_payload is None and artifacts_payload is None:
+        return
+
+    _CASE_REPORTS[report.nodeid] = JourneyCaseReport(
+        nodeid=report.nodeid,
+        outcome=report.outcome,
+        duration_s=report.duration,
+        records=[JourneyStepRecord(**record) for record in (records_payload or [])],
+        artifacts=[JourneyArtifactRecord(**artifact) for artifact in (artifacts_payload or [])],
     )
 
 
 def pytest_sessionfinish(session, exitstatus: int) -> None:
-    reports_dir = Path(str(session.config.rootpath)) / "reports"
-    case_reports: dict[str, JourneyCaseReport] = getattr(session.config, "_journey_case_reports", {})
+    if hasattr(session.config, "workerinput"):
+        return
+
+    session.config._journey_exitstatus = exitstatus
+
+
+def pytest_unconfigure(config) -> None:
+    if hasattr(config, "workerinput"):
+        return
+
+    reports_dir = Path(str(config.rootpath)) / "reports"
+    exitstatus = getattr(config, "_journey_exitstatus", 0)
+    case_reports: dict[str, JourneyCaseReport] = getattr(config, "_journey_case_reports", {})
     _write_junit_report(reports_dir / "journeys-junit.xml", case_reports)
     _write_html_report(reports_dir / "journeys-report.html", case_reports, exitstatus)
+
+
+def _user_property(report, name: str):
+    for key, value in getattr(report, "user_properties", []):
+        if key == name:
+            return value
+    return None
 
 
 def _write_junit_report(path: Path, case_reports: dict[str, JourneyCaseReport]) -> None:

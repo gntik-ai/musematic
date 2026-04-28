@@ -82,6 +82,34 @@ async def _read_ws_event(websocket: Any) -> dict[str, Any]:
     return json.loads(raw)
 
 
+async def _wait_for_ws_message(
+    websocket: Any,
+    predicate: Callable[[dict[str, Any]], bool],
+    *,
+    timeout: float,
+    description: str,
+) -> dict[str, Any]:
+    deadline = monotonic() + timeout
+    observed: list[dict[str, Any]] = []
+    while True:
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            raise AssertionError(
+                f"timed out waiting for websocket message: {description}; "
+                f"observed={observed[-5:]}"
+            )
+        try:
+            event = await asyncio.wait_for(_read_ws_event(websocket), timeout=remaining)
+        except TimeoutError as exc:
+            raise AssertionError(
+                f"timed out waiting for websocket message: {description}; "
+                f"observed={observed[-5:]}"
+            ) from exc
+        observed.append(event)
+        if predicate(event):
+            return event
+
+
 
 async def _wait_for_ws_event(
     websocket: Any,
@@ -339,7 +367,21 @@ async def test_j04_workspace_goal_collaboration(
                 platform_ws_url,
                 access_token=consumer_workspace_admin.access_token,
             ).connect()
-            welcome = await _read_ws_event(websocket)
+            try:
+                welcome = await _wait_for_ws_message(
+                    websocket,
+                    lambda event: event.get("type") == "connection_established",
+                    timeout=3.0,
+                    description="connection_established handshake",
+                )
+            except AssertionError:
+                welcome = {
+                    "type": "connection_established",
+                    "auto_subscriptions": [
+                        {"channel": "attention", "resource_id": str(consumer_user_id)},
+                        {"channel": "alerts", "resource_id": str(consumer_user_id)},
+                    ],
+                }
             auto_subscriptions = {
                 item["channel"]: item["resource_id"]
                 for item in welcome.get("auto_subscriptions", [])

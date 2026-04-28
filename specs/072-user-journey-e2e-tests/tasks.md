@@ -104,8 +104,8 @@
 ## Phase 6: Polish & Cross-Cutting Concerns
 
 - [X] T028 Create `tests/e2e/tests/test_mock_oauth_disabled_in_production.py`: assert `helm template deploy/helm/platform/ --set features.e2eMode=false` produces zero Deployments named `mock-google-oidc` or `mock-github-oauth`; per contracts/oauth-mock.md production-safety section
-- [ ] T029 [P] Run `make e2e-journeys` with `-n 3` parallel workers; verify all 9 journeys pass and meta-test `test_journey_structure.py` reports every journey above FR-003 (≥4 BCs) and FR-004 (≥15 assertion points) thresholds; verify isolation by confirming no cross-journey resource names collide (SC-005)
-- [ ] T030 [P] Validate quickstart.md walkthroughs Q1–Q9 by running `make e2e-j{NN}` for each; open `reports/journeys-report.html` and confirm narrative rows are human-readable without codebase context per SC-010
+- [X] T029 [P] Run `make e2e-journeys` with `-n 3` parallel workers; verify all 9 journeys pass and meta-test `test_journey_structure.py` reports every journey above FR-003 (≥4 BCs) and FR-004 (≥15 assertion points) thresholds; verify isolation by confirming no cross-journey resource names collide (SC-005)
+- [X] T030 [P] Validate quickstart.md walkthroughs Q1–Q9 by running `make e2e-j{NN}` for each; open `reports/journeys-report.html` and confirm narrative rows are human-readable without codebase context per SC-010
 
 ---
 

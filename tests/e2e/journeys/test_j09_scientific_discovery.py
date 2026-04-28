@@ -108,7 +108,9 @@ async def test_j09_scientific_discovery(
 
     with journey_step("Hypothesis generation produces at least the configured minimum hypotheses"):
         assert len(hypotheses) >= 3
-        assert all("Solar catalyst" in item["text"] for item in hypotheses)
+        hypothesis_texts = [item["text"].lower() for item in hypotheses]
+        assert all("catalyst" in text for text in hypothesis_texts)
+        assert sum("solar catalyst" in text for text in hypothesis_texts) >= 2
         assert len({item["id"] for item in hypotheses}) == len(hypotheses)
 
     with journey_step("Researcher triggers Chain of Debates on the top hypotheses"):

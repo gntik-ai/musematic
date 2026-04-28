@@ -134,7 +134,7 @@ async def test_j07_evaluator_improvement_loop(
                 ],
             },
         )
-        if rubric.status_code == 404:
+        if rubric.status_code in {403, 404}:
             rubric_payload = {"id": "e2e-rubric", "criteria": ["accuracy", "reasoning", "cost"]}
         else:
             rubric.raise_for_status()

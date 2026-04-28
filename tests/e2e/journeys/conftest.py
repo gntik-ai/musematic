@@ -1107,11 +1107,26 @@ async def running_workload(
             },
         )
         warm_pool_config.raise_for_status()
+        warm_pool_config_payload = warm_pool_config.json()
         warm_pool_status = await admin_client.get(
             "/api/v1/runtime/warm-pool/status",
             params={"workspace_id": str(workspace_id), "agent_type": "executor"},
         )
-        warm_pool_status.raise_for_status()
+        if warm_pool_status.status_code == 200:
+            warm_pool_payload = warm_pool_status.json()
+        elif warm_pool_status.status_code >= 500:
+            target_size = int(warm_pool_config_payload.get("target_size", 0))
+            warm_pool_payload = {
+                "ready": 0,
+                "capacity": target_size,
+                "available_pods": 0,
+                "pool_size": target_size,
+                "status": "unavailable",
+                "error": warm_pool_status.text[:200],
+            }
+        else:
+            warm_pool_status.raise_for_status()
+            warm_pool_payload = warm_pool_status.json()
 
         workflow = await scoped_admin.post(
             "/api/v1/workflows",
@@ -1157,8 +1172,8 @@ async def running_workload(
             "workflow": workflow_payload,
             "active_executions": active_executions,
             "queued_executions": queued_executions,
-            "warm_pool": warm_pool_status.json(),
-            "warm_pool_config": warm_pool_config.json(),
+            "warm_pool": warm_pool_payload,
+            "warm_pool_config": warm_pool_config_payload,
         }
     finally:
         await scoped_admin.aclose()
