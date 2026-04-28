@@ -180,3 +180,9 @@ Python 3.12+ (application), PostgreSQL 16 (database): Follow standard convention
   `rate_limit_check.lua` for sliding-window limits
   `lock_acquire.lua` and `lock_release.lua` for token-verified locks
 <!-- MANUAL ADDITIONS END -->
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+at `specs/095-public-status-banner-workbench-uis/plan.md`.
+<!-- SPECKIT END -->

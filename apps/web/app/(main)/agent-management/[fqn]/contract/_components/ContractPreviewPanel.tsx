@@ -6,8 +6,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { RealLLMOptInDialog } from "@/components/features/shared/RealLLMOptInDialog";
 import { useContractPreview } from "@/lib/hooks/use-contract-preview";
-import { RealLLMOptInDialog } from "./RealLLMOptInDialog";
 
 export function ContractPreviewPanel({ contractId }: { contractId?: string | null }) {
   const [sampleInput, setSampleInput] = useState('{"output":{"answer":"ok"},"tokens":120}');

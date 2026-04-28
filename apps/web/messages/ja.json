@@ -33,5 +33,39 @@
       "title": "Account connections",
       "unlinkDisabled": "You must keep at least one authentication method."
     }
+  },
+  "platformStatus": {
+    "title": "Platform status",
+    "statusLabels": {
+      "operational": "Operational",
+      "degraded": "Degraded",
+      "partial_outage": "Partial outage",
+      "full_outage": "Full outage",
+      "maintenance": "Maintenance"
+    },
+    "subscribeToUpdates": "Subscribe to updates",
+    "lastUpdated": "Last updated",
+    "uptime30d": "30-day uptime"
+  },
+  "simulations": {
+    "scenarios": {
+      "title": "Simulation scenarios",
+      "new": "New scenario",
+      "empty": "No scenarios yet"
+    }
+  },
+  "discovery": {
+    "session": {
+      "title": "Discovery session"
+    },
+    "hypotheses": {
+      "title": "Hypotheses"
+    },
+    "experiments": {
+      "title": "Experiments"
+    },
+    "evidence": {
+      "title": "Evidence"
+    }
   }
 }

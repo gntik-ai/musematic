@@ -1,0 +1,234 @@
+openapi: 3.1.0
+info:
+  title: Simulation Scenarios API
+  version: "0.1.0"
+  description: |
+    Workspace-scoped endpoints for the simulation scenario library and the
+    scenario editor. Composes with the existing simulation backend (twins,
+    runs, comparisons) — no existing route is modified.
+
+    Constitutional anchors: Principle VII (simulation isolation —
+    scenario execution stays in `platform-simulation`), Rule 50 (mock LLM
+    is the default; real-LLM preview opt-in via the existing
+    `<RealLLMOptInDialog>` from UPD-044).
+
+paths:
+  /api/v1/simulations/scenarios:
+    get:
+      summary: List scenarios in the current workspace
+      operationId: listScenarios
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: workspace_id
+          schema: { type: string }
+        - in: query
+          name: include_archived
+          schema: { type: boolean, default: false }
+        - in: query
+          name: q
+          schema: { type: string }
+      responses:
+        '200':
+          description: Scenario list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scenarios:
+                    type: array
+                    items: { $ref: '#/components/schemas/SimulationScenario' }
+
+    post:
+      summary: Create a scenario
+      operationId: createScenario
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateScenarioRequest' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SimulationScenario' }
+        '422':
+          description: Validation failed (plaintext secret detected, invalid agent FQN, forbidden twin fidelity combo, etc.)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ValidationError' }
+
+  /api/v1/simulations/scenarios/{scenarioId}:
+    parameters:
+      - in: path
+        name: scenarioId
+        required: true
+        schema: { type: string }
+    get:
+      summary: Get scenario detail
+      operationId: getScenario
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Scenario detail with linked runs
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/SimulationScenario' }
+                  - type: object
+                    properties:
+                      recent_runs:
+                        type: array
+                        items: { $ref: '#/components/schemas/ScenarioRunSummary' }
+
+    put:
+      summary: Update scenario (creates a new revision conceptually but mutates row in place)
+      operationId: updateScenario
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateScenarioRequest' }
+      responses:
+        '200': { description: Updated }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+
+    delete:
+      summary: Soft-archive scenario
+      operationId: archiveScenario
+      security: [{ bearerAuth: [] }]
+      responses:
+        '204': { description: Archived }
+
+  /api/v1/simulations/scenarios/{scenarioId}/run:
+    post:
+      summary: Launch the scenario as N simulation runs
+      operationId: runScenario
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: scenarioId
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [iterations]
+              properties:
+                iterations: { type: integer, minimum: 1, maximum: 100 }
+                use_real_llm:
+                  type: boolean
+                  default: false
+                  description: |
+                    When true, scenario preview MUST have completed the
+                    `<RealLLMOptInDialog>` opt-in (UPD-044) and the request
+                    MUST include the explicit confirmation token. Default
+                    is the mock LLM provider (Constitution Rule 50).
+                real_llm_confirmation_token:
+                  type: string
+                  description: Required if use_real_llm is true. Echoes the dialog's "USE_REAL_LLM" gate.
+      responses:
+        '202':
+          description: N runs queued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  queued_run_ids:
+                    type: array
+                    items: { type: string }
+        '422':
+          description: Iteration count out of range, or real_llm requested without confirmation token
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    SimulationScenario:
+      type: object
+      properties:
+        id: { type: string }
+        workspace_id: { type: string }
+        name: { type: string }
+        description: { type: string, nullable: true }
+        agents_config: { type: object }
+        workflow_template_id: { type: string, nullable: true }
+        mock_set_config: { type: object }
+        input_distribution: { type: object }
+        twin_fidelity: { type: object }
+        success_criteria: { type: object }
+        run_schedule: { type: object, nullable: true }
+        archived_at: { type: string, format: date-time, nullable: true }
+        created_by: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CreateScenarioRequest:
+      type: object
+      required: [name, agents_config, mock_set_config, input_distribution, twin_fidelity, success_criteria]
+      properties:
+        name: { type: string, maxLength: 255 }
+        description: { type: string }
+        agents_config: { type: object }
+        workflow_template_id: { type: string }
+        mock_set_config: { type: object }
+        input_distribution: { type: object }
+        twin_fidelity: { type: object }
+        success_criteria: { type: object }
+        run_schedule: { type: object }
+
+    UpdateScenarioRequest:
+      type: object
+      properties:
+        name: { type: string, maxLength: 255 }
+        description: { type: string }
+        agents_config: { type: object }
+        workflow_template_id: { type: string }
+        mock_set_config: { type: object }
+        input_distribution: { type: object }
+        twin_fidelity: { type: object }
+        success_criteria: { type: object }
+        run_schedule: { type: object }
+
+    ScenarioRunSummary:
+      type: object
+      properties:
+        run_id: { type: string }
+        status: { type: string, enum: [queued, running, completed, failed] }
+        started_at: { type: string, format: date-time, nullable: true }
+        completed_at: { type: string, format: date-time, nullable: true }
+        success_criteria_met: { type: boolean, nullable: true }
+
+    ValidationError:
+      type: object
+      properties:
+        code: { type: string }
+        message: { type: string }
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              error_kind: { type: string, enum: [plaintext_secret, unknown_fqn, unapproved_workflow, forbidden_twin_combo, missing_required, range_violation] }
+              message: { type: string }
+
+  responses:
+    ValidationFailed:
+      description: Validation failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ValidationError' }

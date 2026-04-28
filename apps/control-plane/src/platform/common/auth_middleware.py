@@ -30,6 +30,7 @@ EXEMPT_PATHS: frozenset[str] = frozenset(
         "/api/v1/security/audit-chain/public-key",
     }
 )
+EXEMPT_PREFIXES: frozenset[str] = frozenset()
 
 EXTERNAL_A2A_CERT_HEADERS: tuple[str, ...] = (
     "X-Client-Cert-Fingerprint",
@@ -110,6 +111,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 request.state.user = external_a2a_identity
         if (
             path in EXEMPT_PATHS
+            or any(path.startswith(prefix) for prefix in EXEMPT_PREFIXES)
             or public_invitation_endpoint
             or public_oauth_endpoint
             or public_a2a_endpoint
