@@ -215,8 +215,7 @@ async def get_a2a_task(request: Request, task_id: str) -> dict[str, Any]:
 @router.post("/a2a/tasks/stream")
 async def stream_a2a_task() -> StreamingResponse:
     async def events() -> Any:
-        yield "event: started\n\n"
-        yield "event: completed\n\n"
+        yield "event: started\n\nevent: completed\n\n"
 
     return StreamingResponse(events(), media_type="text/event-stream")
 
