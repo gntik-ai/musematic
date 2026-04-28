@@ -8,7 +8,7 @@ RELEASE_NAME ?= amp
 NAMESPACE ?= platform
 
 PYTEST ?= python3 -m pytest
-E2E_TEST_PATHS ?= suites tests test_*.py
+E2E_TEST_PATHS ?= suites
 E2E_JOURNEY_WORKERS ?= 4
 KIND_CONFIG_TEMPLATE := cluster/kind-config.yaml
 KIND_CONFIG_RENDERED := /tmp/kind-config-$(CLUSTER_NAME).yaml

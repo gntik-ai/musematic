@@ -23,7 +23,11 @@ class Seeder(SeederBase):
         async with E2ESeederClient() as client:
             workspace_response = await client.post(
                 "/api/v1/workspaces",
-                {"name": WORKSPACE_NAME, "display_name": "E2E Workspace Alpha"},
+                {
+                    "name": WORKSPACE_NAME,
+                    "description": "E2E Workspace Alpha",
+                },
+                workspace_scoped=False,
             )
             workspace = (
                 workspace_response.json()
@@ -38,7 +42,11 @@ class Seeder(SeederBase):
             for gid, state, title in GOALS:
                 response = await client.post(
                     f"/api/v1/workspaces/{workspace_id}/goals",
-                    {"gid": gid, "state": state, "title": title},
+                    {
+                        "title": title,
+                        "description": f"E2E baseline goal {gid} in {state} state.",
+                    },
+                    workspace_scoped=False,
                 )
                 if response.status_code == 409:
                     skipped += 1

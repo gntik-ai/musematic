@@ -5,9 +5,9 @@ from seeders.base import SeederBase, SeedRunSummary
 
 
 NAMESPACES = (
-    {"name": "default", "display_name": "Default"},
-    {"name": "test-finance", "display_name": "E2E Finance"},
-    {"name": "test-eng", "display_name": "E2E Engineering"},
+    {"name": "default", "description": "Default E2E namespace"},
+    {"name": "test-finance", "description": "E2E Finance"},
+    {"name": "test-eng", "description": "E2E Engineering"},
 )
 
 

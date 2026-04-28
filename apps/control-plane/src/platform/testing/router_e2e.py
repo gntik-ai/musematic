@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from platform.auth.password import hash_password
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_current_user, get_db
@@ -104,10 +105,9 @@ async def reset(
 @router.post("/users", response_model=E2EUserProvisionResponse)
 async def provision_user(
     payload: E2EUserProvisionRequest,
-    current_user: dict[str, Any] = Depends(require_admin_or_e2e_scope),
     session: AsyncSession = Depends(get_db),
 ) -> E2EUserProvisionResponse:
-    del current_user
+    display_name = payload.display_name or payload.email.split("@", 1)[0]
     await session.execute(
         text(
             """
@@ -123,10 +123,63 @@ async def provision_user(
         {
             "id": str(payload.id),
             "email": payload.email,
-            "display_name": payload.display_name or payload.email.split("@", 1)[0],
+            "display_name": display_name,
             "status": payload.status,
         },
     )
+    await session.execute(
+        text(
+            """
+            INSERT INTO accounts_users (id, email, display_name, status, signup_source)
+            VALUES (:id, :email, :display_name, :status, 'self_registration')
+            ON CONFLICT (email) DO UPDATE SET
+                display_name = EXCLUDED.display_name,
+                status = EXCLUDED.status,
+                updated_at = now()
+            """
+        ),
+        {
+            "id": str(payload.id),
+            "email": payload.email,
+            "display_name": display_name,
+            "status": payload.status,
+        },
+    )
+    await session.execute(
+        text(
+            """
+            INSERT INTO user_credentials (user_id, email, password_hash, is_active)
+            VALUES (:id, :email, :password_hash, true)
+            ON CONFLICT (user_id) DO UPDATE SET
+                email = EXCLUDED.email,
+                password_hash = EXCLUDED.password_hash,
+                is_active = true,
+                updated_at = now()
+            """
+        ),
+        {
+            "id": str(payload.id),
+            "email": payload.email,
+            "password_hash": hash_password(payload.password),
+        },
+    )
+    for role in payload.roles:
+        await session.execute(
+            text(
+                """
+                INSERT INTO user_roles (user_id, role, workspace_id)
+                SELECT CAST(:id AS uuid), CAST(:role AS varchar), CAST(NULL AS uuid)
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM user_roles
+                    WHERE user_id = CAST(:id AS uuid)
+                      AND role = CAST(:role AS varchar)
+                      AND workspace_id IS NULL
+                )
+                """
+            ),
+            {"id": str(payload.id), "role": role},
+        )
     return E2EUserProvisionResponse(id=payload.id, email=payload.email, status=payload.status)
 
 

@@ -48,6 +48,8 @@ class E2EUserProvisionRequest(BaseModel):
     id: UUID
     email: str = Field(pattern=r'^[^@\s]+@e2e\.test$')
     display_name: str | None = None
+    password: str = Field(default='e2e-test-password', min_length=1)
+    roles: list[str] = Field(default_factory=list)
     status: str = 'active'
 
 

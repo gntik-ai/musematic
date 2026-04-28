@@ -60,7 +60,11 @@ def _discover_seeders() -> list[SeederBase]:
             if seeder_cls is None:
                 continue
             seeder = seeder_cls()
-        if isinstance(seeder, SeederBase):
+        if isinstance(seeder, SeederBase) or (
+            isinstance(getattr(seeder, "name", None), str)
+            and callable(getattr(seeder, "seed", None))
+            and callable(getattr(seeder, "reset", None))
+        ):
             seeders.append(seeder)
     return _topological_sort(seeders)
 

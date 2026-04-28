@@ -487,8 +487,12 @@ class AsyncNeo4jClient:
                 )
             neo4j_module = import_module("neo4j")
             async_graph_database = neo4j_module.AsyncGraphDatabase
+            auth: tuple[str, str] | None = None
+            if self.settings.neo4j.user and self.settings.neo4j.password:
+                auth = (self.settings.neo4j.user, self.settings.neo4j.password)
             self._driver = async_graph_database.driver(
                 self.settings.NEO4J_URL,
+                auth=auth,
                 max_connection_pool_size=self.settings.NEO4J_MAX_CONNECTION_POOL_SIZE,
             )
             return self._driver

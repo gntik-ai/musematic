@@ -52,7 +52,7 @@ class Seeder(SeederBase):
         items = [
             SeedItem(
                 key=str(user["email"]),
-                path="/api/v1/auth/register",
+                path="/api/v1/_e2e/users",
                 payload={**user, "id": str(user["id"])},
             )
             for user in USERS

@@ -12,6 +12,7 @@ from seeders.base import SeedRunSummary
 
 DEFAULT_ADMIN_EMAIL = "admin@e2e.test"
 DEFAULT_ADMIN_PASSWORD = "e2e-test-password"
+DEFAULT_WORKSPACE_NAME = "test-workspace-alpha"
 
 
 @dataclass(frozen=True, slots=True)
@@ -29,6 +30,8 @@ class E2ESeederClient:
             "E2E_ADMIN_PASSWORD",
             DEFAULT_ADMIN_PASSWORD,
         )
+        self.workspace_name = os.environ.get("E2E_WORKSPACE_NAME", DEFAULT_WORKSPACE_NAME)
+        self._workspace_id: str | None = os.environ.get("E2E_WORKSPACE_ID")
         self.access_token = os.environ.get("E2E_ADMIN_TOKEN")
         self.client = httpx.AsyncClient(base_url=self.base_url, timeout=30.0)
 
@@ -54,18 +57,53 @@ class E2ESeederClient:
             or data.get("access", {}).get("token")
         )
 
+    async def workspace_id(self) -> str:
+        if self._workspace_id:
+            return self._workspace_id
+        await self.login()
+        headers = self._auth_headers()
+        response = await self.client.get("/api/v1/workspaces", headers=headers)
+        response.raise_for_status()
+        for item in response.json().get("items", []):
+            if item.get("name") == self.workspace_name:
+                self._workspace_id = str(item["id"])
+                return self._workspace_id
+
+        response = await self.client.post(
+            "/api/v1/workspaces",
+            json={
+                "name": self.workspace_name,
+                "description": "E2E baseline workspace",
+            },
+            headers=headers,
+        )
+        if response.status_code == 409:
+            self._workspace_id = None
+            return await self.workspace_id()
+        response.raise_for_status()
+        self._workspace_id = str(response.json()["id"])
+        return self._workspace_id
+
+    def _auth_headers(self) -> dict[str, str]:
+        headers: dict[str, str] = {}
+        if self.access_token:
+            headers["Authorization"] = f"Bearer {self.access_token}"
+        return headers
+
     async def post(
         self,
         path: str,
         payload: dict[str, Any],
         *,
         authenticated: bool = True,
+        workspace_scoped: bool = True,
     ) -> httpx.Response:
         headers: dict[str, str] = {}
         if authenticated:
             await self.login()
-            if self.access_token:
-                headers["Authorization"] = f"Bearer {self.access_token}"
+            headers.update(self._auth_headers())
+            if workspace_scoped:
+                headers["X-Workspace-ID"] = await self.workspace_id()
         response = await self.client.post(path, json=payload, headers=headers)
         if response.status_code not in {200, 201, 202, 204, 409}:
             response.raise_for_status()
@@ -76,12 +114,14 @@ class E2ESeederClient:
         path: str,
         *,
         authenticated: bool = True,
+        workspace_scoped: bool = True,
     ) -> httpx.Response:
         headers: dict[str, str] = {}
         if authenticated:
             await self.login()
-            if self.access_token:
-                headers["Authorization"] = f"Bearer {self.access_token}"
+            headers.update(self._auth_headers())
+            if workspace_scoped:
+                headers["X-Workspace-ID"] = await self.workspace_id()
         response = await self.client.delete(path, headers=headers)
         if response.status_code not in {200, 202, 204, 404}:
             response.raise_for_status()

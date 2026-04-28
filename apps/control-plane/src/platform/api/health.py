@@ -41,11 +41,11 @@ def _is_healthy(result: Any) -> bool:
     if isinstance(result, dict):
         status = result.get('status')
         if isinstance(status, str):
-            return status.lower() in {'ok', 'healthy', 'green'}
+            return status.lower() in {'ok', 'healthy', 'green', 'yellow'}
         return False
     status = getattr(result, 'status', None)
     if isinstance(status, str):
-        return status.lower() in {'ok', 'healthy', 'green'}
+        return status.lower() in {'ok', 'healthy', 'green', 'yellow'}
     return bool(result)
 
 

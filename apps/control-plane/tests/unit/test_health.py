@@ -134,6 +134,7 @@ async def test_health_helpers_cover_error_and_status_normalization() -> None:
 
     assert unhealthy.status == "unhealthy"
     assert health_module._is_healthy({"status": "ok"}) is True
+    assert health_module._is_healthy({"status": "yellow"}) is True
     assert health_module._is_healthy({"status": "down"}) is False
     assert health_module._is_healthy(StatusObject()) is True
     assert health_module._is_healthy(1) is True

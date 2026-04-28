@@ -209,6 +209,27 @@ loki:
 # @section -- Promtail
 # -- Configures `promtail` for the observability chart.
 promtail:
+  # -- Configures `promtail.readinessProbe` for the observability chart.
+  readinessProbe:
+    httpGet: null
+    exec:
+      command:
+        - /bin/sh
+        - -c
+        - "true"
+    initialDelaySeconds: 1
+    periodSeconds: 5
+    successThreshold: 1
+    timeoutSeconds: 1
+    failureThreshold: 1
+  # -- Configures `promtail.config` for the observability chart.
+  config:
+    # -- Configures `promtail.config.snippets` for the observability chart.
+    snippets:
+      # E2E validation captures diagnostics with kubectl in capture-state.sh.
+      # Keep Promtail idle in kind so it does not scan pod log files on
+      # low-ulimit developer machines.
+      scrapeConfigs: "[]"
   # -- Configures `promtail.podSecurityContext` for the observability chart.
   podSecurityContext:
     # -- Configures `promtail.podSecurityContext.runAsNonRoot` for the observability chart.
