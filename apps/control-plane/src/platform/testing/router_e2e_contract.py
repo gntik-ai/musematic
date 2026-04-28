@@ -44,6 +44,17 @@ def _state(request: Request) -> dict[str, Any]:
             }
         },
         "workspace_name_index": {"test-workspace-alpha": BASE_WORKSPACE_ID},
+        "workspace_members": {
+            BASE_WORKSPACE_ID: [
+                {
+                    "id": f"{BASE_WORKSPACE_ID}:owner",
+                    "workspace_id": BASE_WORKSPACE_ID,
+                    "user_id": BASE_USER_ID,
+                    "role": "owner",
+                    "created_at": _now(),
+                }
+            ]
+        },
         "goals": {
             "gid-open-001": {
                 "id": "gid-open-001",
@@ -134,6 +145,10 @@ def _record_ws(request: Request, channel: str, event: str, payload: dict[str, An
     _state(request)["ws_events"].append(
         {"recorded_at": _now(), "channel": channel, "event": event, "payload": payload}
     )
+
+
+def _workspace_id_from_request(request: Request) -> str:
+    return request.headers.get("x-workspace-id") or BASE_WORKSPACE_ID
 
 
 def _stable_output(payload: dict[str, Any]) -> str:
@@ -284,6 +299,7 @@ async def create_namespace(request: Request, payload: dict[str, Any]) -> dict[st
         "name": name,
         "display_name": payload.get("display_name") or payload.get("description") or name,
         "description": payload.get("description"),
+        "workspace_id": payload.get("workspace_id") or _workspace_id_from_request(request),
     }
     namespaces[name] = item
     return item
@@ -342,20 +358,35 @@ async def create_agent(request: Request, payload: dict[str, Any]) -> dict[str, A
 
 
 @router.post("/api/v1/agents/upload", status_code=status.HTTP_201_CREATED)
-async def upload_agent(request: Request, namespace_name: str = "default") -> dict[str, Any]:
-    fqn = f"{namespace_name}:seeded-{uuid4().hex[:8]}"
-    _state(request)["agents"].setdefault(
-        fqn,
-        {
-            "id": fqn,
-            "namespace": namespace_name,
-            "local_name": fqn.split(":", 1)[1],
-            "fqn": fqn,
-            "role_type": "executor",
-            "workspace_id": BASE_WORKSPACE_ID,
-        },
-    )
-    return {"created": True, **_state(request)["agents"][fqn]}
+async def upload_agent(request: Request) -> dict[str, Any]:
+    try:
+        form = await request.form()
+    except Exception:
+        form = {}
+    namespace_name = str(form.get("namespace_name") or "default")
+    local_name = f"seeded-{uuid4().hex[:8]}"
+    fqn = f"{namespace_name}:{local_name}"
+    revision_id = str(uuid4())
+    revision = {
+        "id": revision_id,
+        "agent_id": fqn,
+        "status": "active",
+        "version": "1.0.0",
+        "created_at": _now(),
+    }
+    agent = {
+        "id": fqn,
+        "namespace": namespace_name,
+        "namespace_name": namespace_name,
+        "local_name": local_name,
+        "fqn": fqn,
+        "role_type": "executor",
+        "workspace_id": _workspace_id_from_request(request),
+        "status": "active",
+        "current_revision": revision,
+    }
+    _state(request)["agents"][fqn] = agent
+    return {"created": True, "agent_profile": agent, "revision": revision}
 
 
 @router.get("/api/v1/agents/resolve")
@@ -461,6 +492,15 @@ async def create_workspace(request: Request, payload: dict[str, Any]) -> dict[st
     }
     state["workspaces"][workspace_id] = workspace
     state["workspace_name_index"][name] = workspace_id
+    state.setdefault("workspace_members", {})[workspace_id] = [
+        {
+            "id": f"{workspace_id}:owner",
+            "workspace_id": workspace_id,
+            "user_id": BASE_USER_ID,
+            "role": "owner",
+            "created_at": _now(),
+        }
+    ]
     return workspace
 
 
@@ -489,6 +529,51 @@ async def delete_workspace(request: Request, workspace_id: str) -> Response:
     if workspace:
         state["workspace_name_index"].pop(workspace.get("name"), None)
     return Response(status_code=204)
+
+
+@router.post("/api/v1/workspaces/{workspace_id}/archive")
+async def archive_workspace(request: Request, workspace_id: str) -> dict[str, Any]:
+    workspace = _state(request)["workspaces"].get(workspace_id)
+    if not workspace:
+        raise HTTPException(status_code=404)
+    workspace["status"] = "archived"
+    return workspace
+
+
+@router.post("/api/v1/workspaces/{workspace_id}/members", status_code=status.HTTP_201_CREATED)
+async def create_workspace_member(
+    request: Request, workspace_id: str, payload: dict[str, Any]
+) -> dict[str, Any]:
+    if workspace_id not in _state(request)["workspaces"]:
+        raise HTTPException(status_code=404)
+    member = {
+        "id": str(uuid4()),
+        "workspace_id": workspace_id,
+        "user_id": payload.get("user_id") or BASE_USER_ID,
+        "role": payload.get("role", "member"),
+        "created_at": _now(),
+    }
+    _state(request).setdefault("workspace_members", {}).setdefault(workspace_id, []).append(member)
+    return member
+
+
+@router.get("/api/v1/workspaces/{workspace_id}/members")
+async def list_workspace_members(request: Request, workspace_id: str) -> dict[str, Any]:
+    if workspace_id not in _state(request)["workspaces"]:
+        raise HTTPException(status_code=404)
+    members = _state(request).setdefault("workspace_members", {}).setdefault(
+        workspace_id,
+        [
+            {
+                "id": f"{workspace_id}:owner",
+                "workspace_id": workspace_id,
+                "user_id": BASE_USER_ID,
+                "role": "owner",
+                "created_at": _now(),
+            }
+        ],
+    )
+    return _items(members)
 
 
 @router.get("/api/v1/workspaces/{workspace_id}/goals")
