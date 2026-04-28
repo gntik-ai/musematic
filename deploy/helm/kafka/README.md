@@ -15,6 +15,7 @@ Strimzi Kafka cluster for Musematic platform
 | controllerReplicas | int | `3` | Configures `controllerReplicas` for the kafka chart. |
 | dlqPartitions | int | `6` | Configures `dlqPartitions` for the kafka chart. |
 | dlqRetentionMs | int | `2592000000` | Configures `dlqRetentionMs` for the kafka chart. |
+| jvmOptions | object | `{}` | Configures `jvmOptions` for Kafka node pools. |
 | kafkaVersion | string | `"4.1.1"` | Configures `kafkaVersion` for the kafka chart. |
 | logRetentionMs | int | `604800000` | Configures `logRetentionMs` for the kafka chart. |
 | metadataVersion | string | `"4.1-IV1"` | Configures `metadataVersion` for the kafka chart. |
@@ -24,6 +25,7 @@ Strimzi Kafka cluster for Musematic platform
 | networkPolicy | object | `{"enabled":false}` | Configures `networkPolicy` for the kafka chart. |
 | networkPolicy.enabled | bool | `false` | Configures `networkPolicy.enabled` for the kafka chart. |
 | replicationFactor | int | `3` | Configures `replicationFactor` for the kafka chart. |
+| resources | object | `{}` | Configures `resources` for Kafka node pools. |
 | storage | object | `{"class":"standard","size":"100Gi"}` | Configures `storage` for the kafka chart. |
 | storage.class | string | `"standard"` | Configures `storage.class` for the kafka chart. |
 | storage.size | string | `"100Gi"` | Configures `storage.size` for the kafka chart. |
