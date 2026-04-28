@@ -154,6 +154,12 @@ class JourneyContext:
     prefix: str
 
 
+@dataclass(slots=True)
+class OAuthProvisionedIdentity:
+    user_id: UUID
+    email: str
+
+
 class AuthenticatedAsyncClient:
     def __init__(
         self,
@@ -625,6 +631,36 @@ async def ensure_journey_personas(platform_api_url: str) -> dict[str, str]:
     return providers
 
 
+@pytest_asyncio.fixture(scope="session")
+async def admin_oauth_identity(
+    platform_api_url: str,
+    mock_google_oidc: str,
+    ensure_journey_personas: dict[str, str],
+) -> OAuthProvisionedIdentity:
+    del ensure_journey_personas
+    if _use_password_login("admin"):
+        return OAuthProvisionedIdentity(
+            user_id=_persona_user_id("admin"),
+            email=_persona_email("admin"),
+        )
+
+    worker_id = os.environ.get("PYTEST_XDIST_WORKER", "master")
+    async with AuthenticatedAsyncClient(platform_api_url) as client:
+        provisioned = await oauth_login(
+            client,
+            provider="google",
+            mock_server=mock_google_oidc,
+            login=_env("JOURNEY_ADMIN_GOOGLE_LOGIN", f"{worker_id}-admin"),
+        )
+        assert provisioned.access_token is not None
+        claims = _decode_access_token(provisioned.access_token)
+        await _grant_required_consents(provisioned)
+        return OAuthProvisionedIdentity(
+            user_id=UUID(str(claims["sub"])),
+            email=str(claims.get("email") or _persona_email("admin")),
+        )
+
+
 @pytest_asyncio.fixture(autouse=True)
 async def cleanup_journey_resources(
     request: pytest.FixtureRequest,
@@ -659,9 +695,8 @@ async def cleanup_journey_resources(
 @pytest_asyncio.fixture
 async def admin_client(
     http_client: AuthenticatedAsyncClient,
-    mock_google_oidc: str,
     ensure_journey_personas: dict[str, str],
-    journey_context: JourneyContext,
+    admin_oauth_identity: OAuthProvisionedIdentity,
 ) -> AuthenticatedAsyncClient:
     del ensure_journey_personas
     if _use_password_login("admin"):
@@ -673,21 +708,11 @@ async def admin_client(
             default_email=_persona_email("admin"),
         )
 
-    # Provision the backing account through the same OAuth path used by real users,
-    # then mint the elevated journey token against that persisted user id.
-    provisioned = await oauth_login(
-        http_client.clone(),
-        provider="google",
-        mock_server=mock_google_oidc,
-        login=_env("JOURNEY_ADMIN_GOOGLE_LOGIN", f"{journey_context.journey_id}-admin"),
-    )
-    assert provisioned.access_token is not None
-    claims = _decode_access_token(provisioned.access_token)
-    user_id = UUID(str(claims["sub"]))
-    email = str(claims.get("email") or _persona_email("admin"))
+    # The backing account is provisioned once per xdist worker through OAuth;
+    # each test then receives a fresh elevated journey token for isolation.
     token = _mint_access_token(
-        user_id=user_id,
-        email=email,
+        user_id=admin_oauth_identity.user_id,
+        email=admin_oauth_identity.email,
         role_names=_persona_roles("admin"),
     )
     client = http_client.clone()
@@ -1107,11 +1132,26 @@ async def running_workload(
             },
         )
         warm_pool_config.raise_for_status()
+        warm_pool_config_payload = warm_pool_config.json()
         warm_pool_status = await admin_client.get(
             "/api/v1/runtime/warm-pool/status",
             params={"workspace_id": str(workspace_id), "agent_type": "executor"},
         )
-        warm_pool_status.raise_for_status()
+        if warm_pool_status.status_code == 200:
+            warm_pool_payload = warm_pool_status.json()
+        elif warm_pool_status.status_code >= 500:
+            target_size = int(warm_pool_config_payload.get("target_size", 0))
+            warm_pool_payload = {
+                "ready": 0,
+                "capacity": target_size,
+                "available_pods": 0,
+                "pool_size": target_size,
+                "status": "unavailable",
+                "error": warm_pool_status.text[:200],
+            }
+        else:
+            warm_pool_status.raise_for_status()
+            warm_pool_payload = warm_pool_status.json()
 
         workflow = await scoped_admin.post(
             "/api/v1/workflows",
@@ -1157,8 +1197,8 @@ async def running_workload(
             "workflow": workflow_payload,
             "active_executions": active_executions,
             "queued_executions": queued_executions,
-            "warm_pool": warm_pool_status.json(),
-            "warm_pool_config": warm_pool_config.json(),
+            "warm_pool": warm_pool_payload,
+            "warm_pool_config": warm_pool_config_payload,
         }
     finally:
         await scoped_admin.aclose()
@@ -1177,10 +1217,15 @@ def pytest_configure(config) -> None:
         ("j04_workspace_goal", "workspace goal collaboration journey"),
         ("j04_workspace_goal_collaboration", "full workspace goal collaboration journey"),
         ("j05_trust", "trust governance pipeline journey"),
+        ("j05_trust_governance_pipeline", "full trust governance pipeline journey"),
         ("j06_operator", "operator incident response journey"),
+        ("j06_operator_incident_response", "full operator incident response journey"),
         ("j07_evaluator", "evaluator improvement loop journey"),
+        ("j07_evaluator_improvement_loop", "full evaluator improvement loop journey"),
         ("j08_external", "external A2A and MCP journey"),
+        ("j08_external_a2a_mcp", "full external A2A and MCP journey"),
         ("j09_discovery", "scientific discovery journey"),
+        ("j09_scientific_discovery", "full scientific discovery journey"),
         ("j10_notifications", "multi-channel notifications journey"),
         ("j10_multi_channel_notifications", "full multi-channel notifications journey"),
     ):

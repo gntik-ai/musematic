@@ -449,6 +449,7 @@ async def test_j02_creator_to_publication(
             "/api/v1/agents",
             params={
                 "status": "published",
+                "fqn_pattern": f"{finance_namespace_name}:*",
                 "keyword": "deterministic compliance checks",
                 "limit": 20,
                 "offset": 0,
