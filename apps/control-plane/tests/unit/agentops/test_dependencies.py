@@ -331,7 +331,9 @@ async def test_registry_adapter_profile_state_update_and_empty_revision_edges() 
         needs_reindex=False,
         created_by=uuid4(),
     )
-    adapter.repository.get_by_fqn = AsyncMock(side_effect=[None, profile, profile])  # type: ignore[method-assign]
+    adapter.repository.get_by_fqn = AsyncMock(  # type: ignore[method-assign]
+        side_effect=[None, profile, profile, profile]
+    )
     adapter.repository.get_latest_revision = AsyncMock(  # type: ignore[method-assign]
         side_effect=[None, SimpleNamespace(id=revision_id)]
     )
