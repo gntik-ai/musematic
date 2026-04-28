@@ -2590,13 +2590,11 @@ async def me_unread_alert_count(
 
 
 @router.post("/api/v1/storage/artifacts", status_code=status.HTTP_201_CREATED)
-async def create_artifact(
-    request: Request, payload: dict[str, Any]
-) -> dict[str, Any] | JSONResponse:
+async def create_artifact(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
     if _state(request).get("s3_credentials_revoked"):
-        return JSONResponse(
+        raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            content={"detail": "S3CredentialError: credentials revoked"},
+            detail="S3CredentialError: credentials revoked",
         )
     artifact_id = str(uuid4())
     content = str(payload.get("content") or "")
