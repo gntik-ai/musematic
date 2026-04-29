@@ -192,6 +192,11 @@ topics:
     partitions: 6
     # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
+  - name: localization.events
+    # -- Configures `topics.partitions` for the kafka chart.
+    partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
+    retentionMs: 604800000
   - name: marketplace.events
     # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
