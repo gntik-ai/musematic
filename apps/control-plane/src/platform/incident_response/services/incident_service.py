@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from collections.abc import Coroutine
 from datetime import UTC, datetime, timedelta
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
+from platform.common.logging import get_logger
 from platform.incident_response.events import (
     IncidentResolvedPayload,
     IncidentTriggeredPayload,
@@ -39,7 +39,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class IncidentService:

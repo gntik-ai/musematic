@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import logging
 from platform.common.config import PlatformSettings
+from platform.common.logging import get_logger
 from platform.discovery.critique.evaluator import CritiqueEvaluator
 from platform.discovery.events import DiscoveryEventPublisher
 from platform.discovery.exceptions import (
@@ -42,7 +42,7 @@ from platform.discovery.tournament.elo import EloRatingEngine
 from typing import Protocol
 from uuid import UUID
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 _RECOMPUTE_IN_FLIGHT: set[UUID] = set()
 
 

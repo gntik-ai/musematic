@@ -1,19 +1,19 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import time
 from platform.common import database
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.events.producer import EventProducer
+from platform.common.logging import get_logger
 from platform.cost_governance.clickhouse_repository import ClickHouseCostRepository
 from platform.cost_governance.dependencies import build_cost_governance_service
 from platform.cost_governance.repository import CostGovernanceRepository
 from typing import Any, cast
 from uuid import UUID
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 async def run_forecast_evaluation(app: Any) -> None:

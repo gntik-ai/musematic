@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import json
-import logging
 from datetime import UTC, datetime
 from platform.common import database
 from platform.common.config import settings as default_settings
+from platform.common.logging import get_logger
 from platform.multi_region_ops.constants import REDIS_KEY_ACTIVE_WINDOW
 from platform.multi_region_ops.models import MaintenanceWindow
 from platform.multi_region_ops.repository import MultiRegionOpsRepository
@@ -15,7 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 MUTATING_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 MAINTENANCE_CONTROL_PREFIX = "/api/v1/admin/maintenance/windows/"
 MAINTENANCE_CONTROL_SUFFIXES = frozenset({"/disable"})

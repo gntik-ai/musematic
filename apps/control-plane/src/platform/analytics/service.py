@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime, timedelta
 from platform.analytics.events import (
     BudgetThresholdCrossedPayload,
@@ -32,12 +31,13 @@ from platform.analytics.schemas import (
 from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
+from platform.common.logging import get_logger
 from platform.incident_response.schemas import IncidentSeverity, IncidentSignal
 from platform.incident_response.trigger_interface import get_incident_trigger
 from typing import Any, cast
 from uuid import UUID, uuid4
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 INCIDENT_ALERT_RULE_CLASS = "budget_threshold_crossed"
 # Brownfield planning named analytics/services/alert_rules.py, which does not exist in
 # this codebase. The incident-response trigger hook lives at the existing threshold

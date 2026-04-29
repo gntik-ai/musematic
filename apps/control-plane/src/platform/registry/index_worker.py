@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from platform.common import database
 from platform.common.clients.opensearch import AsyncOpenSearchClient
 from platform.common.config import PlatformSettings
+from platform.common.logging import get_logger
 from platform.registry.repository import RegistryRepository
 from platform.registry.service import build_search_document
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class RegistryIndexWorker:

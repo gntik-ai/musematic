@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import json
-import logging
 from datetime import UTC, datetime
 from fnmatch import fnmatch
 from platform.common.events.envelope import CorrelationContext
+from platform.common.logging import get_logger
 from platform.connectors.events import (
     ConnectorDeadLetteredPayload,
     ConnectorDeliveryFailedPayload,
@@ -94,7 +94,7 @@ class ConnectorsService:
         self.redis_client = redis_client
         self.object_storage = object_storage
         self.vault = VaultResolver(settings)
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
 
     async def list_connector_types(self) -> ConnectorTypeListResponse:
         items = await self.repository.list_connector_types()

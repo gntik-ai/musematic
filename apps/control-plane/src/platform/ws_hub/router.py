@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import asyncio
 import json
-import logging
 from contextlib import suppress
 from datetime import UTC, datetime
 from importlib import import_module
 from platform.common import database
 from platform.common.events.envelope import CorrelationContext, make_envelope
+from platform.common.logging import get_logger
 from platform.execution.repository import ExecutionRepository
 from platform.ws_hub.connection import ConnectionRegistry, WebSocketConnection
 from platform.ws_hub.dependencies import (
@@ -51,7 +51,7 @@ from pydantic import ValidationError
 from starlette.websockets import WebSocketDisconnect
 
 router = APIRouter()
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class _RouterMetrics:

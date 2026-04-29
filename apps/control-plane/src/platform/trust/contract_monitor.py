@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
 from platform.common.events.consumer import EventConsumerManager
 from platform.common.events.envelope import EventEnvelope
 from platform.common.events.producer import EventProducer
+from platform.common.logging import get_logger
 from platform.trust.dependencies import build_contract_service
 from platform.trust.events import ContractEnforcementPayload, TrustEventType, make_correlation
 from platform.trust.models import AgentContract
@@ -14,7 +14,7 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class ContractMonitorConsumer:

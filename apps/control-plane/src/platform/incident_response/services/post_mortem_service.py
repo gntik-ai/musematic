@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import json
-import logging
 from datetime import UTC, datetime, timedelta
 from platform.common.clients.object_storage import AsyncObjectStorageClient
 from platform.common.config import PlatformSettings
+from platform.common.logging import get_logger
 from platform.incident_response.exceptions import (
     IncidentNotFoundError,
     PostMortemNotFoundError,
@@ -21,7 +21,7 @@ from platform.incident_response.services.timeline_assembler import TimelineAssem
 from typing import Any
 from uuid import UUID, uuid4
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class PostMortemService:

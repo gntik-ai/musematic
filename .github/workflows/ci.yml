@@ -884,8 +884,16 @@ jobs:
           tar -xzf kubeconform.tar.gz kubeconform
           sudo install -m 0755 kubeconform /usr/local/bin/kubeconform
 
+      - name: Install helm-unittest
+        run: helm plugin install https://github.com/helm-unittest/helm-unittest --version v0.7.1
+
       - name: Check Loki label cardinality
         run: python scripts/ci/check_loki_label_cardinality.py
+
+      - name: Validate observability dashboards and alerts
+        run: |
+          helm unittest deploy/helm/observability
+          python scripts/ci/check_observability_dashboards.py
 
       - name: Lint charts
         run: |
@@ -893,6 +901,8 @@ jobs:
             helm dependency build "$chart" >/dev/null 2>&1 || true
             helm lint "$chart" --strict
             helm template release "$chart" \
+              | kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.29.0
+            helm template release "$chart" --api-versions loki.grafana.com/v1/LokiRule \
               | kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.29.0
           done
 

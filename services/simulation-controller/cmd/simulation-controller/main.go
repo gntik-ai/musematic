@@ -188,7 +188,7 @@ func buildRuntimeComponents(ctx context.Context, cfg config) (runtimeComponents,
 
 func runWithComponents(ctx context.Context, cfg config, components runtimeComponents, logger *slog.Logger) error {
 	if logger == nil {
-		logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
+		logger = slog.New(structuredlogging.NewJSONHandler(os.Stdout))
 	}
 
 	telemetry := metrics.New()

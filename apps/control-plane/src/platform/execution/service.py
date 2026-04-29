@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import logging
 from datetime import UTC, datetime
 from platform.common.clients.object_storage import AsyncObjectStorageClient
 from platform.common.clients.reasoning_engine import ReasoningEngineClient
@@ -11,6 +10,7 @@ from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import AuthorizationError, ObjectNotFoundError, ValidationError
+from platform.common.logging import get_logger
 from platform.execution.checkpoint_service import CheckpointService
 from platform.execution.events import (
     ExecutionCreatedEvent,
@@ -66,7 +66,7 @@ from platform.workflows.repository import WorkflowRepository
 from typing import Any
 from uuid import UUID, uuid4
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 COST_SIGNAL_KEYS = frozenset(
     {
         "model_id",

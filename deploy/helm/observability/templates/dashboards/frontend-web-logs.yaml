@@ -8,28 +8,190 @@ metadata:
 data:
   frontend-web-logs.json: |
     {
-      "annotations": { "list": [] },
-      "description": "Frontend client/server logs and API correlation by user and correlation id.",
-      "editable": true,
-      "graphTooltip": 1,
-      "id": null,
-      "panels": [
-        { "id": 1, "type": "timeseries", "title": "Client JS Errors", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }, "targets": [ { "expr": "sum(rate({service=\"web\",bounded_context=\"frontend\",level=\"error\"} | json | user_id=~\"$user\" [5m]))", "refId": "A" } ] },
-        { "id": 2, "type": "logs", "title": "Server-Side Next.js Logs", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }, "targets": [ { "expr": "{service=\"web\",bounded_context=\"frontend\"} | json | user_id=~\"$user\"", "refId": "A" } ], "options": { "dedupStrategy": "none", "enableLogDetails": true, "showLabels": true, "showTime": true, "sortOrder": "Descending" } },
-        { "id": 3, "type": "logs", "title": "Correlated API Errors", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 10, "w": 24, "x": 0, "y": 8 }, "targets": [ { "expr": "{level=\"error\",service=~\"web|api\"} | json | user_id=~\"$user\" | correlation_id != \"\"", "refId": "A" } ], "options": { "dedupStrategy": "none", "enableLogDetails": true, "showLabels": true, "showTime": true, "sortOrder": "Ascending" } },
-        { "id": 4, "type": "logs", "title": "Slow Page Loads", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 }, "targets": [ { "expr": "{service=\"web\",bounded_context=\"frontend\"} | json | message=~\".*slow.*page.*|.*page.*load.*slow.*\" | user_id=~\"$user\"", "refId": "A" } ] },
-        { "id": 5, "type": "stat", "title": "Source Maps Available", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 }, "targets": [ { "expr": "frontend_source_map_resolve_available", "refId": "A" } ], "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [ { "color": "yellow", "value": null }, { "color": "green", "value": 1 } ] } }, "overrides": [] } }
-      ],
-      "refresh": "30s",
-      "schemaVersion": 38,
-      "tags": ["musematic", "frontend", "logs"],
-      "templating": { "list": [
-        { "name": "user", "type": "textbox", "label": "User", "query": ".*", "current": { "selected": false, "text": ".*", "value": ".*" } },
-        { "name": "prometheus", "type": "datasource", "query": "prometheus", "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" } }
-      ] },
-      "time": { "from": "now-1h", "to": "now" },
-      "timezone": "browser",
-      "title": "D10 Frontend Web Logs",
-      "uid": "d10-frontend-web-logs",
-      "version": 1
+          "annotations": {
+                "list": []
+          },
+          "description": "Frontend client/server logs and API correlation by user and correlation id.",
+          "editable": true,
+          "graphTooltip": 1,
+          "id": null,
+          "panels": [
+                {
+                      "id": 1,
+                      "type": "timeseries",
+                      "title": "Client JS Errors",
+                      "datasource": {
+                            "type": "loki",
+                            "uid": "loki"
+                      },
+                      "gridPos": {
+                            "h": 8,
+                            "w": 12,
+                            "x": 0,
+                            "y": 0
+                      },
+                      "targets": [
+                            {
+                                  "expr": "sum(rate({service=\"web\",bounded_context=\"frontend\",level=\"error\"} | json | user_id=~\"$user_id\" [5m]))",
+                                  "refId": "A"
+                            }
+                      ]
+                },
+                {
+                      "id": 2,
+                      "type": "logs",
+                      "title": "Server-Side Next.js Logs",
+                      "datasource": {
+                            "type": "loki",
+                            "uid": "loki"
+                      },
+                      "gridPos": {
+                            "h": 8,
+                            "w": 12,
+                            "x": 12,
+                            "y": 0
+                      },
+                      "targets": [
+                            {
+                                  "expr": "{service=\"web\",bounded_context=\"frontend\"} | json | user_id=~\"$user_id\"",
+                                  "refId": "A"
+                            }
+                      ],
+                      "options": {
+                            "dedupStrategy": "none",
+                            "enableLogDetails": true,
+                            "showLabels": true,
+                            "showTime": true,
+                            "sortOrder": "Descending"
+                      }
+                },
+                {
+                      "id": 3,
+                      "type": "logs",
+                      "title": "Correlated API Errors",
+                      "datasource": {
+                            "type": "loki",
+                            "uid": "loki"
+                      },
+                      "gridPos": {
+                            "h": 10,
+                            "w": 24,
+                            "x": 0,
+                            "y": 8
+                      },
+                      "targets": [
+                            {
+                                  "expr": "{level=\"error\",service=~\"web|api\"} | json | user_id=~\"$user_id\" | correlation_id != \"\"",
+                                  "refId": "A"
+                            }
+                      ],
+                      "options": {
+                            "dedupStrategy": "none",
+                            "enableLogDetails": true,
+                            "showLabels": true,
+                            "showTime": true,
+                            "sortOrder": "Ascending"
+                      }
+                },
+                {
+                      "id": 4,
+                      "type": "logs",
+                      "title": "Slow Page Loads",
+                      "datasource": {
+                            "type": "loki",
+                            "uid": "loki"
+                      },
+                      "gridPos": {
+                            "h": 8,
+                            "w": 12,
+                            "x": 0,
+                            "y": 18
+                      },
+                      "targets": [
+                            {
+                                  "expr": "{service=\"web\",bounded_context=\"frontend\"} | json | message=~\".*slow.*page.*|.*page.*load.*slow.*\" | user_id=~\"$user_id\"",
+                                  "refId": "A"
+                            }
+                      ]
+                },
+                {
+                      "id": 5,
+                      "type": "stat",
+                      "title": "Source Maps Available",
+                      "datasource": {
+                            "type": "prometheus",
+                            "uid": "$prometheus"
+                      },
+                      "gridPos": {
+                            "h": 8,
+                            "w": 12,
+                            "x": 12,
+                            "y": 18
+                      },
+                      "targets": [
+                            {
+                                  "expr": "frontend_source_map_resolve_available",
+                                  "refId": "A"
+                            }
+                      ],
+                      "fieldConfig": {
+                            "defaults": {
+                                  "thresholds": {
+                                        "mode": "absolute",
+                                        "steps": [
+                                              {
+                                                    "color": "yellow",
+                                                    "value": null
+                                              },
+                                              {
+                                                    "color": "green",
+                                                    "value": 1
+                                              }
+                                        ]
+                                  }
+                            },
+                            "overrides": []
+                      }
+                }
+          ],
+          "refresh": "30s",
+          "schemaVersion": 38,
+          "tags": [
+                "musematic",
+                "frontend",
+                "logs"
+          ],
+          "templating": {
+                "list": [
+                      {
+                            "name": "user_id",
+                            "type": "textbox",
+                            "label": "User ID",
+                            "query": ".*",
+                            "current": {
+                                  "selected": false,
+                                  "text": ".*",
+                                  "value": ".*"
+                            }
+                      },
+                      {
+                            "name": "prometheus",
+                            "type": "datasource",
+                            "query": "prometheus",
+                            "current": {
+                                  "selected": false,
+                                  "text": "Prometheus",
+                                  "value": "Prometheus"
+                            }
+                      }
+                ]
+          },
+          "time": {
+                "from": "now-1h",
+                "to": "now"
+          },
+          "timezone": "browser",
+          "title": "D10 Frontend Web Logs",
+          "uid": "d10-frontend-web-logs",
+          "version": 1
     }

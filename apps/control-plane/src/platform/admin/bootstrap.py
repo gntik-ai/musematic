@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
-import logging
 import os
 import re
 import secrets
@@ -19,6 +18,7 @@ from platform.auth.schemas import RoleType
 from platform.common import database
 from platform.common.config import PlatformSettings
 from platform.common.config import settings as default_settings
+from platform.common.logging import get_logger
 from typing import Literal, NamedTuple
 from uuid import UUID
 
@@ -26,7 +26,7 @@ import httpx
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 BOOTSTRAP_AUDIT_EVENT = "platform.superadmin.bootstrapped"
 FORCE_RESET_AUDIT_EVENT = "platform.superadmin.force_reset"

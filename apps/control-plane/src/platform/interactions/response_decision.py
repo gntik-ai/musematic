@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import json
-import logging
 import re
 from dataclasses import dataclass
 from fnmatch import fnmatch
 from platform.common.clients.qdrant import AsyncQdrantClient
 from platform.common.config import PlatformSettings
+from platform.common.logging import get_logger
 from platform.interactions.models import WorkspaceGoalDecisionRationale
 from platform.workspaces.models import WorkspaceAgentDecisionConfig
 from typing import Any, Literal, Protocol
@@ -18,7 +18,7 @@ from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class DecisionResult(BaseModel):

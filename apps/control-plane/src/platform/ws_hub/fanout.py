@@ -2,19 +2,19 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import logging
 import os
 import socket
 from datetime import UTC, datetime
 from importlib import import_module
 from platform.common.events.envelope import EventEnvelope, parse_event_envelope
+from platform.common.logging import get_logger
 from platform.ws_hub.schemas import EventMessage
 from platform.ws_hub.subscription import ChannelType, SubscriptionRegistry, subscription_key
 from platform.ws_hub.visibility import VisibilityFilter
 from typing import Any, Protocol
 from uuid import UUID
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class _ConnectionRegistry(Protocol):

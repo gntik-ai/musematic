@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import os
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -73,7 +72,7 @@ from platform.common.events.consumer import EventConsumerManager
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import PlatformError, platform_exception_handler
-from platform.common.logging import configure_logging
+from platform.common.logging import configure_logging, get_logger
 from platform.common.middleware.api_versioning_middleware import ApiVersioningMiddleware
 from platform.common.middleware.correlation_logging_middleware import CorrelationLoggingMiddleware
 from platform.common.middleware.rate_limit_middleware import RateLimitMiddleware
@@ -270,7 +269,7 @@ from fastapi.responses import Response
 from fastapi.routing import APIRoute
 from starlette.requests import Request
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 OPENAPI_PUBLIC_PATHS: frozenset[str] = frozenset(
     {

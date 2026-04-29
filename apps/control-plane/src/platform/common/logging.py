@@ -49,6 +49,7 @@ def configure_logging(service_name: str, bounded_context: str) -> None:
             _add_context_metadata,
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso", key="timestamp"),
+            structlog.stdlib.PositionalArgumentsFormatter(),
             structlog.processors.dict_tracebacks,
             _event_to_message,
             structlog.processors.JSONRenderer(),

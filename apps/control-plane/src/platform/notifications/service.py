@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import logging
 import secrets
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
@@ -12,6 +11,7 @@ from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import ValidationError
+from platform.common.logging import get_logger
 from platform.common.models.user import User as PlatformUser
 from platform.connectors.retry import compute_next_retry_at
 from platform.interactions.events import AttentionRequestedPayload, InteractionStateChangedPayload
@@ -60,7 +60,7 @@ from types import MappingProxyType
 from typing import ClassVar
 from uuid import UUID, uuid4
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class AlertService:

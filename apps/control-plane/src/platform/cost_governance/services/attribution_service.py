@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime
 from decimal import Decimal
 from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
+from platform.common.logging import get_logger
 from platform.cost_governance.clickhouse_repository import ClickHouseCostRepository, cost_event_row
 from platform.cost_governance.events import (
     CostExecutionAttributedPayload,
@@ -17,7 +17,7 @@ from platform.cost_governance.repository import CostGovernanceRepository
 from typing import Any
 from uuid import UUID, uuid4
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 DECIMAL_ZERO = Decimal("0")
 
 

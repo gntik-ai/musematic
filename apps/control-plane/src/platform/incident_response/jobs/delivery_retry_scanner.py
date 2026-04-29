@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import time
 from datetime import UTC, datetime
 from platform.audit.dependencies import build_audit_chain_service
@@ -9,6 +8,7 @@ from platform.common import database
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.events.producer import EventProducer
+from platform.common.logging import get_logger
 from platform.incident_response.dependencies import (
     build_incident_service,
     build_runbook_service,
@@ -21,7 +21,7 @@ from platform.incident_response.services.providers.victorops import VictorOpsCli
 from platform.security_compliance.providers.rotatable_secret_provider import RotatableSecretProvider
 from typing import Any, cast
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 async def run_delivery_retry_scan(app: Any) -> int:

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import logging
+from platform.common.logging import get_logger
 from platform.execution.models import ExecutionCheckpoint, ExecutionEvent, ExecutionStatus
 from platform.execution.schemas import ExecutionStateResponse
 from typing import Any
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class ExecutionProjector:

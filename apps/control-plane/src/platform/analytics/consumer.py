@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import inspect
-import logging
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from importlib import import_module
@@ -14,11 +13,12 @@ from platform.common.config import PlatformSettings
 from platform.common.events.envelope import EventEnvelope
 from platform.common.events.producer import EventProducer
 from platform.common.events.retry import RetryHandler
+from platform.common.logging import get_logger
 from platform.privacy_compliance.redis_keys import DATA_COLLECTION_DISABLED_USERS_KEY
 from typing import Any
 from uuid import UUID, uuid4
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class AnalyticsPipelineConsumer:

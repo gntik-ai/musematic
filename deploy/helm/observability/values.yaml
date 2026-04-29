@@ -245,6 +245,38 @@ kube-prometheus-stack:
         searchNamespace: platform-observability
   # -- Configures `kube-prometheus-stack.alertmanager` for the observability chart.
   alertmanager:
+    # -- Configures `kube-prometheus-stack.alertmanager.config` for the observability chart.
+    config:
+      global:
+        resolve_timeout: 5m
+      route:
+        group_by:
+          - alertname
+          - service
+          - severity
+        group_wait: 30s
+        group_interval: 5m
+        repeat_interval: 4h
+        receiver: platform-alerts-default
+        routes:
+          - receiver: incident-response-audit-chain-anomaly
+            matchers:
+              - incident_trigger = "audit_chain_anomaly"
+            continue: true
+          - receiver: platform-alerts-critical
+            matchers:
+              - severity = "critical"
+          - receiver: platform-alerts-warning
+            matchers:
+              - severity = "warning"
+      receivers:
+        - name: platform-alerts-default
+        - name: platform-alerts-critical
+        - name: platform-alerts-warning
+        - name: incident-response-audit-chain-anomaly
+          webhook_configs:
+            - url: http://musematic-control-plane-api.platform-control.svc.cluster.local:8000/api/v1/internal/alerts/audit-chain-anomaly
+              send_resolved: false
     # -- Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec` for the observability chart.
     alertmanagerSpec:
       # -- Configures `kube-prometheus-stack.alertmanager.alertmanagerSpec.storage` for the observability chart.

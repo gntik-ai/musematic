@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import time
 from platform.common import database
 from platform.common.clients.redis import AsyncRedisClient
@@ -9,13 +8,14 @@ from platform.common.config import PlatformSettings
 from platform.common.debug_logging.redaction import redact_body, redact_headers, redact_path
 from platform.common.debug_logging.repository import DebugLoggingRepository
 from platform.common.debug_logging.service import DebugLoggingService
+from platform.common.logging import get_logger
 from typing import cast
 from uuid import UUID
 
 from starlette.requests import Request
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class DebugCaptureMiddleware:

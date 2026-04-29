@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime
 from platform.audit.dependencies import build_audit_chain_service
 from platform.common import database
+from platform.common.logging import get_logger
 from platform.incident_response.trigger_interface import get_incident_trigger
 from platform.multi_region_ops.repository import MultiRegionOpsRepository
 from platform.multi_region_ops.services.maintenance_mode_service import MaintenanceModeService
 from typing import Any
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 def build_maintenance_window_scheduler(app: Any) -> Any | None:

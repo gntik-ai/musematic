@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import logging
 from platform.common import database
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.events.consumer import EventConsumerManager
 from platform.common.events.envelope import EventEnvelope
 from platform.common.events.producer import EventProducer
+from platform.common.logging import get_logger
 from platform.governance.dependencies import (
     build_enforcer_service,
     build_judge_service,
@@ -18,7 +18,7 @@ from platform.governance.repository import GovernanceRepository
 from platform.registry.service import RegistryService
 from uuid import UUID
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class ObserverSignalConsumer:

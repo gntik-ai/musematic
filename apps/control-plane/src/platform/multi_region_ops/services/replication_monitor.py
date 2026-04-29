@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import hashlib
-import logging
 from datetime import UTC, datetime
 from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
+from platform.common.logging import get_logger
 from platform.incident_response.schemas import IncidentSeverity, IncidentSignal
 from platform.incident_response.services.incident_service import IncidentService
 from platform.incident_response.trigger_interface import IncidentTriggerInterface
@@ -23,7 +23,7 @@ from platform.multi_region_ops.services.probes.base import (
 )
 from uuid import uuid4
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class ReplicationMonitor:

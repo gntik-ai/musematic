@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import json
-import logging
 from datetime import UTC, datetime, timedelta
 from platform.common.events.envelope import CorrelationContext
 from platform.common.exceptions import PolicySecretLeakError
 from platform.common.llm.mock_provider import MockLLMProvider
+from platform.common.logging import get_logger
 from platform.execution.checkpoint_service import CheckpointService
 from platform.execution.events import (
     ExecutionDomainEventType,
@@ -39,7 +39,7 @@ from platform.workflows.ir import StepIR, WorkflowIR
 from typing import Any, TypedDict
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class PriorityChange(TypedDict):

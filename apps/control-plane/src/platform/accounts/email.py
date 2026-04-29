@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import logging
+from platform.common.logging import get_logger
 from typing import Any
 from uuid import UUID
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 async def send_verification_email(

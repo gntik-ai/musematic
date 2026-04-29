@@ -12,7 +12,7 @@ import (
 
 func TestContextHandlerAddsStructuredFields(t *testing.T) {
 	var buf bytes.Buffer
-	logger := slog.New(NewContextHandler(slog.NewJSONHandler(&buf, nil), "simulation-controller", "platform-simulation"))
+	logger := slog.New(NewContextHandler(NewJSONHandler(&buf), "simulation-controller", "platform-simulation"))
 	ctx := WithFields(context.Background(), Fields{
 		WorkspaceID:   "workspace-1",
 		GoalID:        "goal-1",
@@ -28,6 +28,14 @@ func TestContextHandlerAddsStructuredFields(t *testing.T) {
 	if err := json.Unmarshal(buf.Bytes(), &payload); err != nil {
 		t.Fatalf("decode log payload: %v", err)
 	}
+	for _, field := range []string{"timestamp", "level", "message", "service", "bounded_context"} {
+		if _, ok := payload[field]; !ok {
+			t.Fatalf("missing field %s in %#v", field, payload)
+		}
+	}
+	if payload["level"] != "info" || payload["message"] != "simulation started" {
+		t.Fatalf("unexpected log level/message: %#v", payload)
+	}
 	if payload["service"] != "simulation-controller" || payload["bounded_context"] != "platform-simulation" {
 		t.Fatalf("unexpected service metadata: %#v", payload)
 	}
@@ -38,7 +46,7 @@ func TestContextHandlerAddsStructuredFields(t *testing.T) {
 
 func TestContextHandlerMissingContextDoesNotCrash(t *testing.T) {
 	var buf bytes.Buffer
-	logger := slog.New(NewContextHandler(slog.NewJSONHandler(&buf, nil), "simulation-controller", "platform-simulation"))
+	logger := slog.New(NewContextHandler(NewJSONHandler(&buf), "simulation-controller", "platform-simulation"))
 
 	logger.WarnContext(context.Background(), "simulation orphan")
 
@@ -53,7 +61,7 @@ func TestContextHandlerMissingContextDoesNotCrash(t *testing.T) {
 
 func TestWithGRPCMetadataExtractsCanonicalFields(t *testing.T) {
 	var buf bytes.Buffer
-	logger := slog.New(NewContextHandler(slog.NewJSONHandler(&buf, nil), "simulation-controller", "platform-simulation"))
+	logger := slog.New(NewContextHandler(NewJSONHandler(&buf), "simulation-controller", "platform-simulation"))
 	ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(
 		"workspace_id", "",
 		"x-workspace-id", "workspace-1",
@@ -97,7 +105,7 @@ func TestContextHandlerAttrsGroupsAndConfigure(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	handler := NewContextHandler(slog.NewJSONHandler(&buf, nil), "simulation-controller", "platform-simulation").
+	handler := NewContextHandler(NewJSONHandler(&buf), "simulation-controller", "platform-simulation").
 		WithAttrs([]slog.Attr{slog.String("component", "grpc")}).
 		WithGroup("request")
 
