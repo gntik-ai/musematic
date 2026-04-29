@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WaitingApprovalStatus } from "@/components/features/auth/WaitingApprovalStatus";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -17,6 +18,7 @@ export default function WaitingApprovalPage() {
           Administrators usually review signup requests within {reviewTime}.
         </p>
       </div>
+      <WaitingApprovalStatus />
       <div className="grid gap-3">
         <Button asChild>
           <a href={`mailto:${contactEmail}`}>Contact administrator</a>

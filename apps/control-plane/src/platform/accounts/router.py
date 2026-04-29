@@ -38,7 +38,7 @@ from platform.common.exceptions import AuthorizationError, ValidationError
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 
 router = APIRouter(prefix="/api/v1/accounts", tags=["accounts"])
 
@@ -63,9 +63,11 @@ def _require_superadmin(current_user: dict[str, Any]) -> None:
 @router.post("/register", response_model=RegisterResponse, status_code=202)
 async def register(
     payload: RegisterRequest,
+    request: Request,
     accounts_service: AccountsService = Depends(get_accounts_service),
 ) -> RegisterResponse:
-    return await accounts_service.register(payload)
+    source_ip = request.client.host if request.client is not None else "0.0.0.0"
+    return await accounts_service.register(payload, source_ip=source_ip)
 
 
 @router.post("/verify-email", response_model=VerifyEmailResponse)

@@ -57,6 +57,7 @@ from platform.common.exceptions import AuthorizationError, ValidationError
 from uuid import uuid4
 
 import pytest
+from starlette.requests import Request
 
 from tests.auth_support import role_claim
 
@@ -67,8 +68,13 @@ class RouterServiceStub:
         self.user_id = uuid4()
         self.invitation_id = uuid4()
 
-    async def register(self, payload: RegisterRequest) -> RegisterResponse:
-        self.calls.append(("register", (payload,)))
+    async def register(
+        self,
+        payload: RegisterRequest,
+        *,
+        source_ip: str = "0.0.0.0",
+    ) -> RegisterResponse:
+        self.calls.append(("register", (payload, source_ip)))
         return RegisterResponse()
 
     async def verify_email(self, payload: VerifyEmailRequest) -> VerifyEmailResponse:
@@ -216,6 +222,15 @@ def test_role_helpers_enforce_expected_permissions() -> None:
 @pytest.mark.asyncio
 async def test_public_routes_delegate_to_service() -> None:
     service = RouterServiceStub()
+    request = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/api/v1/accounts/register",
+            "headers": [],
+            "client": ("203.0.113.10", 12345),
+        }
+    )
     register_payload = RegisterRequest(
         email="user@example.com",
         display_name="Jane Smith",
@@ -229,7 +244,7 @@ async def test_public_routes_delegate_to_service() -> None:
         password="StrongP@ssw0rd!",
     )
 
-    register_response = await register(register_payload, accounts_service=service)
+    register_response = await register(register_payload, request, accounts_service=service)
     verify_response = await verify_email(verify_payload, accounts_service=service)
     resend_response = await resend_verification(resend_payload, accounts_service=service)
     details_response = await get_invitation_details("invite-token", accounts_service=service)
@@ -240,6 +255,7 @@ async def test_public_routes_delegate_to_service() -> None:
     )
 
     assert register_response == RegisterResponse()
+    assert service.calls[0] == ("register", (register_payload, "203.0.113.10"))
     assert verify_response.status == UserStatus.active
     assert resend_response == ResendVerificationResponse()
     assert details_response.invitee_email == "invitee@example.com"

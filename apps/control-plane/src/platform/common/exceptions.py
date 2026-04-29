@@ -54,8 +54,13 @@ class ConvergenceFailedError(PlatformError):
 
 async def platform_exception_handler(request: Request, exc: PlatformError) -> JSONResponse:
     del request
+    headers: dict[str, str] = {}
+    retry_after = exc.details.get("retry_after")
+    if isinstance(retry_after, (int, float)) and retry_after > 0:
+        headers["Retry-After"] = str(max(1, int(retry_after)))
     return JSONResponse(
         status_code=exc.status_code,
+        headers=headers,
         content={
             "error": {
                 "code": exc.code,

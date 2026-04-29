@@ -43,6 +43,13 @@ def _require_platform_admin(current_user: dict[str, Any]) -> None:
     raise AuthorizationError("PERMISSION_DENIED", "Platform admin role required")
 
 
+async def _optional_current_user(request: Request) -> dict[str, Any] | None:
+    try:
+        return await get_current_user(request)
+    except AuthorizationError:
+        return None
+
+
 def _frontend_oauth_callback_redirect(request: Request, provider: str) -> str:
     origin = request.headers.get("Origin")
     if origin:
@@ -73,9 +80,14 @@ async def list_public_oauth_providers(
 
 @oauth_router.get("/api/v1/auth/oauth/links", response_model=OAuthLinkListResponse)
 async def list_oauth_links(
-    current_user: dict[str, Any] = Depends(get_current_user),
+    email: str | None = Query(default=None),
+    current_user: dict[str, Any] | None = Depends(_optional_current_user),
     oauth_service: OAuthService = Depends(get_oauth_service),
 ) -> OAuthLinkListResponse:
+    if email is not None:
+        return await oauth_service.list_links_for_email(email)
+    if current_user is None:
+        raise AuthorizationError("UNAUTHORIZED", "Missing authentication")
     return await oauth_service.list_links(UUID(str(current_user["sub"])))
 
 
@@ -85,9 +97,15 @@ async def list_oauth_links(
 )
 async def authorize_oauth_provider(
     provider: str,
+    intent: str | None = Query(default=None),
+    email: str | None = Query(default=None),
     oauth_service: OAuthService = Depends(get_oauth_service),
 ) -> OAuthAuthorizeResponse:
-    return await oauth_service.get_authorization_url(provider)
+    return await oauth_service.get_authorization_url(
+        provider,
+        intent=intent,
+        recovery_email=email,
+    )
 
 
 @oauth_router.post(

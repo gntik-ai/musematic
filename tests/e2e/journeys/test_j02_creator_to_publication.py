@@ -150,6 +150,7 @@ async def _wait_for_evaluation_run(
 @pytest.mark.j02_creator
 @pytest.mark.j02_creator_to_publication
 @pytest.mark.timeout(TIMEOUT_SECONDS)
+@pytest.mark.parametrize("signup_method", ["oauth_github"])
 @pytest.mark.asyncio
 async def test_j02_creator_to_publication(
     request: pytest.FixtureRequest,
@@ -157,8 +158,10 @@ async def test_j02_creator_to_publication(
     creator_client: AuthenticatedAsyncClient,
     trust_reviewer_client: AuthenticatedAsyncClient,
     journey_context: JourneyContext,
+    signup_method: str,
 ) -> None:
     assert creator_client.access_token is not None
+    assert signup_method == "oauth_github"
 
     creator_claims = _claims(creator_client.access_token)
     creator_user_id = UUID(str(creator_claims["sub"]))

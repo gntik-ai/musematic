@@ -437,6 +437,14 @@ mockOAuth:
         sub: google-consumer-001
         email: j-consumer@e2e.test
         email_verified: true
+      - key: signup-google-example
+        sub: google-signup-example-001
+        email: signup-google@example.com
+        email_verified: true
+      - key: signup-google-unauthorized
+        sub: google-signup-unauthorized-001
+        email: signup-google@unauthorized.com
+        email_verified: true
   github:
     enabled: true
     image:
@@ -464,3 +472,15 @@ mockOAuth:
         id: 1002
         login: j-creator
         email: j-creator@e2e.test
+        orgs:
+          - musematic
+      - key: signup-github-member
+        id: 1101
+        login: signup-github-member
+        email: signup-github-member@e2e.test
+        orgs:
+          - musematic
+      - key: signup-github-outsider
+        id: 1102
+        login: signup-github-outsider
+        email: signup-github-outsider@e2e.test
