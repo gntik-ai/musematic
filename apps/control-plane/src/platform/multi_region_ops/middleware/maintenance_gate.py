@@ -104,7 +104,8 @@ def _aware(value: datetime) -> datetime:
 
 
 def _is_maintenance_control_request(request: Request) -> bool:
-    path = request.url.path
+    url = getattr(request, "url", None)
+    path = getattr(url, "path", "")
     return path.startswith(MAINTENANCE_CONTROL_PREFIX) and any(
         path.endswith(suffix) for suffix in MAINTENANCE_CONTROL_SUFFIXES
     )
