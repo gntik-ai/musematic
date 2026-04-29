@@ -81,6 +81,7 @@ export default function CostBudgetsPage() {
               <CardHeader className="flex flex-row items-center justify-between gap-4">
                 <CardTitle className="text-base capitalize">{budget.period_type}</CardTitle>
                 <Button
+                  aria-label={`Delete ${budget.period_type} budget`}
                   size="icon"
                   variant="ghost"
                   onClick={() => {

@@ -72,37 +72,107 @@
     "toggleTheme": "テーマを切り替え",
     "switchLanguage": "言語を切り替え",
     "searchMarketplace": "マーケットプレイスを検索",
+    "newConversation": "新しい会話",
     "openPreferences": "設定を開く",
     "signOut": "サインアウト",
     "openHelp": "コマンドヘルプを開く",
     "categories": {
       "platform": "プラットフォーム",
+      "home": "ホーム",
+      "dashboard": "ダッシュボード",
       "marketplace": "マーケットプレイス",
+      "agents": "エージェント",
+      "conversations": "会話",
+      "analytics": "分析",
+      "costs": "コスト",
+      "evaluation": "評価",
+      "fleet": "フリート",
       "operator": "オペレーター",
+      "policies": "ポリシー",
+      "trust": "信頼",
       "workflows": "ワークフロー",
       "preferences": "設定",
       "admin": "管理"
     },
     "routes": {
+      "home": {
+        "dashboard": "ダッシュボードを開く",
+        "marketplace": "マーケットプレイスを見る",
+        "newConversation": "会話を開始"
+      },
+      "dashboard": {
+        "home": "ホームを開く",
+        "analytics": "分析を開く"
+      },
       "marketplace": {
         "search": "マーケットプレイスを検索",
         "compare": "選択したエージェントを比較"
       },
+      "agents": {
+        "directory": "エージェント一覧を開く",
+        "create": "エージェントを作成",
+        "marketplace": "マーケットプレイスでエージェントを探す"
+      },
+      "agentManagement": {
+        "registry": "エージェントレジストリを開く",
+        "wizard": "構成ウィザードを開く",
+        "contracts": "契約ライブラリを開く"
+      },
+      "conversations": {
+        "new": "新しい会話",
+        "list": "会話を開く"
+      },
+      "analytics": {
+        "open": "分析を開く",
+        "costs": "コスト分析を開く"
+      },
+      "costs": {
+        "overview": "コスト概要を開く",
+        "budgets": "予算を開く",
+        "reports": "レポートを開く"
+      },
+      "evaluation": {
+        "suites": "評価スイートを開く",
+        "new": "評価スイートを作成",
+        "simulations": "シミュレーションを開く"
+      },
+      "fleet": {
+        "overview": "フリート概要を開く",
+        "operator": "オペレーターダッシュボードを開く"
+      },
       "operator": {
         "incidents": "インシデントを開く",
-        "runbooks": "Runbook を開く"
+        "runbooks": "Runbook を開く",
+        "executions": "実行中の処理を開く"
+      },
+      "policies": {
+        "open": "ポリシーを開く",
+        "governance": "ガバナンス設定を開く"
+      },
+      "trust": {
+        "overview": "信頼概要を開く",
+        "workbench": "信頼ワークベンチを開く"
+      },
+      "trustWorkbench": {
+        "queue": "認証キューを開く",
+        "overview": "信頼概要を開く"
       },
       "workflows": {
         "new": "ワークフローを作成",
-        "monitor": "ワークフローモニターを開く"
+        "monitor": "ワークフローモニターを開く",
+        "library": "ワークフローライブラリを開く"
       },
       "settings": {
         "preferences": "設定を開く",
-        "alerts": "アラート設定を開く"
+        "alerts": "アラート設定を開く",
+        "governance": "ガバナンスを開く",
+        "visibility": "可視性を開く",
+        "connections": "アカウント接続を開く"
       },
       "admin": {
         "locales": "ロケール公開を開く",
-        "settings": "管理設定を開く"
+        "settings": "管理設定を開く",
+        "incidentIntegrations": "インシデント連携を開く"
       }
     }
   }

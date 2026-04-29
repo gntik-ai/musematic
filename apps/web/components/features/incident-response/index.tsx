@@ -102,13 +102,21 @@ export function IncidentTable({
             Incidents
           </CardTitle>
           <div className="grid w-full gap-2 sm:w-auto sm:grid-cols-2">
-            <Select value={statusFilter} onChange={(event) => onStatusFilterChange(event.target.value)}>
+            <Select
+              aria-label="Incident status filter"
+              value={statusFilter}
+              onChange={(event) => onStatusFilterChange(event.target.value)}
+            >
               <option value="open">Open</option>
               <option value="acknowledged">Acknowledged</option>
               <option value="resolved">Resolved</option>
               <option value="">All statuses</option>
             </Select>
-            <Select value={severityFilter} onChange={(event) => onSeverityFilterChange(event.target.value)}>
+            <Select
+              aria-label="Incident severity filter"
+              value={severityFilter}
+              onChange={(event) => onSeverityFilterChange(event.target.value)}
+            >
               <option value="">All severities</option>
               <option value="critical">Critical</option>
               <option value="high">High</option>

@@ -28,7 +28,7 @@
     --radius: 1rem;
     --brand-primary: 238 84% 58%;
     --brand-secondary: 262 52% 47%;
-    --brand-accent: 199 89% 48%;
+    --brand-accent: 199 89% 34%;
     --warning: 38 92% 50%;
     --severity-critical: 0 79% 57%;
     --severity-high: 24 95% 53%;
@@ -51,7 +51,7 @@
     --popover: 228 31% 14%;
     --popover-foreground: 210 40% 96%;
     --primary: 238 84% 64%;
-    --primary-foreground: 228 32% 10%;
+    --primary-foreground: 210 40% 98%;
     --secondary: 228 18% 20%;
     --secondary-foreground: 210 40% 96%;
     --muted: 228 18% 20%;

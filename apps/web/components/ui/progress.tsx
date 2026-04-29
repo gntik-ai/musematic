@@ -1,12 +1,14 @@
 import { cn } from "@/lib/utils";
 
 interface ProgressProps {
+  "aria-label"?: string;
   className?: string;
   indicatorClassName?: string;
   value: number;
 }
 
 export function Progress({
+  "aria-label": ariaLabel = "Progress",
   className,
   indicatorClassName,
   value,
@@ -18,6 +20,7 @@ export function Progress({
       aria-valuemax={100}
       aria-valuemin={0}
       aria-valuenow={Math.round(clamped)}
+      aria-label={ariaLabel}
       className={cn("h-2.5 w-full overflow-hidden rounded-full bg-muted", className)}
       role="progressbar"
     >
@@ -31,4 +34,3 @@ export function Progress({
     </div>
   );
 }
-

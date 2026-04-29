@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 const tabs = [
@@ -21,15 +21,17 @@ export default function EvaluationTestingLayout({
         {tabs.map((tab) => {
           const active = tab.matches(pathname);
           return (
-            <TabsTrigger
+            <Link
               key={tab.href}
+              aria-current={active ? "page" : undefined}
               className={cn(
-                "border border-border/70 bg-card px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground",
+                "rounded-md border border-border/70 bg-card px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 active && "bg-primary text-primary-foreground hover:text-primary-foreground",
               )}
+              href={tab.href}
             >
-              <Link href={tab.href}>{tab.label}</Link>
-            </TabsTrigger>
+              {tab.label}
+            </Link>
           );
         })}
       </TabsList>

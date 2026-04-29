@@ -72,37 +72,107 @@
     "toggleTheme": "Toggle theme",
     "switchLanguage": "Switch language",
     "searchMarketplace": "Search marketplace",
+    "newConversation": "New conversation",
     "openPreferences": "Open preferences",
     "signOut": "Sign out",
     "openHelp": "Open command palette help",
     "categories": {
       "platform": "Platform",
+      "home": "Home",
+      "dashboard": "Dashboard",
       "marketplace": "Marketplace",
+      "agents": "Agents",
+      "conversations": "Conversations",
+      "analytics": "Analytics",
+      "costs": "Costs",
+      "evaluation": "Evaluation",
+      "fleet": "Fleet",
       "operator": "Operator",
+      "policies": "Policies",
+      "trust": "Trust",
       "workflows": "Workflows",
       "preferences": "Preferences",
       "admin": "Admin"
     },
     "routes": {
+      "home": {
+        "dashboard": "Open dashboard",
+        "marketplace": "Browse marketplace",
+        "newConversation": "Start a conversation"
+      },
+      "dashboard": {
+        "home": "Open home",
+        "analytics": "Open analytics"
+      },
       "marketplace": {
         "search": "Search marketplace",
         "compare": "Compare selected agents"
       },
+      "agents": {
+        "directory": "Open agent directory",
+        "create": "Create agent",
+        "marketplace": "Find agents in marketplace"
+      },
+      "agentManagement": {
+        "registry": "Open agent registry",
+        "wizard": "Open composition wizard",
+        "contracts": "Open contract library"
+      },
+      "conversations": {
+        "new": "New conversation",
+        "list": "Open conversations"
+      },
+      "analytics": {
+        "open": "Open analytics",
+        "costs": "Open cost intelligence"
+      },
+      "costs": {
+        "overview": "Open cost overview",
+        "budgets": "Open budgets",
+        "reports": "Open reports"
+      },
+      "evaluation": {
+        "suites": "Open evaluation suites",
+        "new": "Create evaluation suite",
+        "simulations": "Open simulations"
+      },
+      "fleet": {
+        "overview": "Open fleet overview",
+        "operator": "Open operator dashboard"
+      },
       "operator": {
         "incidents": "Open incidents tab",
-        "runbooks": "Open runbooks"
+        "runbooks": "Open runbooks",
+        "executions": "Open active executions"
+      },
+      "policies": {
+        "open": "Open policies",
+        "governance": "Open governance settings"
+      },
+      "trust": {
+        "overview": "Open trust overview",
+        "workbench": "Open trust workbench"
+      },
+      "trustWorkbench": {
+        "queue": "Open certification queue",
+        "overview": "Open trust overview"
       },
       "workflows": {
         "new": "Create workflow",
-        "monitor": "Open workflow monitor"
+        "monitor": "Open workflow monitor",
+        "library": "Open workflow library"
       },
       "settings": {
         "preferences": "Open preferences",
-        "alerts": "Open alert settings"
+        "alerts": "Open alert settings",
+        "governance": "Open governance settings",
+        "visibility": "Open visibility settings",
+        "connections": "Open account connections"
       },
       "admin": {
         "locales": "Open locale publishing",
-        "settings": "Open admin settings"
+        "settings": "Open admin settings",
+        "incidentIntegrations": "Open incident integrations"
       }
     }
   }
