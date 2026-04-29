@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from platform.common.exceptions import AuthorizationError, ValidationError
 from platform.common.tagging.exceptions import (
     EntityNotFoundForTagError,
     InvalidLabelKeyError,
     LabelAttachLimitExceededError,
     LabelValueTooLongError,
     ReservedLabelNamespaceError,
+    SavedViewNameTakenError,
     SavedViewNotFoundError,
 )
 from platform.common.tagging.label_service import LabelService
@@ -17,6 +19,7 @@ from types import SimpleNamespace
 from uuid import UUID, uuid4
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 
 class LabelRepoStub:
@@ -132,6 +135,8 @@ class SavedViewRepoStub:
         self.personal: list[SimpleNamespace] = []
         self.shared: list[SimpleNamespace] = []
         self.deleted: list[UUID] = []
+        self.transferred: list[tuple[UUID, UUID]] = []
+        self.marked_orphan: list[UUID] = []
 
     async def insert_saved_view(
         self,
@@ -202,6 +207,43 @@ class SavedViewRepoStub:
         self.deleted.append(view_id)
         return self.views.pop(view_id, None) is not None
 
+    async def transfer_saved_view_ownership(self, view_id: UUID, new_owner_id: UUID) -> None:
+        self.transferred.append((view_id, new_owner_id))
+        view = self.views[view_id]
+        view.owner_id = new_owner_id
+        view.is_orphan_transferred = True
+        view.is_orphan = False
+
+    async def mark_saved_view_orphan(self, view_id: UUID) -> None:
+        self.marked_orphan.append(view_id)
+        self.views[view_id].is_orphan = True
+
+    async def list_views_owned_by_user_in_workspace(
+        self,
+        owner_id: UUID,
+        workspace_id: UUID,
+    ) -> list[SimpleNamespace]:
+        return [
+            view
+            for view in self.views.values()
+            if view.owner_id == owner_id and view.workspace_id == workspace_id
+        ]
+
+
+class SavedViewConflictRepoStub(SavedViewRepoStub):
+    async def insert_saved_view(
+        self,
+        *,
+        owner_id: UUID,
+        workspace_id: UUID | None,
+        name: str,
+        entity_type: str,
+        filters: dict[str, object],
+        shared: bool,
+    ) -> SimpleNamespace:
+        del owner_id, workspace_id, entity_type, filters, shared
+        raise IntegrityError("insert saved view", {"name": name}, Exception("duplicate"))
+
 
 def _saved_view_row(
     *,
@@ -221,6 +263,7 @@ def _saved_view_row(
         filters=filters or {},
         shared=shared,
         is_orphan_transferred=False,
+        is_orphan=False,
         version=1,
         created_at=datetime.now(UTC),
         updated_at=datetime.now(UTC),
@@ -454,6 +497,172 @@ async def test_saved_view_service_owner_shared_and_not_found_paths() -> None:
     with pytest.raises(SavedViewNotFoundError):
         await service.delete(uuid4(), {"sub": str(owner_id)})
     assert await service.list_for_user({}, "agent", workspace_id) == []
+
+
+@pytest.mark.asyncio
+async def test_saved_view_service_enforces_rbac_filter_validation_and_audit() -> None:
+    repo = SavedViewRepoStub()
+    audit = AuditStub()
+    owner_id = uuid4()
+    workspace_id = uuid4()
+    member_id = uuid4()
+    admin_id = uuid4()
+    members = {owner_id, member_id, admin_id}
+
+    async def is_member(workspace: UUID, requester: object) -> bool:
+        raw = (
+            requester.get("sub")
+            if isinstance(requester, dict)
+            else getattr(requester, "id", None)
+        )
+        return workspace == workspace_id and raw is not None and UUID(str(raw)) in members
+
+    async def superadmin_provider(workspace: UUID) -> UUID | None:
+        return admin_id if workspace == workspace_id else None
+
+    service = SavedViewService(
+        repo,
+        audit_chain=audit,  # type: ignore[arg-type]
+        workspace_membership_check=is_member,
+        workspace_superadmin_provider=superadmin_provider,
+    )
+
+    with pytest.raises(ValidationError):
+        await service.create(
+            requester={"sub": str(owner_id)},
+            workspace_id=None,
+            name="shared-without-workspace",
+            entity_type="agent",
+            filters={},
+            shared=True,
+        )
+    with pytest.raises(ValidationError):
+        await service.create(
+            requester={"sub": str(owner_id)},
+            workspace_id=workspace_id,
+            name="bad-filter",
+            entity_type="agent",
+            filters={"unknown": True},
+            shared=False,
+        )
+    with pytest.raises(AuthorizationError):
+        await service.create(
+            requester={"sub": str(uuid4())},
+            workspace_id=workspace_id,
+            name="not-a-member",
+            entity_type="agent",
+            filters={},
+            shared=False,
+        )
+
+    created = await service.create(
+        requester={"sub": str(owner_id)},
+        workspace_id=workspace_id,
+        name="prod",
+        entity_type="agent",
+        filters={"labels": {"env": "production"}, "tags": ["customer-facing"]},
+        shared=False,
+    )
+    with pytest.raises(SavedViewNotFoundError):
+        await service.get(created.id, {"sub": str(uuid4())})
+    with pytest.raises(SavedViewNotFoundError):
+        await service.update(created.id, created.version, {"sub": str(member_id)}, name="blocked")
+
+    shared = await service.share(created.id, {"sub": str(owner_id)})
+    shared_for_member = await service.get(created.id, {"sub": str(member_id)})
+    await service.delete(
+        created.id,
+        {"sub": str(admin_id), "roles": ["superadmin"]},
+    )
+
+    payloads = [json.loads(entry[2].decode("utf-8")) for entry in audit.entries]
+    assert shared.is_shared is True
+    assert shared_for_member.is_owner is False
+    assert repo.deleted == [created.id]
+    assert [payload["action"] for payload in payloads] == [
+        "tagging.saved_view.created",
+        "tagging.saved_view.shared",
+        "tagging.saved_view.deleted",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_saved_view_create_maps_name_collision_to_domain_error() -> None:
+    service = SavedViewService(SavedViewConflictRepoStub())  # type: ignore[arg-type]
+
+    with pytest.raises(SavedViewNameTakenError):
+        await service.create(
+            requester={"sub": str(uuid4())},
+            workspace_id=uuid4(),
+            name="duplicate",
+            entity_type="agent",
+            filters={},
+            shared=False,
+        )
+
+
+@pytest.mark.asyncio
+async def test_saved_view_orphan_resolver_transfers_or_marks_views() -> None:
+    workspace_id = uuid4()
+    former_owner_id = uuid4()
+    admin_id = uuid4()
+
+    async def owner_left(workspace: UUID, requester: object) -> bool:
+        raw = (
+            requester.get("sub")
+            if isinstance(requester, dict)
+            else getattr(requester, "id", None)
+        )
+        return workspace == workspace_id and raw is not None and UUID(str(raw)) == admin_id
+
+    async def superadmin_provider(_workspace: UUID) -> UUID | None:
+        return admin_id
+
+    transfer_repo = SavedViewRepoStub()
+    transfer_view = _saved_view_row(
+        owner_id=former_owner_id,
+        workspace_id=workspace_id,
+        name="shared",
+        entity_type="agent",
+        shared=True,
+    )
+    transfer_repo.views[transfer_view.id] = transfer_view
+    transfer_audit = AuditStub()
+    transfer_service = SavedViewService(
+        transfer_repo,
+        audit_chain=transfer_audit,  # type: ignore[arg-type]
+        workspace_membership_check=owner_left,
+        workspace_superadmin_provider=superadmin_provider,
+    )
+
+    await transfer_service.resolve_orphan_owner(workspace_id, former_owner_id=former_owner_id)
+
+    marked_repo = SavedViewRepoStub()
+    marked_view = _saved_view_row(
+        owner_id=former_owner_id,
+        workspace_id=workspace_id,
+        name="limbo",
+        entity_type="agent",
+        shared=True,
+    )
+    marked_repo.views[marked_view.id] = marked_view
+    marked_service = SavedViewService(
+        marked_repo,
+        workspace_membership_check=owner_left,
+        workspace_superadmin_provider=lambda _workspace: _async_none(),
+    )
+
+    await marked_service.resolve_orphan_owner(workspace_id, former_owner_id=former_owner_id)
+
+    transfer_payload = json.loads(transfer_audit.entries[0][2].decode("utf-8"))
+    assert transfer_repo.transferred == [(transfer_view.id, admin_id)]
+    assert transfer_payload["action"] == "tagging.saved_view.orphan_transferred"
+    assert marked_repo.marked_orphan == [marked_view.id]
+    assert marked_repo.views[marked_view.id].is_orphan is True
+
+
+async def _async_none() -> None:
+    return None
 
 
 @pytest.mark.asyncio

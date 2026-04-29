@@ -3,6 +3,8 @@ from __future__ import annotations
 from platform.common.tagging.exceptions import LabelExpressionSyntaxError
 from platform.common.tagging.label_expression.ast import AndNode, EqualNode, GroupNode, NotNode
 from platform.common.tagging.label_expression.parser import parse, tokenize
+from platform.policies.schemas import PolicyRulesSchema
+from platform.policies.service import PolicyService
 
 import pytest
 
@@ -58,3 +60,13 @@ def test_parser_reports_structured_syntax_errors(expression: str, token: str) ->
     assert exc_info.value.col >= 1
     assert exc_info.value.token == token
     assert exc_info.value.message
+
+
+def test_policy_rules_validate_label_expression_at_save_boundary() -> None:
+    rules = PolicyRulesSchema(label_expression=" env=production ")
+
+    PolicyService._validate_label_expression(rules)
+
+    assert rules.label_expression == "env=production"
+    with pytest.raises(LabelExpressionSyntaxError):
+        PolicyService._validate_label_expression(PolicyRulesSchema(label_expression="env= AND"))

@@ -135,6 +135,12 @@ def upgrade() -> None:
             nullable=False,
             server_default=sa.text("false"),
         ),
+        sa.Column(
+            "is_orphan",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.text("false"),
+        ),
         _ts("created_at"),
         _ts("updated_at"),
         sa.CheckConstraint(_entity_type_check(), name="ck_saved_views_entity_type"),

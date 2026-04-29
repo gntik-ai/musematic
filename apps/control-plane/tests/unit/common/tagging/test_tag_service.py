@@ -99,6 +99,17 @@ class AuditStub:
         self.entries.append((audit_event_id, audit_event_source, canonical_payload))
 
 
+class FailingAuditStub:
+    async def append(
+        self,
+        audit_event_id: UUID | None,
+        audit_event_source: str,
+        canonical_payload: bytes,
+    ) -> None:
+        del audit_event_id, audit_event_source, canonical_payload
+        raise RuntimeError("audit chain unavailable")
+
+
 class ResolverStub:
     def __init__(self, visible: dict[str, set[UUID]]) -> None:
         self.visible = visible
@@ -221,6 +232,20 @@ async def test_detach_and_cascade() -> None:
     assert await repo.count_tags_for_entity("workspace", entity_id) == 0
     assert repo.cascaded == [("workspace", entity_id)]
     assert len(audit.entries) == 2
+
+
+@pytest.mark.asyncio
+async def test_audit_failures_propagate_for_tag_mutations() -> None:
+    repo = RepoStub()
+    service = TagService(repo, audit_chain=FailingAuditStub())
+
+    with pytest.raises(RuntimeError, match="audit chain unavailable"):
+        await service.attach(
+            entity_type="agent",
+            entity_id=uuid4(),
+            tag="production",
+            requester={"sub": str(uuid4())},
+        )
 
 
 @pytest.mark.asyncio

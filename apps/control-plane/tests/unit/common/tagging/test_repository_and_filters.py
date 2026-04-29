@@ -303,7 +303,7 @@ async def test_dependency_factories_and_schema_validation(monkeypatch: pytest.Mo
     resolver = await get_visibility_resolver(request, session)  # type: ignore[arg-type]
     tag_service = await get_tag_service(request, session)  # type: ignore[arg-type]
     label_service = await get_label_service(request, session)  # type: ignore[arg-type]
-    saved_view_service = await get_saved_view_service(session)  # type: ignore[arg-type]
+    saved_view_service = await get_saved_view_service(request, session)  # type: ignore[arg-type]
     tagging_service = await get_tagging_service(request, session)  # type: ignore[arg-type]
     label_expression_cache = await get_label_expression_cache(request)
 

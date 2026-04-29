@@ -6,6 +6,8 @@ from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext, EventEnvelope
 from platform.common.events.producer import EventProducer
+from platform.common.tagging.label_expression.cache import LabelExpressionCache
+from platform.common.tagging.label_expression.evaluator import LabelExpressionEvaluator
 from platform.fleets.repository import FleetPolicyBindingRepository
 from platform.governance.events import VerdictIssuedPayload, publish_verdict_issued
 from platform.governance.models import GovernanceVerdict, VerdictType
@@ -27,6 +29,8 @@ class JudgeService:
         settings: PlatformSettings,
         producer: EventProducer | None,
         redis_client: AsyncRedisClient,
+        label_expression_cache: LabelExpressionCache | None = None,
+        label_expression_evaluator: LabelExpressionEvaluator | None = None,
     ) -> None:
         self.repository = repository
         self.pipeline_config = pipeline_config
@@ -35,6 +39,13 @@ class JudgeService:
         self.settings = settings
         self.producer = producer
         self.redis_client = redis_client
+        tagging_settings = getattr(settings, "tagging", None)
+        self.label_expression_cache = label_expression_cache or LabelExpressionCache(
+            redis_client,
+            lru_size=getattr(tagging_settings, "label_expression_lru_size", 256),
+            ttl_seconds=getattr(tagging_settings, "label_expression_redis_ttl_seconds", 86_400),
+        )
+        self.label_expression_evaluator = label_expression_evaluator or LabelExpressionEvaluator()
 
     async def process_signal(
         self,
@@ -81,6 +92,9 @@ class JudgeService:
                 correlation_ctx=signal_envelope.correlation_context,
             )
             return [escalation]
+
+        if not await self._policy_matches_label_expression(policy, signal_envelope):
+            return []
 
         persisted: list[GovernanceVerdict] = []
         for judge_fqn in chain.judge_fqns:
@@ -301,6 +315,59 @@ class JudgeService:
         if signal.correlation_context.agent_fqn:
             return signal.correlation_context.agent_fqn
         return None
+
+    async def _policy_matches_label_expression(
+        self,
+        policy: object,
+        signal: EventEnvelope,
+    ) -> bool:
+        expression = self._extract_label_expression(policy)
+        if expression is None:
+            return True
+        current_version = getattr(policy, "current_version", None)
+        policy_id = getattr(policy, "id", None)
+        if policy_id is None:
+            return True
+        version = getattr(current_version, "version_number", 1)
+        ast = await self.label_expression_cache.get_or_compile(policy_id, int(version), expression)
+        if ast is None:
+            return True
+        return await self.label_expression_evaluator.evaluate(
+            ast,
+            self._extract_target_labels(signal.payload),
+        )
+
+    @staticmethod
+    def _extract_label_expression(policy: object) -> str | None:
+        current_version = getattr(policy, "current_version", None)
+        rules = getattr(current_version, "rules", None) if current_version is not None else None
+        if not isinstance(rules, dict):
+            return None
+        value = rules.get("label_expression")
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+        camel_value = rules.get("labelExpression")
+        if isinstance(camel_value, str) and camel_value.strip():
+            return camel_value.strip()
+        conditions = rules.get("conditions")
+        if isinstance(conditions, dict):
+            condition_value = conditions.get("label_expression")
+            if isinstance(condition_value, str) and condition_value.strip():
+                return condition_value.strip()
+        return None
+
+    @staticmethod
+    def _extract_target_labels(payload: dict[str, object]) -> dict[str, str]:
+        for key in ("target_labels", "labels"):
+            value = payload.get(key)
+            if isinstance(value, dict):
+                return {str(item_key): str(item_value) for item_key, item_value in value.items()}
+        target = payload.get("target")
+        if isinstance(target, dict):
+            labels = target.get("labels")
+            if isinstance(labels, dict):
+                return {str(item_key): str(item_value) for item_key, item_value in labels.items()}
+        return {}
 
     @staticmethod
     def _extract_threshold(policy: object) -> float | None:

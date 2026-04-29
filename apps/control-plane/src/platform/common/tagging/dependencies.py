@@ -20,7 +20,8 @@ from platform.policies.models import PolicyPolicy
 from platform.registry.models import AgentProfile, LifecycleStatus
 from platform.trust.models import TrustCertification
 from platform.workflows.models import WorkflowDefinition
-from platform.workspaces.models import Membership, Workspace, WorkspaceStatus
+from platform.workspaces.models import Membership, Workspace, WorkspaceRole, WorkspaceStatus
+from platform.workspaces.repository import WorkspacesRepository
 from typing import Any, cast
 from uuid import UUID
 
@@ -31,6 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 __all__ = [
     "build_label_service",
+    "build_saved_view_service",
     "build_tag_service",
     "build_visibility_resolver",
     "get_alert_service",
@@ -213,6 +215,35 @@ def build_label_service(
     )
 
 
+def build_saved_view_service(
+    session: AsyncSession,
+    audit_chain: AuditChainService | None = None,
+) -> SavedViewService:
+    workspace_repo = WorkspacesRepository(session)
+
+    async def workspace_membership_check(workspace_id: UUID, requester: Any) -> bool:
+        user_id = _requester_id(requester)
+        return (
+            user_id is not None
+            and await workspace_repo.get_membership(workspace_id, user_id) is not None
+        )
+
+    async def workspace_superadmin_provider(workspace_id: UUID) -> UUID | None:
+        members, _total = await workspace_repo.list_members(workspace_id, page=1, page_size=10_000)
+        for role in (WorkspaceRole.owner, WorkspaceRole.admin):
+            for member in members:
+                if member.role == role:
+                    return UUID(str(member.user_id))
+        return None
+
+    return SavedViewService(
+        TaggingRepository(session),
+        audit_chain=audit_chain,
+        workspace_membership_check=workspace_membership_check,
+        workspace_superadmin_provider=workspace_superadmin_provider,
+    )
+
+
 async def get_visibility_resolver(
     request: Request,
     session: AsyncSession = Depends(get_db),
@@ -247,9 +278,15 @@ async def get_label_service(
 
 
 async def get_saved_view_service(
+    request: Request,
     session: AsyncSession = Depends(get_db),
 ) -> SavedViewService:
-    return SavedViewService(TaggingRepository(session))
+    settings = _get_settings(request)
+    producer = _get_producer(request)
+    return build_saved_view_service(
+        session,
+        build_audit_chain_service(session, settings, producer),
+    )
 
 
 async def get_tagging_service(
@@ -285,7 +322,10 @@ async def get_tagging_service(
             entity_access_check=entity_access_check,
             max_labels_per_entity=50,
         ),
-        SavedViewService(repo),
+        build_saved_view_service(
+            session,
+            build_audit_chain_service(session, settings, producer),
+        ),
     )
 
 

@@ -81,6 +81,7 @@ class WorkspacesService:
         accounts_service: Any | None = None,
         cost_governance_service: Any | None = None,
         incident_response_service: Any | None = None,
+        saved_view_service: Any | None = None,
     ) -> None:
         self.repo = repo
         self.platform_settings = settings
@@ -89,6 +90,7 @@ class WorkspacesService:
         self.accounts_service = accounts_service
         self.cost_governance_service = cost_governance_service
         self.incident_response_service = incident_response_service
+        self.saved_view_service = saved_view_service
         self.two_person_approval_service: Any | None = None
 
     async def create_workspace(
@@ -385,6 +387,11 @@ class WorkspacesService:
         ):
             raise LastOwnerError()
         await self.repo.remove_member(membership)
+        if self.saved_view_service is not None:
+            await self.saved_view_service.resolve_orphan_owner(
+                workspace_id,
+                former_owner_id=target_user_id,
+            )
         await publish_membership_removed(
             self.kafka_producer,
             MembershipPayload(

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from platform.accounts.dependencies import get_accounts_service
 from platform.accounts.service import AccountsService
+from platform.audit.dependencies import build_audit_chain_service
 from platform.common.clients.object_storage import AsyncObjectStorageClient
 from platform.common.clients.opensearch import AsyncOpenSearchClient
 from platform.common.clients.qdrant import AsyncQdrantClient
@@ -38,12 +39,14 @@ def build_workspaces_service(
     settings: PlatformSettings,
     producer: EventProducer | None,
     accounts_service: AccountsService | None = None,
+    saved_view_service: object | None = None,
 ) -> WorkspacesService:
     return WorkspacesService(
         repo=WorkspacesRepository(session),
         settings=settings,
         kafka_producer=producer,
         accounts_service=accounts_service,
+        saved_view_service=saved_view_service,
     )
 
 
@@ -52,11 +55,17 @@ async def get_workspaces_service(
     session: AsyncSession = Depends(get_db),
     accounts_service: AccountsService = Depends(get_accounts_service),
 ) -> WorkspacesService:
+    from platform.common.tagging.dependencies import build_saved_view_service
+
     return build_workspaces_service(
         session=session,
         settings=_get_settings(request),
         producer=_get_producer(request),
         accounts_service=accounts_service,
+        saved_view_service=build_saved_view_service(
+            session,
+            build_audit_chain_service(session, _get_settings(request), _get_producer(request)),
+        ),
     )
 
 

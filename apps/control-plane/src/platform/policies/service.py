@@ -4,6 +4,8 @@ import hashlib
 import json
 from datetime import UTC, datetime, timedelta
 from platform.common.events.envelope import CorrelationContext
+from platform.common.tagging.label_expression.cache import LabelExpressionCache
+from platform.common.tagging.label_expression.parser import parse as parse_label_expression
 from platform.policies.compiler import GovernanceCompiler
 from platform.policies.events import (
     GateAllowedEvent,
@@ -46,6 +48,7 @@ from platform.policies.schemas import (
     PolicyListResponse,
     PolicyResponse,
     PolicyRuleProvenance,
+    PolicyRulesSchema,
     PolicyUpdate,
     PolicyVersionListResponse,
     PolicyVersionResponse,
@@ -77,6 +80,7 @@ class PolicyService:
         workspaces_service: Any | None,
         reasoning_client: Any | None = None,
         compiler: GovernanceCompiler | None = None,
+        label_expression_cache: LabelExpressionCache | None = None,
     ) -> None:
         self.repository = repository
         self.settings = settings
@@ -86,6 +90,15 @@ class PolicyService:
         self.workspaces_service = workspaces_service
         self.reasoning_client = reasoning_client
         self.compiler = compiler or GovernanceCompiler()
+        self.label_expression_cache = label_expression_cache or LabelExpressionCache(
+            redis_client,
+            lru_size=getattr(getattr(settings, "tagging", None), "label_expression_lru_size", 256),
+            ttl_seconds=getattr(
+                getattr(settings, "tagging", None),
+                "label_expression_redis_ttl_seconds",
+                86_400,
+            ),
+        )
 
     async def register_simulation_policy_bundle(
         self,
@@ -115,6 +128,7 @@ class PolicyService:
     async def create_policy(
         self, data: PolicyCreate, created_by: UUID
     ) -> PolicyWithVersionResponse:
+        self._validate_label_expression(data.rules)
         policy = await self.repository.create(
             PolicyPolicy(
                 name=data.name,
@@ -138,6 +152,7 @@ class PolicyService:
         policy.current_version_id = version.id
         policy.current_version = version
         await self.repository.session.flush()
+        await self.label_expression_cache.invalidate(policy.id, version.version_number)
         await publish_policy_event(
             self.producer,
             PolicyEventType.policy_created,
@@ -167,6 +182,8 @@ class PolicyService:
         if "description" in data.model_fields_set:
             policy.description = data.description
         policy.updated_by = updated_by
+        if data.rules is not None:
+            self._validate_label_expression(data.rules)
         version = await self.repository.create_version(
             PolicyVersion(
                 policy_id=policy.id,
@@ -183,6 +200,7 @@ class PolicyService:
         policy.current_version_id = version.id
         policy.current_version = version
         await self.repository.session.flush()
+        await self.label_expression_cache.invalidate(policy.id, version.version_number)
         await publish_policy_event(
             self.producer,
             PolicyEventType.policy_updated,
@@ -209,6 +227,11 @@ class PolicyService:
             self._correlation(workspace_id=policy.workspace_id),
         )
         return PolicyResponse.model_validate(policy)
+
+    @staticmethod
+    def _validate_label_expression(rules: PolicyRulesSchema) -> None:
+        if rules.label_expression is not None:
+            parse_label_expression(rules.label_expression)
 
     async def get_policy(self, policy_id: UUID) -> PolicyWithVersionResponse:
         policy = await self._get_policy_or_raise(policy_id)

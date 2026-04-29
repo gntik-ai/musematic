@@ -333,7 +333,20 @@ class TaggingRepository:
         await self.session.execute(
             update(SavedView)
             .where(SavedView.id == view_id)
-            .values(owner_id=new_owner_id, is_orphan_transferred=True, updated_at=func.now())
+            .values(
+                owner_id=new_owner_id,
+                is_orphan_transferred=True,
+                is_orphan=False,
+                updated_at=func.now(),
+            )
+        )
+        await self.session.flush()
+
+    async def mark_saved_view_orphan(self, view_id: UUID) -> None:
+        await self.session.execute(
+            update(SavedView)
+            .where(SavedView.id == view_id)
+            .values(is_orphan=True, updated_at=func.now())
         )
         await self.session.flush()
 
