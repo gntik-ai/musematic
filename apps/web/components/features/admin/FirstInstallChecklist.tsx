@@ -8,13 +8,19 @@ import { useUpdateChecklistState } from "@/lib/hooks/use-admin-mutations";
 import { useAdminStore } from "@/lib/stores/admin-store";
 
 const items = [
-  ["instance", "Verify instance settings", "/admin/settings"],
-  ["oauth", "Configure OAuth providers", "/admin/oauth-providers"],
-  ["admins", "Invite other admins", "/admin/users"],
-  ["observability", "Install observability stack", "/admin/observability/dashboards"],
-  ["backup", "Run first backup", "/admin/lifecycle/backup"],
-  ["security", "Review security settings", "/admin/security/rotations"],
-  ["mfa", "Enroll MFA", "/admin/sessions"],
+  { id: "instance", label: "Verify instance settings", href: "/admin/settings" },
+  { id: "oauth", label: "Configure OAuth providers", href: "/admin/oauth-providers" },
+  { id: "admins", label: "Invite other admins", href: "/admin/users" },
+  { id: "health", label: "Check platform health", href: "/admin/health" },
+  {
+    id: "observability",
+    label: "Install observability stack",
+    href: "/admin/observability/dashboards",
+  },
+  { id: "backup", label: "Run first backup", href: "/admin/lifecycle/backup" },
+  { id: "audit", label: "Review audit chain", href: "/admin/audit-chain" },
+  { id: "security", label: "Review security settings", href: "/admin/security/rotations" },
+  { id: "mfa", label: "Enroll MFA", href: "/admin/sessions" },
 ] as const;
 
 export function FirstInstallChecklist() {
@@ -38,7 +44,7 @@ export function FirstInstallChecklist() {
         </Button>
       </div>
       <div className="grid gap-2 md:grid-cols-2">
-        {items.map(([id, label, href]) => (
+        {items.map(({ id, label, href }) => (
           <label key={id} className="flex items-center gap-3 rounded-md border px-3 py-2 text-sm">
             <Checkbox
               onChange={(event) =>

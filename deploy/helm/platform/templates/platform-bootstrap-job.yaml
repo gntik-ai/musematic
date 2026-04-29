@@ -66,6 +66,7 @@ spec:
         - name: bootstrap
           image: "{{ .Values.controlPlane.image.repository }}:{{ .Values.controlPlane.image.tag }}"
           imagePullPolicy: {{ .Values.controlPlane.image.pullPolicy }}
+          # Bootstrap entrypoint: python -m platform.admin.bootstrap
           command: ["python", "-m", "platform.admin.bootstrap"]
           env:
             - name: PLATFORM_SUPERADMIN_USERNAME

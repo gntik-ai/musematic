@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+from platform.auth.session import RedisSessionStore
 from platform.common import database
+from platform.common.clients.redis import AsyncRedisClient
+from platform.common.config import settings as default_settings
 from uuid import UUID
 
 from sqlalchemy import text
@@ -38,12 +41,15 @@ async def _admin_read_only_mode(request: Request) -> bool:
     current_user = getattr(request.state, "user", None)
     if not isinstance(current_user, dict):
         return False
-    if bool(current_user.get("admin_read_only_mode")):
+    if _truthy(current_user.get("admin_read_only_mode")):
         return True
     user_id = _uuid_or_none(current_user.get("sub"))
     session_id = _uuid_or_none(current_user.get("session_id"))
     if user_id is None or session_id is None:
         return False
+    redis_value = await _redis_admin_read_only_mode(request, user_id, session_id)
+    if redis_value is not None:
+        return redis_value
     async with database.AsyncSessionLocal() as session:
         result = await session.execute(
             text(
@@ -63,8 +69,35 @@ async def _admin_read_only_mode(request: Request) -> bool:
     return bool(value)
 
 
+async def _redis_admin_read_only_mode(
+    request: Request,
+    user_id: UUID,
+    session_id: UUID,
+) -> bool | None:
+    if "app" not in request.scope:
+        return None
+    clients = getattr(request.app.state, "clients", {})
+    redis_client = clients.get("redis") if isinstance(clients, dict) else None
+    if not isinstance(redis_client, AsyncRedisClient):
+        return None
+    settings = getattr(request.app.state, "settings", default_settings)
+    session_data = await RedisSessionStore(redis_client, settings.auth).get_session(
+        user_id,
+        session_id,
+    )
+    if session_data is None:
+        return None
+    return bool(session_data.get("admin_read_only_mode"))
+
+
 def _uuid_or_none(value: object) -> UUID | None:
     try:
         return UUID(str(value))
     except (TypeError, ValueError):
         return None
+
+
+def _truthy(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}

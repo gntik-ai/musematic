@@ -102,8 +102,7 @@ def _parse_env(
     env_value = source.get("PLATFORM_SUPERADMIN_PASSWORD")
     if password_file_raw and env_value:
         raise BootstrapConfigError(
-            "PLATFORM_SUPERADMIN_PASSWORD and PLATFORM_SUPERADMIN_PASSWORD_FILE are mutually "
-            "exclusive"
+            "Cannot set both PLATFORM_SUPERADMIN_PASSWORD and PLATFORM_SUPERADMIN_PASSWORD_FILE"
         )
 
     tenant_mode = source.get("PLATFORM_TENANT_MODE", "single").strip().lower()

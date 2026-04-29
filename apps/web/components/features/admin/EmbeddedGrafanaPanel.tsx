@@ -28,6 +28,7 @@ export function EmbeddedGrafanaPanel({ path, title }: EmbeddedGrafanaPanelProps)
         className="h-[360px] w-full bg-background"
         sandbox="allow-same-origin allow-scripts allow-forms"
       />
+      <p className="sr-only">Grafana panel unavailable</p>
     </div>
   );
 }

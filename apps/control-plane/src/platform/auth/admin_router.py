@@ -14,12 +14,15 @@ from platform.admin.responses import (
 )
 from platform.audit.dependencies import get_audit_chain_service
 from platform.audit.service import AuditChainService
+from platform.auth.session import RedisSessionStore
+from platform.common.clients.redis import AsyncRedisClient
+from platform.common.config import settings as default_settings
 from platform.common.dependencies import get_db
 from types import SimpleNamespace
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,47 +51,6 @@ async def get_user(
     _current_user: dict[str, Any] = Depends(require_admin),
 ) -> AdminDetailResponse:
     return empty_detail("users", user_id)
-
-
-@router.post("/users/{user_id}/suspend", response_model=AdminActionResponse)
-async def suspend_user(
-    user_id: str,
-    preview: bool = Query(default=False),
-    _current_user: dict[str, Any] = Depends(require_admin),
-) -> AdminActionResponse:
-    return accepted("suspend", f"users/{user_id}", preview=preview, affected_count=1)
-
-
-@router.post("/users/{user_id}/reactivate", response_model=AdminActionResponse)
-async def reactivate_user(
-    user_id: str,
-    _current_user: dict[str, Any] = Depends(require_admin),
-) -> AdminActionResponse:
-    return accepted("reactivate", f"users/{user_id}", affected_count=1)
-
-
-@router.post("/users/{user_id}/force-mfa-enrollment", response_model=AdminActionResponse)
-async def force_mfa_enrollment(
-    user_id: str,
-    _current_user: dict[str, Any] = Depends(require_admin),
-) -> AdminActionResponse:
-    return accepted("force_mfa_enrollment", f"users/{user_id}", affected_count=1)
-
-
-@router.post("/users/{user_id}/force-password-reset", response_model=AdminActionResponse)
-async def force_password_reset(
-    user_id: str,
-    _current_user: dict[str, Any] = Depends(require_admin),
-) -> AdminActionResponse:
-    return accepted("force_password_reset", f"users/{user_id}", affected_count=1)
-
-
-@router.delete("/users/{user_id}", response_model=AdminActionResponse)
-async def delete_user(
-    user_id: str,
-    _current_user: dict[str, Any] = Depends(require_superadmin),
-) -> AdminActionResponse:
-    return accepted("delete", f"users/{user_id}", affected_count=1)
 
 
 @router.post("/users/bulk/suspend", response_model=AdminActionResponse)
@@ -144,6 +106,47 @@ async def bulk_suspend_users(
     )
 
 
+@router.post("/users/{user_id}/suspend", response_model=AdminActionResponse)
+async def suspend_user(
+    user_id: str,
+    preview: bool = Query(default=False),
+    _current_user: dict[str, Any] = Depends(require_admin),
+) -> AdminActionResponse:
+    return accepted("suspend", f"users/{user_id}", preview=preview, affected_count=1)
+
+
+@router.post("/users/{user_id}/reactivate", response_model=AdminActionResponse)
+async def reactivate_user(
+    user_id: str,
+    _current_user: dict[str, Any] = Depends(require_admin),
+) -> AdminActionResponse:
+    return accepted("reactivate", f"users/{user_id}", affected_count=1)
+
+
+@router.post("/users/{user_id}/force-mfa-enrollment", response_model=AdminActionResponse)
+async def force_mfa_enrollment(
+    user_id: str,
+    _current_user: dict[str, Any] = Depends(require_admin),
+) -> AdminActionResponse:
+    return accepted("force_mfa_enrollment", f"users/{user_id}", affected_count=1)
+
+
+@router.post("/users/{user_id}/force-password-reset", response_model=AdminActionResponse)
+async def force_password_reset(
+    user_id: str,
+    _current_user: dict[str, Any] = Depends(require_admin),
+) -> AdminActionResponse:
+    return accepted("force_password_reset", f"users/{user_id}", affected_count=1)
+
+
+@router.delete("/users/{user_id}", response_model=AdminActionResponse)
+async def delete_user(
+    user_id: str,
+    _current_user: dict[str, Any] = Depends(require_superadmin),
+) -> AdminActionResponse:
+    return accepted("delete", f"users/{user_id}", affected_count=1)
+
+
 @router.patch("/users/me/checklist-state", response_model=dict[str, Any])
 async def update_my_checklist_state(
     payload: ChecklistStateUpdate,
@@ -167,11 +170,14 @@ async def update_my_checklist_state(
 @router.patch("/sessions/me/read-only-mode", response_model=dict[str, bool])
 async def update_my_read_only_mode(
     payload: ReadOnlyModeUpdate,
+    request: Request,
     current_user: dict[str, Any] = Depends(require_admin),
     session: AsyncSession = Depends(get_db),
 ) -> dict[str, bool]:
     session_id = current_user.get("session_id")
-    if session_id is not None:
+    user_id = current_user.get("sub")
+    if user_id is not None and session_id is not None:
+        await _set_redis_admin_read_only_mode(request, user_id, session_id, payload.enabled)
         await session.execute(
             text(
                 """
@@ -183,6 +189,29 @@ async def update_my_read_only_mode(
             {"enabled": payload.enabled, "session_id": session_id},
         )
     return {"admin_read_only_mode": payload.enabled}
+
+
+async def _set_redis_admin_read_only_mode(
+    request: Request,
+    user_id: object,
+    session_id: object,
+    enabled: bool,
+) -> None:
+    clients = getattr(request.app.state, "clients", {})
+    redis_client = clients.get("redis") if isinstance(clients, dict) else None
+    if not isinstance(redis_client, AsyncRedisClient):
+        return
+    try:
+        resolved_user_id = UUID(str(user_id))
+        resolved_session_id = UUID(str(session_id))
+    except (TypeError, ValueError):
+        return
+    settings = getattr(request.app.state, "settings", default_settings)
+    await RedisSessionStore(redis_client, settings.auth).set_admin_read_only_mode(
+        resolved_user_id,
+        resolved_session_id,
+        enabled,
+    )
 
 
 @router.get("/roles", response_model=AdminListResponse)

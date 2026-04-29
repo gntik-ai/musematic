@@ -78,11 +78,14 @@ class ConfigImportService:
 
 def _extract_bundle(bundle: bytes) -> dict[str, bytes]:
     extracted: dict[str, bytes] = {}
-    with tarfile.open(fileobj=io.BytesIO(bundle), mode="r:gz") as archive:
-        for member in archive.getmembers():
-            handle = archive.extractfile(member)
-            if handle is not None:
-                extracted[member.name] = handle.read()
+    try:
+        with tarfile.open(fileobj=io.BytesIO(bundle), mode="r:gz") as archive:
+            for member in archive.getmembers():
+                handle = archive.extractfile(member)
+                if handle is not None:
+                    extracted[member.name] = handle.read()
+    except tarfile.TarError as exc:
+        raise ValueError("config bundle is not a valid gzip tar archive") from exc
     required = {"config.yaml", "manifest.json", "signature.bin"}
     missing = required - set(extracted)
     if missing:

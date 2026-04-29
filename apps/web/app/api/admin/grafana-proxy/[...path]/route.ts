@@ -14,7 +14,8 @@ export async function GET(
   const response = await fetch(target, {
     headers: {
       cookie: request.headers.get("cookie") ?? "",
-      authorization: request.headers.get("authorization") ?? "",
+      Authorization:
+        request.headers.get("Authorization") ?? request.headers.get("authorization") ?? "",
     },
     cache: "no-store",
   });

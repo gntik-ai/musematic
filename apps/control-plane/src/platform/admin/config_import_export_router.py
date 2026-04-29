@@ -10,7 +10,7 @@ from platform.common.config import PlatformSettings
 from typing import Any, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Body, Depends, File, Form, Request, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 
 router = APIRouter(prefix="/config", tags=["admin", "config"])
@@ -45,7 +45,10 @@ async def preview_config_import(
     _current_user: dict[str, Any] = Depends(require_superadmin),
     audit_chain: AuditChainService = Depends(get_audit_chain_service),
 ) -> dict[str, Any]:
-    preview = await ConfigImportService(audit_chain).preview_import(await bundle.read())
+    try:
+        preview = await ConfigImportService(audit_chain).preview_import(await bundle.read())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return _preview_dict(preview)
 
 
@@ -56,11 +59,14 @@ async def apply_config_import(
     current_user: dict[str, Any] = Depends(require_superadmin),
     audit_chain: AuditChainService = Depends(get_audit_chain_service),
 ) -> dict[str, Any]:
-    result = await ConfigImportService(audit_chain).apply_import(
-        await bundle.read(),
-        confirmation_phrase,
-        current_user,
-    )
+    try:
+        result = await ConfigImportService(audit_chain).apply_import(
+            await bundle.read(),
+            confirmation_phrase,
+            current_user,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return asdict(result)
 
 
