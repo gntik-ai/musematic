@@ -34,7 +34,7 @@ Forward the local service ports:
 ```bash
 kubectl -n platform-observability port-forward svc/observability-loki-gateway 3100:80
 kubectl -n platform-observability port-forward svc/musematic-observability-grafana 3000:80
-kubectl -n platform-observability port-forward svc/kube-prometheus-stack-alertmanager 9093:9093
+kubectl -n platform-observability port-forward svc/observability-kube-prometh-alertmanager 9093:9093
 kubectl -n platform-observability port-forward svc/musematic-observability-jaeger-query 16686:16686
 ```
 
@@ -94,5 +94,6 @@ helm template release deploy/helm/observability --api-versions loki.grafana.com/
 ## Deviations Captured
 
 - `values-e2e.yaml` shortens Loki retention for local tests; production-like values keep `hot: 336h` and `cold: 2160h`.
+- Clusters without the `loki.grafana.com/v1/LokiRule` CRD use the chart's `loki_rule: "1"` ConfigMap fallback; Loki's ruler reads those rules from `/rules/fake`.
 - The live alert-firing and retention-boundary tests are opt-in because they require a running observability stack and clock/control-plane coordination.
 - In this workspace, the Spec Kit prerequisite script can reject timestamped branch names even when `.specify/feature.json` points at `specs/084-log-aggregation-dashboards`; use the feature.json path as the source of truth for this quickstart.

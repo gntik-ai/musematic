@@ -40,7 +40,7 @@ data:
                 {
                       "id": 2,
                       "type": "logs",
-                      "title": "Server-Side Next.js Logs",
+                      "title": "Next.js Server Logs",
                       "datasource": {
                             "type": "loki",
                             "uid": "loki"

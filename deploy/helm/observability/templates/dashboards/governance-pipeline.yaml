@@ -157,7 +157,7 @@ data:
                       },
                       "targets": [
                             {
-                                  "expr": "{bounded_context=\"governance\"} | json | message=~\".*verdict.*\" | workspace_id=~\"$workspace\"",
+                                  "expr": "{bounded_context=\"governance\"} | json | message=~\".*verdict.*\" | rationale != \"\" | workspace_id=~\"$workspace\"",
                                   "refId": "A"
                             }
                       ],

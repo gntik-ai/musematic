@@ -37,6 +37,13 @@ data:
               "refId": "A"
             }
           ],
+          "links": [
+            {
+              "title": "View related logs",
+              "url": "/explore?left={\"datasource\":\"loki\",\"queries\":[{\"expr\":\"{bounded_context=~\\\"trust|content_safety|content_moderation\\\"} | json\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+              "targetBlank": false
+            }
+          ],
           "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] }
         },
         {
@@ -50,6 +57,13 @@ data:
               "expr": "sum by (workspace_id, action) (increase(content_moderation_actions_total{namespace=~\"$namespace\"}[1h]))",
               "legendFormat": "{{ `{{workspace_id}} {{action}}` }}",
               "refId": "A"
+            }
+          ],
+          "links": [
+            {
+              "title": "View related logs",
+              "url": "/explore?left={\"datasource\":\"loki\",\"queries\":[{\"expr\":\"{bounded_context=~\\\"trust|content_safety|content_moderation\\\"} | json\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+              "targetBlank": false
             }
           ],
           "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
@@ -67,6 +81,13 @@ data:
               "refId": "A"
             }
           ],
+          "links": [
+            {
+              "title": "View related logs",
+              "url": "/explore?left={\"datasource\":\"loki\",\"queries\":[{\"expr\":\"{bounded_context=~\\\"trust|content_safety|content_moderation\\\"} | json\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+              "targetBlank": false
+            }
+          ],
           "fieldConfig": { "defaults": { "unit": "ops" }, "overrides": [] }
         },
         {
@@ -80,6 +101,13 @@ data:
               "expr": "sum by (workspace_id) (increase(fairness_evaluations_total{namespace=~\"$namespace\"}[24h]))",
               "legendFormat": "{{ `{{workspace_id}}` }}",
               "refId": "A"
+            }
+          ],
+          "links": [
+            {
+              "title": "View related logs",
+              "url": "/explore?left={\"datasource\":\"loki\",\"queries\":[{\"expr\":\"{bounded_context=~\\\"trust|content_safety|content_moderation\\\"} | json\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+              "targetBlank": false
             }
           ],
           "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] }
