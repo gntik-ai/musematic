@@ -14,11 +14,19 @@ class MemoryRedis:
     expirations: dict[str, int] = field(default_factory=dict)
 
     async def hset(self, key: str, mapping: dict[str, Any]) -> int:
-        self.hashes[key] = {field: str(value) for field, value in mapping.items()}
-        return len(mapping)
+        bucket = self.hashes.setdefault(key, {})
+        created = 0
+        for name, value in mapping.items():
+            if name not in bucket:
+                created += 1
+            bucket[name] = str(value)
+        return created
 
     async def hgetall(self, key: str) -> dict[str, str]:
         return dict(self.hashes.get(key, {}))
+
+    async def exists(self, key: str) -> int:
+        return int(key in self.strings or key in self.hashes or key in self.sets)
 
     async def expire(self, key: str, seconds: int) -> bool:
         self.expirations[key] = seconds

@@ -36,6 +36,8 @@ from platform.admin.two_person_auth_service import (
     TWO_PERSON_AUTH_TOKEN_TYPE,
     TwoPersonAuthService,
 )
+from platform.auth.session import RedisSessionStore
+from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.exceptions import AuthorizationError, NotFoundError, ValidationError
 from types import SimpleNamespace
@@ -48,6 +50,7 @@ import yaml
 from fastapi import FastAPI
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
+from tests.auth_support import MemoryRedis
 
 
 class _Scalars:
@@ -709,6 +712,11 @@ def _request(path: str, method: str, user: dict[str, Any] | None = None) -> Requ
     return request
 
 
+def _attach_app(request: Request, app: FastAPI) -> Request:
+    request.scope["app"] = app
+    return request
+
+
 class _ReadOnlySession:
     def __init__(self, value: bool) -> None:
         self.value = value
@@ -789,6 +797,60 @@ async def test_admin_read_only_middleware_and_helpers(monkeypatch: pytest.Monkey
     assert read_response.status_code == 200
     assert blocked.status_code == 403
     assert json.loads(blocked.body)["error"]["correlation_id"] == "corr-1"
+
+
+@pytest.mark.asyncio
+async def test_admin_read_only_middleware_checks_redis_session_state(
+    auth_settings: PlatformSettings,
+) -> None:
+    user_id = uuid4()
+    session_id = uuid4()
+    redis_client = AsyncRedisClient(nodes=["localhost:6379"])
+    redis_client.client = MemoryRedis()  # type: ignore[assignment]
+    store = RedisSessionStore(redis_client, auth_settings.auth)
+    app = FastAPI()
+    app.state.clients = {"redis": redis_client}
+    app.state.settings = auth_settings
+
+    await store.create_session(
+        user_id=user_id,
+        session_id=session_id,
+        email="admin@example.com",
+        roles=[{"role": "platform_admin", "workspace_id": None}],
+        ip="127.0.0.1",
+        device="pytest",
+        refresh_jti="refresh-1",
+    )
+
+    await store.set_admin_read_only_mode(user_id, session_id, True)
+    assert (
+        await _admin_read_only_mode(
+            _attach_app(
+                _request(
+                    "/api/v1/admin/users",
+                    "POST",
+                    {"sub": str(user_id), "session_id": str(session_id)},
+                ),
+                app,
+            )
+        )
+        is True
+    )
+
+    await store.set_admin_read_only_mode(user_id, session_id, False)
+    assert (
+        await _admin_read_only_mode(
+            _attach_app(
+                _request(
+                    "/api/v1/admin/users",
+                    "POST",
+                    {"sub": str(user_id), "session_id": str(session_id)},
+                ),
+                app,
+            )
+        )
+        is False
+    )
 
 
 def test_change_preview_helpers_cover_count_classification_and_duration() -> None:

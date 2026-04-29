@@ -33,8 +33,41 @@ async def test_create_and_get_session(auth_settings) -> None:
     assert session["email"] == "user@example.com"
     assert session["roles"] == roles
     assert session["refresh_jti"] == "refresh-1"
+    assert session["admin_read_only_mode"] is False
     assert await client.ttl(f"session:{user_id}:{session_id}") == auth_settings.auth.session_ttl
     assert str(session_id) in await client.smembers(f"user_sessions:{user_id}")
+
+
+@pytest.mark.asyncio
+async def test_set_admin_read_only_mode_updates_existing_session_only(auth_settings) -> None:
+    redis_client = FakeAsyncRedisClient()
+    store = RedisSessionStore(redis_client, auth_settings.auth)
+    user_id = uuid4()
+    session_id = uuid4()
+    missing_session_id = uuid4()
+
+    await store.create_session(
+        user_id=user_id,
+        session_id=session_id,
+        email="user@example.com",
+        roles=[],
+        ip="127.0.0.1",
+        device="pytest",
+        refresh_jti="refresh-1",
+    )
+
+    await store.set_admin_read_only_mode(user_id, session_id, True)
+    read_only_session = await store.get_session(user_id, session_id)
+    await store.set_admin_read_only_mode(user_id, session_id, False)
+    writable_session = await store.get_session(user_id, session_id)
+    await store.set_admin_read_only_mode(user_id, missing_session_id, True)
+    client = await redis_client._get_client()
+
+    assert read_only_session is not None
+    assert read_only_session["admin_read_only_mode"] is True
+    assert writable_session is not None
+    assert writable_session["admin_read_only_mode"] is False
+    assert f"session:{user_id}:{missing_session_id}" not in client.hashes
 
 
 @pytest.mark.asyncio
