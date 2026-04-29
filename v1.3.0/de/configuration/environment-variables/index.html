@@ -5808,7 +5808,7 @@
 <td><code>true</code></td>
 <td>informational</td>
 <td>Master switch controlling whether API rate limiting is enforced.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+<td><code>apps/control-plane/src/platform/admin/feature_flags_service.py</code><br><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
 <td><code>FEATURE_API_RATE_LIMITING_FAIL_OPEN</code></td>
@@ -6513,7 +6513,7 @@
 <td><code>false</code></td>
 <td>informational</td>
 <td>Configures <code>enabled</code> for ContentModeration.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+<td><code>apps/control-plane/src/platform/admin/feature_flags_service.py</code><br><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 </tbody>
 </table>
@@ -9291,6 +9291,14 @@
 <td><code>apps/control-plane/src/platform/common/tagging/label_expression/parser.py</code></td>
 </tr>
 <tr>
+<td><code>ANSIUTF8</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code></td>
+</tr>
+<tr>
 <td><code>APPROVAL_ALREADY_DECIDED</code></td>
 <td>optional</td>
 <td>-</td>
@@ -10347,6 +10355,62 @@
 <td><code>apps/control-plane/src/platform/model_catalog/services/fallback_service.py</code></td>
 </tr>
 <tr>
+<td><code>FEATURE_FLAG_OVERRIDE_NOT_FOUND</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/feature_flags_service.py</code></td>
+</tr>
+<tr>
+<td><code>FEATURE_IMPERSONATION_ENABLED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/feature_flags_service.py</code></td>
+</tr>
+<tr>
+<td><code>FEATURE_READ_ONLY_ADMIN_MODE</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/feature_flags_service.py</code></td>
+</tr>
+<tr>
+<td><code>FEATURE_SIGNUP_ENABLED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/feature_flags_service.py</code></td>
+</tr>
+<tr>
+<td><code>FEATURE_SIGNUP_REQUIRES_APPROVAL</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/feature_flags_service.py</code></td>
+</tr>
+<tr>
+<td><code>FEATURE_SOCIAL_LOGIN_ENABLED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/feature_flags_service.py</code></td>
+</tr>
+<tr>
+<td><code>FEATURE_TWO_PERSON_AUTHORIZATION</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/feature_flags_service.py</code></td>
+</tr>
+<tr>
 <td><code>FLEET_ADAPTATION_ALREADY_REVERTED</code></td>
 <td>optional</td>
 <td>-</td>
@@ -10544,7 +10608,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/common/auth_middleware.py</code></td>
+<td><code>apps/control-plane/src/platform/admin/read_only_middleware.py</code><br><code>apps/control-plane/src/platform/common/auth_middleware.py</code></td>
 </tr>
 <tr>
 <td><code>GOAL_MESSAGE_NOT_FOUND</code></td>
@@ -10624,7 +10688,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/localization/tooling/drift_check.py</code></td>
+<td><code>apps/control-plane/src/platform/admin/read_only_middleware.py</code><br><code>apps/control-plane/src/platform/localization/tooling/drift_check.py</code></td>
 </tr>
 <tr>
 <td><code>HIGH</code></td>
@@ -10713,6 +10777,46 @@
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
 <td><code>apps/control-plane/src/platform/agentops/router.py</code><br><code>apps/control-plane/src/platform/interactions/router.py</code></td>
+</tr>
+<tr>
+<td><code>IMPERSONATION_ALREADY_ACTIVE</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/impersonation_service.py</code></td>
+</tr>
+<tr>
+<td><code>IMPERSONATION_EXPIRED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/common/dependencies.py</code></td>
+</tr>
+<tr>
+<td><code>IMPERSONATION_INVALID</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/common/dependencies.py</code></td>
+</tr>
+<tr>
+<td><code>IMPERSONATION_JUSTIFICATION_TOO_SHORT</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/impersonation_service.py</code></td>
+</tr>
+<tr>
+<td><code>IMPERSONATION_NOT_FOUND</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/impersonation_service.py</code></td>
 </tr>
 <tr>
 <td><code>INBOX</code></td>
@@ -10881,6 +10985,14 @@
 <td>sensitive</td>
 <td>Referenced directly by Python code.</td>
 <td><code>apps/control-plane/src/platform/auth/exceptions.py</code></td>
+</tr>
+<tr>
+<td><code>INVALID_FEATURE_FLAG_SCOPE</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/feature_flags_service.py</code></td>
 </tr>
 <tr>
 <td><code>INVALID_GOAL_TRANSITION</code></td>
@@ -11683,6 +11795,14 @@
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
+<td><code>OPTIONS</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/read_only_middleware.py</code></td>
+</tr>
+<tr>
 <td><code>ORG_NOT_ALLOWED</code></td>
 <td>optional</td>
 <td>-</td>
@@ -12392,7 +12512,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/connectors/models.py</code><br><code>apps/control-plane/src/platform/cost_governance/models.py</code><br><code>apps/control-plane/src/platform/evaluation/models.py</code><br><code>apps/control-plane/src/platform/execution/models.py</code><br><code>apps/control-plane/src/platform/two_person_approval/models.py</code></td>
+<td><code>apps/control-plane/src/platform/admin/impersonation_models.py</code><br><code>apps/control-plane/src/platform/admin/two_person_auth_models.py</code><br><code>apps/control-plane/src/platform/connectors/models.py</code><br><code>apps/control-plane/src/platform/cost_governance/models.py</code><br><code>apps/control-plane/src/platform/evaluation/models.py</code><br>+2 more</td>
 </tr>
 <tr>
 <td><code>ROBUSTNESS_RUN_NOT_FOUND</code></td>
@@ -12768,7 +12888,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/common/tagging/router.py</code><br><code>apps/control-plane/src/platform/localization/router.py</code><br><code>apps/control-plane/src/platform/model_catalog/router.py</code></td>
+<td><code>apps/control-plane/src/platform/admin/two_person_auth_router.py</code><br><code>apps/control-plane/src/platform/common/tagging/router.py</code><br><code>apps/control-plane/src/platform/localization/router.py</code><br><code>apps/control-plane/src/platform/model_catalog/router.py</code></td>
 </tr>
 <tr>
 <td><code>SUPPORTS</code></td>
@@ -12809,6 +12929,14 @@
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
 <td><code>apps/control-plane/src/platform/execution/service.py</code></td>
+</tr>
+<tr>
+<td><code>TENANT_MODE_DOWNGRADE_BLOCKED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/tenant_mode_service.py</code></td>
 </tr>
 <tr>
 <td><code>TEST_SUITE_NOT_FOUND</code></td>
@@ -13227,6 +13355,70 @@
 <td><code>apps/control-plane/src/platform/workspaces/service.py</code></td>
 </tr>
 <tr>
+<td><code>TWO_PERSON_AUTH_APPROVED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/two_person_auth_service.py</code></td>
+</tr>
+<tr>
+<td><code>TWO_PERSON_AUTH_CONSUMED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/two_person_auth_service.py</code></td>
+</tr>
+<tr>
+<td><code>TWO_PERSON_AUTH_EXPIRED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/two_person_auth_service.py</code></td>
+</tr>
+<tr>
+<td><code>TWO_PERSON_AUTH_INVALID</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/impersonation_service.py</code><br><code>apps/control-plane/src/platform/admin/tenant_mode_service.py</code></td>
+</tr>
+<tr>
+<td><code>TWO_PERSON_AUTH_NOT_FOUND</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/two_person_auth_service.py</code></td>
+</tr>
+<tr>
+<td><code>TWO_PERSON_AUTH_REJECTED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/two_person_auth_service.py</code></td>
+</tr>
+<tr>
+<td><code>TWO_PERSON_AUTH_REQUIRED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/impersonation_service.py</code><br><code>apps/control-plane/src/platform/admin/tenant_mode_service.py</code></td>
+</tr>
+<tr>
+<td><code>TWO_PERSON_AUTH_SELF_APPROVAL</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/two_person_auth_service.py</code></td>
+</tr>
+<tr>
 <td><code>UNAUTHORIZED</code></td>
 <td>optional</td>
 <td>-</td>
@@ -13241,6 +13433,14 @@
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
 <td><code>apps/control-plane/src/platform/common/events/producer.py</code><br><code>apps/control-plane/src/platform/common/events/registry.py</code></td>
+</tr>
+<tr>
+<td><code>UNKNOWN_FEATURE_FLAG</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/admin/feature_flags_service.py</code></td>
 </tr>
 <tr>
 <td><code>UNKNOWN_RESPONSE_DECISION_STRATEGY</code></td>
@@ -13288,7 +13488,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/accounts/service.py</code><br><code>apps/control-plane/src/platform/workspaces/service.py</code></td>
+<td><code>apps/control-plane/src/platform/accounts/service.py</code><br><code>apps/control-plane/src/platform/admin/impersonation_service.py</code><br><code>apps/control-plane/src/platform/workspaces/service.py</code></td>
 </tr>
 <tr>
 <td><code>UTC</code></td>
@@ -13296,7 +13496,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/cost_governance/jobs/anomaly_job.py</code><br><code>apps/control-plane/src/platform/cost_governance/jobs/forecast_job.py</code><br><code>apps/control-plane/src/platform/incident_response/jobs/delivery_retry_scanner.py</code><br><code>apps/control-plane/src/platform/incident_response/jobs/runbook_freshness_scanner.py</code><br><code>apps/control-plane/src/platform/localization/models.py</code><br>+11 more</td>
+<td><code>apps/control-plane/src/platform/admin/security_scheduler.py</code><br><code>apps/control-plane/src/platform/cost_governance/jobs/anomaly_job.py</code><br><code>apps/control-plane/src/platform/cost_governance/jobs/forecast_job.py</code><br><code>apps/control-plane/src/platform/incident_response/jobs/delivery_retry_scanner.py</code><br><code>apps/control-plane/src/platform/incident_response/jobs/runbook_freshness_scanner.py</code><br>+12 more</td>
 </tr>
 <tr>
 <td><code>VAULT_</code></td>
@@ -13703,7 +13903,7 @@
 <td><code>false</code></td>
 <td>informational</td>
 <td>Configures <code>feature_cost_hard_caps</code> for Platform.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+<td><code>apps/control-plane/src/platform/admin/feature_flags_service.py</code><br><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
 <td><code>FEATURE_E2E_MODE</code></td>
@@ -13727,7 +13927,7 @@
 <td><code>false</code></td>
 <td>informational</td>
 <td>Configures <code>feature_maintenance_mode</code> for Platform.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+<td><code>apps/control-plane/src/platform/admin/feature_flags_service.py</code><br><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
 <td><code>FEATURE_MULTI_REGION</code></td>
@@ -13926,7 +14126,7 @@
 <td><code>false</code></td>
 <td>informational</td>
 <td>Enables privacy DLP scanning for outputs and guardrails.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+<td><code>apps/control-plane/src/platform/admin/feature_flags_service.py</code><br><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
 <td><code>FEATURE_PRIVACY_DSR_ENABLED</code></td>
