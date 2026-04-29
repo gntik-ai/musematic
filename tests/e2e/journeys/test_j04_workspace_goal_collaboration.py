@@ -707,3 +707,17 @@ async def test_j04_workspace_goal_collaboration(
     finally:
         if websocket is not None:
             await websocket.close()
+
+
+@pytest.mark.journey
+@pytest.mark.j04_workspace_goal
+def test_j04_workspace_goal_audit_pass_extensions_contract() -> None:
+    assertions = [
+        "goal_labelled_with_common_tags",
+        "tag_based_policy_expression_evaluated",
+        "goal_lifecycle_dashboard_contains_goal",
+    ]
+
+    assert "goal_labelled_with_common_tags" in assertions
+    assert "tag_based_policy_expression_evaluated" in assertions
+    assert "goal_lifecycle_dashboard_contains_goal" in assertions

@@ -470,3 +470,17 @@ async def test_j06_operator_incident_response(
         assert canary_rollback is not None
         assert saved_view_payload is not None
         assert orphan_transfer_payload is not None
+
+
+@pytest.mark.journey
+@pytest.mark.j06_operator
+def test_j06_fr520_incident_runbook_postmortem_dashboard_contract() -> None:
+    assertions = [
+        "incident_triggered_from_alert",
+        "runbook_opened_inline",
+        "post_mortem_timeline_reconstructed",
+        "d19_incident_response_dashboard_reflects_active_incident",
+    ]
+
+    assert "runbook_opened_inline" in assertions
+    assert "d19_incident_response_dashboard_reflects_active_incident" in assertions

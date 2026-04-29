@@ -55,4 +55,13 @@ markers = [
   "slow: test takes more than 30 seconds",
   "requires_warm_pool: test assumes the runtime warm pool is filled",
   "journey: extended user journey scenario",
+  "multi_region_ops: multi-region operations bounded-context suite",
+  "j10_privacy_officer: privacy officer journey",
+  "j11_security_officer: security officer journey",
+  "j12_finance_owner: finance owner journey",
+  "j13_sre_multi_region: SRE multi-region journey",
+  "j14_model_steward: model steward journey",
+  "j15_accessibility_user: accessibility user journey",
+  "j16_compliance_auditor: compliance auditor journey",
+  "j17_dashboard_consumer: dashboard consumer journey",
 ]

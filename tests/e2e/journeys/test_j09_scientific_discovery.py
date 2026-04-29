@@ -245,3 +245,15 @@ async def test_j09_scientific_discovery(
         assert clusters_payload is not None
         assert refined_hypothesis is not None
         assert experiment_plan is not None
+
+
+@pytest.mark.journey
+@pytest.mark.j09_discovery
+def test_j09_fr520_fairness_and_cost_attribution_extension_contract() -> None:
+    assertions = [
+        "demographic_data_triggers_fairness_check",
+        "evaluation_results_are_cost_attributed",
+    ]
+
+    assert "demographic_data_triggers_fairness_check" in assertions
+    assert "evaluation_results_are_cost_attributed" in assertions

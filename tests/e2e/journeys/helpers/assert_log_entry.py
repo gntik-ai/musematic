@@ -1,3 +1,8 @@
+"""Loki log assertions.
+
+Contract: specs/085-extended-e2e-journey/contracts/observability-helpers.md
+"""
+
 from __future__ import annotations
 
 import asyncio

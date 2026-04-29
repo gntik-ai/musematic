@@ -7,6 +7,7 @@ from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_current_user, get_db
 from platform.common.exceptions import AuthorizationError
+from platform.common.logging import get_logger
 from platform.incident_response.dependencies import get_incident_service
 from platform.incident_response.schemas import IncidentRef, IncidentSeverity, IncidentSignal
 from platform.incident_response.services.incident_service import IncidentService
@@ -20,12 +21,16 @@ from platform.testing.schemas_e2e import (
     KafkaEventsResponse,
     MockLLMCallsResponse,
     MockLLMClearRequest,
+    MockLLMRateLimitRequest,
+    MockLLMRateLimitResponse,
     MockLLMSetRequest,
     MockLLMSetResponse,
     ResetRequest,
     ResetResponse,
     SeedRequest,
     SeedResponse,
+    SyntheticFailureInjectRequest,
+    SyntheticFailureInjectResponse,
 )
 from platform.testing.service_e2e import (
     ChaosService,
@@ -42,6 +47,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/v1/_e2e", tags=["_e2e"])
+LOGGER = get_logger(__name__)
 
 
 def _role_names(current_user: dict[str, Any]) -> set[str]:
@@ -267,6 +273,21 @@ async def set_mock_llm_response(
     return MockLLMSetResponse(queue_depth=queue_depth)
 
 
+@router.post("/mock-llm/rate-limit", response_model=MockLLMRateLimitResponse)
+async def set_mock_llm_rate_limit(
+    payload: MockLLMRateLimitRequest,
+    request: Request,
+    current_user: dict[str, Any] = Depends(require_admin_or_e2e_scope),
+) -> MockLLMRateLimitResponse:
+    del current_user
+    service = build_mock_llm_service(_redis(request))
+    await service.set_rate_limit_error(payload.prompt_pattern, payload.count)
+    return MockLLMRateLimitResponse(
+        prompt_pattern=payload.prompt_pattern,
+        remaining=payload.count,
+    )
+
+
 @router.get("/mock-llm/calls", response_model=MockLLMCallsResponse)
 async def get_mock_llm_calls(
     request: Request,
@@ -292,6 +313,27 @@ async def clear_mock_llm(
     del current_user
     service = build_mock_llm_service(_redis(request))
     await service.clear_queue(payload.prompt_pattern)
+
+
+@router.post("/inject-failure", response_model=SyntheticFailureInjectResponse)
+async def inject_failure(
+    payload: SyntheticFailureInjectRequest,
+    current_user: dict[str, Any] = Depends(require_admin_or_e2e_scope),
+) -> SyntheticFailureInjectResponse:
+    del current_user
+    LOGGER.error(
+        payload.error_message,
+        service=payload.service,
+        bounded_context="synthetic_e2e",
+        correlation_id=payload.correlation_id,
+        trace_id=payload.trace_id,
+        event_type="e2e.synthetic_failure.injected",
+    )
+    return SyntheticFailureInjectResponse(
+        correlation_id=payload.correlation_id,
+        service=payload.service,
+        trace_id=payload.trace_id,
+    )
 
 
 @router.get("/kafka/events", response_model=KafkaEventsResponse)

@@ -27,7 +27,12 @@ This is the source-of-truth inventory for the dashboard ConfigMaps shipped by
 | 20 | `goal-lifecycle.yaml` | `d20-goal-lifecycle` | 059-workspace-goal-response |
 | 21 | `governance-pipeline.yaml` | `d21-governance-pipeline` | 061-judge-enforcer-governance |
 | 22 | `trust-content-moderation.yaml` | `trust-content-moderation` | 078-content-safety-fairness |
+| 23 | `localization.yaml` | `localization` | 083-accessibility-i18n |
 
 The 22nd dashboard, `trust-content-moderation.yaml`, is intentionally included.
 It is owned by feature 078 and was omitted from the brownfield-input 21-row
 enumeration.
+
+`localization.yaml` was added by feature 083 after the original UPD-035
+brownfield inventory was drafted. Feature 085's chart checks therefore assert
+the current on-disk count of 23 dashboard ConfigMaps.

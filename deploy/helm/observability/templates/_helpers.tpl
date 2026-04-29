@@ -17,6 +17,7 @@ grafana_dashboard: "1"
 {{- define "musematic-observability.ruleLabels" -}}
 {{ include "musematic-observability.labels" . }}
 prometheus: musematic
+prometheus-rule: "1"
 role: alert-rules
 {{- end }}
 

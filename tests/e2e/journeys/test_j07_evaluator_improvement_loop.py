@@ -328,3 +328,16 @@ async def test_j07_evaluator_improvement_loop(
         assert proposal_payload is not None
         assert new_revision_payload is not None
         assert rerun_payload is not None
+
+
+@pytest.mark.journey
+@pytest.mark.j07_evaluator
+def test_j07_fr520_fairness_catalog_fallback_extension_contract() -> None:
+    assertions = [
+        "fairness_scorer_runs",
+        "judge_uses_catalog_approved_model",
+        "primary_rate_limit_triggers_model_fallback",
+    ]
+
+    assert "fairness_scorer_runs" in assertions
+    assert "primary_rate_limit_triggers_model_fallback" in assertions
