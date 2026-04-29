@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import platform.workspaces.models  # noqa: F401 - register relationship targets for CLI mapper use.
 import subprocess
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import UTC, datetime
