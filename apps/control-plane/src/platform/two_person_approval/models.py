@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from platform.common.models.base import Base
-from typing import Any, ClassVar
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Text
@@ -13,7 +13,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 class TwoPersonApprovalChallenge(Base):
     __tablename__ = "two_person_auth_requests"
-    __table_args__: ClassVar[dict[str, bool]] = {"extend_existing": True}
+    __table_args__ = {"extend_existing": True}  # noqa: RUF012
 
     id: Mapped[UUID] = mapped_column(
         "request_id",

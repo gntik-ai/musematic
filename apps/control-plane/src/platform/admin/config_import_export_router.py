@@ -7,7 +7,7 @@ from platform.admin.rbac import require_admin, require_superadmin
 from platform.audit.dependencies import get_audit_chain_service
 from platform.audit.service import AuditChainService
 from platform.common.config import PlatformSettings
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, File, Form, Request, UploadFile
@@ -73,4 +73,4 @@ def _preview_dict(preview: DiffPreview) -> dict[str, Any]:
 
 
 def _settings(request: Request) -> PlatformSettings:
-    return request.app.state.settings
+    return cast(PlatformSettings, request.app.state.settings)

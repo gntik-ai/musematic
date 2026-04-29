@@ -13,7 +13,7 @@ from platform.audit.service import AuditChainService
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import AuthorizationError, ValidationError
-from typing import Any, Literal
+from typing import Any, Literal, cast
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
@@ -94,7 +94,7 @@ class TenantModeService:
         )
         value = result.scalar_one_or_none()
         if value in {"single", "multi"}:
-            return value
+            return cast(TenantMode, value)
         return "single"
 
     async def _set_mode(self, mode: TenantMode) -> None:
