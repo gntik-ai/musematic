@@ -41,19 +41,19 @@ async def _get_agent_card(
     client: AuthenticatedAsyncClient,
     agent_fqn: str,
     *,
-    attempts: int = 5,
+    attempts: int = 10,
 ) -> httpx.Response:
     response: httpx.Response | None = None
     for attempt in range(attempts):
         response = await client.get("/.well-known/agent.json", params={"agent_fqn": agent_fqn})
-        if response.status_code != 429:
+        if response.status_code != 429 or attempt == attempts - 1:
             return response
         retry_after = response.headers.get("Retry-After")
         try:
-            delay = float(retry_after) if retry_after else 0.5 * (attempt + 1)
+            delay = float(retry_after) if retry_after else 2**attempt
         except ValueError:
-            delay = 0.5 * (attempt + 1)
-        await asyncio.sleep(min(delay, 2.0))
+            delay = 2**attempt
+        await asyncio.sleep(min(delay, 10.0))
     assert response is not None
     return response
 
