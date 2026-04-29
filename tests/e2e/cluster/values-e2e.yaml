@@ -256,6 +256,9 @@ controlPlane:
     mockLlmEnabled: true
     zeroTrustVisibility: true
     otelResourceAttributes: deployment.environment=e2e
+    extraEnv:
+      FEATURE_MULTI_REGION: "true"
+      FEATURE_MAINTENANCE_MODE: "true"
   privacy:
     dsrEnabled: true
     dlpEnabled: true

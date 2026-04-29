@@ -33,6 +33,10 @@ def _app(settings: PlatformSettings, redis: FakeRedis | None = None) -> FastAPI:
     async def mutate() -> dict[str, str]:
         return {"status": "ok"}
 
+    @app.post("/api/v1/admin/maintenance/windows/{window_id}/disable")
+    async def disable_window(window_id: str) -> dict[str, str]:
+        return {"id": window_id, "status": "completed"}
+
     @app.get("/read")
     async def read() -> dict[str, str]:
         return {"status": "ok"}
@@ -76,3 +80,13 @@ async def test_maintenance_gate_blocks_mutations_but_allows_reads() -> None:
     assert blocked.json()["error"] == "maintenance_in_progress"
     assert blocked.headers["Retry-After"]
     assert allowed.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_maintenance_gate_allows_disable_control_request() -> None:
+    app = _app(PlatformSettings(feature_maintenance_mode=True), FakeRedis(_active_window_payload()))
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(f"/api/v1/admin/maintenance/windows/{uuid4()}/disable")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "completed"
