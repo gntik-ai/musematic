@@ -8402,13 +8402,13 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>kube-prometheus-stack</td>
 <td>object</td>
-<td><code>{"alertmanager":{"alertmanagerSpec":{"storage":{"volumeClaimTemplate":{"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}}}}}}},"cleanPrometheusOperatorObjectNames":true,"grafana":{"adminPassword":"admin","plugins":["grafana-image-renderer"],"sidecar":{"dashboards":{"enabled":true,"label":"grafana_dashboard","labelValue":"1","searchNamespace":"platform-observability"},"datasources":{"enabled":true,"label":"grafana_datasource","labelValue":"1","searchNamespace":"platform-observability"}}},"prometheus":{"prometheusSpec":{"podMonitorSelector":{"matchLabels":{"prometheus":"musematic"}},"retention":"15d","ruleSelector":{"matchLabels":{"prometheus":"musematic"}},"scrapeInterval":"15s","serviceMonitorSelector":{"matchLabels":{"prometheus":"musematic"}},"storageSpec":{"volumeClaimTemplate":{"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"20Gi"}}}}}}}}</code></td>
+<td><code>{"alertmanager":{"alertmanagerSpec":{"storage":{"volumeClaimTemplate":{"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}}}}}},"config":{"global":{"resolve_timeout":"5m"},"receivers":[{"name":"platform-alerts-default"},{"name":"platform-alerts-critical"},{"name":"platform-alerts-warning"},{"name":"incident-response-audit-chain-anomaly","webhook_configs":[{"send_resolved":false,"url":"http://musematic-control-plane-api.platform-control.svc.cluster.local:8000/api/v1/internal/alerts/audit-chain-anomaly"}]}],"route":{"group_by":["alertname","service","severity"],"group_interval":"5m","group_wait":"30s","receiver":"platform-alerts-default","repeat_interval":"4h","routes":[{"continue":true,"matchers":["incident_trigger = \"audit_chain_anomaly\""],"receiver":"incident-response-audit-chain-anomaly"},{"matchers":["severity = \"critical\""],"receiver":"platform-alerts-critical"},{"matchers":["severity = \"warning\""],"receiver":"platform-alerts-warning"}]}}},"cleanPrometheusOperatorObjectNames":true,"fullnameOverride":"observability-kube-prometh","grafana":{"adminPassword":"admin","plugins":["grafana-image-renderer"],"sidecar":{"dashboards":{"enabled":true,"label":"grafana_dashboard","labelValue":"1","searchNamespace":"platform-observability"},"datasources":{"enabled":true,"label":"grafana_datasource","labelValue":"1","searchNamespace":"platform-observability"}}},"prometheus":{"prometheusSpec":{"podMonitorSelector":{"matchLabels":{"prometheus":"musematic"}},"retention":"15d","ruleSelector":{"matchLabels":{"prometheus":"musematic"}},"scrapeInterval":"15s","serviceMonitorSelector":{"matchLabels":{"prometheus":"musematic"}},"storageSpec":{"volumeClaimTemplate":{"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"20Gi"}}}}}}}}</code></td>
 <td>Configures <code>kube-prometheus-stack</code> for the observability chart.</td>
 </tr>
 <tr>
 <td>kube-prometheus-stack.alertmanager</td>
 <td>object</td>
-<td><code>{"alertmanagerSpec":{"storage":{"volumeClaimTemplate":{"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}}}}}}}</code></td>
+<td><code>{"alertmanagerSpec":{"storage":{"volumeClaimTemplate":{"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}}}}}},"config":{"global":{"resolve_timeout":"5m"},"receivers":[{"name":"platform-alerts-default"},{"name":"platform-alerts-critical"},{"name":"platform-alerts-warning"},{"name":"incident-response-audit-chain-anomaly","webhook_configs":[{"send_resolved":false,"url":"http://musematic-control-plane-api.platform-control.svc.cluster.local:8000/api/v1/internal/alerts/audit-chain-anomaly"}]}],"route":{"group_by":["alertname","service","severity"],"group_interval":"5m","group_wait":"30s","receiver":"platform-alerts-default","repeat_interval":"4h","routes":[{"continue":true,"matchers":["incident_trigger = \"audit_chain_anomaly\""],"receiver":"incident-response-audit-chain-anomaly"},{"matchers":["severity = \"critical\""],"receiver":"platform-alerts-critical"},{"matchers":["severity = \"warning\""],"receiver":"platform-alerts-warning"}]}}}</code></td>
 <td>Configures <code>kube-prometheus-stack.alertmanager</code> for the observability chart.</td>
 </tr>
 <tr>
@@ -8460,10 +8460,22 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>Configures <code>kube-prometheus-stack.alertmanager.alertmanagerSpec.storage.volumeClaimTemplate.spec.resources.requests.storage</code> for the observability chart.</td>
 </tr>
 <tr>
+<td>kube-prometheus-stack.alertmanager.config</td>
+<td>object</td>
+<td><code>{"global":{"resolve_timeout":"5m"},"receivers":[{"name":"platform-alerts-default"},{"name":"platform-alerts-critical"},{"name":"platform-alerts-warning"},{"name":"incident-response-audit-chain-anomaly","webhook_configs":[{"send_resolved":false,"url":"http://musematic-control-plane-api.platform-control.svc.cluster.local:8000/api/v1/internal/alerts/audit-chain-anomaly"}]}],"route":{"group_by":["alertname","service","severity"],"group_interval":"5m","group_wait":"30s","receiver":"platform-alerts-default","repeat_interval":"4h","routes":[{"continue":true,"matchers":["incident_trigger = \"audit_chain_anomaly\""],"receiver":"incident-response-audit-chain-anomaly"},{"matchers":["severity = \"critical\""],"receiver":"platform-alerts-critical"},{"matchers":["severity = \"warning\""],"receiver":"platform-alerts-warning"}]}}</code></td>
+<td>Configures <code>kube-prometheus-stack.alertmanager.config</code> for the observability chart.</td>
+</tr>
+<tr>
 <td>kube-prometheus-stack.cleanPrometheusOperatorObjectNames</td>
 <td>bool</td>
 <td><code>true</code></td>
 <td>Configures <code>kube-prometheus-stack.cleanPrometheusOperatorObjectNames</code> for the observability chart.</td>
+</tr>
+<tr>
+<td>kube-prometheus-stack.fullnameOverride</td>
+<td>string</td>
+<td><code>"observability-kube-prometh"</code></td>
+<td>Configures <code>kube-prometheus-stack.fullnameOverride</code> for stable in-chart Alertmanager references.</td>
 </tr>
 <tr>
 <td>kube-prometheus-stack.grafana</td>
@@ -8672,7 +8684,7 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>loki</td>
 <td>object</td>
-<td><code>{"backend":{"replicas":0},"deploymentMode":"SingleBinary","enabled":true,"extraArgs":["-config.expand-env=true"],"extraEnv":[{"name":"S3_ENDPOINT_URL","valueFrom":{"secretKeyRef":{"key":"S3_ENDPOINT_URL","name":"minio-platform-credentials"}}},{"name":"S3_ACCESS_KEY","valueFrom":{"secretKeyRef":{"key":"S3_ACCESS_KEY","name":"minio-platform-credentials"}}},{"name":"S3_SECRET_KEY","valueFrom":{"secretKeyRef":{"key":"S3_SECRET_KEY","name":"minio-platform-credentials"}}},{"name":"S3_USE_PATH_STYLE","valueFrom":{"secretKeyRef":{"key":"S3_USE_PATH_STYLE","name":"minio-platform-credentials","optional":true}}}],"fullnameOverride":"observability-loki","gateway":{"enabled":true},"loki":{"auth_enabled":false,"commonConfig":{"replication_factor":1},"compactor":{"delete_request_store":"s3","retention_enabled":true},"limits_config":{"retention_period":"336h"},"rulerConfig":{"storage":{"s3":{"bucketnames":"platform-loki-chunks"},"type":"s3"}},"schemaConfig":{"configs":[{"from":"2024-01-01","index":{"period":"24h","prefix":"loki_index_"},"object_store":"s3","schema":"v13","store":"tsdb"}]},"storage":{"bucketNames":{"admin":"platform-loki-chunks","chunks":"platform-loki-chunks","ruler":"platform-loki-chunks"},"s3":{"access_key_id":"${S3_ACCESS_KEY}","endpoint":"${S3_ENDPOINT_URL}","insecure":true,"s3ForcePathStyle":"${S3_USE_PATH_STYLE}","secret_access_key":"${S3_SECRET_KEY}"},"type":"s3"}},"read":{"replicas":0},"retention":{"cold":"2160h","hot":"336h"},"singleBinary":{"persistence":{"enabled":true,"size":"20Gi"},"replicas":1},"tenantRetentionOverrides":[],"write":{"replicas":0}}</code></td>
+<td><code>{"backend":{"replicas":0},"deploymentMode":"SingleBinary","enabled":true,"extraArgs":["-config.expand-env=true"],"extraEnv":[{"name":"S3_ENDPOINT_URL","valueFrom":{"secretKeyRef":{"key":"S3_ENDPOINT_URL","name":"minio-platform-credentials"}}},{"name":"S3_ACCESS_KEY","valueFrom":{"secretKeyRef":{"key":"S3_ACCESS_KEY","name":"minio-platform-credentials"}}},{"name":"S3_SECRET_KEY","valueFrom":{"secretKeyRef":{"key":"S3_SECRET_KEY","name":"minio-platform-credentials"}}},{"name":"S3_USE_PATH_STYLE","valueFrom":{"secretKeyRef":{"key":"S3_USE_PATH_STYLE","name":"minio-platform-credentials","optional":true}}}],"fullnameOverride":"observability-loki","gateway":{"enabled":true},"loki":{"auth_enabled":false,"commonConfig":{"replication_factor":1},"compactor":{"delete_request_store":"s3","retention_enabled":true},"limits_config":{"retention_period":"336h"},"rulerConfig":{"alertmanager_url":"http://observability-kube-prometh-alertmanager:9093","enable_alertmanager_v2":true,"enable_api":true,"storage":{"local":{"directory":"/rules"},"type":"local"}},"schemaConfig":{"configs":[{"from":"2024-01-01","index":{"period":"24h","prefix":"loki_index_"},"object_store":"s3","schema":"v13","store":"tsdb"}]},"storage":{"bucketNames":{"admin":"platform-loki-chunks","chunks":"platform-loki-chunks","ruler":"platform-loki-chunks"},"filesystem":{"rules_directory":"/rules"},"s3":{"access_key_id":"${S3_ACCESS_KEY}","endpoint":"${S3_ENDPOINT_URL}","insecure":true,"s3ForcePathStyle":"${S3_USE_PATH_STYLE}","secret_access_key":"${S3_SECRET_KEY}"},"type":"s3"}},"read":{"replicas":0},"retention":{"cold":"2160h","hot":"336h"},"singleBinary":{"persistence":{"enabled":true,"size":"20Gi"},"replicas":1},"tenantRetentionOverrides":[],"write":{"replicas":0}}</code></td>
 <td>Configures <code>loki</code> for the observability chart.</td>
 </tr>
 <tr>
@@ -8834,7 +8846,7 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>loki.loki</td>
 <td>object</td>
-<td><code>{"auth_enabled":false,"commonConfig":{"replication_factor":1},"compactor":{"delete_request_store":"s3","retention_enabled":true},"limits_config":{"retention_period":"336h"},"rulerConfig":{"storage":{"s3":{"bucketnames":"platform-loki-chunks"},"type":"s3"}},"schemaConfig":{"configs":[{"from":"2024-01-01","index":{"period":"24h","prefix":"loki_index_"},"object_store":"s3","schema":"v13","store":"tsdb"}]},"storage":{"bucketNames":{"admin":"platform-loki-chunks","chunks":"platform-loki-chunks","ruler":"platform-loki-chunks"},"s3":{"access_key_id":"${S3_ACCESS_KEY}","endpoint":"${S3_ENDPOINT_URL}","insecure":true,"s3ForcePathStyle":"${S3_USE_PATH_STYLE}","secret_access_key":"${S3_SECRET_KEY}"},"type":"s3"}}</code></td>
+<td><code>{"auth_enabled":false,"commonConfig":{"replication_factor":1},"compactor":{"delete_request_store":"s3","retention_enabled":true},"limits_config":{"retention_period":"336h"},"rulerConfig":{"alertmanager_url":"http://observability-kube-prometh-alertmanager:9093","enable_alertmanager_v2":true,"enable_api":true,"storage":{"local":{"directory":"/rules"},"type":"local"}},"schemaConfig":{"configs":[{"from":"2024-01-01","index":{"period":"24h","prefix":"loki_index_"},"object_store":"s3","schema":"v13","store":"tsdb"}]},"storage":{"bucketNames":{"admin":"platform-loki-chunks","chunks":"platform-loki-chunks","ruler":"platform-loki-chunks"},"filesystem":{"rules_directory":"/rules"},"s3":{"access_key_id":"${S3_ACCESS_KEY}","endpoint":"${S3_ENDPOINT_URL}","insecure":true,"s3ForcePathStyle":"${S3_USE_PATH_STYLE}","secret_access_key":"${S3_SECRET_KEY}"},"type":"s3"}}</code></td>
 <td>Configures <code>loki.loki</code> for the observability chart.</td>
 </tr>
 <tr>
@@ -8888,31 +8900,49 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>loki.loki.rulerConfig</td>
 <td>object</td>
-<td><code>{"storage":{"s3":{"bucketnames":"platform-loki-chunks"},"type":"s3"}}</code></td>
+<td><code>{"alertmanager_url":"http://observability-kube-prometh-alertmanager:9093","enable_alertmanager_v2":true,"enable_api":true,"storage":{"local":{"directory":"/rules"},"type":"local"}}</code></td>
 <td>Configures <code>loki.loki.rulerConfig</code> for the observability chart.</td>
+</tr>
+<tr>
+<td>loki.loki.rulerConfig.alertmanager_url</td>
+<td>string</td>
+<td><code>"http://observability-kube-prometh-alertmanager:9093"</code></td>
+<td>Configures <code>loki.loki.rulerConfig.alertmanager_url</code> for alert delivery.</td>
+</tr>
+<tr>
+<td>loki.loki.rulerConfig.enable_alertmanager_v2</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Configures <code>loki.loki.rulerConfig.enable_alertmanager_v2</code> for Alertmanager API v2.</td>
+</tr>
+<tr>
+<td>loki.loki.rulerConfig.enable_api</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Configures <code>loki.loki.rulerConfig.enable_api</code> for the observability chart.</td>
 </tr>
 <tr>
 <td>loki.loki.rulerConfig.storage</td>
 <td>object</td>
-<td><code>{"s3":{"bucketnames":"platform-loki-chunks"},"type":"s3"}</code></td>
+<td><code>{"local":{"directory":"/rules"},"type":"local"}</code></td>
 <td>Configures <code>loki.loki.rulerConfig.storage</code> for the observability chart.</td>
 </tr>
 <tr>
-<td>loki.loki.rulerConfig.storage.s3</td>
+<td>loki.loki.rulerConfig.storage.local</td>
 <td>object</td>
-<td><code>{"bucketnames":"platform-loki-chunks"}</code></td>
-<td>Configures <code>loki.loki.rulerConfig.storage.s3</code> for the observability chart.</td>
+<td><code>{"directory":"/rules"}</code></td>
+<td>Configures <code>loki.loki.rulerConfig.storage.local</code> for sidecar-provisioned rules.</td>
 </tr>
 <tr>
-<td>loki.loki.rulerConfig.storage.s3.bucketnames</td>
+<td>loki.loki.rulerConfig.storage.local.directory</td>
 <td>string</td>
-<td><code>"platform-loki-chunks"</code></td>
-<td>Configures <code>loki.loki.rulerConfig.storage.s3.bucketnames</code> for the observability chart.</td>
+<td><code>"/rules"</code></td>
+<td>Configures <code>loki.loki.rulerConfig.storage.local.directory</code> for rule files.</td>
 </tr>
 <tr>
 <td>loki.loki.rulerConfig.storage.type</td>
 <td>string</td>
-<td><code>"s3"</code></td>
+<td><code>"local"</code></td>
 <td>Configures <code>loki.loki.rulerConfig.storage.type</code> for the observability chart.</td>
 </tr>
 <tr>
@@ -8966,7 +8996,7 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>loki.loki.storage</td>
 <td>object</td>
-<td><code>{"bucketNames":{"admin":"platform-loki-chunks","chunks":"platform-loki-chunks","ruler":"platform-loki-chunks"},"s3":{"access_key_id":"${S3_ACCESS_KEY}","endpoint":"${S3_ENDPOINT_URL}","insecure":true,"s3ForcePathStyle":"${S3_USE_PATH_STYLE}","secret_access_key":"${S3_SECRET_KEY}"},"type":"s3"}</code></td>
+<td><code>{"bucketNames":{"admin":"platform-loki-chunks","chunks":"platform-loki-chunks","ruler":"platform-loki-chunks"},"filesystem":{"rules_directory":"/rules"},"s3":{"access_key_id":"${S3_ACCESS_KEY}","endpoint":"${S3_ENDPOINT_URL}","insecure":true,"s3ForcePathStyle":"${S3_USE_PATH_STYLE}","secret_access_key":"${S3_SECRET_KEY}"},"type":"s3"}</code></td>
 <td>Configures <code>loki.loki.storage</code> for the observability chart.</td>
 </tr>
 <tr>
@@ -8992,6 +9022,18 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>string</td>
 <td><code>"platform-loki-chunks"</code></td>
 <td>Configures <code>loki.loki.storage.bucketNames.ruler</code> for the observability chart.</td>
+</tr>
+<tr>
+<td>loki.loki.storage.filesystem</td>
+<td>object</td>
+<td><code>{"rules_directory":"/rules"}</code></td>
+<td>Configures <code>loki.loki.storage.filesystem</code> for locally mounted ruler files.</td>
+</tr>
+<tr>
+<td>loki.loki.storage.filesystem.rules_directory</td>
+<td>string</td>
+<td><code>"/rules"</code></td>
+<td>Configures <code>loki.loki.storage.filesystem.rules_directory</code> for sidecar-provisioned rules.</td>
 </tr>
 <tr>
 <td>loki.loki.storage.s3</td>
