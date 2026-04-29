@@ -4,31 +4,6 @@
 
 Composite Musematic platform chart used by production and E2E deployments.
 
-## Headless Super Admin Bootstrap
-
-The chart can create the initial super admin through a post-install/post-upgrade
-Helm hook Job. Set the bootstrap values and point `superadmin.passwordSecretRef`
-at a Kubernetes Secret whose `password` key contains the credential:
-
-```sh
-helm upgrade --install musematic deploy/helm/platform \
-  --namespace platform --create-namespace \
-  --set superadmin.username=alice \
-  --set superadmin.email=alice@example.com \
-  --set superadmin.passwordSecretRef=platform-superadmin \
-  --set superadmin.mfaEnrollment=required_before_first_login
-```
-
-The Job runs `python -m platform.admin.bootstrap`, has hook weight `"10"`, and is
-deleted after success. Migrations run before it. Re-running the chart is
-idempotent: an existing super admin with the bootstrap audit entry is left
-unchanged. Production force-reset requires the reset flag plus
-`ALLOW_SUPERADMIN_RESET=true`.
-
-Secret values are never stored in Helm values. Use sealed-secrets, External
-Secrets, or an equivalent controller to materialize the referenced Secret before
-install.
-
 ## Requirements
 
 | Repository | Name | Version |
