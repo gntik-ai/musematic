@@ -987,6 +987,7 @@ class AlertServiceProbe(AlertService):
     def __init__(self, repo: AlertRepositoryForSelfService, resolved_user: object | None) -> None:
         self.repo = repo
         self.producer = None
+        self.localization_service = None
         self.resolved_user = resolved_user
         self.in_app: list[Any] = []
         self.dispatched: list[tuple[Any, Any, Any]] = []
