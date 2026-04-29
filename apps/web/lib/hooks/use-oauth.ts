@@ -7,6 +7,7 @@ import {
   listAdminOAuthProviders,
   listOAuthLinks,
   listOAuthProviders,
+  recoverWithOAuthProvider,
   unlinkOAuthProvider,
   upsertAdminOAuthProvider,
 } from "@/lib/api/auth";
@@ -48,6 +49,17 @@ export function useAdminOAuthProviders() {
 export function useOAuthAuthorizeMutation() {
   return useMutation<OAuthAuthorizeResponse, Error, OAuthProviderType>({
     mutationFn: authorizeOAuthProvider,
+  });
+}
+
+export function useOAuthRecoveryMutation() {
+  return useMutation<
+    OAuthAuthorizeResponse,
+    Error,
+    { email: string; providerType: OAuthProviderType }
+  >({
+    mutationFn: ({ email, providerType }) =>
+      recoverWithOAuthProvider(providerType, email),
   });
 }
 

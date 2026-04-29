@@ -1,6 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import { LayoutDashboard, Waves } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { ErrorBoundary } from "@/components/features/home/ErrorBoundary";
 import { ConnectionStatusBanner } from "@/components/features/home/ConnectionStatusBanner";
 import { PendingActions } from "@/components/features/home/PendingActions";
@@ -22,8 +25,15 @@ export function HomeDashboard() {
   const workspaceId = workspace?.id ?? userWorkspaceId;
   const workspaceName = workspace?.name ?? (workspaceId ? "Current workspace" : null);
   const { isConnected } = useWebSocketStatus();
+  const [showRecoveryPrompt, setShowRecoveryPrompt] = useState(false);
 
   useDashboardWebSocket(workspaceId);
+
+  useEffect(() => {
+    setShowRecoveryPrompt(
+      new URLSearchParams(window.location.search).get("oauth_recovery") === "1",
+    );
+  }, []);
 
   if (!workspaceId) {
     return (
@@ -41,6 +51,29 @@ export function HomeDashboard() {
   return (
     <div className="space-y-6">
       <ConnectionStatusBanner isConnected={isConnected} />
+      {showRecoveryPrompt ? (
+        <div className="flex flex-col gap-3 rounded-lg border border-brand-primary/25 bg-brand-primary/10 p-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="text-sm font-semibold">Access recovered with a linked provider</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              You can request a local password reset now or continue with OAuth sign-in.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button asChild size="sm">
+              <Link href="/forgot-password">Set local password</Link>
+            </Button>
+            <Button
+              size="sm"
+              type="button"
+              variant="outline"
+              onClick={() => setShowRecoveryPrompt(false)}
+            >
+              Dismiss
+            </Button>
+          </div>
+        </div>
+      ) : null}
       <section className="space-y-2">
         <div
           className={[

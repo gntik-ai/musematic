@@ -104,6 +104,7 @@ export interface OAuthCallbackSuccessResponse {
     expires_in: number;
   };
   user: AuthUserResponse;
+  recovery_intent?: boolean;
 }
 
 export interface OAuthCallbackMfaResponse {
@@ -212,11 +213,38 @@ export async function listOAuthLinks(): Promise<OAuthLinkListResponse> {
   return authApi.get<OAuthLinkListResponse>("/api/v1/auth/oauth/links");
 }
 
+export async function listOAuthLinkStatus(
+  email: string,
+): Promise<OAuthLinkListResponse> {
+  return authApi.get<OAuthLinkListResponse>(
+    `/api/v1/auth/oauth/links?email=${encodeURIComponent(email)}`,
+    {
+      skipAuth: true,
+      skipRetry: true,
+    },
+  );
+}
+
 export async function authorizeOAuthProvider(
   providerType: OAuthProviderType,
 ): Promise<OAuthAuthorizeResponse> {
   return authApi.get<OAuthAuthorizeResponse>(
     `/api/v1/auth/oauth/${providerType}/authorize`,
+    { skipAuth: true },
+  );
+}
+
+export async function recoverWithOAuthProvider(
+  providerType: OAuthProviderType,
+  email: string,
+): Promise<OAuthAuthorizeResponse> {
+  const query = new URLSearchParams({
+    email,
+    intent: "recovery",
+  });
+
+  return authApi.get<OAuthAuthorizeResponse>(
+    `/api/v1/auth/oauth/${providerType}/authorize?${query.toString()}`,
     { skipAuth: true },
   );
 }

@@ -195,6 +195,7 @@ async def _wait_for_unread_count(
 @pytest.mark.j03_consumer
 @pytest.mark.j03_consumer_discovery_execution
 @pytest.mark.timeout(TIMEOUT_SECONDS)
+@pytest.mark.parametrize("signup_method", ["oauth_google"])
 @pytest.mark.asyncio
 async def test_j03_consumer_discovery_execution(
     admin_client: AuthenticatedAsyncClient,
@@ -202,8 +203,10 @@ async def test_j03_consumer_discovery_execution(
     published_agent: dict[str, Any],
     journey_context: JourneyContext,
     platform_ws_url: str,
+    signup_method: str,
 ) -> None:
     assert consumer_client.access_token is not None
+    assert signup_method == "oauth_google"
 
     consumer_claims = _claims(consumer_client.access_token)
     consumer_user_id = UUID(str(consumer_claims["sub"]))

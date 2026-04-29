@@ -27,6 +27,7 @@ EXEMPT_PATHS: frozenset[str] = frozenset(
         "/api/v1/auth/login",
         "/api/v1/auth/refresh",
         "/api/v1/auth/mfa/verify",
+        "/api/v1/auth/oauth/links",
         "/api/v1/security/audit-chain/public-key",
     }
 )

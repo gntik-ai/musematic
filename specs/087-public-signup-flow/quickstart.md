@@ -31,6 +31,6 @@
 
 ## Known Follow-Ups
 
-- FR-588 route-specific registration rate limiting still needs the per-email 3-per-24h limiter and per-IP 5-per-hour limiter documented in `contracts/rate-limit-policies.md`.
+- FR-588 route-specific registration rate limiting is enforced in `AccountsService.register()`; see `contracts/rate-limit-policies.md` and the signup E2E suite.
 - Verification email locale propagation is delegated to feature 077; see `contracts/email-localization.md`.
-- Full J19/E2E coverage is still pending.
+- Full kind-cluster execution of J19 and the signup E2E suite remains the release gate.

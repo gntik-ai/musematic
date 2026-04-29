@@ -31,7 +31,6 @@ from platform.auth.exceptions import (
     OAuthStateInvalidError,
     OAuthUnlinkLastMethodError,
 )
-from platform.auth.password import hash_password
 from platform.auth.repository import AuthRepository
 from platform.auth.repository_oauth import OAuthRepository
 from platform.auth.schemas import (
@@ -127,6 +126,12 @@ class OAuthService:
     async def list_links(self, user_id: UUID) -> OAuthLinkListResponse:
         links = await self.repository.get_links_for_user(user_id)
         return OAuthLinkListResponse(items=[self._serialize_link(item) for item in links])
+
+    async def list_links_for_email(self, email: str) -> OAuthLinkListResponse:
+        platform_user = await self.auth_repository.get_platform_user_by_email(email.strip().lower())
+        if platform_user is None:
+            return OAuthLinkListResponse(items=[])
+        return await self.list_links(platform_user.id)
 
     async def list_audit_entries(
         self,
@@ -392,8 +397,19 @@ class OAuthService:
         *,
         link_for_user_id: UUID | None = None,
         dry_run: bool = False,
+        intent: str | None = None,
+        recovery_email: str | None = None,
     ) -> OAuthAuthorizeResponse:
         provider = await self._require_enabled_provider(provider_type)
+        if intent not in {None, "recovery"}:
+            raise ValidationError("OAUTH_INTENT_INVALID", "Unsupported OAuth authorization intent")
+        if intent == "recovery" and not recovery_email:
+            raise ValidationError("OAUTH_RECOVERY_EMAIL_REQUIRED", "Recovery email is required")
+        if intent == "recovery" and link_for_user_id is not None:
+            raise ValidationError(
+                "OAUTH_INTENT_CONFLICT",
+                "OAuth recovery cannot be combined with account linking",
+            )
         nonce = secrets.token_urlsafe(24)
         code_verifier = self._build_code_verifier()
         payload = {
@@ -401,6 +417,8 @@ class OAuthService:
             "code_verifier": code_verifier,
             "created_at": datetime.now(UTC).isoformat(),
             "link_for_user_id": str(link_for_user_id) if link_for_user_id else None,
+            "intent": intent,
+            "recovery_email": recovery_email.strip().lower() if recovery_email else None,
         }
         if not dry_run:
             await self.redis_client.set(
@@ -480,6 +498,7 @@ class OAuthService:
             )
             raise
         link_for_user_id = self._parse_optional_uuid(state_payload.get("link_for_user_id"))
+        recovery_intent = state_payload.get("intent") == "recovery"
 
         if link_for_user_id is not None:
             try:
@@ -517,6 +536,18 @@ class OAuthService:
             provider.id,
             identity.external_id,
         )
+        if recovery_intent and existing_link is None:
+            conflict = OAuthLinkConflictError(
+                "OAuth recovery is only available for already linked providers"
+            )
+            await self._write_failed_sign_in(
+                provider,
+                identity,
+                conflict,
+                source_ip,
+                user_agent,
+            )
+            raise conflict
         if existing_link is not None:
             user_id = existing_link.user_id
             await self.repository.update_link(
@@ -578,8 +609,24 @@ class OAuthService:
                 last_login_at=datetime.now(UTC),
             )
 
-        await self._ensure_oauth_credential(user_id, identity.email)
         platform_user = await self.auth_repository.get_platform_user(user_id)
+        recovery_email = str(state_payload.get("recovery_email") or "").strip().lower()
+        if (
+            recovery_intent
+            and platform_user is not None
+            and platform_user.email.lower() != recovery_email
+        ):
+            conflict = OAuthLinkConflictError(
+                "Linked provider does not match the requested recovery account"
+            )
+            await self._write_failed_sign_in(
+                provider,
+                identity,
+                conflict,
+                source_ip,
+                user_agent,
+            )
+            raise conflict
         allowed_statuses = {
             UserStatus.active.value,
             UserStatus.pending_approval.value,
@@ -664,9 +711,27 @@ class OAuthService:
             uuid4(),
             self.producer,
         )
+        if recovery_intent:
+            await self.repository.create_audit_entry(
+                provider_type=provider.provider_type,
+                provider_id=provider.id,
+                user_id=user_id,
+                external_id=identity.external_id,
+                action="password_reset_via_oauth_recovery",
+                outcome="success",
+                failure_reason=None,
+                source_ip=source_ip,
+                user_agent=user_agent,
+                actor_id=user_id,
+                changed_fields={
+                    "recovery_email": state_payload.get("recovery_email"),
+                    "provider_type": provider.provider_type,
+                },
+            )
         return {
             "token_pair": token_pair,
             "user": user_payload,
+            "recovery_intent": recovery_intent,
         }
 
     async def unlink_account(self, user_id: UUID, provider_type: str) -> None:
@@ -774,15 +839,6 @@ class OAuthService:
             await self.accounts_repository.create_approval_request(user.id, now)
         await self.auth_repository.assign_user_role(user.id, role, None)
         return user.id
-
-    async def _ensure_oauth_credential(self, user_id: UUID, email: str) -> None:
-        if await self.auth_repository.get_credential_by_user_id(user_id) is not None:
-            return
-        await self.auth_repository.ensure_credential(
-            user_id=user_id,
-            email=email,
-            password_hash=hash_password(secrets.token_urlsafe(48)),
-        )
 
     async def _resolve_identity(
         self,
@@ -1142,6 +1198,7 @@ class OAuthService:
     ) -> dict[str, Any]:
         roles = await self.auth_repository.get_user_roles(user_id, None)
         enrollment = await self.auth_repository.get_mfa_enrollment(user_id)
+        credential = await self.auth_repository.get_credential_by_user_id(user_id)
         return {
             "id": str(user_id),
             "email": platform_user.email,
@@ -1153,6 +1210,7 @@ class OAuthService:
             "mfa_enrolled": bool(
                 enrollment is not None and getattr(enrollment, "status", "") == "active"
             ),
+            "has_local_password": credential is not None,
         }
 
     @staticmethod

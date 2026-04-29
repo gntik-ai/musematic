@@ -56,6 +56,8 @@ export function OAuthCallbackHandler({ provider }: OAuthCallbackHandlerProps) {
         router.replace("/profile-completion");
       } else if (status === "pending_approval") {
         router.replace("/waiting-approval");
+      } else if (payload.recovery_intent) {
+        router.replace("/home?oauth_recovery=1");
       } else {
         router.replace("/home");
       }

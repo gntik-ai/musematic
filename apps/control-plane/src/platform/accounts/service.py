@@ -92,10 +92,12 @@ class AccountsService:
         request: RegisterRequest,
         *,
         correlation_id: UUID | None = None,
+        source_ip: str = "0.0.0.0",
     ) -> RegisterResponse:
         if self.settings.signup_mode == "invite_only":
             raise SelfRegistrationDisabledError()
 
+        await self._enforce_signup_rate_limit(request.email, source_ip)
         existing_user = await self.repo.get_user_by_email(request.email)
         if existing_user is not None:
             return RegisterResponse()
@@ -114,6 +116,7 @@ class AccountsService:
             self._hash_token(token),
             self._now() + timedelta(hours=self.settings.email_verify_ttl_hours),
         )
+        await self._record_e2e_verification_token(user.email, token)
         await email_helpers.send_verification_email(
             user.id,
             user.email,
@@ -197,6 +200,7 @@ class AccountsService:
             self._hash_token(token),
             self._now() + timedelta(hours=self.settings.email_verify_ttl_hours),
         )
+        await self._record_e2e_verification_token(user.email, token)
         await email_helpers.send_verification_email(
             user.id,
             user.email,
@@ -703,6 +707,43 @@ class AccountsService:
     @staticmethod
     def _hash_token(token: str) -> str:
         return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+    async def _record_e2e_verification_token(self, email: str, token: str) -> None:
+        if not bool(getattr(self.platform_settings, "feature_e2e_mode", False)):
+            return
+        client = await self.redis._get_client()
+        await client.set(
+            f"e2e:accounts:verification-token:{email.lower()}",
+            token,
+            ex=max(60, int(self.settings.email_verify_ttl_hours * 3600)),
+        )
+
+    async def _enforce_signup_rate_limit(self, email: str, source_ip: str) -> None:
+        email_hash = hashlib.sha256(email.strip().lower().encode("utf-8")).hexdigest()
+        client = await self.redis._get_client()
+
+        ip_count = int(await client.incr(f"accounts:signup:ip:{source_ip}"))
+        if ip_count == 1:
+            await client.expire(f"accounts:signup:ip:{source_ip}", 3600)
+
+        email_key = f"accounts:signup:email:{email_hash}"
+        email_count = int(await client.incr(email_key))
+        if email_count == 1:
+            await client.expire(email_key, 86_400)
+
+        retry_after = 0
+        if ip_count > 5:
+            retry_after = max(
+                retry_after,
+                int(await client.ttl(f"accounts:signup:ip:{source_ip}") or 3600),
+            )
+        if email_count > 3:
+            retry_after = max(
+                retry_after,
+                int(await client.ttl(email_key) or 86_400),
+            )
+        if retry_after > 0:
+            raise RateLimitError(max(1, retry_after))
 
     @staticmethod
     def _correlation(correlation_id: UUID | None) -> CorrelationContext:

@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import hashlib
+import secrets
 from datetime import UTC, datetime
 from platform.auth.password import hash_password
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_current_user, get_db
-from platform.common.exceptions import AuthorizationError
+from platform.common.exceptions import AuthorizationError, NotFoundError
 from platform.common.logging import get_logger
 from platform.incident_response.dependencies import get_incident_service
 from platform.incident_response.schemas import IncidentRef, IncidentSeverity, IncidentSignal
@@ -39,15 +40,24 @@ from platform.testing.service_e2e import (
     SeedService,
     build_mock_llm_service,
 )
-from typing import Any, cast
+from typing import Any, Literal, cast
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response, status
+from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/v1/_e2e", tags=["_e2e"])
 LOGGER = get_logger(__name__)
+
+
+class E2ESignupModeRequest(BaseModel):
+    signup_mode: Literal["open", "invite_only", "admin_approval"]
+
+
+class E2EExpiredVerificationTokenRequest(BaseModel):
+    email: str
 
 
 def _role_names(current_user: dict[str, Any]) -> set[str]:
@@ -102,6 +112,79 @@ def _settings(request: Request) -> PlatformSettings:
 
 def _redis(request: Request) -> AsyncRedisClient:
     return cast(AsyncRedisClient, request.app.state.clients["redis"])
+
+
+@router.put("/accounts/signup-mode")
+async def set_account_signup_mode(
+    payload: E2ESignupModeRequest,
+    request: Request,
+    current_user: dict[str, Any] = Depends(require_admin_or_e2e_scope),
+) -> dict[str, str]:
+    del current_user
+    settings = _settings(request)
+    previous = str(settings.accounts.signup_mode)
+    settings.accounts.signup_mode = payload.signup_mode
+    return {"previous": previous, "current": str(settings.accounts.signup_mode)}
+
+
+@router.delete("/accounts/signup-rate-limits", status_code=status.HTTP_204_NO_CONTENT)
+async def clear_account_signup_rate_limits(
+    request: Request,
+    current_user: dict[str, Any] = Depends(require_admin_or_e2e_scope),
+) -> Response:
+    del current_user
+    client = await _redis(request)._get_client()
+    keys: list[Any] = []
+    async for key in client.scan_iter(match="accounts:signup:*", count=100):
+        keys.append(key)
+    if keys:
+        await client.delete(*keys)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/accounts/verification-token")
+async def get_account_verification_token(
+    request: Request,
+    email: str = Query(...),
+    current_user: dict[str, Any] = Depends(require_admin_or_e2e_scope),
+) -> dict[str, str | None]:
+    del current_user
+    client = await _redis(request)._get_client()
+    raw = await client.get(f"e2e:accounts:verification-token:{email.lower()}")
+    token = raw.decode("utf-8") if isinstance(raw, bytes) else raw
+    return {"email": email.lower(), "token": token}
+
+
+@router.post("/accounts/expired-verification-token")
+async def create_expired_account_verification_token(
+    payload: E2EExpiredVerificationTokenRequest,
+    current_user: dict[str, Any] = Depends(require_admin_or_e2e_scope),
+    session: AsyncSession = Depends(get_db),
+) -> dict[str, str]:
+    del current_user
+    email = payload.email.strip().lower()
+    user_id = (
+        await session.execute(
+            text("SELECT id FROM accounts_users WHERE email = :email LIMIT 1"),
+            {"email": email},
+        )
+    ).scalar_one_or_none()
+    if user_id is None:
+        raise NotFoundError("USER_NOT_FOUND", "User not found")
+    token = secrets.token_urlsafe(32)
+    await session.execute(
+        text(
+            """
+            INSERT INTO accounts_email_verifications (user_id, token_hash, expires_at)
+            VALUES (:user_id, :token_hash, now() - interval '1 second')
+            """
+        ),
+        {
+            "user_id": str(user_id),
+            "token_hash": hashlib.sha256(token.encode("utf-8")).hexdigest(),
+        },
+    )
+    return {"email": email, "token": token}
 
 
 @router.post("/seed", response_model=SeedResponse)
@@ -188,6 +271,17 @@ async def provision_user(
             "password_hash": hash_password(payload.password),
         },
     )
+    if payload.status == "pending_approval":
+        await session.execute(
+            text(
+                """
+                INSERT INTO accounts_approval_requests (user_id, requested_at)
+                VALUES (:id, now())
+                ON CONFLICT (user_id) DO NOTHING
+                """
+            ),
+            {"id": str(payload.id)},
+        )
     for role in payload.roles:
         await session.execute(
             text(
