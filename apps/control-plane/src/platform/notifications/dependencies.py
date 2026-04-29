@@ -6,6 +6,8 @@ from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_db
 from platform.common.events.producer import EventProducer
 from platform.common.secret_provider import HealthStatus, SecretProvider
+from platform.localization.dependencies import get_localization_service
+from platform.localization.service import LocalizationService
 from platform.notifications.channel_router import (
     AuditChainService,
     ChannelDelivererRegistry,
@@ -108,6 +110,7 @@ def build_notifications_service(
     workspaces_service: WorkspacesService | None,
     channel_router: ChannelRouter | None = None,
     secret_provider: SecretProvider | None = None,
+    localization_service: LocalizationService | None = None,
 ) -> AlertService:
     return AlertService(
         repo=NotificationsRepository(session),
@@ -124,6 +127,7 @@ def build_notifications_service(
             secrets=secret_provider or InMemorySecretProvider(),
             settings=settings,
         ),
+        localization_service=localization_service,
     )
 
 
@@ -223,6 +227,7 @@ async def get_notifications_service(
     workspaces_service: WorkspacesService = Depends(get_workspaces_service),
     channel_router: ChannelRouter = Depends(get_channel_router),
     secret_provider: SecretProvider = Depends(get_secret_provider),
+    localization_service: LocalizationService = Depends(get_localization_service),
 ) -> AlertService:
     return build_notifications_service(
         session=session,
@@ -232,4 +237,5 @@ async def get_notifications_service(
         workspaces_service=workspaces_service,
         channel_router=channel_router,
         secret_provider=secret_provider,
+        localization_service=localization_service,
     )

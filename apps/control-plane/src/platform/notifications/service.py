@@ -15,6 +15,7 @@ from platform.common.exceptions import ValidationError
 from platform.common.models.user import User as PlatformUser
 from platform.connectors.retry import compute_next_retry_at
 from platform.interactions.events import AttentionRequestedPayload, InteractionStateChangedPayload
+from platform.localization.constants import DEFAULT_LOCALE
 from platform.notifications.channel_router import ChannelRouter
 from platform.notifications.deliverers.email_deliverer import EmailDeliverer
 from platform.notifications.deliverers.slack_deliverer import SlackDeliverer
@@ -85,6 +86,65 @@ class AlertService:
         }
     )
     _ALLOWED_URGENCIES: ClassVar[frozenset[str]] = frozenset({"low", "medium", "high", "critical"})
+    _NOTIFICATION_TEMPLATES: ClassVar[Mapping[str, Mapping[str, str]]] = MappingProxyType(
+        {
+            "en": {
+                "attention_requested_title": "Attention requested by {source_agent_fqn}",
+                "state_change_title": "Interaction transitioned to {to_state}",
+                "state_change_body": (
+                    "Interaction transitioned from {from_state} to {to_state}."
+                ),
+                "test_notification_title": "Test notification: {event_type}",
+                "test_notification_body": (
+                    "This is a test notification generated from your preferences page."
+                ),
+            },
+            "es": {
+                "attention_requested_title": "Atención solicitada por {source_agent_fqn}",
+                "state_change_title": "La interacción cambió a {to_state}",
+                "state_change_body": "La interacción cambió de {from_state} a {to_state}.",
+                "test_notification_title": "Notificación de prueba: {event_type}",
+                "test_notification_body": (
+                    "Esta es una notificación de prueba generada desde tu página de preferencias."
+                ),
+            },
+            "fr": {
+                "attention_requested_title": "Attention demandée par {source_agent_fqn}",
+                "state_change_title": "Interaction passée à {to_state}",
+                "state_change_body": "Interaction passée de {from_state} à {to_state}.",
+                "test_notification_title": "Notification de test : {event_type}",
+                "test_notification_body": (
+                    "Ceci est une notification de test générée depuis votre page de préférences."
+                ),
+            },
+            "de": {
+                "attention_requested_title": "Aufmerksamkeit angefordert von {source_agent_fqn}",
+                "state_change_title": "Interaktion zu {to_state} gewechselt",
+                "state_change_body": "Interaktion von {from_state} zu {to_state} gewechselt.",
+                "test_notification_title": "Testbenachrichtigung: {event_type}",
+                "test_notification_body": (
+                    "Dies ist eine Testbenachrichtigung, die über Ihre Einstellungsseite "
+                    "erstellt wurde."
+                ),
+            },
+            "ja": {
+                "attention_requested_title": "{source_agent_fqn} から対応依頼があります",
+                "state_change_title": "インタラクションが {to_state} に遷移しました",
+                "state_change_body": (
+                    "インタラクションが {from_state} から {to_state} に遷移しました。"
+                ),
+                "test_notification_title": "テスト通知: {event_type}",
+                "test_notification_body": "これは設定ページから生成されたテスト通知です。",
+            },
+            "zh-CN": {
+                "attention_requested_title": "{source_agent_fqn} 请求关注",
+                "state_change_title": "交互已转换为 {to_state}",
+                "state_change_body": "交互已从 {from_state} 转换为 {to_state}。",
+                "test_notification_title": "测试通知: {event_type}",
+                "test_notification_body": "这是从偏好设置页面生成的测试通知。",
+            },
+        }
+    )
 
     def __init__(
         self,
@@ -99,6 +159,7 @@ class AlertService:
         webhook_deliverer: WebhookDeliverer,
         channel_router: ChannelRouter | None = None,
         sms_deliverer: SmsDeliverer | None = None,
+        localization_service: object | None = None,
     ) -> None:
         self.repo = repo
         self.accounts_repo = accounts_repo
@@ -110,6 +171,7 @@ class AlertService:
         self.webhook_deliverer = webhook_deliverer
         self.channel_router = channel_router
         self.sms_deliverer = sms_deliverer
+        self.localization_service = localization_service
 
     @classmethod
     def matches_transition_pattern(cls, pattern: str, from_state: str, to_state: str) -> bool:
@@ -184,12 +246,17 @@ class AlertService:
             return None
         alert_settings = await self.get_or_default_settings(user.id)
         urgency = self._normalize_urgency(payload.urgency)
+        language = await self._recipient_language(user.id)
         alert = await self.repo.create_alert(
             user_id=user.id,
             interaction_id=payload.related_interaction_id,
             source_reference={"type": "attention_request", "id": str(payload.request_id)},
             alert_type="attention_request",
-            title=f"Attention requested by {payload.source_agent_fqn}",
+            title=self._render_notification_template(
+                language,
+                "attention_requested_title",
+                source_agent_fqn=payload.source_agent_fqn,
+            ),
             body=payload.context_summary,
             urgency=urgency,
             delivery_method=(
@@ -233,13 +300,23 @@ class AlertService:
             user = await self._resolve_user(str(user_id))
             if user is None:
                 continue
+            language = await self._recipient_language(user_id)
             alert = await self.repo.create_alert(
                 user_id=user_id,
                 interaction_id=payload.interaction_id,
                 source_reference={"type": "state_change", "id": str(payload.interaction_id)},
                 alert_type="state_change",
-                title=f"Interaction transitioned to {payload.to_state}",
-                body=f"Interaction transitioned from {payload.from_state} to {payload.to_state}.",
+                title=self._render_notification_template(
+                    language,
+                    "state_change_title",
+                    to_state=payload.to_state,
+                ),
+                body=self._render_notification_template(
+                    language,
+                    "state_change_body",
+                    from_state=payload.from_state,
+                    to_state=payload.to_state,
+                ),
                 urgency="medium",
                 delivery_method=(
                     alert_settings.delivery_method
@@ -322,13 +399,18 @@ class AlertService:
 
     async def test_notification(self, user_id: UUID, event_type: str) -> UserAlertRead:
         alert_settings = await self.get_or_default_settings(user_id)
+        language = await self._recipient_language(user_id)
         alert = await self.repo.create_alert(
             user_id=user_id,
             interaction_id=None,
             source_reference={"type": "notification_test", "event_type": event_type},
             alert_type=event_type,
-            title=f"Test notification: {event_type}",
-            body="This is a test notification generated from your preferences page.",
+            title=self._render_notification_template(
+                language,
+                "test_notification_title",
+                event_type=event_type,
+            ),
+            body=self._render_notification_template(language, "test_notification_body"),
             urgency="medium",
             delivery_method=(
                 alert_settings.delivery_method
@@ -593,6 +675,29 @@ class AlertService:
         if callable(list_member_ids):
             return list(await list_member_ids(workspace_id))
         return []
+
+    async def _recipient_language(self, user_id: UUID) -> str:
+        if self.localization_service is None:
+            return DEFAULT_LOCALE
+        get_user_language = getattr(self.localization_service, "get_user_language", None)
+        if not callable(get_user_language):
+            return DEFAULT_LOCALE
+        try:
+            language = await get_user_language(user_id)
+        except Exception:
+            LOGGER.warning(
+                "Falling back to default notification language",
+                extra={"user_id": str(user_id)},
+            )
+            return DEFAULT_LOCALE
+        return str(language or DEFAULT_LOCALE)
+
+    def _render_notification_template(self, language: str, key: str, **values: object) -> str:
+        templates = self._NOTIFICATION_TEMPLATES.get(language)
+        if templates is None:
+            templates = self._NOTIFICATION_TEMPLATES[DEFAULT_LOCALE]
+        template = templates.get(key, self._NOTIFICATION_TEMPLATES[DEFAULT_LOCALE][key])
+        return template.format(**values)
 
     @classmethod
     def _normalize_state(cls, state: str) -> str | None:
