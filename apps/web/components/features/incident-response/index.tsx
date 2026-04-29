@@ -131,32 +131,34 @@ export function IncidentTable({
         {!isLoading && incidents.length === 0 ? (
           <EmptyState title="No incidents" description="The current filters have no matching incidents." />
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Severity</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead>Triggered</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {incidents.map((incident) => (
-                <TableRow
-                  key={incident.id}
-                  className="cursor-pointer"
-                  onClick={() => onRowClick(incident)}
-                >
-                  <TableCell>
-                    <Badge className={severityTone[incident.severity]}>{incident.severity}</Badge>
-                  </TableCell>
-                  <TableCell>{incident.status}</TableCell>
-                  <TableCell className="font-medium">{incident.title}</TableCell>
-                  <TableCell>{formatDate(incident.triggered_at)}</TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Severity</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Triggered</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {incidents.map((incident) => (
+                  <TableRow
+                    key={incident.id}
+                    className="cursor-pointer"
+                    onClick={() => onRowClick(incident)}
+                  >
+                    <TableCell>
+                      <Badge className={severityTone[incident.severity]}>{incident.severity}</Badge>
+                    </TableCell>
+                    <TableCell>{incident.status}</TableCell>
+                    <TableCell className="font-medium">{incident.title}</TableCell>
+                    <TableCell>{formatDate(incident.triggered_at)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </CardContent>
     </Card>

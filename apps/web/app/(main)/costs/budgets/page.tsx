@@ -114,24 +114,26 @@ export default function CostBudgetsPage() {
           <CardTitle className="text-base">Alert History</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Threshold</TableHead>
-                <TableHead>Spend</TableHead>
-                <TableHead>Triggered</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(alerts.data ?? []).map((alert) => (
-                <TableRow key={alert.id}>
-                  <TableCell>{alert.threshold_percentage}%</TableCell>
-                  <TableCell>${(Number(alert.spend_cents) / 100).toFixed(2)}</TableCell>
-                  <TableCell>{new Date(alert.triggered_at).toLocaleString()}</TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Threshold</TableHead>
+                  <TableHead>Spend</TableHead>
+                  <TableHead>Triggered</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {(alerts.data ?? []).map((alert) => (
+                  <TableRow key={alert.id}>
+                    <TableCell>{alert.threshold_percentage}%</TableCell>
+                    <TableCell>${(Number(alert.spend_cents) / 100).toFixed(2)}</TableCell>
+                    <TableCell>{new Date(alert.triggered_at).toLocaleString()}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
     </section>

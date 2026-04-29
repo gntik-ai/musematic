@@ -106,7 +106,7 @@ export function NotificationBell() {
           ) : null}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[360px]">
+      <DropdownMenuContent align="end" className="w-[360px] max-w-[calc(100vw-2rem)]">
         <DropdownMenuLabel className="flex items-center justify-between gap-3">
           <span>Notifications</span>
           <span aria-live="polite" className="text-xs font-normal text-muted-foreground">

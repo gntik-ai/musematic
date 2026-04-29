@@ -117,7 +117,7 @@ export function DataTable<TData>({
           }}
         />
       ) : null}
-      <div className="overflow-hidden rounded-xl border border-border/70">
+      <div className="overflow-x-auto rounded-xl border border-border/70">
         <Table>
           <TableCaption>Operational data table</TableCaption>
           <TableHeader>

@@ -71,7 +71,7 @@ export function DropdownMenuContent({
   return (
     <div
       className={cn(
-        "absolute top-full z-50 mt-2 min-w-48 rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg",
+        "absolute top-full z-50 mt-2 min-w-48 max-w-[calc(100vw-2rem)] rounded-md border border-border bg-popover p-1 text-popover-foreground shadow-lg",
         align === "end" ? "right-0" : "left-0",
         className,
       )}
