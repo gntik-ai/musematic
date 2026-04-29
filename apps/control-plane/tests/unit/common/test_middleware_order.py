@@ -10,6 +10,7 @@ def test_user_middleware_order_matches_contract() -> None:
         "CorrelationMiddleware",
         "CorrelationLoggingMiddleware",
         "AuthMiddleware",
+        "AdminReadOnlyMiddleware",
         "MaintenanceGateMiddleware",
         "RateLimitMiddleware",
         "DebugCaptureMiddleware",
