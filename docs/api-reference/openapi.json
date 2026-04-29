@@ -61589,6 +61589,24 @@
     "/api/v1/auth/oauth/links": {
       "get": {
         "operationId": "list_oauth_links_api_v1_auth_oauth_links_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "email",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Email"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -61599,19 +61617,18 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
-        "security": [
-          {
-            "session": []
-          },
-          {
-            "oauth2": []
-          },
-          {
-            "apiKey": []
-          }
-        ],
         "summary": "List Oauth Links",
         "tags": [
           "oauth"
@@ -61686,6 +61703,38 @@
             "schema": {
               "title": "Provider",
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "intent",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Intent"
+            }
+          },
+          {
+            "in": "query",
+            "name": "email",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Email"
             }
           }
         ],
