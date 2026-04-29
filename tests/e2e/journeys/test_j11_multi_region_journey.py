@@ -113,8 +113,8 @@ async def test_j11_multi_region_journey(http_client: AuthenticatedAsyncClient) -
             json={
                 "starts_at": starts_at.isoformat(),
                 "ends_at": (starts_at + timedelta(minutes=30)).isoformat(),
-                "announcement_text": "Writes are paused for maintenance",
-                "blocks_writes": True,
+                "announcement_text": "Advisory maintenance rehearsal is scheduled",
+                "blocks_writes": False,
             },
         )
         assert scheduled.status_code in {201, 409, 422}
@@ -134,6 +134,19 @@ async def test_j11_multi_region_journey(http_client: AuthenticatedAsyncClient) -
     with journey_step("In-flight execution surface remains readable during maintenance"):
         executions = await http_client.get("/api/v1/executions")
         assert executions.status_code in {200, 404, 422}
+
+    with journey_step("Advisory maintenance does not block required consent writes"):
+        consent = await http_client.put(
+            "/api/v1/me/consents",
+            json={
+                "choices": {
+                    "ai_interaction": True,
+                    "data_collection": True,
+                    "training_use": True,
+                }
+            },
+        )
+        assert consent.status_code == 200
 
     with journey_step("Operator disables maintenance and read surface remains available"):
         if window_id is not None:
@@ -162,6 +175,11 @@ async def test_j11_multi_region_journey(http_client: AuthenticatedAsyncClient) -
             plan_id = created.json()["id"]
             assert plan_id
 
+    with journey_step("Operator lists failover plans after creating a rehearsal"):
+        listed = await http_client.get("/api/v1/regions/failover-plans")
+        assert listed.status_code == 200
+        assert isinstance(listed.json(), list)
+
     with journey_step("Operator rehearses failover when the plan is accepted"):
         if plan_id is not None:
             run = await http_client.post(
@@ -170,6 +188,12 @@ async def test_j11_multi_region_journey(http_client: AuthenticatedAsyncClient) -
             )
             assert run.status_code == 200
             assert run.json()["plan_id"] == plan_id
+
+    with journey_step("Operator reviews failover run history when rehearsal completes"):
+        if plan_id is not None:
+            history = await http_client.get(f"/api/v1/regions/failover-plans/{plan_id}/runs")
+            assert history.status_code == 200
+            assert isinstance(history.json(), list)
 
     with journey_step("Operator inspects capacity recommendations"):
         capacity = await http_client.get("/api/v1/regions/capacity")

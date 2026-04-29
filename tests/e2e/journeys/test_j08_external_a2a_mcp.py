@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import httpx
 import jwt
 import pytest
@@ -36,6 +37,27 @@ def _sse_events(lines: list[str]) -> list[str]:
     return [line.removeprefix("event:").strip() for line in lines if line.startswith("event:")]
 
 
+async def _get_agent_card(
+    client: AuthenticatedAsyncClient,
+    agent_fqn: str,
+    *,
+    attempts: int = 5,
+) -> httpx.Response:
+    response: httpx.Response | None = None
+    for attempt in range(attempts):
+        response = await client.get("/.well-known/agent.json", params={"agent_fqn": agent_fqn})
+        if response.status_code != 429:
+            return response
+        retry_after = response.headers.get("Retry-After")
+        try:
+            delay = float(retry_after) if retry_after else 0.5 * (attempt + 1)
+        except ValueError:
+            delay = 0.5 * (attempt + 1)
+        await asyncio.sleep(min(delay, 2.0))
+    assert response is not None
+    return response
+
+
 @pytest.mark.journey
 @pytest.mark.j08_external
 @pytest.mark.j08_external_a2a_mcp
@@ -69,7 +91,7 @@ async def test_j08_external_a2a_mcp(
         assert any(item.get("role") == "platform_admin" for item in claims.get("roles", []))
 
     with journey_step("External client fetches the platform Agent Card well-known document"):
-        response = await admin_workspace.get("/.well-known/agent.json", params={"agent_fqn": agent_fqn})
+        response = await _get_agent_card(admin_workspace, agent_fqn)
         response.raise_for_status()
         platform_card = response.json()
         assert {"skills", "endpoints", "auth_schemes"} <= set(platform_card)
@@ -82,7 +104,7 @@ async def test_j08_external_a2a_mcp(
         assert "bearer" in platform_card["auth_schemes"]
 
     with journey_step("External client fetches the per-agent card by FQN"):
-        response = await admin_workspace.get("/.well-known/agent.json", params={"agent_fqn": agent_fqn})
+        response = await _get_agent_card(admin_workspace, agent_fqn)
         response.raise_for_status()
         per_agent_card = response.json()
         assert per_agent_card["name"] == agent_fqn
