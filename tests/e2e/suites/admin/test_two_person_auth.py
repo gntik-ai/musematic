@@ -20,9 +20,21 @@ async def test_two_person_auth_request_and_self_approval_rejection(http_client_s
 
 @pytest.mark.asyncio
 async def test_read_only_admin_cannot_initiate_two_person_auth(http_client) -> None:
-    await http_client.patch("/api/v1/admin/sessions/me/read-only-mode", json={"enabled": True})
-    response = await http_client.post(
-        "/api/v1/admin/2pa/requests",
-        json={"action": "multi_region_ops.failover.execute", "payload": {"mode": "test"}},
+    toggle = await http_client.patch(
+        "/api/v1/admin/sessions/me/read-only-mode",
+        json={"enabled": True},
     )
-    assert response.status_code in {403, 405}
+    assert toggle.status_code in {200, 204}
+
+    try:
+        response = await http_client.post(
+            "/api/v1/admin/2pa/requests",
+            json={"action": "multi_region_ops.failover.execute", "payload": {"mode": "test"}},
+        )
+        assert response.status_code in {403, 405}
+    finally:
+        reset = await http_client.patch(
+            "/api/v1/admin/sessions/me/read-only-mode",
+            json={"enabled": False},
+        )
+        assert reset.status_code in {200, 204}

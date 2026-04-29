@@ -68,6 +68,17 @@ async def test_oauth_link_management_and_last_method_safety(
         )
         assert unlink_google.status_code == 204, unlink_google.text
 
+        other_email = unique_email("signup-link-other")
+        other_login = await register_verify_and_login(client, http_client, other_email)
+        other_google_link = await oauth_link_flow(
+            client,
+            provider="google",
+            mock_server=mock_google_oidc,
+            login=google_login,
+            access_token=other_login["access_token"],
+        )
+        assert other_google_link == "/profile?message=oauth_linked"
+
         conflict = await oauth_link_flow(
             client,
             provider="google",

@@ -26,6 +26,13 @@ async def test_read_only_mode_blocks_admin_write_api(http_client) -> None:
     )
     assert toggle.status_code in {200, 204}
 
-    response = await http_client.post("/api/v1/admin/users/123/suspend")
-    assert response.status_code == 403
-    assert "admin_read_only_mode" in response.text
+    try:
+        response = await http_client.post("/api/v1/admin/users/123/suspend")
+        assert response.status_code == 403
+        assert "admin_read_only_mode" in response.text
+    finally:
+        reset = await http_client.patch(
+            "/api/v1/admin/sessions/me/read-only-mode",
+            json={"enabled": False},
+        )
+        assert reset.status_code in {200, 204}
