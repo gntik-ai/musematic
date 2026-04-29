@@ -3,6 +3,7 @@
 import { LogOut, MoonStar, SunMedium, UserRound } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
+import { LocaleSwitcher } from "@/components/layout/locale-switcher/LocaleSwitcher";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getInitials } from "@/lib/utils";
@@ -42,6 +43,7 @@ export function UserMenu() {
           {resolvedTheme === "dark" ? <SunMedium className="h-4 w-4" /> : <MoonStar className="h-4 w-4" />}
           Toggle theme
         </DropdownMenuItem>
+        <LocaleSwitcher />
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => {
