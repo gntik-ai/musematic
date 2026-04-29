@@ -26,4 +26,11 @@ pytest tests/integration/multi_region_ops/test_probe_mocks_smoke.py --run-integr
 pytest tests/integration/multi_region_ops --run-integration -q
 ```
 
+Full local control-plane smoke after `make dev-up`:
+
+```sh
+cd tests/e2e
+PLATFORM_API_URL=http://localhost:8081 .venv/bin/python -m pytest journeys/test_j11_multi_region_journey.py -v -m j11_multi_region_journey
+```
+
 The local walkthrough should pass with `FEATURE_MULTI_REGION=true` and `FEATURE_MAINTENANCE_MODE=true`: declare a secondary, inject lag through the mock, observe the RPO alert, schedule and enable maintenance, verify mutating writes return `503`, disable maintenance, then rehearse a failover plan.
