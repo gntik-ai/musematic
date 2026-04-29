@@ -256,6 +256,13 @@ controlPlane:
     mockLlmEnabled: true
     zeroTrustVisibility: true
     otelResourceAttributes: deployment.environment=e2e
+    extraEnv:
+      FEATURE_MULTI_REGION: "true"
+      FEATURE_MAINTENANCE_MODE: "true"
+      API_ANONYMOUS_TIER_NAME: enterprise
+      API_DEFAULT_TIER_NAME: enterprise
+      A2A_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE: "1000"
+      MCP_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE: "1000"
   privacy:
     dsrEnabled: true
     dlpEnabled: true
@@ -266,7 +273,7 @@ controlPlane:
     manualEvidenceBucket: evidence-bundles
   auth:
     oauth:
-      rateLimitMax: 100
+      rateLimitMax: 1000
       rateLimitWindow: 60
       google:
         authorizeUrl: http://mock-google-oidc.platform.svc.cluster.local:8080/authorize

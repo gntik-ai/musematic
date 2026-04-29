@@ -146,6 +146,9 @@ class FakeSession:
     async def flush(self) -> None:
         self.flushed += 1
 
+    async def refresh(self, item: Any) -> None:
+        del item
+
     async def get(self, model: type[Any], object_id: UUID) -> Any:
         return self.objects.get((model, object_id))
 

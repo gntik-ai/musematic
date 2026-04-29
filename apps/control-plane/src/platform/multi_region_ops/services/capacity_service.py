@@ -53,13 +53,14 @@ class CapacityService:
     ) -> list[CapacitySignalResponse]:
         signals = await self.get_capacity_overview(workspace_id=workspace_id)
         for signal in signals:
+            fingerprint = capacity_fingerprint(
+                signal.resource_class,
+                str(workspace_id or "platform"),
+            )
             if signal.recommendation is not None and self.incident_trigger is not None:
                 await self.incident_trigger.fire(
                     IncidentSignal(
-                        condition_fingerprint=capacity_fingerprint(
-                            signal.resource_class,
-                            str(workspace_id or "platform"),
-                        ),
+                        condition_fingerprint=fingerprint,
                         severity=IncidentSeverity.warning,
                         alert_rule_class="capacity_saturation_projected",
                         title=f"{signal.resource_class} capacity projected near saturation",
@@ -71,6 +72,21 @@ class CapacityService:
                         ),
                     )
                 )
+                continue
+            if signal.recommendation is None and self.incident_service is not None:
+                finder = getattr(
+                    getattr(self.incident_service, "repository", None),
+                    "find_open_incident_by_fingerprint",
+                    None,
+                )
+                if callable(finder):
+                    existing = await finder(fingerprint)
+                    if existing is not None:
+                        await self.incident_service.resolve(
+                            existing.id,
+                            resolved_at=datetime.now(UTC),
+                            auto_resolved=True,
+                        )
         return signals
 
     async def active_recommendations(

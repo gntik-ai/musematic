@@ -55,6 +55,33 @@ def _install_scheduler(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(builtins, "__import__", fake_import)
 
 
+def _block_scheduler_import(monkeypatch: pytest.MonkeyPatch) -> None:
+    real_import = builtins.__import__
+
+    def fake_import(
+        name: str,
+        globals_: dict[str, Any] | None = None,
+        locals_: dict[str, Any] | None = None,
+        fromlist: tuple[str, ...] = (),
+        level: int = 0,
+    ) -> Any:
+        if name == "apscheduler.schedulers.asyncio":
+            raise ImportError("apscheduler unavailable")
+        return real_import(name, globals_, locals_, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+
+
+def test_scheduler_builders_return_none_without_apscheduler(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _block_scheduler_import(monkeypatch)
+    app = SimpleNamespace(state=SimpleNamespace(settings=PlatformSettings()))
+
+    assert capacity_projection_runner.build_capacity_projection_scheduler(app) is None
+    assert replication_probe_runner.build_replication_probe_scheduler(app) is None
+
+
 @pytest.mark.asyncio
 async def test_maintenance_window_scheduler_enables_and_disables_due_windows(
     monkeypatch: pytest.MonkeyPatch,

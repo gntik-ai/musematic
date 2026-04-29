@@ -97,6 +97,15 @@ async def http_client(platform_api_url: str) -> AsyncIterator[AuthenticatedAsync
 
 
 @pytest.fixture(scope="function")
+async def http_client_superadmin(
+    platform_api_url: str,
+) -> AsyncIterator[AuthenticatedAsyncClient]:
+    async with AuthenticatedAsyncClient(platform_api_url) as client:
+        await client.login_as("superadmin@e2e.test", "e2e-test-password")
+        yield client
+
+
+@pytest.fixture(scope="function")
 async def http_client_workspace_member(
     platform_api_url: str,
 ) -> AsyncIterator[AuthenticatedAsyncClient]:

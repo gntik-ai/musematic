@@ -1,7 +1,7 @@
 "use client";
 
 import { createApiClient } from "@/lib/api";
-import { useAppQuery } from "@/lib/hooks/use-api";
+import { useAppMutation, useAppQuery } from "@/lib/hooks/use-api";
 
 export type RegionRole = "primary" | "secondary";
 export type ReplicationComponent =
@@ -27,6 +27,24 @@ export interface RegionConfigResponse {
   enabled: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface RegionConfigCreateRequest {
+  region_code: string;
+  region_role: RegionRole;
+  endpoint_urls?: Record<string, unknown>;
+  rpo_target_minutes?: number;
+  rto_target_minutes?: number;
+  enabled?: boolean;
+}
+
+export interface RegionConfigUpdateRequest {
+  region_code?: string;
+  region_role?: RegionRole;
+  endpoint_urls?: Record<string, unknown>;
+  rpo_target_minutes?: number;
+  rto_target_minutes?: number;
+  enabled?: boolean;
 }
 
 export interface ReplicationStatusResponse {
@@ -70,6 +88,23 @@ export interface FailoverPlanResponse {
   is_stale: boolean;
 }
 
+export interface FailoverPlanCreateRequest {
+  name: string;
+  from_region: string;
+  to_region: string;
+  steps: FailoverPlanStep[];
+  runbook_url?: string | null;
+}
+
+export interface FailoverPlanUpdateRequest extends Partial<FailoverPlanCreateRequest> {
+  expected_version: number;
+}
+
+export interface FailoverPlanExecuteRequest {
+  run_kind?: "rehearsal" | "production";
+  reason?: string | null;
+}
+
 export interface FailoverPlanRunResponse {
   id: string;
   plan_id: string;
@@ -103,6 +138,21 @@ export interface MaintenanceWindowResponse {
   disable_failure_reason?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface MaintenanceWindowCreateRequest {
+  starts_at: string;
+  ends_at: string;
+  reason?: string | null;
+  blocks_writes?: boolean;
+  announcement_text?: string | null;
+}
+
+export type MaintenanceWindowUpdateRequest = Partial<MaintenanceWindowCreateRequest>;
+
+export interface MaintenanceWindowDisableRequest {
+  disable_kind?: "manual" | "scheduled" | "failed";
+  reason?: string | null;
 }
 
 export interface CapacityRecommendation {
@@ -185,6 +235,110 @@ export function fetchUpgradeStatus() {
   return regionsApiClient.get<UpgradeStatusResponse>("/api/v1/regions/upgrade-status");
 }
 
+export function createRegion(payload: RegionConfigCreateRequest) {
+  return regionsApiClient.post<RegionConfigResponse>("/api/v1/admin/regions", payload);
+}
+
+export function updateRegion(regionId: string, payload: RegionConfigUpdateRequest) {
+  return regionsApiClient.patch<RegionConfigResponse>(
+    `/api/v1/admin/regions/${encodeURIComponent(regionId)}`,
+    payload,
+  );
+}
+
+export function enableRegion(regionId: string) {
+  return regionsApiClient.post<RegionConfigResponse>(
+    `/api/v1/admin/regions/${encodeURIComponent(regionId)}/enable`,
+  );
+}
+
+export function disableRegion(regionId: string) {
+  return regionsApiClient.post<RegionConfigResponse>(
+    `/api/v1/admin/regions/${encodeURIComponent(regionId)}/disable`,
+  );
+}
+
+export function deleteRegion(regionId: string) {
+  return regionsApiClient.delete<void>(`/api/v1/admin/regions/${encodeURIComponent(regionId)}`);
+}
+
+export function createFailoverPlan(payload: FailoverPlanCreateRequest) {
+  return regionsApiClient.post<FailoverPlanResponse>(
+    "/api/v1/admin/regions/failover-plans",
+    payload,
+  );
+}
+
+export function updateFailoverPlan(planId: string, payload: FailoverPlanUpdateRequest) {
+  return regionsApiClient.patch<FailoverPlanResponse>(
+    `/api/v1/admin/regions/failover-plans/${encodeURIComponent(planId)}`,
+    payload,
+  );
+}
+
+export function deleteFailoverPlan(planId: string) {
+  return regionsApiClient.delete<void>(
+    `/api/v1/admin/regions/failover-plans/${encodeURIComponent(planId)}`,
+  );
+}
+
+export function rehearseFailoverPlan(planId: string, payload?: FailoverPlanExecuteRequest) {
+  return regionsApiClient.post<FailoverPlanRunResponse>(
+    `/api/v1/admin/regions/failover-plans/${encodeURIComponent(planId)}/rehearse`,
+    payload ?? { run_kind: "rehearsal" },
+  );
+}
+
+export function executeFailoverPlan(planId: string, payload?: FailoverPlanExecuteRequest) {
+  return regionsApiClient.post<FailoverPlanRunResponse>(
+    `/api/v1/admin/regions/failover-plans/${encodeURIComponent(planId)}/execute`,
+    payload ?? { run_kind: "production" },
+  );
+}
+
+export function scheduleMaintenanceWindow(payload: MaintenanceWindowCreateRequest) {
+  return regionsApiClient.post<MaintenanceWindowResponse>(
+    "/api/v1/admin/maintenance/windows",
+    payload,
+  );
+}
+
+export function updateMaintenanceWindow(windowId: string, payload: MaintenanceWindowUpdateRequest) {
+  return regionsApiClient.patch<MaintenanceWindowResponse>(
+    `/api/v1/admin/maintenance/windows/${encodeURIComponent(windowId)}`,
+    payload,
+  );
+}
+
+export function enableMaintenanceWindow(windowId: string) {
+  return regionsApiClient.post<MaintenanceWindowResponse>(
+    `/api/v1/admin/maintenance/windows/${encodeURIComponent(windowId)}/enable`,
+  );
+}
+
+export function disableMaintenanceWindow(
+  windowId: string,
+  payload?: MaintenanceWindowDisableRequest,
+) {
+  return regionsApiClient.post<MaintenanceWindowResponse>(
+    `/api/v1/admin/maintenance/windows/${encodeURIComponent(windowId)}/disable`,
+    payload ?? { disable_kind: "manual" },
+  );
+}
+
+export function cancelMaintenanceWindow(windowId: string) {
+  return regionsApiClient.post<MaintenanceWindowResponse>(
+    `/api/v1/admin/maintenance/windows/${encodeURIComponent(windowId)}/cancel`,
+  );
+}
+
+export function configureCapacityThresholds(payload: Record<string, unknown>) {
+  return regionsApiClient.post<Record<string, unknown>>(
+    "/api/v1/admin/regions/capacity/thresholds",
+    payload,
+  );
+}
+
 export function useRegions() {
   return useAppQuery(regionsQueryKeys.regions, fetchRegions);
 }
@@ -232,5 +386,119 @@ export function useCapacityOverview(workspaceId?: string | null) {
 export function useUpgradeStatus() {
   return useAppQuery(regionsQueryKeys.upgradeStatus, fetchUpgradeStatus, {
     refetchInterval: 60_000,
+  });
+}
+
+export function useCreateRegion() {
+  return useAppMutation(createRegion, { invalidateKeys: [regionsQueryKeys.regions] });
+}
+
+export function useUpdateRegion() {
+  return useAppMutation(
+    ({ regionId, payload }: { regionId: string; payload: RegionConfigUpdateRequest }) =>
+      updateRegion(regionId, payload),
+    { invalidateKeys: [regionsQueryKeys.regions] },
+  );
+}
+
+export function useEnableRegion() {
+  return useAppMutation(enableRegion, { invalidateKeys: [regionsQueryKeys.regions] });
+}
+
+export function useDisableRegion() {
+  return useAppMutation(disableRegion, { invalidateKeys: [regionsQueryKeys.regions] });
+}
+
+export function useDeleteRegion() {
+  return useAppMutation(deleteRegion, { invalidateKeys: [regionsQueryKeys.regions] });
+}
+
+export function useCreateFailoverPlan() {
+  return useAppMutation(createFailoverPlan, { invalidateKeys: [regionsQueryKeys.failoverPlans] });
+}
+
+export function useUpdateFailoverPlan() {
+  return useAppMutation(
+    ({ planId, payload }: { planId: string; payload: FailoverPlanUpdateRequest }) =>
+      updateFailoverPlan(planId, payload),
+    { invalidateKeys: [regionsQueryKeys.failoverPlans] },
+  );
+}
+
+export function useDeleteFailoverPlan() {
+  return useAppMutation(deleteFailoverPlan, {
+    invalidateKeys: [regionsQueryKeys.failoverPlans],
+  });
+}
+
+export function useRehearseFailoverPlan(planId?: string | null) {
+  return useAppMutation(
+    (payload?: FailoverPlanExecuteRequest) => rehearseFailoverPlan(planId ?? "", payload),
+    {
+      invalidateKeys: [
+        regionsQueryKeys.failoverPlans,
+        regionsQueryKeys.failoverPlanRuns(planId),
+      ],
+    },
+  );
+}
+
+export function useExecuteFailoverPlan(planId?: string | null) {
+  return useAppMutation(
+    (payload?: FailoverPlanExecuteRequest) => executeFailoverPlan(planId ?? "", payload),
+    {
+      invalidateKeys: [
+        regionsQueryKeys.failoverPlans,
+        regionsQueryKeys.failoverPlanRuns(planId),
+      ],
+    },
+  );
+}
+
+export function useScheduleMaintenanceWindow() {
+  return useAppMutation(scheduleMaintenanceWindow, {
+    invalidateKeys: [regionsQueryKeys.maintenanceWindows],
+  });
+}
+
+export function useUpdateMaintenanceWindow() {
+  return useAppMutation(
+    ({ windowId, payload }: { windowId: string; payload: MaintenanceWindowUpdateRequest }) =>
+      updateMaintenanceWindow(windowId, payload),
+    { invalidateKeys: [regionsQueryKeys.maintenanceWindows] },
+  );
+}
+
+export function useEnableMaintenanceWindow() {
+  return useAppMutation(enableMaintenanceWindow, {
+    invalidateKeys: [
+      regionsQueryKeys.maintenanceWindows,
+      regionsQueryKeys.activeMaintenanceWindow,
+    ],
+  });
+}
+
+export function useDisableMaintenanceWindow() {
+  return useAppMutation(
+    ({ windowId, payload }: { windowId: string; payload?: MaintenanceWindowDisableRequest }) =>
+      disableMaintenanceWindow(windowId, payload),
+    {
+      invalidateKeys: [
+        regionsQueryKeys.maintenanceWindows,
+        regionsQueryKeys.activeMaintenanceWindow,
+      ],
+    },
+  );
+}
+
+export function useCancelMaintenanceWindow() {
+  return useAppMutation(cancelMaintenanceWindow, {
+    invalidateKeys: [regionsQueryKeys.maintenanceWindows],
+  });
+}
+
+export function useConfigureCapacityThresholds() {
+  return useAppMutation(configureCapacityThresholds, {
+    invalidateKeys: [regionsQueryKeys.capacityOverview()],
   });
 }

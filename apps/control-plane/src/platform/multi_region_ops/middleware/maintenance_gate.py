@@ -17,6 +17,8 @@ from starlette.responses import JSONResponse, Response
 
 LOGGER = logging.getLogger(__name__)
 MUTATING_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+MAINTENANCE_CONTROL_PREFIX = "/api/v1/admin/maintenance/windows/"
+MAINTENANCE_CONTROL_SUFFIXES = frozenset({"/disable"})
 
 
 class MaintenanceGateMiddleware(BaseHTTPMiddleware):
@@ -29,6 +31,8 @@ class MaintenanceGateMiddleware(BaseHTTPMiddleware):
         if not getattr(settings, "feature_maintenance_mode", False):
             return await call_next(request)
         if request.method not in MUTATING_METHODS:
+            return await call_next(request)
+        if _is_maintenance_control_request(request):
             return await call_next(request)
         try:
             window = await self._active_window(request)
@@ -97,3 +101,11 @@ def _aware(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
+
+
+def _is_maintenance_control_request(request: Request) -> bool:
+    url = getattr(request, "url", None)
+    path = getattr(url, "path", "")
+    return path.startswith(MAINTENANCE_CONTROL_PREFIX) and any(
+        path.endswith(suffix) for suffix in MAINTENANCE_CONTROL_SUFFIXES
+    )

@@ -432,6 +432,7 @@ class MultiRegionOpsRepository:
         )
         self.session.add(window)
         await self.session.flush()
+        await self.session.refresh(window)
         return window
 
     async def get_window(self, window_id: UUID) -> MaintenanceWindow | None:
@@ -482,6 +483,7 @@ class MultiRegionOpsRepository:
         for key, value in fields.items():
             setattr(window, key, value)
         await self.session.flush()
+        await self.session.refresh(window)
         return window
 
     async def update_window(
@@ -496,6 +498,7 @@ class MultiRegionOpsRepository:
             if value is not None:
                 setattr(window, key, value)
         await self.session.flush()
+        await self.session.refresh(window)
         return window
 
     async def find_overlapping_windows(

@@ -349,7 +349,18 @@ async def _grant_required_consents(
     payload: dict[str, Any] = {"choices": dict(_REQUIRED_CONSENT_CHOICES)}
     if workspace_id is not None:
         payload["workspace_id"] = str(workspace_id)
-    response = await client.put("/api/v1/me/consents", json=payload)
+    response: httpx.Response | None = None
+    for attempt in range(5):
+        response = await client.put("/api/v1/me/consents", json=payload)
+        if response.status_code not in {429, 503}:
+            break
+        retry_after = response.headers.get("Retry-After")
+        try:
+            delay = float(retry_after) if retry_after else 0.5 * (attempt + 1)
+        except ValueError:
+            delay = 0.5 * (attempt + 1)
+        await asyncio.sleep(min(delay, 2.0))
+    assert response is not None
     response.raise_for_status()
 
 

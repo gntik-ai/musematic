@@ -11,7 +11,9 @@ from platform.multi_region_ops.exceptions import (
     FailoverInProgressError,
     FailoverPlanNotFoundError,
     FailoverRunNotFoundError,
+    FailoverStepHaltedError,
     MaintenanceDisableFailedError,
+    MaintenanceModeBlockedError,
     MaintenanceWindowInPastError,
     MaintenanceWindowNotFoundError,
     MaintenanceWindowOverlapError,
@@ -1307,7 +1309,7 @@ async def test_verify_health_step_and_maintenance_gate_edges(
 
 
 @pytest.mark.asyncio
-async def test_capacity_dependency_and_middleware_helpers() -> None:
+async def test_capacity_dependency_and_middleware_helpers(monkeypatch: pytest.MonkeyPatch) -> None:
     class ForecastService:
         async def get_latest_forecast(self, workspace_id: UUID) -> Any:
             del workspace_id
@@ -1353,8 +1355,19 @@ async def test_capacity_dependency_and_middleware_helpers() -> None:
         request, provider
     )
     assert set(registry.components()) == set(REPLICATION_COMPONENTS)
+    assert (
+        multi_region_dependencies.get_replication_probe_registry(request, provider) is registry  # type: ignore[arg-type]
+    )
     assert multi_region_dependencies.get_redis_failover_lock(request) is redis  # type: ignore[arg-type]
     assert multi_region_dependencies.get_redis_active_window_cache(request) is redis  # type: ignore[arg-type]
+
+    registered_trigger = object()
+    monkeypatch.setattr(
+        multi_region_dependencies,
+        "get_registered_incident_trigger",
+        lambda: registered_trigger,
+    )
+    assert await multi_region_dependencies.get_incident_trigger() is registered_trigger
 
     session = object()
     audit = object()
@@ -1374,6 +1387,46 @@ async def test_capacity_dependency_and_middleware_helpers() -> None:
         region_service, monitor, failover, maintenance, capacity
     )
     assert facade.region_service is region_service
+
+    built_cost = object()
+    build_kwargs: dict[str, Any] = {}
+
+    def fake_build_cost_governance_service(**kwargs: Any) -> object:
+        build_kwargs.update(kwargs)
+        return built_cost
+
+    monkeypatch.setattr(
+        multi_region_dependencies,
+        "build_cost_governance_service",
+        fake_build_cost_governance_service,
+    )
+    request.app.state.cost_clickhouse_repository = object()
+    dependency_capacity = await multi_region_dependencies.get_capacity_service(  # type: ignore[arg-type]
+        request,
+        session,
+        incident_trigger,
+        incident_service,
+        object(),
+        object(),
+    )
+    assert dependency_capacity.cost_governance_service is built_cost
+    assert build_kwargs["settings"] is settings
+    assert build_kwargs["redis_client"] is redis
+
+
+def test_exception_payload_helpers() -> None:
+    halted = FailoverStepHaltedError("verify health", "route failed")
+    blocked = MaintenanceModeBlockedError(
+        reason="planned database work",
+        ends_at=_now(),
+        announcement="Writes are paused",
+    )
+
+    assert halted.step_name == "verify health"
+    assert halted.reason == "route failed"
+    assert blocked.status_code == 503
+    assert blocked.code == "MAINTENANCE_IN_PROGRESS"
+    assert blocked.details["announcement"] == "Writes are paused"
 
 
 @pytest.mark.asyncio
