@@ -94,6 +94,9 @@ def _state(request: Request) -> dict[str, Any]:
         "contracts": {},
         "policies": {},
         "policy_attachments": {},
+        "entity_tags": {},
+        "entity_labels": {},
+        "saved_views": {},
         "governance_chains": {},
         "workspace_settings": {},
         "agent_decision_configs": {},
@@ -499,6 +502,48 @@ def _marketplace_listing(agent: dict[str, Any], state: dict[str, Any]) -> dict[s
     }
 
 
+def _entity_bucket(
+    state: dict[str, Any],
+    collection: str,
+    entity_type: str,
+    entity_id: str,
+) -> Any:
+    return state.setdefault(collection, {}).setdefault(entity_type, {}).setdefault(entity_id, {})
+
+
+def _entity_tags(state: dict[str, Any], entity_type: str, entity_id: str) -> set[str]:
+    bucket = _entity_bucket(state, "entity_tags", entity_type, entity_id)
+    if isinstance(bucket, set):
+        return bucket
+    tags = set(bucket if isinstance(bucket, list) else [])
+    state["entity_tags"][entity_type][entity_id] = tags
+    return tags
+
+
+def _entity_labels(state: dict[str, Any], entity_type: str, entity_id: str) -> dict[str, str]:
+    bucket = _entity_bucket(state, "entity_labels", entity_type, entity_id)
+    if isinstance(bucket, dict):
+        return bucket
+    labels: dict[str, str] = {}
+    state["entity_labels"][entity_type][entity_id] = labels
+    return labels
+
+
+def _query_tags(request: Request) -> list[str]:
+    tags: list[str] = []
+    for raw in request.query_params.getlist("tags"):
+        tags.extend(item.strip() for item in raw.split(",") if item.strip())
+    return tags
+
+
+def _query_labels(request: Request) -> dict[str, str]:
+    labels: dict[str, str] = {}
+    for key, value in request.query_params.multi_items():
+        if key.startswith("label.") and key != "label.":
+            labels[key.removeprefix("label.")] = value
+    return labels
+
+
 def _stable_output(payload: dict[str, Any]) -> str:
     if payload.get("prompt_pattern") == "agent_response":
         return "fixed-alpha"
@@ -522,6 +567,178 @@ def _record_mock_llm_call(request: Request, payload: dict[str, Any], response: s
 @router.get("/api/v1/_e2e/contract/events")
 async def contract_events(request: Request, topic: str = Query(...)) -> dict[str, Any]:
     return _items(_event_store(request, topic))
+
+
+@router.get("/api/v1/tags/{tag}/entities")
+async def contract_cross_entity_tag_search(
+    request: Request,
+    tag: str,
+    entity_types: str | None = Query(default=None),
+) -> dict[str, Any]:
+    state = _state(request)
+    requested_types = (
+        [item.strip() for item in entity_types.split(",") if item.strip()]
+        if entity_types
+        else list(state.setdefault("entity_tags", {}).keys())
+    )
+    entities: dict[str, list[str]] = {}
+    for entity_type in requested_types:
+        tagged_ids = [
+            entity_id
+            for entity_id, tags in state.setdefault("entity_tags", {}).get(entity_type, {}).items()
+            if tag in set(tags)
+        ]
+        if tagged_ids:
+            entities[entity_type] = tagged_ids
+    return {"tag": tag, "entities": entities, "next_cursor": None}
+
+
+@router.post("/api/v1/tags/{entity_type}/{entity_id}")
+async def contract_attach_tag(
+    request: Request,
+    entity_type: str,
+    entity_id: str,
+    payload: dict[str, Any],
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    state = _state(request)
+    if entity_type == "agent" and _agent_by_id(state, entity_id) is None:
+        raise HTTPException(status_code=404)
+    tag = str(payload.get("tag") or "").strip()
+    if not tag:
+        raise HTTPException(status_code=422)
+    _entity_tags(state, entity_type, entity_id).add(tag)
+    if entity_type == "agent":
+        agent = _agent_by_id(state, entity_id)
+        if agent is not None:
+            agent["tags"] = list(dict.fromkeys([*list(agent.get("tags") or []), tag]))
+    return {"tag": tag, "created_by": _user_id(current_user), "created_at": _now()}
+
+
+@router.get("/api/v1/tags/{entity_type}/{entity_id}")
+async def contract_list_tags(
+    request: Request,
+    entity_type: str,
+    entity_id: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    del current_user
+    tags = sorted(_entity_tags(_state(request), entity_type, entity_id))
+    return {
+        "entity_type": entity_type,
+        "entity_id": entity_id,
+        "tags": [{"tag": tag, "created_by": None, "created_at": _now()} for tag in tags],
+    }
+
+
+@router.post("/api/v1/labels/expression/validate")
+async def contract_validate_label_expression(payload: dict[str, Any]) -> dict[str, Any]:
+    expression = str(payload.get("expression") or "").strip()
+    if not expression:
+        return {
+            "valid": False,
+            "error": {"line": 1, "col": 1, "token": "", "message": "expression is required"},
+        }
+    return {"valid": True, "error": None}
+
+
+@router.post("/api/v1/labels/{entity_type}/{entity_id}")
+async def contract_attach_label(
+    request: Request,
+    entity_type: str,
+    entity_id: str,
+    payload: dict[str, Any],
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    state = _state(request)
+    if entity_type == "agent" and _agent_by_id(state, entity_id) is None:
+        raise HTTPException(status_code=404)
+    key = str(payload.get("key") or "").strip()
+    value = str(payload.get("value") or "").strip()
+    if not key:
+        raise HTTPException(status_code=422)
+    _entity_labels(state, entity_type, entity_id)[key] = value
+    if entity_type == "agent":
+        agent = _agent_by_id(state, entity_id)
+        if agent is not None:
+            agent.setdefault("labels", {})[key] = value
+    now = _now()
+    return {
+        "key": key,
+        "value": value,
+        "created_by": _user_id(current_user),
+        "created_at": now,
+        "updated_at": now,
+        "is_reserved": key.startswith("platform."),
+    }
+
+
+@router.get("/api/v1/labels/{entity_type}/{entity_id}")
+async def contract_list_labels(
+    request: Request,
+    entity_type: str,
+    entity_id: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    del current_user
+    now = _now()
+    labels = [
+        {
+            "key": key,
+            "value": value,
+            "created_by": None,
+            "created_at": now,
+            "updated_at": now,
+            "is_reserved": key.startswith("platform."),
+        }
+        for key, value in sorted(_entity_labels(_state(request), entity_type, entity_id).items())
+    ]
+    return {"entity_type": entity_type, "entity_id": entity_id, "labels": labels}
+
+
+@router.post("/api/v1/saved-views", status_code=status.HTTP_201_CREATED)
+async def contract_create_saved_view(
+    request: Request,
+    payload: dict[str, Any],
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    now = _now()
+    view_id = str(uuid4())
+    owner_id = _user_id(current_user)
+    view = {
+        "id": view_id,
+        "owner_id": owner_id,
+        "workspace_id": payload.get("workspace_id"),
+        "name": payload.get("name") or view_id,
+        "entity_type": payload.get("entity_type") or "agent",
+        "filters": payload.get("filters") or {},
+        "is_owner": True,
+        "is_shared": bool(payload.get("shared", False)),
+        "is_orphan_transferred": False,
+        "is_orphan": False,
+        "version": 1,
+        "created_at": now,
+        "updated_at": now,
+    }
+    _state(request).setdefault("saved_views", {})[view_id] = view
+    return view
+
+
+@router.get("/api/v1/saved-views")
+async def contract_list_saved_views(
+    request: Request,
+    entity_type: str = Query(...),
+    workspace_id: str | None = Query(default=None),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> list[dict[str, Any]]:
+    user_id = _user_id(current_user)
+    views = [
+        {**view, "is_owner": view.get("owner_id") == user_id}
+        for view in _state(request).setdefault("saved_views", {}).values()
+        if view.get("entity_type") == entity_type
+        and (workspace_id is None or view.get("workspace_id") == workspace_id)
+    ]
+    return sorted(views, key=lambda item: (str(item.get("name")), str(item.get("id"))))
 
 
 @router.get("/api/v1/_e2e/kafka/events")
@@ -952,7 +1169,8 @@ async def list_agents(
     workspace_id: str | None = Query(default=None),
 ) -> dict[str, Any]:
     del workspace_id
-    agents = list(_state(request)["agents"].values())
+    state = _state(request)
+    agents = list(state["agents"].values())
     if namespace:
         agents = [item for item in agents if item.get("namespace") == namespace]
     if status:
@@ -969,6 +1187,27 @@ async def list_agents(
             or lowered in str(item.get("approach", "")).lower()
             or lowered in " ".join(str(tag) for tag in item.get("tags", [])).lower()
         ] or agents
+    tags = _query_tags(request)
+    if tags:
+        required_tags = set(tags)
+        agents = [
+            item
+            for item in agents
+            if required_tags.issubset(
+                set(item.get("tags") or []) | _entity_tags(state, "agent", str(item.get("id")))
+            )
+        ]
+    labels = _query_labels(request)
+    if labels:
+        agents = [
+            item
+            for item in agents
+            if all(
+                _entity_labels(state, "agent", str(item.get("id"))).get(key) == value
+                or (item.get("labels") or {}).get(key) == value
+                for key, value in labels.items()
+            )
+        ]
     total = len(agents)
     return {"items": agents[offset : offset + limit], "total": total}
 
@@ -1305,6 +1544,27 @@ async def list_workspace_members(request: Request, workspace_id: str) -> dict[st
         ],
     )
     return _items(members)
+
+
+@router.delete("/api/v1/workspaces/{workspace_id}/members/{user_id}")
+async def delete_workspace_member(
+    request: Request,
+    workspace_id: str,
+    user_id: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> Response:
+    state = _state(request)
+    members = state.setdefault("workspace_members", {}).setdefault(workspace_id, [])
+    state["workspace_members"][workspace_id] = [
+        member for member in members if str(member.get("user_id")) != user_id
+    ]
+    for view in state.setdefault("saved_views", {}).values():
+        if view.get("workspace_id") == workspace_id and view.get("owner_id") == user_id:
+            view["owner_id"] = _user_id(current_user)
+            view["is_orphan_transferred"] = True
+            view["is_orphan"] = False
+            view["updated_at"] = _now()
+    return Response(status_code=204)
 
 
 @router.get("/api/v1/workspaces/{workspace_id}/goals")
