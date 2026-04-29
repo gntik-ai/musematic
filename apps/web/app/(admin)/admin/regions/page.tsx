@@ -8,6 +8,7 @@ import {
   useCreateTwoPersonAuthRequest,
   useExecuteFailover,
 } from "@/lib/hooks/use-admin-mutations";
+import { HelpContent } from "./help";
 
 export default function RegionsPage() {
   const [twoPaOpen, setTwoPaOpen] = useState(false);
@@ -37,6 +38,7 @@ export default function RegionsPage() {
             Initiate failover test
           </AdminWriteButton>
         }
+        help={<HelpContent />}
       />
       <TwoPersonAuthDialog
         open={twoPaOpen}

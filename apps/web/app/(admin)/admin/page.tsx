@@ -3,6 +3,7 @@ import { Activity, AlertTriangle, Database, ShieldCheck, Users } from "lucide-re
 import { AdminPage } from "@/components/features/admin/AdminPage";
 import { AdminTour } from "@/components/features/admin/AdminTour";
 import { FirstInstallChecklist } from "@/components/features/admin/FirstInstallChecklist";
+import { HelpContent } from "./help";
 
 const summary = [
   ["Users", "1,248", "/admin/users", Users],
@@ -14,7 +15,11 @@ const summary = [
 
 export default function AdminLandingPage() {
   return (
-    <AdminPage title="Administrator Workbench" description="Operational summary across the platform.">
+    <AdminPage
+      title="Administrator Workbench"
+      description="Operational summary across the platform."
+      help={<HelpContent />}
+    >
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">

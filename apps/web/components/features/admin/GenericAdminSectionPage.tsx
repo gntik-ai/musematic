@@ -28,6 +28,7 @@ interface GenericAdminSectionPageProps {
   grafanaPath?: string;
   superAdminOnly?: boolean;
   actions?: React.ReactNode;
+  help?: React.ReactNode;
   children?: React.ReactNode;
 }
 
@@ -37,6 +38,7 @@ export function GenericAdminSectionPage({
   grafanaPath,
   superAdminOnly = false,
   actions,
+  help,
   children,
 }: GenericAdminSectionPageProps) {
   return (
@@ -50,7 +52,7 @@ export function GenericAdminSectionPage({
           </AdminWriteButton>
         )
       }
-      help={<p>{superAdminOnly ? "Super admin scoped." : description ?? title}</p>}
+      help={help ?? <p>{superAdminOnly ? "Super admin scoped." : description ?? title}</p>}
     >
       <div className="space-y-4">
         {children}

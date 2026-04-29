@@ -8,6 +8,7 @@ import { ChangePreview } from "@/components/features/admin/ChangePreview";
 import { ConfirmationDialog } from "@/components/features/admin/ConfirmationDialog";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/auth-store";
+import { HelpContent } from "./help";
 
 interface ImportPreview {
   valid_signature: boolean;
@@ -86,7 +87,7 @@ export default function InstallerPage() {
           Export configuration
         </AdminWriteButton>
       }
-      help={<p>Export signed configuration bundles and preview imports before applying them.</p>}
+      help={<HelpContent />}
     >
       <div className="space-y-4">
         <div className="grid gap-3 rounded-md border bg-card p-4 sm:grid-cols-3">

@@ -46,8 +46,10 @@ function isAdminTabValue(value: string): value is AdminTabValue {
 
 export function AdminSettingsPanel({
   defaultTab,
+  renderHeading = true,
 }: {
   defaultTab: string;
+  renderHeading?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -63,24 +65,26 @@ export function AdminSettingsPanel({
 
   return (
     <div className="space-y-6">
-      <section className="space-y-2">
-        <div
-          className={[
-            "flex items-center gap-2 text-sm font-semibold uppercase",
-            "tracking-[0.2em] text-brand-accent",
-          ].join(" ")}
-        >
-          <ShieldCheck className="h-4 w-4" />
-          Platform administration
-        </div>
-        <div>
-          <h1 className="text-3xl font-semibold">Admin settings</h1>
-          <p className="mt-2 max-w-3xl text-muted-foreground">
-            Manage global access policies, quotas, connectors, email delivery,
-            and platform security.
-          </p>
-        </div>
-      </section>
+      {renderHeading ? (
+        <section className="space-y-2">
+          <div
+            className={[
+              "flex items-center gap-2 text-sm font-semibold uppercase",
+              "tracking-[0.2em] text-brand-accent",
+            ].join(" ")}
+          >
+            <ShieldCheck className="h-4 w-4" />
+            Platform administration
+          </div>
+          <div>
+            <h1 className="text-3xl font-semibold">Admin settings</h1>
+            <p className="mt-2 max-w-3xl text-muted-foreground">
+              Manage global access policies, quotas, connectors, email delivery,
+              and platform security.
+            </p>
+          </div>
+        </section>
+      ) : null}
 
       <Tabs>
         <TabsList className="flex w-full flex-col gap-2 rounded-2xl bg-muted/70 p-2 md:flex-row">

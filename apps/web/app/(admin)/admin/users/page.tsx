@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useStartImpersonation } from "@/lib/hooks/use-admin-mutations";
 import { useAdminStore } from "@/lib/stores/admin-store";
 import { useAuthStore } from "@/store/auth-store";
+import { HelpContent } from "./help";
 
 interface AdminUserRow {
   id: string;
@@ -110,7 +111,7 @@ export default function UsersPage() {
         title="Users"
         description="Tenant-scoped user administration."
         actions={<AdminWriteButton size="sm">Create user</AdminWriteButton>}
-        help={<p>Review users, enforce security controls, and start audited impersonation.</p>}
+        help={<HelpContent />}
       >
         <AdminTable columns={columns} rows={rows} savedViewsKey="users" />
       </AdminPage>
