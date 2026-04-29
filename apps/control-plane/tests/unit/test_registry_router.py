@@ -28,6 +28,7 @@ from uuid import uuid4
 import httpx
 import pytest
 from fastapi import FastAPI, Response
+from starlette.datastructures import QueryParams
 
 from tests.auth_support import role_claim
 from tests.registry_support import RouterRegistryServiceStub
@@ -51,6 +52,10 @@ def _app(service: RouterRegistryServiceStub) -> FastAPI:
 
 def _headers() -> dict[str, str]:
     return {"X-Workspace-ID": str(uuid4())}
+
+
+def _request() -> SimpleNamespace:
+    return SimpleNamespace(headers=_headers(), query_params=QueryParams(""))
 
 
 @pytest.mark.asyncio
@@ -134,7 +139,7 @@ async def test_registry_router_upload_endpoint_and_agent_resolution_mode() -> No
             return b"content"
 
     upload_response = await upload_agent(
-        request=SimpleNamespace(headers=_headers()),
+        request=_request(),
         response=Response(),
         namespace_name="finance",
         package=UploadStub(),
@@ -142,7 +147,7 @@ async def test_registry_router_upload_endpoint_and_agent_resolution_mode() -> No
         registry_service=service,
     )
     listed_response = await list_agents(
-        request=SimpleNamespace(headers=_headers()),
+        request=_request(),
         status=LifecycleStatus.published,
         maturity_min=0,
         fqn_pattern=None,
@@ -154,7 +159,7 @@ async def test_registry_router_upload_endpoint_and_agent_resolution_mode() -> No
     )
     resolved_response = await resolve_fqn(
         fqn="finance:kyc-verifier",
-        request=SimpleNamespace(headers=_headers()),
+        request=_request(),
         current_user=await _agent_user(),
         registry_service=service,
     )
@@ -222,7 +227,7 @@ async def test_registry_router_human_only_endpoints_reject_agent_principals(
 ) -> None:
     service = RouterRegistryServiceStub()
     common_kwargs = {
-        "request": SimpleNamespace(headers=_headers()),
+        "request": _request(),
         "current_user": {"sub": str(uuid4()), "agent_profile_id": str(uuid4())},
         "registry_service": service,
     }

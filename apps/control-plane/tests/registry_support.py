@@ -721,6 +721,7 @@ class RegistryRepoStub:
         offset: int,
         visibility_filter: Any | None = None,
         include_decommissioned: bool = False,
+        allowed_ids: set[UUID] | None = None,
     ) -> tuple[list[AgentProfile], int]:
         profiles = [
             profile
@@ -729,6 +730,7 @@ class RegistryRepoStub:
             and profile.maturity_level >= maturity_min
             and (status is None or profile.status == status)
             and (include_decommissioned or profile.status is not LifecycleStatus.decommissioned)
+            and (allowed_ids is None or profile.id in allowed_ids)
             and (
                 visibility_filter is None
                 or _matches_visibility_patterns(

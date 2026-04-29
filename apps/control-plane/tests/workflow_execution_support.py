@@ -216,6 +216,7 @@ class FakeWorkflowRepository:
         tags: list[str] | None,
         offset: int,
         limit: int,
+        allowed_ids: set[UUID] | None = None,
     ) -> tuple[list[WorkflowDefinition], int]:
         items = [
             item
@@ -223,6 +224,7 @@ class FakeWorkflowRepository:
             if item.workspace_id == workspace_id
             and (status is None or item.status == status)
             and (not tags or set(tags).intersection(item.tags))
+            and (allowed_ids is None or item.id in allowed_ids)
         ]
         return items[offset : offset + limit], len(items)
 
