@@ -38,11 +38,13 @@ def role_names(current_user: dict[str, Any]) -> set[str]:
     roles = current_user.get("roles", [])
     if not isinstance(roles, list):
         return set()
-    return {
-        str(role.get("role"))
-        for role in roles
-        if isinstance(role, dict) and role.get("role") is not None
-    }
+    names: set[str] = set()
+    for role in roles:
+        if isinstance(role, str):
+            names.add(role)
+        elif isinstance(role, dict) and role.get("role") is not None:
+            names.add(str(role["role"]))
+    return names
 
 
 def is_admin(current_user: dict[str, Any]) -> bool:

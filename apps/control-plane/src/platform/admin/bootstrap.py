@@ -6,6 +6,8 @@ import json
 import os
 import re
 import secrets
+import shutil
+import subprocess
 import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -505,9 +507,12 @@ async def _create_pending_mfa_enrollment(
         )
     secret = generate_totp_secret()
     provisioning_uri = create_provisioning_uri(secret, email)
+    qr_code = _render_terminal_qr_code(provisioning_uri)
+    qr_output = f"\nMFA QR code:\n{qr_code}" if qr_code else ""
     print(
         f"MFA manual-entry secret: {secret}\n"
-        f"MFA provisioning URI: {provisioning_uri}",
+        f"MFA provisioning URI: {provisioning_uri}"
+        f"{qr_output}",
         flush=True,
     )
     encrypted_secret = encrypt_secret(secret, settings.auth.mfa_encryption_key)
@@ -532,6 +537,25 @@ async def _create_pending_mfa_enrollment(
             "expires_at": expires_at,
         },
     )
+
+
+def _render_terminal_qr_code(payload: str) -> str | None:
+    qrencode = shutil.which("qrencode")
+    if qrencode is None:
+        return None
+    try:
+        result = subprocess.run(
+            [qrencode, "-t", "ANSIUTF8", payload],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
 
 
 async def _append_admin_audit(

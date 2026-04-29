@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from platform.common.models.base import Base
+from typing import ClassVar
 from uuid import UUID
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
@@ -12,6 +13,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 class TwoPersonAuthRequest(Base):
     __tablename__ = "two_person_auth_requests"
+    __table_args__: ClassVar[dict[str, bool]] = {"extend_existing": True}
 
     request_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True)
     action: Mapped[str] = mapped_column(Text, nullable=False)
