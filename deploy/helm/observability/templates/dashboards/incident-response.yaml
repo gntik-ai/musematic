@@ -8,24 +8,94 @@ metadata:
 data:
   incident-response.json: |
     {
+      "__inputs": [],
+      "__requires": [],
       "annotations": { "list": [] },
-      "description": "Incident response severity, MTTR, post-mortems, runbook access, and category mix.",
+      "description": "Incident response paging, retry, runbook, post-mortem, and timeline-source coverage signals.",
       "editable": true,
+      "graphTooltip": 1,
       "id": null,
+      "links": [],
       "panels": [
-        { "id": 1, "type": "bargauge", "title": "Active Incidents by Severity", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 }, "targets": [ { "expr": "sum by (severity) (incident_response_active_incidents)", "refId": "A" } ] },
-        { "id": 2, "type": "timeseries", "title": "MTTR Trend", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 }, "targets": [ { "expr": "avg_over_time(incident_response_mttr_seconds[24h])", "refId": "A" } ] },
-        { "id": 3, "type": "table", "title": "Post-Mortem Status", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 }, "targets": [ { "expr": "sum by (status) (incident_response_post_mortems_total)", "refId": "A" } ] },
-        { "id": 4, "type": "timeseries", "title": "Runbook Access Frequency", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }, "targets": [ { "expr": "sum(rate({bounded_context=\"incident_response\"} | json | message=~\".*runbook.*viewed.*\" [5m]))", "refId": "A" } ] },
-        { "id": 5, "type": "piechart", "title": "Incidents by Category", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 }, "targets": [ { "expr": "sum by (alert_rule_class) (count_over_time({bounded_context=\"incident_response\"} | json | alert_rule_class != \"\" [1h]))", "refId": "A" } ] }
+        {
+          "id": 1,
+          "type": "gauge",
+          "title": "Open Incidents by Severity",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 },
+          "targets": [{ "expr": "sum by (level) (incident_response_open_incidents{service=~\"$service\"})", "legendFormat": "{{ `{{level}}` }}", "refId": "A" }]
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "MTTR Rolling 7d",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 },
+          "targets": [{ "expr": "avg by (service) (avg_over_time(incident_response_mttr_seconds{service=~\"$service\"}[7d]))", "legendFormat": "{{ `{{service}}` }}", "refId": "A" }]
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "External Delivery Success Rate by Provider",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 },
+          "targets": [{ "expr": "sum by (provider) (rate(incident_response_external_delivery_success_total{service=~\"$service\"}[5m])) / clamp_min(sum by (provider) (rate(incident_response_external_delivery_attempts_total{service=~\"$service\"}[5m])), 1)", "legendFormat": "{{ `{{provider}}` }}", "refId": "A" }]
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "Retry Scanner Workload",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 7, "w": 8, "x": 0, "y": 8 },
+          "targets": [{ "expr": "sum by (service) (incident_response_retry_scanner_pending{service=~\"$service\"})", "legendFormat": "{{ `{{service}}` }}", "refId": "A" }]
+        },
+        {
+          "id": 5,
+          "type": "table",
+          "title": "Runbook Lookups by Scenario",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 7, "w": 8, "x": 8, "y": 8 },
+          "targets": [{ "expr": "sum by (scenario) (count_over_time({bounded_context=\"incident_response\", service=~\"$service\"} | json | message=\"incident_response_runbook_viewed\" | scenario != \"\" [$__range]))", "refId": "A" }]
+        },
+        {
+          "id": 6,
+          "type": "stat",
+          "title": "Post-Mortems Published per Quarter",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 7, "w": 8, "x": 16, "y": 8 },
+          "targets": [{ "expr": "sum(increase(incident_response_post_mortems_published_total{service=~\"$service\"}[90d]))", "legendFormat": "published", "refId": "A" }]
+        },
+        {
+          "id": 7,
+          "type": "barchart",
+          "title": "Timeline Source Coverage",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 15 },
+          "targets": [{ "expr": "sum by (level) (count_over_time({bounded_context=\"incident_response\", service=~\"$service\"} | json | message=\"incident_response_timeline_source_coverage\" | level != \"\" [$__range]))", "legendFormat": "{{ `{{level}}` }}", "refId": "A" }]
+        },
+        {
+          "id": 50,
+          "type": "logs",
+          "title": "Incident Response Log Stream",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 15 },
+          "targets": [{ "expr": "{bounded_context=\"incident_response\", service=~\"$service\"} | json", "refId": "A" }],
+          "options": { "dedupStrategy": "none", "enableLogDetails": true, "showLabels": true, "showTime": true, "sortOrder": "Descending" }
+        }
       ],
       "refresh": "30s",
       "schemaVersion": 38,
       "tags": ["musematic", "incident-response"],
-      "templating": { "list": [ { "name": "prometheus", "type": "datasource", "query": "prometheus", "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" } } ] },
-      "time": { "from": "now-1h", "to": "now" },
+      "templating": {
+        "list": [
+          { "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" }, "hide": 0, "includeAll": false, "label": "Datasource", "multi": false, "name": "datasource", "options": [], "query": "prometheus", "refresh": 1, "regex": "", "type": "datasource" },
+          { "current": { "selected": false, "text": "control-plane", "value": "control-plane" }, "hide": 0, "includeAll": false, "label": "Service", "multi": false, "name": "service", "query": "control-plane", "type": "textbox" }
+        ]
+      },
+      "time": { "from": "now-24h", "to": "now" },
+      "timepicker": {},
       "timezone": "browser",
-      "title": "D19 Incident Response & Runbooks",
-      "uid": "d19-incident-response",
-      "version": 1
+      "title": "Incident Response & Runbooks",
+      "uid": "incident-response-runbooks",
+      "version": 2
     }
