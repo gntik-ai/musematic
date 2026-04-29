@@ -160,13 +160,18 @@ def test_all_journeys_meet_structure(journey_file) -> None:
     print("\n".join(lines))
 
 
-def _validate_journey_file(path: Path) -> tuple[list[str], JourneySummary]:
+def _validate_journey_file(path: Path) -> tuple[list[str], JourneySummary | None]:
     text = path.read_text(encoding="utf-8")
     violations: list[str] = []
     if not JOURNEY_FILE_PATTERN.match(path.name):
         violations.append("journey file name must match pattern test_jNN_persona_hint.py")
 
     tree = ast.parse(text, filename=str(path))
+    markers = _collect_markers(tree)
+    journey_id = _module_constant(tree, "JOURNEY_ID")
+    if "journey" not in markers and journey_id is None:
+        return [], None
+
     inventory = _parse_context_inventory(text, tree)
     invalid_contexts = sorted({item for item in inventory if item not in VALID_CONTEXTS})
     if invalid_contexts:
@@ -181,7 +186,6 @@ def _validate_journey_file(path: Path) -> tuple[list[str], JourneySummary]:
             f"cross-context inventory has {len(set(inventory) & VALID_CONTEXTS)} valid contexts (required >= 4)"
         )
 
-    journey_id = _module_constant(tree, "JOURNEY_ID")
     if not isinstance(journey_id, str) or not re.fullmatch(r"j\d{2}", journey_id):
         violations.append("JOURNEY_ID must be 'j01'..'j09'")
         resolved_journey_id = path.stem[5:8]
@@ -192,7 +196,6 @@ def _validate_journey_file(path: Path) -> tuple[list[str], JourneySummary]:
     if not isinstance(timeout_seconds, int) or not 60 <= timeout_seconds <= 900:
         violations.append("TIMEOUT_SECONDS must be 60-900")
 
-    markers = _collect_markers(tree)
     expected_marker = f"{resolved_journey_id}_{path.stem.split('_', 2)[-1]}"
     if "journey" not in markers:
         violations.append("missing marker(s): pytest.mark.journey")
