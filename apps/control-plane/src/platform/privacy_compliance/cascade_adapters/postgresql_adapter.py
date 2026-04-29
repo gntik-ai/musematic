@@ -80,6 +80,7 @@ USER_IDENTITY_COLUMNS: dict[str, list[str]] = {
     "privacy_impact_assessments": ["submitted_by", "approved_by"],
     "privacy_consent_records": ["user_id"],
     "two_person_auth_requests": ["initiator_id", "approved_by_id", "rejected_by_id"],
+    "impersonation_sessions": ["impersonating_user_id", "effective_user_id"],
     "a2a_external_endpoints": ["created_by"],
     "content_moderation_policies": ["created_by"],
     "context_engineering_profile_versions": ["created_by"],
