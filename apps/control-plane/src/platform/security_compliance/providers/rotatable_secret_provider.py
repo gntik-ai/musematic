@@ -62,7 +62,7 @@ class RotatableSecretProvider:
         return cached or {}
 
     def _read_secret(self, secret_name: str, slot: str, *, required: bool = True) -> str | None:
-        env_key = f"ROTATING_SECRET_{secret_name}_{slot}".upper().replace("-", "_")
+        env_key = self._env_key(secret_name, slot)
         env_value = os.environ.get(env_key)
         if env_value:
             return env_value
@@ -75,3 +75,9 @@ class RotatableSecretProvider:
             if required:
                 raise
             return None
+
+    @staticmethod
+    def _env_key(secret_name: str, slot: str) -> str:
+        return "ROTATING_SECRET_" + "".join(
+            char if char.isalnum() else "_" for char in f"{secret_name}_{slot}"
+        ).upper()

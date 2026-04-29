@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from platform.audit.dependencies import get_audit_chain_service
 from platform.audit.service import AuditChainService
+from platform.common import database
 from platform.common.clients.model_router import SecretProvider
 from platform.common.clients.object_storage import AsyncObjectStorageClient
 from platform.common.clients.redis import AsyncRedisClient
@@ -106,6 +107,7 @@ def build_incident_service(
     provider_clients: dict[str, PagingProviderClient],
     runbook_service: RunbookService | None = None,
     audit_chain_service: Any | None = None,
+    session_factory: Any | None = None,
 ) -> IncidentService:
     return IncidentService(
         repository=IncidentResponseRepository(session),
@@ -115,6 +117,7 @@ def build_incident_service(
         provider_clients=provider_clients,
         runbook_service=runbook_service,
         audit_chain_service=audit_chain_service,
+        session_factory=session_factory,
     )
 
 
@@ -193,6 +196,7 @@ async def get_incident_service(
         provider_clients=provider_clients,
         runbook_service=runbook_service,
         audit_chain_service=audit_chain_service,
+        session_factory=database.AsyncSessionLocal,
     )
 
 

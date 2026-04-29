@@ -1101,7 +1101,7 @@ async def test_timeline_assembler_and_kafka_replay_cover_success_partial_and_fai
         async def beginning_offsets(self, partitions: list[Any]) -> dict[Any, int]:
             return {partitions[0]: 0}
 
-        async def seek(self, partition: Any, offset: int) -> None:
+        def seek(self, partition: Any, offset: int) -> None:
             self.seeked = (partition, offset)
 
         async def getmany(self, *, timeout_ms: int, max_records: int) -> dict[Any, list[Any]]:
@@ -1767,6 +1767,22 @@ async def test_remaining_incident_response_edge_branches() -> None:
             del topic
             return set()
 
+    class StartFailConsumer(NoPartitionConsumer):
+        stopped = False
+
+        async def start(self) -> None:
+            raise RuntimeError("topic missing")
+
+        async def stop(self) -> None:
+            type(self).stopped = True
+
+    with pytest.raises(RuntimeError, match="topic missing"):
+        await KafkaTimelineReplay(
+            settings=settings,
+            consumer_factory=StartFailConsumer,  # type: ignore[arg-type]
+        ).read_window(["missing"], NOW, NOW + timedelta(minutes=1))
+    assert StartFailConsumer.stopped is True
+
     assert (
         await KafkaTimelineReplay(
             settings=settings,
@@ -1791,7 +1807,7 @@ async def test_remaining_incident_response_edge_branches() -> None:
         async def end_offsets(self, partitions: list[Any]) -> dict[Any, int]:
             return {partitions[0]: 5}
 
-        async def seek(self, partition: Any, offset: int) -> None:
+        def seek(self, partition: Any, offset: int) -> None:
             self.seeked = (partition, offset)
 
         async def getmany(self, *, timeout_ms: int, max_records: int) -> dict[Any, list[Any]]:

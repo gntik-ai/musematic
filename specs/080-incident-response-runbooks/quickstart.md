@@ -1,6 +1,6 @@
 # Quickstart: Incident Response and Runbooks
 
-This walkthrough exercises the local control plane with provider mocks only. Do not use real PagerDuty, OpsGenie, or VictorOps credentials here; the mock providers accept any auth value and return deterministic success or error payloads.
+This walkthrough exercises the local control plane with the E2E placeholder provider secret. Do not use real PagerDuty, OpsGenie, or VictorOps credentials here. The live local stack records the external delivery row and may record provider failure from the placeholder credential; deterministic provider response shapes are covered by the fixture tests below.
 
 ## Prerequisites
 
@@ -8,10 +8,11 @@ This walkthrough exercises the local control plane with provider mocks only. Do 
 - PostgreSQL, Redis, Kafka, and the configured MinIO-compatible object store available to the control plane.
 - Seeded runbooks from migration `063_incident_response.py`.
 - A superadmin or platform-operator token for integration setup and post-mortem distribution.
+- Local E2E Helm values include `ROTATING_SECRET_INCIDENT_RESPONSE_INTEGRATIONS_LOCAL_PAGERDUTY_CURRENT` for the walkthrough Vault reference.
 
 ## Provider Mocks
 
-Reusable mocks live in `tests/fixtures/incident_response/provider_mocks/`.
+Reusable mocks live in `tests/fixtures/incident_response/provider_mocks/`. The deployed local stack is not rewired to these fixtures by default; use them in automated tests or when explicitly injecting provider clients.
 
 - `provider_mock("pagerduty")` emulates `POST https://events.pagerduty.com/v2/enqueue` and returns `{status, message, dedup_key}`.
 - `provider_mock("opsgenie")` emulates `POST https://api.opsgenie.com/v2/alerts` and close requests under `/v2/alerts/{alias}/close`; it returns `{result, requestId, took}`.
@@ -73,6 +74,9 @@ The mock response shapes are covered by `tests/fixtures/incident_response/provid
 8. Publish and distribute the post-mortem:
 
    ```bash
+   curl -sS -X POST "$CONTROL_PLANE_URL/api/v1/post-mortems/$POST_MORTEM_ID/publish" \
+     -H "Authorization: Bearer $ADMIN_TOKEN"
+
    curl -sS -X POST "$CONTROL_PLANE_URL/api/v1/post-mortems/$POST_MORTEM_ID/distribute" \
      -H "Authorization: Bearer $ADMIN_TOKEN" \
      -H "Content-Type: application/json" \
@@ -84,6 +88,6 @@ The mock response shapes are covered by `tests/fixtures/incident_response/provid
 ## Expected Signals
 
 - Kafka emits `incident.triggered` on create and `incident.resolved` on resolve.
-- Provider failure records remain attached to the local incident and are retried by the delivery scanner.
+- Provider success or failure records remain attached to the local incident. With the placeholder E2E credential, the delivery row can legitimately show a provider failure.
 - Integration and runbook mutations append audit-chain entries without credential values.
 - Timeline coverage is never silently complete: unavailable or partial sources are visible in both API responses and the post-mortem UI.

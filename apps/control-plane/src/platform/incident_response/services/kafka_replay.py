@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import json
 from datetime import datetime
 from platform.common.config import PlatformSettings
@@ -41,8 +42,8 @@ class KafkaTimelineReplay:
             bootstrap_servers=self.settings.kafka.brokers,
             enable_auto_commit=False,
         )
-        await consumer.start()
         try:
+            await consumer.start()
             partitions: list[TopicPartition] = []
             for topic in topics:
                 topic_partitions = consumer.partitions_for_topic(topic) or set()
@@ -58,14 +59,14 @@ class KafkaTimelineReplay:
             for partition in partitions:
                 offset_and_timestamp = offsets.get(partition)
                 if offset_and_timestamp is None:
-                    await consumer.seek(partition, end_offsets[partition])
+                    await _maybe_await(consumer.seek(partition, end_offsets[partition]))
                     self.last_window_partial = True
                     continue
                 if offset_and_timestamp.offset > 0:
                     beginning = (await consumer.beginning_offsets([partition]))[partition]
                     if offset_and_timestamp.offset <= beginning:
                         self.last_window_partial = True
-                await consumer.seek(partition, offset_and_timestamp.offset)
+                await _maybe_await(consumer.seek(partition, offset_and_timestamp.offset))
 
             entries: list[TimelineEntry] = []
             while True:
@@ -106,6 +107,11 @@ def _decode(value: bytes | None) -> str | None:
         return value.decode("utf-8")
     except UnicodeDecodeError:
         return None
+
+
+async def _maybe_await(value: Any) -> None:
+    if inspect.isawaitable(value):
+        await value
 
 
 def _load_json(value: bytes | None) -> dict[str, Any]:

@@ -249,6 +249,14 @@ async def test_rotatable_secret_provider_reads_cache_env_vault_and_writes_state(
     )
     assert await env_provider.get_current("api-key") == "env-current"
     assert await env_provider.get_previous("api-key") is None
+    monkeypatch.setenv(
+        "ROTATING_SECRET_INCIDENT_RESPONSE_INTEGRATIONS_LOCAL_PAGERDUTY_CURRENT",
+        "env-routing-key",
+    )
+    assert (
+        await env_provider.get_current("incident-response/integrations/local-pagerduty")
+        == "env-routing-key"
+    )
 
     with pytest.raises(RuntimeError):
         await RotatableSecretProvider(
