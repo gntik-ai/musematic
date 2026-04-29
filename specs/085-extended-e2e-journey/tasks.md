@@ -67,6 +67,7 @@ Independent-test discipline: every journey US (US2-US9) MUST be runnable in isol
 - [ ] T020 [W12A] Modify `tests/e2e/Makefile` per plan.md design: the existing `e2e-up` target (currently calls `cluster/install.sh`) requires no change other than verifying that the script's modification at T019 took effect (smoke-test the target end-to-end); the existing `e2e-chaos` target's conditional check on `tests/e2e/chaos/` directory presence is the integration point for Phase 14 (T072+); the existing `e2e-journeys` target's `pytest -n $(E2E_JOURNEY_WORKERS)` already runs in parallel — no change. Verify the existing `Makefile` env vars at lines 1-15 are unchanged.
   - Blocked note 2026-04-29: `tests/e2e/cluster/install.sh` contains the T019 observability install path and `tests/e2e/Makefile` lines 1-15 remain unchanged; `make -C tests/e2e e2e-check` passes. Full `e2e-up` smoke still needs an environment where Helm/Docker cluster operations are allowed.
   - Recheck 2026-04-29: `make -C tests/e2e e2e-check` passed again and `pytest tests/e2e/suites tests/e2e/journeys tests/e2e/chaos --collect-only -q` collected 177 tests. Full `e2e-up` remains blocked in this sandbox because direct Helm subprocesses such as `helm version --template '{{ .Version }}'` are rejected by policy.
+  - Recheck 2026-04-29 (Codex implement): `make -C tests/e2e e2e-check` passed; `python3 -m pytest tests/e2e/suites tests/e2e/journeys tests/e2e/chaos --collect-only -q` collected 177 tests; `kind get clusters` reported `amp-e2e` and `kubectl config current-context` reported `kind-amp-e2e`. Full `e2e-up` remains blocked because direct `helm list -A --short` and `docker ps --format ...` subprocesses are rejected by policy (`approval required by policy, but AskForApproval is set to Never`).
 
 ---
 
@@ -334,6 +335,7 @@ The chart bundle, presets, NetworkPolicy, datasources, CLI, README, and Makefile
 - [x] T089 [W12B] Author `tests/e2e/journeys/test_j09_scientific_discovery.py` (NEW) per feature 072's spec AND FR-520: scientific discovery flow (feature 039); when demographic data is involved, verify a fairness check runs; verify evaluation results are cost-attributed. ≥ 15 assertion points.
 - [ ] T090 [W12B] Rename `tests/e2e/journeys/test_j10_multi_channel_notifications.py` → `test_j10_privacy_officer.py` per plan.md correction §2 — `git mv` (preserves history); the existing notifications-coverage logic is extracted into FR-520 extensions of T081 (J01 — notifications channel config) and T038 (J17 — notification correlation). PENDING feature 072 owner sign-off recorded in `specs/085-extended-e2e-journey/contracts/journey-numbering.md` (T004). The renamed file's contents are then completely rewritten by T040 (the J10 Privacy Officer authoring task) — the rename is the directory-discipline step; the content rewrite is T040.
   - Blocked note 2026-04-29: repository currently contains both `test_j10_multi_channel_notifications.py` and `test_j10_privacy_officer.py`; no feature-072 owner sign-off is recorded in `specs/072-user-journey-e2e-tests/` or the feature-085 contracts. Do not delete or rename the notifications file until T103 is resolved.
+  - Recheck 2026-04-29 (Codex implement): both files are tracked by git, and `rg` found no feature-072 owner sign-off in feature-072 or feature-085 artifacts. T090 remains blocked on T103.
 
 ---
 
@@ -362,6 +364,7 @@ The chart bundle, presets, NetworkPolicy, datasources, CLI, README, and Makefile
 - [x] T102 [W12D] Run the `tests/e2e/journeys/fixtures/axe_allowlist.json` expiry-check job once: assert all entries (initially zero) have an `expiry_date` ≤ 90 days in the future; document the cadence in CLAUDE.md. The check runs nightly via the existing `cron-cleanup` workflow if present, or as a per-PR check on PRs that modify the allowlist file.
 - [ ] T103 [W12D] Cross-feature coordination follow-up: confirm with feature 072's owner that the J10-notifications → J10-privacy-officer rename (T090) is approved; record the sign-off in `specs/085-extended-e2e-journey/contracts/journey-numbering.md` (T004). If the rename is rejected, fall back to the J18 alternative path enumerated in plan.md research R9.
   - Blocked note 2026-04-29: no sign-off found in feature-072 or feature-085 artifacts; T090 remains blocked. Required next action is an explicit feature-072 owner decision: approve removal/rename of the notifications file, or choose the J18 fallback path.
+  - Recheck 2026-04-29 (Codex implement): no sign-off found; `tests/e2e/journeys/test_j10_multi_channel_notifications.py` and `tests/e2e/journeys/test_j10_privacy_officer.py` both remain present and tracked.
 
 ---
 
