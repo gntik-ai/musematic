@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { AdminWriteButton } from "@/components/features/admin/AdminWriteButton";
 import { TwoPersonAuthDialog } from "@/components/features/admin/TwoPersonAuthDialog";
 
 interface ConfirmationDialogProps {
@@ -57,13 +58,13 @@ export function ConfirmationDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
+          <AdminWriteButton
             variant="destructive"
             disabled={variant === "typed" && typed !== phrase}
             onClick={onConfirm}
           >
             Confirm
-          </Button>
+          </AdminWriteButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

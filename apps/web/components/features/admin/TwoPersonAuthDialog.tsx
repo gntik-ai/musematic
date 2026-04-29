@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { AdminWriteButton } from "@/components/features/admin/AdminWriteButton";
 
 interface TwoPersonAuthDialogProps {
   open: boolean;
@@ -50,7 +51,9 @@ export function TwoPersonAuthDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button onClick={onConfirm}>{mode === "initiate" ? "Request" : "Approve"}</Button>
+          <AdminWriteButton onClick={onConfirm}>
+            {mode === "initiate" ? "Request" : "Approve"}
+          </AdminWriteButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

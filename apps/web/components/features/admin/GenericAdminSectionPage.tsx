@@ -1,7 +1,8 @@
+import type * as React from "react";
 import { AdminPage } from "@/components/features/admin/AdminPage";
 import { AdminTable, type AdminTableColumn } from "@/components/features/admin/AdminTable";
+import { AdminWriteButton } from "@/components/features/admin/AdminWriteButton";
 import { EmbeddedGrafanaPanel } from "@/components/features/admin/EmbeddedGrafanaPanel";
-import { Button } from "@/components/ui/button";
 
 interface GenericAdminRow {
   id: string;
@@ -26,6 +27,8 @@ interface GenericAdminSectionPageProps {
   description?: string;
   grafanaPath?: string;
   superAdminOnly?: boolean;
+  actions?: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 export function GenericAdminSectionPage({
@@ -33,21 +36,26 @@ export function GenericAdminSectionPage({
   description,
   grafanaPath,
   superAdminOnly = false,
+  actions,
+  children,
 }: GenericAdminSectionPageProps) {
   return (
     <AdminPage
       title={title}
       description={description}
       actions={
-        <Button size="sm">
-          Create
-        </Button>
+        actions ?? (
+          <AdminWriteButton size="sm">
+            Create
+          </AdminWriteButton>
+        )
       }
       help={<p>{superAdminOnly ? "Super admin scoped." : description ?? title}</p>}
     >
       <div className="space-y-4">
+        {children}
         {grafanaPath ? <EmbeddedGrafanaPanel path={grafanaPath} title={title} /> : null}
-        <AdminTable columns={columns} rows={rows} />
+        <AdminTable columns={columns} rows={rows} savedViewsKey={title.toLowerCase()} />
       </div>
     </AdminPage>
   );

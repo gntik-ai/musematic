@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -21,6 +22,13 @@ import { useCommandPalette } from "@/components/layout/command-palette/CommandPa
 import { ThemeToggle } from "@/components/layout/theme-toggle/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { ImpersonationBanner } from "@/components/features/admin/ImpersonationBanner";
 import { ReadOnlyIndicator } from "@/components/features/admin/ReadOnlyIndicator";
 import { useAdminStore } from "@/lib/stores/admin-store";
@@ -151,7 +159,46 @@ const sections = [
 export function AdminLayout({ children, isSuperAdmin }: AdminLayoutProps) {
   const pathname = usePathname();
   const { toggle: toggleCommandPalette } = useCommandPalette();
+  const incrementTwoPaNotifications = useAdminStore((state) => state.incrementTwoPaNotifications);
   const twoPaCount = useAdminStore((state) => state.twoPersonAuthNotificationsCount);
+  const [pendingTwoPaRequests, setPendingTwoPaRequests] = useState<
+    Array<{ id: string; action: string }>
+  >([]);
+
+  useEffect(() => {
+    const baseWsUrl = process.env.NEXT_PUBLIC_WS_URL;
+    if (!baseWsUrl || typeof window === "undefined") {
+      return undefined;
+    }
+
+    const socket = new WebSocket(`${baseWsUrl}/api/v1/ws?channel=ADMIN_HEALTH`);
+    socket.onmessage = (event) => {
+      let payload: {
+        event_type?: string;
+        request_id?: string;
+        action?: string;
+      };
+      try {
+        payload = JSON.parse(String(event.data)) as {
+          event_type?: string;
+          request_id?: string;
+          action?: string;
+        };
+      } catch {
+        return;
+      }
+      if (payload.event_type !== "admin.2pa.requested") {
+        return;
+      }
+      const id = payload.request_id ?? crypto.randomUUID();
+      setPendingTwoPaRequests((current) => [
+        { id, action: payload.action ?? "admin action" },
+        ...current.filter((item) => item.id !== id),
+      ]);
+      incrementTwoPaNotifications();
+    };
+    return () => socket.close();
+  }, [incrementTwoPaNotifications]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -213,12 +260,33 @@ export function AdminLayout({ children, isSuperAdmin }: AdminLayoutProps) {
               >
                 <Search className="h-4 w-4" />
               </Button>
-              <Button variant="ghost" size="icon" aria-label="2PA requests" className="relative">
-                <Bell className="h-4 w-4" />
-                {twoPaCount > 0 ? (
-                  <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive" />
-                ) : null}
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" aria-label="2PA requests" className="relative">
+                    <Bell className="h-4 w-4" />
+                    {twoPaCount > 0 ? (
+                      <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive" />
+                    ) : null}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80">
+                  <DropdownMenuLabel>Pending 2PA requests</DropdownMenuLabel>
+                  {pendingTwoPaRequests.length === 0 ? (
+                    <div className="px-2 py-3 text-sm text-muted-foreground">
+                      No pending approval requests.
+                    </div>
+                  ) : (
+                    pendingTwoPaRequests.map((request) => (
+                      <DropdownMenuItem
+                        key={request.id}
+                        onClick={() => window.location.assign(`/admin/regions?twoPaRequest=${request.id}`)}
+                      >
+                        <span className="min-w-0 truncate">{request.action}</span>
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
               <Button asChild variant="ghost" size="icon" aria-label="Admin help">
                 <Link href="/admin/runbooks">
                   <LifeBuoy className="h-4 w-4" />

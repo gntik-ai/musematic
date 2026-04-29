@@ -26,6 +26,8 @@ class AdminActionResponse(BaseModel):
     preview: bool = False
     affected_count: int = 0
     message: str | None = None
+    bulk_action_id: UUID | None = None
+    change_preview: dict[str, Any] | None = None
 
 
 def tenant_id_from_user(current_user: dict[str, Any]) -> UUID | None:
@@ -53,6 +55,8 @@ def accepted(
     preview: bool = False,
     affected_count: int = 0,
     message: str | None = None,
+    bulk_action_id: UUID | None = None,
+    change_preview: dict[str, Any] | None = None,
 ) -> AdminActionResponse:
     return AdminActionResponse(
         action=action,
@@ -60,4 +64,6 @@ def accepted(
         preview=preview,
         affected_count=affected_count,
         message=message,
+        bulk_action_id=bulk_action_id,
+        change_preview=change_preview,
     )

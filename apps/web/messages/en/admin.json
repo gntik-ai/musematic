@@ -1,0 +1,31 @@
+{
+  "layout": {
+    "title": "Musematic Admin",
+    "adminRole": "Admin",
+    "superAdminRole": "Super admin",
+    "readOnly": "Read-only mode",
+    "twoPersonAuth": "Pending 2PA requests"
+  },
+  "actions": {
+    "create": "Create",
+    "exportConfiguration": "Export configuration",
+    "importConfiguration": "Import configuration",
+    "impersonate": "Impersonate",
+    "initiateFailoverTest": "Initiate failover test",
+    "saveView": "Save view",
+    "loadView": "Load view"
+  },
+  "sections": {
+    "identity": "Identity",
+    "tenancy": "Tenancy",
+    "configuration": "Configuration",
+    "security": "Security",
+    "operations": "Operations",
+    "cost": "Cost",
+    "observability": "Observability",
+    "integrations": "Integrations",
+    "lifecycle": "Lifecycle",
+    "audit": "Audit"
+  },
+  "readOnlyTooltip": "Disabled - this session is in read-only mode"
+}

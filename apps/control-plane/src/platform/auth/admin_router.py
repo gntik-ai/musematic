@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+from platform.admin.audit_utils import append_admin_audit
+from platform.admin.change_preview import build_change_preview
 from platform.admin.rbac import require_admin, require_superadmin
 from platform.admin.responses import (
     AdminActionResponse,
@@ -10,8 +12,12 @@ from platform.admin.responses import (
     empty_detail,
     empty_list,
 )
+from platform.audit.dependencies import get_audit_chain_service
+from platform.audit.service import AuditChainService
 from platform.common.dependencies import get_db
+from types import SimpleNamespace
 from typing import Any
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
@@ -89,14 +95,52 @@ async def delete_user(
 async def bulk_suspend_users(
     user_ids: list[str],
     preview: bool = Query(default=False),
-    _current_user: dict[str, Any] = Depends(require_admin),
+    current_user: dict[str, Any] = Depends(require_admin),
+    audit_chain: AuditChainService = Depends(get_audit_chain_service),
 ) -> AdminActionResponse:
+    operation = SimpleNamespace(
+        affected_count=len(user_ids),
+        irreversibility="reversible",
+        estimated_seconds=max(1, len(user_ids) // 25),
+        cascade_implications=["active sessions revoked", "in-flight executions paused"],
+    )
+    change_preview = build_change_preview(operation, user_ids)
+    preview_payload = {
+        "affected_count": change_preview.affected_count,
+        "irreversibility": change_preview.irreversibility,
+        "estimated_duration_seconds": int(change_preview.estimated_duration.total_seconds()),
+        "cascade_implications": change_preview.cascade_implications,
+    }
+    if preview:
+        return accepted(
+            "bulk_suspend",
+            "users",
+            preview=True,
+            affected_count=len(user_ids),
+            message="Bulk suspend preview",
+            change_preview=preview_payload,
+        )
+
+    bulk_action_id = uuid4()
+    await append_admin_audit(
+        audit_chain,
+        event_type="admin.users.bulk_suspend",
+        actor=current_user,
+        payload={
+            "bulk_action_id": str(bulk_action_id),
+            "user_ids": user_ids,
+            "affected_count": len(user_ids),
+            "change_preview": preview_payload,
+        },
+    )
     return accepted(
         "bulk_suspend",
         "users",
         preview=preview,
         affected_count=len(user_ids),
-        message="Bulk suspend accepted" if not preview else "Bulk suspend preview",
+        message="Bulk suspend accepted",
+        bulk_action_id=bulk_action_id,
+        change_preview=preview_payload,
     )
 
 

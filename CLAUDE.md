@@ -3,6 +3,7 @@
 Auto-generated from all feature plans. Last updated: 2026-04-29
 
 ## Active Technologies
+- Python 3.12+ (control plane + CLI), TypeScript 5.x strict (Next.js admin workbench), YAML (Helm/GitHub Actions); PostgreSQL adds 2PA/impersonation/session/checklist fields; Kafka topic `admin.events` (086-administrator-workbench-and)
 - Python 3.12+ (control plane client), Go 1.22+ (reasoning engine client) + `redis-py 5.x` (Python async), `go-redis/redis/v9` (Go), Bitnami `redis-cluster` Helm chart (002-redis-cache-hot-state)
 - Redis 7 with AOF persistence (append-only file, fsync every second) (002-redis-cache-hot-state)
 - Python 3.12+ (control plane), Go 1.22+ (reasoning engine) + aiokafka 0.11+ (Python producer/consumer), confluent-kafka-go v2 (Go producer), Strimzi operator (Kubernetes Kafka), Helm 3.x (003-kafka-event-backbone)
@@ -155,6 +156,7 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 086-administrator-workbench-and: Added headless super-admin bootstrap, `/api/v1/admin/*` composition, admin workbench route group, 2PA/impersonation/read-only/config import-export primitives, and constitutional admin CI checks; brownfield corrections include the `(admin)` route-group clean cut, `two_person_auth_*` filenames, `admin.events`, and bootstrap Job env-var mapping.
 - 085-extended-e2e-journey: Added observability umbrella lifecycle checks, real-backend assertion helpers, J10-J17 journey contracts, audit-pass BC suites, chaos scenario coverage, and `platform-cli observability` docs. Current chart dashboard inventory is 23, not the original 22, because feature 083 added `localization.yaml`; axe allowlist entries must expire within 90 days; J10 notifications rename remains gated on feature 072 owner sign-off.
 - 083-accessibility-i18n: Added localization BC + cross-cutting frontend accessibility/i18n work. Frontend is `apps/web/`, NOT `apps/ui/`. `next-themes` and `cmdk` were already wired; this feature added High-Contrast, per-route command registration, and `?` help overlay. User-preference storage is owned by `localization/`, not `auth/` or `accounts`; use `LocalizationService.get_for_user()` / `get_user_language()`. Rule 13 CI enforcement is the custom ESLint rule at `apps/web/eslint/no-hardcoded-jsx-strings.js`; rule 28 is `pnpm test:a11y`; rule 38 is the `localization-drift-check` CI job. Maintenance-gate fail-open from feature 081 is unrelated to notification-language fallback here.
 - 082-tags-labels-saved-views: Added Python 3.12+ (control plane). No Go changes. `common/tagging/` is a shared substrate, NOT a bounded context, so do not create rule-24/25 per-BC dashboard/E2E work for it. Brownfield corrections: `policies/services/policy_engine.py` and `registry/services/registry_query_service.py` do not exist; canonical sites are `governance/services/judge_service.py:19` and `registry/service.py:371`. The seventh entity is `evaluation_runs`, NOT `evaluation_suites`. Cascade-on-delete is application-layer, not FK cascade; each entity BC delete path is the canonical cascade trigger.

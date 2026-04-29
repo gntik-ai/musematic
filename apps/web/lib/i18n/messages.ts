@@ -14,14 +14,31 @@ const MESSAGE_LOADERS = {
   "zh-CN": () => import("@/messages/zh-CN.json").then((module) => module.default),
 } satisfies Record<Locale, () => Promise<IntlMessages>>;
 
+const ADMIN_MESSAGE_LOADERS = {
+  en: () => import("@/messages/en/admin.json").then((module) => module.default),
+  es: () => import("@/messages/es/admin.json").then((module) => module.default),
+  fr: () => import("@/messages/fr/admin.json").then((module) => module.default),
+  de: () => import("@/messages/de/admin.json").then((module) => module.default),
+  ja: () => import("@/messages/ja/admin.json").then((module) => module.default),
+  "zh-CN": () => import("@/messages/zh/admin.json").then((module) => module.default),
+} satisfies Record<Locale, () => Promise<IntlMessages>>;
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 export async function loadMessagesWithFallback(locale: Locale): Promise<IntlMessages> {
-  const englishMessages = await MESSAGE_LOADERS[DEFAULT_LOCALE]();
+  const englishMessages = await loadCommittedMessages(DEFAULT_LOCALE);
   const runtimeMessages = await fetchRuntimeMessages(locale);
   const localizedMessages =
-    runtimeMessages ?? (locale === DEFAULT_LOCALE ? englishMessages : await MESSAGE_LOADERS[locale]());
+    runtimeMessages ?? (locale === DEFAULT_LOCALE ? englishMessages : await loadCommittedMessages(locale));
   return mergeMessages(englishMessages, localizedMessages);
+}
+
+async function loadCommittedMessages(locale: Locale): Promise<IntlMessages> {
+  const [baseMessages, adminMessages] = await Promise.all([
+    MESSAGE_LOADERS[locale](),
+    ADMIN_MESSAGE_LOADERS[locale](),
+  ]);
+  return mergeMessages(baseMessages, { admin: adminMessages });
 }
 
 export function mergeMessages(

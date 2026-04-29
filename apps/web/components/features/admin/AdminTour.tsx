@@ -1,13 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useAuthStore } from "@/store/auth-store";
 
 const steps = ["Navigation", "Users", "Workspaces", "Audit", "Help"] as const;
 
 export function AdminTour() {
+  const user = useAuthStore((state) => state.user);
   const [index, setIndex] = useState(0);
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(false);
+  const storageKey = useMemo(
+    () => `admin-tour-completed:${user?.id ?? user?.email ?? "anonymous"}`,
+    [user?.email, user?.id],
+  );
+  const roles = user?.roles ?? [];
+  const isSuperAdmin = roles.includes("superadmin");
+
+  useEffect(() => {
+    if (isSuperAdmin) {
+      setVisible(false);
+      return;
+    }
+    setVisible(window.localStorage.getItem(storageKey) !== "true");
+  }, [isSuperAdmin, storageKey]);
+
+  function completeTour() {
+    window.localStorage.setItem(storageKey, "true");
+    setVisible(false);
+  }
 
   if (!visible) {
     return null;
@@ -29,7 +50,7 @@ export function AdminTour() {
           size="sm"
           onClick={() => {
             if (index === steps.length - 1) {
-              setVisible(false);
+              completeTour();
               return;
             }
             setIndex((value) => value + 1);
@@ -37,7 +58,7 @@ export function AdminTour() {
         >
           {index === steps.length - 1 ? "Done" : "Next"}
         </Button>
-        <Button size="sm" variant="ghost" onClick={() => setVisible(false)}>
+        <Button size="sm" variant="ghost" onClick={completeTour}>
           Dismiss
         </Button>
       </div>

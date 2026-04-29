@@ -133,6 +133,10 @@ def upgrade() -> None:
             nullable=True,
         ),
     )
+    op.add_column(
+        "users",
+        sa.Column("tour_completed_at", sa.DateTime(timezone=True), nullable=True),
+    )
     op.create_index(
         "uq_users_username_active",
         "users",
@@ -248,6 +252,7 @@ def downgrade() -> None:
     op.drop_column("sessions", "admin_read_only_mode")
 
     op.drop_index("uq_users_username_active", table_name="users")
+    op.drop_column("users", "tour_completed_at")
     op.drop_column("users", "first_install_checklist_state")
     op.drop_column("users", "force_password_change")
     op.drop_column("users", "mfa_required_before_login")

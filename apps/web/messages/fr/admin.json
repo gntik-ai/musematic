@@ -1,0 +1,31 @@
+{
+  "layout": {
+    "title": "Musematic Admin",
+    "adminRole": "Admin",
+    "superAdminRole": "Super admin",
+    "readOnly": "Mode lecture seule",
+    "twoPersonAuth": "Demandes 2PA en attente"
+  },
+  "actions": {
+    "create": "Creer",
+    "exportConfiguration": "Exporter la configuration",
+    "importConfiguration": "Importer la configuration",
+    "impersonate": "Usurper",
+    "initiateFailoverTest": "Lancer un test de bascule",
+    "saveView": "Enregistrer la vue",
+    "loadView": "Charger la vue"
+  },
+  "sections": {
+    "identity": "Identite",
+    "tenancy": "Tenants",
+    "configuration": "Configuration",
+    "security": "Securite",
+    "operations": "Operations",
+    "cost": "Couts",
+    "observability": "Observabilite",
+    "integrations": "Integrations",
+    "lifecycle": "Cycle de vie",
+    "audit": "Audit"
+  },
+  "readOnlyTooltip": "Desactive - cette session est en mode lecture seule"
+}
