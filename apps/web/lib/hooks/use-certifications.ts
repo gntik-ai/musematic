@@ -4,6 +4,7 @@ import { ApiError } from "@/types/api";
 import { createApiClient } from "@/lib/api";
 import { useAppQuery } from "@/lib/hooks/use-api";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
+import { appendTagLabelFilters } from "@/lib/tagging/filter-query";
 import type {
   CertificationDetail,
   CertificationListEntry,
@@ -295,6 +296,10 @@ function buildQueuePath(filters: CertificationQueueFilters): string {
   if (filters.search) {
     searchParams.set("search", filters.search);
   }
+  appendTagLabelFilters(searchParams, {
+    tags: filters.tags,
+    labels: filters.labels,
+  });
 
   return `/api/v1/trust/certifications?${searchParams.toString()}`;
 }

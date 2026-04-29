@@ -3,6 +3,7 @@ from __future__ import annotations
 import hmac
 from hashlib import sha256
 from platform.common.dependencies import get_current_user
+from platform.common.tagging.filter_extension import parse_tag_label_filters
 from platform.execution.dependencies import get_execution_service
 from platform.execution.schemas import ExecutionCreate
 from platform.execution.service import ExecutionService
@@ -43,9 +44,10 @@ async def create_workflow(
 
 @router.get("", response_model=WorkflowListResponse)
 async def list_workflows(
+    request: Request,
     workspace_id: UUID = Query(...),
     status: WorkflowStatus | None = Query(default=None),
-    tags: str | None = Query(default=None),
+    definition_tags: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     current_user: dict[str, Any] = Depends(get_current_user),
@@ -53,13 +55,17 @@ async def list_workflows(
 ) -> WorkflowListResponse:
     """List workflows."""
     del current_user
-    parsed_tags = [item.strip() for item in tags.split(",")] if tags else None
+    tag_label_filters = parse_tag_label_filters(request)
+    parsed_tags = (
+        [item.strip() for item in definition_tags.split(",")] if definition_tags else None
+    )
     return await workflow_service.list_workflows(
         workspace_id=workspace_id,
         status=status,
         tags=parsed_tags,
         page=page,
         page_size=page_size,
+        tag_label_filters=tag_label_filters,
     )
 
 

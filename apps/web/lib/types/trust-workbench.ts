@@ -270,6 +270,8 @@ export interface ReviewDecisionFormValues {
 export interface CertificationQueueFilters {
   status: CertificationQueueStatus | null;
   search: string;
+  tags: string[];
+  labels: Record<string, string>;
   sort_by: CertificationQueueSortField;
   page: number;
   page_size: (typeof TRUST_WORKBENCH_PAGE_SIZES)[number];
@@ -278,6 +280,8 @@ export interface CertificationQueueFilters {
 export const DEFAULT_CERTIFICATION_QUEUE_FILTERS: CertificationQueueFilters = {
   status: null,
   search: "",
+  tags: [],
+  labels: {},
   sort_by: "expiration",
   page: 1,
   page_size: 20,

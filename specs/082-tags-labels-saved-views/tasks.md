@@ -78,7 +78,7 @@ Each user story is independently testable per spec.md.
   - `trust/service.py` `TrustService.delete_certification` — call with `("certification", id)`
   - `evaluation/service.py` `EvaluationService.delete_run` — call with `("evaluation_run", id)`
   - All seven calls happen INSIDE each BC's existing delete transaction so deletion + tag-cascade are atomic per the plan's cascade contract
-- [ ] T022 [US1] Add a `list_visible_<entity>(requester) -> set[UUID]` service-interface method to **each of the seven entity BCs** (additive; preserves existing public method shapes per rule 7):
+- [X] T022 [US1] Add a `list_visible_<entity>(requester) -> set[UUID]` service-interface method to **each of the seven entity BCs** (additive; preserves existing public method shapes per rule 7):
   - `WorkspaceService.list_visible_workspaces(requester) -> set[UUID]`
   - `RegistryService.list_visible_agents(requester) -> set[UUID]`
   - `FleetService.list_visible_fleets(requester) -> set[UUID]`
@@ -117,7 +117,7 @@ Each user story is independently testable per spec.md.
   - `async def list_for_entity(entity_type, entity_id, requester) -> list[LabelResponse]` — each response carries `is_reserved` computed at read time
   - `async def filter_query(entity_type, label_filters: dict[str,str], requester, cursor, limit) -> set[UUID]` — calls `visibility_resolver.resolve_visible_entity_ids(requester, entity_types=[entity_type])` first; passes the visible-id set to `repository.filter_entities_by_labels` for the JOIN
   - `async def cascade_on_entity_deletion(entity_type, entity_id)` — invoked by each entity BC's delete path in the same transaction (combined with `TagService.cascade_on_entity_deletion` into a single repository call per T010)
-- [ ] T032 [US2] Wire **label-filter pass-through into all seven entity BC listing endpoints** (additive query parameters; existing callers see no behaviour change per rule 7):
+- [X] T032 [US2] Wire **label-filter pass-through into all seven entity BC listing endpoints** (additive query parameters; existing callers see no behaviour change per rule 7):
   - `workspaces/router.py` list-workspaces: accept `?tags=&label.key=` via `filter_extension.parse_tag_label_filters`; on the service side, intersect the existing visibility filter with `LabelService.filter_query`'s result
   - `registry/router.py` `list_agents` at `:147`: accept the same params; `RegistryService.list_agents` at `:371` extends `AgentDiscoveryParams` with `tags` and `labels` fields; the resulting visible-id set is intersected with the JOIN filter (NOT post-filtered in Python — index-served per the perf goal)
   - `fleets/router.py`, `workflows/router.py`, `policies/router.py`, `trust/router.py`, `evaluation/router.py`: same pattern across all seven
@@ -235,7 +235,7 @@ Each user story is independently testable per spec.md.
   - `CrossEntityTagSearch.tsx` — extends the platform shell's command palette (existing cmd+K via `cmdk` per feature 015) with a `tag:` prefix; `tag:production` returns visible entities grouped by type
   - `LabelExpressionEditor.tsx` — Monaco-Editor-backed input for label expressions (in policy authoring); calls `useLabelExpressionValidate` on debounced input; renders syntax errors inline with the line+col pointer per FR-511.18
   - `ReservedLabelBadge.tsx` — visual indicator for reserved-namespace labels
-- [ ] T065 [US-FE] Integrate the components into the **seven existing list pages**:
+- [X] T065 [US-FE] Integrate the components into the **seven existing list pages**:
   - `apps/web/app/(main)/agents/page.tsx` — toolbar carries `<SavedViewPicker entityType="agent" />`, `<TagFilterBar />`, `<LabelFilterPopover />`; agent detail row shows `<TagEditor>` and `<LabelEditor>`
   - `fleet/page.tsx`
   - `workflow-editor-monitor/page.tsx`
@@ -244,7 +244,7 @@ Each user story is independently testable per spec.md.
   - `trust-workbench/` certifications page
   - the evaluation runs page
   - Each page calls the same shared components — uniform UX across all seven entity types
-- [ ] T066 [US-FE] Extend the **policy authoring UI** to embed `<LabelExpressionEditor>` for the new `label_expression` field; live validation feedback as the user types (debounced 300ms); on save, the backend's parser validation is the source of truth; client-side validation is a UX hint only (FR-511.18 + SC-008)
+- [X] T066 [US-FE] Extend the **policy authoring UI** to embed `<LabelExpressionEditor>` for the new `label_expression` field; live validation feedback as the user types (debounced 300ms); on save, the backend's parser validation is the source of truth; client-side validation is a UX hint only (FR-511.18 + SC-008)
 - [ ] T067 [P] [US-FE] Vitest + RTL component tests:
   - `TagEditor`: per-entity ceiling client-side hint; idempotent re-add visually a no-op; pattern violation rejected client-side with the same regex as `TAG_PATTERN`
   - `LabelEditor`: reserved-namespace keys disabled for non-superadmin (badge tooltip explains); upsert flow shows optimistic update with rollback on 403/422

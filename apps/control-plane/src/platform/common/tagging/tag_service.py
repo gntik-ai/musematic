@@ -131,6 +131,27 @@ class TagService:
             next_cursor=next_cursor,
         )
 
+    async def filter_query(
+        self,
+        entity_type: str,
+        tags: list[str],
+        visible_entity_ids: set[UUID],
+        *,
+        cursor: str | None = None,
+        limit: int = 100,
+    ) -> list[UUID]:
+        self._validate_entity_type(entity_type)
+        normalized = [
+            self._validate_tag(entity_type, tag, validate_entity=False) for tag in tags
+        ]
+        return await self.repository.filter_entities_by_tags(
+            entity_type,
+            normalized,
+            visible_entity_ids,
+            cursor=cursor,
+            limit=limit,
+        )
+
     async def cascade_on_entity_deletion(self, entity_type: str, entity_id: UUID) -> None:
         self._validate_entity_type(entity_type)
         await self.repository.cascade_on_entity_deletion(entity_type, entity_id)
@@ -194,4 +215,3 @@ class TagService:
     @staticmethod
     def _tag_response(row: Any) -> TagResponse:
         return TagResponse(tag=row.tag, created_by=row.created_by, created_at=row.created_at)
-

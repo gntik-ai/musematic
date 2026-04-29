@@ -181,6 +181,8 @@ export interface FleetListFilters {
   search: string;
   topology_type: FleetTopologyType[];
   status: FleetStatus[];
+  tags: string[];
+  labels: Record<string, string>;
   health_min: number | null;
   sort_by: "name" | "health_pct" | "member_count" | "updated_at";
   sort_order: "asc" | "desc";
@@ -230,6 +232,8 @@ export const DEFAULT_FLEET_LIST_FILTERS: FleetListFilters = {
   search: "",
   topology_type: [],
   status: [],
+  tags: [],
+  labels: {},
   health_min: null,
   sort_by: "updated_at",
   sort_order: "desc",
@@ -287,4 +291,3 @@ export function getFleetHealthTone(healthPct: number): "critical" | "warning" | 
   }
   return "healthy";
 }
-

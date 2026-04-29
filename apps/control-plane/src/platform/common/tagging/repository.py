@@ -100,6 +100,33 @@ class TaggingRepository:
         )
         return [(str(entity_type), UUID(str(entity_id))) for entity_type, entity_id in result.all()]
 
+    async def filter_entities_by_tags(
+        self,
+        entity_type: str,
+        tags: list[str],
+        visible_entity_ids: set[UUID],
+        *,
+        cursor: str | None,
+        limit: int,
+    ) -> list[UUID]:
+        if not tags or not visible_entity_ids:
+            return []
+        offset = int(cursor or 0)
+        result = await self.session.execute(
+            select(EntityTag.entity_id)
+            .where(
+                EntityTag.entity_type == entity_type,
+                EntityTag.entity_id.in_(_sorted_uuids(visible_entity_ids)),
+                EntityTag.tag.in_(sorted(set(tags))),
+            )
+            .group_by(EntityTag.entity_id)
+            .having(func.count(func.distinct(EntityTag.tag)) == len(set(tags)))
+            .order_by(EntityTag.entity_id.asc())
+            .offset(offset)
+            .limit(limit)
+        )
+        return [UUID(str(entity_id)) for entity_id in result.scalars().all()]
+
     async def count_tags_for_entity(self, entity_type: str, entity_id: UUID) -> int:
         total = await self.session.scalar(
             select(func.count())

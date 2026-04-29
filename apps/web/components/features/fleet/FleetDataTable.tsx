@@ -7,12 +7,14 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FleetStatusBadge } from "@/components/features/fleet/FleetStatusBadge";
 import { FleetTopologyBadge } from "@/components/features/fleet/FleetTopologyBadge";
+import { TagLabelFilterToolbar } from "@/components/features/tagging/TagLabelFilterToolbar";
 import { DataTable } from "@/components/shared/DataTable";
 import { FilterBar, type FilterDefinition } from "@/components/shared/FilterBar";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { Button } from "@/components/ui/button";
 import { useFleets } from "@/lib/hooks/use-fleets";
 import { parseFleetListFilters, serializeFleetListFilters } from "@/lib/schemas/fleet";
+import { savedViewFiltersToSearchParams } from "@/lib/tagging/filter-query";
 import {
   DEFAULT_FLEET_LIST_FILTERS,
   FLEET_STATUS_LABELS,
@@ -158,6 +160,21 @@ export function FleetDataTable({ workspace_id }: FleetDataTableProps) {
     router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
   };
 
+  const applySavedView = (savedFilters: Record<string, unknown>) => {
+    const nextParams = savedViewFiltersToSearchParams(searchParams, savedFilters, [
+      "search",
+      "topology_type",
+      "status",
+      "health_min",
+      "sort_by",
+      "sort_order",
+      "page",
+      "size",
+    ]);
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+  };
+
   const currentPage = fleetsQuery.data?.page ?? filters.page;
   const pageSize = fleetsQuery.data?.size ?? filters.size;
   const total = fleetsQuery.data?.total ?? 0;
@@ -203,6 +220,20 @@ export function FleetDataTable({ workspace_id }: FleetDataTableProps) {
           } as Partial<FleetListFilters>);
         }}
         onClear={() => updateSearchParams({ ...DEFAULT_FLEET_LIST_FILTERS })}
+      />
+      <TagLabelFilterToolbar
+        entityType="fleet"
+        savedViewFilters={{ ...filters }}
+        value={{ tags: filters.tags, labels: filters.labels }}
+        workspaceId={workspace_id}
+        onApplySavedView={applySavedView}
+        onChange={(nextFilters) =>
+          updateSearchParams({
+            tags: nextFilters.tags,
+            labels: nextFilters.labels,
+            page: 1,
+          })
+        }
       />
 
       <DataTable

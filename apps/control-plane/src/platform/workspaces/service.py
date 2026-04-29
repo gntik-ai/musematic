@@ -4,6 +4,8 @@ from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import NotFoundError
+from platform.common.tagging.filter_extension import TagLabelFilterParams
+from platform.common.tagging.listing import resolve_filtered_entity_ids
 from platform.workspaces.events import (
     GoalPayload,
     MembershipPayload,
@@ -82,6 +84,7 @@ class WorkspacesService:
         cost_governance_service: Any | None = None,
         incident_response_service: Any | None = None,
         saved_view_service: Any | None = None,
+        tagging_service: Any | None = None,
     ) -> None:
         self.repo = repo
         self.platform_settings = settings
@@ -91,6 +94,7 @@ class WorkspacesService:
         self.cost_governance_service = cost_governance_service
         self.incident_response_service = incident_response_service
         self.saved_view_service = saved_view_service
+        self.tagging_service = tagging_service
         self.two_person_approval_service: Any | None = None
 
     async def create_workspace(
@@ -167,9 +171,19 @@ class WorkspacesService:
         page: int,
         page_size: int,
         status_filter: WorkspaceStatus | None,
+        tag_label_filters: TagLabelFilterParams | None = None,
+        tag_service: Any | None = None,
+        label_service: Any | None = None,
     ) -> WorkspaceListResponse:
+        allowed_ids = await resolve_filtered_entity_ids(
+            entity_type="workspace",
+            visible_entity_ids=set(await self.list_visible_workspaces(user_id)),
+            filters=tag_label_filters,
+            tag_service=tag_service,
+            label_service=label_service,
+        )
         items, total = await self.repo.list_workspaces_for_user(
-            user_id, page, page_size, status_filter
+            user_id, page, page_size, status_filter, allowed_ids=allowed_ids
         )
         return WorkspaceListResponse(
             items=[self._workspace_response(item) for item in items],
@@ -285,6 +299,8 @@ class WorkspacesService:
                 "Workspace must be archived before deletion",
             )
         deleted = await self.repo.delete_workspace(workspace)
+        if self.tagging_service is not None:
+            await self.tagging_service.cascade_on_entity_deletion("workspace", deleted.id)
         await publish_workspace_deleted(
             self.kafka_producer,
             self._workspace_payload(deleted),
@@ -691,6 +707,14 @@ class WorkspacesService:
 
     async def get_user_workspace_ids(self, user_id: UUID) -> list[UUID]:
         return await self.repo.get_user_workspace_ids(user_id)
+
+    async def list_visible_workspaces(self, requester: UUID | dict[str, Any]) -> set[UUID]:
+        user_id = (
+            UUID(str(requester.get("sub") or requester.get("user_id")))
+            if isinstance(requester, dict)
+            else UUID(str(requester))
+        )
+        return set(await self.repo.get_user_workspace_ids(user_id))
 
     async def get_workspace_id_for_resource(
         self,

@@ -49,6 +49,9 @@ def build_registry_service(
     qdrant: AsyncQdrantClient,
     workspaces_service: WorkspacesService,
     producer: EventProducer | None,
+    tag_service: object | None = None,
+    label_service: object | None = None,
+    tagging_service: object | None = None,
 ) -> RegistryService:
     return RegistryService(
         repository=RegistryRepository(
@@ -65,6 +68,9 @@ def build_registry_service(
         settings=settings,
         pia_service=build_pia_service(session=session, producer=producer),
         package_validator=PackageValidator(settings),
+        tag_service=tag_service,
+        label_service=label_service,
+        tagging_service=tagging_service,
     )
 
 
@@ -73,6 +79,12 @@ async def get_registry_service(
     session: AsyncSession = Depends(get_db),
     workspaces_service: WorkspacesService = Depends(get_workspaces_service),
 ) -> RegistryService:
+    from platform.common.tagging.dependencies import (
+        get_label_service,
+        get_tag_service,
+        get_tagging_service,
+    )
+
     return build_registry_service(
         session=session,
         settings=_get_settings(request),
@@ -81,4 +93,7 @@ async def get_registry_service(
         qdrant=_get_qdrant(request),
         workspaces_service=workspaces_service,
         producer=_get_producer(request),
+        tag_service=await get_tag_service(request, session),
+        label_service=await get_label_service(request, session),
+        tagging_service=await get_tagging_service(request, session),
     )

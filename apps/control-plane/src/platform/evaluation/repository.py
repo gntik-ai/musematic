@@ -220,6 +220,7 @@ class EvaluationRepository:
         status: Any | None,
         page: int,
         page_size: int,
+        allowed_ids: set[UUID] | None = None,
     ) -> tuple[list[EvaluationRun], int]:
         filters = [EvaluationRun.workspace_id == workspace_id]
         if eval_set_id is not None:
@@ -228,6 +229,10 @@ class EvaluationRepository:
             filters.append(EvaluationRun.agent_fqn == agent_fqn)
         if status is not None:
             filters.append(EvaluationRun.status == status)
+        if allowed_ids is not None:
+            if not allowed_ids:
+                return [], 0
+            filters.append(EvaluationRun.id.in_(sorted(allowed_ids, key=str)))
         total = await self.session.scalar(
             select(func.count()).select_from(EvaluationRun).where(*filters)
         )

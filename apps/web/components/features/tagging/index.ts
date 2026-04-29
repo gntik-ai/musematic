@@ -7,3 +7,4 @@ export * from "./SavedViewPicker";
 export * from "./SavedViewSaveDialog";
 export * from "./TagEditor";
 export * from "./TagFilterBar";
+export * from "./TagLabelFilterToolbar";

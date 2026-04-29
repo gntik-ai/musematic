@@ -101,7 +101,7 @@ describe("EvalSuiteDataTable", () => {
     renderWithProviders(
       <EvalSuiteDataTable
         data={evalSuites}
-        filters={{ page: 1, search: "", status: "all" }}
+        filters={{ labels: {}, page: 1, search: "", status: "all", tags: [] }}
         onCreate={onCreate}
         onFiltersChange={onFiltersChange}
         onRowClick={onRowClick}

@@ -49,6 +49,7 @@ class PolicyRepository:
         workspace_id: UUID | None,
         offset: int,
         limit: int,
+        allowed_ids: set[UUID] | None = None,
     ) -> tuple[list[PolicyPolicy], int]:
         filters = []
         if scope_type is not None:
@@ -57,6 +58,10 @@ class PolicyRepository:
             filters.append(PolicyPolicy.status == status)
         if workspace_id is not None:
             filters.append(PolicyPolicy.workspace_id == workspace_id)
+        if allowed_ids is not None:
+            if not allowed_ids:
+                return [], 0
+            filters.append(PolicyPolicy.id.in_(sorted(allowed_ids, key=str)))
         total = await self.session.scalar(
             select(func.count()).select_from(PolicyPolicy).where(*filters)
         )

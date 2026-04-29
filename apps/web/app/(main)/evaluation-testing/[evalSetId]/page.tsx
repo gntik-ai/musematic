@@ -5,6 +5,7 @@ import { use, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AdversarialTestReviewModal } from "@/components/features/eval/AdversarialTestReviewModal";
 import { EvalRunList } from "@/components/features/eval/EvalRunList";
+import { TagLabelFilterToolbar } from "@/components/features/tagging/TagLabelFilterToolbar";
 import { CalibrationBoxplot } from "@/components/features/evaluation/calibration-boxplot";
 import { RubricEditor } from "@/components/features/evaluation/rubric-editor";
 import { TrajectoryComparisonSelector } from "@/components/features/evaluation/trajectory-comparison-selector";
@@ -18,6 +19,11 @@ import { useEvalRuns } from "@/lib/hooks/use-eval-runs";
 import { useEvalSet } from "@/lib/hooks/use-eval-sets";
 import { useRubricEditor } from "@/lib/hooks/use-rubric-editor";
 import { useAteConfigs } from "@/lib/hooks/use-ate";
+import {
+  parseTagLabelFilters,
+  savedViewFiltersToSearchParams,
+  writeTagLabelFilters,
+} from "@/lib/tagging/filter-query";
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import type { TrajectoryComparisonMethod } from "@/types/evaluation";
@@ -41,8 +47,12 @@ export default function EvalSuiteDetailPage({ params }: EvalSuiteDetailPageProps
   const currentWorkspaceId = useWorkspaceStore((state) => state.currentWorkspace?.id ?? null);
   const authWorkspaceId = useAuthStore((state) => state.user?.workspaceId ?? null);
   const workspaceId = currentWorkspaceId ?? authWorkspaceId;
+  const tagLabelFilters = useMemo(
+    () => parseTagLabelFilters(searchParams),
+    [searchParams],
+  );
   const evalSetQuery = useEvalSet(evalSetId);
-  const runsQuery = useEvalRuns(workspaceId ?? "", evalSetId);
+  const runsQuery = useEvalRuns(workspaceId ?? "", evalSetId, tagLabelFilters);
   const ateConfigsQuery = useAteConfigs(workspaceId ?? "");
   const { runEval } = useEvalMutations();
   const { rubric, saveRubric } = useRubricEditor(evalSetId);
@@ -70,6 +80,11 @@ export default function EvalSuiteDetailPage({ params }: EvalSuiteDetailPageProps
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.set("section", section);
     router.replace(`${pathname}?${nextParams.toString()}`);
+  };
+
+  const replaceSearchParams = (nextParams: URLSearchParams) => {
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
   };
 
   if (!workspaceId) {
@@ -124,6 +139,21 @@ export default function EvalSuiteDetailPage({ params }: EvalSuiteDetailPageProps
           </div>
         </div>
       </div>
+
+      <TagLabelFilterToolbar
+        entityType="evaluation_run"
+        savedViewFilters={{ ...tagLabelFilters, eval_set_id: evalSetId }}
+        value={tagLabelFilters}
+        workspaceId={workspaceId}
+        onApplySavedView={(savedFilters) =>
+          replaceSearchParams(
+            savedViewFiltersToSearchParams(searchParams, savedFilters, ["cursor"]),
+          )
+        }
+        onChange={(nextFilters) =>
+          replaceSearchParams(writeTagLabelFilters(searchParams, nextFilters))
+        }
+      />
 
       <EvalRunList
         evalSetId={evalSetId}

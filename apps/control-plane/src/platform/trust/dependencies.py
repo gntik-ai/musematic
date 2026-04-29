@@ -189,6 +189,9 @@ def build_certification_service(
     session: AsyncSession,
     settings: PlatformSettings,
     producer: EventProducer | None,
+    tag_service: object | None = None,
+    label_service: object | None = None,
+    tagging_service: object | None = None,
 ) -> CertificationService:
     fairness_gate = FairnessEvaluationService(
         repository=EvaluationRepository(session),
@@ -200,6 +203,9 @@ def build_certification_service(
         settings=settings,
         producer=producer,
         fairness_gate=fairness_gate,
+        tag_service=tag_service,
+        label_service=label_service,
+        tagging_service=tagging_service,
     )
 
 
@@ -252,10 +258,19 @@ async def get_certification_service(
     request: Request,
     session: AsyncSession = Depends(get_db),
 ) -> CertificationService:
+    from platform.common.tagging.dependencies import (
+        get_label_service,
+        get_tag_service,
+        get_tagging_service,
+    )
+
     return build_certification_service(
         session=session,
         settings=_get_settings(request),
         producer=_get_producer(request),
+        tag_service=await get_tag_service(request, session),
+        label_service=await get_label_service(request, session),
+        tagging_service=await get_tagging_service(request, session),
     )
 
 

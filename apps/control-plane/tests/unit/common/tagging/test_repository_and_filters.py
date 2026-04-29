@@ -23,6 +23,7 @@ from platform.common.tagging.exceptions import (
 )
 from platform.common.tagging.filter_extension import parse_tag_label_filters
 from platform.common.tagging.label_expression.parser import parse as parse_label_expression
+from platform.common.tagging.listing import resolve_filtered_entity_ids
 from platform.common.tagging.repository import TaggingRepository, _sorted_uuids
 from platform.common.tagging.schemas import LabelAttachRequest, TagAttachRequest
 from platform.registry.models import AgentProfile
@@ -124,6 +125,7 @@ async def test_repository_methods_delegate_to_session_and_shape_results() -> Non
             FakeResult(rowcount=1),
             FakeResult(scalars=[tag_row]),
             FakeResult(all_rows=[("agent", entity_id)]),
+            FakeResult(scalars=[entity_id]),
             FakeResult(scalar_one_or_none=label_row),
             FakeResult(scalar_one=label_row),
             FakeResult(scalar_one_or_none=None),
@@ -157,6 +159,13 @@ async def test_repository_methods_delegate_to_session_and_shape_results() -> Non
         cursor="1",
         limit=10,
     ) == [("agent", entity_id)]
+    assert await repo.filter_entities_by_tags(
+        "agent",
+        ["prod"],
+        {entity_id, other_id},
+        cursor="0",
+        limit=5,
+    ) == [entity_id]
     assert await repo.count_tags_for_entity("agent", entity_id) == 2
     assert await repo.upsert_label("agent", entity_id, "env", "prod", None) == (
         label_row,
@@ -339,3 +348,44 @@ def test_tagging_exception_payloads() -> None:
         "entity_type": "agent",
         "entity_id": str(entity_id),
     }
+
+
+@pytest.mark.asyncio
+async def test_resolve_filtered_entity_ids_intersects_tags_and_labels() -> None:
+    tag_visible = uuid4()
+    label_visible = uuid4()
+    hidden = uuid4()
+
+    class TagFilterStub:
+        async def filter_query(
+            self,
+            entity_type: str,
+            tags: list[str],
+            visible_entity_ids: set[object],
+            *,
+            limit: int,
+        ) -> list[object]:
+            del entity_type, tags, limit
+            assert hidden in visible_entity_ids
+            return [tag_visible, label_visible]
+
+    class LabelFilterStub:
+        async def filter_query(
+            self,
+            entity_type: str,
+            labels: dict[str, str],
+            visible_entity_ids: set[object],
+            *,
+            limit: int,
+        ) -> list[object]:
+            del entity_type, labels, limit
+            assert visible_entity_ids == {tag_visible, label_visible}
+            return [label_visible]
+
+    assert await resolve_filtered_entity_ids(
+        entity_type="agent",
+        visible_entity_ids={tag_visible, label_visible, hidden},
+        filters=parse_tag_label_filters(_request(b"tags=prod&label.env=production")),
+        tag_service=TagFilterStub(),
+        label_service=LabelFilterStub(),
+    ) == {label_visible}

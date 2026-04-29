@@ -141,6 +141,8 @@ export interface AgentCatalogFilters {
   namespace: string[];
   maturity: AgentMaturity[];
   status: AgentStatus[];
+  tags: string[];
+  labels: Record<string, string>;
   sort_by: AgentSortField;
   sort_order: AgentSortOrder;
   limit: number;
@@ -240,6 +242,8 @@ export const DEFAULT_AGENT_CATALOG_FILTERS: AgentCatalogFilters = {
   namespace: [],
   maturity: [],
   status: [],
+  tags: [],
+  labels: {},
   sort_by: "updated_at",
   sort_order: "desc",
   limit: 20,

@@ -18,6 +18,8 @@ export function useCertificationExpiries(sort: CertificationExpirySort) {
   const queue = useCertificationQueue({
     status: null,
     search: "",
+    tags: [],
+    labels: {},
     sort_by: "expiration",
     page: 1,
     page_size: 100,

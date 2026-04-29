@@ -5,6 +5,8 @@ from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import ValidationError
+from platform.common.tagging.filter_extension import TagLabelFilterParams
+from platform.common.tagging.listing import resolve_filtered_entity_ids
 from platform.workflows.compiler import WorkflowCompiler
 from platform.workflows.events import (
     TriggerFiredEvent,
@@ -46,12 +48,18 @@ class WorkflowService:
         producer: EventProducer | None,
         scheduler: Any | None = None,
         compiler: WorkflowCompiler | None = None,
+        tag_service: Any | None = None,
+        label_service: Any | None = None,
+        tagging_service: Any | None = None,
     ) -> None:
         self.repository = repository
         self.settings = settings
         self.producer = producer
         self.scheduler = scheduler
         self.compiler = compiler or WorkflowCompiler()
+        self.tag_service = tag_service
+        self.label_service = label_service
+        self.tagging_service = tagging_service
 
     async def create_workflow(
         self,
@@ -183,6 +191,8 @@ class WorkflowService:
         definition.status = WorkflowStatus.archived
         definition.updated_by = updated_by
         await self.repository.session.flush()
+        if self.tagging_service is not None:
+            await self.tagging_service.cascade_on_entity_deletion("workflow", workflow_id)
         return self._workflow_response(definition)
 
     async def get_workflow(self, workflow_id: UUID) -> WorkflowResponse:
@@ -197,14 +207,23 @@ class WorkflowService:
         tags: list[str] | None,
         page: int,
         page_size: int,
+        tag_label_filters: TagLabelFilterParams | None = None,
     ) -> WorkflowListResponse:
         """List workflows."""
+        allowed_ids = await resolve_filtered_entity_ids(
+            entity_type="workflow",
+            visible_entity_ids=await self.list_visible_workflows(workspace_id),
+            filters=tag_label_filters,
+            tag_service=self.tag_service,
+            label_service=self.label_service,
+        )
         items, total = await self.repository.list_definitions(
             workspace_id=workspace_id,
             status=status,
             tags=tags,
             offset=(page - 1) * page_size,
             limit=page_size,
+            allowed_ids=allowed_ids,
         )
         return WorkflowListResponse(
             items=[self._workflow_response(item) for item in items],
@@ -307,6 +326,19 @@ class WorkflowService:
             ),
             self._correlation(execution_id=execution_id),
         )
+
+    async def list_visible_workflows(self, requester: UUID | dict[str, Any]) -> set[UUID]:
+        workspace_id = requester.get("workspace_id") if isinstance(requester, dict) else requester
+        if workspace_id is None:
+            return set()
+        items, _total = await self.repository.list_definitions(
+            workspace_id=UUID(str(workspace_id)),
+            status=None,
+            tags=None,
+            offset=0,
+            limit=10_000,
+        )
+        return {item.id for item in items}
 
     def validate_and_compile(self, yaml_source: str) -> WorkflowIR:
         """Validate and compile."""

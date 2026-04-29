@@ -125,6 +125,8 @@ def build_eval_runner_service(
     execution_service: Any | None,
     drift_service: Any | None = None,
     rubric_service: RubricService | None = None,
+    tag_service: object | None = None,
+    label_service: object | None = None,
 ) -> EvalRunnerService:
     return EvalRunnerService(
         repository=EvaluationRepository(session),
@@ -141,6 +143,8 @@ def build_eval_runner_service(
         execution_query=execution_service,
         drift_service=drift_service,
         rubric_service=rubric_service,
+        tag_service=tag_service,
+        label_service=label_service,
     )
 
 
@@ -148,6 +152,8 @@ async def get_eval_runner_service(
     request: Request,
     session: AsyncSession = Depends(get_db),
 ) -> EvalRunnerService:
+    from platform.common.tagging.dependencies import get_label_service, get_tag_service
+
     execution_service = build_execution_service(
         session=session,
         settings=_get_settings(request),
@@ -172,6 +178,8 @@ async def get_eval_runner_service(
         reasoning_engine=_get_reasoning_engine(request),
         execution_service=execution_service,
         rubric_service=rubric_service,
+        tag_service=await get_tag_service(request, session),
+        label_service=await get_label_service(request, session),
     )
 
 

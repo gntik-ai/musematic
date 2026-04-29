@@ -82,6 +82,27 @@ class RepoStub:
             if row_tag == tag and entity_id in visible_entity_ids_by_type.get(entity_type, set())
         ]
 
+    async def filter_entities_by_tags(
+        self,
+        entity_type: str,
+        tags: list[str],
+        visible_entity_ids: set[UUID],
+        *,
+        cursor: str | None,
+        limit: int,
+    ) -> list[UUID]:
+        del cursor
+        matching: list[UUID] = []
+        for entity_id in visible_entity_ids:
+            entity_tags = {
+                row_tag
+                for (row_entity_type, row_entity_id, row_tag) in self.rows
+                if row_entity_type == entity_type and row_entity_id == entity_id
+            }
+            if set(tags).issubset(entity_tags):
+                matching.append(entity_id)
+        return sorted(matching, key=str)[:limit]
+
     async def cascade_on_entity_deletion(self, entity_type: str, entity_id: UUID) -> None:
         self.cascaded.append((entity_type, entity_id))
 
@@ -206,6 +227,26 @@ async def test_cross_entity_search_passes_visible_ids_to_repository() -> None:
 
     assert result.entities == {"agent": [visible_agent], "fleet": [visible_fleet]}
     assert repo.search_visible == {"agent": {visible_agent}, "fleet": {visible_fleet}}
+
+
+@pytest.mark.asyncio
+async def test_filter_query_requires_all_tags_and_visible_scope() -> None:
+    entity_id = uuid4()
+    hidden_id = uuid4()
+    repo = RepoStub()
+    await repo.insert_tag("agent", entity_id, "production", uuid4())
+    await repo.insert_tag("agent", entity_id, "critical", uuid4())
+    await repo.insert_tag("agent", hidden_id, "production", uuid4())
+    await repo.insert_tag("agent", hidden_id, "critical", uuid4())
+    service = TagService(repo)
+
+    filtered = await service.filter_query(
+        "agent",
+        ["production", "critical"],
+        {entity_id},
+    )
+
+    assert filtered == [entity_id]
 
 
 @pytest.mark.asyncio

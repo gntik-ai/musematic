@@ -10,6 +10,7 @@ from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_current_user
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import AuthorizationError, ValidationError
+from platform.common.tagging.filter_extension import parse_tag_label_filters
 from platform.evaluation.ab_experiment_service import AbExperimentService
 from platform.evaluation.ate_service import ATEService
 from platform.evaluation.dependencies import (
@@ -454,6 +455,7 @@ async def list_runs(
         status=status_filter,
         page=page,
         page_size=page_size,
+        tag_label_filters=parse_tag_label_filters(request),
     )
 
 

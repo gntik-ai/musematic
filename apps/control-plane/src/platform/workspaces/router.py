@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 from platform.common.dependencies import get_current_user
+from platform.common.tagging.dependencies import get_label_service, get_tag_service
+from platform.common.tagging.filter_extension import parse_tag_label_filters
+from platform.common.tagging.label_service import LabelService
+from platform.common.tagging.tag_service import TagService
 from platform.two_person_approval.dependencies import get_two_person_approval_service
 from platform.two_person_approval.service import TwoPersonApprovalService
 from platform.workspaces.dependencies import (
@@ -38,7 +42,7 @@ from platform.workspaces.service import WorkspacesService
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 
 router = APIRouter(prefix="/api/v1/workspaces", tags=["workspaces"])
 
@@ -63,17 +67,23 @@ async def create_workspace(
 
 @router.get("", response_model=WorkspaceListResponse)
 async def list_workspaces(
+    request: Request,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     status: WorkspaceStatus | None = Query(default=None),
     current_user: dict[str, Any] = Depends(get_current_user),
     workspaces_service: WorkspacesService = Depends(get_workspaces_service),
+    tag_service: TagService = Depends(get_tag_service),
+    label_service: LabelService = Depends(get_label_service),
 ) -> WorkspaceListResponse:
     return await workspaces_service.list_workspaces(
         _requester_id(current_user),
         page,
         page_size,
         status,
+        tag_label_filters=parse_tag_label_filters(request),
+        tag_service=tag_service,
+        label_service=label_service,
     )
 
 

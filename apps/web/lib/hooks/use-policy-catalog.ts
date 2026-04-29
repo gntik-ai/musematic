@@ -1,7 +1,12 @@
 "use client";
 
-import { useAppQuery } from "@/lib/hooks/use-api";
+import { useAppMutation, useAppQuery } from "@/lib/hooks/use-api";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
+import {
+  appendTagLabelFilters,
+  EMPTY_TAG_LABEL_FILTERS,
+  type TagLabelFilters,
+} from "@/lib/tagging/filter-query";
 import { trustWorkbenchApi } from "@/lib/hooks/use-certifications";
 import type { PolicySummary } from "@/lib/types/trust-workbench";
 
@@ -62,18 +67,30 @@ function normalizePolicySummary(raw: Record<string, unknown>): PolicySummary {
 }
 
 export const policyCatalogQueryKeys = {
-  list: (workspaceId: string | null | undefined, search: string) =>
-    ["policyCatalog", workspaceId ?? "none", search] as const,
+  root: ["policyCatalog"] as const,
+  list: (
+    workspaceId: string | null | undefined,
+    search: string,
+    tagLabelFilters: TagLabelFilters,
+  ) => ["policyCatalog", workspaceId ?? "none", search, tagLabelFilters] as const,
 };
+
+interface PolicyCreateInput {
+  workspaceId: string;
+  name: string;
+  description: string | null;
+  labelExpression: string | null;
+}
 
 export function usePolicyCatalog(
   workspaceId: string | null | undefined,
   search = "",
+  tagLabelFilters: TagLabelFilters = EMPTY_TAG_LABEL_FILTERS,
 ) {
   const debouncedSearch = useDebouncedValue(search, 300);
 
   return useAppQuery<PolicyCatalogResponse>(
-    policyCatalogQueryKeys.list(workspaceId, debouncedSearch),
+    policyCatalogQueryKeys.list(workspaceId, debouncedSearch, tagLabelFilters),
     async () => {
       const searchParams = new URLSearchParams({
         workspace_id: workspaceId ?? "",
@@ -85,6 +102,7 @@ export function usePolicyCatalog(
       if (debouncedSearch) {
         searchParams.set("search", debouncedSearch);
       }
+      appendTagLabelFilters(searchParams, tagLabelFilters);
 
       const response = await trustWorkbenchApi.get<PolicyCatalogApiResponse>(
         `/api/v1/policies?${searchParams.toString()}`,
@@ -99,6 +117,25 @@ export function usePolicyCatalog(
     },
     {
       enabled: Boolean(workspaceId),
+    },
+  );
+}
+
+export function usePolicyCreate() {
+  return useAppMutation(
+    (payload: PolicyCreateInput) =>
+      trustWorkbenchApi.post("/api/v1/policies", {
+        workspace_id: payload.workspaceId,
+        name: payload.name,
+        description: payload.description,
+        scope_type: "workspace",
+        rules: {
+          label_expression: payload.labelExpression,
+        },
+        change_summary: "Initial policy",
+      }),
+    {
+      invalidateKeys: [policyCatalogQueryKeys.root],
     },
   );
 }

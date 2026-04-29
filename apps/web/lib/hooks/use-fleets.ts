@@ -16,6 +16,7 @@ import type {
   StressTestProgress,
 } from "@/lib/types/fleet";
 import { DEFAULT_FLEET_LIST_FILTERS } from "@/lib/types/fleet";
+import { appendTagLabelFilters } from "@/lib/tagging/filter-query";
 import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 
@@ -97,6 +98,10 @@ function buildFleetListPath(workspaceId: string, filters: FleetListFilters): str
 
   appendMulti(searchParams, "topology_type", resolved.topology_type);
   appendMulti(searchParams, "status", resolved.status);
+  appendTagLabelFilters(searchParams, {
+    tags: resolved.tags,
+    labels: resolved.labels,
+  });
 
   return `/api/v1/fleets?${searchParams.toString()}`;
 }
@@ -151,4 +156,3 @@ export type {
   FleetTopologyVersion,
   StressTestProgress,
 };
-

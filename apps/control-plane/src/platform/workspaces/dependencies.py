@@ -40,6 +40,7 @@ def build_workspaces_service(
     producer: EventProducer | None,
     accounts_service: AccountsService | None = None,
     saved_view_service: object | None = None,
+    tagging_service: object | None = None,
 ) -> WorkspacesService:
     return WorkspacesService(
         repo=WorkspacesRepository(session),
@@ -47,6 +48,7 @@ def build_workspaces_service(
         kafka_producer=producer,
         accounts_service=accounts_service,
         saved_view_service=saved_view_service,
+        tagging_service=tagging_service,
     )
 
 
@@ -55,8 +57,9 @@ async def get_workspaces_service(
     session: AsyncSession = Depends(get_db),
     accounts_service: AccountsService = Depends(get_accounts_service),
 ) -> WorkspacesService:
-    from platform.common.tagging.dependencies import build_saved_view_service
+    from platform.common.tagging.dependencies import build_saved_view_service, get_tagging_service
 
+    tagging_service = await get_tagging_service(request, session)
     return build_workspaces_service(
         session=session,
         settings=_get_settings(request),
@@ -66,6 +69,7 @@ async def get_workspaces_service(
             session,
             build_audit_chain_service(session, _get_settings(request), _get_producer(request)),
         ),
+        tagging_service=tagging_service,
     )
 
 

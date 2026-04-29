@@ -184,6 +184,8 @@ class AgentDiscoveryParams(BaseModel):
     workspace_id: UUID | None = None
     fqn_pattern: str | None = None
     keyword: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    labels: dict[str, str] = Field(default_factory=dict)
     maturity_min: int = Field(default=0, ge=0, le=3)
     status: LifecycleStatus = LifecycleStatus.published
     limit: int = Field(default=20, ge=1, le=100)

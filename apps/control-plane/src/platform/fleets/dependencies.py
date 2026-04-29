@@ -140,6 +140,9 @@ def build_fleet_service(
     modifier_service: FleetOrchestrationModifierService | None = None,
     health_service: FleetHealthProjectionService | None = None,
     runtime_controller: RuntimeControllerClient | None = None,
+    tag_service: object | None = None,
+    label_service: object | None = None,
+    tagging_service: object | None = None,
 ) -> FleetService:
     return FleetService(
         fleet_repo=FleetRepository(session),
@@ -155,6 +158,9 @@ def build_fleet_service(
         modifier_service=modifier_service,
         health_service=health_service,
         runtime_controller=runtime_controller,
+        tag_service=tag_service,
+        label_service=label_service,
+        tagging_service=tagging_service,
     )
 
 
@@ -164,6 +170,12 @@ async def get_fleet_service(
     registry_service: RegistryService = Depends(get_registry_service),
     health_service: FleetHealthProjectionService = Depends(get_health_service),
 ) -> FleetService:
+    from platform.common.tagging.dependencies import (
+        get_label_service,
+        get_tag_service,
+        get_tagging_service,
+    )
+
     return build_fleet_service(
         session=session,
         settings=_get_settings(request),
@@ -172,4 +184,7 @@ async def get_fleet_service(
         modifier_service=build_orchestration_modifier_service(session=session),
         health_service=health_service,
         runtime_controller=_get_runtime_controller(request),
+        tag_service=await get_tag_service(request, session),
+        label_service=await get_label_service(request, session),
+        tagging_service=await get_tagging_service(request, session),
     )

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from platform.common.dependencies import get_current_user, get_db
+from platform.common.tagging.filter_extension import parse_tag_label_filters
 from platform.policies.dependencies import get_policy_service, get_tool_gateway_service
 from platform.policies.gateway import ToolGatewayService
 from platform.policies.models import EnforcementComponent, PolicyScopeType, PolicyStatus
@@ -28,7 +29,7 @@ from platform.policies.service import PolicyService
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/v1/policies", tags=["policies"])
@@ -132,6 +133,7 @@ async def create_policy(
 
 @router.get("", response_model=PolicyListResponse)
 async def list_policies(
+    request: Request,
     scope_type: PolicyScopeType | None = Query(default=None),
     status: PolicyStatus | None = Query(default=PolicyStatus.active),
     workspace_id: UUID | None = Query(default=None),
@@ -145,6 +147,7 @@ async def list_policies(
         workspace_id=workspace_id,
         page=page,
         page_size=page_size,
+        tag_label_filters=parse_tag_label_filters(request),
     )
 
 
