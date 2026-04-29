@@ -10,8 +10,9 @@ pytestmark = [pytest.mark.e2e, pytest.mark.multi_region_ops, pytest.mark.asyncio
 
 
 async def test_maintenance_mode_blocks_writes_but_keeps_reads_available(
-    http_client: AuthenticatedAsyncClient,
+    http_client_superadmin: AuthenticatedAsyncClient,
 ) -> None:
+    http_client = http_client_superadmin
     starts_at = datetime.now(UTC) + timedelta(minutes=5)
     window = await http_client.json_request(
         "POST",

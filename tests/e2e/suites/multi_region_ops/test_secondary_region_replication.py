@@ -10,8 +10,9 @@ pytestmark = [pytest.mark.e2e, pytest.mark.multi_region_ops, pytest.mark.asyncio
 
 
 async def test_secondary_region_replication_status_surfaces_all_known_rows(
-    http_client: AuthenticatedAsyncClient,
+    http_client_superadmin: AuthenticatedAsyncClient,
 ) -> None:
+    http_client = http_client_superadmin
     suffix = uuid4().hex[:8]
     secondary_code = f"dr-{suffix}"
 

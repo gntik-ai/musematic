@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import sys
+from importlib import import_module
+from pathlib import Path
+
 import pytest
 
-from tests.fixtures.multi_region_ops.probe_mocks import (
-    AsyncpgReplicationMock,
-    probe_mock_client,
-)
+ROOT_TESTS = Path(__file__).resolve().parents[5] / "tests"
+if str(ROOT_TESTS) not in sys.path:
+    sys.path.insert(0, str(ROOT_TESTS))
+
+probe_mocks = import_module("fixtures.multi_region_ops.probe_mocks")
+AsyncpgReplicationMock = probe_mocks.AsyncpgReplicationMock
+probe_mock_client = probe_mocks.probe_mock_client
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 

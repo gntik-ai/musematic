@@ -42,6 +42,13 @@ USERS = (
         "display_name": "E2E Viewer",
         "roles": ["viewer"],
     },
+    {
+        "id": UUID("00000000-0000-4000-8000-000000000106"),
+        "email": "superadmin@e2e.test",
+        "password": "e2e-test-password",
+        "display_name": "E2E Superadmin",
+        "roles": ["superadmin"],
+    },
 )
 
 

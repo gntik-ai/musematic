@@ -10,8 +10,9 @@ pytestmark = [pytest.mark.e2e, pytest.mark.multi_region_ops, pytest.mark.asyncio
 
 
 async def test_failover_rehearsal_records_run_history(
-    http_client: AuthenticatedAsyncClient,
+    http_client_superadmin: AuthenticatedAsyncClient,
 ) -> None:
+    http_client = http_client_superadmin
     suffix = uuid4().hex[:8]
     plan = await http_client.json_request(
         "POST",
