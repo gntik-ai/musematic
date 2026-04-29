@@ -13,6 +13,8 @@ from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import BucketNotFoundError, ObjectStorageError, ValidationError
+from platform.common.tagging.filter_extension import TagLabelFilterParams
+from platform.common.tagging.listing import resolve_filtered_entity_ids
 from platform.model_catalog.models import ModelCatalogEntry
 from platform.model_catalog.repository import ModelCatalogRepository
 from platform.privacy_compliance.services.pia_service import DATA_CATEGORIES_REQUIRING_PIA
@@ -154,6 +156,9 @@ class RegistryService:
         model_catalog_repository: ModelCatalogRepository | None = None,
         pia_service: Any | None = None,
         package_validator: PackageValidator | None = None,
+        tag_service: Any | None = None,
+        label_service: Any | None = None,
+        tagging_service: Any | None = None,
     ) -> None:
         self.repository = repository
         self.object_storage = object_storage
@@ -165,6 +170,9 @@ class RegistryService:
         self.settings = settings
         self.pia_service = pia_service
         self.package_validator = package_validator or PackageValidator(settings)
+        self.tag_service = tag_service
+        self.label_service = label_service
+        self.tagging_service = tagging_service
         self._background_tasks: set[asyncio.Task[None]] = set()
 
     async def create_namespace(
@@ -389,6 +397,32 @@ class RegistryService:
                 workspace_id,
             )
 
+        tag_label_filters = TagLabelFilterParams(tags=params.tags, labels=params.labels)
+        allowed_ids = None
+        if tag_label_filters.tags or tag_label_filters.labels:
+            visible_for_tagging, _ = await self.repository.list_agents_by_workspace(
+                workspace_id,
+                status=params.status,
+                maturity_min=params.maturity_min,
+                limit=10_000,
+                offset=0,
+                visibility_filter=visibility_filter,
+                include_decommissioned=False,
+            )
+            if params.fqn_pattern:
+                visible_for_tagging = [
+                    profile
+                    for profile in visible_for_tagging
+                    if fqn_matches(params.fqn_pattern, profile.fqn)
+                ]
+            allowed_ids = await resolve_filtered_entity_ids(
+                entity_type="agent",
+                visible_entity_ids={profile.id for profile in visible_for_tagging},
+                filters=tag_label_filters,
+                tag_service=self.tag_service,
+                label_service=self.label_service,
+            )
+
         if params.keyword:
             agent_ids, _ = await self.repository.search_by_keyword(
                 workspace_id=workspace_id,
@@ -404,6 +438,10 @@ class RegistryService:
                 agent_ids,
                 visibility_filter=visibility_filter,
             )
+            if allowed_ids is not None:
+                visible_profiles = [
+                    profile for profile in visible_profiles if profile.id in allowed_ids
+                ]
             if not visible_profiles:
                 visible_profiles = await self._search_profiles_by_keyword_fallback(
                     workspace_id=workspace_id,
@@ -413,6 +451,10 @@ class RegistryService:
                     limit=fetch_limit,
                     visibility_filter=visibility_filter,
                 )
+                if allowed_ids is not None:
+                    visible_profiles = [
+                        profile for profile in visible_profiles if profile.id in allowed_ids
+                    ]
         else:
             visible_profiles, total = await self.repository.list_agents_by_workspace(
                 workspace_id,
@@ -422,6 +464,7 @@ class RegistryService:
                 offset=0,
                 visibility_filter=visibility_filter,
                 include_decommissioned=False,
+                allowed_ids=allowed_ids,
             )
             del total
 
@@ -750,6 +793,8 @@ class RegistryService:
             reason=normalized_reason,
             actor_id=actor_id,
         )
+        if self.tagging_service is not None:
+            await self.tagging_service.cascade_on_entity_deletion("agent", profile.id)
         await self.repository.insert_lifecycle_audit(
             workspace_id=workspace_id,
             agent_profile_id=profile.id,
@@ -855,6 +900,28 @@ class RegistryService:
         if profile is None:
             return None
         return profile.namespace.created_by
+
+    async def list_visible_agents(self, requester: UUID | dict[str, Any]) -> set[UUID]:
+        user_id = (
+            UUID(str(requester.get("sub") or requester.get("user_id")))
+            if isinstance(requester, dict)
+            else UUID(str(requester))
+        )
+        if self.workspaces_service is None:
+            return set()
+        workspace_ids = set(await self.workspaces_service.get_user_workspace_ids(user_id))
+        visible: set[UUID] = set()
+        for workspace_id in workspace_ids:
+            profiles, _total = await self.repository.list_agents_by_workspace(
+                workspace_id,
+                status=None,
+                maturity_min=0,
+                limit=10_000,
+                offset=0,
+                include_decommissioned=False,
+            )
+            visible.update(profile.id for profile in profiles)
+        return visible
 
     async def _get_workspace_visibility(self, workspace_id: UUID) -> EffectiveVisibility:
         if self.workspaces_service is None:

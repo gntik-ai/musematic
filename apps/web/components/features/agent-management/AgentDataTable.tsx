@@ -7,6 +7,7 @@ import { Layers3 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AgentMaturityBadge } from "@/components/features/agent-management/AgentMaturityBadge";
 import { AgentStatusBadge } from "@/components/features/agent-management/AgentStatusBadge";
+import { TagLabelFilterToolbar } from "@/components/features/tagging/TagLabelFilterToolbar";
 import { DataTable } from "@/components/shared/DataTable";
 import { FilterBar, type FilterDefinition } from "@/components/shared/FilterBar";
 import { SearchInput } from "@/components/shared/SearchInput";
@@ -14,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { useAgents } from "@/lib/hooks/use-agents";
 import { useNamespaces } from "@/lib/hooks/use-namespaces";
 import { parseAgentCatalogFilters, serializeAgentCatalogFilters } from "@/lib/schemas/agent-management";
+import { savedViewFiltersToSearchParams } from "@/lib/tagging/filter-query";
 import {
   AGENT_MATURITIES,
   AGENT_STATUSES,
@@ -131,6 +133,21 @@ export function AgentDataTable({ workspace_id }: AgentDataTableProps) {
     router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
   };
 
+  const applySavedView = (savedFilters: Record<string, unknown>) => {
+    const nextParams = savedViewFiltersToSearchParams(searchParams, savedFilters, [
+      "search",
+      "namespace",
+      "maturity",
+      "status",
+      "sort_by",
+      "sort_order",
+      "limit",
+      "cursor",
+    ]);
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -159,6 +176,19 @@ export function AgentDataTable({ workspace_id }: AgentDataTableProps) {
             maturity: [],
             status: [],
             search: "",
+          })
+        }
+      />
+      <TagLabelFilterToolbar
+        entityType="agent"
+        savedViewFilters={{ ...filters, cursor: null }}
+        value={{ tags: filters.tags, labels: filters.labels }}
+        workspaceId={workspace_id}
+        onApplySavedView={applySavedView}
+        onChange={(nextFilters) =>
+          updateSearchParams({
+            tags: nextFilters.tags,
+            labels: nextFilters.labels,
           })
         }
       />

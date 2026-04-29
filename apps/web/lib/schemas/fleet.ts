@@ -4,6 +4,7 @@ import type {
   FleetTopologyType,
 } from "@/lib/types/fleet";
 import { DEFAULT_FLEET_LIST_FILTERS } from "@/lib/types/fleet";
+import { appendTagLabelFilters, parseTagLabelFilters } from "@/lib/tagging/filter-query";
 
 function parseMultiValue<T extends string>(value: string | null): T[] {
   if (!value) {
@@ -21,6 +22,7 @@ export function parseFleetListFilters(searchParams: URLSearchParams): FleetListF
     search: searchParams.get("search") ?? DEFAULT_FLEET_LIST_FILTERS.search,
     topology_type: parseMultiValue<FleetTopologyType>(searchParams.get("topology_type")),
     status: parseMultiValue<FleetStatus>(searchParams.get("status")),
+    ...parseTagLabelFilters(searchParams),
     health_min: searchParams.get("health_min")
       ? Number(searchParams.get("health_min"))
       : DEFAULT_FLEET_LIST_FILTERS.health_min,
@@ -51,6 +53,10 @@ export function serializeFleetListFilters(filters: FleetListFilters): URLSearchP
   if (filters.status.length > 0) {
     searchParams.set("status", filters.status.join(","));
   }
+  appendTagLabelFilters(searchParams, {
+    tags: filters.tags,
+    labels: filters.labels,
+  });
   if (filters.health_min !== null) {
     searchParams.set("health_min", String(filters.health_min));
   }
@@ -69,4 +75,3 @@ export function serializeFleetListFilters(filters: FleetListFilters): URLSearchP
 
   return searchParams;
 }
-

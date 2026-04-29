@@ -22,9 +22,12 @@ from platform.common.tagging.exceptions import (
     SavedViewNameTakenError,
 )
 from platform.common.tagging.filter_extension import parse_tag_label_filters
+from platform.common.tagging.label_expression.parser import parse as parse_label_expression
+from platform.common.tagging.listing import resolve_filtered_entity_ids
 from platform.common.tagging.repository import TaggingRepository, _sorted_uuids
 from platform.common.tagging.schemas import LabelAttachRequest, TagAttachRequest
 from platform.registry.models import AgentProfile
+from platform.workspaces.models import WorkspaceRole
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -79,14 +82,17 @@ class FakeSession:
         self.execute_results = list(execute_results)
         self.scalar_results = list(scalar_results)
         self.added: list[object] = []
+        self.statements: list[object] = []
         self.executed = 0
         self.flushed = 0
 
     async def execute(self, _statement: object) -> FakeResult:
+        self.statements.append(_statement)
         self.executed += 1
         return self.execute_results.pop(0)
 
     async def scalar(self, _statement: object) -> int:
+        self.statements.append(_statement)
         return self.scalar_results.pop(0)
 
     async def flush(self) -> None:
@@ -123,12 +129,15 @@ async def test_repository_methods_delegate_to_session_and_shape_results() -> Non
             FakeResult(rowcount=1),
             FakeResult(scalars=[tag_row]),
             FakeResult(all_rows=[("agent", entity_id)]),
+            FakeResult(scalars=[entity_id]),
             FakeResult(scalar_one_or_none=label_row),
             FakeResult(scalar_one=label_row),
             FakeResult(scalar_one_or_none=None),
             FakeResult(rowcount=0),
             FakeResult(scalars=[label_row]),
             FakeResult(scalars=[entity_id]),
+            FakeResult(scalars=["env"]),
+            FakeResult(scalars=["prod"]),
             FakeResult(),
             FakeResult(),
             FakeResult(scalar_one_or_none=view_row),
@@ -154,6 +163,13 @@ async def test_repository_methods_delegate_to_session_and_shape_results() -> Non
         cursor="1",
         limit=10,
     ) == [("agent", entity_id)]
+    assert await repo.filter_entities_by_tags(
+        "agent",
+        ["prod"],
+        {entity_id, other_id},
+        cursor="0",
+        limit=5,
+    ) == [entity_id]
     assert await repo.count_tags_for_entity("agent", entity_id) == 2
     assert await repo.upsert_label("agent", entity_id, "env", "prod", None) == (
         label_row,
@@ -173,6 +189,8 @@ async def test_repository_methods_delegate_to_session_and_shape_results() -> Non
         cursor="0",
         limit=5,
     ) == [entity_id]
+    assert await repo.list_label_keys(prefix="e", limit=10) == ["env"]
+    assert await repo.list_label_values(key="env", prefix="p", limit=10) == ["prod"]
     assert await repo.count_labels_for_entity("agent", entity_id) == 3
 
     await repo.cascade_on_entity_deletion("agent", entity_id)
@@ -194,6 +212,32 @@ async def test_repository_methods_delegate_to_session_and_shape_results() -> Non
     assert await repo.list_views_owned_by_user_in_workspace(uuid4(), uuid4()) == [view_row]
     assert _sorted_uuids({other_id, entity_id}) == sorted([other_id, entity_id], key=str)
     assert session.flushed >= 7
+
+
+@pytest.mark.asyncio
+async def test_label_filter_query_constrains_visible_ids_and_requires_all_labels() -> None:
+    entity_id = uuid4()
+    other_id = uuid4()
+    session = FakeSession(execute_results=[FakeResult(scalars=[entity_id])])
+    repo = TaggingRepository(session)  # type: ignore[arg-type]
+
+    result = await repo.filter_entities_by_labels(
+        "agent",
+        {"env": "production", "tier": "critical"},
+        {entity_id, other_id},
+        cursor="0",
+        limit=25,
+    )
+
+    compiled = str(
+        session.statements[0].compile(compile_kwargs={"literal_binds": False})
+    ).lower()
+    assert result == [entity_id]
+    assert "entity_labels.entity_type" in compiled
+    assert "entity_labels.entity_id in" in compiled
+    assert "entity_labels.label_key, entity_labels.label_value" in compiled
+    assert "group by entity_labels.entity_id" in compiled
+    assert "count(distinct(entity_labels.label_key))" in compiled
 
 
 @pytest.mark.asyncio
@@ -234,7 +278,10 @@ async def test_visibility_resolver_dependency_providers_cover_empty_and_populate
             "evaluation_run",
         ],
     )
-    empty = await resolver.resolve_visible_entity_ids({}, ["agent", "workspace"])
+    empty = await resolver.resolve_visible_entity_ids(
+        {},
+        ["agent", "workspace", "fleet", "workflow", "policy", "certification", "evaluation_run"],
+    )
 
     assert visible == {
         "workspace": {workspace_id},
@@ -245,11 +292,19 @@ async def test_visibility_resolver_dependency_providers_cover_empty_and_populate
         "certification": {entity_ids[4]},
         "evaluation_run": {entity_ids[5]},
     }
-    assert empty == {"agent": set(), "workspace": set()}
+    assert empty == {
+        "agent": set(),
+        "workspace": set(),
+        "fleet": set(),
+        "workflow": set(),
+        "policy": set(),
+        "certification": set(),
+        "evaluation_run": set(),
+    }
     assert _requester_id(SimpleNamespace(id=workspace_id)) == workspace_id
     assert _requester_id(object()) is None
-    assert await get_label_expression_evaluator() is None
-    assert await get_label_expression_cache() is None
+    evaluator = await get_label_expression_evaluator()
+    assert await evaluator.evaluate(parse_label_expression("env=prod"), {"env": "prod"}) is True
 
 
 def test_parse_tag_label_filters_and_entity_type_maps() -> None:
@@ -270,7 +325,13 @@ def test_parse_tag_label_filters_and_entity_type_maps() -> None:
 
 @pytest.mark.asyncio
 async def test_dependency_factories_and_schema_validation(monkeypatch: pytest.MonkeyPatch) -> None:
-    settings = SimpleNamespace(tagging=SimpleNamespace(cross_entity_search_max_visible_ids=20))
+    settings = SimpleNamespace(
+        tagging=SimpleNamespace(
+            cross_entity_search_max_visible_ids=20,
+            label_expression_lru_size=12,
+            label_expression_redis_ttl_seconds=34,
+        )
+    )
     producer = object()
     request = _request(
         b"",
@@ -291,15 +352,18 @@ async def test_dependency_factories_and_schema_validation(monkeypatch: pytest.Mo
 
     resolver = await get_visibility_resolver(request, session)  # type: ignore[arg-type]
     tag_service = await get_tag_service(request, session)  # type: ignore[arg-type]
-    label_service = await get_label_service(session)  # type: ignore[arg-type]
-    saved_view_service = await get_saved_view_service(session)  # type: ignore[arg-type]
+    label_service = await get_label_service(request, session)  # type: ignore[arg-type]
+    saved_view_service = await get_saved_view_service(request, session)  # type: ignore[arg-type]
     tagging_service = await get_tagging_service(request, session)  # type: ignore[arg-type]
+    label_expression_cache = await get_label_expression_cache(request)
 
     assert resolver.max_visible_ids == 20
     assert tag_service.max_tags_per_entity == 50
     assert label_service.repository is not None
     assert saved_view_service.repository is not None
     assert tagging_service.tags.max_tags_per_entity == 50
+    assert label_expression_cache.lru_size == 12
+    assert label_expression_cache.ttl_seconds == 34
 
     assert TagAttachRequest(tag=" prod ").tag == "prod"
     assert LabelAttachRequest(key=" env ", value=" prod ").model_dump() == {
@@ -310,6 +374,59 @@ async def test_dependency_factories_and_schema_validation(monkeypatch: pytest.Mo
         TagAttachRequest(tag="bad tag")
     with pytest.raises(PydanticValidationError):
         LabelAttachRequest(key="1bad", value="prod")
+
+
+@pytest.mark.asyncio
+async def test_dependency_factory_access_and_saved_view_closures() -> None:
+    workspace_id = uuid4()
+    user_id = uuid4()
+    entity_id = uuid4()
+    owner_id = uuid4()
+    settings = SimpleNamespace(
+        tagging=SimpleNamespace(cross_entity_search_max_visible_ids=20),
+    )
+    session = FakeSession(
+        execute_results=[
+            FakeResult(scalars=[workspace_id]),
+            FakeResult(scalars=[entity_id]),
+            FakeResult(scalars=[workspace_id]),
+            FakeResult(scalars=[entity_id]),
+            FakeResult(scalar_one_or_none=SimpleNamespace(user_id=user_id)),
+            FakeResult(
+                scalars=[
+                    SimpleNamespace(user_id=owner_id, role=WorkspaceRole.owner),
+                    SimpleNamespace(user_id=user_id, role=WorkspaceRole.member),
+                ]
+            ),
+        ],
+        scalar_results=[2],
+    )
+
+    tag_service = tagging_dependencies.build_tag_service(session, settings, None)  # type: ignore[arg-type]
+    label_service = tagging_dependencies.build_label_service(session, settings, None)  # type: ignore[arg-type]
+    saved_view_service = tagging_dependencies.build_saved_view_service(session, None)  # type: ignore[arg-type]
+
+    assert tag_service.entity_access_check is not None
+    assert label_service.entity_access_check is not None
+    assert await tag_service.entity_access_check(
+        "agent",
+        entity_id,
+        {"sub": str(user_id)},
+        "mutate",
+    )
+    assert await label_service.entity_access_check(
+        "agent",
+        entity_id,
+        {"sub": str(user_id)},
+        "mutate",
+    )
+    assert saved_view_service.workspace_membership_check is not None
+    assert saved_view_service.workspace_superadmin_provider is not None
+    assert await saved_view_service.workspace_membership_check(
+        workspace_id,
+        {"sub": str(user_id)},
+    )
+    assert await saved_view_service.workspace_superadmin_provider(workspace_id) == owner_id
 
 
 def test_tagging_exception_payloads() -> None:
@@ -325,3 +442,44 @@ def test_tagging_exception_payloads() -> None:
         "entity_type": "agent",
         "entity_id": str(entity_id),
     }
+
+
+@pytest.mark.asyncio
+async def test_resolve_filtered_entity_ids_intersects_tags_and_labels() -> None:
+    tag_visible = uuid4()
+    label_visible = uuid4()
+    hidden = uuid4()
+
+    class TagFilterStub:
+        async def filter_query(
+            self,
+            entity_type: str,
+            tags: list[str],
+            visible_entity_ids: set[object],
+            *,
+            limit: int,
+        ) -> list[object]:
+            del entity_type, tags, limit
+            assert hidden in visible_entity_ids
+            return [tag_visible, label_visible]
+
+    class LabelFilterStub:
+        async def filter_query(
+            self,
+            entity_type: str,
+            labels: dict[str, str],
+            visible_entity_ids: set[object],
+            *,
+            limit: int,
+        ) -> list[object]:
+            del entity_type, labels, limit
+            assert visible_entity_ids == {tag_visible, label_visible}
+            return [label_visible]
+
+    assert await resolve_filtered_entity_ids(
+        entity_type="agent",
+        visible_entity_ids={tag_visible, label_visible, hidden},
+        filters=parse_tag_label_filters(_request(b"tags=prod&label.env=production")),
+        tag_service=TagFilterStub(),
+        label_service=LabelFilterStub(),
+    ) == {label_visible}

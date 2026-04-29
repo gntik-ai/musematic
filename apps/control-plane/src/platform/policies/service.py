@@ -4,6 +4,10 @@ import hashlib
 import json
 from datetime import UTC, datetime, timedelta
 from platform.common.events.envelope import CorrelationContext
+from platform.common.tagging.filter_extension import TagLabelFilterParams
+from platform.common.tagging.label_expression.cache import LabelExpressionCache
+from platform.common.tagging.label_expression.parser import parse as parse_label_expression
+from platform.common.tagging.listing import resolve_filtered_entity_ids
 from platform.policies.compiler import GovernanceCompiler
 from platform.policies.events import (
     GateAllowedEvent,
@@ -46,6 +50,7 @@ from platform.policies.schemas import (
     PolicyListResponse,
     PolicyResponse,
     PolicyRuleProvenance,
+    PolicyRulesSchema,
     PolicyUpdate,
     PolicyVersionListResponse,
     PolicyVersionResponse,
@@ -77,6 +82,10 @@ class PolicyService:
         workspaces_service: Any | None,
         reasoning_client: Any | None = None,
         compiler: GovernanceCompiler | None = None,
+        label_expression_cache: LabelExpressionCache | None = None,
+        tag_service: Any | None = None,
+        label_service: Any | None = None,
+        tagging_service: Any | None = None,
     ) -> None:
         self.repository = repository
         self.settings = settings
@@ -86,6 +95,18 @@ class PolicyService:
         self.workspaces_service = workspaces_service
         self.reasoning_client = reasoning_client
         self.compiler = compiler or GovernanceCompiler()
+        self.tag_service = tag_service
+        self.label_service = label_service
+        self.tagging_service = tagging_service
+        self.label_expression_cache = label_expression_cache or LabelExpressionCache(
+            redis_client,
+            lru_size=getattr(getattr(settings, "tagging", None), "label_expression_lru_size", 256),
+            ttl_seconds=getattr(
+                getattr(settings, "tagging", None),
+                "label_expression_redis_ttl_seconds",
+                86_400,
+            ),
+        )
 
     async def register_simulation_policy_bundle(
         self,
@@ -115,6 +136,7 @@ class PolicyService:
     async def create_policy(
         self, data: PolicyCreate, created_by: UUID
     ) -> PolicyWithVersionResponse:
+        self._validate_label_expression(data.rules)
         policy = await self.repository.create(
             PolicyPolicy(
                 name=data.name,
@@ -138,6 +160,7 @@ class PolicyService:
         policy.current_version_id = version.id
         policy.current_version = version
         await self.repository.session.flush()
+        await self.label_expression_cache.invalidate(policy.id, version.version_number)
         await publish_policy_event(
             self.producer,
             PolicyEventType.policy_created,
@@ -167,6 +190,8 @@ class PolicyService:
         if "description" in data.model_fields_set:
             policy.description = data.description
         policy.updated_by = updated_by
+        if data.rules is not None:
+            self._validate_label_expression(data.rules)
         version = await self.repository.create_version(
             PolicyVersion(
                 policy_id=policy.id,
@@ -183,6 +208,7 @@ class PolicyService:
         policy.current_version_id = version.id
         policy.current_version = version
         await self.repository.session.flush()
+        await self.label_expression_cache.invalidate(policy.id, version.version_number)
         await publish_policy_event(
             self.producer,
             PolicyEventType.policy_updated,
@@ -202,6 +228,8 @@ class PolicyService:
         policy.updated_by = archived_by
         await self.repository.deactivate_attachments_for_policy(policy_id)
         await self.repository.session.flush()
+        if self.tagging_service is not None:
+            await self.tagging_service.cascade_on_entity_deletion("policy", policy.id)
         await publish_policy_event(
             self.producer,
             PolicyEventType.policy_archived,
@@ -209,6 +237,11 @@ class PolicyService:
             self._correlation(workspace_id=policy.workspace_id),
         )
         return PolicyResponse.model_validate(policy)
+
+    @staticmethod
+    def _validate_label_expression(rules: PolicyRulesSchema) -> None:
+        if rules.label_expression is not None:
+            parse_label_expression(rules.label_expression)
 
     async def get_policy(self, policy_id: UUID) -> PolicyWithVersionResponse:
         policy = await self._get_policy_or_raise(policy_id)
@@ -223,13 +256,24 @@ class PolicyService:
         workspace_id: UUID | None,
         page: int,
         page_size: int,
+        tag_label_filters: TagLabelFilterParams | None = None,
     ) -> PolicyListResponse:
+        allowed_ids = None
+        if workspace_id is not None:
+            allowed_ids = await resolve_filtered_entity_ids(
+                entity_type="policy",
+                visible_entity_ids=await self.list_visible_policies(workspace_id),
+                filters=tag_label_filters,
+                tag_service=self.tag_service,
+                label_service=self.label_service,
+            )
         items, total = await self.repository.list_with_filters(
             scope_type=scope_type,
             status=status,
             workspace_id=workspace_id,
             offset=(page - 1) * page_size,
             limit=page_size,
+            allowed_ids=allowed_ids,
         )
         return PolicyListResponse(
             items=[PolicyResponse.model_validate(item) for item in items],
@@ -237,6 +281,19 @@ class PolicyService:
             page=page,
             page_size=page_size,
         )
+
+    async def list_visible_policies(self, requester: UUID | dict[str, Any]) -> set[UUID]:
+        workspace_id = requester.get("workspace_id") if isinstance(requester, dict) else requester
+        if workspace_id is None:
+            return set()
+        items, _total = await self.repository.list_with_filters(
+            scope_type=None,
+            status=PolicyStatus.active,
+            workspace_id=UUID(str(workspace_id)),
+            offset=0,
+            limit=10_000,
+        )
+        return {item.id for item in items}
 
     async def get_version_history(self, policy_id: UUID) -> PolicyVersionListResponse:
         await self._get_policy_or_raise(policy_id)

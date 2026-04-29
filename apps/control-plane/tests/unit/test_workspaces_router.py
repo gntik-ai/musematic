@@ -4,6 +4,7 @@ from platform.common.auth_middleware import AuthMiddleware
 from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_current_user
 from platform.common.exceptions import PlatformError, platform_exception_handler
+from platform.common.tagging.dependencies import get_label_service, get_tag_service
 from platform.workspaces.dependencies import get_workspaces_service
 from platform.workspaces.router import router
 from uuid import uuid4
@@ -25,6 +26,8 @@ def _build_app(service: RouterServiceStub, settings: PlatformSettings) -> FastAP
     app.state.settings = settings
     app.add_exception_handler(PlatformError, platform_exception_handler)
     app.dependency_overrides[get_workspaces_service] = lambda: service
+    app.dependency_overrides[get_tag_service] = lambda: object()
+    app.dependency_overrides[get_label_service] = lambda: object()
     app.include_router(router)
     return app
 

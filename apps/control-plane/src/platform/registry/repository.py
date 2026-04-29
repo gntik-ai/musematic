@@ -222,6 +222,7 @@ class RegistryRepository:
         offset: int,
         visibility_filter: Any | None = None,
         include_decommissioned: bool = False,
+        allowed_ids: set[UUID] | None = None,
     ) -> tuple[list[AgentProfile], int]:
         filters = [
             AgentProfile.workspace_id == workspace_id,
@@ -232,6 +233,10 @@ class RegistryRepository:
             filters.append(AgentProfile.status != LifecycleStatus.decommissioned)
         if status is not None:
             filters.append(AgentProfile.status == status)
+        if allowed_ids is not None:
+            if not allowed_ids:
+                return [], 0
+            filters.append(AgentProfile.id.in_(sorted(allowed_ids, key=str)))
         filters.append(self._visibility_predicate(visibility_filter))
 
         total = await self.session.scalar(

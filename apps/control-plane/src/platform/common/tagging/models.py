@@ -122,6 +122,12 @@ class SavedView(Base, UUIDMixin, TimestampMixin):
         default=False,
         server_default="false",
     )
+    is_orphan: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+    )
 
     owner: Mapped[Any] = relationship("platform.common.models.user.User")
     workspace: Mapped[Any | None] = relationship("platform.workspaces.models.Workspace")

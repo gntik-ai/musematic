@@ -2,6 +2,7 @@
 
 import { createApiClient } from "@/lib/api";
 import { useAppQuery } from "@/lib/hooks/use-api";
+import { appendTagLabelFilters } from "@/lib/tagging/filter-query";
 import {
   DEFAULT_EVAL_LIST_FILTERS,
   evalQueryKeys,
@@ -30,6 +31,10 @@ function buildEvalSetsPath(workspaceId: string, filters: EvalListFilters): strin
   if (resolvedFilters.search.trim().length > 0) {
     searchParams.set("search", resolvedFilters.search.trim());
   }
+  appendTagLabelFilters(searchParams, {
+    tags: resolvedFilters.tags,
+    labels: resolvedFilters.labels,
+  });
 
   return `/api/v1/evaluations/eval-sets?${searchParams.toString()}`;
 }

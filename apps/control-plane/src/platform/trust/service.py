@@ -6,6 +6,8 @@ from platform.audit.repository import AuditChainRepository
 from platform.audit.service import AuditChainService
 from platform.common.audit_hook import audit_chain_hook
 from platform.common.exceptions import ValidationError
+from platform.common.tagging.filter_extension import TagLabelFilterParams
+from platform.common.tagging.listing import resolve_filtered_entity_ids
 from platform.evaluation.repository import EvaluationRepository
 from platform.model_catalog.models import ModelCard, ModelCatalogEntry
 from platform.registry.models import AgentProfile
@@ -65,11 +67,17 @@ class CertificationService:
         settings: Any,
         producer: Any | None,
         fairness_gate: Any | None = None,
+        tag_service: Any | None = None,
+        label_service: Any | None = None,
+        tagging_service: Any | None = None,
     ) -> None:
         self.repository = repository
         self.settings = settings
         self.events = TrustEventPublisher(producer)
         self.fairness_gate = fairness_gate
+        self.tag_service = tag_service
+        self.label_service = label_service
+        self.tagging_service = tagging_service
 
     async def create(self, data: CertificationCreate, issuer_id: str) -> CertificationResponse:
         await self._assert_pia_gate(data)
@@ -226,9 +234,42 @@ class CertificationService:
             },
         )
 
-    async def list_for_agent(self, agent_id: str) -> list[CertificationResponse]:
-        certifications = await self.repository.list_certifications_for_agent(agent_id)
+    async def list_for_agent(
+        self,
+        agent_id: str,
+        tag_label_filters: TagLabelFilterParams | None = None,
+    ) -> list[CertificationResponse]:
+        all_certifications = await self.repository.list_certifications_for_agent(agent_id)
+        allowed_ids = await resolve_filtered_entity_ids(
+            entity_type="certification",
+            visible_entity_ids={certification.id for certification in all_certifications},
+            filters=tag_label_filters,
+            tag_service=self.tag_service,
+            label_service=self.label_service,
+        )
+        certifications = (
+            all_certifications
+            if allowed_ids is None
+            else [
+                certification
+                for certification in all_certifications
+                if certification.id in allowed_ids
+            ]
+        )
         return [CertificationResponse.model_validate(item) for item in certifications]
+
+    async def list_visible_certifications(self, requester: UUID | dict[str, Any]) -> set[UUID]:
+        agent_id = (
+            str(requester.get("agent_id") or requester.get("agent_profile_id") or "")
+            if isinstance(requester, dict)
+            else str(requester)
+        )
+        if not agent_id:
+            return set()
+        return {
+            certification.id
+            for certification in await self.repository.list_certifications_for_agent(agent_id)
+        }
 
     async def activate(self, cert_id: UUID, actor_id: str) -> CertificationResponse:
         certification = await self.repository.get_certification(cert_id)
@@ -290,6 +331,11 @@ class CertificationService:
         certification.revocation_reason = reason
         certification.updated_by = self._to_uuid_or_none(actor_id)
         await self.repository.session.flush()
+        if self.tagging_service is not None:
+            await self.tagging_service.cascade_on_entity_deletion(
+                "certification",
+                certification.id,
+            )
         await self.events.publish_certification_revoked(
             CertificationEventPayload(
                 certification_id=certification.id,

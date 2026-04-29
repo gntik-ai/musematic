@@ -82,6 +82,27 @@ class RepoStub:
             if row_tag == tag and entity_id in visible_entity_ids_by_type.get(entity_type, set())
         ]
 
+    async def filter_entities_by_tags(
+        self,
+        entity_type: str,
+        tags: list[str],
+        visible_entity_ids: set[UUID],
+        *,
+        cursor: str | None,
+        limit: int,
+    ) -> list[UUID]:
+        del cursor
+        matching: list[UUID] = []
+        for entity_id in visible_entity_ids:
+            entity_tags = {
+                row_tag
+                for (row_entity_type, row_entity_id, row_tag) in self.rows
+                if row_entity_type == entity_type and row_entity_id == entity_id
+            }
+            if set(tags).issubset(entity_tags):
+                matching.append(entity_id)
+        return sorted(matching, key=str)[:limit]
+
     async def cascade_on_entity_deletion(self, entity_type: str, entity_id: UUID) -> None:
         self.cascaded.append((entity_type, entity_id))
 
@@ -97,6 +118,17 @@ class AuditStub:
         canonical_payload: bytes,
     ) -> None:
         self.entries.append((audit_event_id, audit_event_source, canonical_payload))
+
+
+class FailingAuditStub:
+    async def append(
+        self,
+        audit_event_id: UUID | None,
+        audit_event_source: str,
+        canonical_payload: bytes,
+    ) -> None:
+        del audit_event_id, audit_event_source, canonical_payload
+        raise RuntimeError("audit chain unavailable")
 
 
 class ResolverStub:
@@ -198,6 +230,26 @@ async def test_cross_entity_search_passes_visible_ids_to_repository() -> None:
 
 
 @pytest.mark.asyncio
+async def test_filter_query_requires_all_tags_and_visible_scope() -> None:
+    entity_id = uuid4()
+    hidden_id = uuid4()
+    repo = RepoStub()
+    await repo.insert_tag("agent", entity_id, "production", uuid4())
+    await repo.insert_tag("agent", entity_id, "critical", uuid4())
+    await repo.insert_tag("agent", hidden_id, "production", uuid4())
+    await repo.insert_tag("agent", hidden_id, "critical", uuid4())
+    service = TagService(repo)
+
+    filtered = await service.filter_query(
+        "agent",
+        ["production", "critical"],
+        {entity_id},
+    )
+
+    assert filtered == [entity_id]
+
+
+@pytest.mark.asyncio
 async def test_detach_and_cascade() -> None:
     repo = RepoStub()
     audit = AuditStub()
@@ -221,6 +273,20 @@ async def test_detach_and_cascade() -> None:
     assert await repo.count_tags_for_entity("workspace", entity_id) == 0
     assert repo.cascaded == [("workspace", entity_id)]
     assert len(audit.entries) == 2
+
+
+@pytest.mark.asyncio
+async def test_audit_failures_propagate_for_tag_mutations() -> None:
+    repo = RepoStub()
+    service = TagService(repo, audit_chain=FailingAuditStub())
+
+    with pytest.raises(RuntimeError, match="audit chain unavailable"):
+        await service.attach(
+            entity_type="agent",
+            entity_id=uuid4(),
+            tag="production",
+            requester={"sub": str(uuid4())},
+        )
 
 
 @pytest.mark.asyncio

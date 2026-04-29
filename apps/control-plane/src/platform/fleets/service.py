@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from platform.common.events.envelope import CorrelationContext, EventEnvelope
+from platform.common.tagging.filter_extension import TagLabelFilterParams
+from platform.common.tagging.listing import resolve_filtered_entity_ids
 from platform.fleets.events import (
     FleetArchivedPayload,
     FleetCreatedPayload,
@@ -108,6 +110,9 @@ class FleetService:
         modifier_service: FleetOrchestrationModifierService | None = None,
         health_service: Any | None = None,
         runtime_controller: Any | None = None,
+        tag_service: Any | None = None,
+        label_service: Any | None = None,
+        tagging_service: Any | None = None,
     ) -> None:
         self.fleet_repo = fleet_repo
         self.member_repo = member_repo
@@ -122,6 +127,9 @@ class FleetService:
         self.modifier_service = modifier_service or FleetOrchestrationModifierService()
         self.health_service = health_service
         self.runtime_controller = runtime_controller
+        self.tag_service = tag_service
+        self.label_service = label_service
+        self.tagging_service = tagging_service
 
     async def create_fleet(
         self,
@@ -230,12 +238,21 @@ class FleetService:
         status: FleetStatus | None = None,
         page: int = 1,
         page_size: int = 20,
+        tag_label_filters: TagLabelFilterParams | None = None,
     ) -> FleetListResponse:
+        allowed_ids = await resolve_filtered_entity_ids(
+            entity_type="fleet",
+            visible_entity_ids=await self.list_visible_fleets(workspace_id),
+            filters=tag_label_filters,
+            tag_service=self.tag_service,
+            label_service=self.label_service,
+        )
         items, total = await self.fleet_repo.list_by_workspace(
             workspace_id,
             status=status,
             page=page,
             page_size=page_size,
+            allowed_ids=allowed_ids,
         )
         total_pages = (total + page_size - 1) // page_size if page_size else 0
         return FleetListResponse(
@@ -248,6 +265,31 @@ class FleetService:
 
     async def list_active_fleets(self) -> list[Fleet]:
         return await self.fleet_repo.list_active()
+
+    async def list_visible_fleets(self, requester: UUID | dict[str, Any]) -> set[UUID]:
+        workspace_id = None
+        if isinstance(requester, dict):
+            workspace_id = requester.get("workspace_id")
+            roles = requester.get("roles")
+            if workspace_id is None and isinstance(roles, list):
+                workspace_id = next(
+                    (
+                        item.get("workspace_id")
+                        for item in roles
+                        if isinstance(item, dict) and item.get("workspace_id")
+                    ),
+                    None,
+                )
+        else:
+            workspace_id = requester
+        if workspace_id is None:
+            return set()
+        items, _total = await self.fleet_repo.list_by_workspace(
+            UUID(str(workspace_id)),
+            page=1,
+            page_size=10_000,
+        )
+        return {item.id for item in items}
 
     async def update_fleet(
         self,
@@ -267,6 +309,8 @@ class FleetService:
             raise FleetStateError("Fleet cannot be archived from its current state")
         fleet.status = FleetStatus.archived
         await self.fleet_repo.soft_delete(fleet)
+        if self.tagging_service is not None:
+            await self.tagging_service.cascade_on_entity_deletion("fleet", fleet.id)
         current_chain = await self.governance_repo.get_current(fleet.id)
         if current_chain is not None:
             current_chain.is_current = False

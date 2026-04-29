@@ -34,6 +34,8 @@ from types import SimpleNamespace
 from typing import Any
 from uuid import UUID, uuid4
 
+from starlette.datastructures import QueryParams
+
 
 def now_utc() -> datetime:
     return datetime.now(UTC)
@@ -475,5 +477,6 @@ def make_request(
             )
         ),
         headers={},
+        query_params=QueryParams(""),
         state=SimpleNamespace(user=None),
     )

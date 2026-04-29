@@ -197,7 +197,14 @@ export interface ATERunResponse {
 export interface EvalListFilters {
   status: EvalSetStatus | "all";
   search: string;
+  tags: string[];
+  labels: Record<string, string>;
   page: number;
+}
+
+export interface EvalRunFilters {
+  tags: string[];
+  labels: Record<string, string>;
 }
 
 export interface ScoreHistogramBin {
@@ -247,6 +254,8 @@ export interface EvalSetCreateInput {
 export const DEFAULT_EVAL_LIST_FILTERS: EvalListFilters = {
   status: "all",
   search: "",
+  tags: [],
+  labels: {},
   page: 1,
 };
 
@@ -261,7 +270,16 @@ export const evalQueryKeys = {
   runs: (
     workspaceId: string | null | undefined,
     evalSetId?: string | null,
-  ) => ["evaluationTesting", "evaluation", "runs", workspaceId ?? "none", evalSetId ?? "all"] as const,
+    filters?: EvalRunFilters,
+  ) =>
+    [
+      "evaluationTesting",
+      "evaluation",
+      "runs",
+      workspaceId ?? "none",
+      evalSetId ?? "all",
+      filters ?? { tags: [], labels: {} },
+    ] as const,
   run: (runId: string | null | undefined) =>
     ["evaluationTesting", "evaluation", "run", runId ?? "none"] as const,
   verdicts: (runId: string | null | undefined, page = 1) =>

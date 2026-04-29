@@ -81,12 +81,12 @@ async def test_get_workspaces_service_builds_from_request_state(monkeypatch) -> 
     )
 
     assert service == "service"
-    assert captured == {
-        "session": session,
-        "settings": settings,
-        "producer": producer,
-        "accounts_service": accounts_service,
-    }
+    assert captured["session"] is session
+    assert captured["settings"] is settings
+    assert captured["producer"] is producer
+    assert captured["accounts_service"] is accounts_service
+    assert "saved_view_service" in captured
+    assert "tagging_service" in captured
 
 
 def test_build_workspace_governance_service_wires_repositories(monkeypatch) -> None:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from platform.common.dependencies import get_current_user
 from platform.common.exceptions import ValidationError
+from platform.common.tagging.filter_extension import parse_tag_label_filters
 from platform.execution.dependencies import get_runtime_controller_client
 from platform.registry.dependencies import get_registry_service
 from platform.registry.models import LifecycleStatus
@@ -156,12 +157,15 @@ async def list_agents(
     registry_service: RegistryService = Depends(get_registry_service),
 ) -> AgentListResponse:
     workspace_id = _workspace_id(request)
+    tag_label_filters = parse_tag_label_filters(request)
     params = AgentDiscoveryParams(
         workspace_id=workspace_id,
         status=status,
         maturity_min=maturity_min,
         fqn_pattern=fqn_pattern,
         keyword=keyword,
+        tags=tag_label_filters.tags,
+        labels=tag_label_filters.labels,
         limit=limit,
         offset=offset,
     )

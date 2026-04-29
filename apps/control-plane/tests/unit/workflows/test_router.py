@@ -22,6 +22,7 @@ from uuid import uuid4
 
 import pytest
 from fastapi import Request
+from starlette.datastructures import QueryParams
 
 from tests.unit.workflows.test_service import _build_services
 
@@ -30,6 +31,7 @@ class FakeRequest:
     def __init__(self, payload: dict[str, str]) -> None:
         self._body = b'{"invoice":"INV-1"}'
         self._payload = payload
+        self.query_params = QueryParams("")
 
     async def body(self) -> bytes:
         return self._body
@@ -61,7 +63,16 @@ steps:
         current_user,
         workflow_service,
     )
-    listed = await list_workflows(workspace_id, None, None, 1, 20, current_user, workflow_service)
+    listed = await list_workflows(
+        cast(Request, FakeRequest({})),
+        workspace_id,
+        None,
+        None,
+        1,
+        20,
+        current_user,
+        workflow_service,
+    )
     fetched = await get_workflow(created.id, current_user, workflow_service)
     updated = await update_workflow(
         created.id,

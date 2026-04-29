@@ -59,10 +59,15 @@ class FleetRepository:
         status: FleetStatus | None = None,
         page: int,
         page_size: int,
+        allowed_ids: set[UUID] | None = None,
     ) -> tuple[list[Fleet], int]:
         filters = [Fleet.workspace_id == workspace_id, Fleet.deleted_at.is_(None)]
         if status is not None:
             filters.append(Fleet.status == status)
+        if allowed_ids is not None:
+            if not allowed_ids:
+                return [], 0
+            filters.append(Fleet.id.in_(sorted(allowed_ids, key=str)))
         total = await self.session.scalar(select(func.count()).select_from(Fleet).where(*filters))
         result = await self.session.execute(
             select(Fleet)

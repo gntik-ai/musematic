@@ -1,6 +1,6 @@
 # musematic Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-27
+Auto-generated from all feature plans. Last updated: 2026-04-29
 
 ## Active Technologies
 - Python 3.12+ (control plane client), Go 1.22+ (reasoning engine client) + `redis-py 5.x` (Python async), `go-redis/redis/v9` (Go), Bitnami `redis-cluster` Helm chart (002-redis-cache-hot-state)
@@ -132,6 +132,7 @@ Auto-generated from all feature plans. Last updated: 2026-04-27
 - Python 3.12+ (control plane) + TypeScript 5.x strict (Next.js auth UI). No Go changes and no new runtime packages. (087-public-signup-flow)
 - PostgreSQL enum migration only: `accounts_user_status` adds `pending_profile_completion`; no new tables, Redis keys, Kafka topics, Vault paths, or object buckets. (087-public-signup-flow)
 - Markdown + Python 3.12 stdlib + YAML only: root README, shared SVG asset, README parity checker, GitHub Actions wiring, weekly external-link workflow. No app code, migrations, data stores, or runtime deps. (088-multilingual-repository-readme)
+- PostgreSQL — 3 new tables (`entity_tags`, `entity_labels`, `saved_views`) via Alembic migration `065_tags_labels_saved_views.py`. Redis — 1 new key family: `tags:label_expression_ast:{policy_id}:{version}` (compiled-AST cache; TTL = `policy_cache_ttl_seconds` from existing policies BC; invalidated on policy save). No MinIO/S3 paths. (082-tags-labels-saved-views)
 
 - Python 3.12+ (application), PostgreSQL 16 (database) + SQLAlchemy 2.x (async ORM), Alembic (migrations), asyncpg (async PostgreSQL driver), CloudNativePG operator (Kubernetes) (HEAD)
 
@@ -151,12 +152,9 @@ cd src && pytest && ruff check .
 Python 3.12+ (application), PostgreSQL 16 (database): Follow standard conventions
 
 ## Recent Changes
+- 082-tags-labels-saved-views: Added Python 3.12+ (control plane). No Go changes. `common/tagging/` is a shared substrate, NOT a bounded context, so do not create rule-24/25 per-BC dashboard/E2E work for it. Brownfield corrections: `policies/services/policy_engine.py` and `registry/services/registry_query_service.py` do not exist; canonical sites are `governance/services/judge_service.py:19` and `registry/service.py:371`. The seventh entity is `evaluation_runs`, NOT `evaluation_suites`. Cascade-on-delete is application-layer, not FK cascade; each entity BC delete path is the canonical cascade trigger.
 - 089-comprehensive-documentation-site: Added the FR-605 MkDocs documentation site structure, generated OpenAPI/env-var/Helm references, docs staleness CI, Terraform Hetzner module skeleton, operator runbooks, installation guides, security guide, and localization parity scaffolding. Brownfield corrections: keep MkDocs Material rather than Docusaurus; use FR v6 and architecture v5 files; reorganize the existing `docs/` tree with redirects; create missing Terraform modules; add root `SECURITY.md`; use FR-620 locales only (`en`, `es`, `de`, `fr`, `it`, `zh`/zh-CN, not `ja`); keep GitHub Pages as initial host; reuse `docs/assets/architecture-overview.svg`; use Material search; create `generate-env-docs.py`; install `helm-docs` as CI tool; document canonical app/API/Grafana URLs only; validate `make dev-up` quick start with cold-cache caveat; generate OpenAPI from FastAPI; preserve `site_url` and version with `mike`; mirror root `CHANGELOG.md` into release notes.
 - 088-multilingual-repository-readme: Added canonical English README, shared `docs/assets/architecture-overview.svg`, README parity checker/tests, CI readme path filter, drift issue helper, weekly external-link workflow, and operator quickstart. Vendor translations/native reviews remain external gates.
-- 087-public-signup-flow: Added public signup, verification pages, dedicated OAuth callback/profile-completion UI, account connections UI, `pending_profile_completion`, `PATCH /api/v1/accounts/me`, and OAuth test-connectivity dry-run support. Planner corrections: 7 locale inventory, admin OAuth page sequencing, 4 OAuth redirect call sites, missing `PATCH /me`, missing status enum, OAuth buttons variant prop, missing signup API methods, settings sub-route ownership, missing signup E2E dir, CAPTCHA placeholder scope, base64URL OAuth fragment reuse, and MFA callback handling.
-- 084-log-aggregation-dashboards: Added YAML (Helm chart values + dashboard ConfigMaps + alert rules) + Python 3.12+ (control plane structlog config + audit-chain log-emission additive change) + Go 1.22+ (Go satellite ContextHandler) + TypeScript 5.x (frontend isomorphic logger). No SQL changes (this feature owns no relational tables).
-- 081-multi-region-ha: Added Python 3.12+ (control plane). No Go changes. `MaintenanceGateMiddleware` deliberately fails OPEN when Redis/PG truth is unavailable and is registered before auth so callers see the maintenance message rather than a 401. Active-active is refused in application logic and by the partial unique primary-region index. Capacity composes feature 079 forecasts and feature 020 analytics rollups only; do not add local forecasting logic.
-- 080-incident-response-runbooks: Added Python 3.12+ (control plane). No Go changes. `IncidentTriggerInterface` is the single in-process producer contract for incident creation; do not add parallel alert-ingestion paths. `analytics/services/alert_rules.py` does not exist; the canonical analytics hook lives in `analytics/service.py`.
 
 
 <!-- MANUAL ADDITIONS START -->

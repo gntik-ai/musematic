@@ -3,10 +3,17 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef } from "react";
 import { Plus, Workflow } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { TagLabelFilterToolbar } from "@/components/features/tagging/TagLabelFilterToolbar";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useWorkflowList } from "@/lib/hooks/use-workflow-list";
+import {
+  parseTagLabelFilters,
+  savedViewFiltersToSearchParams,
+  writeTagLabelFilters,
+} from "@/lib/tagging/filter-query";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import { WorkflowCard } from "@/components/features/workflows/WorkflowCard";
 
@@ -31,21 +38,33 @@ function WorkflowCardSkeleton() {
 }
 
 export function WorkflowList() {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const currentWorkspace = useWorkspaceStore((state) => state.currentWorkspace);
   const workspaceId = currentWorkspace?.id ?? null;
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const tagLabelFilters = useMemo(
+    () => parseTagLabelFilters(searchParams),
+    [searchParams],
+  );
   const {
     data,
     isLoading,
     isFetchingNextPage,
     fetchNextPage,
     hasNextPage,
-  } = useWorkflowList({ limit: 6 });
+  } = useWorkflowList({ limit: 6, tagLabelFilters });
 
   const workflows = useMemo(
     () => data?.pages.flatMap((page) => page.items) ?? [],
     [data],
   );
+
+  const replaceSearchParams = (nextParams: URLSearchParams) => {
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname);
+  };
 
   useEffect(() => {
     const node = loadMoreRef.current;
@@ -99,6 +118,21 @@ export function WorkflowList() {
           </Link>
         </Button>
       </div>
+
+      <TagLabelFilterToolbar
+        entityType="workflow"
+        savedViewFilters={{ ...tagLabelFilters }}
+        value={tagLabelFilters}
+        workspaceId={workspaceId}
+        onApplySavedView={(savedFilters) =>
+          replaceSearchParams(
+            savedViewFiltersToSearchParams(searchParams, savedFilters, ["cursor"]),
+          )
+        }
+        onChange={(nextFilters) =>
+          replaceSearchParams(writeTagLabelFilters(searchParams, nextFilters))
+        }
+      />
 
       {!isLoading && workflows.length === 0 ? (
         <EmptyState

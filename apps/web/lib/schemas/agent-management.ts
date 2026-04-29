@@ -10,6 +10,7 @@ import {
   DEFAULT_AGENT_CATALOG_FILTERS,
   type AgentCatalogFilters,
 } from "@/lib/types/agent-management";
+import { appendTagLabelFilters, parseTagLabelFilters } from "@/lib/tagging/filter-query";
 
 const emptyStringToNull = (value: unknown): unknown => {
   if (value === "" || value === undefined) {
@@ -64,6 +65,7 @@ export function parseAgentCatalogFilters(
   return {
     ...DEFAULT_AGENT_CATALOG_FILTERS,
     ...parsed,
+    ...parseTagLabelFilters(searchParams),
     cursor: searchParams.get("cursor"),
   };
 }
@@ -92,6 +94,11 @@ export function serializeAgentCatalogFilters(
   if (merged.status.length > 0) {
     searchParams.set("status", merged.status.join(","));
   }
+
+  appendTagLabelFilters(searchParams, {
+    tags: merged.tags,
+    labels: merged.labels,
+  });
 
   if (merged.sort_by !== DEFAULT_AGENT_CATALOG_FILTERS.sort_by) {
     searchParams.set("sort_by", merged.sort_by);

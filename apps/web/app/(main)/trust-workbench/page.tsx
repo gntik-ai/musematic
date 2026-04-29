@@ -7,11 +7,19 @@ import { CertificationExpiryDashboard } from "@/components/features/trust/certif
 import { CertifiersTab } from "@/components/features/trust/certifiers-tab";
 import { SurveillancePanel } from "@/components/features/trust/surveillance-panel";
 import { CertificationDataTable } from "@/components/features/trust-workbench/CertificationDataTable";
+import { TagLabelFilterToolbar } from "@/components/features/tagging/TagLabelFilterToolbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAgents } from "@/lib/hooks/use-agents";
 import { useCertificationQueue } from "@/lib/hooks/use-certifications";
+import {
+  parseTagLabelFilters,
+  savedViewFiltersToSearchParams,
+  writeTagLabelFilters,
+} from "@/lib/tagging/filter-query";
 import { DEFAULT_CERTIFICATION_QUEUE_FILTERS, type CertificationQueueFilters } from "@/lib/types/trust-workbench";
+import { useAuthStore } from "@/store/auth-store";
+import { useWorkspaceStore } from "@/store/workspace-store";
 
 const TRUST_TABS = ["queue", "certifiers", "expiries", "surveillance"] as const;
 type TrustTab = (typeof TRUST_TABS)[number];
@@ -24,6 +32,7 @@ function parseFilters(searchParams: URLSearchParams): CertificationQueueFilters 
   return {
     status: status === "pending" || status === "expiring" || status === "revoked" ? status : null,
     search: searchParams.get("search") ?? "",
+    ...parseTagLabelFilters(searchParams),
     sort_by: sortBy === "urgency" || sortBy === "created" || sortBy === "expiration" ? sortBy : DEFAULT_CERTIFICATION_QUEUE_FILTERS.sort_by,
     page: Number.isFinite(page) && page > 0 ? page : DEFAULT_CERTIFICATION_QUEUE_FILTERS.page,
     page_size: pageSize === 20 || pageSize === 50 || pageSize === 100 ? pageSize : DEFAULT_CERTIFICATION_QUEUE_FILTERS.page_size,
@@ -34,6 +43,11 @@ function serializeFilters(filters: CertificationQueueFilters): string {
   const params = new URLSearchParams();
   if (filters.status) params.set("status", filters.status);
   if (filters.search) params.set("search", filters.search);
+  const tagLabelParams = writeTagLabelFilters(params, {
+    tags: filters.tags,
+    labels: filters.labels,
+  });
+  tagLabelParams.forEach((value, key) => params.set(key, value));
   if (filters.sort_by !== DEFAULT_CERTIFICATION_QUEUE_FILTERS.sort_by) params.set("sort_by", filters.sort_by);
   if (filters.page !== DEFAULT_CERTIFICATION_QUEUE_FILTERS.page) params.set("page", String(filters.page));
   if (filters.page_size !== DEFAULT_CERTIFICATION_QUEUE_FILTERS.page_size) params.set("page_size", String(filters.page_size));
@@ -51,6 +65,11 @@ export default function TrustWorkbenchPage() {
   const searchParams = useSearchParams();
   const filters = useMemo(() => parseFilters(searchParams), [searchParams]);
   const activeTab = useMemo(() => resolveTab(searchParams), [searchParams]);
+  const currentWorkspaceId = useWorkspaceStore(
+    (state) => state.currentWorkspace?.id ?? null,
+  );
+  const authWorkspaceId = useAuthStore((state) => state.user?.workspaceId ?? null);
+  const workspaceId = currentWorkspaceId ?? authWorkspaceId;
   const certificationQueueQuery = useCertificationQueue(filters);
   const agents = useAgents({}, { enabled: activeTab === "surveillance" });
   const defaultAgentId = agents.agents[0]?.fqn ?? "ops:fraud-monitor";
@@ -69,6 +88,11 @@ export default function TrustWorkbenchPage() {
   const setTab = (tab: TrustTab) => {
     const nextParams = new URLSearchParams(searchParams.toString());
     nextParams.set("tab", tab);
+    router.replace(`${pathname}?${nextParams.toString()}`);
+  };
+
+  const replaceSearchParams = (nextParams: URLSearchParams) => {
+    nextParams.set("tab", activeTab);
     router.replace(`${pathname}?${nextParams.toString()}`);
   };
 
@@ -101,16 +125,43 @@ export default function TrustWorkbenchPage() {
         ))}
       </div>
       {activeTab === "queue" ? (
-        <CertificationDataTable
-          data={certificationQueueQuery.data?.items ?? []}
-          filters={filters}
-          isLoading={certificationQueueQuery.isLoading}
-          onFiltersChange={updateFilters}
-          onRowClick={(certificationId) => {
-            window.location.assign(`/trust-workbench/${encodeURIComponent(certificationId)}`);
-          }}
-          totalCount={certificationQueueQuery.data?.total ?? 0}
-        />
+        <div className="space-y-4">
+          <TagLabelFilterToolbar
+            entityType="certification"
+            savedViewFilters={{ ...filters }}
+            value={{ tags: filters.tags, labels: filters.labels }}
+            workspaceId={workspaceId}
+            onApplySavedView={(savedFilters) =>
+              replaceSearchParams(
+                savedViewFiltersToSearchParams(searchParams, savedFilters, [
+                  "status",
+                  "search",
+                  "sort_by",
+                  "page",
+                  "page_size",
+                ]),
+              )
+            }
+            onChange={(nextFilters) =>
+              replaceSearchParams(
+                writeTagLabelFilters(searchParams, {
+                  tags: nextFilters.tags,
+                  labels: nextFilters.labels,
+                }),
+              )
+            }
+          />
+          <CertificationDataTable
+            data={certificationQueueQuery.data?.items ?? []}
+            filters={filters}
+            isLoading={certificationQueueQuery.isLoading}
+            onFiltersChange={updateFilters}
+            onRowClick={(certificationId) => {
+              window.location.assign(`/trust-workbench/${encodeURIComponent(certificationId)}`);
+            }}
+            totalCount={certificationQueueQuery.data?.total ?? 0}
+          />
+        </div>
       ) : null}
       {activeTab === "certifiers" ? <CertifiersTab /> : null}
       {activeTab === "expiries" ? <CertificationExpiryDashboard defaultSort="expires_at_asc" /> : null}

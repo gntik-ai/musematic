@@ -85,7 +85,7 @@ class LabelExpressionSyntaxError(ValidationError):
         super().__init__(
             "LABEL_EXPRESSION_SYNTAX_ERROR",
             message,
-            {"line": line, "col": col, "token": token},
+            {"line": line, "col": col, "token": token, "message": message},
         )
         self.line = line
         self.col = col
@@ -108,4 +108,3 @@ class EntityNotFoundForTagError(NotFoundError):
             "Cannot tag an entity that does not exist or is not visible.",
             {"entity_type": entity_type, "entity_id": str(entity_id)},
         )
-

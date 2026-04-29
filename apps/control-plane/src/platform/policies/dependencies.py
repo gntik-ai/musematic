@@ -50,6 +50,9 @@ def build_policy_service(
     registry_service: RegistryService | None,
     workspaces_service: WorkspacesService | None,
     reasoning_client: ReasoningEngineClient | None,
+    tag_service: object | None = None,
+    label_service: object | None = None,
+    tagging_service: object | None = None,
 ) -> PolicyService:
     return PolicyService(
         repository=PolicyRepository(session),
@@ -59,6 +62,9 @@ def build_policy_service(
         registry_service=registry_service,
         workspaces_service=workspaces_service,
         reasoning_client=reasoning_client,
+        tag_service=tag_service,
+        label_service=label_service,
+        tagging_service=tagging_service,
     )
 
 
@@ -68,6 +74,12 @@ async def get_policy_service(
     registry_service: RegistryService = Depends(get_registry_service),
     workspaces_service: WorkspacesService = Depends(get_workspaces_service),
 ) -> PolicyService:
+    from platform.common.tagging.dependencies import (
+        get_label_service,
+        get_tag_service,
+        get_tagging_service,
+    )
+
     return build_policy_service(
         session=session,
         settings=_get_settings(request),
@@ -76,6 +88,9 @@ async def get_policy_service(
         registry_service=registry_service,
         workspaces_service=workspaces_service,
         reasoning_client=_get_reasoning_client(request),
+        tag_service=await get_tag_service(request, session),
+        label_service=await get_label_service(request, session),
+        tagging_service=await get_tagging_service(request, session),
     )
 
 

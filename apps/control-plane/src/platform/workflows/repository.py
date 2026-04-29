@@ -62,6 +62,7 @@ class WorkflowRepository:
         tags: list[str] | None,
         offset: int,
         limit: int,
+        allowed_ids: set[UUID] | None = None,
     ) -> tuple[list[WorkflowDefinition], int]:
         """List definitions."""
         query = select(WorkflowDefinition).where(WorkflowDefinition.workspace_id == workspace_id)
@@ -70,6 +71,11 @@ class WorkflowRepository:
             .select_from(WorkflowDefinition)
             .where(WorkflowDefinition.workspace_id == workspace_id)
         )
+        if allowed_ids is not None:
+            if not allowed_ids:
+                return [], 0
+            query = query.where(WorkflowDefinition.id.in_(sorted(allowed_ids, key=str)))
+            count_query = count_query.where(WorkflowDefinition.id.in_(sorted(allowed_ids, key=str)))
         if status is not None:
             query = query.where(WorkflowDefinition.status == status)
             count_query = count_query.where(WorkflowDefinition.status == status)

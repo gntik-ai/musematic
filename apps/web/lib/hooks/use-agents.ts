@@ -8,6 +8,7 @@ import type {
   AgentDetail,
 } from "@/lib/types/agent-management";
 import { DEFAULT_AGENT_CATALOG_FILTERS } from "@/lib/types/agent-management";
+import { appendTagLabelFilters } from "@/lib/tagging/filter-query";
 import { useWorkspaceStore } from "@/store/workspace-store";
 import type { CursorPaginatedResponse } from "@/types/api";
 
@@ -83,6 +84,10 @@ function buildCatalogPath(
   appendMultiValue(searchParams, "namespace", filters.namespace);
   appendMultiValue(searchParams, "maturity", filters.maturity);
   appendMultiValue(searchParams, "status", filters.status);
+  appendTagLabelFilters(searchParams, {
+    tags: filters.tags,
+    labels: filters.labels,
+  });
 
   if (cursor) {
     searchParams.set("cursor", cursor);

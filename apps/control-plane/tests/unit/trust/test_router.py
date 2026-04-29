@@ -41,10 +41,12 @@ from platform.trust.router import (
     update_contract,
 )
 from platform.trust.schemas import CertificationCreate, EvidenceRefCreate
+from types import SimpleNamespace
 from uuid import uuid4
 
 import httpx
 import pytest
+from starlette.datastructures import QueryParams
 
 from tests.trust_support import (
     admin_user,
@@ -267,6 +269,7 @@ async def test_trust_router_direct_contract_and_certification_crud_handlers() ->
     )
     certs = await list_agent_certifications(
         "agent-router",
+        SimpleNamespace(query_params=QueryParams("")),
         certification_service=bundle.certification_service,
     )
     deactivate_response = await deactivate_certifier(

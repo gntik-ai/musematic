@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from platform.common.dependencies import get_current_user
 from platform.common.exceptions import ValidationError
+from platform.common.tagging.filter_extension import parse_tag_label_filters
 from platform.fleets.dependencies import (
     get_fleet_service,
     get_governance_service,
@@ -87,6 +88,7 @@ async def list_fleets(
         status=status_filter,
         page=page,
         page_size=size,
+        tag_label_filters=parse_tag_label_filters(request),
     )
 
 

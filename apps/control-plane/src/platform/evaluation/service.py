@@ -9,6 +9,8 @@ from platform.common.audit_hook import audit_chain_hook
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import NotFoundError
+from platform.common.tagging.filter_extension import TagLabelFilterParams
+from platform.common.tagging.listing import resolve_filtered_entity_ids
 from platform.common.tracing import traced_async
 from platform.evaluation.events import (
     AdHocJudgePayload,
@@ -681,6 +683,8 @@ class EvalRunnerService:
         execution_query: Any | None = None,
         drift_service: Any | None = None,
         rubric_service: RubricService | None = None,
+        tag_service: Any | None = None,
+        label_service: Any | None = None,
     ) -> None:
         self.repository = repository
         self.settings = settings
@@ -690,6 +694,8 @@ class EvalRunnerService:
         self.execution_query = execution_query
         self.drift_service = drift_service
         self.rubric_service = rubric_service
+        self.tag_service = tag_service
+        self.label_service = label_service
 
     @traced_async("evaluation.eval_runner.start_run")
     async def start_run(
@@ -864,7 +870,15 @@ class EvalRunnerService:
         status: Any | None,
         page: int,
         page_size: int,
+        tag_label_filters: TagLabelFilterParams | None = None,
     ) -> EvaluationRunListResponse:
+        allowed_ids = await resolve_filtered_entity_ids(
+            entity_type="evaluation_run",
+            visible_entity_ids=await self.list_visible_evaluation_runs(workspace_id),
+            filters=tag_label_filters,
+            tag_service=self.tag_service,
+            label_service=self.label_service,
+        )
         items, total = await self.repository.list_runs(
             workspace_id,
             eval_set_id=eval_set_id,
@@ -872,6 +886,7 @@ class EvalRunnerService:
             status=status,
             page=page,
             page_size=page_size,
+            allowed_ids=allowed_ids,
         )
         return EvaluationRunListResponse(
             items=[EvaluationRunResponse.model_validate(item) for item in items],
@@ -886,6 +901,33 @@ class EvalRunnerService:
         if run is None:
             raise NotFoundError("EVALUATION_RUN_NOT_FOUND", "Evaluation run not found")
         return EvaluationRunResponse.model_validate(run)
+
+    @traced_async("evaluation.eval_runner.delete_run")
+    async def delete_run(self, run_id: UUID, workspace_id: UUID | None = None) -> None:
+        run = await self.repository.get_run(run_id, workspace_id)
+        if run is None:
+            raise NotFoundError("EVALUATION_RUN_NOT_FOUND", "Evaluation run not found")
+        await self.repository.delete_run(run)
+        if self.tag_service is not None:
+            await self.tag_service.cascade_on_entity_deletion("evaluation_run", run.id)
+        await self._commit()
+
+    async def list_visible_evaluation_runs(self, requester: UUID | dict[str, Any]) -> set[UUID]:
+        workspace_id = requester.get("workspace_id") if isinstance(requester, dict) else requester
+        if workspace_id is None:
+            return set()
+        items, _total = await self.repository.list_runs(
+            UUID(str(workspace_id)),
+            eval_set_id=None,
+            agent_fqn=None,
+            status=None,
+            page=1,
+            page_size=10_000,
+        )
+        return {item.id for item in items}
+
+    async def list_visible_runs(self, requester: UUID | dict[str, Any]) -> set[UUID]:
+        return await self.list_visible_evaluation_runs(requester)
 
     @traced_async("evaluation.eval_runner.list_run_verdicts")
     async def list_run_verdicts(

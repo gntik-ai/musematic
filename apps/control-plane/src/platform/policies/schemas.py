@@ -85,6 +85,7 @@ class BudgetLimitsSchema(BaseModel):
 class PolicyRulesSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    label_expression: str | None = None
     enforcement_rules: list[EnforcementRuleSchema] = Field(default_factory=list)
     maturity_gate_rules: list[MaturityGateRuleSchema] = Field(default_factory=list)
     purpose_scopes: list[PurposeScopeSchema] = Field(default_factory=list)
@@ -106,6 +107,11 @@ class PolicyRulesSchema(BaseModel):
     @classmethod
     def normalize_lists(cls, value: list[str]) -> list[str]:
         return [item.strip() for item in value if item.strip()]
+
+    @field_validator("label_expression")
+    @classmethod
+    def normalize_label_expression(cls, value: str | None) -> str | None:
+        return _normalize_optional_text(value)
 
 
 class PolicyCreate(BaseModel):

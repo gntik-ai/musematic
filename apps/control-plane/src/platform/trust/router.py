@@ -8,6 +8,7 @@ from platform.auth.schemas import RoleType
 from platform.common.audit_hook import audit_chain_hook
 from platform.common.dependencies import get_current_user, get_db
 from platform.common.exceptions import AuthorizationError, ValidationError
+from platform.common.tagging.filter_extension import parse_tag_label_filters
 from platform.incident_response.dependencies import get_incident_response_service
 from platform.incident_response.service import IncidentResponseService
 from platform.policies.models import AttachmentTargetType, EnforcementComponent, PolicyScopeType
@@ -547,9 +548,13 @@ async def get_certification(
 @router.get("/agents/{agent_id}/certifications", response_model=CertificationListResponse)
 async def list_agent_certifications(
     agent_id: str,
+    request: Request,
     certification_service: CertificationService = Depends(get_certification_service),
 ) -> CertificationListResponse:
-    items = await certification_service.list_for_agent(agent_id)
+    items = await certification_service.list_for_agent(
+        agent_id,
+        tag_label_filters=parse_tag_label_filters(request),
+    )
     return CertificationListResponse(items=items, total=len(items))
 
 

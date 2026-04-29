@@ -100,6 +100,33 @@ class TaggingRepository:
         )
         return [(str(entity_type), UUID(str(entity_id))) for entity_type, entity_id in result.all()]
 
+    async def filter_entities_by_tags(
+        self,
+        entity_type: str,
+        tags: list[str],
+        visible_entity_ids: set[UUID],
+        *,
+        cursor: str | None,
+        limit: int,
+    ) -> list[UUID]:
+        if not tags or not visible_entity_ids:
+            return []
+        offset = int(cursor or 0)
+        result = await self.session.execute(
+            select(EntityTag.entity_id)
+            .where(
+                EntityTag.entity_type == entity_type,
+                EntityTag.entity_id.in_(_sorted_uuids(visible_entity_ids)),
+                EntityTag.tag.in_(sorted(set(tags))),
+            )
+            .group_by(EntityTag.entity_id)
+            .having(func.count(func.distinct(EntityTag.tag)) == len(set(tags)))
+            .order_by(EntityTag.entity_id.asc())
+            .offset(offset)
+            .limit(limit)
+        )
+        return [UUID(str(entity_id)) for entity_id in result.scalars().all()]
+
     async def count_tags_for_entity(self, entity_type: str, entity_id: UUID) -> int:
         total = await self.session.scalar(
             select(func.count())
@@ -202,6 +229,30 @@ class TaggingRepository:
             .limit(limit)
         )
         return [UUID(str(entity_id)) for entity_id in result.scalars().all()]
+
+    async def list_label_keys(self, *, prefix: str = "", limit: int = 50) -> list[str]:
+        query = select(EntityLabel.label_key).distinct()
+        if prefix:
+            query = query.where(EntityLabel.label_key.like(f"{prefix}%"))
+        result = await self.session.execute(
+            query.order_by(EntityLabel.label_key.asc()).limit(limit)
+        )
+        return [str(item) for item in result.scalars().all()]
+
+    async def list_label_values(
+        self,
+        *,
+        key: str,
+        prefix: str = "",
+        limit: int = 50,
+    ) -> list[str]:
+        query = select(EntityLabel.label_value).where(EntityLabel.label_key == key).distinct()
+        if prefix:
+            query = query.where(EntityLabel.label_value.like(f"{prefix}%"))
+        result = await self.session.execute(
+            query.order_by(EntityLabel.label_value.asc()).limit(limit)
+        )
+        return [str(item) for item in result.scalars().all()]
 
     async def count_labels_for_entity(self, entity_type: str, entity_id: UUID) -> int:
         total = await self.session.scalar(
@@ -309,7 +360,20 @@ class TaggingRepository:
         await self.session.execute(
             update(SavedView)
             .where(SavedView.id == view_id)
-            .values(owner_id=new_owner_id, is_orphan_transferred=True, updated_at=func.now())
+            .values(
+                owner_id=new_owner_id,
+                is_orphan_transferred=True,
+                is_orphan=False,
+                updated_at=func.now(),
+            )
+        )
+        await self.session.flush()
+
+    async def mark_saved_view_orphan(self, view_id: UUID) -> None:
+        await self.session.execute(
+            update(SavedView)
+            .where(SavedView.id == view_id)
+            .values(is_orphan=True, updated_at=func.now())
         )
         await self.session.flush()
 

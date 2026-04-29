@@ -355,6 +355,7 @@ class InMemoryPolicyRepository:
         workspace_id: UUID | None,
         offset: int,
         limit: int,
+        allowed_ids: set[UUID] | None = None,
     ) -> tuple[list[PolicyPolicy], int]:
         items = [
             policy
@@ -362,6 +363,7 @@ class InMemoryPolicyRepository:
             if (scope_type is None or policy.scope_type == scope_type)
             and (status is None or policy.status == status)
             and (workspace_id is None or policy.workspace_id == workspace_id)
+            and (allowed_ids is None or policy.id in allowed_ids)
         ]
         items.sort(key=lambda item: (item.created_at, item.id), reverse=True)
         return items[offset : offset + limit], len(items)

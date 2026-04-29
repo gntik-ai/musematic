@@ -214,12 +214,23 @@ class TrustRepository:
         )
         return result.scalar_one_or_none()
 
-    async def list_certifications_for_agent(self, agent_id: str) -> list[TrustCertification]:
-        result = await self.session.execute(
+    async def list_certifications_for_agent(
+        self,
+        agent_id: str,
+        *,
+        allowed_ids: set[UUID] | None = None,
+    ) -> list[TrustCertification]:
+        query = (
             select(TrustCertification)
             .options(selectinload(TrustCertification.evidence_refs))
             .where(TrustCertification.agent_id == agent_id)
-            .order_by(TrustCertification.created_at.desc(), TrustCertification.id.desc())
+        )
+        if allowed_ids is not None:
+            if not allowed_ids:
+                return []
+            query = query.where(TrustCertification.id.in_(sorted(allowed_ids, key=str)))
+        result = await self.session.execute(
+            query.order_by(TrustCertification.created_at.desc(), TrustCertification.id.desc())
         )
         return list(result.scalars().all())
 

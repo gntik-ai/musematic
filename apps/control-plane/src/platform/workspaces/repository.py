@@ -87,24 +87,27 @@ class WorkspacesRepository:
         page: int,
         page_size: int,
         status_filter: WorkspaceStatus | None,
+        allowed_ids: set[UUID] | None = None,
     ) -> tuple[list[Workspace], int]:
         target_status = status_filter or WorkspaceStatus.active
+        filters = [
+            Membership.user_id == user_id,
+            Workspace.status == target_status,
+        ]
+        if allowed_ids is not None:
+            if not allowed_ids:
+                return [], 0
+            filters.append(Workspace.id.in_(sorted(allowed_ids, key=str)))
         total = await self.session.scalar(
             select(func.count())
             .select_from(Workspace)
             .join(Membership, Membership.workspace_id == Workspace.id)
-            .where(
-                Membership.user_id == user_id,
-                Workspace.status == target_status,
-            )
+            .where(*filters)
         )
         result = await self.session.execute(
             select(Workspace)
             .join(Membership, Membership.workspace_id == Workspace.id)
-            .where(
-                Membership.user_id == user_id,
-                Workspace.status == target_status,
-            )
+            .where(*filters)
             .order_by(Workspace.created_at.asc(), Workspace.id.asc())
             .offset((page - 1) * page_size)
             .limit(page_size)

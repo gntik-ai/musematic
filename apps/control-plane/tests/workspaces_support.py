@@ -202,7 +202,13 @@ class WorkspacesRepoStub:
         return None
 
     async def list_workspaces_for_user(
-        self, user_id: UUID, page: int, page_size: int, status_filter: WorkspaceStatus | None
+        self,
+        user_id: UUID,
+        page: int,
+        page_size: int,
+        status_filter: WorkspaceStatus | None,
+        *,
+        allowed_ids: set[UUID] | None = None,
     ):
         target_status = status_filter or WorkspaceStatus.active
         items = [
@@ -211,6 +217,7 @@ class WorkspacesRepoStub:
             if member_id == user_id
             for workspace in [self.workspaces[workspace_id]]
             if workspace.status == target_status
+            and (allowed_ids is None or workspace.id in allowed_ids)
         ]
         start = (page - 1) * page_size
         return items[start : start + page_size], len(items)
@@ -465,7 +472,18 @@ class RouterServiceStub:
             "updated_at": datetime.now(UTC),
         }
 
-    async def list_workspaces(self, user_id, page, page_size, status):
+    async def list_workspaces(
+        self,
+        user_id,
+        page,
+        page_size,
+        status,
+        *,
+        tag_label_filters=None,
+        tag_service=None,
+        label_service=None,
+    ):
+        del tag_label_filters, tag_service, label_service
         self.calls.append(("list_workspaces", (user_id, page, page_size, status)))
         return {
             "items": [

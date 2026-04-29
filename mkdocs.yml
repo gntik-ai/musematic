@@ -253,6 +253,9 @@ nav:
       - A2A API: api-reference/a2a-api.md
       - MCP API: api-reference/mcp-api.md
       - Error Codes: api-reference/error-codes.md
+  - Reference:
+      - Label Expression DSL: reference/label-expression-dsl.md
+      - Tag and Label Rules: reference/tag-label-rules.md
   - Architecture:
       - Overview: architecture/index.md
       - System Architecture: architecture/system-architecture.md

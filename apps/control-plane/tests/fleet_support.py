@@ -465,6 +465,7 @@ class FleetRepositoryStub:
         status: FleetStatus | None = None,
         page: int,
         page_size: int,
+        allowed_ids: set[UUID] | None = None,
     ) -> tuple[list[Fleet], int]:
         items = [
             fleet
@@ -472,6 +473,7 @@ class FleetRepositoryStub:
             if fleet.workspace_id == workspace_id
             and fleet.deleted_at is None
             and (status is None or fleet.status == status)
+            and (allowed_ids is None or fleet.id in allowed_ids)
         ]
         items.sort(key=lambda fleet: (fleet.created_at, fleet.id), reverse=True)
         total = len(items)

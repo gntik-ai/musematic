@@ -126,6 +126,7 @@ class SavedViewResponse(BaseModel):
     is_owner: bool
     is_shared: bool
     is_orphan_transferred: bool
+    is_orphan: bool = False
     version: int
     created_at: datetime
     updated_at: datetime
@@ -153,4 +154,3 @@ class LabelExpressionError(BaseModel):
 class LabelExpressionValidationResponse(BaseModel):
     valid: bool
     error: LabelExpressionError | None = None
-

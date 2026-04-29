@@ -271,6 +271,24 @@ async def test_j03_consumer_discovery_execution(
         assert patch.json()["display_name"] == "Customer Identity Verifier"
         await wait_for_workspace_access(consumer_workspace, workspace_id)
 
+    with journey_step("Admin classifies the published agent and verifies tag plus label catalog filtering"):
+        tag = await admin_workspace.post(
+            f"/api/v1/tags/agent/{agent_id}",
+            json={"tag": f"{JOURNEY_ID}-verified"},
+        )
+        label = await admin_workspace.post(
+            f"/api/v1/labels/agent/{agent_id}",
+            json={"key": "env", "value": "production"},
+        )
+        filtered = await admin_workspace.get(
+            "/api/v1/agents",
+            params={"tags": f"{JOURNEY_ID}-verified", "label.env": "production"},
+        )
+        tag.raise_for_status()
+        label.raise_for_status()
+        filtered.raise_for_status()
+        assert agent_id in {item["id"] for item in filtered.json()["items"]}
+
     with journey_step("Consumer browses the marketplace home within the workspace scope"):
         browse_payload = await _wait_for_marketplace_search_result(
             consumer_workspace,
