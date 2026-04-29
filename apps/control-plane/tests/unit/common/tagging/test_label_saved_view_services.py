@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from platform.common.exceptions import AuthorizationError, ValidationError
 from platform.common.tagging.exceptions import (
     EntityNotFoundForTagError,
+    EntityTypeNotRegisteredError,
     InvalidLabelKeyError,
     LabelAttachLimitExceededError,
     LabelValueTooLongError,
@@ -243,6 +244,12 @@ class SavedViewConflictRepoStub(SavedViewRepoStub):
     ) -> SimpleNamespace:
         del owner_id, workspace_id, entity_type, filters, shared
         raise IntegrityError("insert saved view", {"name": name}, Exception("duplicate"))
+
+
+class SavedViewDeleteRaceRepoStub(SavedViewRepoStub):
+    async def delete_saved_view(self, view_id: UUID) -> bool:
+        self.deleted.append(view_id)
+        return False
 
 
 def _saved_view_row(
@@ -599,6 +606,141 @@ async def test_saved_view_create_maps_name_collision_to_domain_error() -> None:
             filters={},
             shared=False,
         )
+
+
+@pytest.mark.asyncio
+async def test_saved_view_service_edge_branches_and_filter_errors() -> None:
+    owner_id = uuid4()
+    member_id = uuid4()
+    admin_id = uuid4()
+    workspace_id = uuid4()
+
+    async def only_owner_is_member(workspace: UUID, requester: object) -> bool:
+        raw = (
+            requester.get("sub")
+            if isinstance(requester, dict)
+            else getattr(requester, "id", None)
+        )
+        return workspace == workspace_id and raw is not None and UUID(str(raw)) == owner_id
+
+    async def superadmin_provider(_workspace: UUID) -> UUID | None:
+        return admin_id
+
+    repo = SavedViewRepoStub()
+    service = SavedViewService(
+        repo,
+        workspace_membership_check=only_owner_is_member,
+        workspace_superadmin_provider=superadmin_provider,
+    )
+
+    with pytest.raises(EntityTypeNotRegisteredError):
+        await service.create(
+            requester={"sub": str(owner_id)},
+            workspace_id=None,
+            name="bad-entity",
+            entity_type="unknown",
+            filters={},
+            shared=False,
+        )
+    with pytest.raises(ValidationError):
+        await service.create(
+            requester={"sub": str(owner_id)},
+            workspace_id=None,
+            name="bad-root",
+            entity_type="agent",
+            filters=[],  # type: ignore[arg-type]
+            shared=False,
+        )
+    with pytest.raises(ValidationError):
+        await service.create(
+            requester={"sub": str(owner_id)},
+            workspace_id=None,
+            name="bad-labels",
+            entity_type="agent",
+            filters={"labels": ["env"]},
+            shared=False,
+        )
+    with pytest.raises(ValidationError):
+        await service.create(
+            requester={"sub": str(owner_id)},
+            workspace_id=None,
+            name="bad-tags",
+            entity_type="agent",
+            filters={"tags": "production"},
+            shared=False,
+        )
+
+    personal = await service.create(
+        requester={"sub": str(owner_id)},
+        workspace_id=None,
+        name="personal",
+        entity_type="agent",
+        filters={"label.env": "production"},
+        shared=False,
+    )
+    assert await service.list_for_user({"sub": str(member_id)}, "agent", workspace_id) == []
+    with pytest.raises(ValidationError):
+        await service.share(personal.id, {"sub": str(owner_id)})
+
+    workspace_view = await service.create(
+        requester={"sub": str(owner_id)},
+        workspace_id=workspace_id,
+        name="workspace",
+        entity_type="agent",
+        filters={},
+        shared=False,
+    )
+    with pytest.raises(SavedViewNotFoundError):
+        await service.update(
+            workspace_view.id,
+            expected_version=99,
+            requester={"sub": str(owner_id)},
+            filters={"labels": {"env": "production"}},
+        )
+
+    await service.delete(workspace_view.id, {"sub": str(admin_id)})
+    assert repo.deleted == [workspace_view.id]
+
+    race_repo = SavedViewDeleteRaceRepoStub()
+    race_view = _saved_view_row(
+        owner_id=owner_id,
+        workspace_id=workspace_id,
+        name="race",
+        entity_type="agent",
+    )
+    race_repo.views[race_view.id] = race_view
+    race_service = SavedViewService(race_repo)  # type: ignore[arg-type]
+    with pytest.raises(SavedViewNotFoundError):
+        await race_service.delete(race_view.id, {"sub": str(owner_id)})
+
+    skipped_repo = SavedViewRepoStub()
+    nonshared = _saved_view_row(
+        owner_id=member_id,
+        workspace_id=workspace_id,
+        name="private",
+        entity_type="agent",
+        shared=False,
+    )
+    active_owner = _saved_view_row(
+        owner_id=owner_id,
+        workspace_id=workspace_id,
+        name="active-owner",
+        entity_type="agent",
+        shared=True,
+    )
+    skipped_repo.views[nonshared.id] = nonshared
+    skipped_repo.views[active_owner.id] = active_owner
+    skipped_repo.shared = [nonshared, active_owner]
+    skipped_service = SavedViewService(
+        skipped_repo,
+        workspace_membership_check=only_owner_is_member,
+        workspace_superadmin_provider=superadmin_provider,
+    )
+
+    await skipped_service.resolve_orphan_owner(workspace_id)
+
+    assert skipped_repo.transferred == []
+    assert skipped_repo.marked_orphan == []
 
 
 @pytest.mark.asyncio

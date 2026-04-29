@@ -251,6 +251,10 @@ class EvaluationRepository:
         await self.session.flush()
         return run
 
+    async def delete_run(self, run: EvaluationRun) -> None:
+        await self.session.delete(run)
+        await self.session.flush()
+
     async def create_verdict(self, verdict: JudgeVerdict) -> JudgeVerdict:
         self.session.add(verdict)
         await self.session.flush()

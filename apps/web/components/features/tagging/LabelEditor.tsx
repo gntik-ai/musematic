@@ -10,6 +10,7 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 
 const LABEL_KEY_PATTERN = /^[a-zA-Z][a-zA-Z0-9._-]*$/;
+const RESERVED_PREFIXES = ["system.", "platform."] as const;
 
 interface LabelEditorProps {
   entityType: TaggableEntityType;
@@ -31,8 +32,14 @@ export function LabelEditor({
   const detach = useLabelDetach(entityType, entityId);
   const labels = data?.labels ?? [];
   const normalizedKey = key.trim();
+  const hasInvalidKey = normalizedKey.length > 0 && !LABEL_KEY_PATTERN.test(normalizedKey);
+  const isReservedDraft = RESERVED_PREFIXES.some((prefix) => normalizedKey.startsWith(prefix));
+  const reservedDraftBlocked = isReservedDraft && !canEditReserved;
   const canSubmit =
-    !readOnly && normalizedKey.length > 0 && LABEL_KEY_PATTERN.test(normalizedKey);
+    !readOnly &&
+    normalizedKey.length > 0 &&
+    LABEL_KEY_PATTERN.test(normalizedKey) &&
+    !reservedDraftBlocked;
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -75,26 +82,39 @@ export function LabelEditor({
         })}
       </div>
       {!readOnly ? (
-        <form
-          className="grid grid-cols-[minmax(8rem,1fr)_minmax(8rem,1fr)_auto] gap-2"
-          onSubmit={onSubmit}
-        >
-          <Input
-            aria-label="Label key"
-            maxLength={128}
-            onChange={(event) => setKey(event.target.value)}
-            value={key}
-          />
-          <Input
-            aria-label="Label value"
-            maxLength={512}
-            onChange={(event) => setValue(event.target.value)}
-            value={value}
-          />
-          <Button aria-label="Add label" disabled={!canSubmit} size="icon" type="submit">
-            <Plus className="h-4 w-4" aria-hidden="true" />
-          </Button>
-        </form>
+        <>
+          <form
+            className="grid grid-cols-[minmax(8rem,1fr)_minmax(8rem,1fr)_auto] gap-2"
+            onSubmit={onSubmit}
+          >
+            <Input
+              aria-label="Label key"
+              maxLength={128}
+              onChange={(event) => setKey(event.target.value)}
+              value={key}
+            />
+            <Input
+              aria-label="Label value"
+              maxLength={512}
+              onChange={(event) => setValue(event.target.value)}
+              value={value}
+            />
+            <Button aria-label="Add label" disabled={!canSubmit} size="icon" type="submit">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </form>
+          {hasInvalidKey ? (
+            <p className="text-xs text-destructive" role="alert">
+              Label keys must start with a letter and use letters, numbers, periods, underscores,
+              or hyphens.
+            </p>
+          ) : null}
+          {reservedDraftBlocked ? (
+            <p className="text-xs text-destructive" role="alert">
+              Reserved label keys require a superadmin or service account.
+            </p>
+          ) : null}
+        </>
       ) : null}
     </div>
   );

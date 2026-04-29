@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
-from tests.evaluation_testing_support import SessionStub, now_utc
+from tests.evaluation_testing_support import SessionStub, build_run, now_utc
 
 
 class TrajectoryScorerStub:
@@ -39,6 +39,27 @@ class RubricServiceStub:
 
     async def get_rubric_model(self, *_args: object, **_kwargs: object) -> Rubric:
         return self.rubric
+
+
+class EvalRunRepositoryStub:
+    def __init__(self, run: object | None) -> None:
+        self.run = run
+        self.session = SessionStub()
+        self.deleted: list[object] = []
+
+    async def get_run(self, *_args: object, **_kwargs: object) -> object | None:
+        return self.run
+
+    async def delete_run(self, run: object) -> None:
+        self.deleted.append(run)
+
+
+class TagCascadeStub:
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, object]] = []
+
+    async def cascade_on_entity_deletion(self, entity_type: str, entity_id: object) -> None:
+        self.calls.append((entity_type, entity_id))
 
 
 def build_rubric(**overrides: object) -> Rubric:
@@ -223,3 +244,22 @@ async def test_eval_runner_inline_judge_success_and_normalization() -> None:
         == 0.8
     )
     assert service._normalize_score("trajectory", ScoreResult(score=1.5)) == 1.0
+
+
+@pytest.mark.asyncio
+async def test_eval_runner_delete_run_cascades_tagging_state() -> None:
+    run = build_run()
+    repository = EvalRunRepositoryStub(run)
+    tag_service = TagCascadeStub()
+    service = EvalRunnerService(
+        repository=repository,
+        settings=SimpleNamespace(),
+        scorer_registry=ScorerRegistry(),
+        tag_service=tag_service,
+    )
+
+    await service.delete_run(run.id, run.workspace_id)
+
+    assert repository.deleted == [run]
+    assert tag_service.calls == [("evaluation_run", run.id)]
+    assert repository.session.commits == 1

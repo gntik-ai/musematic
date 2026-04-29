@@ -1,7 +1,14 @@
 from __future__ import annotations
 
 from platform.common.tagging.exceptions import LabelExpressionSyntaxError
-from platform.common.tagging.label_expression.ast import AndNode, EqualNode, GroupNode, NotNode
+from platform.common.tagging.label_expression.ast import (
+    AndNode,
+    EqualNode,
+    GroupNode,
+    NotNode,
+    node_from_dict,
+)
+from platform.common.tagging.label_expression.grammar import GRAMMAR
 from platform.common.tagging.label_expression.parser import parse, tokenize
 from platform.policies.schemas import PolicyRulesSchema
 from platform.policies.service import PolicyService
@@ -39,6 +46,19 @@ def test_parser_builds_expected_simple_ast_shape() -> None:
     assert isinstance(node.child, GroupNode)
     assert isinstance(node.child.child, AndNode)
     assert isinstance(node.child.child.left, EqualNode)
+
+
+def test_ast_round_trips_through_dict_payloads() -> None:
+    node = parse("(env=production OR tier!=critical) AND NOT HAS deprecated")
+    payload = node.to_dict()
+    restored = node_from_dict(payload)
+
+    assert "label_expression" in GRAMMAR
+    assert restored.to_dict() == payload
+    assert restored.evaluate({"env": "production"}) is True
+    assert restored.evaluate({"tier": "critical", "deprecated": "yes"}) is False
+    with pytest.raises(ValueError, match="unknown label-expression AST node type"):
+        node_from_dict({"type": "unexpected"})
 
 
 @pytest.mark.parametrize(

@@ -25,9 +25,16 @@ export function TagEditor({ entityType, entityId, readOnly = false }: TagEditorP
   const tags = data?.tags ?? [];
   const normalized = draft.trim();
   const isAtLimit = tags.length >= MAX_TAGS_PER_ENTITY;
+  const hasInvalidPattern = normalized.length > 0 && !TAG_PATTERN.test(normalized);
+  const isDuplicate = tags.some((item) => item.tag === normalized);
   const canSubmit = useMemo(
-    () => normalized.length > 0 && TAG_PATTERN.test(normalized) && !isAtLimit && !readOnly,
-    [isAtLimit, normalized, readOnly],
+    () =>
+      normalized.length > 0 &&
+      TAG_PATTERN.test(normalized) &&
+      !isAtLimit &&
+      !isDuplicate &&
+      !readOnly,
+    [isAtLimit, isDuplicate, normalized, readOnly],
   );
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -64,19 +71,36 @@ export function TagEditor({ entityType, entityId, readOnly = false }: TagEditorP
         ))}
       </div>
       {!readOnly ? (
-        <form className="flex gap-2" onSubmit={onSubmit}>
-          <Input
-            aria-label="Tag"
-            className="max-w-64"
-            disabled={isAtLimit}
-            maxLength={128}
-            onChange={(event) => setDraft(event.target.value)}
-            value={draft}
-          />
-          <Button aria-label="Add tag" disabled={!canSubmit} size="icon" type="submit">
-            <Plus className="h-4 w-4" aria-hidden="true" />
-          </Button>
-        </form>
+        <>
+          <form className="flex gap-2" onSubmit={onSubmit}>
+            <Input
+              aria-label="Tag"
+              className="max-w-64"
+              disabled={isAtLimit}
+              maxLength={128}
+              onChange={(event) => setDraft(event.target.value)}
+              value={draft}
+            />
+            <Button aria-label="Add tag" disabled={!canSubmit} size="icon" type="submit">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+            </Button>
+          </form>
+          {isAtLimit ? (
+            <p className="text-xs text-muted-foreground" role="status">
+              50 tag limit reached
+            </p>
+          ) : null}
+          {hasInvalidPattern ? (
+            <p className="text-xs text-destructive" role="alert">
+              Tags use letters, numbers, periods, underscores, or hyphens.
+            </p>
+          ) : null}
+          {isDuplicate ? (
+            <p className="text-xs text-muted-foreground" role="status">
+              Tag already applied
+            </p>
+          ) : null}
+        </>
       ) : null}
     </div>
   );

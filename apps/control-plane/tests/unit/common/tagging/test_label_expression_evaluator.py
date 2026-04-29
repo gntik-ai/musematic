@@ -88,7 +88,7 @@ async def test_evaluator_agrees_with_node_oracle_for_representative_inputs() -> 
             assert await evaluate(node, labels) is node.evaluate(labels)
 
 
-@settings(max_examples=1000)
+@settings(max_examples=10_000)
 @given(expression=_expressions(), labels=_label_dicts())
 def test_evaluator_agrees_with_independent_oracle_property(
     expression: Expression,

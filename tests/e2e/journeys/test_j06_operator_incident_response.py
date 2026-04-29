@@ -117,6 +117,8 @@ async def test_j06_operator_incident_response(
 ) -> None:
     assert operator_client.access_token is not None
 
+    operator_claims = _claims(operator_client.access_token)
+    operator_user_id = UUID(str(operator_claims["sub"]))
     workspace_id = UUID(str(running_workload["workspace_id"]))
     operator_workspace = operator_client.clone(default_headers=_workspace_headers(workspace_id))
     admin_workspace = admin_client.clone(default_headers=_workspace_headers(workspace_id))
@@ -135,12 +137,13 @@ async def test_j06_operator_incident_response(
     proposal_payload: dict[str, Any] | None = None
     canary_payload: dict[str, Any] | None = None
     canary_rollback: dict[str, Any] | None = None
+    saved_view_payload: dict[str, Any] | None = None
+    orphan_transfer_payload: dict[str, Any] | None = None
 
     with journey_step("Operator signs in with platform-operator authority"):
-        claims = _claims(operator_client.access_token)
-        role_names = {item["role"] for item in claims.get("roles", []) if isinstance(item, dict)}
+        role_names = {item["role"] for item in operator_claims.get("roles", []) if isinstance(item, dict)}
         assert "platform_operator" in role_names
-        assert "execution.rollback" in claims.get("permissions", [])
+        assert "execution.rollback" in operator_claims.get("permissions", [])
 
     with journey_step("Operator opens the workload workspace and seeded fleet"):
         workspace = await operator_workspace.get(f"/api/v1/workspaces/{workspace_id}")
@@ -361,6 +364,32 @@ async def test_j06_operator_incident_response(
         drift_payload = drift.json()
         assert drift_payload["agent_fqn"] == executor_agent["fqn"]
 
+    with journey_step("Operator saves and shares an incident triage view for the recovered agent"):
+        label = await operator_workspace.post(
+            f"/api/v1/labels/agent/{executor_agent['id']}",
+            json={"key": "incident", "value": "checkpoint-recovered"},
+        )
+        saved_view = await operator_workspace.post(
+            "/api/v1/saved-views",
+            json={
+                "workspace_id": str(workspace_id),
+                "name": f"{journey_context.prefix}checkpoint-recovered-agents",
+                "entity_type": "agent",
+                "filters": {"labels": {"incident": "checkpoint-recovered"}},
+                "shared": True,
+            },
+        )
+        label.raise_for_status()
+        saved_view.raise_for_status()
+        saved_view_payload = saved_view.json()
+        listed = await operator_workspace.get(
+            "/api/v1/saved-views",
+            params={"entity_type": "agent", "workspace_id": str(workspace_id)},
+        )
+        listed.raise_for_status()
+        assert saved_view_payload["is_shared"] is True
+        assert saved_view_payload["id"] in {item["id"] for item in listed.json()}
+
     with journey_step("Operator reviews the adaptation proposal created from the drift signal"):
         assert drift_payload is not None
         proposal = await operator_workspace.post(
@@ -412,6 +441,22 @@ async def test_j06_operator_incident_response(
         assert retired.json()["status"] == "retired"
         assert direct_lookup.json()["id"] == executor_agent["id"]
 
+    with journey_step("Admin removes the saved-view owner and verifies orphan transfer"):
+        assert saved_view_payload is not None
+        removed = await admin_workspace.delete(
+            f"/api/v1/workspaces/{workspace_id}/members/{operator_user_id}"
+        )
+        removed.raise_for_status()
+        transferred = await admin_workspace.get(
+            "/api/v1/saved-views",
+            params={"entity_type": "agent", "workspace_id": str(workspace_id)},
+        )
+        transferred.raise_for_status()
+        orphan_transfer_payload = next(
+            item for item in transferred.json() if item["id"] == saved_view_payload["id"]
+        )
+        assert orphan_transfer_payload["is_orphan_transferred"] is True
+
     with journey_step("Final state preserves incident response, analytics, adaptation, canary, and decommission records"):
         assert checkpoint_event is not None
         assert checkpoint_execution is not None
@@ -423,3 +468,5 @@ async def test_j06_operator_incident_response(
         assert proposal_payload is not None
         assert canary_payload is not None
         assert canary_rollback is not None
+        assert saved_view_payload is not None
+        assert orphan_transfer_payload is not None

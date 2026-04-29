@@ -90,6 +90,7 @@ async def test_j05_trust_governance_pipeline(
     enforcer = agents["enforcer"]
 
     policy_payload: dict[str, Any] | None = None
+    label_scoped_policy_payload: dict[str, Any] | None = None
     policy_attachment: dict[str, Any] | None = None
     chain_payload: dict[str, Any] | None = None
     obvious_block_event: dict[str, Any] | None = None
@@ -132,6 +133,39 @@ async def test_j05_trust_governance_pipeline(
         policy_payload = policy.json()
         assert policy_payload["scope_type"] == "workspace"
         assert policy_payload["workspace_id"] == str(workspace_id)
+
+    with journey_step("Reviewer labels the executor and saves a label-expression scoped policy"):
+        env_label = await reviewer_workspace.post(
+            f"/api/v1/labels/agent/{executor['id']}",
+            json={"key": "env", "value": "production"},
+        )
+        tier_label = await reviewer_workspace.post(
+            f"/api/v1/labels/agent/{executor['id']}",
+            json={"key": "tier", "value": "critical"},
+        )
+        expression = "env=production AND tier=critical"
+        validation = await reviewer_workspace.post(
+            "/api/v1/labels/expression/validate",
+            json={"expression": expression},
+        )
+        label_policy = await reviewer_workspace.post(
+            "/api/v1/policies",
+            json={
+                "name": f"{journey_context.prefix}production-critical-only",
+                "description": "Policy applies only to production critical executor agents.",
+                "scope_type": "workspace",
+                "workspace_id": str(workspace_id),
+                "rules": {"label_expression": expression},
+                "change_summary": "Journey label-expression policy",
+            },
+        )
+        env_label.raise_for_status()
+        tier_label.raise_for_status()
+        validation.raise_for_status()
+        label_policy.raise_for_status()
+        label_scoped_policy_payload = label_policy.json()
+        assert validation.json()["valid"] is True
+        assert label_scoped_policy_payload["workspace_id"] == str(workspace_id)
 
     with journey_step("Reviewer attaches the safety policy to the executor revision"):
         assert policy_payload is not None
@@ -387,3 +421,4 @@ async def test_j05_trust_governance_pipeline(
         assert breach_execution is not None
         assert third_party_cert is not None
         assert recert_signal is not None
+        assert label_scoped_policy_payload is not None

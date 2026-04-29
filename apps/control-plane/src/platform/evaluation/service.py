@@ -902,6 +902,16 @@ class EvalRunnerService:
             raise NotFoundError("EVALUATION_RUN_NOT_FOUND", "Evaluation run not found")
         return EvaluationRunResponse.model_validate(run)
 
+    @traced_async("evaluation.eval_runner.delete_run")
+    async def delete_run(self, run_id: UUID, workspace_id: UUID | None = None) -> None:
+        run = await self.repository.get_run(run_id, workspace_id)
+        if run is None:
+            raise NotFoundError("EVALUATION_RUN_NOT_FOUND", "Evaluation run not found")
+        await self.repository.delete_run(run)
+        if self.tag_service is not None:
+            await self.tag_service.cascade_on_entity_deletion("evaluation_run", run.id)
+        await self._commit()
+
     async def list_visible_evaluation_runs(self, requester: UUID | dict[str, Any]) -> set[UUID]:
         workspace_id = requester.get("workspace_id") if isinstance(requester, dict) else requester
         if workspace_id is None:
