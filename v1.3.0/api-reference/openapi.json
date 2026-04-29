@@ -21250,6 +21250,72 @@
         "title": "LabelAttachRequest",
         "type": "object"
       },
+      "LabelExpressionError": {
+        "properties": {
+          "col": {
+            "title": "Col",
+            "type": "integer"
+          },
+          "line": {
+            "title": "Line",
+            "type": "integer"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "line",
+          "col",
+          "token",
+          "message"
+        ],
+        "title": "LabelExpressionError",
+        "type": "object"
+      },
+      "LabelExpressionValidationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "expression": {
+            "minLength": 1,
+            "title": "Expression",
+            "type": "string"
+          }
+        },
+        "required": [
+          "expression"
+        ],
+        "title": "LabelExpressionValidationRequest",
+        "type": "object"
+      },
+      "LabelExpressionValidationResponse": {
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LabelExpressionError"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "valid": {
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "valid"
+        ],
+        "title": "LabelExpressionValidationResponse",
+        "type": "object"
+      },
       "LabelResponse": {
         "properties": {
           "created_at": {
@@ -27195,6 +27261,17 @@
             "title": "Enforcement Rules",
             "type": "array"
           },
+          "label_expression": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label Expression"
+          },
           "maturity_gate_rules": {
             "items": {
               "$ref": "#/components/schemas/MaturityGateRuleSchema"
@@ -32471,6 +32548,11 @@
             "format": "uuid",
             "title": "Id",
             "type": "string"
+          },
+          "is_orphan": {
+            "default": false,
+            "title": "Is Orphan",
+            "type": "boolean"
           },
           "is_orphan_transferred": {
             "title": "Is Orphan Transferred",
@@ -43082,7 +43164,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "title": "Response Attach Reserved Label Api V1 Admin Labels Reserved  Entity Type   Entity Id  Post"
+                  "$ref": "#/components/schemas/LabelResponse"
                 }
               }
             },
@@ -68559,6 +68641,262 @@
         ]
       }
     },
+    "/api/v1/labels/expression/validate": {
+      "post": {
+        "operationId": "validate_label_expression_api_v1_labels_expression_validate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LabelExpressionValidationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabelExpressionValidationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Validate Label Expression",
+        "tags": [
+          "common-tagging-labels",
+          "common-tagging-label-expression"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/labels/expression/validate\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/labels/expression/validate\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/labels/expression/validate`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/labels/expression/validate\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/labels/keys": {
+      "get": {
+        "operationId": "list_label_keys_api_v1_labels_keys_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "prefix",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Prefix",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response List Label Keys Api V1 Labels Keys Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "List Label Keys",
+        "tags": [
+          "common-tagging-labels"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/labels/keys\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/labels/keys\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/labels/keys`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/labels/keys\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/labels/values": {
+      "get": {
+        "operationId": "list_label_values_api_v1_labels_values_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "title": "Key",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "prefix",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Prefix",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "title": "Response List Label Values Api V1 Labels Values Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "List Label Values",
+        "tags": [
+          "common-tagging-labels"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/labels/values\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/labels/values\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/labels/values`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/labels/values\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
     "/api/v1/labels/{entity_type}/{entity_id}": {
       "get": {
         "operationId": "list_labels_api_v1_labels__entity_type___entity_id__get",
@@ -68677,7 +69015,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "title": "Response Attach Label Api V1 Labels  Entity Type   Entity Id  Post"
+                  "$ref": "#/components/schemas/LabelResponse"
                 }
               }
             },
@@ -95103,7 +95441,7 @@
           },
           {
             "in": "query",
-            "name": "tags",
+            "name": "definition_tags",
             "required": false,
             "schema": {
               "anyOf": [
@@ -95114,7 +95452,7 @@
                   "type": "null"
                 }
               ],
-              "title": "Tags"
+              "title": "Definition Tags"
             }
           },
           {

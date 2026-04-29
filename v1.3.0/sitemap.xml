@@ -1222,6 +1222,28 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/tls-emergency-renewal/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/reference/label-expression-dsl/</loc>
+        <lastmod>2026-04-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/reference/label-expression-dsl/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/reference/tag-label-rules/</loc>
+        <lastmod>2026-04-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/reference/tag-label-rules/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/release-notes/</loc>
         <lastmod>2026-04-29</lastmod>
         <changefreq>daily</changefreq>
@@ -2760,6 +2782,28 @@
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/tls-emergency-renewal/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/tls-emergency-renewal/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/tls-emergency-renewal/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/reference/label-expression-dsl/</loc>
+        <lastmod>2026-04-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0/es/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/reference/label-expression-dsl/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/reference/tag-label-rules/</loc>
+        <lastmod>2026-04-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0/es/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/reference/tag-label-rules/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/release-notes/</loc>
@@ -4302,6 +4346,28 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/tls-emergency-renewal/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/reference/label-expression-dsl/</loc>
+        <lastmod>2026-04-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0/de/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/reference/label-expression-dsl/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/reference/tag-label-rules/</loc>
+        <lastmod>2026-04-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0/de/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/reference/tag-label-rules/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/release-notes/</loc>
         <lastmod>2026-04-29</lastmod>
         <changefreq>daily</changefreq>
@@ -5840,6 +5906,28 @@
         <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/tls-emergency-renewal/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/tls-emergency-renewal/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/tls-emergency-renewal/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/reference/label-expression-dsl/</loc>
+        <lastmod>2026-04-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0/fr/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/reference/label-expression-dsl/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/reference/tag-label-rules/</loc>
+        <lastmod>2026-04-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0/fr/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/reference/tag-label-rules/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/release-notes/</loc>
@@ -7382,6 +7470,28 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/tls-emergency-renewal/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/reference/label-expression-dsl/</loc>
+        <lastmod>2026-04-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0/it/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/reference/label-expression-dsl/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/reference/tag-label-rules/</loc>
+        <lastmod>2026-04-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0/it/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/reference/tag-label-rules/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/release-notes/</loc>
         <lastmod>2026-04-29</lastmod>
         <changefreq>daily</changefreq>
@@ -8920,6 +9030,28 @@
         <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/tls-emergency-renewal/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/tls-emergency-renewal/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/tls-emergency-renewal/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/reference/label-expression-dsl/</loc>
+        <lastmod>2026-04-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0/zh/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/reference/label-expression-dsl/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/reference/label-expression-dsl/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/reference/tag-label-rules/</loc>
+        <lastmod>2026-04-29</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0/zh/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/reference/tag-label-rules/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/reference/tag-label-rules/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/release-notes/</loc>
