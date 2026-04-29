@@ -1,0 +1,59 @@
+suite: admin bootstrap job
+templates:
+  - templates/platform-bootstrap-job.yaml
+tests:
+  - it: renders post-install and post-upgrade hook annotations
+    documentIndex: 3
+    set:
+      superadmin.username: alice
+      superadmin.email: alice@example.com
+      superadmin.passwordSecretRef: test-superadmin
+    asserts:
+      - equal:
+          path: metadata.annotations["helm.sh/hook"]
+          value: post-install,post-upgrade
+      - equal:
+          path: metadata.annotations["helm.sh/hook-weight"]
+          value: "10"
+      - equal:
+          path: metadata.annotations["helm.sh/hook-delete-policy"]
+          value: before-hook-creation,hook-succeeded
+  - it: maps Helm superadmin values to environment variables
+    documentIndex: 3
+    set:
+      superadmin.username: alice
+      superadmin.email: alice@example.com
+      superadmin.passwordSecretRef: test-superadmin
+      superadmin.mfaEnrollment: required_before_first_login
+      superadmin.forcePasswordChange: true
+      platformInstanceName: Musematic Test
+      tenantMode: multi
+    asserts:
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PLATFORM_SUPERADMIN_USERNAME
+            value: alice
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PLATFORM_SUPERADMIN_EMAIL
+            value: alice@example.com
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PLATFORM_SUPERADMIN_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: test-superadmin
+                key: password
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PLATFORM_INSTANCE_NAME
+            value: Musematic Test
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: PLATFORM_TENANT_MODE
+            value: multi

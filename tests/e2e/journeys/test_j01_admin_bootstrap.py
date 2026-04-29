@@ -23,6 +23,24 @@ TIMEOUT_SECONDS = 180
 # - trust
 # - governance
 
+ADMIN_WORKBENCH_SECTIONS = [
+    "/admin/users",
+    "/admin/workspaces",
+    "/admin/settings",
+    "/admin/audit-chain",
+    "/admin/health",
+    "/admin/costs/overview",
+    "/admin/observability/dashboards",
+    "/admin/integrations/webhooks",
+    "/admin/lifecycle/installer",
+    "/admin/audit",
+]
+
+
+def test_j01_admin_workbench_section_contract_is_declared() -> None:
+    assert len(ADMIN_WORKBENCH_SECTIONS) == 10
+    assert "/admin/lifecycle/installer" in ADMIN_WORKBENCH_SECTIONS
+
 
 def _claims(token: str) -> dict[str, Any]:
     return jwt.decode(

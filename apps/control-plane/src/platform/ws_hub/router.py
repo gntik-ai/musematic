@@ -101,12 +101,14 @@ async def websocket_endpoint(
 
     user_id = UUID(str(auth_payload["sub"]))
     workspace_ids = await _load_workspace_ids(websocket, user_id)
+    role_names = _role_names(auth_payload)
 
     await websocket.accept()
     connection = WebSocketConnection(
         connection_id=str(uuid4()),
         user_id=user_id,
         workspace_ids=set(workspace_ids),
+        role_names=role_names,
         websocket=websocket,
         send_queue=asyncio.Queue(maxsize=websocket.app.state.settings.WS_CLIENT_BUFFER_SIZE),
     )
@@ -243,6 +245,10 @@ async def _handle_subscribe(
             message.resource_id,
         )
     except (SubscriptionAuthError, ProtocolViolationError) as exc:
+        if isinstance(exc, SubscriptionAuthError) and exc.code == "admin_required":
+            connection.closed.set()
+            await websocket.close(code=1008, reason=exc.message)
+            return
         error = SubscriptionErrorMessage(
             channel=message.channel.value,
             resource_id=message.resource_id,
@@ -627,6 +633,17 @@ def _extract_token(websocket: WebSocket) -> str | None:
         return token or None
     query_token = websocket.query_params.get("token")
     return query_token.strip() if query_token else None
+
+
+def _role_names(auth_payload: dict[str, object]) -> set[str]:
+    roles = auth_payload.get("roles")
+    if not isinstance(roles, list):
+        return set()
+    return {
+        str(role.get("role"))
+        for role in roles
+        if isinstance(role, dict) and role.get("role") is not None
+    }
 
 
 async def _validate_token(websocket: WebSocket, token: str) -> dict[str, object]:

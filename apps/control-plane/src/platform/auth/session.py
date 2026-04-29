@@ -36,6 +36,7 @@ class RedisSessionStore:
             "created_at": now,
             "last_activity": now,
             "refresh_jti": refresh_jti,
+            "admin_read_only_mode": "false",
         }
         await cast(Any, client.hset(session_key, mapping=mapping))
         await cast(Any, client.expire(session_key, self.settings.session_ttl))
@@ -56,7 +57,26 @@ class RedisSessionStore:
             "created_at": raw["created_at"],
             "last_activity": raw["last_activity"],
             "refresh_jti": raw["refresh_jti"],
+            "admin_read_only_mode": self._decode_bool(raw.get("admin_read_only_mode")),
         }
+
+    async def set_admin_read_only_mode(
+        self,
+        user_id: UUID,
+        session_id: UUID,
+        enabled: bool,
+    ) -> None:
+        client = await self.redis_client._get_client()
+        session_key = self._session_key(user_id, session_id)
+        if not await cast(Any, client.exists(session_key)):
+            return
+        await cast(
+            Any,
+            client.hset(
+                session_key,
+                mapping={"admin_read_only_mode": "true" if enabled else "false"},
+            ),
+        )
 
     async def list_sessions_by_user(self, user_id: UUID) -> list[dict[str, Any]]:
         client = await self.redis_client._get_client()
@@ -107,3 +127,7 @@ class RedisSessionStore:
         if isinstance(value, bytes):
             return value.decode()
         return str(value)
+
+    @classmethod
+    def _decode_bool(cls, value: Any) -> bool:
+        return cls._decode_redis_value(value).strip().lower() in {"1", "true", "yes", "on"}

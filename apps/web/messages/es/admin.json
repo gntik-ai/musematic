@@ -1,0 +1,353 @@
+{
+  "layout": {
+    "title": "Musematic Admin",
+    "adminRole": "Admin",
+    "superAdminRole": "Super admin",
+    "readOnly": "Modo de solo lectura",
+    "twoPersonAuth": "Solicitudes 2PA pendientes"
+  },
+  "actions": {
+    "create": "Crear",
+    "exportConfiguration": "Exportar configuracion",
+    "importConfiguration": "Importar configuracion",
+    "impersonate": "Suplantar",
+    "initiateFailoverTest": "Iniciar prueba de failover",
+    "saveView": "Guardar vista",
+    "loadView": "Cargar vista"
+  },
+  "sections": {
+    "identity": "Identidad",
+    "tenancy": "Tenencia",
+    "configuration": "Configuracion",
+    "security": "Seguridad",
+    "operations": "Operaciones",
+    "cost": "Coste",
+    "observability": "Observabilidad",
+    "integrations": "Integraciones",
+    "lifecycle": "Ciclo de vida",
+    "audit": "Auditoria"
+  },
+  "readOnlyTooltip": "Deshabilitado - esta sesion esta en modo de solo lectura",
+  "help": {
+    "landing": {
+      "summary": "Use this page to manage administrator workbench in the Landing section. It reads from /api/v1/admin/health, /api/v1/admin/activity.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: summary counters, incidents, approvals, audit-chain status. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "users": {
+      "summary": "Use this page to manage users in the Identity & Access section. It reads from /api/v1/admin/users.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: users, credentials, roles, sessions. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "users_id": {
+      "summary": "Use this page to manage user detail in the Identity & Access section. It reads from /api/v1/admin/users/{id}.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: user detail, roles, sessions, audit entries. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "roles": {
+      "summary": "Use this page to manage roles in the Identity & Access section. It reads from /api/v1/admin/roles.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: role permissions. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "roles_id": {
+      "summary": "Use this page to manage role detail in the Identity & Access section. It reads from /api/v1/admin/roles/{id}.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: role detail, permission diff. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "groups": {
+      "summary": "Use this page to manage groups in the Identity & Access section. It reads from /api/v1/admin/groups.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: directory groups, role mappings. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "sessions": {
+      "summary": "Use this page to manage sessions in the Identity & Access section. It reads from /api/v1/admin/sessions.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: active sessions. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "oauth_providers": {
+      "summary": "Use this page to manage oauth providers in the Identity & Access section. It reads from /api/v1/admin/oauth-providers.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: OAuth providers, domain restrictions. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "ibor": {
+      "summary": "Use this page to manage ibor connectors in the Identity & Access section. It reads from /api/v1/admin/ibor/connectors.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: IBOR connectors, sync status. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "ibor_connector_id": {
+      "summary": "Use this page to manage ibor connector in the Identity & Access section. It reads from /api/v1/admin/ibor/connectors/{connector_id}.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: sync runs, mappings. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "api_keys": {
+      "summary": "Use this page to manage api keys in the Identity & Access section. It reads from /api/v1/admin/api-keys.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: service-account credentials. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "tenants": {
+      "summary": "Use this page to manage tenants in the Tenancy & Workspaces section. It reads from /api/v1/admin/tenants.",
+      "scope": "Only super admins can use this page; direct links return the admin 403 page for other roles.",
+      "safety": "Before applying changes, verify the backing data: tenants, tenant mode. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "tenants_id": {
+      "summary": "Use this page to manage tenant detail in the Tenancy & Workspaces section. It reads from /api/v1/admin/tenants/{id}.",
+      "scope": "Only super admins can use this page; direct links return the admin 403 page for other roles.",
+      "safety": "Before applying changes, verify the backing data: tenant detail, users, workspaces. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "workspaces": {
+      "summary": "Use this page to manage workspaces in the Tenancy & Workspaces section. It reads from /api/v1/admin/workspaces.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: workspaces, membership counts. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "workspaces_id": {
+      "summary": "Use this page to manage workspace detail in the Tenancy & Workspaces section. It reads from /api/v1/admin/workspaces/{id}.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: workspace detail, members, quotas. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "workspaces_id_quotas": {
+      "summary": "Use this page to manage workspace quotas in the Tenancy & Workspaces section. It reads from /api/v1/admin/workspaces/{id}/quotas.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: quota settings and usage. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "namespaces": {
+      "summary": "Use this page to manage namespaces in the Tenancy & Workspaces section. It reads from /api/v1/admin/namespaces.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: namespace inventory. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "settings": {
+      "summary": "Use this page to manage settings in the System Configuration section. It reads from /api/v1/admin/settings.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: platform settings. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "feature_flags": {
+      "summary": "Use this page to manage feature flags in the System Configuration section. It reads from /api/v1/admin/feature-flags.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: scoped feature flags. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "model_catalog": {
+      "summary": "Use this page to manage model catalog in the System Configuration section. It reads from /api/v1/admin/model-catalog.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: model catalog entries. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "model_catalog_id": {
+      "summary": "Use this page to manage model detail in the System Configuration section. It reads from /api/v1/admin/model-catalog/{id}.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: model detail, cards, fallback policy. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "policies": {
+      "summary": "Use this page to manage policies in the System Configuration section. It reads from /api/v1/admin/policies.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: policy bundles and rules. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "connectors": {
+      "summary": "Use this page to manage connectors in the System Configuration section. It reads from /api/v1/admin/connectors.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: connector definitions and runs. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "audit_chain": {
+      "summary": "Use this page to manage audit chain in the Security & Compliance section. It reads from /api/v1/admin/audit-chain.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: chain verification, attestations. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "security_sbom": {
+      "summary": "Use this page to manage sbom in the Security & Compliance section. It reads from /api/v1/admin/security/sbom.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: SBOM documents. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "security_pentests": {
+      "summary": "Use this page to manage pentests in the Security & Compliance section. It reads from /api/v1/admin/security/pentests.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: pentest reports. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "security_rotations": {
+      "summary": "Use this page to manage rotations in the Security & Compliance section. It reads from /api/v1/admin/security/rotations.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: secret rotation schedules. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "security_jit": {
+      "summary": "Use this page to manage jit credentials in the Security & Compliance section. It reads from /api/v1/admin/security/jit.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: JIT grants. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "privacy_dsr": {
+      "summary": "Use this page to manage dsr queue in the Security & Compliance section. It reads from /api/v1/admin/privacy/dsr.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: DSR queue. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "privacy_dlp": {
+      "summary": "Use this page to manage dlp rules in the Security & Compliance section. It reads from /api/v1/admin/privacy/dlp.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: DLP rules and events. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "privacy_pia": {
+      "summary": "Use this page to manage pia reviews in the Security & Compliance section. It reads from /api/v1/admin/privacy/pia.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: PIA reviews. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "compliance": {
+      "summary": "Use this page to manage compliance in the Security & Compliance section. It reads from /api/v1/admin/compliance.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: compliance controls. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "privacy_consent": {
+      "summary": "Use this page to manage consent records in the Security & Compliance section. It reads from /api/v1/admin/privacy/consent.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: consent records. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "health": {
+      "summary": "Use this page to manage health in the Operations & Health section. It reads from /api/v1/admin/health.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: service health, Grafana panel. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "incidents": {
+      "summary": "Use this page to manage incidents in the Operations & Health section. It reads from /api/v1/admin/incidents.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: incidents, ADMIN_INCIDENTS channel. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "incidents_id": {
+      "summary": "Use this page to manage incident detail in the Operations & Health section. It reads from /api/v1/admin/incidents/{id}.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: incident detail. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "runbooks": {
+      "summary": "Use this page to manage runbooks in the Operations & Health section. It reads from /api/v1/admin/runbooks.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: runbook library. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "runbooks_id": {
+      "summary": "Use this page to manage runbook detail in the Operations & Health section. It reads from /api/v1/admin/runbooks/{id}.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: runbook detail. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "maintenance": {
+      "summary": "Use this page to manage maintenance in the Operations & Health section. It reads from /api/v1/admin/maintenance.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: maintenance windows. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "regions": {
+      "summary": "Use this page to manage regions in the Operations & Health section. It reads from /api/v1/admin/regions.",
+      "scope": "Only super admins can use this page; direct links return the admin 403 page for other roles.",
+      "safety": "Before applying changes, verify the backing data: regions, failover, replication. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "queues": {
+      "summary": "Use this page to manage queues in the Operations & Health section. It reads from /api/v1/admin/queues.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: queue depth and lag. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "warm_pool": {
+      "summary": "Use this page to manage warm pool in the Operations & Health section. It reads from /api/v1/admin/warm-pool.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: warm-pool capacity. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "executions": {
+      "summary": "Use this page to manage executions in the Operations & Health section. It reads from /api/v1/admin/executions.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: execution status. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "costs_overview": {
+      "summary": "Use this page to manage cost overview in the Cost & Billing section. It reads from /api/v1/admin/costs/overview.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: cost summaries. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "costs_budgets": {
+      "summary": "Use this page to manage budgets in the Cost & Billing section. It reads from /api/v1/admin/costs/budgets.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: budgets, alerts. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "costs_chargeback": {
+      "summary": "Use this page to manage chargeback in the Cost & Billing section. It reads from /api/v1/admin/costs/chargeback.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: cost attributions. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "costs_anomalies": {
+      "summary": "Use this page to manage cost anomalies in the Cost & Billing section. It reads from /api/v1/admin/costs/anomalies.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: anomalies. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "costs_forecasts": {
+      "summary": "Use this page to manage cost forecasts in the Cost & Billing section. It reads from /api/v1/admin/costs/forecasts.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: forecasts. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "costs_rates": {
+      "summary": "Use this page to manage cost rates in the Cost & Billing section. It reads from /api/v1/admin/costs/rates.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: rates and model costs. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "observability_dashboards": {
+      "summary": "Use this page to manage dashboards in the Observability section. It reads from /api/v1/admin/observability/dashboards.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: dashboard inventory. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "observability_alerts": {
+      "summary": "Use this page to manage alerts in the Observability section. It reads from /api/v1/admin/observability/alerts.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: Prometheus and Loki rules. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "observability_log_retention": {
+      "summary": "Use this page to manage log retention in the Observability section. It reads from /api/v1/admin/observability/log-retention.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: retention settings. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "observability_registry": {
+      "summary": "Use this page to manage observability registry in the Observability section. It reads from /api/v1/admin/observability/registry.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: metrics/logs/traces registry. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "integrations_webhooks": {
+      "summary": "Use this page to manage webhooks in the Integrations section. It reads from /api/v1/admin/integrations/webhooks.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: outbound webhooks. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "integrations_incidents": {
+      "summary": "Use this page to manage incident integrations in the Integrations section. It reads from /api/v1/admin/integrations/incidents.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: incident integrations. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "integrations_notifications": {
+      "summary": "Use this page to manage notification integrations in the Integrations section. It reads from /api/v1/admin/integrations/notifications.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: notification channels. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "integrations_a2a": {
+      "summary": "Use this page to manage a2a integrations in the Integrations section. It reads from /api/v1/admin/integrations/a2a.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: A2A gateway config. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "integrations_mcp": {
+      "summary": "Use this page to manage mcp integrations in the Integrations section. It reads from /api/v1/admin/integrations/mcp.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: MCP servers and tools. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "lifecycle_version": {
+      "summary": "Use this page to manage version in the Platform Lifecycle section. It reads from /api/v1/admin/lifecycle/version.",
+      "scope": "Only super admins can use this page; direct links return the admin 403 page for other roles.",
+      "safety": "Before applying changes, verify the backing data: version and release metadata. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "lifecycle_migrations": {
+      "summary": "Use this page to manage migrations in the Platform Lifecycle section. It reads from /api/v1/admin/lifecycle/migrations.",
+      "scope": "Only super admins can use this page; direct links return the admin 403 page for other roles.",
+      "safety": "Before applying changes, verify the backing data: migration state. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "lifecycle_backup": {
+      "summary": "Use this page to manage backup in the Platform Lifecycle section. It reads from /api/v1/admin/lifecycle/backup.",
+      "scope": "Only super admins can use this page; direct links return the admin 403 page for other roles.",
+      "safety": "Before applying changes, verify the backing data: backups. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "lifecycle_installer": {
+      "summary": "Use this page to manage installer in the Platform Lifecycle section. It reads from /api/v1/admin/lifecycle/installer.",
+      "scope": "Only super admins can use this page; direct links return the admin 403 page for other roles.",
+      "safety": "Before applying changes, verify the backing data: installer state, config import/export. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "audit": {
+      "summary": "Use this page to manage audit query in the Audit & Logs section. It reads from /api/v1/admin/audit.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: unified audit query. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    },
+    "audit_admin_activity": {
+      "summary": "Use this page to manage admin activity in the Audit & Logs section. It reads from /api/v1/admin/activity.",
+      "scope": "Platform admins see tenant-scoped data; super admins can review platform-wide data where the API permits.",
+      "safety": "Before applying changes, verify the backing data: admin activity feed. Use previews, typed confirmations, or 2PA when the action tier requires it."
+    }
+  }
+}

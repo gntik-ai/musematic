@@ -211,6 +211,15 @@ jobs:
         working-directory: .
         run: python scripts/check-me-endpoint-scope.py
 
+      - name: Lint admin role gates
+        run: python scripts/lint_admin_role_gates.py
+
+      - name: Lint bootstrap secret logging
+        run: python scripts/lint_bootstrap_secrets.py
+
+      - name: Verify admin OpenAPI tags
+        run: python scripts/verify_admin_openapi_tags.py
+
   typecheck-python:
     name: Type-check Python
     needs: changes

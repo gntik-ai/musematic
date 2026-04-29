@@ -4,7 +4,7 @@ from collections.abc import Callable
 from contextlib import AbstractAsyncContextManager
 from datetime import UTC, datetime
 from platform.ws_hub.exceptions import ProtocolViolationError, SubscriptionAuthError
-from platform.ws_hub.subscription import USER_SCOPED_CHANNELS, ChannelType
+from platform.ws_hub.subscription import ADMIN_SCOPED_CHANNELS, USER_SCOPED_CHANNELS, ChannelType
 from typing import Any, Protocol
 from uuid import UUID
 
@@ -35,6 +35,15 @@ class VisibilityFilter:
         channel: ChannelType,
         resource_id: str,
     ) -> UUID | None:
+        if channel in ADMIN_SCOPED_CHANNELS:
+            role_names = {str(role) for role in getattr(conn, "role_names", set())}
+            if not role_names.intersection({"platform_admin", "superadmin"}):
+                raise SubscriptionAuthError(
+                    "admin_required",
+                    "Admin role required for admin WebSocket channels",
+                )
+            return None
+
         if channel in USER_SCOPED_CHANNELS:
             if resource_id != str(conn.user_id):
                 raise SubscriptionAuthError(

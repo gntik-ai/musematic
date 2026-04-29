@@ -21,6 +21,12 @@ class ChannelType(StrEnum):
     ALERTS = "alerts"
     ATTENTION = "attention"
     PLATFORM_STATUS = "platform-status"
+    ADMIN_HEALTH = "admin-health"
+    ADMIN_INCIDENTS = "admin-incidents"
+    ADMIN_QUEUES = "admin-queues"
+    ADMIN_WARM_POOL = "admin-warm-pool"
+    ADMIN_MAINTENANCE = "admin-maintenance"
+    ADMIN_REGIONS = "admin-regions"
 
 
 CHANNEL_TOPIC_MAP: Final[dict[ChannelType, Sequence[str]]] = {
@@ -40,6 +46,12 @@ CHANNEL_TOPIC_MAP: Final[dict[ChannelType, Sequence[str]]] = {
         "incident_response.events",
         "platform.status.derived",
     ),
+    ChannelType.ADMIN_HEALTH: ("admin.events", "monitor.alerts", "platform.status.derived"),
+    ChannelType.ADMIN_INCIDENTS: ("admin.events", "incident_response.events"),
+    ChannelType.ADMIN_QUEUES: ("admin.events", "execution.events", "workflow.runtime"),
+    ChannelType.ADMIN_WARM_POOL: ("admin.events", "runtime.lifecycle"),
+    ChannelType.ADMIN_MAINTENANCE: ("admin.events", "multi_region_ops.events"),
+    ChannelType.ADMIN_REGIONS: ("admin.events", "multi_region_ops.events"),
 }
 
 WORKSPACE_SCOPED_CHANNELS: Final[set[ChannelType]] = {
@@ -61,6 +73,16 @@ USER_SCOPED_GLOBAL_CHANNELS: Final[frozenset[ChannelType]] = frozenset(
     }
 )
 USER_SCOPED_CHANNELS: Final[frozenset[ChannelType]] = USER_SCOPED_GLOBAL_CHANNELS
+ADMIN_SCOPED_CHANNELS: Final[frozenset[ChannelType]] = frozenset(
+    {
+        ChannelType.ADMIN_HEALTH,
+        ChannelType.ADMIN_INCIDENTS,
+        ChannelType.ADMIN_QUEUES,
+        ChannelType.ADMIN_WARM_POOL,
+        ChannelType.ADMIN_MAINTENANCE,
+        ChannelType.ADMIN_REGIONS,
+    }
+)
 
 
 def subscription_key(channel: ChannelType, resource_id: str) -> str:

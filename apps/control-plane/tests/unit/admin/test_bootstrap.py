@@ -3,11 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 from platform.admin import bootstrap
 from types import SimpleNamespace
-from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
-from sqlalchemy.exc import IntegrityError
 
 
 class _Result:
@@ -296,7 +294,7 @@ async def test_write_generated_credential_secret_creates_or_patches_secret(
         def __init__(self, *, verify: str | bool, timeout: float) -> None:
             calls.append(("init", str(verify), {"timeout": timeout}))
 
-        async def __aenter__(self) -> "_Client":
+        async def __aenter__(self) -> _Client:
             return self
 
         async def __aexit__(self, *_exc: object) -> None:
@@ -358,7 +356,9 @@ async def test_find_superadmin_user_returns_uuid_or_none() -> None:
     user_id = uuid4()
     config = _config()
 
-    assert await bootstrap._find_superadmin_user(_Session(_Result(scalar=user_id)), config) == user_id
+    assert (
+        await bootstrap._find_superadmin_user(_Session(_Result(scalar=user_id)), config) == user_id
+    )
     assert await bootstrap._find_superadmin_user(_Session(_Result()), config) is None
 
 
@@ -452,6 +452,7 @@ async def test_create_pending_mfa_enrollment_persists_encrypted_secret(
         "create_provisioning_uri",
         lambda secret, email: f"otpauth://{email}/{secret}",
     )
+    monkeypatch.setattr(bootstrap, "_render_terminal_qr_code", lambda payload: f"QR:{payload}")
     monkeypatch.setattr(bootstrap, "encrypt_secret", lambda secret, key: f"{key}:{secret}")
 
     await bootstrap._create_pending_mfa_enrollment(
@@ -465,7 +466,30 @@ async def test_create_pending_mfa_enrollment_persists_encrypted_secret(
 
     assert session.executed[0][1]["user_id"] == user_id  # type: ignore[index]
     assert session.executed[0][1]["encrypted_secret"] == "key:totp-secret"  # type: ignore[index]
-    assert "MFA manual-entry secret: totp-secret" in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "MFA manual-entry secret: totp-secret" in output
+    assert "MFA QR code:\nQR:otpauth://root@example.com/totp-secret" in output
+
+
+def test_render_terminal_qr_code_uses_qrencode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(bootstrap.shutil, "which", lambda name: "/usr/bin/qrencode")
+
+    def fake_run(*args: object, **kwargs: object) -> object:
+        assert args[0] == ["/usr/bin/qrencode", "-t", "ANSIUTF8", "otpauth://payload"]
+        assert kwargs["capture_output"] is True
+        return SimpleNamespace(returncode=0, stdout="QR\n")
+
+    monkeypatch.setattr(bootstrap.subprocess, "run", fake_run)
+
+    assert bootstrap._render_terminal_qr_code("otpauth://payload") == "QR"
+
+
+def test_render_terminal_qr_code_returns_none_without_binary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(bootstrap.shutil, "which", lambda name: None)
+
+    assert bootstrap._render_terminal_qr_code("otpauth://payload") is None
 
 
 @pytest.mark.asyncio
@@ -575,8 +599,16 @@ async def test_bootstrap_superadmin_from_env_branches(
         lambda *_args: _return(bool(audit_exists)),
     )
     monkeypatch.setattr(bootstrap, "_upsert_credential", lambda *_args: _record(calls, "upsert"))
-    monkeypatch.setattr(bootstrap, "_append_admin_audit", lambda *_args, **_kwargs: _record(calls, "audit"))
-    monkeypatch.setattr(bootstrap, "_notify_superadmins", lambda *_args, **_kwargs: _record(calls, "notify"))
+    monkeypatch.setattr(
+        bootstrap,
+        "_append_admin_audit",
+        lambda *_args, **_kwargs: _record(calls, "audit"),
+    )
+    monkeypatch.setattr(
+        bootstrap,
+        "_notify_superadmins",
+        lambda *_args, **_kwargs: _record(calls, "notify"),
+    )
     monkeypatch.setattr(bootstrap, "_create_superadmin", lambda *_args: _return(created_user))
 
     result = await bootstrap.bootstrap_superadmin_from_env(

@@ -10,7 +10,7 @@ class WebSocketGatewayError(Exception):
 
 class SubscriptionAuthError(WebSocketGatewayError):
     def __init__(self, code: str, message: str) -> None:
-        if code not in {"unauthorized", "resource_not_found"}:
+        if code not in {"admin_required", "unauthorized", "resource_not_found"}:
             raise ValueError(f"Unsupported subscription auth error code: {code}")
         super().__init__(code, message)
 
@@ -27,4 +27,3 @@ class SubscriptionStateError(WebSocketGatewayError):
         if code not in {"already_subscribed", "cannot_unsubscribe_auto"}:
             raise ValueError(f"Unsupported subscription state error code: {code}")
         super().__init__(code, message)
-

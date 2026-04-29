@@ -20,6 +20,7 @@ from platform_cli.runtime import emit_event, exit_with_error
 superadmin_app = typer.Typer(help="Manage super admins.", no_args_is_help=True)
 
 _DEFAULT_EMERGENCY_KEY_PATH = Path("/etc/musematic/emergency-key.bin")
+BREAK_GLASS_AUDIT_EVENT = "platform.superadmin.break_glass_recovery"
 
 
 def _repo_root() -> Path:
@@ -68,8 +69,24 @@ def _bootstrap_env(
     return env
 
 
-def _run_bootstrap(ctx: typer.Context, env: dict[str, str], stage: str) -> None:
-    emit_event(ctx, stage=stage, status="started", message="super-admin bootstrap started")
+def _run_bootstrap(
+    ctx: typer.Context,
+    env: dict[str, str],
+    stage: str,
+    *,
+    audit_event: str | None = None,
+    severity: str | None = None,
+) -> None:
+    details = None
+    if audit_event is not None or severity is not None:
+        details = {"audit_event": audit_event, "severity": severity}
+    emit_event(
+        ctx,
+        stage=stage,
+        status="started",
+        message="super-admin bootstrap started",
+        details=details,
+    )
     result = subprocess.run(
         [sys.executable, "-m", "platform.admin.bootstrap"],
         env=env,
@@ -83,7 +100,13 @@ def _run_bootstrap(ctx: typer.Context, env: dict[str, str], stage: str) -> None:
             if result.returncode == int(ExitCode.PREFLIGHT_FAILURE.value)
             else ExitCode.GENERAL_ERROR,
         )
-    emit_event(ctx, stage=stage, status="completed", message="super-admin bootstrap completed")
+    emit_event(
+        ctx,
+        stage=stage,
+        status="completed",
+        message="super-admin bootstrap completed",
+        details=details,
+    )
 
 
 @superadmin_app.command("reset")
@@ -153,7 +176,10 @@ def recover_superadmin(
     ] = None,
     platform_env: Annotated[str | None, typer.Option("--platform-env")] = None,
 ) -> None:
-    """Create a recovery super admin after validating the sealed emergency key."""
+    """Create a recovery super admin after validating the sealed emergency key.
+
+    Emergency-key validation failures return exit code 2 for automation.
+    """
 
     if expected_hash is None:
         exit_with_error(
@@ -178,5 +204,11 @@ def recover_superadmin(
         platform_env=platform_env,
         allow_reset=False,
     )
-    _run_bootstrap(ctx, env, "superadmin-recover")
+    _run_bootstrap(
+        ctx,
+        env,
+        "superadmin-recover",
+        audit_event=BREAK_GLASS_AUDIT_EVENT,
+        severity="critical",
+    )
     get_console().print(f"Recovery requested for super admin {username}")

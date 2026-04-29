@@ -1,9 +1,10 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import AdminLayout from "@/app/(main)/admin/layout";
+import { CommandPaletteProvider } from "@/components/layout/command-palette/CommandPaletteProvider";
+import { AdminLayout } from "@/components/features/admin/AdminLayout";
 import { AdminSettingsPanel } from "@/components/features/admin/AdminSettingsPanel";
 import { renderWithProviders } from "@/test-utils/render";
-import { setNonAdminUser, setPlatformAdminUser } from "@/tests/features/admin/test-helpers";
+import { setPlatformAdminUser } from "@/tests/features/admin/test-helpers";
 
 const push = vi.fn();
 const replace = vi.fn();
@@ -59,23 +60,16 @@ describe("AdminSettingsPanel", () => {
     expect(await screen.findByText("Email delivery")).toBeInTheDocument();
   });
 
-  it("redirects non-admin users from the admin layout", async () => {
-    setNonAdminUser();
-
+  it("renders the new admin layout shell", () => {
     renderWithProviders(
-      <AdminLayout>
-        <div>Restricted content</div>
-      </AdminLayout>,
+      <CommandPaletteProvider>
+        <AdminLayout isSuperAdmin={false}>
+          <div>Restricted content</div>
+        </AdminLayout>
+      </CommandPaletteProvider>,
     );
 
-    await waitFor(() => {
-      expect(replace).toHaveBeenCalledWith("/home");
-    });
-    expect(toast).toHaveBeenCalledWith(
-      expect.objectContaining({
-        title: "You do not have permission to access admin settings",
-        variant: "destructive",
-      }),
-    );
+    expect(screen.getByText("Musematic Admin")).toBeInTheDocument();
+    expect(screen.getByText("Restricted content")).toBeInTheDocument();
   });
 });

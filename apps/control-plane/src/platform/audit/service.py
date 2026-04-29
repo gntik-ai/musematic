@@ -15,6 +15,7 @@ from platform.audit.signing import AuditChainSigning
 from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
+from platform.common.impersonation_context import get_impersonation_context
 from platform.common.logging import get_logger
 from typing import Any
 from uuid import UUID, uuid4
@@ -66,6 +67,17 @@ class AuditChainService:
         previous_hash = latest.entry_hash if latest is not None else GENESIS_HASH
         canonical_payload_hash = hashlib.sha256(canonical_payload).hexdigest()
         persisted_payload = canonical_payload_json or self._decode_payload(canonical_payload)
+        context = get_impersonation_context()
+        if context is not None:
+            if persisted_payload is None:
+                persisted_payload = {}
+            persisted_payload.setdefault("actor_user_id", str(context.effective_user_id))
+            persisted_payload.setdefault(
+                "impersonation_user_id",
+                str(context.impersonation_user_id),
+            )
+            if impersonation_user_id is None:
+                impersonation_user_id = context.impersonation_user_id
         entry_hash = compute_entry_hash(
             previous_hash=previous_hash,
             sequence_number=sequence_number,
