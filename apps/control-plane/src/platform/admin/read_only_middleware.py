@@ -12,6 +12,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
 _READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+_READ_ONLY_TOGGLE_PATH = "/api/v1/admin/sessions/me/read-only-mode"
 
 
 class AdminReadOnlyMiddleware(BaseHTTPMiddleware):
@@ -20,7 +21,11 @@ class AdminReadOnlyMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: RequestResponseEndpoint,
     ) -> Response:
-        if not request.url.path.startswith("/api/v1/admin/") or request.method in _READ_METHODS:
+        if (
+            not request.url.path.startswith("/api/v1/admin/")
+            or request.method in _READ_METHODS
+            or _is_read_only_toggle(request)
+        ):
             return await call_next(request)
         if await _admin_read_only_mode(request):
             return JSONResponse(
@@ -101,3 +106,7 @@ def _truthy(value: object) -> bool:
     if isinstance(value, bool):
         return value
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _is_read_only_toggle(request: Request) -> bool:
+    return request.method == "PATCH" and request.url.path.rstrip("/") == _READ_ONLY_TOGGLE_PATH

@@ -798,6 +798,16 @@ async def test_admin_read_only_middleware_and_helpers(monkeypatch: pytest.Monkey
     assert blocked.status_code == 403
     assert json.loads(blocked.body)["error"]["correlation_id"] == "corr-1"
 
+    toggle_response = await middleware.dispatch(
+        _request(
+            "/api/v1/admin/sessions/me/read-only-mode",
+            "PATCH",
+            {"sub": str(user_id), "session_id": str(session_id), "admin_read_only_mode": True},
+        ),
+        call_next,
+    )
+    assert toggle_response.status_code == 200
+
 
 @pytest.mark.asyncio
 async def test_admin_read_only_middleware_checks_redis_session_state(
