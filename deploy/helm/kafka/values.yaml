@@ -86,6 +86,11 @@ topics:
     partitions: 6
     # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
+  - name: incident_response.events
+    # -- Configures `topics.partitions` for the kafka chart.
+    partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
+    retentionMs: 604800000
   - name: auth.events
     # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
@@ -157,6 +162,16 @@ topics:
     # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
   - name: governance.events
+    # -- Configures `topics.partitions` for the kafka chart.
+    partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
+    retentionMs: 604800000
+  - name: governance.verdict.issued
+    # -- Configures `topics.partitions` for the kafka chart.
+    partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
+    retentionMs: 604800000
+  - name: governance.enforcement.executed
     # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
     # -- Configures `topics.retentionMs` for the kafka chart.

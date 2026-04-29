@@ -286,6 +286,7 @@ controlPlane:
     # E2E-only deterministic Fernet key; not used outside local kind tests.
     authMfaEncryptionKey: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
     rotatingSecrets:
+      ROTATING_SECRET_INCIDENT_RESPONSE_INTEGRATIONS_LOCAL_PAGERDUTY_CURRENT: e2e-pagerduty-routing-key
       ROTATING_SECRET_TEST_DB_PASSWORD_CURRENT: test-db-current
   api:
     replicaCount: 1

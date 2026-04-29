@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Activity, BrainCircuit, Gauge, ShieldAlert } from "lucide-react";
+import { Activity, BrainCircuit, Gauge, ShieldAlert, Siren } from "lucide-react";
 import { ActiveExecutionsTable } from "@/components/features/operator/ActiveExecutionsTable";
 import { AlertFeed } from "@/components/features/operator/AlertFeed";
 import { AttentionFeedPanel } from "@/components/features/operator/AttentionFeedPanel";
@@ -82,6 +83,12 @@ export default function OperatorDashboardPage() {
               </div>
             </div>
           </div>
+          <Button asChild variant="outline">
+            <Link href="/operator/incidents">
+              <Siren className="h-4 w-4" />
+              Incidents
+            </Link>
+          </Button>
           <div className="grid gap-3 sm:grid-cols-3">
             {heroCards.map((card) => (
               <div key={card.title} className="rounded-2xl border border-border/60 bg-background/75 p-4 shadow-sm"><card.icon className="h-4 w-4 text-brand-accent" /><p className="mt-3 text-sm font-medium">{card.title}</p><p className="mt-1 text-xs text-muted-foreground">{card.description}</p></div>

@@ -59,6 +59,7 @@ class AppIncidentTrigger:
                 },
                 runbook_service=runbook_service,
                 audit_chain_service=audit_chain,
+                session_factory=database.AsyncSessionLocal,
             )
             result = await incident_service.create_from_signal(signal)
             await session.commit()

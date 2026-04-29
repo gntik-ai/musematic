@@ -37,6 +37,8 @@ from platform.incident_response.services.runbook_service import RunbookService
 from typing import Any
 from uuid import UUID, uuid4
 
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -51,6 +53,7 @@ class IncidentService:
         provider_clients: dict[str, PagingProviderClient],
         runbook_service: RunbookService | None = None,
         audit_chain_service: Any | None = None,
+        session_factory: async_sessionmaker[AsyncSession] | None = None,
     ) -> None:
         self.repository = repository
         self.settings = settings
@@ -59,6 +62,7 @@ class IncidentService:
         self.provider_clients = provider_clients
         self.runbook_service = runbook_service
         self.audit_chain_service = audit_chain_service
+        self.session_factory = session_factory
         self._background_tasks: set[asyncio.Task[None]] = set()
 
     def _schedule_background(self, coro: Coroutine[Any, Any, None]) -> None:
@@ -158,18 +162,32 @@ class IncidentService:
         )
 
     async def _dispatch_external_alert(self, external_alert_id: UUID) -> None:
-        alert = await self.repository.get_external_alert(external_alert_id)
+        if self.session_factory is not None:
+            await self._run_with_managed_repository(
+                self._dispatch_external_alert_with_repository,
+                external_alert_id,
+            )
+            return
+        await self._dispatch_external_alert_with_repository(self.repository, external_alert_id)
+
+    async def _dispatch_external_alert_with_repository(
+        self,
+        repository: Any,
+        external_alert_id: UUID,
+    ) -> None:
+        alert = await repository.get_external_alert(external_alert_id)
         if alert is None:
             raise ExternalAlertNotFoundError(external_alert_id)
-        integration = await self.repository.get_integration(alert.integration_id)
+        integration = await repository.get_integration(alert.integration_id)
         if integration is None:
             raise IntegrationNotFoundError(alert.integration_id)
-        incident = await self.repository.get_incident(alert.incident_id)
+        incident = await repository.get_incident(alert.incident_id)
         if incident is None:
             raise IncidentNotFoundError(alert.incident_id)
         provider = self.provider_clients.get(integration.provider)
         if provider is None:
             await self._record_delivery_failure(
+                repository,
                 alert,
                 error=f"No provider client for {integration.provider}",
                 retryable=False,
@@ -183,12 +201,17 @@ class IncidentService:
                 mapped_severity=mapped_severity,
             )
         except ProviderError as exc:
-            await self._record_delivery_failure(alert, error=str(exc), retryable=exc.retryable)
+            await self._record_delivery_failure(
+                repository,
+                alert,
+                error=str(exc),
+                retryable=exc.retryable,
+            )
             return
         except Exception as exc:
-            await self._record_delivery_failure(alert, error=str(exc), retryable=True)
+            await self._record_delivery_failure(repository, alert, error=str(exc), retryable=True)
             return
-        await self.repository.update_external_alert_status(
+        await repository.update_external_alert_status(
             alert.id,
             status="delivered",
             provider_reference=ref.provider_reference,
@@ -233,10 +256,23 @@ class IncidentService:
         return await self.resolve(incident_id, auto_resolved=True)
 
     async def _resolve_external_alert(self, external_alert_id: UUID) -> None:
-        alert = await self.repository.get_external_alert(external_alert_id)
+        if self.session_factory is not None:
+            await self._run_with_managed_repository(
+                self._resolve_external_alert_with_repository,
+                external_alert_id,
+            )
+            return
+        await self._resolve_external_alert_with_repository(self.repository, external_alert_id)
+
+    async def _resolve_external_alert_with_repository(
+        self,
+        repository: Any,
+        external_alert_id: UUID,
+    ) -> None:
+        alert = await repository.get_external_alert(external_alert_id)
         if alert is None or not alert.provider_reference:
             return
-        integration = await self.repository.get_integration(alert.integration_id)
+        integration = await repository.get_integration(alert.integration_id)
         if integration is None:
             return
         provider = self.provider_clients.get(integration.provider)
@@ -248,7 +284,7 @@ class IncidentService:
                 provider_reference=alert.provider_reference,
             )
         except Exception as exc:
-            await self.repository.update_external_alert_status(
+            await repository.update_external_alert_status(
                 alert.id,
                 status=alert.delivery_status,
                 error=str(exc),
@@ -256,7 +292,7 @@ class IncidentService:
                 increment_attempt=True,
             )
             return
-        await self.repository.update_external_alert_status(
+        await repository.update_external_alert_status(
             alert.id,
             status="resolved",
             provider_reference=alert.provider_reference,
@@ -329,6 +365,7 @@ class IncidentService:
 
     async def _record_delivery_failure(
         self,
+        repository: Any,
         alert: IncidentExternalAlert,
         *,
         error: str,
@@ -337,7 +374,7 @@ class IncidentService:
         attempt_count = alert.attempt_count + 1
         max_attempts = self.settings.incident_response.delivery_retry_max_attempts
         if not retryable or attempt_count >= max_attempts:
-            await self.repository.update_external_alert_status(
+            await repository.update_external_alert_status(
                 alert.id,
                 status="failed",
                 error=error,
@@ -349,13 +386,37 @@ class IncidentService:
                 extra={"external_alert_id": str(alert.id), "retryable": retryable},
             )
             return
-        await self.repository.update_external_alert_status(
+        await repository.update_external_alert_status(
             alert.id,
             status="pending",
             error=error,
             next_retry_at=self._next_retry_at(attempt_count),
             increment_attempt=True,
         )
+
+    async def _run_with_managed_repository(
+        self,
+        operation: Any,
+        external_alert_id: UUID,
+    ) -> None:
+        if self.session_factory is None:
+            raise RuntimeError("session_factory is required for managed repository operations")
+
+        last_missing: Exception | None = None
+        for attempt in range(5):
+            async with self.session_factory() as session:
+                repository = IncidentResponseRepository(session)
+                try:
+                    await operation(repository, external_alert_id)
+                except (ExternalAlertNotFoundError, IncidentNotFoundError) as exc:
+                    await session.rollback()
+                    last_missing = exc
+                else:
+                    await session.commit()
+                    return
+            await asyncio.sleep(min(0.05 * (2**attempt), 0.5))
+        if last_missing is not None:
+            raise last_missing
 
     def _next_retry_at(self, attempt_count: int) -> datetime:
         initial = self.settings.incident_response.delivery_retry_initial_seconds
