@@ -67,5 +67,43 @@
     "evidence": {
       "title": "Evidence"
     }
+  },
+  "commands": {
+    "toggleTheme": "テーマを切り替え",
+    "switchLanguage": "言語を切り替え",
+    "searchMarketplace": "マーケットプレイスを検索",
+    "openPreferences": "設定を開く",
+    "signOut": "サインアウト",
+    "openHelp": "コマンドヘルプを開く",
+    "categories": {
+      "platform": "プラットフォーム",
+      "marketplace": "マーケットプレイス",
+      "operator": "オペレーター",
+      "workflows": "ワークフロー",
+      "preferences": "設定",
+      "admin": "管理"
+    },
+    "routes": {
+      "marketplace": {
+        "search": "マーケットプレイスを検索",
+        "compare": "選択したエージェントを比較"
+      },
+      "operator": {
+        "incidents": "インシデントを開く",
+        "runbooks": "Runbook を開く"
+      },
+      "workflows": {
+        "new": "ワークフローを作成",
+        "monitor": "ワークフローモニターを開く"
+      },
+      "settings": {
+        "preferences": "設定を開く",
+        "alerts": "アラート設定を開く"
+      },
+      "admin": {
+        "locales": "ロケール公開を開く",
+        "settings": "管理設定を開く"
+      }
+    }
   }
 }

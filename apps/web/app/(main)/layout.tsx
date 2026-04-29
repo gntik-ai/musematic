@@ -4,9 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { CommandPalette } from "@/components/layout/command-palette/CommandPalette";
 import { CommandPaletteProvider } from "@/components/layout/command-palette/CommandPaletteProvider";
+import { RouteCommandRegistration } from "@/components/layout/command-palette/RouteCommandRegistration";
 import { MfaEnrollmentDialog } from "@/components/features/auth/mfa-enrollment/MfaEnrollmentDialog";
 import { Header } from "@/components/layout/header/Header";
 import { Sidebar } from "@/components/layout/sidebar/Sidebar";
+import { DesktopBestHint } from "@/components/layout/desktop-best-hint/DesktopBestHint";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useAuthStore } from "@/store/auth-store";
 
@@ -44,12 +46,16 @@ export default function MainLayout({ children }: Readonly<{ children: React.Reac
   return (
     <CommandPaletteProvider>
       <div className="flex min-h-screen">
+        <RouteCommandRegistration />
         <div className="hidden lg:flex">
           <Sidebar />
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
           <Header onOpenMobileNav={() => setMobileNavOpen(true)} />
-          <main className="flex-1 overflow-auto p-4 sm:p-6">{children}</main>
+          <main className="flex-1 overflow-auto p-4 sm:p-6">
+            <DesktopBestHint />
+            {children}
+          </main>
           {user && !user.mfaEnrolled ? (
             <MfaEnrollmentDialog
               onEnrolled={() => {

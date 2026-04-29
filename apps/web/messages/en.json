@@ -67,5 +67,43 @@
     "evidence": {
       "title": "Evidence"
     }
+  },
+  "commands": {
+    "toggleTheme": "Toggle theme",
+    "switchLanguage": "Switch language",
+    "searchMarketplace": "Search marketplace",
+    "openPreferences": "Open preferences",
+    "signOut": "Sign out",
+    "openHelp": "Open command palette help",
+    "categories": {
+      "platform": "Platform",
+      "marketplace": "Marketplace",
+      "operator": "Operator",
+      "workflows": "Workflows",
+      "preferences": "Preferences",
+      "admin": "Admin"
+    },
+    "routes": {
+      "marketplace": {
+        "search": "Search marketplace",
+        "compare": "Compare selected agents"
+      },
+      "operator": {
+        "incidents": "Open incidents tab",
+        "runbooks": "Open runbooks"
+      },
+      "workflows": {
+        "new": "Create workflow",
+        "monitor": "Open workflow monitor"
+      },
+      "settings": {
+        "preferences": "Open preferences",
+        "alerts": "Open alert settings"
+      },
+      "admin": {
+        "locales": "Open locale publishing",
+        "settings": "Open admin settings"
+      }
+    }
   }
 }

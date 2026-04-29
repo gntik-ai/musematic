@@ -28,8 +28,8 @@ from platform.localization.exceptions import (
 )
 from platform.localization.models import UserPreferences
 from platform.localization.repository import LocalizationRepository
-from platform.localization.schemas import UserPreferencesResponse
-from typing import Any
+from platform.localization.schemas import DataExportFormat, Theme, UserPreferencesResponse
+from typing import Any, cast
 from uuid import UUID, uuid4
 from zoneinfo import available_timezones
 
@@ -177,7 +177,7 @@ class PreferencesService:
             id=None,
             user_id=user_id,
             default_workspace_id=None,
-            theme=DEFAULT_THEME,
+            theme=cast(Theme, DEFAULT_THEME),
             language=DEFAULT_LOCALE,
             timezone="UTC",
             notification_preferences={},
@@ -193,11 +193,11 @@ class PreferencesService:
             id=row.id,
             user_id=row.user_id,
             default_workspace_id=row.default_workspace_id,
-            theme=row.theme,
+            theme=cast(Theme, row.theme),
             language=row.language,
             timezone=row.timezone,
             notification_preferences=dict(row.notification_preferences or {}),
-            data_export_format=row.data_export_format,
+            data_export_format=cast(DataExportFormat, row.data_export_format),
             is_persisted=is_persisted,
             created_at=row.created_at,
             updated_at=row.updated_at,

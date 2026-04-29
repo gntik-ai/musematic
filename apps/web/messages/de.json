@@ -67,5 +67,43 @@
     "evidence": {
       "title": "Evidence"
     }
+  },
+  "commands": {
+    "toggleTheme": "Design wechseln",
+    "switchLanguage": "Sprache wechseln",
+    "searchMarketplace": "Marketplace durchsuchen",
+    "openPreferences": "Einstellungen öffnen",
+    "signOut": "Abmelden",
+    "openHelp": "Befehlshilfe öffnen",
+    "categories": {
+      "platform": "Plattform",
+      "marketplace": "Marketplace",
+      "operator": "Operator",
+      "workflows": "Workflows",
+      "preferences": "Einstellungen",
+      "admin": "Admin"
+    },
+    "routes": {
+      "marketplace": {
+        "search": "Marketplace durchsuchen",
+        "compare": "Ausgewählte Agenten vergleichen"
+      },
+      "operator": {
+        "incidents": "Incidents öffnen",
+        "runbooks": "Runbooks öffnen"
+      },
+      "workflows": {
+        "new": "Workflow erstellen",
+        "monitor": "Workflow-Monitor öffnen"
+      },
+      "settings": {
+        "preferences": "Einstellungen öffnen",
+        "alerts": "Alarme öffnen"
+      },
+      "admin": {
+        "locales": "Sprachveröffentlichung öffnen",
+        "settings": "Admin-Einstellungen öffnen"
+      }
+    }
   }
 }

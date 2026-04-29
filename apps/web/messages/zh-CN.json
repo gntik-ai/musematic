@@ -67,5 +67,43 @@
     "evidence": {
       "title": "Evidence"
     }
+  },
+  "commands": {
+    "toggleTheme": "切换主题",
+    "switchLanguage": "切换语言",
+    "searchMarketplace": "搜索市场",
+    "openPreferences": "打开偏好设置",
+    "signOut": "退出登录",
+    "openHelp": "打开命令帮助",
+    "categories": {
+      "platform": "平台",
+      "marketplace": "市场",
+      "operator": "运维",
+      "workflows": "工作流",
+      "preferences": "偏好设置",
+      "admin": "管理"
+    },
+    "routes": {
+      "marketplace": {
+        "search": "搜索市场",
+        "compare": "比较选中的智能体"
+      },
+      "operator": {
+        "incidents": "打开事件",
+        "runbooks": "打开运行手册"
+      },
+      "workflows": {
+        "new": "创建工作流",
+        "monitor": "打开工作流监控"
+      },
+      "settings": {
+        "preferences": "打开偏好设置",
+        "alerts": "打开告警设置"
+      },
+      "admin": {
+        "locales": "打开语言发布",
+        "settings": "打开管理设置"
+      }
+    }
   }
 }

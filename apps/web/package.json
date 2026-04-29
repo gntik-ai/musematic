@@ -12,7 +12,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
-    "test:a11y": "playwright test --grep @a11y",
+    "test:a11y": "playwright test --config tests/a11y/playwright.a11y.config.ts",
     "type-check": "tsc --noEmit"
   },
   "dependencies": {

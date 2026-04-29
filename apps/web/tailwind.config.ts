@@ -56,6 +56,18 @@ const config: Config = {
           secondary: "hsl(var(--brand-secondary))",
           accent: "hsl(var(--brand-accent))",
         },
+        severity: {
+          critical: "hsl(var(--severity-critical))",
+          high: "hsl(var(--severity-high))",
+          warning: "hsl(var(--severity-warning))",
+          info: "hsl(var(--severity-info))",
+        },
+        chart: {
+          1: "hsl(var(--chart-1))",
+          2: "hsl(var(--chart-2))",
+          3: "hsl(var(--chart-3))",
+          4: "hsl(var(--chart-4))",
+        },
         warning: "hsl(var(--warning))",
       },
       borderRadius: {

@@ -67,5 +67,43 @@
     "evidence": {
       "title": "Evidence"
     }
+  },
+  "commands": {
+    "toggleTheme": "Changer de thème",
+    "switchLanguage": "Changer de langue",
+    "searchMarketplace": "Rechercher dans le marketplace",
+    "openPreferences": "Ouvrir les préférences",
+    "signOut": "Se déconnecter",
+    "openHelp": "Ouvrir l’aide des commandes",
+    "categories": {
+      "platform": "Plateforme",
+      "marketplace": "Marketplace",
+      "operator": "Opérateur",
+      "workflows": "Workflows",
+      "preferences": "Préférences",
+      "admin": "Admin"
+    },
+    "routes": {
+      "marketplace": {
+        "search": "Rechercher dans le marketplace",
+        "compare": "Comparer les agents sélectionnés"
+      },
+      "operator": {
+        "incidents": "Ouvrir les incidents",
+        "runbooks": "Ouvrir les runbooks"
+      },
+      "workflows": {
+        "new": "Créer un workflow",
+        "monitor": "Ouvrir le moniteur de workflows"
+      },
+      "settings": {
+        "preferences": "Ouvrir les préférences",
+        "alerts": "Ouvrir les alertes"
+      },
+      "admin": {
+        "locales": "Ouvrir la publication des langues",
+        "settings": "Ouvrir les paramètres admin"
+      }
+    }
   }
 }
