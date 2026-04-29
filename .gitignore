@@ -217,6 +217,22 @@ node_modules/
 .pnpm-store/
 *.tsbuildinfo
 
+# Go
+*.exe
+*.test
+*.out
+vendor/
+
+# Python tool caches
+.mypy_cache/
+.ruff_cache/
+
+# Terraform
+.terraform/
+*.tfstate*
+*.tfvars
+.terraform.lock.hcl
+
 # Spyder project settings
 .spyderproject
 .spyproject

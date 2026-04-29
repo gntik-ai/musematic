@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from platform.common.tagging.exceptions import (
+    EntityNotFoundForTagError,
     InvalidLabelKeyError,
+    LabelAttachLimitExceededError,
     LabelValueTooLongError,
     ReservedLabelNamespaceError,
     SavedViewNotFoundError,
@@ -44,6 +47,21 @@ class LabelRepoStub:
         self.labels[(entity_type, entity_id, key)] = row
         return row, old.label_value if old is not None else None
 
+    async def get_label(
+        self,
+        entity_type: str,
+        entity_id: UUID,
+        key: str,
+    ) -> SimpleNamespace | None:
+        return self.labels.get((entity_type, entity_id, key))
+
+    async def count_labels_for_entity(self, entity_type: str, entity_id: UUID) -> int:
+        return sum(
+            1
+            for row_entity_type, row_entity_id, _key in self.labels
+            if row_entity_type == entity_type and row_entity_id == entity_id
+        )
+
     async def delete_label(self, entity_type: str, entity_id: UUID, key: str) -> bool:
         self.deleted.append((entity_type, entity_id, key))
         return self.labels.pop((entity_type, entity_id, key), None) is not None
@@ -71,8 +89,41 @@ class LabelRepoStub:
         self.filter_args = (entity_type, label_filters, visible_entity_ids, cursor, limit)
         return sorted(visible_entity_ids, key=str)
 
+    async def list_label_keys(self, *, prefix: str, limit: int) -> list[str]:
+        del limit
+        return sorted(
+            {
+                key
+                for (_entity_type, _entity_id, key), _row in self.labels.items()
+                if key.startswith(prefix)
+            }
+        )
+
+    async def list_label_values(self, *, key: str, prefix: str, limit: int) -> list[str]:
+        del limit
+        return sorted(
+            {
+                row.label_value
+                for (_entity_type, _entity_id, row_key), row in self.labels.items()
+                if row_key == key and row.label_value.startswith(prefix)
+            }
+        )
+
     async def cascade_on_entity_deletion(self, entity_type: str, entity_id: UUID) -> None:
         self.cascaded.append((entity_type, entity_id))
+
+
+class AuditStub:
+    def __init__(self) -> None:
+        self.entries: list[tuple[UUID | None, str, bytes]] = []
+
+    async def append(
+        self,
+        audit_event_id: UUID | None,
+        audit_event_source: str,
+        canonical_payload: bytes,
+    ) -> None:
+        self.entries.append((audit_event_id, audit_event_source, canonical_payload))
 
 
 class SavedViewRepoStub:
@@ -179,7 +230,7 @@ def _saved_view_row(
 @pytest.mark.asyncio
 async def test_label_service_validates_reserved_keys_and_delegates_queries() -> None:
     repo = LabelRepoStub()
-    service = LabelService(repo)  # type: ignore[arg-type]
+    service = LabelService(repo, max_labels_per_entity=3)  # type: ignore[arg-type]
     entity_id = uuid4()
     actor_id = uuid4()
 
@@ -222,7 +273,7 @@ async def test_label_service_validates_reserved_keys_and_delegates_queries() -> 
         value="active",
         requester={"service_account": True, "user_id": str(actor_id)},
     )
-    labels = await service.list_for_entity("agent", entity_id)
+    labels = await service.list_for_entity("agent", entity_id, {"sub": str(actor_id)})
     visible_ids = {entity_id, uuid4()}
     filtered = await service.filter_query(
         "agent",
@@ -231,16 +282,111 @@ async def test_label_service_validates_reserved_keys_and_delegates_queries() -> 
         cursor="2",
         limit=10,
     )
-    await service.detach(entity_type="agent", entity_id=entity_id, key="system.owner")
+    keys = await service.list_keys(prefix="platform", limit=10)
+    values = await service.list_values(key="platform.lifecycle", prefix="act", limit=10)
+    await service.detach(
+        entity_type="agent",
+        entity_id=entity_id,
+        key="system.owner",
+        requester={"sub": str(actor_id)},
+    )
     await service.cascade_on_entity_deletion("agent", entity_id)
 
     assert label.is_reserved is True
     assert service_account_label.key == "platform.lifecycle"
     assert {item.key for item in labels} == {"system.owner", "platform.lifecycle"}
     assert filtered == sorted(visible_ids, key=str)
+    assert keys == ["platform.lifecycle"]
+    assert values == ["active"]
     assert repo.filter_args == ("agent", {"system.owner": "platform"}, visible_ids, "2", 10)
     assert repo.deleted == [("agent", entity_id, "system.owner")]
     assert repo.cascaded == [("agent", entity_id)]
+
+
+@pytest.mark.asyncio
+async def test_label_service_limit_and_access_checks() -> None:
+    repo = LabelRepoStub()
+    allowed_id = uuid4()
+    blocked_id = uuid4()
+
+    async def access_check(
+        entity_type: str,
+        entity_id: UUID,
+        requester: object,
+        action: str,
+    ) -> bool:
+        del requester, action
+        return entity_type == "agent" and entity_id == allowed_id
+
+    service = LabelService(
+        repo,
+        entity_access_check=access_check,
+        max_labels_per_entity=1,
+    )  # type: ignore[arg-type]
+
+    await service.attach(
+        entity_type="agent",
+        entity_id=allowed_id,
+        key="env",
+        value="production",
+        requester={"sub": str(uuid4())},
+    )
+    await service.attach(
+        entity_type="agent",
+        entity_id=allowed_id,
+        key="env",
+        value="staging",
+        requester={"sub": str(uuid4())},
+    )
+
+    with pytest.raises(LabelAttachLimitExceededError):
+        await service.attach(
+            entity_type="agent",
+            entity_id=allowed_id,
+            key="tier",
+            value="critical",
+            requester={"sub": str(uuid4())},
+        )
+    with pytest.raises(EntityNotFoundForTagError):
+        await service.attach(
+            entity_type="agent",
+            entity_id=blocked_id,
+            key="env",
+            value="production",
+            requester={"sub": str(uuid4())},
+        )
+
+
+@pytest.mark.asyncio
+async def test_label_service_audits_upsert_with_old_and_new_values() -> None:
+    repo = LabelRepoStub()
+    audit = AuditStub()
+    service = LabelService(repo, audit_chain=audit)  # type: ignore[arg-type]
+    entity_id = uuid4()
+    actor_id = uuid4()
+
+    await service.attach(
+        entity_type="agent",
+        entity_id=entity_id,
+        key="env",
+        value="staging",
+        requester={"sub": str(actor_id)},
+    )
+    await service.attach(
+        entity_type="agent",
+        entity_id=entity_id,
+        key="env",
+        value="production",
+        requester={"sub": str(actor_id)},
+    )
+
+    first_payload = json.loads(audit.entries[0][2].decode("utf-8"))
+    second_payload = json.loads(audit.entries[1][2].decode("utf-8"))
+    assert audit.entries[0][1] == "common_tagging"
+    assert first_payload["old_value"] is None
+    assert first_payload["new_value"] == "staging"
+    assert second_payload["old_value"] == "staging"
+    assert second_payload["new_value"] == "production"
 
 
 @pytest.mark.asyncio

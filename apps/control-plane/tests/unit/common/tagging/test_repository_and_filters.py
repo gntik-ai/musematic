@@ -22,6 +22,7 @@ from platform.common.tagging.exceptions import (
     SavedViewNameTakenError,
 )
 from platform.common.tagging.filter_extension import parse_tag_label_filters
+from platform.common.tagging.label_expression.parser import parse as parse_label_expression
 from platform.common.tagging.repository import TaggingRepository, _sorted_uuids
 from platform.common.tagging.schemas import LabelAttachRequest, TagAttachRequest
 from platform.registry.models import AgentProfile
@@ -129,6 +130,8 @@ async def test_repository_methods_delegate_to_session_and_shape_results() -> Non
             FakeResult(rowcount=0),
             FakeResult(scalars=[label_row]),
             FakeResult(scalars=[entity_id]),
+            FakeResult(scalars=["env"]),
+            FakeResult(scalars=["prod"]),
             FakeResult(),
             FakeResult(),
             FakeResult(scalar_one_or_none=view_row),
@@ -173,6 +176,8 @@ async def test_repository_methods_delegate_to_session_and_shape_results() -> Non
         cursor="0",
         limit=5,
     ) == [entity_id]
+    assert await repo.list_label_keys(prefix="e", limit=10) == ["env"]
+    assert await repo.list_label_values(key="env", prefix="p", limit=10) == ["prod"]
     assert await repo.count_labels_for_entity("agent", entity_id) == 3
 
     await repo.cascade_on_entity_deletion("agent", entity_id)
@@ -248,8 +253,8 @@ async def test_visibility_resolver_dependency_providers_cover_empty_and_populate
     assert empty == {"agent": set(), "workspace": set()}
     assert _requester_id(SimpleNamespace(id=workspace_id)) == workspace_id
     assert _requester_id(object()) is None
-    assert await get_label_expression_evaluator() is None
-    assert await get_label_expression_cache() is None
+    evaluator = await get_label_expression_evaluator()
+    assert await evaluator.evaluate(parse_label_expression("env=prod"), {"env": "prod"}) is True
 
 
 def test_parse_tag_label_filters_and_entity_type_maps() -> None:
@@ -270,7 +275,13 @@ def test_parse_tag_label_filters_and_entity_type_maps() -> None:
 
 @pytest.mark.asyncio
 async def test_dependency_factories_and_schema_validation(monkeypatch: pytest.MonkeyPatch) -> None:
-    settings = SimpleNamespace(tagging=SimpleNamespace(cross_entity_search_max_visible_ids=20))
+    settings = SimpleNamespace(
+        tagging=SimpleNamespace(
+            cross_entity_search_max_visible_ids=20,
+            label_expression_lru_size=12,
+            label_expression_redis_ttl_seconds=34,
+        )
+    )
     producer = object()
     request = _request(
         b"",
@@ -291,15 +302,18 @@ async def test_dependency_factories_and_schema_validation(monkeypatch: pytest.Mo
 
     resolver = await get_visibility_resolver(request, session)  # type: ignore[arg-type]
     tag_service = await get_tag_service(request, session)  # type: ignore[arg-type]
-    label_service = await get_label_service(session)  # type: ignore[arg-type]
+    label_service = await get_label_service(request, session)  # type: ignore[arg-type]
     saved_view_service = await get_saved_view_service(session)  # type: ignore[arg-type]
     tagging_service = await get_tagging_service(request, session)  # type: ignore[arg-type]
+    label_expression_cache = await get_label_expression_cache(request)
 
     assert resolver.max_visible_ids == 20
     assert tag_service.max_tags_per_entity == 50
     assert label_service.repository is not None
     assert saved_view_service.repository is not None
     assert tagging_service.tags.max_tags_per_entity == 50
+    assert label_expression_cache.lru_size == 12
+    assert label_expression_cache.ttl_seconds == 34
 
     assert TagAttachRequest(tag=" prod ").tag == "prod"
     assert LabelAttachRequest(key=" env ", value=" prod ").model_dump() == {

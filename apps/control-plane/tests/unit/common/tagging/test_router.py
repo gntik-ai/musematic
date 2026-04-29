@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from platform.common.tagging import router
 from platform.common.tagging.schemas import (
     LabelAttachRequest,
+    LabelExpressionValidationRequest,
     LabelResponse,
     SavedViewCreateRequest,
     SavedViewResponse,
@@ -14,7 +15,6 @@ from platform.common.tagging.schemas import (
 from uuid import uuid4
 
 import pytest
-
 
 NOW = datetime(2026, 4, 27, 12, 0, tzinfo=UTC)
 
@@ -62,8 +62,13 @@ class _LabelService:
     async def detach(self, **kwargs: object) -> None:
         self.calls.append(("detach", kwargs))
 
-    async def list_for_entity(self, entity_type: str, entity_id: object) -> list[LabelResponse]:
-        self.calls.append(("list_for_entity", (entity_type, entity_id)))
+    async def list_for_entity(
+        self,
+        entity_type: str,
+        entity_id: object,
+        requester: dict[str, object],
+    ) -> list[LabelResponse]:
+        self.calls.append(("list_for_entity", (entity_type, entity_id, requester)))
         return [
             LabelResponse(
                 key="owner",
@@ -74,6 +79,14 @@ class _LabelService:
                 is_reserved=False,
             )
         ]
+
+    async def list_keys(self, **kwargs: object) -> list[str]:
+        self.calls.append(("list_keys", kwargs))
+        return ["env"]
+
+    async def list_values(self, **kwargs: object) -> list[str]:
+        self.calls.append(("list_values", kwargs))
+        return ["production"]
 
 
 class _SavedViewService:
@@ -179,6 +192,7 @@ async def test_tag_router_delegates_and_normalizes_entity_type_filter() -> None:
 async def test_label_router_delegates_reserved_and_regular_labels() -> None:
     service = _LabelService()
     requester = {"sub": str(uuid4())}
+    admin_requester = {"sub": str(uuid4()), "roles": [{"role": "superadmin"}]}
     entity_id = uuid4()
 
     label = await router.attach_label(
@@ -192,18 +206,43 @@ async def test_label_router_delegates_reserved_and_regular_labels() -> None:
         "agent",
         entity_id,
         "owner",
+        current_user=requester,
         label_service=service,  # type: ignore[arg-type]
     )
     listed = await router.list_labels(
         "agent",
         entity_id,
+        current_user=requester,
         label_service=service,  # type: ignore[arg-type]
     )
     reserved = await router.attach_reserved_label(
         "agent",
         entity_id,
         LabelAttachRequest(key="system.owner", value="platform"),
-        current_user=requester,
+        current_user=admin_requester,
+        label_service=service,  # type: ignore[arg-type]
+    )
+    validation = await router.validate_label_expression(
+        LabelExpressionValidationRequest(expression="env=production"),
+        _current_user=requester,
+        _label_expression_cache=object(),  # type: ignore[arg-type]
+    )
+    invalid_validation = await router.validate_label_expression(
+        LabelExpressionValidationRequest(expression="env=production AND"),
+        _current_user=requester,
+        _label_expression_cache=object(),  # type: ignore[arg-type]
+    )
+    keys = await router.list_label_keys(
+        prefix="e",
+        limit=10,
+        _current_user=requester,
+        label_service=service,  # type: ignore[arg-type]
+    )
+    values = await router.list_label_values(
+        key="env",
+        prefix="pro",
+        limit=10,
+        _current_user=requester,
         label_service=service,  # type: ignore[arg-type]
     )
 
@@ -211,6 +250,11 @@ async def test_label_router_delegates_reserved_and_regular_labels() -> None:
     assert detach_response.status_code == 204
     assert listed.labels[0].key == "owner"
     assert reserved.is_reserved is True
+    assert validation.valid is True
+    assert invalid_validation.valid is False
+    assert invalid_validation.error is not None
+    assert keys == ["env"]
+    assert values == ["production"]
 
 
 @pytest.mark.asyncio

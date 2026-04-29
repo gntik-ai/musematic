@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 from platform.common.dependencies import get_current_user
+from platform.common.exceptions import AuthorizationError
 from platform.common.tagging.dependencies import (
+    get_label_expression_cache,
     get_label_service,
     get_saved_view_service,
     get_tag_service,
 )
+from platform.common.tagging.exceptions import LabelExpressionSyntaxError
+from platform.common.tagging.label_expression.cache import LabelExpressionCache
+from platform.common.tagging.label_expression.parser import parse as parse_label_expression
 from platform.common.tagging.label_service import LabelService
 from platform.common.tagging.saved_view_service import SavedViewService
 from platform.common.tagging.schemas import (
@@ -13,6 +18,10 @@ from platform.common.tagging.schemas import (
     EntityLabelsResponse,
     EntityTagsResponse,
     LabelAttachRequest,
+    LabelExpressionError,
+    LabelExpressionValidationRequest,
+    LabelExpressionValidationResponse,
+    LabelResponse,
     SavedViewCreateRequest,
     SavedViewResponse,
     SavedViewUpdateRequest,
@@ -35,6 +44,30 @@ saved_views_router = APIRouter(
     prefix="/api/v1/saved-views",
     tags=["common-tagging-saved-views"],
 )
+
+
+def _role_names(current_user: dict[str, Any]) -> set[str]:
+    roles = current_user.get("roles", [])
+    if not isinstance(roles, list):
+        return set()
+    names: set[str] = set()
+    for role in roles:
+        if isinstance(role, str):
+            names.add(role)
+        elif isinstance(role, dict) and isinstance(role.get("role"), str):
+            names.add(role["role"])
+        elif isinstance(role, dict) and isinstance(role.get("name"), str):
+            names.add(role["name"])
+    return names
+
+
+def _require_superadmin(current_user: dict[str, Any]) -> None:
+    if "superadmin" in _role_names(current_user):
+        return
+    raise AuthorizationError(
+        "SUPERADMIN_REQUIRED",
+        "Only superadmin callers may write reserved labels through the admin endpoint.",
+    )
 
 
 @tags_router.get("/{tag}/entities", response_model=CrossEntityTagSearchResponse)
@@ -107,7 +140,56 @@ async def list_tags(
     )
 
 
-@labels_router.post("/{entity_type}/{entity_id}")
+@labels_router.post(
+    "/expression/validate",
+    response_model=LabelExpressionValidationResponse,
+    tags=["common-tagging-label-expression"],
+)
+async def validate_label_expression(
+    payload: LabelExpressionValidationRequest,
+    _current_user: dict[str, Any] = Depends(get_current_user),
+    _label_expression_cache: LabelExpressionCache = Depends(get_label_expression_cache),
+) -> LabelExpressionValidationResponse:
+    del _current_user, _label_expression_cache
+    try:
+        parse_label_expression(payload.expression)
+    except LabelExpressionSyntaxError as exc:
+        return LabelExpressionValidationResponse(
+            valid=False,
+            error=LabelExpressionError(
+                line=exc.line,
+                col=exc.col,
+                token=exc.token,
+                message=exc.message,
+            ),
+        )
+    return LabelExpressionValidationResponse(valid=True)
+
+
+@labels_router.get("/keys", response_model=list[str])
+async def list_label_keys(
+    prefix: str = Query(default=""),
+    limit: int = Query(default=50, ge=1, le=200),
+    _current_user: dict[str, Any] = Depends(get_current_user),
+    label_service: LabelService = Depends(get_label_service),
+) -> list[str]:
+    del _current_user
+    return await label_service.list_keys(prefix=prefix, limit=limit)
+
+
+@labels_router.get("/values", response_model=list[str])
+async def list_label_values(
+    key: str,
+    prefix: str = Query(default=""),
+    limit: int = Query(default=50, ge=1, le=200),
+    _current_user: dict[str, Any] = Depends(get_current_user),
+    label_service: LabelService = Depends(get_label_service),
+) -> list[str]:
+    del _current_user
+    return await label_service.list_values(key=key, prefix=prefix, limit=limit)
+
+
+@labels_router.post("/{entity_type}/{entity_id}", response_model=LabelResponse)
 async def attach_label(
     entity_type: str,
     entity_id: UUID,
@@ -129,9 +211,15 @@ async def detach_label(
     entity_type: str,
     entity_id: UUID,
     key: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
     label_service: LabelService = Depends(get_label_service),
 ) -> Response:
-    await label_service.detach(entity_type=entity_type, entity_id=entity_id, key=key)
+    await label_service.detach(
+        entity_type=entity_type,
+        entity_id=entity_id,
+        key=key,
+        requester=current_user,
+    )
     return Response(status_code=204)
 
 
@@ -139,16 +227,17 @@ async def detach_label(
 async def list_labels(
     entity_type: str,
     entity_id: UUID,
+    current_user: dict[str, Any] = Depends(get_current_user),
     label_service: LabelService = Depends(get_label_service),
 ) -> EntityLabelsResponse:
     return EntityLabelsResponse(
         entity_type=entity_type,
         entity_id=entity_id,
-        labels=await label_service.list_for_entity(entity_type, entity_id),
+        labels=await label_service.list_for_entity(entity_type, entity_id, current_user),
     )
 
 
-@admin_labels_router.post("/{entity_type}/{entity_id}")
+@admin_labels_router.post("/{entity_type}/{entity_id}", response_model=LabelResponse)
 async def attach_reserved_label(
     entity_type: str,
     entity_id: UUID,
@@ -156,6 +245,7 @@ async def attach_reserved_label(
     current_user: dict[str, Any] = Depends(get_current_user),
     label_service: LabelService = Depends(get_label_service),
 ) -> Any:
+    _require_superadmin(current_user)
     return await label_service.attach(
         entity_type=entity_type,
         entity_id=entity_id,

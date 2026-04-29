@@ -203,6 +203,30 @@ class TaggingRepository:
         )
         return [UUID(str(entity_id)) for entity_id in result.scalars().all()]
 
+    async def list_label_keys(self, *, prefix: str = "", limit: int = 50) -> list[str]:
+        query = select(EntityLabel.label_key).distinct()
+        if prefix:
+            query = query.where(EntityLabel.label_key.like(f"{prefix}%"))
+        result = await self.session.execute(
+            query.order_by(EntityLabel.label_key.asc()).limit(limit)
+        )
+        return [str(item) for item in result.scalars().all()]
+
+    async def list_label_values(
+        self,
+        *,
+        key: str,
+        prefix: str = "",
+        limit: int = 50,
+    ) -> list[str]:
+        query = select(EntityLabel.label_value).where(EntityLabel.label_key == key).distinct()
+        if prefix:
+            query = query.where(EntityLabel.label_value.like(f"{prefix}%"))
+        result = await self.session.execute(
+            query.order_by(EntityLabel.label_value.asc()).limit(limit)
+        )
+        return [str(item) for item in result.scalars().all()]
+
     async def count_labels_for_entity(self, entity_type: str, entity_id: UUID) -> int:
         total = await self.session.scalar(
             select(func.count())
