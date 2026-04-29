@@ -109,6 +109,98 @@ const reasoningBudget = {
   computed_at: "2026-04-16T12:00:00.000Z",
 };
 
+const regionRows = [
+  {
+    id: "region-primary",
+    region_code: "eu-west",
+    region_role: "primary",
+    endpoint_urls: {},
+    rpo_target_minutes: 5,
+    rto_target_minutes: 30,
+    enabled: true,
+    created_at: "2026-04-16T10:00:00.000Z",
+    updated_at: "2026-04-16T10:00:00.000Z",
+  },
+  {
+    id: "region-secondary",
+    region_code: "us-east",
+    region_role: "secondary",
+    endpoint_urls: {},
+    rpo_target_minutes: 5,
+    rto_target_minutes: 30,
+    enabled: true,
+    created_at: "2026-04-16T10:00:00.000Z",
+    updated_at: "2026-04-16T10:00:00.000Z",
+  },
+] as const;
+
+const replicationStatus = {
+  generated_at: "2026-04-16T12:00:00.000Z",
+  items: [
+    {
+      id: "replication-postgres",
+      source_region: "eu-west",
+      target_region: "us-east",
+      component: "postgres",
+      lag_seconds: 12,
+      health: "healthy",
+      pause_reason: null,
+      error_detail: null,
+      measured_at: "2026-04-16T12:00:00.000Z",
+      threshold_seconds: 300,
+      missing_probe: false,
+    },
+    {
+      id: "replication-kafka",
+      source_region: "eu-west",
+      target_region: "us-east",
+      component: "kafka",
+      lag_seconds: 70,
+      health: "degraded",
+      pause_reason: null,
+      error_detail: null,
+      measured_at: "2026-04-16T12:00:00.000Z",
+      threshold_seconds: 300,
+      missing_probe: false,
+    },
+  ],
+};
+
+const failoverPlan = {
+  id: "plan-primary-dr",
+  name: "primary-to-dr",
+  from_region: "eu-west",
+  to_region: "us-east",
+  steps: [{ kind: "custom", name: "Operator verification", parameters: {} }],
+  runbook_url: "/docs/runbooks/failover.md",
+  tested_at: "2026-04-01T10:00:00.000Z",
+  last_executed_at: null,
+  created_by: null,
+  version: 1,
+  created_at: "2026-04-01T09:00:00.000Z",
+  updated_at: "2026-04-01T09:00:00.000Z",
+  is_stale: false,
+};
+
+const capacitySignals = [
+  {
+    resource_class: "compute",
+    historical_trend: [
+      { period: "day-1", utilization: 62 },
+      { period: "day-2", utilization: 72 },
+    ],
+    projection: { projected_utilization: 0.84 },
+    saturation_horizon: { threshold: 0.8, horizon_days: 7 },
+    confidence: "ok",
+    recommendation: {
+      action: "Review capacity and cost forecast",
+      link: "/costs",
+      reason: "Compute capacity is projected above the configured horizon.",
+    },
+    generated_at: "2026-04-16T12:00:00.000Z",
+  },
+];
+
 const reasoningTrace = {
   execution_id: "exec-run-0001",
   total_tokens: 3820,
@@ -293,7 +385,7 @@ export async function installOperatorState(page: Page) {
             email: "operator@musematic.dev",
             displayName: "Operator",
             avatarUrl: null,
-            roles: ["platform_admin", "workspace_admin"],
+            roles: ["superadmin", "platform_admin", "workspace_admin"],
             workspaceId: "workspace-1",
             mfaEnrolled: true,
           },
@@ -327,6 +419,217 @@ export async function installOperatorState(page: Page) {
 }
 
 export async function mockOperatorApi(page: Page) {
+  let maintenanceWindow = {
+    id: "window-planned",
+    starts_at: "2099-01-01T01:00:00.000Z",
+    ends_at: "2099-01-01T02:00:00.000Z",
+    reason: "database maintenance",
+    blocks_writes: true,
+    announcement_text: "Writes are paused for maintenance",
+    status: "scheduled",
+    scheduled_by: null,
+    enabled_at: null as string | null,
+    disabled_at: null as string | null,
+    disable_failure_reason: null,
+    created_at: "2026-04-16T12:00:00.000Z",
+    updated_at: "2026-04-16T12:00:00.000Z",
+  };
+  let maintenanceActive = false;
+  const failoverRuns = [
+    {
+      id: "run-initial",
+      plan_id: failoverPlan.id,
+      run_kind: "rehearsal",
+      outcome: "succeeded",
+      started_at: "2026-04-01T10:00:00.000Z",
+      ended_at: "2026-04-01T10:01:00.000Z",
+      step_outcomes: [
+        {
+          step_index: 0,
+          kind: "custom",
+          name: "Operator verification",
+          outcome: "succeeded",
+          duration_ms: 120,
+          error_detail: null,
+        },
+      ],
+      initiated_by: null,
+      reason: "quarterly",
+    },
+  ];
+
+  await page.route("**/api/v1/regions", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(regionRows),
+      status: 200,
+    });
+  });
+
+  await page.route("**/api/v1/regions/replication-status", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(replicationStatus),
+      status: 200,
+    });
+  });
+
+  await page.route("**/api/v1/regions/failover-plans", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify([failoverPlan]),
+      status: 200,
+    });
+  });
+
+  await page.route("**/api/v1/regions/failover-plans/plan-primary-dr/runs", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(failoverRuns),
+      status: 200,
+    });
+  });
+
+  await page.route(
+    "**/api/v1/admin/regions/failover-plans/plan-primary-dr/rehearse",
+    async (route) => {
+      const run = {
+        id: `run-${failoverRuns.length + 1}`,
+        plan_id: failoverPlan.id,
+        run_kind: "rehearsal",
+        outcome: "succeeded",
+        started_at: "2026-04-16T12:00:00.000Z",
+        ended_at: "2026-04-16T12:01:00.000Z",
+        step_outcomes: [
+          {
+            step_index: 0,
+            kind: "custom",
+            name: "Operator verification",
+            outcome: "succeeded",
+            duration_ms: 120,
+            error_detail: null,
+          },
+        ],
+        initiated_by: null,
+        reason: "manual rehearsal",
+      };
+      failoverRuns.unshift(run);
+      await route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify(run),
+        status: 200,
+      });
+    },
+  );
+
+  await page.route("**/api/v1/regions/upgrade-status", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        runtime_versions: [
+          {
+            runtime_id: "python-worker",
+            version: "2026.04.1",
+            status: "serving",
+            coexistence_until: "2026-05-01T00:00:00.000Z",
+          },
+        ],
+        documentation_links: {},
+      }),
+      status: 200,
+    });
+  });
+
+  await page.route("**/api/v1/maintenance/windows", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify([maintenanceWindow]),
+      status: 200,
+    });
+  });
+
+  await page.route("**/api/v1/maintenance/windows/active", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(maintenanceActive ? maintenanceWindow : null),
+      status: 200,
+    });
+  });
+
+  await page.route("**/api/v1/admin/maintenance/windows", async (route) => {
+    let payload: Record<string, unknown> | null = null;
+    try {
+      payload = route.request().postDataJSON() as Record<string, unknown>;
+    } catch {
+      payload = null;
+    }
+    maintenanceWindow = {
+      ...maintenanceWindow,
+      id: "window-scheduled",
+      starts_at: String(payload?.starts_at ?? maintenanceWindow.starts_at),
+      ends_at: String(payload?.ends_at ?? maintenanceWindow.ends_at),
+      reason: String(payload?.reason ?? maintenanceWindow.reason),
+      announcement_text: String(payload?.announcement_text ?? maintenanceWindow.announcement_text),
+      status: "scheduled",
+    };
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(maintenanceWindow),
+      status: 201,
+    });
+  });
+
+  await page.route("**/api/v1/admin/maintenance/windows/*/enable", async (route) => {
+    maintenanceActive = true;
+    maintenanceWindow = {
+      ...maintenanceWindow,
+      status: "active",
+      enabled_at: "2026-04-16T12:01:00.000Z",
+    };
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(maintenanceWindow),
+      status: 200,
+    });
+  });
+
+  await page.route("**/api/v1/admin/maintenance/windows/*/disable", async (route) => {
+    maintenanceActive = false;
+    maintenanceWindow = {
+      ...maintenanceWindow,
+      status: "completed",
+      disabled_at: "2026-04-16T12:02:00.000Z",
+    };
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(maintenanceWindow),
+      status: 200,
+    });
+  });
+
+  await page.route("**/api/v1/regions/capacity?**", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(capacitySignals),
+      status: 200,
+    });
+  });
+
+  await page.route("**/api/v1/admin/regions", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify(
+        maintenanceActive
+          ? {
+              error: "maintenance_in_progress",
+              announcement: maintenanceWindow.announcement_text,
+            }
+          : { status: "created" },
+      ),
+      status: maintenanceActive ? 503 : 200,
+    });
+  });
+
   await page.route("**/api/v1/dashboard/metrics", async (route) => {
     await route.fulfill({
       contentType: "application/json",
