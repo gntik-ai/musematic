@@ -13,6 +13,7 @@ class WebSocketConnection:
     connection_id: str
     user_id: UUID
     workspace_ids: set[UUID]
+    role_names: set[str]
     websocket: Any
     subscriptions: dict[str, Subscription] = field(default_factory=dict)
     pending_subscriptions: set[str] = field(default_factory=set)
@@ -52,4 +53,3 @@ class ConnectionRegistry:
 
     def count(self) -> int:
         return len(self._connections)
-

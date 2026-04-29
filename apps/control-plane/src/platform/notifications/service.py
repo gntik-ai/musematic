@@ -57,7 +57,7 @@ from platform.notifications.schemas import (
 )
 from platform.workspaces.service import WorkspacesService
 from types import MappingProxyType
-from typing import ClassVar
+from typing import Any, ClassVar
 from uuid import UUID, uuid4
 
 LOGGER = get_logger(__name__)
@@ -424,6 +424,38 @@ class AlertService:
         else:
             await self._dispatch_for_settings(alert, alert_settings, user)
         return UserAlertRead.model_validate(alert)
+
+    async def create_admin_alert(
+        self,
+        *,
+        user_id: UUID,
+        alert_type: str,
+        title: str,
+        body: str,
+        urgency: str,
+        source_reference: dict[str, Any] | None,
+    ) -> UserAlert:
+        alert_settings = await self.get_or_default_settings(user_id)
+        alert = await self.repo.create_alert(
+            user_id=user_id,
+            interaction_id=None,
+            source_reference=source_reference,
+            alert_type=alert_type,
+            title=title,
+            body=body,
+            urgency=self._normalize_urgency(urgency),
+            delivery_method=(
+                alert_settings.delivery_method
+                if alert_settings.delivery_method != DeliveryMethod.in_app
+                else None
+            ),
+        )
+        user = await self._resolve_user(str(user_id))
+        if user is None:
+            await self._publish_in_app(alert)
+        else:
+            await self._dispatch_for_settings(alert, alert_settings, user)
+        return alert
 
     async def list_channel_configs(self, user_id: UUID) -> list[ChannelConfigRead]:
         return [

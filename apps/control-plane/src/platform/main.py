@@ -21,6 +21,10 @@ from platform.accounts.events import register_accounts_event_types
 from platform.accounts.repository import AccountsRepository
 from platform.accounts.router import router as accounts_router
 from platform.admin.bootstrap import BootstrapConfigError, bootstrap_superadmin_from_env
+from platform.admin.events import register_admin_event_types
+from platform.admin.read_only_middleware import AdminReadOnlyMiddleware
+from platform.admin.router import admin_router
+from platform.admin.security_scheduler import build_admin_security_expiry_scheduler
 from platform.agentops.dependencies import build_agentops_service
 from platform.agentops.events import register_agentops_event_types
 from platform.agentops.governance.triggers import AgentOpsGovernanceTriggers
@@ -506,6 +510,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_incident_response_event_types()
     register_multi_region_ops_event_types()
     register_localization_event_types()
+    register_admin_event_types()
     register_incident_trigger(AppIncidentTrigger(app))
 
     for name, client in app.state.clients.items():
@@ -719,6 +724,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         "notifications_deadletter_threshold_scheduler",
         None,
     )
+    admin_security_expiry_scheduler = getattr(
+        app.state,
+        "admin_security_expiry_scheduler",
+        None,
+    )
     governance_retention_gc_scheduler = getattr(
         app.state,
         "governance_retention_gc_scheduler",
@@ -838,6 +848,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["notifications_deadletter_threshold_scheduler"] = str(exc)
             LOGGER.warning("Failed to start notifications DLQ threshold scheduler: %s", exc)
+    if admin_security_expiry_scheduler is not None:
+        try:
+            admin_security_expiry_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["admin_security_expiry_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start admin security expiry scheduler: %s", exc)
     if governance_retention_gc_scheduler is not None:
         try:
             governance_retention_gc_scheduler.start()
@@ -1206,6 +1223,14 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                     "Failed to stop notifications DLQ threshold scheduler cleanly: %s",
                     exc,
                 )
+        if admin_security_expiry_scheduler is not None:
+            try:
+                admin_security_expiry_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning(
+                    "Failed to stop admin security expiry scheduler cleanly: %s",
+                    exc,
+                )
         if governance_retention_gc_scheduler is not None:
             try:
                 governance_retention_gc_scheduler.shutdown(wait=False)
@@ -1301,6 +1326,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.notifications_retention_gc_scheduler = None
     app.state.notifications_channel_verification_scheduler = None
     app.state.notifications_deadletter_threshold_scheduler = None
+    app.state.admin_security_expiry_scheduler = None
     app.state.ibor_sync_scheduler = None
     app.state.refresh_ibor_sync_scheduler = None
     app.state.connectors_worker_scheduler = None
@@ -1344,6 +1370,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.notifications_deadletter_threshold_scheduler = (
             _build_notifications_deadletter_threshold_scheduler(app)
         )
+    if resolved.profile in {"api", "scheduler"}:
+        app.state.admin_security_expiry_scheduler = build_admin_security_expiry_scheduler(app)
     if resolved.profile == "worker":
         app.state.analytics_consumer = AnalyticsPipelineConsumer(
             settings=resolved,
@@ -1433,6 +1461,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.add_middleware(DebugCaptureMiddleware)
     app.add_middleware(RateLimitMiddleware)
     app.add_middleware(MaintenanceGateMiddleware)
+    app.add_middleware(AdminReadOnlyMiddleware)
     app.add_middleware(AuthMiddleware)
     app.add_middleware(CorrelationLoggingMiddleware)
     app.add_middleware(CorrelationMiddleware)
@@ -1615,6 +1644,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(debug_logging_router)
         app.include_router(accounts_router)
         app.include_router(workspaces_router)
+        app.include_router(admin_router)
         app.include_router(two_pa_router, prefix="/api/v1")
         app.include_router(analytics_router)
         app.include_router(cost_governance_router)

@@ -126,6 +126,7 @@ def build_connection(
     *,
     user_id: UUID | None = None,
     workspace_ids: set[UUID] | None = None,
+    role_names: set[str] | None = None,
     websocket: FakeWebSocket | None = None,
     connection_id: str | None = None,
     queue_size: int = 4,
@@ -134,6 +135,7 @@ def build_connection(
         connection_id=connection_id or str(uuid4()),
         user_id=user_id or uuid4(),
         workspace_ids=workspace_ids or set(),
+        role_names=role_names or set(),
         websocket=websocket or FakeWebSocket(SimpleNamespace()),
         send_queue=asyncio.Queue(maxsize=queue_size),
     )
