@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 import json
 from platform.auth.dependencies_oauth import get_oauth_service, rate_limit_callback
-from platform.auth.router_oauth import oauth_router
+from platform.auth.router_oauth import _optional_current_user, oauth_router
 from platform.common.dependencies import get_current_user
 from platform.common.exceptions import PlatformError, platform_exception_handler
 from types import SimpleNamespace
@@ -40,14 +40,27 @@ class OAuthRouterServiceStub:
         self.calls.append(("list_links", (user_id,), {}))
         return OAuthLinkListResponse(items=[])
 
-    async def get_authorization_url(self, provider, link_for_user_id=None, dry_run=False):
+    async def get_authorization_url(
+        self,
+        provider,
+        *,
+        link_for_user_id=None,
+        dry_run=False,
+        intent=None,
+        recovery_email=None,
+    ):
         from platform.auth.schemas import OAuthAuthorizeResponse
 
         self.calls.append(
             (
                 "get_authorization_url",
                 (provider,),
-                {"link_for_user_id": link_for_user_id, "dry_run": dry_run},
+                {
+                    "link_for_user_id": link_for_user_id,
+                    "dry_run": dry_run,
+                    "intent": intent,
+                    "recovery_email": recovery_email,
+                },
             )
         )
         return OAuthAuthorizeResponse(redirect_url=f"https://oauth.example.com/{provider}")
@@ -216,6 +229,7 @@ async def test_oauth_router_admin_and_link_endpoints_delegate() -> None:
     service = OAuthRouterServiceStub()
     app = _app(service)
     app.dependency_overrides[get_current_user] = _admin_user
+    app.dependency_overrides[_optional_current_user] = _admin_user
 
     payload = {
         "display_name": "Google Workspace",
