@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from datetime import UTC, datetime
 from platform.common.events.envelope import EventEnvelope
 from platform.common.events.producer import EventProducer
+from platform.common.logging import get_logger
 from typing import Any
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class RetryHandler:

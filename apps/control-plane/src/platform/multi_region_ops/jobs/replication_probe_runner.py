@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import logging
 from platform.common import database
 from platform.common.clients.clickhouse import AsyncClickHouseClient
+from platform.common.logging import get_logger
 from platform.incident_response.trigger_interface import get_incident_trigger
 from platform.multi_region_ops.repository import MultiRegionOpsRepository
 from platform.multi_region_ops.services.probes.base import ReplicationProbeRegistry
@@ -17,7 +17,7 @@ from platform.multi_region_ops.services.replication_monitor import ReplicationMo
 from platform.security_compliance.providers.rotatable_secret_provider import RotatableSecretProvider
 from typing import Any
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 def build_replication_probe_scheduler(app: Any) -> Any | None:

@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from platform.common.clients.model_router import SecretProvider
+from platform.common.logging import get_logger
 from platform.incident_response.models import Incident, IncidentIntegration
 from typing import Any, Protocol
 
 import httpx
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 @dataclass(frozen=True, slots=True)

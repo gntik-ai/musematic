@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime
 from platform.common.config import PlatformSettings
+from platform.common.logging import get_logger
 from platform.discovery.critique.evaluator import CritiqueEvaluator
 from platform.discovery.events import DiscoveryEventPublisher
 from platform.discovery.models import GDECycle, Hypothesis
@@ -12,7 +12,7 @@ from platform.discovery.tournament.comparator import TournamentComparator, Workf
 from typing import Any
 from uuid import UUID
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class GDECycleOrchestrator:

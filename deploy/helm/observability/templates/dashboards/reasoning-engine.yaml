@@ -8,66 +8,237 @@ metadata:
 data:
   reasoning-engine.json: |
     {
-      "__inputs": [],
-      "__requires": [],
-      "annotations": { "list": [] },
-      "description": "Budget, ToT, and correction-loop signals.",
-      "editable": true,
-      "graphTooltip": 1,
-      "id": null,
-      "links": [],
-      "panels": [
-        {
-          "id": 1,
-          "type": "gauge",
-          "title": "Budget Utilization",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 },
-          "targets": [{ "expr": "sum(rate(budget_decrements_total[5m]))", "refId": "A" }],
-          "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
-        },
-        {
-          "id": 2,
-          "type": "piechart",
-          "title": "Correction Outcomes",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 9, "x": 6, "y": 0 },
-          "targets": [{ "expr": "sum by (outcome) (increase(correction_iterations_total[30m]))", "legendFormat": "{{ `{{outcome}}` }}", "refId": "A" }]
-        },
-        {
-          "id": 3,
-          "type": "piechart",
-          "title": "Mode Selections",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 9, "x": 15, "y": 0 },
-          "targets": [{ "expr": "sum by (mode) (increase(mode_selections_total[30m]))", "legendFormat": "{{ `{{mode}}` }}", "refId": "A" }]
-        },
-        {
-          "id": 4,
-          "type": "timeseries",
-          "title": "ToT Branch Rate",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
-          "targets": [{ "expr": "rate(tot_branches_total[5m])", "refId": "A" }]
-        },
-        {
-          "id": 5,
-          "type": "stat",
-          "title": "Convergence Rate",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-          "targets": [{ "expr": "1 - (sum(rate(correction_nonconvergence_total[5m])) / clamp_min(sum(rate(correction_iterations_total[5m])), 1))", "refId": "A" }],
-          "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
-        }
-      ],
-      "refresh": "30s",
-      "schemaVersion": 38,
-      "tags": ["musematic", "reasoning"],
-      "templating": { "list": [{ "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" }, "hide": 0, "includeAll": false, "label": "Datasource", "multi": false, "name": "datasource", "options": [], "query": "prometheus", "refresh": 1, "regex": "", "type": "datasource" }] },
-      "time": { "from": "now-1h", "to": "now" },
-      "timepicker": {},
-      "timezone": "browser",
-      "title": "Reasoning Engine",
-      "uid": "reasoning-engine",
-      "version": 1
+          "__inputs": [],
+          "__requires": [],
+          "annotations": {
+                "list": []
+          },
+          "description": "Budget, ToT, and correction-loop signals.",
+          "editable": true,
+          "graphTooltip": 1,
+          "id": null,
+          "links": [],
+          "panels": [
+                {
+                      "id": 1,
+                      "type": "gauge",
+                      "title": "Budget Utilization",
+                      "datasource": {
+                            "type": "prometheus",
+                            "uid": "$datasource"
+                      },
+                      "gridPos": {
+                            "h": 8,
+                            "w": 6,
+                            "x": 0,
+                            "y": 0
+                      },
+                      "targets": [
+                            {
+                                  "expr": "sum(rate(budget_decrements_total[5m]))",
+                                  "refId": "A"
+                            }
+                      ],
+                      "options": {
+                            "reduceOptions": {
+                                  "calcs": [
+                                        "lastNotNull"
+                                  ],
+                                  "fields": "",
+                                  "values": false
+                            }
+                      },
+                      "fieldConfig": {
+                            "defaults": {
+                                  "links": [
+                                        {
+                                              "title": "View related logs",
+                                              "url": "/explore?left={\"datasource\":\"loki\",\"queries\":[{\"expr\":\"{service=\\\"reasoning-engine\\\"} | json\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+                                              "targetBlank": false
+                                        }
+                                  ]
+                            },
+                            "overrides": []
+                      }
+                },
+                {
+                      "id": 2,
+                      "type": "piechart",
+                      "title": "Correction Outcomes",
+                      "datasource": {
+                            "type": "prometheus",
+                            "uid": "$datasource"
+                      },
+                      "gridPos": {
+                            "h": 8,
+                            "w": 9,
+                            "x": 6,
+                            "y": 0
+                      },
+                      "targets": [
+                            {
+                                  "expr": "sum by (outcome) (increase(correction_iterations_total[30m]))",
+                                  "legendFormat": "{{ `{{outcome}}` }}",
+                                  "refId": "A"
+                            }
+                      ],
+                      "fieldConfig": {
+                            "defaults": {
+                                  "links": [
+                                        {
+                                              "title": "View related logs",
+                                              "url": "/explore?left={\"datasource\":\"loki\",\"queries\":[{\"expr\":\"{service=\\\"reasoning-engine\\\"} | json\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+                                              "targetBlank": false
+                                        }
+                                  ]
+                            },
+                            "overrides": []
+                      }
+                },
+                {
+                      "id": 3,
+                      "type": "piechart",
+                      "title": "Mode Selections",
+                      "datasource": {
+                            "type": "prometheus",
+                            "uid": "$datasource"
+                      },
+                      "gridPos": {
+                            "h": 8,
+                            "w": 9,
+                            "x": 15,
+                            "y": 0
+                      },
+                      "targets": [
+                            {
+                                  "expr": "sum by (mode) (increase(mode_selections_total[30m]))",
+                                  "legendFormat": "{{ `{{mode}}` }}",
+                                  "refId": "A"
+                            }
+                      ],
+                      "fieldConfig": {
+                            "defaults": {
+                                  "links": [
+                                        {
+                                              "title": "View related logs",
+                                              "url": "/explore?left={\"datasource\":\"loki\",\"queries\":[{\"expr\":\"{service=\\\"reasoning-engine\\\"} | json\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+                                              "targetBlank": false
+                                        }
+                                  ]
+                            },
+                            "overrides": []
+                      }
+                },
+                {
+                      "id": 4,
+                      "type": "timeseries",
+                      "title": "ToT Branch Rate",
+                      "datasource": {
+                            "type": "prometheus",
+                            "uid": "$datasource"
+                      },
+                      "gridPos": {
+                            "h": 8,
+                            "w": 12,
+                            "x": 0,
+                            "y": 8
+                      },
+                      "targets": [
+                            {
+                                  "expr": "rate(tot_branches_total[5m])",
+                                  "refId": "A"
+                            }
+                      ],
+                      "fieldConfig": {
+                            "defaults": {
+                                  "links": [
+                                        {
+                                              "title": "View related logs",
+                                              "url": "/explore?left={\"datasource\":\"loki\",\"queries\":[{\"expr\":\"{service=\\\"reasoning-engine\\\"} | json\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+                                              "targetBlank": false
+                                        }
+                                  ]
+                            },
+                            "overrides": []
+                      }
+                },
+                {
+                      "id": 5,
+                      "type": "stat",
+                      "title": "Convergence Rate",
+                      "datasource": {
+                            "type": "prometheus",
+                            "uid": "$datasource"
+                      },
+                      "gridPos": {
+                            "h": 8,
+                            "w": 12,
+                            "x": 12,
+                            "y": 8
+                      },
+                      "targets": [
+                            {
+                                  "expr": "1 - (sum(rate(correction_nonconvergence_total[5m])) / clamp_min(sum(rate(correction_iterations_total[5m])), 1))",
+                                  "refId": "A"
+                            }
+                      ],
+                      "options": {
+                            "reduceOptions": {
+                                  "calcs": [
+                                        "lastNotNull"
+                                  ],
+                                  "fields": "",
+                                  "values": false
+                            }
+                      },
+                      "fieldConfig": {
+                            "defaults": {
+                                  "links": [
+                                        {
+                                              "title": "View related logs",
+                                              "url": "/explore?left={\"datasource\":\"loki\",\"queries\":[{\"expr\":\"{service=\\\"reasoning-engine\\\"} | json\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+                                              "targetBlank": false
+                                        }
+                                  ]
+                            },
+                            "overrides": []
+                      }
+                }
+          ],
+          "refresh": "30s",
+          "schemaVersion": 38,
+          "tags": [
+                "musematic",
+                "reasoning"
+          ],
+          "templating": {
+                "list": [
+                      {
+                            "current": {
+                                  "selected": false,
+                                  "text": "Prometheus",
+                                  "value": "Prometheus"
+                            },
+                            "hide": 0,
+                            "includeAll": false,
+                            "label": "Datasource",
+                            "multi": false,
+                            "name": "datasource",
+                            "options": [],
+                            "query": "prometheus",
+                            "refresh": 1,
+                            "regex": "",
+                            "type": "datasource"
+                      }
+                ]
+          },
+          "time": {
+                "from": "now-1h",
+                "to": "now"
+          },
+          "timepicker": {},
+          "timezone": "browser",
+          "title": "Reasoning Engine",
+          "uid": "reasoning-engine",
+          "version": 1
     }

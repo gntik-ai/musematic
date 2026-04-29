@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import PlatformError
+from platform.common.logging import get_logger
 from platform.interactions.events import GoalStateChangedPayload, publish_goal_state_changed
 from platform.workspaces.models import WorkspaceGoal, WorkspaceGoalState
 from uuid import uuid4
@@ -12,7 +12,7 @@ from uuid import uuid4
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class GoalStateConflictError(PlatformError):

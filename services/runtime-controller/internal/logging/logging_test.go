@@ -12,7 +12,7 @@ import (
 
 func TestContextHandlerAddsStructuredFields(t *testing.T) {
 	var buf bytes.Buffer
-	logger := slog.New(NewContextHandler(slog.NewJSONHandler(&buf, nil), "runtime-controller", "platform-execution"))
+	logger := slog.New(NewContextHandler(NewJSONHandler(&buf), "runtime-controller", "platform-execution"))
 	ctx := WithFields(context.Background(), Fields{
 		WorkspaceID:   "workspace-1",
 		GoalID:        "goal-1",
@@ -28,10 +28,13 @@ func TestContextHandlerAddsStructuredFields(t *testing.T) {
 	if err := json.Unmarshal(buf.Bytes(), &payload); err != nil {
 		t.Fatalf("decode log payload: %v", err)
 	}
-	for _, field := range []string{"time", "level", "msg", "service", "bounded_context"} {
+	for _, field := range []string{"timestamp", "level", "message", "service", "bounded_context"} {
 		if _, ok := payload[field]; !ok {
 			t.Fatalf("missing field %s in %#v", field, payload)
 		}
+	}
+	if payload["level"] != "info" || payload["message"] != "runtime launched" {
+		t.Fatalf("unexpected log level/message: %#v", payload)
 	}
 	if payload["service"] != "runtime-controller" || payload["bounded_context"] != "platform-execution" {
 		t.Fatalf("unexpected service metadata: %#v", payload)
@@ -43,7 +46,7 @@ func TestContextHandlerAddsStructuredFields(t *testing.T) {
 
 func TestContextHandlerMissingContextDoesNotCrash(t *testing.T) {
 	var buf bytes.Buffer
-	logger := slog.New(NewContextHandler(slog.NewJSONHandler(&buf, nil), "runtime-controller", "platform-execution"))
+	logger := slog.New(NewContextHandler(NewJSONHandler(&buf), "runtime-controller", "platform-execution"))
 
 	logger.WarnContext(context.Background(), "heartbeat missed")
 
@@ -58,7 +61,7 @@ func TestContextHandlerMissingContextDoesNotCrash(t *testing.T) {
 
 func TestWithGRPCMetadataExtractsCanonicalFields(t *testing.T) {
 	var buf bytes.Buffer
-	logger := slog.New(NewContextHandler(slog.NewJSONHandler(&buf, nil), "runtime-controller", "platform-execution"))
+	logger := slog.New(NewContextHandler(NewJSONHandler(&buf), "runtime-controller", "platform-execution"))
 	ctx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(
 		"workspace_id", "",
 		"x-workspace-id", "workspace-1",
@@ -102,7 +105,7 @@ func TestContextHandlerAttrsGroupsAndConfigure(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	handler := NewContextHandler(slog.NewJSONHandler(&buf, nil), "runtime-controller", "platform-execution").
+	handler := NewContextHandler(NewJSONHandler(&buf), "runtime-controller", "platform-execution").
 		WithAttrs([]slog.Attr{slog.String("component", "grpc")}).
 		WithGroup("request")
 

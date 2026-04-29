@@ -46,6 +46,8 @@ opentelemetry-collector:
 # @section -- Kube Prometheus Stack
 # -- Configures `kube-prometheus-stack` for the observability chart.
 kube-prometheus-stack:
+  # -- Configures `kube-prometheus-stack.fullnameOverride` for stable in-chart Alertmanager references.
+  fullnameOverride: observability-kube-prometh
   # -- Configures `kube-prometheus-stack.prometheusOperator` for the observability chart.
   prometheusOperator:
     # -- Configures `kube-prometheus-stack.prometheusOperator.admissionWebhooks` for the observability chart.
@@ -158,6 +160,10 @@ loki:
     storage:
       # -- Configures `loki.loki.storage.type` for the observability chart.
       type: filesystem
+      # -- Configures `loki.loki.storage.filesystem` for locally mounted ruler files.
+      filesystem:
+        # -- Configures `loki.loki.storage.filesystem.rules_directory` for sidecar-provisioned rules.
+        rules_directory: /rules
     # -- Configures `loki.loki.schemaConfig` for the observability chart.
     schemaConfig:
       # -- Configures `loki.loki.schemaConfig.configs` for the observability chart.
@@ -177,10 +183,20 @@ loki:
             period: 24h
     # -- Configures `loki.loki.rulerConfig` for the observability chart.
     rulerConfig:
+      # -- Configures `loki.loki.rulerConfig.enable_api` for the observability chart.
+      enable_api: true
+      # -- Configures `loki.loki.rulerConfig.alertmanager_url` for alert delivery.
+      alertmanager_url: http://observability-kube-prometh-alertmanager:9093
+      # -- Configures `loki.loki.rulerConfig.enable_alertmanager_v2` for Alertmanager API v2.
+      enable_alertmanager_v2: true
       # -- Configures `loki.loki.rulerConfig.storage` for the observability chart.
       storage:
         # -- Configures `loki.loki.rulerConfig.storage.type` for the observability chart.
         type: local
+        # -- Configures `loki.loki.rulerConfig.storage.local` for sidecar-provisioned rules.
+        local:
+          # -- Configures `loki.loki.rulerConfig.storage.local.directory` for rule files.
+          directory: /rules
   # -- Configures `loki.singleBinary` for the observability chart.
   singleBinary:
     # -- Configures `loki.singleBinary.replicas` for the observability chart.

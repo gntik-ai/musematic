@@ -70,6 +70,18 @@ def test_configure_logging_outputs_required_json_fields(
     assert payload["message"] == "control-plane.ready"
 
 
+def test_configure_logging_formats_legacy_positional_args(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    configure_logging("api", "platform-control")
+
+    get_logger("test").warning("startup dependency %s degraded", "redis")
+
+    payload = _read_json_line(capsys)
+    assert payload["message"] == "startup dependency redis degraded"
+    assert "positional_args" not in payload
+
+
 def test_configure_logging_suppresses_noisy_stdlib_loggers() -> None:
     configure_logging("api", "platform-control")
 

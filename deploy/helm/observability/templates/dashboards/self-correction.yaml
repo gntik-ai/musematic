@@ -8,58 +8,202 @@ metadata:
 data:
   self-correction.json: |
     {
-      "__inputs": [],
-      "__requires": [],
-      "annotations": { "list": [] },
-      "description": "Self-correction convergence and iteration costs.",
-      "editable": true,
-      "graphTooltip": 1,
-      "id": null,
-      "links": [],
-      "panels": [
-        {
-          "id": 1,
-          "type": "gauge",
-          "title": "Convergence Rate",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 },
-          "targets": [{ "expr": "1 - (sum(rate(correction_nonconvergence_total[5m])) / clamp_min(sum(rate(correction_iterations_total[5m])), 1))", "refId": "A" }],
-          "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
-        },
-        {
-          "id": 2,
-          "type": "timeseries",
-          "title": "Iteration Volume",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 18, "x": 6, "y": 0 },
-          "targets": [{ "expr": "increase(correction_iterations_total[30m])", "refId": "A" }]
-        },
-        {
-          "id": 3,
-          "type": "timeseries",
-          "title": "Correction Cost per Loop",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
-          "targets": [{ "expr": "rate(correction_cost_per_loop[5m])", "refId": "A" }]
-        },
-        {
-          "id": 4,
-          "type": "stat",
-          "title": "Average Iterations",
-          "datasource": { "type": "prometheus", "uid": "$datasource" },
-          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-          "targets": [{ "expr": "sum(increase(correction_iterations_total[30m])) / clamp_min(sum(increase(correction_loop_total[30m])), 1)", "refId": "A" }],
-          "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false } }
-        }
-      ],
-      "refresh": "30s",
-      "schemaVersion": 38,
-      "tags": ["musematic", "self-correction"],
-      "templating": { "list": [{ "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" }, "hide": 0, "includeAll": false, "label": "Datasource", "multi": false, "name": "datasource", "options": [], "query": "prometheus", "refresh": 1, "regex": "", "type": "datasource" }] },
-      "time": { "from": "now-1h", "to": "now" },
-      "timepicker": {},
-      "timezone": "browser",
-      "title": "Self-Correction",
-      "uid": "self-correction",
-      "version": 1
+          "__inputs": [],
+          "__requires": [],
+          "annotations": {
+                "list": []
+          },
+          "description": "Self-correction convergence and iteration costs.",
+          "editable": true,
+          "graphTooltip": 1,
+          "id": null,
+          "links": [],
+          "panels": [
+                {
+                      "id": 1,
+                      "type": "gauge",
+                      "title": "Convergence Rate",
+                      "datasource": {
+                            "type": "prometheus",
+                            "uid": "$datasource"
+                      },
+                      "gridPos": {
+                            "h": 8,
+                            "w": 6,
+                            "x": 0,
+                            "y": 0
+                      },
+                      "targets": [
+                            {
+                                  "expr": "1 - (sum(rate(correction_nonconvergence_total[5m])) / clamp_min(sum(rate(correction_iterations_total[5m])), 1))",
+                                  "refId": "A"
+                            }
+                      ],
+                      "options": {
+                            "reduceOptions": {
+                                  "calcs": [
+                                        "lastNotNull"
+                                  ],
+                                  "fields": "",
+                                  "values": false
+                            }
+                      },
+                      "fieldConfig": {
+                            "defaults": {
+                                  "links": [
+                                        {
+                                              "title": "View related logs",
+                                              "url": "/explore?left={\"datasource\":\"loki\",\"queries\":[{\"expr\":\"{service=\\\"reasoning-engine\\\"} | json | message=~\\\".*correction.*\\\"\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+                                              "targetBlank": false
+                                        }
+                                  ]
+                            },
+                            "overrides": []
+                      }
+                },
+                {
+                      "id": 2,
+                      "type": "timeseries",
+                      "title": "Iteration Volume",
+                      "datasource": {
+                            "type": "prometheus",
+                            "uid": "$datasource"
+                      },
+                      "gridPos": {
+                            "h": 8,
+                            "w": 18,
+                            "x": 6,
+                            "y": 0
+                      },
+                      "targets": [
+                            {
+                                  "expr": "increase(correction_iterations_total[30m])",
+                                  "refId": "A"
+                            }
+                      ],
+                      "fieldConfig": {
+                            "defaults": {
+                                  "links": [
+                                        {
+                                              "title": "View related logs",
+                                              "url": "/explore?left={\"datasource\":\"loki\",\"queries\":[{\"expr\":\"{service=\\\"reasoning-engine\\\"} | json | message=~\\\".*correction.*\\\"\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+                                              "targetBlank": false
+                                        }
+                                  ]
+                            },
+                            "overrides": []
+                      }
+                },
+                {
+                      "id": 3,
+                      "type": "timeseries",
+                      "title": "Correction Cost per Loop",
+                      "datasource": {
+                            "type": "prometheus",
+                            "uid": "$datasource"
+                      },
+                      "gridPos": {
+                            "h": 8,
+                            "w": 12,
+                            "x": 0,
+                            "y": 8
+                      },
+                      "targets": [
+                            {
+                                  "expr": "rate(correction_cost_per_loop[5m])",
+                                  "refId": "A"
+                            }
+                      ],
+                      "fieldConfig": {
+                            "defaults": {
+                                  "links": [
+                                        {
+                                              "title": "View related logs",
+                                              "url": "/explore?left={\"datasource\":\"loki\",\"queries\":[{\"expr\":\"{service=\\\"reasoning-engine\\\"} | json | message=~\\\".*correction.*\\\"\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+                                              "targetBlank": false
+                                        }
+                                  ]
+                            },
+                            "overrides": []
+                      }
+                },
+                {
+                      "id": 4,
+                      "type": "stat",
+                      "title": "Average Iterations",
+                      "datasource": {
+                            "type": "prometheus",
+                            "uid": "$datasource"
+                      },
+                      "gridPos": {
+                            "h": 8,
+                            "w": 12,
+                            "x": 12,
+                            "y": 8
+                      },
+                      "targets": [
+                            {
+                                  "expr": "sum(increase(correction_iterations_total[30m])) / clamp_min(sum(increase(correction_loop_total[30m])), 1)",
+                                  "refId": "A"
+                            }
+                      ],
+                      "options": {
+                            "reduceOptions": {
+                                  "calcs": [
+                                        "lastNotNull"
+                                  ],
+                                  "fields": "",
+                                  "values": false
+                            }
+                      },
+                      "fieldConfig": {
+                            "defaults": {
+                                  "links": [
+                                        {
+                                              "title": "View related logs",
+                                              "url": "/explore?left={\"datasource\":\"loki\",\"queries\":[{\"expr\":\"{service=\\\"reasoning-engine\\\"} | json | message=~\\\".*correction.*\\\"\"}],\"range\":{\"from\":\"${__from}\",\"to\":\"${__to}\"}}",
+                                              "targetBlank": false
+                                        }
+                                  ]
+                            },
+                            "overrides": []
+                      }
+                }
+          ],
+          "refresh": "30s",
+          "schemaVersion": 38,
+          "tags": [
+                "musematic",
+                "self-correction"
+          ],
+          "templating": {
+                "list": [
+                      {
+                            "current": {
+                                  "selected": false,
+                                  "text": "Prometheus",
+                                  "value": "Prometheus"
+                            },
+                            "hide": 0,
+                            "includeAll": false,
+                            "label": "Datasource",
+                            "multi": false,
+                            "name": "datasource",
+                            "options": [],
+                            "query": "prometheus",
+                            "refresh": 1,
+                            "regex": "",
+                            "type": "datasource"
+                      }
+                ]
+          },
+          "time": {
+                "from": "now-1h",
+                "to": "now"
+          },
+          "timepicker": {},
+          "timezone": "browser",
+          "title": "Self-Correction",
+          "uid": "self-correction",
+          "version": 1
     }

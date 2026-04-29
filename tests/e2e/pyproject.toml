@@ -50,6 +50,8 @@ testpaths = [
   "test_cluster_bootstrap_contract.py",
 ]
 markers = [
+  "e2e: end-to-end scenario requiring a deployed stack",
+  "observability: observability stack, dashboard, logging, tracing, and alerting checks",
   "slow: test takes more than 30 seconds",
   "requires_warm_pool: test assumes the runtime warm pool is filled",
   "journey: extended user journey scenario",

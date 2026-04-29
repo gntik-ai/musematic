@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-import logging
 from platform.common import database
 from platform.common.config import PlatformSettings
 from platform.common.events.consumer import EventConsumerManager
 from platform.common.events.envelope import EventEnvelope
+from platform.common.logging import get_logger
 from platform.security_compliance.repository import SecurityComplianceRepository
 from platform.security_compliance.services.compliance_service import ComplianceService
 from typing import Any
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 SECURITY_TOPICS: tuple[str, ...] = (
     "security.sbom.published",

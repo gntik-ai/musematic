@@ -8,28 +8,226 @@ metadata:
 data:
   privacy-compliance.json: |
     {
-      "annotations": { "list": [] },
-      "description": "Privacy compliance queues, DLP classifications, residency events, PIA review, and consent grants.",
-      "editable": true,
-      "graphTooltip": 1,
-      "id": null,
-      "panels": [
-        { "id": 1, "type": "timeseries", "title": "DSR Timeline", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 8, "w": 8, "x": 0, "y": 0 }, "targets": [ { "expr": "sum by (status) (privacy_dsr_requests_total{workspace_id=~\"$workspace\"})", "refId": "A" } ], "links": [ { "title": "View related logs", "url": "/explore?left={\"datasource\":\"loki\",\"queries\":[{\"expr\":\"{bounded_context=\\\"privacy_compliance\\\"} | json | workspace_id=~\\\"$workspace\\\"\"}]}" } ] },
-        { "id": 2, "type": "bargauge", "title": "DLP Events by Classification", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 8, "w": 8, "x": 8, "y": 0 }, "targets": [ { "expr": "sum by (classification) (count_over_time({bounded_context=\"privacy_compliance\"} | json | classification != \"\" | workspace_id=~\"$workspace\" [1h]))", "refId": "A" } ] },
-        { "id": 3, "type": "stat", "title": "Residency Violations", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 8, "w": 8, "x": 16, "y": 0 }, "targets": [ { "expr": "sum(count_over_time({bounded_context=\"privacy_compliance\"} | json | message=~\".*residency.*violation.*\" | workspace_id=~\"$workspace\" [1h]))", "refId": "A" } ] },
-        { "id": 4, "type": "table", "title": "PIA Pending Review", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }, "targets": [ { "expr": "{bounded_context=\"privacy_compliance\"} | json | message=~\".*pia.*pending.*\" | workspace_id=~\"$workspace\"", "refId": "A" } ] },
-        { "id": 5, "type": "piechart", "title": "Consent Grants by Type", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 }, "targets": [ { "expr": "sum by (consent_type) (count_over_time({bounded_context=\"privacy_compliance\"} | json | consent_type != \"\" | workspace_id=~\"$workspace\" [1h]))", "refId": "A" } ] }
-      ],
-      "refresh": "30s",
-      "schemaVersion": 38,
-      "tags": ["musematic", "privacy", "compliance"],
-      "templating": { "list": [
-        { "name": "workspace", "type": "textbox", "label": "Workspace", "query": ".*", "current": { "selected": false, "text": ".*", "value": ".*" } },
-        { "name": "prometheus", "type": "datasource", "query": "prometheus", "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" } }
-      ] },
-      "time": { "from": "now-1h", "to": "now" },
-      "timezone": "browser",
-      "title": "D13 Privacy & Compliance",
-      "uid": "d13-privacy-compliance",
-      "version": 1
+          "annotations": {
+                "list": []
+          },
+          "description": "Privacy compliance queues, DLP classifications, residency events, PIA review, and consent grants.",
+          "editable": true,
+          "graphTooltip": 1,
+          "id": null,
+          "panels": [
+                {
+                      "id": 1,
+                      "type": "timeseries",
+                      "title": "DSR Timeline",
+                      "datasource": {
+                            "type": "prometheus",
+                            "uid": "$prometheus"
+                      },
+                      "gridPos": {
+                            "h": 8,
+                            "w": 8,
+                            "x": 0,
+                            "y": 0
+                      },
+                      "targets": [
+                            {
+                                  "expr": "sum by (status) (privacy_dsr_requests_total{workspace_id=~\"$workspace\"})",
+                                  "refId": "A"
+                            }
+                      ],
+                      "links": [
+                            {
+                                  "title": "View related logs",
+                                  "url": "/explore?left={\"datasource\":\"loki\",\"queries\":[{\"expr\":\"{bounded_context=\\\"privacy_compliance\\\"} | json | workspace_id=~\\\"$workspace\\\"\"}]}"
+                            }
+                      ]
+                },
+                {
+                      "id": 2,
+                      "type": "piechart",
+                      "title": "DSR by Type",
+                      "datasource": {
+                            "type": "loki",
+                            "uid": "loki"
+                      },
+                      "gridPos": {
+                            "h": 8,
+                            "w": 8,
+                            "x": 8,
+                            "y": 0
+                      },
+                      "targets": [
+                            {
+                                  "expr": "sum by (dsr_type) (count_over_time({bounded_context=\"privacy_compliance\"} | json | dsr_type != \"\" | workspace_id=~\"$workspace\" [1h]))",
+                                  "refId": "A"
+                            }
+                      ],
+                      "links": [
+                            {
+                                  "title": "View related logs",
+                                  "url": "/explore?left={\"datasource\":\"loki\",\"queries\":[{\"expr\":\"{bounded_context=\\\"privacy_compliance\\\"} | json | dsr_type != \\\"\\\" | workspace_id=~\\\"$workspace\\\"\"}]}"
+                            }
+                      ]
+                },
+                {
+                      "id": 3,
+                      "type": "gauge",
+                      "title": "Cascade Deletion Progress",
+                      "datasource": {
+                            "type": "prometheus",
+                            "uid": "$prometheus"
+                      },
+                      "gridPos": {
+                            "h": 8,
+                            "w": 8,
+                            "x": 16,
+                            "y": 0
+                      },
+                      "targets": [
+                            {
+                                  "expr": "avg(privacy_cascade_deletion_progress_ratio{workspace_id=~\"$workspace\"})",
+                                  "refId": "A"
+                            }
+                      ],
+                      "fieldConfig": {
+                            "defaults": {
+                                  "unit": "percentunit",
+                                  "min": 0,
+                                  "max": 1
+                            },
+                            "overrides": []
+                      },
+                      "links": [
+                            {
+                                  "title": "View related logs",
+                                  "url": "/explore?left={\"datasource\":\"loki\",\"queries\":[{\"expr\":\"{bounded_context=\\\"privacy_compliance\\\"} | json | message=~\\\".*cascade.*deletion.*\\\" | workspace_id=~\\\"$workspace\\\"\"}]}"
+                            }
+                      ]
+                },
+                {
+                      "id": 4,
+                      "type": "bargauge",
+                      "title": "DLP Events by Classification",
+                      "datasource": {
+                            "type": "loki",
+                            "uid": "loki"
+                      },
+                      "gridPos": {
+                            "h": 8,
+                            "w": 8,
+                            "x": 0,
+                            "y": 8
+                      },
+                      "targets": [
+                            {
+                                  "expr": "sum by (classification) (count_over_time({bounded_context=\"privacy_compliance\"} | json | classification != \"\" | workspace_id=~\"$workspace\" [1h]))",
+                                  "refId": "A"
+                            }
+                      ]
+                },
+                {
+                      "id": 5,
+                      "type": "stat",
+                      "title": "Residency Violations",
+                      "datasource": {
+                            "type": "loki",
+                            "uid": "loki"
+                      },
+                      "gridPos": {
+                            "h": 8,
+                            "w": 8,
+                            "x": 8,
+                            "y": 8
+                      },
+                      "targets": [
+                            {
+                                  "expr": "sum(count_over_time({bounded_context=\"privacy_compliance\"} | json | message=~\".*residency.*violation.*\" | workspace_id=~\"$workspace\" [1h]))",
+                                  "refId": "A"
+                            }
+                      ]
+                },
+                {
+                      "id": 6,
+                      "type": "table",
+                      "title": "PIA Pending Review",
+                      "datasource": {
+                            "type": "loki",
+                            "uid": "loki"
+                      },
+                      "gridPos": {
+                            "h": 8,
+                            "w": 12,
+                            "x": 16,
+                            "y": 8
+                      },
+                      "targets": [
+                            {
+                                  "expr": "{bounded_context=\"privacy_compliance\"} | json | message=~\".*pia.*pending.*\" | workspace_id=~\"$workspace\"",
+                                  "refId": "A"
+                            }
+                      ]
+                },
+                {
+                      "id": 7,
+                      "type": "piechart",
+                      "title": "Consent Grants by Type",
+                      "datasource": {
+                            "type": "loki",
+                            "uid": "loki"
+                      },
+                      "gridPos": {
+                            "h": 8,
+                            "w": 12,
+                            "x": 0,
+                            "y": 16
+                      },
+                      "targets": [
+                            {
+                                  "expr": "sum by (consent_type) (count_over_time({bounded_context=\"privacy_compliance\"} | json | consent_type != \"\" | workspace_id=~\"$workspace\" [1h]))",
+                                  "refId": "A"
+                            }
+                      ]
+                }
+          ],
+          "refresh": "30s",
+          "schemaVersion": 38,
+          "tags": [
+                "musematic",
+                "privacy",
+                "compliance"
+          ],
+          "templating": {
+                "list": [
+                      {
+                            "name": "workspace",
+                            "type": "textbox",
+                            "label": "Workspace",
+                            "query": ".*",
+                            "current": {
+                                  "selected": false,
+                                  "text": ".*",
+                                  "value": ".*"
+                            }
+                      },
+                      {
+                            "name": "prometheus",
+                            "type": "datasource",
+                            "query": "prometheus",
+                            "current": {
+                                  "selected": false,
+                                  "text": "Prometheus",
+                                  "value": "Prometheus"
+                            }
+                      }
+                ]
+          },
+          "time": {
+                "from": "now-1h",
+                "to": "now"
+          },
+          "timezone": "browser",
+          "title": "D13 Privacy & Compliance",
+          "uid": "d13-privacy-compliance",
+          "version": 1
     }

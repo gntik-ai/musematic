@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 import os
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -20,13 +19,14 @@ from platform.common.config import (
     PlatformSettings,
 )
 from platform.common.events.producer import EventProducer
+from platform.common.logging import get_logger
 from platform.common.secret_provider import SecretProvider
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 ProviderType = Literal["google", "github"]
 _VALID_ENVIRONMENTS = {"production", "staging", "dev", "test", "ci"}

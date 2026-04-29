@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import logging
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from platform.common.clients.qdrant import AsyncQdrantClient
 from platform.common.events.envelope import CorrelationContext
 from platform.common.exceptions import AuthorizationError, NotFoundError, ValidationError
+from platform.common.logging import get_logger
 from platform.interactions.events import (
     AttentionRequestedPayload,
     BranchMergedPayload,
@@ -100,7 +100,7 @@ from uuid import UUID, uuid4
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class InteractionsService:

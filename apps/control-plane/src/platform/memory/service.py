@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from datetime import UTC, datetime
 from platform.common.events.envelope import CorrelationContext
+from platform.common.logging import get_logger
 from platform.memory.events import PatternPromotedPayload, publish_pattern_promoted
 from platform.memory.exceptions import (
     EvidenceConflictNotFoundError,
@@ -50,7 +50,7 @@ from platform.workspaces.models import WorkspaceRole
 from typing import Any
 from uuid import UUID, uuid4
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class MemoryService:

@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import re
 from fnmatch import fnmatch
 from platform.common.clients.opensearch import AsyncOpenSearchClient
 from platform.common.clients.qdrant import AsyncQdrantClient
 from platform.common.config import PlatformSettings
+from platform.common.logging import get_logger
 from platform.marketplace.exceptions import (
     AgentNotFoundError,
     ComparisonRangeError,
@@ -30,7 +30,7 @@ from uuid import UUID
 
 import httpx
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class MarketplaceSearchService:

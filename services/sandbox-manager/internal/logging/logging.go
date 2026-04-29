@@ -2,8 +2,10 @@ package logging
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"os"
+	"strings"
 
 	"google.golang.org/grpc/metadata"
 )
@@ -35,7 +37,11 @@ type ContextHandler struct {
 }
 
 func Configure(service string, boundedContext string) *slog.Logger {
-	return slog.New(NewContextHandler(slog.NewJSONHandler(os.Stdout, nil), service, boundedContext))
+	return slog.New(NewContextHandler(NewJSONHandler(os.Stdout), service, boundedContext))
+}
+
+func NewJSONHandler(w io.Writer) *slog.JSONHandler {
+	return slog.NewJSONHandler(w, &slog.HandlerOptions{ReplaceAttr: replaceContractAttrs})
 }
 
 func NewContextHandler(handler slog.Handler, service string, boundedContext string) *ContextHandler {
@@ -122,4 +128,17 @@ func firstMetadata(md metadata.MD, keys ...string) string {
 		}
 	}
 	return ""
+}
+
+func replaceContractAttrs(_ []string, attr slog.Attr) slog.Attr {
+	switch attr.Key {
+	case slog.TimeKey:
+		attr.Key = "timestamp"
+	case slog.MessageKey:
+		attr.Key = "message"
+	case slog.LevelKey:
+		attr.Key = "level"
+		attr.Value = slog.StringValue(strings.ToLower(attr.Value.String()))
+	}
+	return attr
 }

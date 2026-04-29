@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import logging
 from pathlib import Path
+from platform.common.logging import get_logger
 from platform.evaluation.exceptions import TemplateLoadError
 from platform.evaluation.schemas import RubricCreate
 
 import yaml
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class RubricTemplateLoader:

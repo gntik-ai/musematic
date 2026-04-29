@@ -42,7 +42,7 @@ spec:
             description: Privacy compliance DLP block logs exceeded the configured threshold.
             dashboard_url: http://musematic-observability-grafana/d/d13-privacy-compliance
         - alert: AuditChainAnomaly
-          expr: sum(count_over_time({service="api",bounded_context="audit",level="error",message=~".*chain.*mismatch.*|.*hash.*invalid.*"}[10m])) > 0
+          expr: sum(count_over_time({service="api",bounded_context="audit",level="error"} | json | message=~".*chain.*mismatch.*|.*hash.*invalid.*" [10m])) > 0
           for: 1m
           labels:
             severity: critical
@@ -53,7 +53,7 @@ spec:
             description: Audit-chain mismatch or invalid-hash logs were emitted.
             dashboard_url: http://musematic-observability-grafana/d/d11-audit-event-stream
         - alert: CostAnomalyLogged
-          expr: sum(count_over_time({bounded_context="cost_governance",message=~".*anomaly.*detected.*"}[15m])) > 0
+          expr: sum(count_over_time({bounded_context="cost_governance"} | json | message=~".*anomaly.*detected.*" [15m])) > 0
           for: 0m
           labels:
             severity: warning
@@ -62,4 +62,72 @@ spec:
             summary: Cost anomaly logged
             description: Cost governance emitted an anomaly-detected log entry.
             dashboard_url: http://musematic-observability-grafana/d/cost-governance
+{{- else }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: platform-loki-alerts
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.ruleLabels" . | indent 4 }}
+    loki_rule: "1"
+  annotations:
+    k8s-sidecar-target-directory: /rules/fake
+data:
+  platform-loki-alerts.yaml: |-
+    groups:
+      - name: platform.loki.logs
+        interval: 1m
+        rules:
+          - alert: HighErrorLogRate
+            expr: sum by (service) (rate({level="error"}[5m])) > 1.67
+            for: 5m
+            labels:
+              severity: warning
+              team: platform
+            annotations:
+              summary: High error log rate detected
+              description: A service emitted more than 100 error logs per minute for five minutes.
+              dashboard_url: http://musematic-observability-grafana/d/d12-cross-service-errors
+          - alert: SecurityEventSpike
+            expr: sum(rate({bounded_context=~"auth|privacy_compliance|security_compliance",level="error"}[5m])) > 0.5
+            for: 5m
+            labels:
+              severity: critical
+              team: security
+            annotations:
+              summary: Security-sensitive error spike detected
+              description: Auth, privacy, or security compliance error logs exceeded the configured threshold.
+              dashboard_url: http://musematic-observability-grafana/d/d14-security-compliance
+          - alert: DLPViolationSpike
+            expr: sum(rate({bounded_context="privacy_compliance",dlp_action="block"}[5m])) > 0.2
+            for: 5m
+            labels:
+              severity: warning
+              team: compliance
+            annotations:
+              summary: DLP block rate increased
+              description: Privacy compliance DLP block logs exceeded the configured threshold.
+              dashboard_url: http://musematic-observability-grafana/d/d13-privacy-compliance
+          - alert: AuditChainAnomaly
+            expr: sum(count_over_time({service="api",bounded_context="audit",level="error"} | json | message=~".*chain.*mismatch.*|.*hash.*invalid.*" [10m])) > 0
+            for: 1m
+            labels:
+              severity: critical
+              team: security
+              incident_trigger: audit_chain_anomaly
+            annotations:
+              summary: Audit chain anomaly detected
+              description: Audit-chain mismatch or invalid-hash logs were emitted.
+              dashboard_url: http://musematic-observability-grafana/d/d11-audit-event-stream
+          - alert: CostAnomalyLogged
+            expr: sum(count_over_time({bounded_context="cost_governance"} | json | message=~".*anomaly.*detected.*" [15m])) > 0
+            for: 0m
+            labels:
+              severity: warning
+              team: finance
+            annotations:
+              summary: Cost anomaly logged
+              description: Cost governance emitted an anomaly-detected log entry.
+              dashboard_url: http://musematic-observability-grafana/d/cost-governance
 {{- end }}

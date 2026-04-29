@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-import logging
 import time
 from difflib import SequenceMatcher
 from platform.common.config import PlatformSettings
 from platform.common.config import settings as default_settings
+from platform.common.logging import get_logger
 from platform.evaluation.exceptions import CooperationModeTooFewAgentsError
 from platform.evaluation.scorers.base import ScoreResult
 from typing import Any, Literal
 from uuid import UUID
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 ComparisonMethod = Literal["exact", "in_order", "any_order", "precision", "recall"]
 
 

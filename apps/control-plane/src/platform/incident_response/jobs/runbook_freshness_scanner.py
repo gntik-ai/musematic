@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-import logging
 from datetime import UTC, datetime, timedelta
 from platform.common import database
 from platform.common.config import PlatformSettings
+from platform.common.logging import get_logger
 from platform.incident_response.repository import IncidentResponseRepository
 from typing import Any, cast
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 async def run_runbook_freshness_scan(app: Any) -> int:

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from platform.accounts.events import AccountsEventType, UserActivatedPayload
 from platform.accounts.repository import AccountsRepository
 from platform.accounts.service import AccountsService
@@ -10,10 +9,11 @@ from platform.common.config import PlatformSettings
 from platform.common.events.consumer import EventConsumerManager
 from platform.common.events.envelope import EventEnvelope
 from platform.common.events.producer import EventProducer
+from platform.common.logging import get_logger
 from platform.workspaces.dependencies import build_workspaces_service
 from typing import Any, cast
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 
 
 class _ConsumerAuthStub:

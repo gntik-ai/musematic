@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import logging
 import time
 from importlib import import_module
 from math import ceil
@@ -9,6 +8,7 @@ from platform.common import database
 from platform.common.auth_middleware import EXEMPT_PATHS
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
+from platform.common.logging import get_logger
 from platform.common.rate_limiter.repository import RateLimiterRepository
 from platform.common.rate_limiter.service import (
     RateLimiterService,
@@ -22,7 +22,7 @@ from redis.exceptions import RedisError
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = get_logger(__name__)
 NO_RATE_LIMIT_PATHS: frozenset[str] = frozenset({"/health", "/healthz", "/api/v1/healthz"})
 
 
