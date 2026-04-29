@@ -67,5 +67,113 @@
     "evidence": {
       "title": "Evidence"
     }
+  },
+  "commands": {
+    "toggleTheme": "Changer de thème",
+    "switchLanguage": "Changer de langue",
+    "searchMarketplace": "Rechercher dans le marketplace",
+    "newConversation": "Nouvelle conversation",
+    "openPreferences": "Ouvrir les préférences",
+    "signOut": "Se déconnecter",
+    "openHelp": "Ouvrir l’aide des commandes",
+    "categories": {
+      "platform": "Plateforme",
+      "home": "Accueil",
+      "dashboard": "Tableau de bord",
+      "marketplace": "Marketplace",
+      "agents": "Agents",
+      "conversations": "Conversations",
+      "analytics": "Analytique",
+      "costs": "Coûts",
+      "evaluation": "Évaluation",
+      "fleet": "Flotte",
+      "operator": "Opérateur",
+      "policies": "Politiques",
+      "trust": "Confiance",
+      "workflows": "Workflows",
+      "preferences": "Préférences",
+      "admin": "Admin"
+    },
+    "routes": {
+      "home": {
+        "dashboard": "Ouvrir le tableau de bord",
+        "marketplace": "Parcourir le marketplace",
+        "newConversation": "Démarrer une conversation"
+      },
+      "dashboard": {
+        "home": "Ouvrir l’accueil",
+        "analytics": "Ouvrir l’analytique"
+      },
+      "marketplace": {
+        "search": "Rechercher dans le marketplace",
+        "compare": "Comparer les agents sélectionnés"
+      },
+      "agents": {
+        "directory": "Ouvrir l’annuaire des agents",
+        "create": "Créer un agent",
+        "marketplace": "Trouver des agents dans le marketplace"
+      },
+      "agentManagement": {
+        "registry": "Ouvrir le registre des agents",
+        "wizard": "Ouvrir l’assistant de composition",
+        "contracts": "Ouvrir la bibliothèque de contrats"
+      },
+      "conversations": {
+        "new": "Nouvelle conversation",
+        "list": "Ouvrir les conversations"
+      },
+      "analytics": {
+        "open": "Ouvrir l’analytique",
+        "costs": "Ouvrir l’intelligence des coûts"
+      },
+      "costs": {
+        "overview": "Ouvrir la vue des coûts",
+        "budgets": "Ouvrir les budgets",
+        "reports": "Ouvrir les rapports"
+      },
+      "evaluation": {
+        "suites": "Ouvrir les suites d’évaluation",
+        "new": "Créer une suite d’évaluation",
+        "simulations": "Ouvrir les simulations"
+      },
+      "fleet": {
+        "overview": "Ouvrir la vue de flotte",
+        "operator": "Ouvrir le tableau opérateur"
+      },
+      "operator": {
+        "incidents": "Ouvrir les incidents",
+        "runbooks": "Ouvrir les runbooks",
+        "executions": "Ouvrir les exécutions actives"
+      },
+      "policies": {
+        "open": "Ouvrir les politiques",
+        "governance": "Ouvrir les paramètres de gouvernance"
+      },
+      "trust": {
+        "overview": "Ouvrir la vue confiance",
+        "workbench": "Ouvrir l’atelier confiance"
+      },
+      "trustWorkbench": {
+        "queue": "Ouvrir la file de certification",
+        "overview": "Ouvrir la vue confiance"
+      },
+      "workflows": {
+        "new": "Créer un workflow",
+        "monitor": "Ouvrir le moniteur de workflows",
+        "library": "Ouvrir la bibliothèque de workflows"
+      },
+      "settings": {
+        "preferences": "Ouvrir les préférences",
+        "alerts": "Ouvrir les alertes",
+        "governance": "Ouvrir la gouvernance",
+        "visibility": "Ouvrir la visibilité",
+        "connections": "Ouvrir les connexions du compte"
+      },
+      "admin": {
+        "locales": "Ouvrir la publication des langues",
+        "settings": "Ouvrir les paramètres admin",
+        "incidentIntegrations": "Ouvrir les intégrations d’incidents"
+      }
+    }
   }
 }

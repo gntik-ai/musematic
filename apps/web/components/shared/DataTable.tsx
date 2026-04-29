@@ -117,7 +117,7 @@ export function DataTable<TData>({
           }}
         />
       ) : null}
-      <div className="overflow-hidden rounded-xl border border-border/70">
+      <div className="overflow-x-auto rounded-xl border border-border/70">
         <Table>
           <TableCaption>Operational data table</TableCaption>
           <TableHeader>
@@ -191,6 +191,7 @@ export function DataTable<TData>({
           </p>
           <div className="flex items-center gap-2">
             <Button
+              aria-label="Previous page"
               disabled={!table.getCanPreviousPage()}
               size="icon"
               variant="outline"
@@ -199,6 +200,7 @@ export function DataTable<TData>({
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <Button
+              aria-label="Next page"
               disabled={!table.getCanNextPage()}
               size="icon"
               variant="outline"

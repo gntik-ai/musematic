@@ -17,6 +17,8 @@ export default [
       "coverage/**",
       "eslint.config.mjs",
       "eslint/**",
+      "*.min.js",
+      "**/*.min.js",
       "next-env.d.ts",
       "next.config.mjs",
       "node_modules/**",

@@ -1,9 +1,9 @@
 "use client";
 
-import { Command as CommandIcon, Menu, MoonStar, SunMedium } from "lucide-react";
-import { useTheme } from "next-themes";
+import { Command as CommandIcon, Menu } from "lucide-react";
 import { Breadcrumb } from "@/components/layout/breadcrumb/Breadcrumb";
 import { useCommandPalette } from "@/components/layout/command-palette/CommandPaletteProvider";
+import { ThemeToggle } from "@/components/layout/theme-toggle/ThemeToggle";
 import { ConnectionIndicator } from "@/components/layout/header/ConnectionIndicator";
 import { NotificationBell } from "@/components/features/alerts/notification-bell";
 import { UserMenu } from "@/components/layout/header/UserMenu";
@@ -16,7 +16,6 @@ interface HeaderProps {
 
 export function Header({ onOpenMobileNav }: HeaderProps) {
   const { toggle } = useCommandPalette();
-  const { resolvedTheme, setTheme } = useTheme();
 
   return (
     <header className="sticky top-0 z-30 flex min-h-16 flex-wrap items-center gap-3 border-b border-border/70 bg-background/80 px-4 py-3 backdrop-blur sm:px-6">
@@ -46,14 +45,7 @@ export function Header({ onOpenMobileNav }: HeaderProps) {
           <span className="hidden md:inline">Command</span>
           <span className="hidden sm:inline rounded border border-border px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">⌘K</span>
         </Button>
-        <Button
-          data-testid="theme-toggle"
-          size="icon"
-          variant="ghost"
-          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-        >
-          {resolvedTheme === "dark" ? <SunMedium className="h-4 w-4" /> : <MoonStar className="h-4 w-4" />}
-        </Button>
+        <ThemeToggle />
         <NotificationBell />
         <UserMenu />
       </div>

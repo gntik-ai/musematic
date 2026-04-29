@@ -26,6 +26,7 @@ jobs:
       go-any: ${{ steps.matrices.outputs.go-any }}
       go-matrix: ${{ steps.matrices.outputs.go-matrix }}
       frontend: ${{ steps.filter.outputs.frontend }}
+      localization-messages: ${{ steps.filter.outputs.localization-messages }}
       helm: ${{ steps.filter.outputs.helm }}
       migrations: ${{ steps.filter.outputs.migrations }}
       proto: ${{ steps.filter.outputs.proto }}
@@ -64,6 +65,8 @@ jobs:
             frontend:
               - 'apps/web/**'
               - '!apps/web/**/*.md'
+            localization-messages:
+              - 'apps/web/messages/**'
             helm:
               - 'deploy/helm/**'
               - '!deploy/helm/**/*.md'
@@ -658,12 +661,175 @@ jobs:
       - name: Run coverage
         run: pnpm test:coverage
 
+      - name: Run accessibility checks
+        continue-on-error: true
+        run: pnpm test:a11y
+
+      - name: Upload accessibility report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-a11y
+          path: |
+            apps/web/test-results/a11y-results.json
+            apps/web/playwright-report/a11y/
+
       - name: Upload coverage
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: frontend-coverage
           path: apps/web/coverage/
+
+  localization-drift-check:
+    name: Localization drift check
+    needs: changes
+    if: >
+      github.event_name == 'pull_request' &&
+      needs.changes.outputs.localization-messages == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: musematic
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d musematic"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/control-plane/pyproject.toml
+
+      - name: Install dependencies
+        run: python -m pip install -e "./apps/control-plane[dev]"
+
+      - name: Run migrations
+        env:
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/musematic
+          POSTGRES_DSN: postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/musematic
+        run: make migrate
+
+      - name: Check translation drift
+        env:
+          POSTGRES_DSN: postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/musematic
+        run: |
+          set +e
+          cd apps/control-plane
+          python -m platform.localization.tooling.drift_check \
+            --repo-root ../.. \
+            --pr-base "${{ github.event.pull_request.base.sha }}" \
+            2>&1 | tee /tmp/localization-drift.log
+          status="${PIPESTATUS[0]}"
+          {
+            echo "### Localization drift check"
+            echo
+            echo '```'
+            cat /tmp/localization-drift.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+
+  localization-vendor-sync:
+    name: Localization vendor sync
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/control-plane/pyproject.toml
+
+      - name: Install dependencies
+        run: python -m pip install -e "./apps/control-plane[dev]"
+
+      - name: Prepare vendor token for SecretProvider
+        working-directory: apps/control-plane
+        env:
+          LOCALIZATION_VENDOR_API_TOKEN: ${{ secrets.LOCALIZATION_VENDOR_API_TOKEN }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          token = os.environ.get("LOCALIZATION_VENDOR_API_TOKEN")
+          if not token:
+              raise SystemExit(0)
+          Path(".vault-secrets.json").write_text(
+              json.dumps(
+                  {
+                      "secret/data/musematic/ci/connectors/localization/vendor-api-token": {
+                          "value": token
+                      }
+                  },
+                  sort_keys=True,
+                  indent=2,
+              )
+              + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Pull vendor translations
+        working-directory: apps/control-plane
+        env:
+          LOKALISE_PROJECT_ID: ${{ vars.LOKALISE_PROJECT_ID }}
+        run: |
+          python -m platform.localization.tooling.vendor_sync \
+            --vendor lokalise \
+            --project-id "${LOKALISE_PROJECT_ID:-}" \
+            --messages-dir ../web/messages
+
+      - name: Detect catalogue changes
+        id: translation_changes
+        run: |
+          if git diff --quiet -- apps/web/messages; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open translation sync PR
+        if: steps.translation_changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          branch="chore/translations-sync-$(date -u +%Y%m%d%H%M%S)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$branch"
+          git add apps/web/messages
+          git commit -m "chore: sync localization catalogues"
+          git push origin "$branch"
+          gh pr create \
+            --draft \
+            --title "chore: sync localization catalogues" \
+            --body "Automated localization vendor sync for non-English message catalogues."
 
   build-images:
     name: Build image (${{ matrix.image }})

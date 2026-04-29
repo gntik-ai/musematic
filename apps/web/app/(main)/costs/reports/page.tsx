@@ -74,26 +74,28 @@ export default function CostReportsPage() {
         </CardHeader>
         <CardContent>
           {report ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Dimensions</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Model</TableHead>
-                  <TableHead>Compute</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {report.rows.map((row, index) => (
-                  <TableRow key={`${JSON.stringify(row.dimensions)}-${index}`}>
-                    <TableCell className="font-mono text-xs">{JSON.stringify(row.dimensions)}</TableCell>
-                    <TableCell>${(Number(row.total_cost_cents) / 100).toFixed(2)}</TableCell>
-                    <TableCell>${(Number(row.model_cost_cents) / 100).toFixed(2)}</TableCell>
-                    <TableCell>${(Number(row.compute_cost_cents) / 100).toFixed(2)}</TableCell>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Dimensions</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Model</TableHead>
+                    <TableHead>Compute</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {report.rows.map((row, index) => (
+                    <TableRow key={`${JSON.stringify(row.dimensions)}-${index}`}>
+                      <TableCell className="font-mono text-xs">{JSON.stringify(row.dimensions)}</TableCell>
+                      <TableCell>${(Number(row.total_cost_cents) / 100).toFixed(2)}</TableCell>
+                      <TableCell>${(Number(row.model_cost_cents) / 100).toFixed(2)}</TableCell>
+                      <TableCell>${(Number(row.compute_cost_cents) / 100).toFixed(2)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           ) : (
             <EmptyState title="No report" description="Generate a report." />
           )}

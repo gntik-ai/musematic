@@ -64,7 +64,7 @@ export function ContextQualityPanel({
                 title="Scalar context quality only"
               />
             ) : (
-              <div className="overflow-hidden rounded-xl border border-border/60">
+              <div className="overflow-x-auto rounded-xl border border-border/60">
                 <table className="w-full text-sm">
                   <thead className="bg-muted/40 text-left">
                     <tr>

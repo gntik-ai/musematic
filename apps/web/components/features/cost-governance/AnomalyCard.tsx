@@ -36,7 +36,7 @@ export function AnomalyCard({ anomaly, onAcknowledge, onResolve }: AnomalyCardPr
           </p>
         </div>
         <Button asChild size="icon" variant="ghost">
-          <Link href={`/costs/anomalies/${anomaly.id}`}>
+          <Link aria-label={`Open anomaly ${anomaly.id}`} href={`/costs/anomalies/${anomaly.id}`}>
             <ExternalLink className="h-4 w-4" />
           </Link>
         </Button>

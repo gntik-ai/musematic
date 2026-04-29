@@ -19,6 +19,35 @@ async def test_locale_resolver_uses_url_before_preference_and_browser() -> None:
     assert source == "url"
 
 
+@pytest.mark.parametrize(
+    ("url_hint", "user_preference", "accept_language", "expected_locale", "expected_source"),
+    [
+        ("de", "fr", "es;q=1", "de", "url"),
+        (None, "fr", "es;q=1", "fr", "preference"),
+        (None, None, "es-MX,fr;q=0.9", "es", "browser"),
+        (None, None, "", "en", "default"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_locale_resolver_precedence_matrix(
+    url_hint: str | None,
+    user_preference: str | None,
+    accept_language: str | None,
+    expected_locale: str,
+    expected_source: str,
+) -> None:
+    resolver = LocaleResolver()
+
+    locale, source = await resolver.resolve(
+        url_hint=url_hint,
+        user_preference=user_preference,
+        accept_language=accept_language,
+    )
+
+    assert locale == expected_locale
+    assert source == expected_source
+
+
 @pytest.mark.asyncio
 async def test_locale_resolver_falls_back_through_unsupported_url_hint() -> None:
     resolver = LocaleResolver()

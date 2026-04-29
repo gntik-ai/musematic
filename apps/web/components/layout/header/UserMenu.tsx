@@ -1,8 +1,8 @@
 "use client";
 
-import { LogOut, MoonStar, SunMedium, UserRound } from "lucide-react";
-import { useTheme } from "next-themes";
+import { LogOut, Settings, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { LocaleSwitcher } from "@/components/layout/locale-switcher/LocaleSwitcher";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getInitials } from "@/lib/utils";
@@ -12,7 +12,6 @@ export function UserMenu() {
   const user = useAuthStore((state) => state.user);
   const clearAuth = useAuthStore((state) => state.clearAuth);
   const router = useRouter();
-  const { setTheme, resolvedTheme } = useTheme();
 
   return (
     <DropdownMenu>
@@ -38,10 +37,15 @@ export function UserMenu() {
           <UserRound className="h-4 w-4" />
           Profile
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}>
-          {resolvedTheme === "dark" ? <SunMedium className="h-4 w-4" /> : <MoonStar className="h-4 w-4" />}
-          Toggle theme
+        <DropdownMenuItem
+          onClick={() => {
+            router.push("/settings/preferences");
+          }}
+        >
+          <Settings className="h-4 w-4" />
+          Preferences
         </DropdownMenuItem>
+        <LocaleSwitcher />
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => {

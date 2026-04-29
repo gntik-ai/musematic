@@ -67,5 +67,113 @@
     "evidence": {
       "title": "Evidence"
     }
+  },
+  "commands": {
+    "toggleTheme": "切换主题",
+    "switchLanguage": "切换语言",
+    "searchMarketplace": "搜索市场",
+    "newConversation": "新建对话",
+    "openPreferences": "打开偏好设置",
+    "signOut": "退出登录",
+    "openHelp": "打开命令帮助",
+    "categories": {
+      "platform": "平台",
+      "home": "首页",
+      "dashboard": "仪表盘",
+      "marketplace": "市场",
+      "agents": "智能体",
+      "conversations": "对话",
+      "analytics": "分析",
+      "costs": "成本",
+      "evaluation": "评测",
+      "fleet": "集群",
+      "operator": "运维",
+      "policies": "策略",
+      "trust": "信任",
+      "workflows": "工作流",
+      "preferences": "偏好设置",
+      "admin": "管理"
+    },
+    "routes": {
+      "home": {
+        "dashboard": "打开仪表盘",
+        "marketplace": "浏览市场",
+        "newConversation": "开始对话"
+      },
+      "dashboard": {
+        "home": "打开首页",
+        "analytics": "打开分析"
+      },
+      "marketplace": {
+        "search": "搜索市场",
+        "compare": "比较选中的智能体"
+      },
+      "agents": {
+        "directory": "打开智能体目录",
+        "create": "创建智能体",
+        "marketplace": "在市场中查找智能体"
+      },
+      "agentManagement": {
+        "registry": "打开智能体注册表",
+        "wizard": "打开编排向导",
+        "contracts": "打开契约库"
+      },
+      "conversations": {
+        "new": "新建对话",
+        "list": "打开对话"
+      },
+      "analytics": {
+        "open": "打开分析",
+        "costs": "打开成本洞察"
+      },
+      "costs": {
+        "overview": "打开成本概览",
+        "budgets": "打开预算",
+        "reports": "打开报告"
+      },
+      "evaluation": {
+        "suites": "打开评测套件",
+        "new": "创建评测套件",
+        "simulations": "打开仿真"
+      },
+      "fleet": {
+        "overview": "打开集群概览",
+        "operator": "打开运维仪表盘"
+      },
+      "operator": {
+        "incidents": "打开事件",
+        "runbooks": "打开运行手册",
+        "executions": "打开活动执行"
+      },
+      "policies": {
+        "open": "打开策略",
+        "governance": "打开治理设置"
+      },
+      "trust": {
+        "overview": "打开信任概览",
+        "workbench": "打开信任工作台"
+      },
+      "trustWorkbench": {
+        "queue": "打开认证队列",
+        "overview": "打开信任概览"
+      },
+      "workflows": {
+        "new": "创建工作流",
+        "monitor": "打开工作流监控",
+        "library": "打开工作流库"
+      },
+      "settings": {
+        "preferences": "打开偏好设置",
+        "alerts": "打开告警设置",
+        "governance": "打开治理",
+        "visibility": "打开可见性",
+        "connections": "打开账号连接"
+      },
+      "admin": {
+        "locales": "打开语言发布",
+        "settings": "打开管理设置",
+        "incidentIntegrations": "打开事件集成"
+      }
+    }
   }
 }

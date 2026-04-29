@@ -22,7 +22,9 @@ export default defineConfig({
       ".next/**",
       "coverage/**",
       "e2e/**",
+      "tests/a11y/**",
       "tests/e2e/**",
+      "tests/visual/**",
       "playwright.config.ts",
     ],
     coverage: {

@@ -1,4 +1,6 @@
-export const LOCALES = ["en", "es", "fr", "de", "it", "ja", "zh-CN"] as const;
+import { match } from "@formatjs/intl-localematcher";
+
+export const LOCALES = ["en", "es", "fr", "de", "ja", "zh-CN"] as const;
 
 export type Locale = (typeof LOCALES)[number];
 
@@ -99,6 +101,16 @@ export function resolveLocale({
     if (locale) {
       return locale;
     }
+  }
+
+  const matchedBrowserLocale = match(
+    parseAcceptLanguage(acceptLanguage),
+    [...LOCALES],
+    DEFAULT_LOCALE,
+  );
+  const normalizedBrowserLocale = normalizeLocale(matchedBrowserLocale);
+  if (normalizedBrowserLocale) {
+    return normalizedBrowserLocale;
   }
 
   return DEFAULT_LOCALE;

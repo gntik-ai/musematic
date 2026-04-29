@@ -67,5 +67,113 @@
     "evidence": {
       "title": "Evidence"
     }
+  },
+  "commands": {
+    "toggleTheme": "Design wechseln",
+    "switchLanguage": "Sprache wechseln",
+    "searchMarketplace": "Marketplace durchsuchen",
+    "newConversation": "Neue Unterhaltung",
+    "openPreferences": "Einstellungen öffnen",
+    "signOut": "Abmelden",
+    "openHelp": "Befehlshilfe öffnen",
+    "categories": {
+      "platform": "Plattform",
+      "home": "Start",
+      "dashboard": "Dashboard",
+      "marketplace": "Marketplace",
+      "agents": "Agenten",
+      "conversations": "Unterhaltungen",
+      "analytics": "Analytics",
+      "costs": "Kosten",
+      "evaluation": "Evaluation",
+      "fleet": "Flotte",
+      "operator": "Operator",
+      "policies": "Richtlinien",
+      "trust": "Trust",
+      "workflows": "Workflows",
+      "preferences": "Einstellungen",
+      "admin": "Admin"
+    },
+    "routes": {
+      "home": {
+        "dashboard": "Dashboard öffnen",
+        "marketplace": "Marketplace durchsuchen",
+        "newConversation": "Unterhaltung starten"
+      },
+      "dashboard": {
+        "home": "Start öffnen",
+        "analytics": "Analytics öffnen"
+      },
+      "marketplace": {
+        "search": "Marketplace durchsuchen",
+        "compare": "Ausgewählte Agenten vergleichen"
+      },
+      "agents": {
+        "directory": "Agentenverzeichnis öffnen",
+        "create": "Agent erstellen",
+        "marketplace": "Agenten im Marketplace finden"
+      },
+      "agentManagement": {
+        "registry": "Agentenregister öffnen",
+        "wizard": "Kompositionsassistent öffnen",
+        "contracts": "Vertragsbibliothek öffnen"
+      },
+      "conversations": {
+        "new": "Neue Unterhaltung",
+        "list": "Unterhaltungen öffnen"
+      },
+      "analytics": {
+        "open": "Analytics öffnen",
+        "costs": "Kostenintelligenz öffnen"
+      },
+      "costs": {
+        "overview": "Kostenübersicht öffnen",
+        "budgets": "Budgets öffnen",
+        "reports": "Berichte öffnen"
+      },
+      "evaluation": {
+        "suites": "Evaluationssuites öffnen",
+        "new": "Evaluationssuite erstellen",
+        "simulations": "Simulationen öffnen"
+      },
+      "fleet": {
+        "overview": "Flottenübersicht öffnen",
+        "operator": "Operator-Dashboard öffnen"
+      },
+      "operator": {
+        "incidents": "Incidents öffnen",
+        "runbooks": "Runbooks öffnen",
+        "executions": "Aktive Ausführungen öffnen"
+      },
+      "policies": {
+        "open": "Richtlinien öffnen",
+        "governance": "Governance-Einstellungen öffnen"
+      },
+      "trust": {
+        "overview": "Trust-Übersicht öffnen",
+        "workbench": "Trust Workbench öffnen"
+      },
+      "trustWorkbench": {
+        "queue": "Zertifizierungswarteschlange öffnen",
+        "overview": "Trust-Übersicht öffnen"
+      },
+      "workflows": {
+        "new": "Workflow erstellen",
+        "monitor": "Workflow-Monitor öffnen",
+        "library": "Workflow-Bibliothek öffnen"
+      },
+      "settings": {
+        "preferences": "Einstellungen öffnen",
+        "alerts": "Alarme öffnen",
+        "governance": "Governance öffnen",
+        "visibility": "Sichtbarkeit öffnen",
+        "connections": "Kontoverbindungen öffnen"
+      },
+      "admin": {
+        "locales": "Sprachveröffentlichung öffnen",
+        "settings": "Admin-Einstellungen öffnen",
+        "incidentIntegrations": "Incident-Integrationen öffnen"
+      }
+    }
   }
 }
