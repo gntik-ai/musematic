@@ -109,4 +109,7 @@ def _truthy(value: object) -> bool:
 
 
 def _is_read_only_toggle(request: Request) -> bool:
-    return request.method == "PATCH" and request.url.path.rstrip("/") == _READ_ONLY_TOGGLE_PATH
+    return (
+        request.method.casefold() == "patch"
+        and request.url.path.rstrip("/") == _READ_ONLY_TOGGLE_PATH
+    )
