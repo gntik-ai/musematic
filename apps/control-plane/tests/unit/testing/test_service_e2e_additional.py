@@ -70,12 +70,17 @@ async def test_mock_llm_service_wrapper_and_builder() -> None:
             captured["args"] = (prompt_pattern, response, streaming_chunks)
             return {"agent_response": 3}
 
+        async def set_rate_limit_error(self, prompt_pattern: str, count: int = 1) -> None:
+            captured["rate_limit"] = (prompt_pattern, count)
+
     service = service_e2e.MockLLMService(provider=FakeProvider())
     response = await service.set_response("agent_response", "ok", ["o", "k"])
+    await service.set_rate_limit_error("agent_response", count=2)
     built = service_e2e.build_mock_llm_service(object())
 
     assert response == {"agent_response": 3}
     assert captured["args"] == ("agent_response", "ok", ["o", "k"])
+    assert captured["rate_limit"] == ("agent_response", 2)
     assert isinstance(built.provider, MockLLMProvider)
 
 

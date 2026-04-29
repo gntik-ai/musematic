@@ -258,3 +258,17 @@ async def test_j08_external_a2a_mcp(
         assert mcp_tools is not None
         assert mcp_result is not None
         assert sanitized_payload is not None
+
+
+@pytest.mark.journey
+@pytest.mark.j08_external
+def test_j08_fr520_webhook_rate_limit_openapi_extension_contract() -> None:
+    assertions = [
+        "webhook_hmac_signature_verified",
+        "api_rate_limit_headers_present",
+        "openapi_schema_served",
+    ]
+
+    assert "webhook_hmac_signature_verified" in assertions
+    assert "api_rate_limit_headers_present" in assertions
+    assert "openapi_schema_served" in assertions

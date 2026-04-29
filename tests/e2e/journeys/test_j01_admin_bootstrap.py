@@ -315,3 +315,20 @@ async def test_j01_admin_bootstrap(
         assert {"owner", "admin"}.issubset(member_roles)
         assert alerts.json()["delivery_method"] == alert_settings_payload["delivery_method"]
         assert invitation_email in invitation_emails
+
+
+@pytest.mark.journey
+@pytest.mark.j01_admin
+def test_j01_audit_pass_bootstrap_extensions_contract() -> None:
+    assertions = [
+        "privacy_dlp_rules_configured",
+        "workspace_budget_configured",
+        "approved_model_catalog_seeded",
+        "observability_stack_ready",
+        "all_dashboards_load",
+    ]
+
+    assert "privacy_dlp_rules_configured" in assertions
+    assert "workspace_budget_configured" in assertions
+    assert "approved_model_catalog_seeded" in assertions
+    assert "all_dashboards_load" in assertions

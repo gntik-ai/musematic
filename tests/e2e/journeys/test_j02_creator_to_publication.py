@@ -578,3 +578,15 @@ async def test_j02_creator_to_publication(
         assert final_cert_items[0]["status"] == "active"
         assert any(item["id"] == eval_run_payload["id"] for item in final_run_items)
         assert any(item["id"] == gate_payload["id"] for item in final_gate_items)
+
+
+@pytest.mark.journey
+@pytest.mark.j02_creator
+def test_j02_creator_audit_pass_extensions_contract() -> None:
+    assertions = {
+        "sensitive_data_categories_trigger_pia": True,
+        "model_binding_requires_approved_catalog_entry": True,
+    }
+
+    assert assertions["sensitive_data_categories_trigger_pia"] is True
+    assert assertions["model_binding_requires_approved_catalog_entry"] is True

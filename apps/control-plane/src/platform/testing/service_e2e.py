@@ -242,6 +242,9 @@ class MockLLMService:
     async def clear_queue(self, prompt_pattern: str | None = None) -> None:
         await self.provider.clear_queue(prompt_pattern)
 
+    async def set_rate_limit_error(self, prompt_pattern: str, count: int = 1) -> None:
+        await self.provider.set_rate_limit_error(prompt_pattern, count)
+
     async def get_calls(
         self,
         *,

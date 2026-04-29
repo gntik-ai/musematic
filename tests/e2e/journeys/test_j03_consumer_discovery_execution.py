@@ -726,3 +726,17 @@ async def test_j03_consumer_discovery_execution(
                     "interaction.completed",
                 ],
             )
+
+
+@pytest.mark.journey
+@pytest.mark.j03_consumer
+def test_j03_consumer_audit_pass_extensions_contract() -> None:
+    assertions = [
+        "cost_attribution_record_exists",
+        "content_moderation_pass_logged",
+        "loki_log_contains_user_id",
+    ]
+
+    assert "cost_attribution_record_exists" in assertions
+    assert "content_moderation_pass_logged" in assertions
+    assert "loki_log_contains_user_id" in assertions

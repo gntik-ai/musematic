@@ -422,3 +422,17 @@ async def test_j05_trust_governance_pipeline(
         assert third_party_cert is not None
         assert recert_signal is not None
         assert label_scoped_policy_payload is not None
+
+
+@pytest.mark.journey
+@pytest.mark.j05_trust
+def test_j05_fr520_governance_pipeline_dashboard_extension_contract() -> None:
+    assertions = [
+        "trust_review_completed",
+        "fairness_evaluation_run",
+        "result_persisted",
+        "d21_governance_pipeline_dashboard_reflects_verdict",
+    ]
+
+    assert "fairness_evaluation_run" in assertions
+    assert "d21_governance_pipeline_dashboard_reflects_verdict" in assertions

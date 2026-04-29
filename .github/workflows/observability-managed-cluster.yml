@@ -1,0 +1,63 @@
+name: Observability Managed Cluster
+
+"on":
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  managed-cluster-smoke:
+    name: managed cluster smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      OBSERVABILITY_NAMESPACE: platform-observability
+      OBSERVABILITY_RELEASE_NAME: observability
+      OBSERVABILITY_VALUES_FILE: deploy/helm/observability/values-standard.yaml
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Decode kubeconfig
+        env:
+          KUBECONFIG_B64: ${{ secrets.OBSERVABILITY_MANAGED_KUBECONFIG_B64 }}
+        run: |
+          test -n "$KUBECONFIG_B64"
+          mkdir -p "$HOME/.kube"
+          echo "$KUBECONFIG_B64" | base64 -d > "$HOME/.kube/config"
+          chmod 0600 "$HOME/.kube/config"
+
+      - name: Build chart dependencies
+        run: helm dependency build deploy/helm/observability
+
+      - name: Install observability chart
+        run: |
+          helm upgrade --install "$OBSERVABILITY_RELEASE_NAME" deploy/helm/observability \
+            --namespace "$OBSERVABILITY_NAMESPACE" \
+            --create-namespace \
+            -f "$OBSERVABILITY_VALUES_FILE" \
+            --wait \
+            --timeout 20m
+
+      - name: Verify component readiness
+        run: |
+          kubectl -n "$OBSERVABILITY_NAMESPACE" wait --for=condition=Ready pod \
+            -l "app.kubernetes.io/instance=$OBSERVABILITY_RELEASE_NAME" \
+            --timeout=10m
+          kubectl -n "$OBSERVABILITY_NAMESPACE" get pods
+
+      - name: Uninstall observability chart
+        if: always()
+        run: |
+          helm uninstall "$OBSERVABILITY_RELEASE_NAME" \
+            --namespace "$OBSERVABILITY_NAMESPACE" || true

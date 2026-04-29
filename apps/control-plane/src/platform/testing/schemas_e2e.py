@@ -101,6 +101,17 @@ class MockLLMSetResponse(BaseModel):
     queue_depth: dict[str, int]
 
 
+class MockLLMRateLimitRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    prompt_pattern: str = Field(min_length=1)
+    count: int = Field(default=1, ge=1, le=100)
+
+
+class MockLLMRateLimitResponse(BaseModel):
+    prompt_pattern: str
+    remaining: int
+
+
 class MockLLMClearRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
     prompt_pattern: str | None = None
@@ -108,6 +119,21 @@ class MockLLMClearRequest(BaseModel):
 
 class MockLLMCallsResponse(BaseModel):
     calls: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class SyntheticFailureInjectRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    correlation_id: str = Field(min_length=1)
+    service: str = Field(min_length=1)
+    error_message: str = Field(min_length=1)
+    trace_id: str = Field(min_length=1)
+
+
+class SyntheticFailureInjectResponse(BaseModel):
+    correlation_id: str
+    service: str
+    trace_id: str
+    emitted: bool = True
 
 
 class KafkaEventRecord(BaseModel):
