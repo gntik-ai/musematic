@@ -14,7 +14,8 @@ Musematic wrapper chart for HashiCorp Vault.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| kubernetesAuthJob | object | `{"boundNamespaces":["platform","platform-runtime","platform-reasoning","platform-simulation","platform-sandbox"],"boundServiceAccounts":["musematic-control-plane","musematic-runtime-controller","reasoning-engine","simulation-controller","sandbox-manager"],"enabled":true,"roleName":"musematic-platform","tokenTtl":"1h"}` | Configures Kubernetes auth bootstrap. |
+| kubernetesAuthJob | object | `{"audience":"vault","boundNamespaces":["platform","platform-runtime","platform-reasoning","platform-simulation","platform-sandbox"],"boundServiceAccounts":["musematic-control-plane","musematic-runtime-controller","reasoning-engine","simulation-controller","sandbox-manager"],"enabled":true,"roleName":"musematic-platform","tokenTtl":"1h"}` | Configures Kubernetes auth bootstrap. |
+| kubernetesAuthJob.audience | string | `"vault"` | Expected audience for projected service-account tokens used by Vault clients. |
 | kubernetesAuthJob.boundNamespaces | list | `["platform","platform-runtime","platform-reasoning","platform-simulation","platform-sandbox"]` | Namespaces containing the bound service accounts. |
 | kubernetesAuthJob.boundServiceAccounts | list | `["musematic-control-plane","musematic-runtime-controller","reasoning-engine","simulation-controller","sandbox-manager"]` | Bound service accounts allowed to use the role. |
 | kubernetesAuthJob.enabled | bool | `true` | Enables the Kubernetes auth bootstrap hook. |

@@ -83,6 +83,7 @@ spec:
               vault write "auth/kubernetes/role/{{ .Values.kubernetesAuthJob.roleName }}" \
                 bound_service_account_names="{{ join "," .Values.kubernetesAuthJob.boundServiceAccounts }}" \
                 bound_service_account_namespaces="{{ join "," .Values.kubernetesAuthJob.boundNamespaces }}" \
+                bound_audiences="{{ .Values.kubernetesAuthJob.audience }}" \
                 policies="platform-auth,platform-model-catalog,platform-notifications,platform-runtime,platform-security-compliance,platform-accounts,platform-cost-governance" \
                 ttl="{{ .Values.kubernetesAuthJob.tokenTtl }}"
 {{- end }}

@@ -57,10 +57,14 @@ from platform.auth.services.oauth_bootstrap import bootstrap_oauth_provider_from
 from platform.auth.services.oauth_providers.github import GitHubOAuthProvider
 from platform.auth.services.oauth_providers.google import GoogleOAuthProvider
 from platform.common.clients.redis import AsyncRedisClient
-from platform.common.config import PlatformSettings
+from platform.common.config import _VALID_OAUTH_BOOTSTRAP_ROLES, PlatformSettings
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import ValidationError
-from platform.common.secret_provider import SecretProvider
+from platform.common.secret_provider import (
+    CredentialPolicyDeniedError,
+    CredentialUnavailableError,
+    SecretProvider,
+)
 from platform.connectors.security import compute_hmac_sha256
 from typing import Any, cast
 from uuid import UUID, uuid4
@@ -1005,7 +1009,12 @@ class OAuthService:
         await self._require_secret_provider().flush_cache(reference)
 
     async def _list_secret_versions(self, reference: str) -> list[int]:
-        return await self._require_secret_provider().list_versions(reference)
+        try:
+            return await self._require_secret_provider().list_versions(reference)
+        except CredentialPolicyDeniedError:
+            raise
+        except CredentialUnavailableError:
+            return []
 
     def _resolve_role(self, provider: Any, groups: list[str]) -> str:
         for group in groups:
@@ -1017,7 +1026,14 @@ class OAuthService:
     @staticmethod
     def _validate_role(role: str) -> None:
         if not role or not role.strip():
-            raise ValueError("OAuth role mapping cannot be blank")
+            raise ValidationError("OAUTH_ROLE_INVALID", "OAuth role mapping cannot be blank")
+        normalized = role.strip()
+        if normalized not in _VALID_OAUTH_BOOTSTRAP_ROLES:
+            valid_roles = ", ".join(sorted(_VALID_OAUTH_BOOTSTRAP_ROLES))
+            raise ValidationError(
+                "OAUTH_ROLE_INVALID",
+                f"Unknown OAuth role mapping role: {normalized}. Valid roles: {valid_roles}",
+            )
 
     def _provider_client(self, provider_type: str) -> Any:
         if provider_type == OAuthProviderType.GOOGLE.value:

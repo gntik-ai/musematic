@@ -1,6 +1,6 @@
-# OAuthProvider.client_secret_ref and IBORConnector.credential_ref reads.
+# OAuthProvider.client_secret_ref reads and rotation writes, plus IBORConnector.credential_ref reads.
 path "secret/data/musematic/+/oauth/*" {
-  capabilities = ["read", "list"]
+  capabilities = ["create", "read", "update", "list"]
 }
 
 path "secret/data/musematic/+/ibor/*" {
