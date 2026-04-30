@@ -25282,6 +25282,10 @@
             },
             "title": "Scopes",
             "type": "array"
+          },
+          "source": {
+            "$ref": "#/components/schemas/OAuthProviderSourceType",
+            "default": "manual"
           }
         },
         "required": [

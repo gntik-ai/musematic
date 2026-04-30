@@ -4559,6 +4559,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#oauth-bootstrap-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      OAuth Bootstrap Notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4721,6 +4730,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#oauth-bootstrap-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      OAuth Bootstrap Notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4748,6 +4766,7 @@
 <li>Repository README localization adds canonical English source, translation parity checks, and weekly external-link validation.</li>
 <li>Documentation site adds the FR-605 eleven-section MkDocs structure, generated OpenAPI, generated environment variable reference, generated Helm values reference, runbooks, installation guides, security guide, and localization scaffolding.</li>
 <li>HashiCorp Vault integration adds <code>mock</code>, <code>kubernetes</code>, and <code>vault</code> secret modes, the optional Vault Helm chart with <code>dev</code>, <code>standalone</code>, and <code>ha</code> presets, migration tooling, admin status endpoints, and Vault observability.</li>
+<li>OAuth bootstrap adds <code>PLATFORM_OAUTH_GOOGLE_*</code> and <code>PLATFORM_OAUTH_GITHUB_*</code> install-time configuration, Vault-backed client-secret seeding, provider source badges, rotation, reseed, role-mapping, history, rate-limit, and connectivity controls.</li>
 </ul>
 <h2 id="folded-feature-notes">Folded Feature Notes<a class="headerlink" href="#folded-feature-notes" title="Permanent link">&para;</a></h2>
 <p>The following migrated feature pages remain available for detail:</p>
@@ -4762,6 +4781,10 @@
 <p>New environment variables use the <code>PLATFORM_VAULT_*</code> prefix, including <code>PLATFORM_VAULT_MODE</code>, <code>PLATFORM_VAULT_ADDR</code>, <code>PLATFORM_VAULT_AUTH_METHOD</code>, <code>PLATFORM_VAULT_TOKEN</code>, <code>PLATFORM_VAULT_APPROLE_ROLE_ID</code>, <code>PLATFORM_VAULT_APPROLE_SECRET_ID_SECRET_REF</code>, cache TTL/staleness settings, retry settings, and lease renewal threshold.</p>
 <p><code>CONNECTOR_VAULT_MODE</code> remains as a one-release compatibility alias and is deprecated for removal in v1.4.0. Imports of <code>SecretProvider</code> from <code>notifications/channel_router.py</code> are also deprecated; use <code>platform.common.secret_provider</code>.</p>
 <p>Operators can migrate with <code>platform-cli vault migrate-from-k8s</code>, verify with <code>platform-cli vault verify-migration</code>, and use <code>platform-cli vault status</code> as the operator-facing fallback until the UPD-036 <code>/admin/security/vault</code> page lands.</p>
+<h2 id="oauth-bootstrap-notes">OAuth Bootstrap Notes<a class="headerlink" href="#oauth-bootstrap-notes" title="Permanent link">&para;</a></h2>
+<p>New provider bootstrap variables include <code>PLATFORM_OAUTH_GOOGLE_ENABLED</code>, <code>PLATFORM_OAUTH_GOOGLE_CLIENT_ID</code>, <code>PLATFORM_OAUTH_GOOGLE_CLIENT_SECRET</code>, <code>PLATFORM_OAUTH_GOOGLE_CLIENT_SECRET_FILE</code>, <code>PLATFORM_OAUTH_GOOGLE_REDIRECT_URI</code>, <code>PLATFORM_OAUTH_GOOGLE_ALLOWED_DOMAINS</code>, <code>PLATFORM_OAUTH_GOOGLE_GROUP_ROLE_MAPPINGS</code>, <code>PLATFORM_OAUTH_GOOGLE_REQUIRE_MFA</code>, <code>PLATFORM_OAUTH_GOOGLE_DEFAULT_ROLE</code>, <code>PLATFORM_OAUTH_GOOGLE_FORCE_UPDATE</code>, and the equivalent <code>PLATFORM_OAUTH_GITHUB_*</code> keys using <code>ALLOWED_ORGS</code> and <code>TEAM_ROLE_MAPPINGS</code>.</p>
+<p>The legacy <code>OAUTH_SECRET_*</code> fallback is removed. Runtime OAuth secret resolution now delegates to <code>SecretProvider</code>, and bootstrap writes client secrets to Vault KV v2 paths under <code>secret/data/musematic/{environment}/oauth/{provider}/client-secret</code>.</p>
+<p>Database migration <code>069_oauth_provider_env_bootstrap.py</code> adds provider source and edit metadata columns plus per-provider rate-limit storage. Admin OAuth endpoints add rotate-secret, reseed-from-env, history, rate-limits, and status operations. <code>platform-cli admin oauth export|import</code> supports GitOps promotion with SHA-256 manifests and Vault path validation.</p>
 
 
 

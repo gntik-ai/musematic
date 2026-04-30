@@ -6367,6 +6367,168 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>Configures <code>migration.retryDelaySeconds</code> for the control-plane chart.</td>
 </tr>
 <tr>
+<td>oauth</td>
+<td>object</td>
+<td><code>{"github":{"allowedOrgs":[],"clientId":"","clientSecretRef":{"key":"client-secret","name":""},"clientSecretVaultPath":"","defaultRole":"member","enabled":false,"forceUpdate":false,"redirectUri":"","requireMfa":false,"teamRoleMappings":{}},"google":{"allowedDomains":[],"clientId":"","clientSecretRef":{"key":"client-secret","name":""},"clientSecretVaultPath":"","defaultRole":"member","enabled":false,"forceUpdate":false,"groupRoleMappings":{},"redirectUri":"","requireMfa":false}}</code></td>
+<td>Configures environment-variable OAuth provider bootstrap for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.github</td>
+<td>object</td>
+<td><code>{"allowedOrgs":[],"clientId":"","clientSecretRef":{"key":"client-secret","name":""},"clientSecretVaultPath":"","defaultRole":"member","enabled":false,"forceUpdate":false,"redirectUri":"","requireMfa":false,"teamRoleMappings":{}}</code></td>
+<td>Configures <code>oauth.github</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.github.allowedOrgs</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Configures <code>oauth.github.allowedOrgs</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.github.clientId</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>oauth.github.clientId</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.github.clientSecretRef</td>
+<td>object</td>
+<td><code>{"key":"client-secret","name":""}</code></td>
+<td>Configures <code>oauth.github.clientSecretRef</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.github.clientSecretRef.key</td>
+<td>string</td>
+<td><code>"client-secret"</code></td>
+<td>Configures <code>oauth.github.clientSecretRef.key</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.github.clientSecretRef.name</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>oauth.github.clientSecretRef.name</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.github.clientSecretVaultPath</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>oauth.github.clientSecretVaultPath</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.github.defaultRole</td>
+<td>string</td>
+<td><code>"member"</code></td>
+<td>Configures <code>oauth.github.defaultRole</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.github.enabled</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>oauth.github.enabled</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.github.forceUpdate</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>oauth.github.forceUpdate</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.github.redirectUri</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>oauth.github.redirectUri</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.github.requireMfa</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>oauth.github.requireMfa</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.github.teamRoleMappings</td>
+<td>object</td>
+<td><code>{}</code></td>
+<td>Configures <code>oauth.github.teamRoleMappings</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.google</td>
+<td>object</td>
+<td><code>{"allowedDomains":[],"clientId":"","clientSecretRef":{"key":"client-secret","name":""},"clientSecretVaultPath":"","defaultRole":"member","enabled":false,"forceUpdate":false,"groupRoleMappings":{},"redirectUri":"","requireMfa":false}</code></td>
+<td>Configures <code>oauth.google</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.google.allowedDomains</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Configures <code>oauth.google.allowedDomains</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.google.clientId</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>oauth.google.clientId</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.google.clientSecretRef</td>
+<td>object</td>
+<td><code>{"key":"client-secret","name":""}</code></td>
+<td>Configures <code>oauth.google.clientSecretRef</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.google.clientSecretRef.key</td>
+<td>string</td>
+<td><code>"client-secret"</code></td>
+<td>Configures <code>oauth.google.clientSecretRef.key</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.google.clientSecretRef.name</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>oauth.google.clientSecretRef.name</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.google.clientSecretVaultPath</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>oauth.google.clientSecretVaultPath</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.google.defaultRole</td>
+<td>string</td>
+<td><code>"member"</code></td>
+<td>Configures <code>oauth.google.defaultRole</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.google.enabled</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>oauth.google.enabled</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.google.forceUpdate</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>oauth.google.forceUpdate</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.google.groupRoleMappings</td>
+<td>object</td>
+<td><code>{}</code></td>
+<td>Configures <code>oauth.google.groupRoleMappings</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.google.redirectUri</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>oauth.google.redirectUri</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>oauth.google.requireMfa</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>oauth.google.requireMfa</code> for the control-plane chart.</td>
+</tr>
+<tr>
 <td>privacy</td>
 <td>object</td>
 <td><code>{"clickhousePiiTables":["execution_metrics","agent_performance","token_usage"],"dlpEnabled":false,"dsrEnabled":false,"residencyEnforcementEnabled":false}</code></td>
@@ -10972,7 +11134,7 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>controlPlane</td>
 <td>object</td>
-<td><code>{"api":{"enabled":true,"replicaCount":1,"service":{"nodePort":null,"port":8000,"type":"ClusterIP"}},"common":{"featureE2EMode":false,"mockLlmEnabled":false,"otelExporterEndpoint":"http://otel-collector.platform-observability.svc.cluster.local:4318","otelResourceAttributes":"deployment.environment=production","otelServiceName":"control-plane","resources":{"limits":{"cpu":"1","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}},"wsClientBufferSize":1000,"wsHeartbeatIntervalSeconds":30,"wsHeartbeatTimeoutSeconds":10,"zeroTrustVisibility":false},"connections":{"authJwtAlgorithm":"HS256","authJwtSecretKey":"change-me","authMfaEncryptionKey":"","clickhouseDatabase":"default","clickhouseHost":"musematic-clickhouse.platform.svc.cluster.local","clickhousePassword":"","clickhousePort":8123,"clickhouseUser":"default","grpcReasoningEngine":"reasoning-engine.platform.svc.cluster.local:50052","grpcRuntimeController":"musematic-runtime-controller.platform.svc.cluster.local:50051","grpcSandboxManager":"sandbox-manager.platform.svc.cluster.local:50053","grpcSimulationController":"musematic-simulation-controller.platform.svc.cluster.local:50055","kafkaBrokers":"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092","neo4jPassword":"neo4j","neo4jUri":"bolt://musematic-neo4j.platform.svc.cluster.local:7687","neo4jUser":"neo4j","opensearchHosts":"http://musematic-opensearch.platform.svc.cluster.local:9200","opensearchPassword":"admin","opensearchUsername":"admin","postgresDsn":"postgresql+asyncpg://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic","qdrantGrpcPort":6334,"qdrantHost":"musematic-qdrant.platform.svc.cluster.local","qdrantPort":6333,"redisTestMode":"cluster","redisUrl":"redis://:change-me@musematic-redis.platform.svc.cluster.local:6379","s3AccessKey":"platform","s3BucketPrefix":"platform","s3EndpointUrl":"http://musematic-minio.platform-data.svc.cluster.local:9000","s3Provider":"generic","s3Region":"us-east-1","s3SecretKey":"change-me","s3UsePathStyle":true},"enabled":true,"image":{"pullPolicy":"IfNotPresent","repository":"ghcr.io/musematic/control-plane","tag":"latest"},"migration":{"backoffLimit":3,"enabled":true},"privacy":{"clickhousePiiTables":["execution_metrics","agent_performance","token_usage"],"dlpEnabled":false,"dsrEnabled":false,"residencyEnforcementEnabled":false},"scheduler":{"enabled":true,"replicaCount":1},"serviceAccount":{"annotations":{},"create":true,"name":"musematic-control-plane"},"vault":{"addr":"http://musematic-vault.platform-security.svc.cluster.local:8200","approle":{"roleId":"","secretIdSecretRef":""},"authMethod":"kubernetes","caCertSecretRef":"","cache":{"maxStalenessSeconds":300,"ttlSeconds":60},"kubernetes":{"role":"musematic-platform","serviceAccountTokenPath":"/var/run/secrets/tokens/vault-token"},"kvMount":"secret","kvPrefix":"musematic/{environment}","leaseRenewalThreshold":0.5,"mode":"vault","namespace":"","retry":{"attempts":3,"timeoutSeconds":10},"token":""},"worker":{"enabled":true,"replicaCount":1},"wsHub":{"enabled":true,"replicaCount":1,"service":{"nodePort":null,"port":8001,"type":"ClusterIP"}}}</code></td>
+<td><code>{"api":{"enabled":true,"replicaCount":1,"service":{"nodePort":null,"port":8000,"type":"ClusterIP"}},"common":{"featureE2EMode":false,"mockLlmEnabled":false,"otelExporterEndpoint":"http://otel-collector.platform-observability.svc.cluster.local:4318","otelResourceAttributes":"deployment.environment=production","otelServiceName":"control-plane","resources":{"limits":{"cpu":"1","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}},"wsClientBufferSize":1000,"wsHeartbeatIntervalSeconds":30,"wsHeartbeatTimeoutSeconds":10,"zeroTrustVisibility":false},"connections":{"authJwtAlgorithm":"HS256","authJwtSecretKey":"change-me","authMfaEncryptionKey":"","clickhouseDatabase":"default","clickhouseHost":"musematic-clickhouse.platform.svc.cluster.local","clickhousePassword":"","clickhousePort":8123,"clickhouseUser":"default","grpcReasoningEngine":"reasoning-engine.platform.svc.cluster.local:50052","grpcRuntimeController":"musematic-runtime-controller.platform.svc.cluster.local:50051","grpcSandboxManager":"sandbox-manager.platform.svc.cluster.local:50053","grpcSimulationController":"musematic-simulation-controller.platform.svc.cluster.local:50055","kafkaBrokers":"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092","neo4jPassword":"neo4j","neo4jUri":"bolt://musematic-neo4j.platform.svc.cluster.local:7687","neo4jUser":"neo4j","opensearchHosts":"http://musematic-opensearch.platform.svc.cluster.local:9200","opensearchPassword":"admin","opensearchUsername":"admin","postgresDsn":"postgresql+asyncpg://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic","qdrantGrpcPort":6334,"qdrantHost":"musematic-qdrant.platform.svc.cluster.local","qdrantPort":6333,"redisTestMode":"cluster","redisUrl":"redis://:change-me@musematic-redis.platform.svc.cluster.local:6379","s3AccessKey":"platform","s3BucketPrefix":"platform","s3EndpointUrl":"http://musematic-minio.platform-data.svc.cluster.local:9000","s3Provider":"generic","s3Region":"us-east-1","s3SecretKey":"change-me","s3UsePathStyle":true},"enabled":true,"image":{"pullPolicy":"IfNotPresent","repository":"ghcr.io/musematic/control-plane","tag":"latest"},"migration":{"backoffLimit":3,"enabled":true},"oauth":{"github":{"allowedOrgs":[],"clientId":"","clientSecretRef":{"key":"client-secret","name":""},"clientSecretVaultPath":"","defaultRole":"member","enabled":false,"forceUpdate":false,"redirectUri":"","requireMfa":false,"teamRoleMappings":{}},"google":{"allowedDomains":[],"clientId":"","clientSecretRef":{"key":"client-secret","name":""},"clientSecretVaultPath":"","defaultRole":"member","enabled":false,"forceUpdate":false,"groupRoleMappings":{},"redirectUri":"","requireMfa":false}},"privacy":{"clickhousePiiTables":["execution_metrics","agent_performance","token_usage"],"dlpEnabled":false,"dsrEnabled":false,"residencyEnforcementEnabled":false},"scheduler":{"enabled":true,"replicaCount":1},"serviceAccount":{"annotations":{},"create":true,"name":"musematic-control-plane"},"vault":{"addr":"http://musematic-vault.platform-security.svc.cluster.local:8200","approle":{"roleId":"","secretIdSecretRef":""},"authMethod":"kubernetes","caCertSecretRef":"","cache":{"maxStalenessSeconds":300,"ttlSeconds":60},"kubernetes":{"role":"musematic-platform","serviceAccountTokenPath":"/var/run/secrets/tokens/vault-token"},"kvMount":"secret","kvPrefix":"musematic/{environment}","leaseRenewalThreshold":0.5,"mode":"vault","namespace":"","retry":{"attempts":3,"timeoutSeconds":10},"token":""},"worker":{"enabled":true,"replicaCount":1},"wsHub":{"enabled":true,"replicaCount":1,"service":{"nodePort":null,"port":8001,"type":"ClusterIP"}}}</code></td>
 <td>Configures <code>controlPlane</code> for the platform chart.</td>
 </tr>
 <tr>
@@ -11364,6 +11526,168 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>bool</td>
 <td><code>true</code></td>
 <td>Configures <code>controlPlane.migration.enabled</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth</td>
+<td>object</td>
+<td><code>{"github":{"allowedOrgs":[],"clientId":"","clientSecretRef":{"key":"client-secret","name":""},"clientSecretVaultPath":"","defaultRole":"member","enabled":false,"forceUpdate":false,"redirectUri":"","requireMfa":false,"teamRoleMappings":{}},"google":{"allowedDomains":[],"clientId":"","clientSecretRef":{"key":"client-secret","name":""},"clientSecretVaultPath":"","defaultRole":"member","enabled":false,"forceUpdate":false,"groupRoleMappings":{},"redirectUri":"","requireMfa":false}}</code></td>
+<td>Configures <code>controlPlane.oauth</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.github</td>
+<td>object</td>
+<td><code>{"allowedOrgs":[],"clientId":"","clientSecretRef":{"key":"client-secret","name":""},"clientSecretVaultPath":"","defaultRole":"member","enabled":false,"forceUpdate":false,"redirectUri":"","requireMfa":false,"teamRoleMappings":{}}</code></td>
+<td>Configures <code>controlPlane.oauth.github</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.github.allowedOrgs</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Configures <code>controlPlane.oauth.github.allowedOrgs</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.github.clientId</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>controlPlane.oauth.github.clientId</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.github.clientSecretRef</td>
+<td>object</td>
+<td><code>{"key":"client-secret","name":""}</code></td>
+<td>Configures <code>controlPlane.oauth.github.clientSecretRef</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.github.clientSecretRef.key</td>
+<td>string</td>
+<td><code>"client-secret"</code></td>
+<td>Configures <code>controlPlane.oauth.github.clientSecretRef.key</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.github.clientSecretRef.name</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>controlPlane.oauth.github.clientSecretRef.name</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.github.clientSecretVaultPath</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>controlPlane.oauth.github.clientSecretVaultPath</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.github.defaultRole</td>
+<td>string</td>
+<td><code>"member"</code></td>
+<td>Configures <code>controlPlane.oauth.github.defaultRole</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.github.enabled</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>controlPlane.oauth.github.enabled</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.github.forceUpdate</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>controlPlane.oauth.github.forceUpdate</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.github.redirectUri</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>controlPlane.oauth.github.redirectUri</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.github.requireMfa</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>controlPlane.oauth.github.requireMfa</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.github.teamRoleMappings</td>
+<td>object</td>
+<td><code>{}</code></td>
+<td>Configures <code>controlPlane.oauth.github.teamRoleMappings</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.google</td>
+<td>object</td>
+<td><code>{"allowedDomains":[],"clientId":"","clientSecretRef":{"key":"client-secret","name":""},"clientSecretVaultPath":"","defaultRole":"member","enabled":false,"forceUpdate":false,"groupRoleMappings":{},"redirectUri":"","requireMfa":false}</code></td>
+<td>Configures <code>controlPlane.oauth.google</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.google.allowedDomains</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Configures <code>controlPlane.oauth.google.allowedDomains</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.google.clientId</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>controlPlane.oauth.google.clientId</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.google.clientSecretRef</td>
+<td>object</td>
+<td><code>{"key":"client-secret","name":""}</code></td>
+<td>Configures <code>controlPlane.oauth.google.clientSecretRef</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.google.clientSecretRef.key</td>
+<td>string</td>
+<td><code>"client-secret"</code></td>
+<td>Configures <code>controlPlane.oauth.google.clientSecretRef.key</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.google.clientSecretRef.name</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>controlPlane.oauth.google.clientSecretRef.name</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.google.clientSecretVaultPath</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>controlPlane.oauth.google.clientSecretVaultPath</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.google.defaultRole</td>
+<td>string</td>
+<td><code>"member"</code></td>
+<td>Configures <code>controlPlane.oauth.google.defaultRole</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.google.enabled</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>controlPlane.oauth.google.enabled</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.google.forceUpdate</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>controlPlane.oauth.google.forceUpdate</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.google.groupRoleMappings</td>
+<td>object</td>
+<td><code>{}</code></td>
+<td>Configures <code>controlPlane.oauth.google.groupRoleMappings</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.google.redirectUri</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>controlPlane.oauth.google.redirectUri</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.oauth.google.requireMfa</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>controlPlane.oauth.google.requireMfa</code> for the platform chart.</td>
 </tr>
 <tr>
 <td>controlPlane.privacy</td>
@@ -12108,6 +12432,168 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>string</td>
 <td><code>"musematic-neo4j"</code></td>
 <td>Configures <code>neo4j.neo4j.name</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth</td>
+<td>object</td>
+<td><code>{"github":{"allowedOrgs":[],"clientId":"","clientSecretRef":{"key":"client-secret","name":""},"clientSecretVaultPath":"","defaultRole":"member","enabled":false,"forceUpdate":false,"redirectUri":"","requireMfa":false,"teamRoleMappings":{}},"google":{"allowedDomains":[],"clientId":"","clientSecretRef":{"key":"client-secret","name":""},"clientSecretVaultPath":"","defaultRole":"member","enabled":false,"forceUpdate":false,"groupRoleMappings":{},"redirectUri":"","requireMfa":false}}</code></td>
+<td>Documents OAuth provider bootstrap values for GitOps promotion.</td>
+</tr>
+<tr>
+<td>oauth.github</td>
+<td>object</td>
+<td><code>{"allowedOrgs":[],"clientId":"","clientSecretRef":{"key":"client-secret","name":""},"clientSecretVaultPath":"","defaultRole":"member","enabled":false,"forceUpdate":false,"redirectUri":"","requireMfa":false,"teamRoleMappings":{}}</code></td>
+<td>Configures <code>oauth.github</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.github.allowedOrgs</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Configures <code>oauth.github.allowedOrgs</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.github.clientId</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>oauth.github.clientId</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.github.clientSecretRef</td>
+<td>object</td>
+<td><code>{"key":"client-secret","name":""}</code></td>
+<td>Configures <code>oauth.github.clientSecretRef</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.github.clientSecretRef.key</td>
+<td>string</td>
+<td><code>"client-secret"</code></td>
+<td>Configures <code>oauth.github.clientSecretRef.key</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.github.clientSecretRef.name</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>oauth.github.clientSecretRef.name</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.github.clientSecretVaultPath</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>oauth.github.clientSecretVaultPath</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.github.defaultRole</td>
+<td>string</td>
+<td><code>"member"</code></td>
+<td>Configures <code>oauth.github.defaultRole</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.github.enabled</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>oauth.github.enabled</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.github.forceUpdate</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>oauth.github.forceUpdate</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.github.redirectUri</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>oauth.github.redirectUri</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.github.requireMfa</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>oauth.github.requireMfa</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.github.teamRoleMappings</td>
+<td>object</td>
+<td><code>{}</code></td>
+<td>Configures <code>oauth.github.teamRoleMappings</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.google</td>
+<td>object</td>
+<td><code>{"allowedDomains":[],"clientId":"","clientSecretRef":{"key":"client-secret","name":""},"clientSecretVaultPath":"","defaultRole":"member","enabled":false,"forceUpdate":false,"groupRoleMappings":{},"redirectUri":"","requireMfa":false}</code></td>
+<td>Configures <code>oauth.google</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.google.allowedDomains</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Configures <code>oauth.google.allowedDomains</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.google.clientId</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>oauth.google.clientId</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.google.clientSecretRef</td>
+<td>object</td>
+<td><code>{"key":"client-secret","name":""}</code></td>
+<td>Configures <code>oauth.google.clientSecretRef</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.google.clientSecretRef.key</td>
+<td>string</td>
+<td><code>"client-secret"</code></td>
+<td>Configures <code>oauth.google.clientSecretRef.key</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.google.clientSecretRef.name</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>oauth.google.clientSecretRef.name</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.google.clientSecretVaultPath</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>oauth.google.clientSecretVaultPath</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.google.defaultRole</td>
+<td>string</td>
+<td><code>"member"</code></td>
+<td>Configures <code>oauth.google.defaultRole</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.google.enabled</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>oauth.google.enabled</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.google.forceUpdate</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>oauth.google.forceUpdate</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.google.groupRoleMappings</td>
+<td>object</td>
+<td><code>{}</code></td>
+<td>Configures <code>oauth.google.groupRoleMappings</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.google.redirectUri</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>oauth.google.redirectUri</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>oauth.google.requireMfa</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>oauth.google.requireMfa</code> for the platform chart.</td>
 </tr>
 <tr>
 <td>opensearch</td>
@@ -14335,8 +14821,14 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>kubernetesAuthJob</td>
 <td>object</td>
-<td><code>{"boundNamespaces":["platform","platform-runtime","platform-reasoning","platform-simulation","platform-sandbox"],"boundServiceAccounts":["musematic-control-plane","musematic-runtime-controller","reasoning-engine","simulation-controller","sandbox-manager"],"enabled":true,"roleName":"musematic-platform","tokenTtl":"1h"}</code></td>
+<td><code>{"audience":"vault","boundNamespaces":["platform","platform-runtime","platform-reasoning","platform-simulation","platform-sandbox"],"boundServiceAccounts":["musematic-control-plane","musematic-runtime-controller","reasoning-engine","simulation-controller","sandbox-manager"],"enabled":true,"roleName":"musematic-platform","tokenTtl":"1h"}</code></td>
 <td>Configures Kubernetes auth bootstrap.</td>
+</tr>
+<tr>
+<td>kubernetesAuthJob.audience</td>
+<td>string</td>
+<td><code>"vault"</code></td>
+<td>Expected audience for projected service-account tokens used by Vault clients.</td>
 </tr>
 <tr>
 <td>kubernetesAuthJob.boundNamespaces</td>

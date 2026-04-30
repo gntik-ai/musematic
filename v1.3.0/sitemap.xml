@@ -133,6 +133,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/admin-guide/lifecycle/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/admin-guide/oauth-providers/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/admin-guide/oauth-providers/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/admin-guide/observability/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -859,6 +870,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/mcp-integration/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/developer-guide/oauth-bootstrap-internals/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/oauth-bootstrap-internals/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/developer-guide/reasoning-primitives/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -1220,6 +1242,39 @@
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/multi-region-failover-failback/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/multi-region-failover-failback/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/multi-region-failover-failback/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/operator-guide/runbooks/oauth-bootstrap/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/oauth-bootstrap/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/operator-guide/runbooks/oauth-config-promotion/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/oauth-config-promotion/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/operator-guide/runbooks/oauth-secret-rotation/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/oauth-secret-rotation/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/operator-guide/runbooks/platform-upgrade/</loc>
@@ -1781,6 +1836,17 @@
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/admin-guide/lifecycle/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/admin-guide/lifecycle/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/admin-guide/lifecycle/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/admin-guide/oauth-providers/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0/es/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/admin-guide/oauth-providers/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/admin-guide/observability/</loc>
@@ -2509,6 +2575,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/mcp-integration/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/developer-guide/oauth-bootstrap-internals/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0/es/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/oauth-bootstrap-internals/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/developer-guide/reasoning-primitives/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -2870,6 +2947,39 @@
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/multi-region-failover-failback/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/multi-region-failover-failback/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/multi-region-failover-failback/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/operator-guide/runbooks/oauth-bootstrap/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0/es/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/oauth-bootstrap/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/operator-guide/runbooks/oauth-config-promotion/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0/es/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/oauth-config-promotion/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/operator-guide/runbooks/oauth-secret-rotation/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0/es/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/oauth-secret-rotation/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/operator-guide/runbooks/platform-upgrade/</loc>
@@ -3431,6 +3541,17 @@
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/admin-guide/lifecycle/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/admin-guide/lifecycle/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/admin-guide/lifecycle/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/admin-guide/oauth-providers/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0/de/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/admin-guide/oauth-providers/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/admin-guide/observability/</loc>
@@ -4159,6 +4280,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/mcp-integration/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/developer-guide/oauth-bootstrap-internals/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0/de/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/oauth-bootstrap-internals/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/developer-guide/reasoning-primitives/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -4520,6 +4652,39 @@
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/multi-region-failover-failback/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/multi-region-failover-failback/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/multi-region-failover-failback/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/operator-guide/runbooks/oauth-bootstrap/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0/de/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/oauth-bootstrap/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/operator-guide/runbooks/oauth-config-promotion/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0/de/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/oauth-config-promotion/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/operator-guide/runbooks/oauth-secret-rotation/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0/de/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/oauth-secret-rotation/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/operator-guide/runbooks/platform-upgrade/</loc>
@@ -5081,6 +5246,17 @@
         <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/admin-guide/lifecycle/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/admin-guide/lifecycle/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/admin-guide/lifecycle/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/admin-guide/oauth-providers/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0/fr/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/admin-guide/oauth-providers/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/admin-guide/observability/</loc>
@@ -5809,6 +5985,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/mcp-integration/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/developer-guide/oauth-bootstrap-internals/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0/fr/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/oauth-bootstrap-internals/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/developer-guide/reasoning-primitives/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -6170,6 +6357,39 @@
         <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/multi-region-failover-failback/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/multi-region-failover-failback/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/multi-region-failover-failback/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/operator-guide/runbooks/oauth-bootstrap/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0/fr/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/oauth-bootstrap/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/operator-guide/runbooks/oauth-config-promotion/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0/fr/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/oauth-config-promotion/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/operator-guide/runbooks/oauth-secret-rotation/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0/fr/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/oauth-secret-rotation/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/operator-guide/runbooks/platform-upgrade/</loc>
@@ -6731,6 +6951,17 @@
         <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/admin-guide/lifecycle/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/admin-guide/lifecycle/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/admin-guide/lifecycle/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/admin-guide/oauth-providers/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0/it/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/admin-guide/oauth-providers/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/admin-guide/observability/</loc>
@@ -7459,6 +7690,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/mcp-integration/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/developer-guide/oauth-bootstrap-internals/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0/it/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/oauth-bootstrap-internals/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/developer-guide/reasoning-primitives/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -7820,6 +8062,39 @@
         <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/multi-region-failover-failback/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/multi-region-failover-failback/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/multi-region-failover-failback/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/operator-guide/runbooks/oauth-bootstrap/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0/it/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/oauth-bootstrap/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/operator-guide/runbooks/oauth-config-promotion/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0/it/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/oauth-config-promotion/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/operator-guide/runbooks/oauth-secret-rotation/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0/it/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/oauth-secret-rotation/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/operator-guide/runbooks/platform-upgrade/</loc>
@@ -8381,6 +8656,17 @@
         <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/admin-guide/lifecycle/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/admin-guide/lifecycle/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/admin-guide/lifecycle/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/admin-guide/oauth-providers/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0/zh/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/admin-guide/oauth-providers/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/admin-guide/oauth-providers/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/admin-guide/observability/</loc>
@@ -9109,6 +9395,17 @@
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/developer-guide/mcp-integration/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/developer-guide/oauth-bootstrap-internals/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0/zh/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/developer-guide/oauth-bootstrap-internals/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/developer-guide/oauth-bootstrap-internals/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/developer-guide/reasoning-primitives/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -9470,6 +9767,39 @@
         <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/multi-region-failover-failback/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/multi-region-failover-failback/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/multi-region-failover-failback/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/operator-guide/runbooks/oauth-bootstrap/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0/zh/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/oauth-bootstrap/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/oauth-bootstrap/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/operator-guide/runbooks/oauth-config-promotion/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0/zh/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/oauth-config-promotion/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/oauth-config-promotion/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/operator-guide/runbooks/oauth-secret-rotation/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0/zh/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/oauth-secret-rotation/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/oauth-secret-rotation/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/operator-guide/runbooks/platform-upgrade/</loc>
