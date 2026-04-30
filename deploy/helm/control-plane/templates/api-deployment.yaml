@@ -107,5 +107,5 @@ spec:
               port: http
             initialDelaySeconds: 20
           resources:
-{{ toYaml .Values.common.resources | indent 12 }}
+{{ toYaml (.Values.api.resources | default .Values.common.resources) | indent 12 }}
 {{- end }}
