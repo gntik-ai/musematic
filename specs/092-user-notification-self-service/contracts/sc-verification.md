@@ -35,7 +35,9 @@ Partial local verification was completed on 2026-04-30:
 
 - SC-018 static scope gate passed: `python scripts/check-me-endpoint-scope.py`.
 - SC-019 self-service axe scan passed for the 9 audited pages: `216 passed` via `apps/web/tests/a11y/self-service.spec.ts`.
+- Mocked self-service browser coverage passed: `pnpm --dir apps/web test:e2e tests/e2e/self-service-pages.spec.ts --project=chromium` reported `7 passed`.
 - Migration compatibility for the four additive columns passed: fresh upgrade to revision `070`, seeded-row upgrade from `069` to `070`, downgrade back to `069`, and upgrade to current `head`.
-- Supporting local gates passed: `python scripts/check-secret-access.py`, `python scripts/check-admin-role-gates.py`, `apps/control-plane/.venv/bin/pytest tests/me/`, `pnpm --dir apps/web test`, `pnpm --dir apps/web type-check`, `pnpm --dir apps/web lint`, and `pnpm --dir apps/web test:i18n-parity`.
+- Supporting local gates passed: `python scripts/check-secret-access.py`, `python scripts/check-admin-role-gates.py`, `apps/control-plane/.venv/bin/pytest apps/control-plane/tests/me/`, `pnpm --dir apps/web test`, `pnpm --dir apps/web type-check`, `pnpm --dir apps/web lint`, and `pnpm --dir apps/web test:i18n-parity`.
+- Live E2E command attempted: `apps/control-plane/.venv/bin/pytest tests/e2e/suites/self_service/ -v` collected 39 tests and failed during setup with `httpx.ConnectError: All connection attempts failed` because no platform API was running.
 
 The full SC-001 through SC-020 sweep remains blocked in this workspace because there is no live platform API, WebSocket gateway, Kubernetes context, matrix CI run, or 24-hour synthetic log source attached to this session.
