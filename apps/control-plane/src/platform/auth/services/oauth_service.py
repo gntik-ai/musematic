@@ -65,6 +65,8 @@ from uuid import UUID, uuid4
 
 from fastapi.encoders import jsonable_encoder
 
+_PLAINTEXT_SECRET_PREFIX = "plain:"
+
 
 @dataclass(slots=True)
 class OAuthUserIdentity:
@@ -972,6 +974,8 @@ class OAuthService:
         return cast(dict[str, Any], jsonable_encoder(payload))
 
     async def _resolve_secret(self, reference: str) -> str:
+        if reference.startswith(_PLAINTEXT_SECRET_PREFIX):
+            return reference.removeprefix(_PLAINTEXT_SECRET_PREFIX)
         return await self._require_secret_provider().get(reference)
 
     def _require_secret_provider(self) -> SecretProvider:

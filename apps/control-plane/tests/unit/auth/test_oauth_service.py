@@ -573,6 +573,22 @@ async def test_handle_callback_audits_identity_resolution_failure(auth_settings)
 
 
 @pytest.mark.asyncio
+async def test_oauth_resolve_secret_supports_plain_inline_refs(auth_settings) -> None:
+    class RejectingSecretProvider:
+        async def get(self, reference: str) -> str:
+            raise AssertionError(f"unexpected secret provider lookup: {reference}")
+
+    service, *_ = build_oauth_service_fixture(
+        auth_settings,
+        secret_provider=RejectingSecretProvider(),
+    )
+
+    assert await service._resolve_secret("plain:mock-google-client-secret") == (
+        "mock-google-client-secret"
+    )
+
+
+@pytest.mark.asyncio
 async def test_oauth_internal_helpers_cover_error_paths(auth_settings) -> None:
     provider = build_provider(provider_type="google", enabled=False)
     service, _, _, _, redis_client, _, _ = build_oauth_service_fixture(
