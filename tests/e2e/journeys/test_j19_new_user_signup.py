@@ -11,6 +11,13 @@ from journeys.helpers.oauth import oauth_login
 JOURNEY_ID = "j19"
 TIMEOUT_SECONDS = 180
 
+# Cross-context inventory:
+# - auth
+# - accounts
+# - audit
+# - workspaces
+# - policies
+
 
 @pytest.mark.journey
 @pytest.mark.j19_new_user_signup
