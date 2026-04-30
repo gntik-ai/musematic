@@ -4,6 +4,9 @@ Date: 2026-05-01
 
 ## Completed Local Checks
 
+- Local rerun on 2026-05-01 confirmed the same results below. The only warning
+  noise was pre-existing React `act(...)` and zero-sized chart test warnings in
+  unrelated web tests; all commands exited successfully.
 - Backend creator-preview and versioning test files were added for the new
   services.
 - Creator UI E2E API suite was added under
@@ -63,12 +66,17 @@ Result: 5 passed.
 ## Blocked Checks
 
 - Alembic upgrade/downgrade verification is blocked locally because
-  `DATABASE_URL` / `POSTGRES_DSN` is unset and Docker/testcontainers access is
-  blocked by the current approval policy.
+  `DATABASE_URL` / `POSTGRES_DSN` is unset. The correct command,
+  `UV_CACHE_DIR=/tmp/uv-cache uv run alembic -c migrations/alembic.ini upgrade head`,
+  fails at `migrations/env.py` with `RuntimeError: DATABASE_URL or POSTGRES_DSN
+  must be set for Alembic migrations.` Docker/testcontainers access is also
+  blocked by the current approval policy, and no local PostgreSQL is listening
+  on `localhost:5432`.
 - `pytest tests/e2e/suites/creator_uis/ -v` and
   `pytest tests/e2e/journeys/test_j02_creator_to_publication.py -v` both stop
   in the shared E2E seed/login fixture because no platform API is listening on
-  `http://localhost:8081`.
+  `http://localhost:8081` (`httpx.ConnectError: All connection attempts
+  failed`).
 - Matrix-CI verification is blocked because the current branch has no GitHub PR
   and no Actions runs.
 

@@ -21,6 +21,8 @@ The implementation emits structured events for the new creator actions:
   paths are in `apps/control-plane/src/platform/trust/contract_service.py`.
 - Backend tests were added for preview, rollback/versioning, template fork, and
   attach-to-revision behavior.
+- The targeted UPD-044 backend test bundle was rerun on 2026-05-01 through
+  `uv` and passed with 29 tests.
 
 ## Open Verification
 

@@ -45,11 +45,13 @@ UV_CACHE_DIR=/tmp/uv-cache uv run pytest \
   -q
 ```
 
-Result: 29 passed. The initial ambient `pytest` run was blocked by missing
-`grpc`; running through `uv` used the control-plane project environment.
+Result: 29 passed on the 2026-05-01 rerun. The initial ambient `pytest` run was
+blocked by missing `grpc`; running through `uv` used the control-plane project
+environment.
 
 ## Remaining Environment-Scope Verification
 
 Endpoint-level Rule 50 verification against a live API is covered by the
-kind/matrix E2E tasks. In this local sandbox, those tests stop before exercising
-the feature because no platform API is available at `http://localhost:8081`.
+kind/matrix E2E tasks. In this local sandbox, those tests stop in the shared
+seed/login fixture before exercising the feature because no platform API is
+available at `http://localhost:8081`.
