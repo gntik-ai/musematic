@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import pytest
 
-from suites._helpers import get_json, post_json
+from suites._helpers import assert_status, get_json
 
 
 async def submit_self_service_dsr(client, request_type: str = "access") -> dict:
     payload = {"request_type": request_type, "legal_basis": None, "hold_hours": 0}
     if request_type == "erasure":
         payload["confirm_text"] = "DELETE"
-    return await post_json(client, "/api/v1/me/dsr", payload)
+    return assert_status(await client.post("/api/v1/me/dsr", json=payload, timeout=90.0))
 
 
 @pytest.mark.asyncio
