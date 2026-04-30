@@ -1699,6 +1699,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#workspace-owner-surfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      Workspace Owner Surfaces
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4827,6 +4836,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#workspace-owner-surfaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      Workspace Owner Surfaces
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4858,6 +4876,9 @@
 <p>Confirm the archive reason, dependency state, and owner. Restore only after verifying data retention and policy requirements.</p>
 <h3 id="review-visibility-grants">Review Visibility Grants<a class="headerlink" href="#review-visibility-grants" title="Permanent link">&para;</a></h3>
 <p>Search by agent FQN pattern and workspace. Remove overly broad grants and prefer explicit grants for regulated agents.</p>
+<h2 id="workspace-owner-surfaces">Workspace Owner Surfaces<a class="headerlink" href="#workspace-owner-surfaces" title="Permanent link">&para;</a></h2>
+<p>Workspace owners use <code>/workspaces/{id}</code> and its child pages for workspace-scoped operations: dashboard review, member management, settings, connector setup, quotas, tags, and visibility. Platform admins use <code>/admin/settings?tab=workspaces</code> for a global workspace index and <code>/admin/settings?tab=ibor</code> for identity-broker connectors.</p>
+<p>Rule 47 scope distinction applies: workspace-owner actions can change only the selected workspace, while platform-admin actions can inspect or configure global identity and admin equivalents. Ownership transfer remains server-side 2PA-gated even when initiated from the workspace-owner UI.</p>
 
 
 

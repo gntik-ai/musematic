@@ -804,6 +804,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/developer-guide/2pa-primitive/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/2pa-primitive/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/developer-guide/a2a-integration/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -846,6 +857,17 @@
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/developer-guide/building-agents/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/developer-guide/building-agents/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/building-agents/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/developer-guide/connector-test-connectivity/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/connector-test-connectivity/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/developer-guide/contract-authoring/</loc>
@@ -1222,6 +1244,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/capacity-expansion/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/operator-guide/runbooks/connector-self-service-troubleshooting/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/operator-guide/runbooks/database-migration-rollback/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -1253,6 +1286,17 @@
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/dsr-self-service-flow/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/dsr-self-service-flow/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/dsr-self-service-flow/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/operator-guide/runbooks/ibor-connector-test-connection/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/ibor-connector-test-connection/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/operator-guide/runbooks/incident-response-procedures/</loc>
@@ -1442,6 +1486,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/vault-token-rotation/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/operator-guide/runbooks/workspace-owner-2pa/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/workspace-owner-2pa/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/reference/label-expression-dsl/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -1539,6 +1594,17 @@
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/release-notes/v1.3.0/user-notification-self-service/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/release-notes/v1.3.0/user-notification-self-service/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/release-notes/v1.3.0/user-notification-self-service/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/release-notes/v1.3.0/workspace-owner-workbench/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/release-notes/v1.3.0/workspace-owner-workbench/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/security/</loc>
@@ -2597,6 +2663,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/developer-guide/2pa-primitive/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0/es/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/2pa-primitive/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/developer-guide/a2a-integration/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -2639,6 +2716,17 @@
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/developer-guide/building-agents/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/developer-guide/building-agents/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/building-agents/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/developer-guide/connector-test-connectivity/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0/es/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/connector-test-connectivity/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/developer-guide/contract-authoring/</loc>
@@ -3015,6 +3103,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/capacity-expansion/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/operator-guide/runbooks/connector-self-service-troubleshooting/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0/es/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/operator-guide/runbooks/database-migration-rollback/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -3046,6 +3145,17 @@
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/dsr-self-service-flow/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/dsr-self-service-flow/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/dsr-self-service-flow/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/operator-guide/runbooks/ibor-connector-test-connection/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0/es/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/ibor-connector-test-connection/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/operator-guide/runbooks/incident-response-procedures/</loc>
@@ -3235,6 +3345,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/vault-token-rotation/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/operator-guide/runbooks/workspace-owner-2pa/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0/es/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/workspace-owner-2pa/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/reference/label-expression-dsl/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -3332,6 +3453,17 @@
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/release-notes/v1.3.0/user-notification-self-service/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/release-notes/v1.3.0/user-notification-self-service/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/release-notes/v1.3.0/user-notification-self-service/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/release-notes/v1.3.0/workspace-owner-workbench/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0/es/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/release-notes/v1.3.0/workspace-owner-workbench/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/security/</loc>
@@ -4390,6 +4522,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/developer-guide/2pa-primitive/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0/de/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/2pa-primitive/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/developer-guide/a2a-integration/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -4432,6 +4575,17 @@
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/developer-guide/building-agents/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/developer-guide/building-agents/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/building-agents/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/developer-guide/connector-test-connectivity/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0/de/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/connector-test-connectivity/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/developer-guide/contract-authoring/</loc>
@@ -4808,6 +4962,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/capacity-expansion/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/operator-guide/runbooks/connector-self-service-troubleshooting/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0/de/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/operator-guide/runbooks/database-migration-rollback/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -4839,6 +5004,17 @@
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/dsr-self-service-flow/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/dsr-self-service-flow/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/dsr-self-service-flow/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/operator-guide/runbooks/ibor-connector-test-connection/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0/de/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/ibor-connector-test-connection/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/operator-guide/runbooks/incident-response-procedures/</loc>
@@ -5028,6 +5204,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/vault-token-rotation/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/operator-guide/runbooks/workspace-owner-2pa/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0/de/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/workspace-owner-2pa/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/reference/label-expression-dsl/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -5125,6 +5312,17 @@
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/release-notes/v1.3.0/user-notification-self-service/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/release-notes/v1.3.0/user-notification-self-service/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/release-notes/v1.3.0/user-notification-self-service/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/release-notes/v1.3.0/workspace-owner-workbench/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0/de/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/release-notes/v1.3.0/workspace-owner-workbench/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/security/</loc>
@@ -6183,6 +6381,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/developer-guide/2pa-primitive/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0/fr/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/2pa-primitive/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/developer-guide/a2a-integration/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -6225,6 +6434,17 @@
         <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/developer-guide/building-agents/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/developer-guide/building-agents/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/building-agents/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/developer-guide/connector-test-connectivity/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0/fr/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/connector-test-connectivity/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/developer-guide/contract-authoring/</loc>
@@ -6601,6 +6821,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/capacity-expansion/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/operator-guide/runbooks/connector-self-service-troubleshooting/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0/fr/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/operator-guide/runbooks/database-migration-rollback/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -6632,6 +6863,17 @@
         <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/dsr-self-service-flow/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/dsr-self-service-flow/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/dsr-self-service-flow/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/operator-guide/runbooks/ibor-connector-test-connection/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0/fr/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/ibor-connector-test-connection/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/operator-guide/runbooks/incident-response-procedures/</loc>
@@ -6821,6 +7063,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/vault-token-rotation/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/operator-guide/runbooks/workspace-owner-2pa/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0/fr/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/workspace-owner-2pa/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/reference/label-expression-dsl/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -6918,6 +7171,17 @@
         <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/release-notes/v1.3.0/user-notification-self-service/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/release-notes/v1.3.0/user-notification-self-service/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/release-notes/v1.3.0/user-notification-self-service/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/release-notes/v1.3.0/workspace-owner-workbench/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0/fr/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/release-notes/v1.3.0/workspace-owner-workbench/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/security/</loc>
@@ -7976,6 +8240,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/developer-guide/2pa-primitive/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0/it/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/2pa-primitive/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/developer-guide/a2a-integration/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -8018,6 +8293,17 @@
         <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/developer-guide/building-agents/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/developer-guide/building-agents/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/building-agents/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/developer-guide/connector-test-connectivity/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0/it/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/developer-guide/connector-test-connectivity/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/developer-guide/contract-authoring/</loc>
@@ -8394,6 +8680,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/capacity-expansion/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/operator-guide/runbooks/connector-self-service-troubleshooting/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0/it/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/operator-guide/runbooks/database-migration-rollback/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -8425,6 +8722,17 @@
         <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/dsr-self-service-flow/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/dsr-self-service-flow/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/dsr-self-service-flow/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/operator-guide/runbooks/ibor-connector-test-connection/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0/it/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/ibor-connector-test-connection/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/operator-guide/runbooks/incident-response-procedures/</loc>
@@ -8614,6 +8922,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/vault-token-rotation/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/operator-guide/runbooks/workspace-owner-2pa/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0/it/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/operator-guide/runbooks/workspace-owner-2pa/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/reference/label-expression-dsl/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -8711,6 +9030,17 @@
         <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/release-notes/v1.3.0/user-notification-self-service/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/release-notes/v1.3.0/user-notification-self-service/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/release-notes/v1.3.0/user-notification-self-service/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/release-notes/v1.3.0/workspace-owner-workbench/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0/it/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/release-notes/v1.3.0/workspace-owner-workbench/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/security/</loc>
@@ -9769,6 +10099,17 @@
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/developer-guide/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/developer-guide/2pa-primitive/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0/zh/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/developer-guide/2pa-primitive/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/developer-guide/2pa-primitive/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/developer-guide/a2a-integration/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -9811,6 +10152,17 @@
         <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/developer-guide/building-agents/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/developer-guide/building-agents/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/developer-guide/building-agents/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/developer-guide/connector-test-connectivity/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0/zh/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/developer-guide/connector-test-connectivity/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/developer-guide/connector-test-connectivity/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/developer-guide/contract-authoring/</loc>
@@ -10187,6 +10539,17 @@
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/capacity-expansion/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/operator-guide/runbooks/connector-self-service-troubleshooting/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0/zh/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/connector-self-service-troubleshooting/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/operator-guide/runbooks/database-migration-rollback/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -10218,6 +10581,17 @@
         <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/dsr-self-service-flow/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/dsr-self-service-flow/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/dsr-self-service-flow/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/operator-guide/runbooks/ibor-connector-test-connection/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0/zh/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/ibor-connector-test-connection/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/ibor-connector-test-connection/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/operator-guide/runbooks/incident-response-procedures/</loc>
@@ -10407,6 +10781,17 @@
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/vault-token-rotation/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/operator-guide/runbooks/workspace-owner-2pa/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0/zh/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/operator-guide/runbooks/workspace-owner-2pa/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/operator-guide/runbooks/workspace-owner-2pa/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/reference/label-expression-dsl/</loc>
         <lastmod>2026-04-30</lastmod>
         <changefreq>daily</changefreq>
@@ -10504,6 +10889,17 @@
         <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/release-notes/v1.3.0/user-notification-self-service/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/release-notes/v1.3.0/user-notification-self-service/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/release-notes/v1.3.0/user-notification-self-service/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/release-notes/v1.3.0/workspace-owner-workbench/</loc>
+        <lastmod>2026-04-30</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0/zh/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/release-notes/v1.3.0/workspace-owner-workbench/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/release-notes/v1.3.0/workspace-owner-workbench/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/security/</loc>

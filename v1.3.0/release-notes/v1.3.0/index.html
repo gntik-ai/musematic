@@ -4764,6 +4764,7 @@
 <li>HashiCorp Vault integration adds <code>mock</code>, <code>kubernetes</code>, and <code>vault</code> secret modes, the optional Vault Helm chart with <code>dev</code>, <code>standalone</code>, and <code>ha</code> presets, migration tooling, admin status endpoints, and Vault observability.</li>
 <li>OAuth bootstrap adds <code>PLATFORM_OAUTH_GOOGLE_*</code> and <code>PLATFORM_OAUTH_GITHUB_*</code> install-time configuration, Vault-backed client-secret seeding, provider source badges, rotation, reseed, role-mapping, history, rate-limit, and connectivity controls.</li>
 <li>User notification center and self-service security adds <code>/notifications</code>, notification preferences, personal API keys, MFA self-service, session revocation, user activity, consent management, and self-service DSR pages.</li>
+<li>Workspace owner workbench adds <code>/workspaces/{id}</code> owner pages, connector self-service, 2PA-gated ownership transfer, visibility graphing, and IBOR admin diagnostics.</li>
 </ul>
 <h2 id="folded-feature-notes">Folded Feature Notes<a class="headerlink" href="#folded-feature-notes" title="Permanent link">&para;</a></h2>
 <p>The following migrated feature pages remain available for detail:</p>
@@ -4772,6 +4773,7 @@
 <li><a href="../feature-075-model-catalog-fallback/">Feature 075 Model Catalog Fallback</a></li>
 <li><a href="../feature-076-privacy-compliance/">Feature 076 Privacy Compliance</a></li>
 <li><a href="user-notification-self-service/">User Notification Center And Self-Service Security</a></li>
+<li><a href="workspace-owner-workbench/">Workspace Owner Workbench</a></li>
 </ul>
 <h2 id="compatibility">Compatibility<a class="headerlink" href="#compatibility" title="Permanent link">&para;</a></h2>
 <p>REST APIs remain under <code>/api/v1</code>. The documentation build now treats generated API, environment, Helm, and FR-reference outputs as drift-checked artifacts. Chart value changes should include regenerated per-chart README files and the aggregate Helm values page.</p>
