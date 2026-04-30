@@ -683,6 +683,33 @@ class RouterServiceStub:
             "updated_at": self.visibility_updated_at,
         }
 
+    async def get_summary(self, workspace_id, requester_id):
+        self.calls.append(("get_summary", (workspace_id, requester_id)))
+        return {
+            "workspace_id": workspace_id,
+            "active_goals": 3,
+            "executions_in_flight": 5,
+            "agent_count": 12,
+            "budget": {"amount": 10000, "currency": "USD"},
+            "quotas": {"agents": 20},
+            "tags": {"count": 2, "items": ["tier:prod", "team:ops"]},
+            "dlp_violations": 1,
+            "recent_activity": [{"event_type": "auth.workspace.member_added"}],
+            "cards": {
+                "active_goals": {"label": "Active goals", "value": 3, "metadata": {}},
+            },
+            "cached_until": None,
+        }
+
+    async def initiate_ownership_transfer(self, workspace_id, requester_id, payload):
+        self.calls.append(("initiate_ownership_transfer", (workspace_id, requester_id, payload)))
+        return {
+            "challenge_id": uuid4(),
+            "action_type": "workspace_transfer_ownership",
+            "status": "pending",
+            "expires_at": datetime.now(UTC),
+        }
+
 
 def build_recording_producer() -> RecordingProducer:
     return RecordingProducer()

@@ -5,6 +5,7 @@ from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_current_user
 from platform.common.exceptions import PlatformError, platform_exception_handler
 from platform.common.tagging.dependencies import get_label_service, get_tag_service
+from platform.two_person_approval.dependencies import get_two_person_approval_service
 from platform.workspaces.dependencies import get_workspaces_service
 from platform.workspaces.router import router
 from uuid import uuid4
@@ -28,6 +29,7 @@ def _build_app(service: RouterServiceStub, settings: PlatformSettings) -> FastAP
     app.dependency_overrides[get_workspaces_service] = lambda: service
     app.dependency_overrides[get_tag_service] = lambda: object()
     app.dependency_overrides[get_label_service] = lambda: object()
+    app.dependency_overrides[get_two_person_approval_service] = lambda: object()
     app.include_router(router)
     return app
 
@@ -85,6 +87,13 @@ async def test_router_requires_auth_for_real_app() -> None:
             "patch",
             f"/api/v1/workspaces/{uuid4()}/settings",
             {"subscribed_agents": ["planner:*"]},
+            200,
+        ),
+        ("get", f"/api/v1/workspaces/{uuid4()}/summary", None, 200),
+        (
+            "post",
+            f"/api/v1/workspaces/{uuid4()}/transfer-ownership",
+            {"new_owner_id": str(uuid4())},
             200,
         ),
     ],

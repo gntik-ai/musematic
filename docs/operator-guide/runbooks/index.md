@@ -1,5 +1,11 @@
 # Runbooks
 
+## Workspace Owner And Connectors
+
+- [Workspace Owner Two-Person Approval](workspace-owner-2pa.md)
+- [Connector Self-Service Troubleshooting](connector-self-service-troubleshooting.md)
+- [IBOR Connector Test Connection](ibor-connector-test-connection.md)
+
 Runbooks are written for search during incidents. Each page follows Symptom, Diagnosis, Remediation, and Verification.
 
 | Runbook | Search Keywords | Summary |

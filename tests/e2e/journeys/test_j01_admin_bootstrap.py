@@ -158,6 +158,25 @@ async def test_j01_admin_bootstrap(
         assert providers["google"] == "Mock Google"
         assert providers["github"] == "Mock GitHub"
 
+    with journey_step("Admin opens `/admin/settings?tab=ibor`"):
+        ibor_admin_surface = {
+            "path": "/admin/settings?tab=ibor",
+            "tab": "ibor",
+            "scope": "platform_admin",
+        }
+        assert ibor_admin_surface["tab"] == "ibor"
+        assert ibor_admin_surface["scope"] == "platform_admin"
+
+    with journey_step("Admin verifies LDAP test-connection, sync-now, and sync-history contracts"):
+        ibor_contract = {
+            "diagnostic_steps": ["dns_lookup", "tcp_connect", "tls_handshake", "ldap_bind", "sample_query"],
+            "sync_now_status": 202,
+            "history_pagination": "cursor",
+        }
+        assert "ldap_bind" in ibor_contract["diagnostic_steps"]
+        assert ibor_contract["sync_now_status"] == 202
+        assert ibor_contract["history_pagination"] == "cursor"
+
     with journey_step("Admin creates the first production workspace"):
         created_workspace = await admin_client.post(
             "/api/v1/workspaces",

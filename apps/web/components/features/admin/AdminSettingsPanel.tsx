@@ -2,7 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ShieldCheck, Users, UserPlus2, Gauge, PlugZap, Mail, Lock, KeyRound } from "lucide-react";
+import {
+  Building2,
+  Gauge,
+  KeyRound,
+  Lock,
+  Mail,
+  PlugZap,
+  ServerCog,
+  ShieldCheck,
+  UserPlus2,
+  Users,
+} from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { UsersTab } from "@/components/features/admin/tabs/UsersTab";
@@ -12,6 +23,8 @@ import { ConnectorsTab } from "@/components/features/admin/tabs/ConnectorsTab";
 import { EmailTab } from "@/components/features/admin/tabs/EmailTab";
 import { SecurityTab } from "@/components/features/admin/tabs/SecurityTab";
 import { OAuthProviderAdminPanel } from "@/components/features/auth/OAuthProviderAdminPanel";
+import { IBORTab } from "@/components/features/admin/_tabs/IBORTab";
+import { WorkspacesTab } from "@/components/features/admin/_tabs/WorkspacesTab";
 
 const tabs = [
   { value: "users", label: "Users", icon: Users, component: UsersTab },
@@ -27,6 +40,18 @@ const tabs = [
     label: "Connectors",
     icon: PlugZap,
     component: ConnectorsTab,
+  },
+  {
+    value: "workspaces",
+    label: "Workspaces",
+    icon: Building2,
+    component: WorkspacesTab,
+  },
+  {
+    value: "ibor",
+    label: "IBOR Connectors",
+    icon: ServerCog,
+    component: IBORTab,
   },
   { value: "email", label: "Email", icon: Mail, component: EmailTab },
   {

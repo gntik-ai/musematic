@@ -12,6 +12,7 @@ export default defineConfig({
   testMatch: [
     new RegExp(`^${webRootPattern}/e2e/.*\\.spec\\.ts$`),
     new RegExp(`^${webRootPattern}/tests/e2e/self-service-pages\\.spec\\.ts$`),
+    new RegExp(`^${webRootPattern}/tests/e2e/workspace-owner-pages\\.spec\\.ts$`),
   ],
   fullyParallel: true,
   retries: 0,

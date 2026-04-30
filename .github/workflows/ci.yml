@@ -456,6 +456,17 @@ jobs:
             -v \
             --junitxml=reports/self-service-${{ matrix.secret_mode }}.xml
 
+      - name: Run workspace-owner suite
+        working-directory: tests/e2e
+        env:
+          PLATFORM_VAULT_MODE: ${{ matrix.secret_mode }}
+        run: |
+          mkdir -p reports
+          python -m pytest \
+            suites/workspace_owner \
+            -v \
+            --junitxml=reports/workspace-owner-${{ matrix.secret_mode }}.xml
+
       - name: Run self-service journey extensions
         working-directory: tests/e2e
         run: |
@@ -466,6 +477,7 @@ jobs:
             journeys/test_j10_multi_channel_notifications.py \
             journeys/test_j11_security_officer.py \
             journeys/test_j19_new_user_signup.py \
+            journeys/test_j20_workspace_owner.py \
             -m journey \
             -n "${E2E_JOURNEY_WORKERS}" \
             --dist=loadfile \

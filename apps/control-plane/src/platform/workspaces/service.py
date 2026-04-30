@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+from platform.auth.events import (
+    WorkspaceMemberPayload,
+    WorkspaceSettingsUpdatedPayload,
+    WorkspaceTransferPayload,
+    publish_auth_event,
+)
 from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
@@ -85,6 +92,7 @@ class WorkspacesService:
         incident_response_service: Any | None = None,
         saved_view_service: Any | None = None,
         tagging_service: Any | None = None,
+        redis_client: Any | None = None,
     ) -> None:
         self.repo = repo
         self.platform_settings = settings
@@ -95,6 +103,7 @@ class WorkspacesService:
         self.incident_response_service = incident_response_service
         self.saved_view_service = saved_view_service
         self.tagging_service = tagging_service
+        self.redis_client = redis_client
         self.two_person_approval_service: Any | None = None
 
     async def create_workspace(
@@ -324,6 +333,7 @@ class WorkspacesService:
         if await self.repo.get_membership(workspace.id, request.user_id) is not None:
             raise MemberAlreadyExistsError()
         membership = await self.repo.add_member(workspace.id, request.user_id, request.role)
+        await self._invalidate_summary_cache(workspace.id)
         await publish_membership_added(
             self.kafka_producer,
             MembershipPayload(
@@ -332,6 +342,17 @@ class WorkspacesService:
                 role=membership.role,
             ),
             self._correlation(correlation_id, workspace_id=workspace.id),
+        )
+        await self._publish_workspace_auth_event(
+            "auth.workspace.member_added",
+            WorkspaceMemberPayload(
+                workspace_id=workspace.id,
+                user_id=membership.user_id,
+                actor_id=requester_id,
+                role=membership.role.value,
+            ),
+            correlation_id=correlation_id,
+            workspace_id=workspace.id,
         )
         return self._membership_response(membership)
 
@@ -373,6 +394,7 @@ class WorkspacesService:
             raise WorkspaceAuthorizationError("Owner role cannot be changed through this endpoint")
         previous_role = membership.role
         updated = await self.repo.change_member_role(membership, request.role)
+        await self._invalidate_summary_cache(workspace_id)
         await publish_membership_role_changed(
             self.kafka_producer,
             MembershipPayload(
@@ -382,6 +404,18 @@ class WorkspacesService:
                 previous_role=previous_role,
             ),
             self._correlation(correlation_id, workspace_id=workspace_id),
+        )
+        await self._publish_workspace_auth_event(
+            "auth.workspace.role_changed",
+            WorkspaceMemberPayload(
+                workspace_id=workspace_id,
+                user_id=target_user_id,
+                actor_id=requester_id,
+                role=updated.role.value,
+                previous_role=previous_role.value,
+            ),
+            correlation_id=correlation_id,
+            workspace_id=workspace_id,
         )
         return self._membership_response(updated)
 
@@ -403,6 +437,7 @@ class WorkspacesService:
         ):
             raise LastOwnerError()
         await self.repo.remove_member(membership)
+        await self._invalidate_summary_cache(workspace_id)
         if self.saved_view_service is not None:
             await self.saved_view_service.resolve_orphan_owner(
                 workspace_id,
@@ -416,6 +451,17 @@ class WorkspacesService:
                 role=membership.role,
             ),
             self._correlation(correlation_id, workspace_id=workspace_id),
+        )
+        await self._publish_workspace_auth_event(
+            "auth.workspace.member_removed",
+            WorkspaceMemberPayload(
+                workspace_id=workspace_id,
+                user_id=target_user_id,
+                actor_id=requester_id,
+                role=membership.role.value,
+            ),
+            correlation_id=correlation_id,
+            workspace_id=workspace_id,
         )
 
     async def create_goal(
@@ -602,10 +648,29 @@ class WorkspacesService:
         if "residency_config" in request.model_fields_set and request.residency_config is not None:
             fields["residency_config"] = request.residency_config
         settings = await self.repo.update_settings(workspace_id, **fields)
+        await self._invalidate_summary_cache(workspace_id)
+        for field_name, event_type in {
+            "cost_budget": "auth.workspace.budget_updated",
+            "quota_config": "auth.workspace.quota_updated",
+            "dlp_rules": "auth.workspace.dlp_rules_updated",
+        }.items():
+            if field_name in fields:
+                await self._publish_workspace_auth_event(
+                    event_type,
+                    WorkspaceSettingsUpdatedPayload(
+                        workspace_id=workspace_id,
+                        actor_id=requester_id,
+                        changed_fields=[field_name],
+                    ),
+                    workspace_id=workspace_id,
+                )
         return self._settings_response(settings)
 
     async def get_summary(self, workspace_id: UUID, requester_id: UUID) -> WorkspaceSummaryResponse:
         await self._require_membership(workspace_id, requester_id, WorkspaceRole.viewer)
+        cached = await self._read_summary_cache(workspace_id)
+        if cached is not None:
+            return cached
         settings = await self.repo.get_settings(workspace_id)
         if settings is None:
             settings = await self.repo.update_settings(workspace_id)
@@ -616,7 +681,7 @@ class WorkspacesService:
         budget = dict(getattr(settings, "cost_budget", {}) or {})
         quotas = dict(getattr(settings, "quota_config", {}) or {})
         dlp_rules = dict(getattr(settings, "dlp_rules", {}) or {})
-        return WorkspaceSummaryResponse(
+        response = WorkspaceSummaryResponse(
             workspace_id=workspace_id,
             active_goals=active_goals,
             executions_in_flight=executions_in_flight,
@@ -647,7 +712,10 @@ class WorkspacesService:
                 "tags": {"label": "Tags", "value": 0, "metadata": {}},
                 "dlp": {"label": "DLP violations", "value": 0, "metadata": dlp_rules},
             },
+            cached_until=datetime.now(UTC) + timedelta(seconds=30),
         )
+        await self._write_summary_cache(workspace_id, response)
+        return response
 
     async def initiate_ownership_transfer(
         self,
@@ -674,6 +742,17 @@ class WorkspacesService:
                 "workspace_id": str(workspace_id),
                 "new_owner_id": str(request.new_owner_id),
             },
+        )
+        await self._publish_workspace_auth_event(
+            "auth.workspace.transfer_initiated",
+            WorkspaceTransferPayload(
+                workspace_id=workspace_id,
+                actor_id=requester_id,
+                new_owner_id=request.new_owner_id,
+                previous_owner_id=workspace.owner_id,
+                challenge_id=challenge.id,
+            ),
+            workspace_id=workspace_id,
         )
         return TransferOwnershipChallengeResponse(
             challenge_id=challenge.id,
@@ -702,6 +781,17 @@ class WorkspacesService:
             previous_owner_membership,
             new_owner_membership,
             new_owner_id,
+        )
+        await self._invalidate_summary_cache(workspace_id)
+        await self._publish_workspace_auth_event(
+            "auth.workspace.transfer_committed",
+            WorkspaceTransferPayload(
+                workspace_id=workspace_id,
+                actor_id=requester_id,
+                new_owner_id=new_owner_id,
+                previous_owner_id=requester_id,
+            ),
+            workspace_id=workspace_id,
         )
         return self._workspace_response(updated)
 
@@ -869,3 +959,66 @@ class WorkspacesService:
             workspace_id=workspace_id,
             goal_id=goal_id,
         )
+
+    async def _publish_workspace_auth_event(
+        self,
+        event_type: str,
+        payload: Any,
+        *,
+        correlation_id: UUID | None = None,
+        workspace_id: UUID | None = None,
+    ) -> None:
+        await publish_auth_event(
+            event_type,
+            payload,
+            correlation_id or uuid4(),
+            self.kafka_producer,
+            workspace_id=workspace_id,
+            source="platform.workspaces",
+        )
+
+    @staticmethod
+    def _summary_cache_key(workspace_id: UUID) -> str:
+        return f"workspace:summary:{workspace_id}"
+
+    async def _read_summary_cache(self, workspace_id: UUID) -> WorkspaceSummaryResponse | None:
+        if self.redis_client is None or not hasattr(self.redis_client, "get"):
+            return None
+        try:
+            raw = await self.redis_client.get(self._summary_cache_key(workspace_id))
+        except Exception:
+            return None
+        if raw is None:
+            return None
+        if isinstance(raw, bytes):
+            raw = raw.decode("utf-8")
+        if not isinstance(raw, str):
+            return None
+        try:
+            return WorkspaceSummaryResponse.model_validate_json(raw)
+        except Exception:
+            return None
+
+    async def _write_summary_cache(
+        self,
+        workspace_id: UUID,
+        response: WorkspaceSummaryResponse,
+    ) -> None:
+        if self.redis_client is None or not hasattr(self.redis_client, "set"):
+            return
+        try:
+            await self.redis_client.set(
+                self._summary_cache_key(workspace_id),
+                response.model_dump_json().encode("utf-8"),
+                ttl=30,
+            )
+        except Exception:
+            return
+
+    async def _invalidate_summary_cache(self, workspace_id: UUID) -> None:
+        if self.redis_client is None or not hasattr(self.redis_client, "delete"):
+            return
+        try:
+            await self.redis_client.delete(self._summary_cache_key(workspace_id))
+        except Exception:
+            return

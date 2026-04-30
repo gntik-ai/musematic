@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from fnmatch import fnmatch
+from platform.auth.events import WorkspaceConnectorPayload, publish_auth_event
 from platform.common.events.envelope import CorrelationContext
 from platform.common.logging import get_logger
 from platform.common.secret_provider import MockSecretProvider, SecretProvider
@@ -139,6 +140,18 @@ class ConnectorsService:
             )
             set_committed_value(instance, "connector_type", connector_type)
             set_committed_value(instance, "credential_refs", refs)
+            await publish_auth_event(
+                "auth.workspace.connector_added",
+                WorkspaceConnectorPayload(
+                    workspace_id=workspace_id,
+                    connector_instance_id=instance.id,
+                    connector_type_slug=connector_type.slug,
+                ),
+                uuid4(),
+                self.producer,
+                workspace_id=workspace_id,
+                source="platform.connectors",
+            )
             return self._connector_instance_response(instance)
         except Exception as exc:
             if exc.__class__.__name__ == "IntegrityError":
@@ -208,6 +221,18 @@ class ConnectorsService:
             raise ConnectorNotFoundError(connector_id)
         await self.repository.soft_delete_connector_instance(instance)
         await self._invalidate_route_cache(workspace_id, connector_id)
+        await publish_auth_event(
+            "auth.workspace.connector_removed",
+            WorkspaceConnectorPayload(
+                workspace_id=workspace_id,
+                connector_instance_id=connector_id,
+                connector_type_slug=instance.connector_type.slug,
+            ),
+            uuid4(),
+            self.producer,
+            workspace_id=workspace_id,
+            source="platform.connectors",
+        )
 
     async def run_health_check(
         self,

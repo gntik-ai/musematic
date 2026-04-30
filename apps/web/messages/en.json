@@ -278,6 +278,55 @@
         "saveFailed": "Unable to save rate limits",
         "loadFailed": "Unable to load rate limits."
       }
+    },
+    "workspaces": {
+      "title": "Workspaces",
+      "description": "Global admin view of workspace owner surfaces.",
+      "search": "Search workspaces",
+      "open": "Open",
+      "empty": "No matching workspaces."
+    },
+    "ibor": {
+      "title": "IBOR connectors",
+      "description": "Manage LDAP, OIDC, and SCIM identity-broker sync connectors.",
+      "add": "Add IBOR connector",
+      "selectedConnector": "Selected connector",
+      "noConnectors": "No IBOR connectors configured.",
+      "selectConnector": "Select a connector to inspect sync history.",
+      "details": "Details",
+      "test": "Test",
+      "sync": "Sync",
+      "never": "Never",
+      "wizard": {
+        "title": "IBOR connector wizard",
+        "type": "Type",
+        "connection": "Connection",
+        "test": "Test",
+        "mapping": "Mapping",
+        "schedule": "Schedule",
+        "scope": "Scope",
+        "activate": "Activate",
+        "connectorName": "Connector name",
+        "directoryType": "Directory type",
+        "credentialReference": "Credential reference",
+        "syncMode": "Sync mode",
+        "cadenceSeconds": "Cadence seconds",
+        "createDraft": "Create connector draft",
+        "runDiagnostic": "Run stepped diagnostic",
+        "enableConnector": "Enable connector",
+        "syncNow": "Sync now"
+      },
+      "mapping": {
+        "title": "Attribute mapping",
+        "vendorPreset": "Vendor preset"
+      },
+      "history": {
+        "title": "Sync history",
+        "status": "Status",
+        "started": "Started",
+        "counts": "Counts",
+        "nextPage": "Next page"
+      }
     }
   },
   "notifications": {
@@ -627,6 +676,154 @@
           "cancelled": "Cancelled"
         }
       }
+    }
+  },
+  "workspaces": {
+    "list": {
+      "title": "Workspaces",
+      "description": "Open a workspace owner workbench.",
+      "empty": "No workspaces available.",
+      "open": "Open workspace"
+    },
+    "layout": {
+      "badge": "Workspace owner",
+      "workspaceId": "Workspace ID",
+      "nav": {
+        "dashboard": "Dashboard",
+        "members": "Members",
+        "settings": "Settings",
+        "connectors": "Connectors",
+        "quotas": "Quotas",
+        "tags": "Tags",
+        "visibility": "Visibility"
+      }
+    },
+    "dashboard": {
+      "title": "Workspace dashboard",
+      "description": "Operational summary scoped to this workspace.",
+      "cards": {
+        "activeGoals": "Active goals",
+        "executionsInFlight": "Executions in flight",
+        "agentCount": "Agents",
+        "budget": "Budget",
+        "quotaUsage": "Quota usage",
+        "tagSummary": "Tags",
+        "dlpViolations": "DLP violations",
+        "recentActivity": "Recent activity"
+      },
+      "empty": "No recent activity.",
+      "cachedUntil": "Cached until {time}"
+    },
+    "members": {
+      "title": "Members",
+      "description": "Manage workspace roles and 2PA-gated ownership transfer.",
+      "invite": "Invite",
+      "transferOwnership": "Transfer ownership",
+      "role": "Role",
+      "joined": "Joined",
+      "remove": "Remove member",
+      "unavailable": "Members unavailable",
+      "unavailableDescription": "The members endpoint did not return data.",
+      "inviteDialog": {
+        "title": "Invite workspace member",
+        "description": "Add an existing platform user to this workspace with the selected role.",
+        "userId": "User ID",
+        "add": "Add member"
+      },
+      "transferDialog": {
+        "title": "Transfer ownership",
+        "description": "Creates a two-person approval challenge before the owner can be changed.",
+        "newOwnerId": "New owner user ID",
+        "createChallenge": "Create 2PA challenge",
+        "approve": "Approve challenge",
+        "consume": "Consume challenge"
+      }
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Budget, quota, DLP, and residency controls scoped to this workspace.",
+      "tabs": {
+        "budget": "Budget",
+        "quotas": "Quotas",
+        "dlp": "DLP",
+        "residency": "Residency"
+      },
+      "budget": {
+        "monthlyLimit": "Monthly limit",
+        "hardCap": "Hard cap enabled",
+        "threshold": "Alert threshold",
+        "save": "Save budget"
+      },
+      "quotas": {
+        "maxAgents": "Max agents",
+        "maxExecutions": "Max concurrent executions",
+        "maxStorageGb": "Storage quota GB",
+        "save": "Save quotas"
+      },
+      "dlp": {
+        "enabled": "DLP enabled",
+        "policy": "Policy JSON",
+        "save": "Save DLP rules"
+      },
+      "residency": {
+        "region": "Region",
+        "tier": "Tier",
+        "save": "Save residency"
+      }
+    },
+    "connectors": {
+      "title": "Connectors",
+      "description": "Workspace-owned connector instances and delivery health.",
+      "add": "Add connector",
+      "workspaceOwned": "Workspace-owned",
+      "details": "Connector details",
+      "rotateSecret": "Rotate secret",
+      "activity": "Activity",
+      "delivered": "Delivered",
+      "failed": "Failed",
+      "noDeliveries": "No deliveries recorded.",
+      "wizard": {
+        "title": "Connector setup",
+        "description": "Guided setup validates credentials with dry-run connectivity checks before activation.",
+        "prerequisites": "Prerequisites",
+        "credentials": "Credentials",
+        "testConnectivity": "Test connectivity",
+        "scope": "Scope",
+        "activate": "Activate",
+        "dryRunNote": "Connectivity tests call the connector dry-run endpoint and do not create delivery records.",
+        "back": "Back",
+        "next": "Next",
+        "ready": "Ready"
+      }
+    },
+    "quotas": {
+      "title": "Quotas",
+      "description": "Usage and workspace quota configuration.",
+      "usage": "Usage",
+      "configuredLimit": "Configured limit"
+    },
+    "tags": {
+      "title": "Tags",
+      "description": "Workspace labels and tag rules.",
+      "noTags": "No tags configured."
+    },
+    "visibility": {
+      "title": "Visibility",
+      "description": "Read-only graph for workspace zero-trust grants and audit context.",
+      "graph": "Visibility graph",
+      "grantsGiven": "Grants given",
+      "grantsReceived": "Grants received",
+      "auditTrail": "Audit trail",
+      "denyAll": "deny all",
+      "grantsConfigured": "grants configured",
+      "noInboundGrants": "No inbound grants",
+      "inboundUnavailable": "Inbound grant aggregation is not exposed by the current API."
+    },
+    "states": {
+      "loading": "Loading",
+      "unavailable": "Unavailable",
+      "save": "Save",
+      "cancel": "Cancel"
     }
   }
 }

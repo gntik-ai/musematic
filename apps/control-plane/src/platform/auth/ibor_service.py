@@ -100,11 +100,12 @@ class IBORConnectorService:
 
     async def test_connection(self, connector_id: UUID) -> TestConnectionResponse:
         connector = await self._get_connector_or_raise(connector_id)
+        source_type = getattr(connector.source_type, "value", connector.source_type)
         steps = [
             StepResult(step="connector_lookup", status="success", duration_ms=0),
             StepResult(step="credential_reference", status="success", duration_ms=0),
             StepResult(
-                step=f"{connector.source_type.value}_diagnostic_ready",
+                step=f"{source_type}_diagnostic_ready",
                 status="success",
                 duration_ms=0,
             ),

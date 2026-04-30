@@ -65,4 +65,5 @@ markers = [
   "j16_compliance_auditor: compliance auditor journey",
   "j17_dashboard_consumer: dashboard consumer journey",
   "j19_new_user_signup: new user signup journey",
+  "j20_workspace_owner: workspace owner workbench journey",
 ]
