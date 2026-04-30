@@ -54,6 +54,14 @@ def _workspace_headers(workspace_id: UUID) -> dict[str, str]:
     return {"X-Workspace-ID": str(workspace_id)}
 
 
+def _is_env_bootstrapped_provider(item: dict[str, Any]) -> bool:
+    return (
+        item.get("source") == "env_var"
+        and item.get("last_edited_by") is None
+        and str(item.get("client_secret_ref", "")).startswith("secret/data/musematic/")
+    )
+
+
 @pytest.mark.journey
 @pytest.mark.j01_admin
 @pytest.mark.j01_admin_bootstrap
@@ -103,16 +111,16 @@ async def test_j01_admin_bootstrap(
         assert confirmation["status"] == "active"
         assert confirmation["message"] == "MFA enrollment confirmed"
 
-    with journey_step("Verify env-var-bootstrapped Google and GitHub providers exist when configured"):
+    with journey_step("Verify env-var-bootstrapped providers when configured"):
         bootstrap_list = await admin_client.get("/api/v1/admin/oauth/providers")
         bootstrap_list.raise_for_status()
         env_bootstrapped_providers = {
             item["provider_type"]: item
             for item in bootstrap_list.json().get("providers", [])
-            if item.get("source") == "env_var"
+            if _is_env_bootstrapped_provider(item)
         }
         if env_bootstrapped_providers:
-            assert {"google", "github"}.issubset(env_bootstrapped_providers)
+            assert set(env_bootstrapped_providers).issubset({"google", "github"})
 
     with journey_step("Verify OAuth source badge data reads env_var for bootstrapped providers"):
         for provider in env_bootstrapped_providers.values():
