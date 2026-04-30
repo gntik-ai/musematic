@@ -265,12 +265,15 @@ def test_install_script_runs_manual_init_jobs_and_ignores_completed_pods() -> No
 
 def test_install_script_waits_for_redis_before_restarting_platform_deployments() -> None:
     install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
+    values = _load_yaml('tests/e2e/cluster/values-e2e.yaml')
+    redis_cluster = values['redis']['redis-cluster']
     main_section = install_script.split('main() {', 1)[1].split('\n}\n\nmain "$@"', 1)[0]
     redis_wait = install_script.split('wait_for_redis_ready() {', 1)[1].split(
         '\n}\n\nrun_manual_init_jobs',
         1,
     )[0]
 
+    assert redis_cluster['cluster']['init'] is False
     assert 'ensure_redis_cluster_initialized' in install_script
     assert 'redis-cli --cluster create "$@" --cluster-replicas 0 --cluster-yes' in install_script
     assert 'redis-cli -h 127.0.0.1 -p "${REDIS_PORT_NUMBER:-6379}" cluster reset hard' in install_script

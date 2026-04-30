@@ -40,6 +40,7 @@ redis:
     existingSecret: redis-credentials
     existingSecretPasswordKey: password
     cluster:
+      init: false
       nodes: 3
       replicas: 0
     volumePermissions:
