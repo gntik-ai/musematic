@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,13 +13,14 @@ const fields = ["agents", "fleets", "executions", "storage_gb"] as const;
 
 export function QuotaConfigForm({ workspaceId, settings }: { workspaceId: string; settings: WorkspaceSettings }) {
   const mutation = useWorkspaceSettingsMutation(workspaceId);
+  const t = useTranslations("workspaces.settings.quotas");
   const [values, setValues] = useState<Record<string, number>>(() =>
     Object.fromEntries(fields.map((field) => [field, Number(settings.quota_config[field] ?? 0)])),
   );
 
   return (
     <Card>
-      <CardHeader><CardTitle>Quotas</CardTitle></CardHeader>
+      <CardHeader><CardTitle>{t("title")}</CardTitle></CardHeader>
       <CardContent>
         <form
           className="grid gap-4 md:grid-cols-2"
@@ -29,7 +31,7 @@ export function QuotaConfigForm({ workspaceId, settings }: { workspaceId: string
         >
           {fields.map((field) => (
             <div key={field} className="space-y-2">
-              <Label htmlFor={`quota-${field}`}>{field.replace("_", " ")}</Label>
+              <Label htmlFor={`quota-${field}`}>{t(`fields.${field}`)}</Label>
               <Input
                 id={`quota-${field}`}
                 min={0}
@@ -39,7 +41,9 @@ export function QuotaConfigForm({ workspaceId, settings }: { workspaceId: string
               />
             </div>
           ))}
-          <Button className="md:col-span-2" disabled={mutation.isPending} type="submit">Save quotas</Button>
+          <Button className="md:col-span-2" disabled={mutation.isPending} type="submit">
+            {t("save")}
+          </Button>
         </form>
       </CardContent>
     </Card>

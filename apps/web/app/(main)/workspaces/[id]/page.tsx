@@ -1,6 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { WorkspaceOwnerLayout } from "@/components/layout/WorkspaceOwnerLayout";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,11 +18,12 @@ import { TagSummaryCard } from "./_components/TagSummaryCard";
 export default function WorkspaceDashboardPage() {
   const params = useParams<{ id: string }>();
   const summary = useWorkspaceSummary(params.id);
+  const t = useTranslations("workspaces.dashboard");
 
   return (
     <WorkspaceOwnerLayout
-      title="Workspace dashboard"
-      description="Scoped operational view for goals, executions, agents, budget, quotas, tags, DLP, and audit activity."
+      title={t("title")}
+      description={t("description")}
     >
       {summary.isLoading ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -32,7 +34,7 @@ export default function WorkspaceDashboardPage() {
       ) : null}
 
       {summary.isError ? (
-        <EmptyState title="Dashboard unavailable" description="The workspace summary endpoint did not return data." />
+        <EmptyState title={t("unavailable")} description={t("unavailableDescription")} />
       ) : null}
 
       {summary.data ? (

@@ -1,18 +1,21 @@
 "use client";
 
 import { Gauge } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 
 const quotaKeys = ["agents", "fleets", "executions", "storage_gb"] as const;
 
 export function QuotaUsageBarsCard({ quotas }: { quotas: Record<string, unknown> }) {
+  const t = useTranslations("workspaces.dashboard");
+
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-sm font-medium">
           <Gauge className="h-4 w-4" />
-          Quotas
+          {t("cards.quotaUsage")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -23,8 +26,10 @@ export function QuotaUsageBarsCard({ quotas }: { quotas: Record<string, unknown>
           return (
             <div key={key} className="space-y-1">
               <div className="flex justify-between text-xs">
-                <span className="capitalize text-muted-foreground">{key.replace("_", " ")}</span>
-                <span>{limit || "unset"}</span>
+                <span className="capitalize text-muted-foreground">
+                  {t(`quotas.${key}`)}
+                </span>
+                <span>{limit || t("unset")}</span>
               </div>
               <Progress value={value} />
             </div>

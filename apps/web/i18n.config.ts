@@ -31,6 +31,7 @@ export const NAMESPACES = [
   "dashboard",
   "home",
   "admin",
+  "workspaces",
   "common",
   "forms",
   "time",

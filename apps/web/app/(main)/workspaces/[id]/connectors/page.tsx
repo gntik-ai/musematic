@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { PlugZap } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { WorkspaceOwnerLayout } from "@/components/layout/WorkspaceOwnerLayout";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Badge } from "@/components/ui/badge";
@@ -16,17 +17,20 @@ import { ConnectorSetupWizard } from "./_components/ConnectorSetupWizard";
 export default function WorkspaceConnectorsPage() {
   const params = useParams<{ id: string }>();
   const workspaceId = params.id;
+  const t = useTranslations("workspaces.connectors");
   const connectors = useQuery({
     queryKey: ["workspace-owner", workspaceId, "connectors"],
     queryFn: () => listWorkspaceConnectors(workspaceId),
   });
 
   return (
-    <WorkspaceOwnerLayout title="Connectors" description="Workspace-scoped connector setup, health, and delivery diagnostics.">
+    <WorkspaceOwnerLayout title={t("title")} description={t("description")}>
       <div className="space-y-4">
         <div className="flex justify-end"><ConnectorSetupWizard /></div>
         {connectors.isLoading ? <Skeleton className="h-72 rounded-lg" /> : null}
-        {connectors.isError ? <EmptyState title="Connectors unavailable" description="The connectors endpoint did not return data." /> : null}
+        {connectors.isError ? (
+          <EmptyState title={t("unavailable")} description={t("unavailableDescription")} />
+        ) : null}
         {connectors.data?.items.length ? (
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {connectors.data.items.map((connector) => (
@@ -39,12 +43,14 @@ export default function WorkspaceConnectorsPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary">workspace-owned</Badge>
+                    <Badge variant="secondary">{t("workspaceOwned")}</Badge>
                     <Badge variant="outline">{connector.connector_type_slug}</Badge>
                     <Badge variant="outline">{connector.health_status}</Badge>
                   </div>
                   <Button asChild className="w-full" size="sm">
-                    <Link href={`/workspaces/${workspaceId}/connectors/${connector.id}`}>Open detail</Link>
+                    <Link href={`/workspaces/${workspaceId}/connectors/${connector.id}`}>
+                      {t("openDetail")}
+                    </Link>
                   </Button>
                 </CardContent>
               </Card>
@@ -52,7 +58,7 @@ export default function WorkspaceConnectorsPage() {
           </div>
         ) : null}
         {connectors.data && connectors.data.items.length === 0 ? (
-          <EmptyState title="No connectors" description="Add a workspace connector to start routing messages." />
+          <EmptyState title={t("empty")} description={t("emptyDescription")} />
         ) : null}
       </div>
     </WorkspaceOwnerLayout>

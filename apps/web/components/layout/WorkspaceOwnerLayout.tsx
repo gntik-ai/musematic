@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { useParams, usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import {
   BarChart3,
   DatabaseZap,
@@ -18,13 +19,13 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { label: "Dashboard", href: "", icon: BarChart3 },
-  { label: "Members", href: "members", icon: UsersRound },
-  { label: "Settings", href: "settings", icon: Settings2 },
-  { label: "Connectors", href: "connectors", icon: PlugZap },
-  { label: "Quotas", href: "quotas", icon: Gauge },
-  { label: "Tags", href: "tags", icon: Tags },
-  { label: "Visibility", href: "visibility", icon: Eye },
+  { key: "dashboard", href: "", icon: BarChart3 },
+  { key: "members", href: "members", icon: UsersRound },
+  { key: "settings", href: "settings", icon: Settings2 },
+  { key: "connectors", href: "connectors", icon: PlugZap },
+  { key: "quotas", href: "quotas", icon: Gauge },
+  { key: "tags", href: "tags", icon: Tags },
+  { key: "visibility", href: "visibility", icon: Eye },
 ] as const;
 
 export function WorkspaceOwnerLayout({
@@ -38,6 +39,7 @@ export function WorkspaceOwnerLayout({
 }) {
   const params = useParams<{ id: string }>();
   const pathname = usePathname();
+  const t = useTranslations("workspaces.layout");
   const workspaceId = params.id;
   const basePath = `/workspaces/${workspaceId}`;
 
@@ -46,7 +48,7 @@ export function WorkspaceOwnerLayout({
       <div className="flex flex-col gap-4 border-b pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-2">
           <Badge className="w-fit" variant="outline">
-            Workspace owner
+            {t("badge")}
           </Badge>
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
@@ -57,7 +59,9 @@ export function WorkspaceOwnerLayout({
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <DatabaseZap className="h-4 w-4" />
-          <span className="max-w-[240px] truncate">{workspaceId}</span>
+          <span className="max-w-[240px] truncate" title={t("workspaceId")}>
+            {workspaceId}
+          </span>
         </div>
       </div>
 
@@ -80,7 +84,7 @@ export function WorkspaceOwnerLayout({
               >
                 <Link href={href}>
                   <Icon className="h-4 w-4" />
-                  {item.label}
+                  {t(`nav.${item.key}`)}
                 </Link>
               </Button>
             );

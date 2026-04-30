@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Building2, ChevronRight } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { useWorkspaces } from "@/lib/hooks/use-workspaces";
 
 export default function WorkspacesPage() {
   const { workspaces, isLoading, isError } = useWorkspaces();
+  const t = useTranslations("workspaces");
 
   if (isLoading) {
     return (
@@ -23,16 +25,22 @@ export default function WorkspacesPage() {
   }
 
   if (isError) {
-    return <EmptyState icon={Building2} title="Workspaces unavailable" description="The workspace list could not be loaded." />;
+    return (
+      <EmptyState
+        icon={Building2}
+        title={t("list.unavailable")}
+        description={t("list.unavailableDescription")}
+      />
+    );
   }
 
   return (
     <section className="space-y-6">
       <div className="flex flex-col gap-2 border-b pb-5">
-        <Badge className="w-fit" variant="outline">Workspace owner</Badge>
-        <h1 className="text-2xl font-semibold tracking-tight">Workspaces</h1>
+        <Badge className="w-fit" variant="outline">{t("layout.badge")}</Badge>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("list.title")}</h1>
         <p className="max-w-3xl text-sm text-muted-foreground">
-          Open a workspace workbench for dashboard, members, settings, connectors, quotas, tags, and visibility.
+          {t("list.description")}
         </p>
       </div>
       {workspaces.length ? (
@@ -47,11 +55,11 @@ export default function WorkspacesPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="line-clamp-2 min-h-10 text-sm text-muted-foreground">
-                  {workspace.description ?? "Workspace owner workbench"}
+                  {workspace.description ?? t("list.fallbackDescription")}
                 </p>
                 <Button asChild className="w-full" size="sm">
                   <Link href={`/workspaces/${workspace.id}`}>
-                    Open
+                    {t("list.open")}
                     <ChevronRight className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -60,7 +68,11 @@ export default function WorkspacesPage() {
           ))}
         </div>
       ) : (
-        <EmptyState icon={Building2} title="No workspaces" description="No workspace memberships were returned." />
+        <EmptyState
+          icon={Building2}
+          title={t("list.empty")}
+          description={t("list.emptyDescription")}
+        />
       )}
     </section>
   );

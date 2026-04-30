@@ -2,6 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { MoreHorizontal, Trash2 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { WorkspaceOwnerLayout } from "@/components/layout/WorkspaceOwnerLayout";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
@@ -25,24 +26,27 @@ export default function WorkspaceMembersPage() {
   const members = useWorkspaceMembers(workspaceId);
   const updateRole = useUpdateWorkspaceMemberRole(workspaceId);
   const remove = useRemoveWorkspaceMember(workspaceId);
+  const t = useTranslations("workspaces.members");
 
   return (
-    <WorkspaceOwnerLayout title="Members" description="Manage workspace roles and 2PA-gated ownership transfer.">
+    <WorkspaceOwnerLayout title={t("title")} description={t("description")}>
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-end gap-2">
           <TransferOwnershipDialog workspaceId={workspaceId} />
           <InviteMemberDialog workspaceId={workspaceId} />
         </div>
         {members.isLoading ? <Skeleton className="h-72 rounded-lg" /> : null}
-        {members.isError ? <EmptyState title="Members unavailable" description="The members endpoint did not return data." /> : null}
+        {members.isError ? (
+          <EmptyState title={t("unavailable")} description={t("unavailableDescription")} />
+        ) : null}
         {members.data ? (
           <div className="rounded-lg border">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Joined</TableHead>
+                  <TableHead>{t("user")}</TableHead>
+                  <TableHead>{t("role")}</TableHead>
+                  <TableHead>{t("joined")}</TableHead>
                   <TableHead className="w-16"><MoreHorizontal className="h-4 w-4" /></TableHead>
                 </TableRow>
               </TableHeader>
@@ -52,7 +56,7 @@ export default function WorkspaceMembersPage() {
                     <TableCell className="font-mono text-xs">{member.user_id}</TableCell>
                     <TableCell>
                       {member.role === "owner" ? (
-                        <span className="text-sm font-medium">owner</span>
+                        <span className="text-sm font-medium">{t("roles.owner")}</span>
                       ) : (
                         <Select
                           className="w-36"
@@ -66,7 +70,7 @@ export default function WorkspaceMembersPage() {
                         >
                           {roles.map((role) => (
                             <option key={role} value={role}>
-                              {role}
+                              {t(`roles.${role}`)}
                             </option>
                           ))}
                         </Select>
@@ -75,7 +79,7 @@ export default function WorkspaceMembersPage() {
                     <TableCell>{new Date(member.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>
                       <Button
-                        aria-label="Remove member"
+                        aria-label={t("remove")}
                         disabled={member.role === "owner"}
                         onClick={() => remove.mutate(member.user_id)}
                         size="icon"

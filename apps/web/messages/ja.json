@@ -284,7 +284,9 @@
       "description": "TODO-translation: Global admin view of workspace owner surfaces.",
       "search": "TODO-translation: Search workspaces",
       "open": "TODO-translation: Open",
-      "empty": "TODO-translation: No matching workspaces."
+      "empty": "TODO-translation: No matching workspaces.",
+      "name": "TODO-translation: Name",
+      "action": "TODO-translation: Action"
     },
     "ibor": {
       "title": "TODO-translation: IBOR connectors",
@@ -314,7 +316,22 @@
         "createDraft": "TODO-translation: Create connector draft",
         "runDiagnostic": "TODO-translation: Run stepped diagnostic",
         "enableConnector": "TODO-translation: Enable connector",
-        "syncNow": "TODO-translation: Sync now"
+        "syncNow": "TODO-translation: Sync now",
+        "defaultName": "TODO-translation: Corporate directory",
+        "stepsAria": "TODO-translation: IBOR setup steps",
+        "enabledAfterActivation": "TODO-translation: Enabled after activation",
+        "scopeDescription": "TODO-translation: Directory scope is constrained by the credential reference and role mappings. Workspace scope can be added per mapping row when a group should map into a workspace-specific role.",
+        "draftCreated": "TODO-translation: Connector draft created.",
+        "draftRequired": "TODO-translation: Create the connector draft before activation.",
+        "types": {
+          "ldap": "TODO-translation: LDAP",
+          "oidc": "TODO-translation: OIDC",
+          "scim": "TODO-translation: SCIM"
+        },
+        "syncModes": {
+          "pull": "TODO-translation: Pull",
+          "push": "TODO-translation: Push"
+        }
       },
       "mapping": {
         "title": "TODO-translation: Attribute mapping",
@@ -326,6 +343,15 @@
         "started": "TODO-translation: Started",
         "counts": "TODO-translation: Counts",
         "nextPage": "TODO-translation: Next page"
+      },
+      "enabled": "TODO-translation: Enabled",
+      "disabled": "TODO-translation: Disabled",
+      "cadence": "TODO-translation: Cadence: {seconds}s",
+      "table": {
+        "name": "TODO-translation: Name",
+        "type": "TODO-translation: Type",
+        "lastRun": "TODO-translation: Last run",
+        "actions": "TODO-translation: Actions"
       }
     }
   },
@@ -683,7 +709,11 @@
       "title": "TODO-translation: Workspaces",
       "description": "TODO-translation: Open a workspace owner workbench.",
       "empty": "TODO-translation: No workspaces available.",
-      "open": "TODO-translation: Open workspace"
+      "open": "TODO-translation: Open workspace",
+      "fallbackDescription": "TODO-translation: Workspace owner workbench",
+      "unavailable": "TODO-translation: Workspaces unavailable",
+      "unavailableDescription": "TODO-translation: The workspace list could not be loaded.",
+      "emptyDescription": "TODO-translation: No workspace memberships were returned."
     },
     "layout": {
       "badge": "TODO-translation: Workspace owner",
@@ -712,7 +742,19 @@
         "recentActivity": "TODO-translation: Recent activity"
       },
       "empty": "TODO-translation: No recent activity.",
-      "cachedUntil": "TODO-translation: Cached until {time}"
+      "cachedUntil": "TODO-translation: Cached until {time}",
+      "unavailable": "TODO-translation: Dashboard unavailable",
+      "unavailableDescription": "TODO-translation: The workspace summary endpoint did not return data.",
+      "unset": "TODO-translation: unset",
+      "noTags": "TODO-translation: No tags",
+      "eventFallback": "TODO-translation: Workspace event",
+      "latestActivity": "TODO-translation: Latest workspace activity",
+      "quotas": {
+        "agents": "TODO-translation: agents",
+        "fleets": "TODO-translation: fleets",
+        "executions": "TODO-translation: executions",
+        "storage_gb": "TODO-translation: storage GB"
+      }
     },
     "members": {
       "title": "TODO-translation: Members",
@@ -736,7 +778,16 @@
         "newOwnerId": "TODO-translation: New owner user ID",
         "createChallenge": "TODO-translation: Create 2PA challenge",
         "approve": "TODO-translation: Approve challenge",
-        "consume": "TODO-translation: Consume challenge"
+        "consume": "TODO-translation: Consume challenge",
+        "challengeStatus": "TODO-translation: Challenge {status}",
+        "expires": "TODO-translation: Expires {time}"
+      },
+      "user": "TODO-translation: User",
+      "roles": {
+        "owner": "TODO-translation: owner",
+        "admin": "TODO-translation: admin",
+        "member": "TODO-translation: member",
+        "viewer": "TODO-translation: viewer"
       }
     },
     "settings": {
@@ -752,24 +803,37 @@
         "monthlyLimit": "TODO-translation: Monthly limit",
         "hardCap": "TODO-translation: Hard cap enabled",
         "threshold": "TODO-translation: Alert threshold",
-        "save": "TODO-translation: Save budget"
+        "save": "TODO-translation: Save budget",
+        "title": "TODO-translation: Budget"
       },
       "quotas": {
         "maxAgents": "TODO-translation: Max agents",
         "maxExecutions": "TODO-translation: Max concurrent executions",
         "maxStorageGb": "TODO-translation: Storage quota GB",
-        "save": "TODO-translation: Save quotas"
+        "save": "TODO-translation: Save quotas",
+        "title": "TODO-translation: Quotas",
+        "fields": {
+          "agents": "TODO-translation: Agents",
+          "fleets": "TODO-translation: Fleets",
+          "executions": "TODO-translation: Executions",
+          "storage_gb": "TODO-translation: Storage GB"
+        }
       },
       "dlp": {
         "enabled": "TODO-translation: DLP enabled",
         "policy": "TODO-translation: Policy JSON",
-        "save": "TODO-translation: Save DLP rules"
+        "save": "TODO-translation: Save DLP rules",
+        "title": "TODO-translation: DLP rules",
+        "ruleIds": "TODO-translation: Rule IDs"
       },
       "residency": {
         "region": "TODO-translation: Region",
         "tier": "TODO-translation: Tier",
-        "save": "TODO-translation: Save residency"
-      }
+        "save": "TODO-translation: Save residency",
+        "title": "TODO-translation: Residency"
+      },
+      "unavailable": "TODO-translation: Settings unavailable",
+      "unavailableDescription": "TODO-translation: The workspace settings endpoint did not return data."
     },
     "connectors": {
       "title": "TODO-translation: Connectors",
@@ -793,19 +857,62 @@
         "dryRunNote": "TODO-translation: Connectivity tests call the connector dry-run endpoint and do not create delivery records.",
         "back": "TODO-translation: Back",
         "next": "TODO-translation: Next",
-        "ready": "TODO-translation: Ready"
+        "ready": "TODO-translation: Ready",
+        "add": "TODO-translation: Add connector",
+        "stepStatus": "TODO-translation: Step {current}: {step}. Connectivity tests call the connector dry-run endpoint and do not create delivery records.",
+        "slack": {
+          "title": "TODO-translation: Slack prerequisites",
+          "description": "TODO-translation: Use a bot token with auth.test access and a signing secret.",
+          "teamId": "TODO-translation: Team ID",
+          "botTokenRef": "TODO-translation: Bot token secret ref"
+        },
+        "telegram": {
+          "title": "TODO-translation: Telegram prerequisites",
+          "description": "TODO-translation: Use a bot token that can answer Telegram getMe.",
+          "botTokenRef": "TODO-translation: Bot token secret ref"
+        },
+        "email": {
+          "title": "TODO-translation: Email prerequisites",
+          "description": "TODO-translation: Configure IMAP and SMTP credentials; test uses IMAP NOOP.",
+          "imapHost": "TODO-translation: IMAP host",
+          "smtpHost": "TODO-translation: SMTP host"
+        },
+        "webhook": {
+          "title": "TODO-translation: Webhook prerequisites",
+          "description": "TODO-translation: Destination must accept HEAD requests before activation.",
+          "destinationUrl": "TODO-translation: Destination URL"
+        }
+      },
+      "detailsDescription": "TODO-translation: Inspect workspace-owned connector status, activity, and secret rotation.",
+      "openDetail": "TODO-translation: Open detail",
+      "empty": "TODO-translation: No connectors",
+      "emptyDescription": "TODO-translation: Add a workspace connector to start routing messages.",
+      "unavailable": "TODO-translation: Connectors unavailable",
+      "unavailableDescription": "TODO-translation: The connectors endpoint did not return data.",
+      "rotate": {
+        "trigger": "TODO-translation: Rotate secret",
+        "title": "TODO-translation: Rotate connector secret",
+        "description": "TODO-translation: The value is write-only and should be submitted to the backend secret rotation endpoint.",
+        "newSecret": "TODO-translation: New secret",
+        "confirm": "TODO-translation: Confirm rotation"
       }
     },
     "quotas": {
       "title": "TODO-translation: Quotas",
       "description": "TODO-translation: Usage and workspace quota configuration.",
       "usage": "TODO-translation: Usage",
-      "configuredLimit": "TODO-translation: Configured limit"
+      "configuredLimit": "TODO-translation: Configured limit",
+      "unavailable": "TODO-translation: Quotas unavailable",
+      "unavailableDescription": "TODO-translation: The workspace settings endpoint did not return data."
     },
     "tags": {
       "title": "TODO-translation: Tags",
       "description": "TODO-translation: Workspace labels and tag rules.",
-      "noTags": "TODO-translation: No tags configured."
+      "noTags": "TODO-translation: No tags configured.",
+      "cardTitle": "TODO-translation: Workspace tags",
+      "tags": "TODO-translation: Tags",
+      "labels": "TODO-translation: Labels",
+      "noLabels": "TODO-translation: No labels configured."
     },
     "visibility": {
       "title": "TODO-translation: Visibility",
@@ -817,7 +924,22 @@
       "denyAll": "TODO-translation: deny all",
       "grantsConfigured": "TODO-translation: grants configured",
       "noInboundGrants": "TODO-translation: No inbound grants",
-      "inboundUnavailable": "TODO-translation: Inbound grant aggregation is not exposed by the current API."
+      "inboundUnavailable": "TODO-translation: Inbound grant aggregation is not exposed by the current API.",
+      "graphSubtitle": "TODO-translation: XYFlow layout with Dagre positioning.",
+      "unavailable": "TODO-translation: Visibility unavailable",
+      "unavailableDescription": "TODO-translation: The visibility endpoint did not return data.",
+      "auditUnavailable": "TODO-translation: Visibility audit entries are available from the audit-chain query surface.",
+      "currentWorkspace": "TODO-translation: Current workspace",
+      "grantGiven": "TODO-translation: grant given",
+      "allows": "TODO-translation: allows",
+      "workspaceGrant": "TODO-translation: Workspace grant",
+      "detail": {
+        "title": "TODO-translation: Grant detail",
+        "direction": "TODO-translation: Direction",
+        "label": "TODO-translation: Label",
+        "pattern": "TODO-translation: Pattern",
+        "empty": "TODO-translation: Select a graph edge to inspect a visibility grant."
+      }
     },
     "states": {
       "loading": "TODO-translation: Loading",

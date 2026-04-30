@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CheckCircle2, PlugZap } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +19,7 @@ import { EmailWizardSteps } from "./EmailWizardSteps";
 import { TelegramWizardSteps } from "./TelegramWizardSteps";
 import { WebhookWizardSteps } from "./WebhookWizardSteps";
 
-const steps = ["Prerequisites", "Credentials", "Test connectivity", "Scope", "Activate"] as const;
+const steps = ["prerequisites", "credentials", "testConnectivity", "scope", "activate"] as const;
 const connectorTypes = ["slack", "telegram", "email", "webhook"] as const;
 
 function ConnectorSpecificSteps({ type }: { type: (typeof connectorTypes)[number] }) {
@@ -38,20 +39,21 @@ export function ConnectorSetupWizard() {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<(typeof connectorTypes)[number]>("slack");
   const [stepIndex, setStepIndex] = useState(0);
+  const t = useTranslations("workspaces.connectors.wizard");
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button size="sm">
           <PlugZap className="h-4 w-4" />
-          Add connector
+          {t("add")}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Connector setup</DialogTitle>
+          <DialogTitle>{t("title")}</DialogTitle>
           <DialogDescription>
-            Guided setup validates credentials with dry-run connectivity checks before activation.
+            {t("description")}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-5">
@@ -63,7 +65,7 @@ export function ConnectorSetupWizard() {
                 variant={index === stepIndex ? "default" : "outline"}
               >
                 {index < stepIndex ? <CheckCircle2 className="mr-1 h-3 w-3" /> : null}
-                {step}
+                {t(step)}
               </Badge>
             ))}
           </div>
@@ -80,14 +82,14 @@ export function ConnectorSetupWizard() {
           </Select>
           <ConnectorSpecificSteps type={type} />
           <div className="rounded-md border p-3 text-sm text-muted-foreground">
-            Step {stepIndex + 1}: {steps[stepIndex]}. Connectivity tests call the connector dry-run endpoint and do not create delivery records.
+            {t("stepStatus", { current: stepIndex + 1, step: t(steps[stepIndex]) })}
           </div>
           <div className="flex justify-between">
             <Button disabled={stepIndex === 0} onClick={() => setStepIndex((value) => Math.max(0, value - 1))} variant="outline">
-              Back
+              {t("back")}
             </Button>
             <Button onClick={() => setStepIndex((value) => Math.min(steps.length - 1, value + 1))}>
-              {stepIndex === steps.length - 1 ? "Ready" : "Next"}
+              {stepIndex === steps.length - 1 ? t("ready") : t("next")}
             </Button>
           </div>
         </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { WorkspaceOwnerLayout } from "@/components/layout/WorkspaceOwnerLayout";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,18 +17,21 @@ export default function WorkspaceSettingsPage() {
   const params = useParams<{ id: string }>();
   const settings = useWorkspaceSettings(params.id);
   const [tab, setTab] = useState("budget");
+  const t = useTranslations("workspaces.settings");
 
   return (
-    <WorkspaceOwnerLayout title="Settings" description="Budget, quota, DLP, and residency controls scoped to this workspace.">
+    <WorkspaceOwnerLayout title={t("title")} description={t("description")}>
       {settings.isLoading ? <Skeleton className="h-96 rounded-lg" /> : null}
-      {settings.isError ? <EmptyState title="Settings unavailable" description="The workspace settings endpoint did not return data." /> : null}
+      {settings.isError ? (
+        <EmptyState title={t("unavailable")} description={t("unavailableDescription")} />
+      ) : null}
       {settings.data ? (
         <Tabs>
           <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
-            <TabsTrigger onClick={() => setTab("budget")}>Budget</TabsTrigger>
-            <TabsTrigger onClick={() => setTab("quotas")}>Quotas</TabsTrigger>
-            <TabsTrigger onClick={() => setTab("dlp")}>DLP</TabsTrigger>
-            <TabsTrigger onClick={() => setTab("residency")}>Residency</TabsTrigger>
+            <TabsTrigger onClick={() => setTab("budget")}>{t("tabs.budget")}</TabsTrigger>
+            <TabsTrigger onClick={() => setTab("quotas")}>{t("tabs.quotas")}</TabsTrigger>
+            <TabsTrigger onClick={() => setTab("dlp")}>{t("tabs.dlp")}</TabsTrigger>
+            <TabsTrigger onClick={() => setTab("residency")}>{t("tabs.residency")}</TabsTrigger>
           </TabsList>
           {tab === "budget" ? (
           <TabsContent>

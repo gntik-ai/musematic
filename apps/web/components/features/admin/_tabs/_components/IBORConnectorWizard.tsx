@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CheckCircle2, Play, ServerCog } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,19 +15,20 @@ import type { IBORConnector, IBORConnectorCreate, TestConnectionResponse } from 
 import { AttributeMappingWizard } from "./AttributeMappingWizard";
 
 const steps = [
-  "Type",
-  "Connection",
-  "Test",
-  "Mapping",
-  "Schedule",
-  "Scope",
-  "Activate",
+  "type",
+  "connection",
+  "test",
+  "mapping",
+  "schedule",
+  "scope",
+  "activate",
 ] as const;
 
 export function IBORConnectorWizard({ onCreated }: { onCreated?: (connector: IBORConnector) => void }) {
+  const t = useTranslations("admin.ibor.wizard");
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<IBORConnectorCreate>({
-    name: "Corporate directory",
+    name: t("defaultName"),
     source_type: "ldap",
     sync_mode: "pull",
     cadence_seconds: 3600,
@@ -66,11 +68,11 @@ export function IBORConnectorWizard({ onCreated }: { onCreated?: (connector: IBO
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <ServerCog className="h-4 w-4" />
-          IBOR connector wizard
+          {t("title")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
-        <ol className="grid gap-2 md:grid-cols-7" aria-label="IBOR setup steps">
+        <ol className="grid gap-2 md:grid-cols-7" aria-label={t("stepsAria")}>
           {steps.map((label, index) => (
             <li key={label}>
               <Button
@@ -81,7 +83,7 @@ export function IBORConnectorWizard({ onCreated }: { onCreated?: (connector: IBO
                 onClick={() => setStep(index)}
               >
                 {index < step ? <CheckCircle2 className="h-4 w-4" /> : null}
-                {label}
+                {t(label)}
               </Button>
             </li>
           ))}
@@ -90,7 +92,7 @@ export function IBORConnectorWizard({ onCreated }: { onCreated?: (connector: IBO
         {step === 0 ? (
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="ibor-name">Connector name</Label>
+              <Label htmlFor="ibor-name">{t("connectorName")}</Label>
               <Input
                 id="ibor-name"
                 value={form.name}
@@ -98,7 +100,7 @@ export function IBORConnectorWizard({ onCreated }: { onCreated?: (connector: IBO
               />
             </div>
             <div className="space-y-2">
-              <Label>Directory type</Label>
+              <Label>{t("directoryType")}</Label>
               <Select
                 value={form.source_type}
                 onChange={(event) =>
@@ -108,9 +110,9 @@ export function IBORConnectorWizard({ onCreated }: { onCreated?: (connector: IBO
                   })
                 }
               >
-                <option value="ldap">LDAP</option>
-                <option value="oidc">OIDC</option>
-                <option value="scim">SCIM</option>
+                <option value="ldap">{t("types.ldap")}</option>
+                <option value="oidc">{t("types.oidc")}</option>
+                <option value="scim">{t("types.scim")}</option>
               </Select>
             </div>
           </div>
@@ -119,7 +121,7 @@ export function IBORConnectorWizard({ onCreated }: { onCreated?: (connector: IBO
         {step === 1 ? (
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="ibor-secret-ref">Credential reference</Label>
+              <Label htmlFor="ibor-secret-ref">{t("credentialReference")}</Label>
               <Input
                 id="ibor-secret-ref"
                 value={form.credential_ref}
@@ -129,7 +131,7 @@ export function IBORConnectorWizard({ onCreated }: { onCreated?: (connector: IBO
               />
             </div>
             <div className="space-y-2">
-              <Label>Sync mode</Label>
+              <Label>{t("syncMode")}</Label>
               <Select
                 value={form.sync_mode}
                 onChange={(event) =>
@@ -139,12 +141,12 @@ export function IBORConnectorWizard({ onCreated }: { onCreated?: (connector: IBO
                   })
                 }
               >
-                <option value="pull">Pull</option>
-                <option value="push">Push</option>
+                <option value="pull">{t("syncModes.pull")}</option>
+                <option value="push">{t("syncModes.push")}</option>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="ibor-cadence">Cadence seconds</Label>
+              <Label htmlFor="ibor-cadence">{t("cadenceSeconds")}</Label>
               <Input
                 id="ibor-cadence"
                 min={60}
@@ -161,7 +163,7 @@ export function IBORConnectorWizard({ onCreated }: { onCreated?: (connector: IBO
               type="button"
               onClick={handleCreate}
             >
-              Create connector draft
+              {t("createDraft")}
             </Button>
           </div>
         ) : null}
@@ -174,7 +176,7 @@ export function IBORConnectorWizard({ onCreated }: { onCreated?: (connector: IBO
               onClick={handleTest}
             >
               <Play className="h-4 w-4" />
-              Run stepped diagnostic
+              {t("runDiagnostic")}
             </Button>
             <div className="grid gap-2">
               {(diagnostic?.steps ?? []).map((item) => (
@@ -194,7 +196,7 @@ export function IBORConnectorWizard({ onCreated }: { onCreated?: (connector: IBO
         {step === 4 ? (
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="ibor-schedule">Sync cadence seconds</Label>
+              <Label htmlFor="ibor-schedule">{t("cadenceSeconds")}</Label>
               <Input
                 id="ibor-schedule"
                 min={60}
@@ -207,19 +209,18 @@ export function IBORConnectorWizard({ onCreated }: { onCreated?: (connector: IBO
             </div>
             <div className="flex items-end gap-3 rounded-md border p-3">
               <Switch
-                aria-label="Enable connector"
+                aria-label={t("enableConnector")}
                 checked={form.enabled}
                 onCheckedChange={(enabled) => setForm({ ...form, enabled })}
               />
-              <span className="text-sm">Enabled after activation</span>
+              <span className="text-sm">{t("enabledAfterActivation")}</span>
             </div>
           </div>
         ) : null}
 
         {step === 5 ? (
           <div className="rounded-md border p-3 text-sm text-muted-foreground">
-            Directory scope is constrained by the credential reference and role mappings. Workspace
-            scope can be added per mapping row when a group should map into a workspace-specific role.
+            {t("scopeDescription")}
           </div>
         ) : null}
 
@@ -228,7 +229,7 @@ export function IBORConnectorWizard({ onCreated }: { onCreated?: (connector: IBO
             <div>
               <p className="font-medium">{created?.name ?? form.name}</p>
               <p className="text-sm text-muted-foreground">
-                {created ? "Connector draft created." : "Create the connector draft before activation."}
+                {created ? t("draftCreated") : t("draftRequired")}
               </p>
             </div>
             <Button
@@ -236,7 +237,7 @@ export function IBORConnectorWizard({ onCreated }: { onCreated?: (connector: IBO
               type="button"
               onClick={() => connectorId && syncNow.mutate(connectorId)}
             >
-              Sync now
+              {t("syncNow")}
             </Button>
           </div>
         ) : null}

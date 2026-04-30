@@ -13,6 +13,7 @@ import {
   type Edge,
   type Node,
 } from "@xyflow/react";
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import type { VisibilityGrant } from "@/lib/schemas/workspace-owner";
 import { GrantDetailPanel, type GrantDetail } from "./GrantDetailPanel";
@@ -25,18 +26,21 @@ const NODE_WIDTH = 230;
 const NODE_HEIGHT = 92;
 
 export function VisibilityGraph({ grant }: { grant: VisibilityGrant }) {
+  const t = useTranslations("workspaces.visibility");
   const [selectedGrant, setSelectedGrant] = useState<GrantDetail | null>(null);
-  const { nodes, edges, details } = useMemo(() => buildGraph(grant), [grant]);
+  const { nodes, edges, details } = useMemo(() => buildGraph(grant, t), [grant, t]);
 
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div className="overflow-hidden rounded-lg border">
         <div className="flex items-center justify-between border-b p-3">
           <div>
-            <h2 className="text-base font-semibold">Visibility graph</h2>
-            <p className="text-xs text-muted-foreground">XYFlow layout with Dagre positioning.</p>
+            <h2 className="text-base font-semibold">{t("graph")}</h2>
+            <p className="text-xs text-muted-foreground">{t("graphSubtitle")}</p>
           </div>
-          <Badge variant={edges.length ? "secondary" : "outline"}>{edges.length ? "grants configured" : "deny all"}</Badge>
+          <Badge variant={edges.length ? "secondary" : "outline"}>
+            {edges.length ? t("grantsConfigured") : t("denyAll")}
+          </Badge>
         </div>
         <div className="h-[620px]">
           <ReactFlowProvider>
@@ -58,7 +62,10 @@ export function VisibilityGraph({ grant }: { grant: VisibilityGrant }) {
   );
 }
 
-function buildGraph(grant: VisibilityGrant): {
+function buildGraph(
+  grant: VisibilityGrant,
+  t: ReturnType<typeof useTranslations>,
+): {
   nodes: Node<VisibilityNodeData>[];
   edges: Edge[];
   details: Map<string, GrantDetail>;
@@ -76,8 +83,8 @@ function buildGraph(grant: VisibilityGrant): {
     data: {
       label: (
         <NodeLabel
-          title="Current workspace"
-          subtitle={patterns.length === 0 ? "deny all" : grant.workspace_id}
+          title={t("currentWorkspace")}
+          subtitle={patterns.length === 0 ? t("denyAll") : grant.workspace_id}
         />
       ),
     },
@@ -95,11 +102,11 @@ function buildGraph(grant: VisibilityGrant): {
     nodes.push({
       id: nodeId,
       position: { x: 0, y: 0 },
-      data: { label: <NodeLabel title={pattern} subtitle="grant given" /> },
+      data: { label: <NodeLabel title={pattern} subtitle={t("grantGiven")} /> },
       style: nodeStyle("hsl(var(--muted))"),
     });
-    edges.push({ id: edgeId, source: workspaceNode, target: nodeId, label: "allows" });
-    details.set(edgeId, { direction: "given", label: "Workspace grant", pattern });
+    edges.push({ id: edgeId, source: workspaceNode, target: nodeId, label: t("allows") });
+    details.set(edgeId, { direction: "given", label: t("workspaceGrant"), pattern });
   });
 
   dagre.layout(graph);

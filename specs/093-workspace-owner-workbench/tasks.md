@@ -39,7 +39,7 @@ Independent-test discipline: every US MUST be verifiable in isolation. US1 = wor
 
 ### Alembic migration + model extensions
 
-- [ ] T005 [W18A] [US1, US3, US4] Create `apps/control-plane/migrations/versions/071_workspace_owner_workbench.py` (or verified next-sequence number from T002) per plan.md design D1 + D2: 3 ALTER TABLE statements adding JSONB columns to `workspaces_settings` per spec correction §1 — `quota_config: JSONB DEFAULT '{}'`, `dlp_rules: JSONB DEFAULT '{}'`, `residency_config: JSONB DEFAULT '{}'`. CREATE TABLE `two_person_approval_challenges` per spec correction §12 + design D2: columns `id` UUID PK, `action_type` ENUM, `action_payload` JSONB NOT NULL, `initiator_id` UUID FK users.id, `co_signer_id` UUID FK users.id NULL, `status` ENUM `pending`/`approved`/`consumed`/`expired` DEFAULT 'pending', `created_at` timestamptz, `expires_at` timestamptz NOT NULL, `approved_at` timestamptz NULL, `consumed_at` timestamptz NULL. Reversible downgrade.
+- [X] T005 [W18A] [US1, US3, US4] Create `apps/control-plane/migrations/versions/071_workspace_owner_workbench.py` (or verified next-sequence number from T002) per plan.md design D1 + D2: 3 ALTER TABLE statements adding JSONB columns to `workspaces_settings` per spec correction §1 — `quota_config: JSONB DEFAULT '{}'`, `dlp_rules: JSONB DEFAULT '{}'`, `residency_config: JSONB DEFAULT '{}'`. CREATE TABLE `two_person_approval_challenges` per spec correction §12 + design D2: columns `id` UUID PK, `action_type` ENUM, `action_payload` JSONB NOT NULL, `initiator_id` UUID FK users.id, `co_signer_id` UUID FK users.id NULL, `status` ENUM `pending`/`approved`/`consumed`/`expired` DEFAULT 'pending', `created_at` timestamptz, `expires_at` timestamptz NOT NULL, `approved_at` timestamptz NULL, `consumed_at` timestamptz NULL. Reversible downgrade.
 - [ ] T006 [W18A] Run `alembic upgrade head` locally; verify migration applies cleanly + downgrade -1 removes 3 columns + 1 table without data loss in existing 5 ARRAY + 1 JSONB columns of `workspaces_settings`.
 - [X] T007 [W18A] [US1, US3, US4] Modify `apps/control-plane/src/platform/workspaces/models.py:208-248` per plan.md design D1: add 3 new mapped columns on `WorkspaceSettings` — `quota_config: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)`, `dlp_rules: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)`, `residency_config: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)`. Preserve the existing 5 ARRAY + 1 `cost_budget` JSONB unchanged.
 
@@ -157,8 +157,8 @@ Independent-test discipline: every US MUST be verifiable in isolation. US1 = wor
 
 ### i18n integration
 
-- [ ] T073 [W18B] [US1, US2, US3, US4, US5, US6] Modify `apps/web/messages/en.json`: add ~80 new i18n keys under hierarchical namespaces — `workspaces.{dashboard,members,settings,connectors,quotas,tags,visibility}.*` + `admin.{ibor,workspaces}.*`. Reference these in all new TSX components via `useTranslations(...)` from `next-intl`.
-- [ ] T074 [P] [W18B] Modify `apps/web/messages/{de,es,fr,it,zh-CN,ja}.json`: copy English keys with TODO-translation markers per UPD-088's parity check; vendor translates per UPD-039 / FR-620.
+- [X] T073 [W18B] [US1, US2, US3, US4, US5, US6] Modify `apps/web/messages/en.json`: add ~80 new i18n keys under hierarchical namespaces — `workspaces.{dashboard,members,settings,connectors,quotas,tags,visibility}.*` + `admin.{ibor,workspaces}.*`. Reference these in all new TSX components via `useTranslations(...)` from `next-intl`.
+- [X] T074 [P] [W18B] Modify `apps/web/messages/{de,es,fr,it,zh-CN,ja}.json`: copy English keys with TODO-translation markers per UPD-088's parity check; vendor translates per UPD-039 / FR-620.
 - [X] T075 [P] [W18B] Run `pnpm test:i18n-parity` — verify all 6 locale catalogs have all new keys.
 
 ### Accessibility + frontend tests
@@ -196,7 +196,7 @@ Independent-test discipline: every US MUST be verifiable in isolation. US1 = wor
 
 ### Matrix-CI integration
 
-- [ ] T089 [W18C] [US1, US2, US3, US4, US5, US6] Modify `.github/workflows/ci.yml`: add `tests/e2e/suites/workspace_owner/` to UPD-040's existing matrix-CI test path (3 modes: `mock`, `kubernetes`, `vault`). Verify all 7 test files pass in all 3 modes.
+- [X] T089 [W18C] [US1, US2, US3, US4, US5, US6] Modify `.github/workflows/ci.yml`: add `tests/e2e/suites/workspace_owner/` to UPD-040's existing matrix-CI test path (3 modes: `mock`, `kubernetes`, `vault`). Verify all 7 test files pass in all 3 modes.
 - [ ] T090 [W18C] Verify SC-018: J20 + J01 extension pass on the matrix CI for all 3 modes. If any mode fails, debug + fix.
 - [ ] T091 [W18C] Run `pytest tests/e2e/suites/workspace_owner/ -v` against a kind cluster with the platform running → 7 test files pass.
 

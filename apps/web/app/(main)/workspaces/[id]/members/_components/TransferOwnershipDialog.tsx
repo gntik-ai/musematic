@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,6 +25,7 @@ export function TransferOwnershipDialog({ workspaceId }: { workspaceId: string }
   const challenge = useChallenge(challengeId, { poll: Boolean(challengeId) });
   const consume = useConsumeChallenge();
   const approved = challenge.data?.status === "approved";
+  const t = useTranslations("workspaces.members.transferDialog");
 
   useEffect(() => {
     if (!open) {
@@ -37,20 +39,20 @@ export function TransferOwnershipDialog({ workspaceId }: { workspaceId: string }
       <DialogTrigger asChild>
         <Button size="sm" variant="outline">
           <ShieldCheck className="h-4 w-4" />
-          Transfer ownership
+          {t("title")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Transfer workspace ownership</DialogTitle>
+          <DialogTitle>{t("title")}</DialogTitle>
           <DialogDescription>
-            Ownership transfer creates a server-side 2PA challenge that a platform admin must approve.
+            {t("description")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="new-owner-id">New owner ID</Label>
+            <Label htmlFor="new-owner-id">{t("newOwnerId")}</Label>
             <Input
               id="new-owner-id"
               onChange={(event) => setNewOwnerId(event.target.value)}
@@ -67,15 +69,17 @@ export function TransferOwnershipDialog({ workspaceId }: { workspaceId: string }
               });
             }}
           >
-            Initiate 2PA challenge
+            {t("createChallenge")}
           </Button>
 
           {challengeId ? (
             <div className="rounded-md border p-3 text-sm">
-              <p className="font-medium">Challenge {challenge.data?.status ?? "pending"}</p>
+              <p className="font-medium">
+                {t("challengeStatus", { status: challenge.data?.status ?? "pending" })}
+              </p>
               <p className="mt-1 text-xs text-muted-foreground">{challengeId}</p>
               <p className="mt-2 text-xs text-muted-foreground">
-                Expires {challenge.data?.expires_at ?? transfer.data?.expires_at}
+                {t("expires", { time: challenge.data?.expires_at ?? transfer.data?.expires_at })}
               </p>
             </div>
           ) : null}
@@ -91,7 +95,7 @@ export function TransferOwnershipDialog({ workspaceId }: { workspaceId: string }
               });
             }}
           >
-            Consume approved challenge
+            {t("consume")}
           </Button>
         </div>
       </DialogContent>

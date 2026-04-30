@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
-from platform.two_person_approval.models import TwoPersonApprovalChallenge
+from platform.two_person_approval.models import ChallengeStatus, TwoPersonApprovalChallenge
 from platform.two_person_approval.service import (
     TwoPersonApprovalConflictError,
     TwoPersonApprovalError,
@@ -59,11 +59,13 @@ def _challenge(
         action_type="workspace_transfer_ownership",
         action_payload={"workspace_id": str(uuid4()), "new_owner_id": str(uuid4())},
         initiator_id=initiator_id or uuid4(),
+        status=ChallengeStatus.consumed if consumed else ChallengeStatus.pending,
         created_at=now,
         expires_at=expires_at or now + timedelta(minutes=5),
-        consumed=consumed,
+        consumed_at=now if consumed else None,
     )
     if approved:
+        challenge.status = ChallengeStatus.approved
         challenge.approved_at = now
         challenge.co_signer_id = uuid4()
     return challenge

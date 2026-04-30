@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { WorkspaceOwnerLayout } from "@/components/layout/WorkspaceOwnerLayout";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,29 +18,32 @@ export default function WorkspaceVisibilityPage() {
     queryFn: () => getVisibilityGrant(params.id),
   });
   const [tab, setTab] = useState("graph");
+  const t = useTranslations("workspaces.visibility");
 
   return (
-    <WorkspaceOwnerLayout title="Visibility" description="Read-only graph for workspace zero-trust grants and audit context.">
+    <WorkspaceOwnerLayout title={t("title")} description={t("description")}>
       {visibility.isLoading ? <Skeleton className="h-[680px] rounded-lg" /> : null}
-      {visibility.isError ? <EmptyState title="Visibility unavailable" description="The visibility endpoint did not return data." /> : null}
+      {visibility.isError ? (
+        <EmptyState title={t("unavailable")} description={t("unavailableDescription")} />
+      ) : null}
       {visibility.data ? (
         <Tabs>
           <TabsList>
-            <TabsTrigger onClick={() => setTab("graph")}>Grants given</TabsTrigger>
-            <TabsTrigger onClick={() => setTab("received")}>Grants received</TabsTrigger>
-            <TabsTrigger onClick={() => setTab("audit")}>Audit trail</TabsTrigger>
+            <TabsTrigger onClick={() => setTab("graph")}>{t("grantsGiven")}</TabsTrigger>
+            <TabsTrigger onClick={() => setTab("received")}>{t("grantsReceived")}</TabsTrigger>
+            <TabsTrigger onClick={() => setTab("audit")}>{t("auditTrail")}</TabsTrigger>
           </TabsList>
           {tab === "graph" ? (
             <TabsContent><VisibilityGraph grant={visibility.data} /></TabsContent>
           ) : null}
           {tab === "received" ? (
           <TabsContent>
-            <EmptyState title="No inbound grants" description="Inbound grant aggregation is not exposed by the current API." />
+            <EmptyState title={t("noInboundGrants")} description={t("inboundUnavailable")} />
           </TabsContent>
           ) : null}
           {tab === "audit" ? (
           <TabsContent>
-            <EmptyState title="Audit trail" description="Visibility audit entries are available from the audit-chain query surface." />
+            <EmptyState title={t("auditTrail")} description={t("auditUnavailable")} />
           </TabsContent>
           ) : null}
         </Tabs>
