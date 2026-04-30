@@ -91,6 +91,9 @@ def test_vault_dev_hooks_target_rendered_service_and_dev_token() -> None:
     assert '.Values.vault.server.dev.devRootToken' in policies_job
     assert 'eq .Values.mode "dev"' in auth_job
     assert '.Values.vault.server.dev.devRootToken' in auth_job
+    assert 'token_reviewer_jwt=' not in auth_job
+    assert 'musematic-vault.fullname" . }}-kubernetes-auth-clients' in auth_job
+    assert 'system:auth-delegator' in auth_job
 
 
 def test_observability_install_uses_targeted_readiness_after_helm_apply() -> None:
