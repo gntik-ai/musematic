@@ -31,6 +31,7 @@ SPECIAL_DESCRIPTIONS = {
         "`superadmin.passwordSecretRef`. Related requirement: FR-004."
     ),
 }
+VAULT_SENSITIVE_ANNOTATION = "Never log; never persist outside Vault."
 
 
 @dataclasses.dataclass(slots=True)
@@ -55,7 +56,14 @@ def classify_sensitivity(name: str) -> str:
 
 
 def describe_env_var(name: str, fallback: str) -> str:
-    return SPECIAL_DESCRIPTIONS.get(name, fallback)
+    description = SPECIAL_DESCRIPTIONS.get(name, fallback)
+    if (
+        name.startswith(("PLATFORM_VAULT_", "VAULT_"))
+        and classify_sensitivity(name) == "sensitive"
+        and VAULT_SENSITIVE_ANNOTATION not in description
+    ):
+        description = f"{description} {VAULT_SENSITIVE_ANNOTATION}"
+    return description
 
 
 def normalize_default(value: object) -> str:
