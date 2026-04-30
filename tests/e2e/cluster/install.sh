@@ -654,6 +654,8 @@ restart_platform_deployments() {
 wait_for_active_pods() {
   local namespace="$1"
   local timeout="$2"
+  local timeout_seconds
+  local deadline
   local pod
 
   mapfile -t pods < <(kubectl get pods -n "$namespace" --field-selector=status.phase!=Succeeded -o name 2>/dev/null || true)
@@ -661,14 +663,41 @@ wait_for_active_pods() {
     return
   fi
 
+  timeout_seconds="$(timeout_to_seconds "$timeout")"
   for pod in "${pods[@]}"; do
-    if kubectl wait -n "$namespace" --for=condition=Ready "$pod" --timeout="$timeout" >/dev/null 2>&1; then
-      continue
-    fi
-    if kubectl get -n "$namespace" "$pod" >/dev/null 2>&1; then
-      kubectl wait -n "$namespace" --for=condition=Ready "$pod" --timeout="$timeout"
-    fi
+    deadline=$(( $(date +%s) + timeout_seconds ))
+    while ! pod_ready_or_succeeded "$namespace" "$pod"; do
+      if (( $(date +%s) >= deadline )); then
+        kubectl wait -n "$namespace" --for=condition=Ready "$pod" --timeout=0s
+      fi
+      sleep 5
+    done
   done
+}
+
+timeout_to_seconds() {
+  local timeout="$1"
+
+  case "$timeout" in
+    *m) echo "$(( ${timeout%m} * 60 ))" ;;
+    *s) echo "${timeout%s}" ;;
+    *) echo "$timeout" ;;
+  esac
+}
+
+pod_ready_or_succeeded() {
+  local namespace="$1"
+  local pod="$2"
+  local phase
+  local ready
+
+  phase="$(kubectl get -n "$namespace" "$pod" -o jsonpath='{.status.phase}' 2>/dev/null || true)"
+  if [[ -z "$phase" || "$phase" == "Succeeded" ]]; then
+    return 0
+  fi
+
+  ready="$(kubectl get -n "$namespace" "$pod" -o jsonpath='{range .status.conditions[?(@.type=="Ready")]}{.status}{end}' 2>/dev/null || true)"
+  [[ "$ready" == "True" ]]
 }
 
 wait_for_deployment_rollouts() {

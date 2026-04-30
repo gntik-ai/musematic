@@ -276,6 +276,9 @@ def test_install_script_runs_manual_init_jobs_and_ignores_completed_pods() -> No
     assert 'launch_control_plane_migration' in install_script
     assert 'wait_for_job_completion' in install_script
     assert '--field-selector=status.phase!=Succeeded' in install_script
+    assert 'timeout_to_seconds "$timeout"' in install_script
+    assert 'pod_ready_or_succeeded "$namespace" "$pod"' in install_script
+    assert '$phase" == "Succeeded"' in install_script
     assert 'kubectl rollout restart -n "${NAMESPACE}" "$deployment"' in install_script
 
 
