@@ -21,5 +21,7 @@ async def test_template_library_lists_platform_templates_and_forks_copy(
         json={"new_name": unique_name("forked-contract")},
     )
     fork = assert_status(fork_response, {200, 201})
-    assert fork["escalation_conditions"]["_forked_from_template_id"] == contract_template_seeded["id"]
+    assert (
+        fork["escalation_conditions"]["_forked_from_template_id"] == contract_template_seeded["id"]
+    )
     assert fork["is_archived"] is False

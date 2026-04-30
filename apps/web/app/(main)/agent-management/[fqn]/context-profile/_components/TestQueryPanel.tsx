@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Play } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { ProvenanceViewer } from "@/components/features/agents/ProvenanceViewer";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,7 +14,8 @@ interface TestQueryPanelProps {
 }
 
 export function TestQueryPanel({ workspaceId, profileId }: TestQueryPanelProps) {
-  const [queryText, setQueryText] = useState("customer support refund request");
+  const t = useTranslations("creator.contextProfile");
+  const [queryText, setQueryText] = useState(() => t("previewQueryDefault"));
   const preview = useContextProfilePreview(workspaceId, profileId);
 
   return (
@@ -29,7 +31,7 @@ export function TestQueryPanel({ workspaceId, profileId }: TestQueryPanelProps) 
           onClick={() => preview.mutate(queryText)}
         >
           <Play className="h-4 w-4" />
-          Run Mock Preview
+          {t("runMockPreview")}
         </Button>
         {preview.data ? (
           <p className="text-sm text-muted-foreground">{preview.data.mock_response}</p>
@@ -39,4 +41,3 @@ export function TestQueryPanel({ workspaceId, profileId }: TestQueryPanelProps) 
     </div>
   );
 }
-

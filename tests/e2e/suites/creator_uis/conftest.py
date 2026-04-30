@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
 from typing import Any
 
 import pytest
@@ -51,7 +50,7 @@ def contract_payload(agent_fqn: str) -> dict[str, Any]:
 
 
 @pytest.fixture
-async def creator_with_agent(http_client, workspace, agent) -> AsyncIterator[dict[str, Any]]:
+async def creator_with_agent(http_client, workspace, agent) -> dict[str, Any]:
     created = await agent.register(
         "creator-ui",
         unique_name("agent"),
@@ -63,7 +62,7 @@ async def creator_with_agent(http_client, workspace, agent) -> AsyncIterator[dic
     if revisions.status_code == 200:
         items = revisions.json().get("items", [])
         revision_payload = items[0] if items else None
-    yield {"workspace": workspace, "agent": created, "revision": revision_payload}
+    return {"workspace": workspace, "agent": created, "revision": revision_payload}
 
 
 @pytest.fixture
@@ -81,7 +80,9 @@ async def creator_with_profile(http_client, creator_with_agent) -> dict[str, Any
 @pytest.fixture
 async def creator_with_contract(http_client, creator_with_agent) -> dict[str, Any]:
     agent_payload = creator_with_agent["agent"]
-    agent_fqn = agent_payload.get("fqn") or f"{agent_payload['namespace']}:{agent_payload['local_name']}"
+    agent_fqn = (
+        agent_payload.get("fqn") or f"{agent_payload['namespace']}:{agent_payload['local_name']}"
+    )
     response = await http_client.post(
         "/api/v1/trust/contracts",
         json=contract_payload(agent_fqn),

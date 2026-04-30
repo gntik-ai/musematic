@@ -41,7 +41,9 @@ export function NotificationListItem({
   onSelectedChange,
 }: NotificationListItemProps) {
   const t = useTranslations("notifications.inbox.item");
+  const templateT = useTranslations("creator.template");
   const href = typeof alert.source_reference?.url === "string" ? alert.source_reference.url : null;
+  const isTemplateUpdate = alert.alert_type === "creator.contract_template.upstream_updated";
 
   return (
     <article className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 sm:grid-cols-[auto_1fr_auto]">
@@ -82,7 +84,7 @@ export function NotificationListItem({
           }}
         >
           <ExternalLink className="h-4 w-4" />
-          {t("open")}
+          {isTemplateUpdate ? templateT("viewDiff") : t("open")}
         </Button>
       ) : null}
     </article>

@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { Database, ShieldAlert } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { PreviewSource } from "@/lib/api/creator-uis";
@@ -22,6 +23,7 @@ function classificationVariant(classification: string) {
 }
 
 export function ProvenanceViewer({ executionId, previewSources = [] }: ProvenanceViewerProps) {
+  const t = useTranslations("creator.provenance");
   const recordQuery = useAppQuery(
     ["context-provenance", executionId ?? "preview"],
     async () => {
@@ -41,25 +43,25 @@ export function ProvenanceViewer({ executionId, previewSources = [] }: Provenanc
     }
     return (recordQuery.data?.provenance_chain ?? []).map((item, index) => ({
       origin: String(item.origin ?? `source-${index + 1}`),
-      snippet: String(item.policy_justification ?? item.action ?? "Context source"),
+      snippet: String(item.policy_justification ?? item.action ?? t("snippet")),
       score: Number(item.authority_score ?? 0),
       included: item.action !== "excluded",
       classification: String(item.data_classification ?? "public"),
       reason: item.action === "excluded" ? String(item.action) : null,
     }));
-  }, [executionId, previewSources, recordQuery.data?.provenance_chain]);
+  }, [executionId, previewSources, recordQuery.data?.provenance_chain, t]);
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <Database className="h-4 w-4" />
-          Provenance
+          {t("title")}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {sources.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No provenance sources available.</p>
+          <p className="text-sm text-muted-foreground">{t("emptyAvailable")}</p>
         ) : null}
         {sources
           .slice()
@@ -70,7 +72,7 @@ export function ProvenanceViewer({ executionId, previewSources = [] }: Provenanc
                 <p className="font-medium">{source.origin}</p>
                 <div className="flex items-center gap-2">
                   <Badge variant={source.included ? "secondary" : "outline"}>
-                    {source.included ? "Included" : "Excluded"}
+                    {source.included ? t("includedStatus") : t("excludedStatus")}
                   </Badge>
                   <Badge variant={classificationVariant(source.classification)}>
                     {classificationVariant(source.classification) === "destructive" ? (
@@ -93,4 +95,3 @@ export function ProvenanceViewer({ executionId, previewSources = [] }: Provenanc
     </Card>
   );
 }
-

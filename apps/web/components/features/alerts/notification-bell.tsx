@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { Bell, BellOff } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   extractAlertInteractionId,
   isInteractionAlertMuted,
@@ -46,6 +47,8 @@ interface UnreadCountResponse {
   count: number;
 }
 
+const CONTRACT_TEMPLATE_UPSTREAM_UPDATED = "creator.contract_template.upstream_updated";
+
 function formatTimestamp(value: string): string {
   try {
     return new Date(value).toLocaleString();
@@ -55,6 +58,7 @@ function formatTimestamp(value: string): string {
 }
 
 export function NotificationBell() {
+  const templateT = useTranslations("creator.template");
   const { isConnected } = useAlertFeed();
   const userId = useAuthStore((state) => state.user?.id ?? null);
   const unreadCount = useAlertStore((state) => state.unreadCount);
@@ -121,6 +125,7 @@ export function NotificationBell() {
         ) : (
           visibleItems.map((alert) => {
             const href = alert.source_reference?.url;
+            const isTemplateUpdate = alert.alert_type === CONTRACT_TEMPLATE_UPSTREAM_UPDATED;
             return (
               <DropdownMenuItem
                 className="block text-left"
@@ -139,7 +144,14 @@ export function NotificationBell() {
                   {alert.body ? (
                     <p className="line-clamp-2 text-xs text-muted-foreground">{alert.body}</p>
                   ) : null}
-                  <p className="text-[11px] text-muted-foreground">{formatTimestamp(alert.created_at)}</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-[11px] text-muted-foreground">{formatTimestamp(alert.created_at)}</p>
+                    {href && isTemplateUpdate ? (
+                      <span className="text-[11px] font-medium text-brand-accent">
+                        {templateT("viewDiff")}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
               </DropdownMenuItem>
             );

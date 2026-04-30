@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useMemo, useState } from "react";
 import type { BeforeMount, OnChange } from "@monaco-editor/react";
 import { FileJson, FileText } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,7 @@ export function YamlJsonEditor({
   label,
   className,
 }: YamlJsonEditorProps) {
+  const t = useTranslations("creator.editor");
   const [language, setLanguage] = useState<"yaml" | "json">(defaultLanguage);
   const path = useMemo(
     () => `inmemory://creator-ui/${label.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.${language}`,
@@ -77,7 +79,7 @@ export function YamlJsonEditor({
         <div>
           <p className="text-sm font-medium">{label}</p>
           <p className="text-xs text-muted-foreground">
-            {schema ? "Schema validation enabled" : "Schema loading"}
+            {schema ? t("schemaEnabled") : t("schemaLoading")}
           </p>
         </div>
         {enableLanguageToggle ? (
@@ -90,7 +92,7 @@ export function YamlJsonEditor({
               onClick={() => setLanguage("yaml")}
             >
               <FileText className="h-4 w-4" />
-              YAML
+              {t("yaml")}
             </Button>
             <Button
               aria-pressed={language === "json"}
@@ -100,7 +102,7 @@ export function YamlJsonEditor({
               onClick={() => setLanguage("json")}
             >
               <FileJson className="h-4 w-4" />
-              JSON
+              {t("json")}
             </Button>
           </div>
         ) : null}

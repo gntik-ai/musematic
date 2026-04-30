@@ -162,7 +162,7 @@ Independent-test discipline: every US MUST be verifiable in isolation. US1 = pro
 - [X] T071 [W19B] [US6] Create `apps/web/app/(main)/agent-management/contracts/library/page.tsx` (NEW ~250 lines per FR-672 — workspace-global page, NOT under `[fqn]/`).
 - [X] T072 [W19B] [US6] Create `apps/web/app/(main)/agent-management/contracts/library/_components/TemplateCard.tsx` (NEW ~150 lines): renders template name + description + fork count + last updated; "Fork" action.
 - [X] T073 [W19B] [US6] Create `apps/web/app/(main)/agent-management/contracts/library/_components/ForkDialog.tsx` (NEW ~180 lines): name input + workspace selector + confirm action; calls `POST /contracts/{template_id}/fork`.
-- [ ] T074 [W19B] [US6] Wire UPD-042 notification integration per FR-672 + spec correction §14: subscribe to `creator.contract_template.upstream_updated` events on the user's notification channel; display in notification bell with "View diff" link to compare fork against upstream new version.
+- [X] T074 [W19B] [US6] Wire UPD-042 notification integration per FR-672 + spec correction §14: subscribe to `creator.contract_template.upstream_updated` events on the user's notification channel; display in notification bell with "View diff" link to compare fork against upstream new version.
 
 ### Wizard extension (US7)
 
@@ -179,12 +179,12 @@ Independent-test discipline: every US MUST be verifiable in isolation. US1 = pro
 
 ### i18n + accessibility + Playwright
 
-- [ ] T082 [W19B] [US1, US3, US4, US5, US6, US7] Modify `apps/web/messages/en.json` per plan.md research: add ~80 new i18n keys under `creator.{contextProfile,contract,template}.*` namespaces. Reference these in all new TSX components via `useTranslations(...)`.
+- [X] T082 [W19B] [US1, US3, US4, US5, US6, US7] Modify `apps/web/messages/en.json` per plan.md research: add ~80 new i18n keys under `creator.{contextProfile,contract,template}.*` namespaces. Reference these in all new TSX components via `useTranslations(...)`.
 - [X] T083 [P] [W19B] Modify `apps/web/messages/{de,es,fr,it,zh-CN,ja}.json`: copy English keys with TODO-translation markers per UPD-088's parity check; vendor translates per UPD-039 / FR-620.
 - [X] T084 [P] [W19B] Run `pnpm test:i18n-parity` — verify all 6 locale catalogs have all new keys.
 - [ ] T085 [W19B] Run axe-core scan on all 5 new pages locally; verify zero AA violations per Rule 41 inheritance from UPD-083. Verify Monaco editor is keyboard-navigable per SC-019 — manual test: tab through editor toolbar, ESC to exit Monaco, screen reader announces "Code editor".
 - [X] T086 [W19B] Run `pnpm test`, `pnpm typecheck`, `pnpm lint` to verify all CI gates pass.
-- [ ] T087 [W19B] [US1, US2, US3, US4, US5, US6, US7] Author `apps/web/tests/e2e/creator-uis-pages.spec.ts` (NEW Playwright test file): ~20 scenarios covering profile editor + provenance viewer reusable across 2 surfaces + version rollback + contract editor + contract preview + opt-in real LLM dialog + template fork + wizard 5 new steps.
+- [X] T087 [W19B] [US1, US2, US3, US4, US5, US6, US7] Author `apps/web/tests/e2e/creator-uis-pages.spec.ts` (NEW Playwright test file): ~20 scenarios covering profile editor + provenance viewer reusable across 2 surfaces + version rollback + contract editor + contract preview + opt-in real LLM dialog + template fork + wizard 5 new steps.
 
 **Checkpoint (end of Phase 3)**: 5 new pages + wizard extension + ExecutionDrilldown extension render correctly; `pnpm test`, `pnpm typecheck`, axe-core scan, i18n parity check all pass; Playwright E2E ~20 scenarios pass; Monaco keyboard-nav verified.
 
@@ -210,7 +210,7 @@ Independent-test discipline: every US MUST be verifiable in isolation. US1 = pro
 
 ### J02 journey extension
 
-- [ ] T096 [W19C] [US1, US2, US3, US4, US5, US6, US7] Modify `tests/e2e/journeys/test_j02_creator_to_publication.py` per FR-674 + spec correction §9 + research R9: extend the existing single async function `test_j02_creator_to_publication()` at line 154 with ≥ 25 NEW assertion blocks covering the full creator flow. Sections per plan.md Phase 4 day 6: (6-8) NEW context profile create + edit + preview; (9-11) NEW context profile rollback + diff + version pinning; (12-14) NEW contract create + edit + preview; (15-17) NEW contract preview-via-mock + opt-in-real-LLM-rejection-path + violations-link-to-clause; (18-20) NEW template fork + customize + upstream-update-notification; (21-23) NEW attach-profile-to-revision + attach-contract-to-revision + publish-with-both; (24-25) NEW post-publish verification (audit chain entries + revision pinned to profile version + contract attached). Final J02 line count ≈ 750 lines.
+- [X] T096 [W19C] [US1, US2, US3, US4, US5, US6, US7] Modify `tests/e2e/journeys/test_j02_creator_to_publication.py` per FR-674 + spec correction §9 + research R9: extend the existing single async function `test_j02_creator_to_publication()` at line 154 with ≥ 25 NEW assertion blocks covering the full creator flow. Sections per plan.md Phase 4 day 6: (6-8) NEW context profile create + edit + preview; (9-11) NEW context profile rollback + diff + version pinning; (12-14) NEW contract create + edit + preview; (15-17) NEW contract preview-via-mock + opt-in-real-LLM-rejection-path + violations-link-to-clause; (18-20) NEW template fork + customize + upstream-update-notification; (21-23) NEW attach-profile-to-revision + attach-contract-to-revision + publish-with-both; (24-25) NEW post-publish verification (audit chain entries + revision pinned to profile version + contract attached). Final J02 line count ≈ 750 lines.
 
 ### Matrix-CI integration
 
@@ -229,7 +229,7 @@ Independent-test discipline: every US MUST be verifiable in isolation. US1 = pro
 - [ ] T100 [W19D] Verify Rule 50 invariants per Constitution + plan.md design D3: synthetic test invokes preview endpoints (profile + contract) 100 times with `use_mock=true` (default); asserts `real_llm_calls_total` Prometheus metric did NOT increment; asserts `mock_llm.preview_executed` audit-log entries emitted; opt-in path with `use_mock=false, cost_acknowledged=false` MUST be rejected with 400; opt-in path with both `true` MUST emit `creator.contract.real_llm_preview_used` audit. Document in `specs/094-creator-context-contracts-ui/contracts/rule50-verification.md` (NEW file).
 - [ ] T101 [W19D] Verify all 11 new endpoints emit audit-chain entries per Rule 9: synthetic test hits each state-changing endpoint (preview / rollback / fork / attach-revision); asserts `audit_chain_entries` row count grows by exactly 1 per call (or 2 for opt-in real-LLM path which emits 2 entries). Document in `specs/094-creator-context-contracts-ui/contracts/audit-emission-verification.md` (NEW file).
 - [ ] T102 [W19D] Verify Rule 41 + SC-019: axe-core scan on all 5 new pages + manual Monaco keyboard-nav test (tab navigation, ESC to exit editor, screen reader announces editor labels). Document accessibility report at `specs/094-creator-context-contracts-ui/contracts/accessibility-report.md` (NEW file).
-- [ ] T103 [W19D] Verify Rule 45 mapping: every Track A endpoint maps to a Track B page per spec.md Key Entities section. Synthetic test enumerates the 11 new Track A endpoints + asserts a corresponding page exists at the documented URL. Failure means a backend capability has no UI surface — escalate.
+- [X] T103 [W19D] Verify Rule 45 mapping: every Track A endpoint maps to a Track B page per spec.md Key Entities section. Synthetic test enumerates the 11 new Track A endpoints + asserts a corresponding page exists at the documented URL. Failure means a backend capability has no UI surface — escalate.
 - [X] T104 [W19D] Run UPD-040's `scripts/check-secret-access.py` against the in-flight code; verify zero direct `os.getenv("*_SECRET")` calls outside `SecretProvider` implementation files (the MockLLMProvider does NOT need any secrets — it uses canned responses).
 
 ---

@@ -20,7 +20,9 @@ async def test_contract_editor_schema_enums_and_save(http_client, creator_with_a
     assert "warn" in enums["failure_modes"]
 
     agent_payload = creator_with_agent["agent"]
-    agent_fqn = agent_payload.get("fqn") or f"{agent_payload['namespace']}:{agent_payload['local_name']}"
+    agent_fqn = (
+        agent_payload.get("fqn") or f"{agent_payload['namespace']}:{agent_payload['local_name']}"
+    )
     create_response = await http_client.post(
         "/api/v1/trust/contracts",
         json=contract_payload(agent_fqn),

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { History, Save } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { SchemaValidatedEditor } from "@/components/features/agents/SchemaValidatedEditor";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -48,6 +49,7 @@ const DEFAULT_PROFILE = {
 };
 
 export function ContextProfileEditor({ fqn }: ContextProfileEditorProps) {
+  const t = useTranslations("creator.contextProfile");
   const workspaceId = useWorkspaceStore((state) => state.currentWorkspace?.id ?? null);
   const { toast } = useToast();
   const schemaQuery = useProfileSchema();
@@ -66,11 +68,11 @@ export function ContextProfileEditor({ fqn }: ContextProfileEditorProps) {
     try {
       const parsed = JSON.parse(profileJson) as unknown;
       if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-        throw new Error("Profile JSON must be an object.");
+        throw new Error(t("invalidObject"));
       }
       payload = parsed as ContextProfilePayload;
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Profile JSON is invalid.");
+      setSaveError(error instanceof Error ? error.message : t("invalidJson"));
       return;
     }
 
@@ -78,12 +80,12 @@ export function ContextProfileEditor({ fqn }: ContextProfileEditorProps) {
       const saved = await saveMutation.mutateAsync(payload);
       setProfileId(saved.id);
       toast({
-        title: profileId ? "Context profile updated" : "Context profile created",
+        title: profileId ? t("updated") : t("created"),
         description: saved.name,
         variant: "success",
       });
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Unable to save context profile.");
+      setSaveError(error instanceof Error ? error.message : t("saveFailure"));
     }
   };
 
@@ -92,15 +94,15 @@ export function ContextProfileEditor({ fqn }: ContextProfileEditorProps) {
       <div className="flex flex-col gap-4 border-b pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase text-brand-accent">{fqn}</p>
-          <h1 className="mt-2 text-3xl font-semibold">Context Profile</h1>
+          <h1 className="mt-2 text-3xl font-semibold">{t("title")}</h1>
           <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-            Author retrieval sources, budgets, ranking behavior, and provenance settings.
+            {t("description")}
           </p>
         </div>
         <Button asChild variant="outline">
           <Link href={`/agent-management/${encodedFqn}/context-profile/history`}>
             <History className="h-4 w-4" />
-            History
+            {t("history")}
           </Link>
         </Button>
       </div>
@@ -112,19 +114,19 @@ export function ContextProfileEditor({ fqn }: ContextProfileEditorProps) {
               className={activeTab === "editor" ? "bg-background" : undefined}
               onClick={() => setActiveTab("editor")}
             >
-              Editor
+              {t("editor")}
             </TabsTrigger>
             <TabsTrigger
               className={activeTab === "sources" ? "bg-background" : undefined}
               onClick={() => setActiveTab("sources")}
             >
-              Sources
+              {t("sources")}
             </TabsTrigger>
             <TabsTrigger
               className={activeTab === "test" ? "bg-background" : undefined}
               onClick={() => setActiveTab("test")}
             >
-              Test
+              {t("test")}
             </TabsTrigger>
           </TabsList>
           {activeTab === "editor" ? (
@@ -132,7 +134,7 @@ export function ContextProfileEditor({ fqn }: ContextProfileEditorProps) {
               <SchemaValidatedEditor
                 defaultLanguage="json"
                 isSchemaLoading={schemaQuery.isLoading}
-                label="Profile JSON"
+                label={t("profileJson")}
                 schema={schemaQuery.data}
                 value={profileJson}
                 onChange={setProfileJson}
@@ -158,14 +160,14 @@ export function ContextProfileEditor({ fqn }: ContextProfileEditorProps) {
 
         <Card>
           <CardHeader>
-            <CardTitle>Profile Controls</CardTitle>
+            <CardTitle>{t("profileControls")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="profile-id">Profile ID</Label>
+              <Label htmlFor="profile-id">{t("profileId")}</Label>
               <Input
                 id="profile-id"
-                placeholder="Paste an existing profile UUID"
+                placeholder={t("profileIdPlaceholder")}
                 value={profileId}
                 onChange={(event) => setProfileId(event.target.value)}
               />
@@ -184,7 +186,7 @@ export function ContextProfileEditor({ fqn }: ContextProfileEditorProps) {
               }}
             >
               <Save className="h-4 w-4" />
-              {saveMutation.isPending ? "Saving" : profileId ? "Update Profile" : "Create Profile"}
+              {saveMutation.isPending ? t("saving") : profileId ? t("update") : t("create")}
             </Button>
           </CardContent>
         </Card>
