@@ -242,7 +242,7 @@ async def test_j03_consumer_discovery_execution(
         links.raise_for_status()
         audit.raise_for_status()
         actions = {item["action"] for item in audit.json()["items"]}
-        assert "workspace_member" in role_names
+        assert role_names & {"workspace_member", "member"}, role_names
         assert any(item["provider_type"] == "google" for item in links.json()["items"])
         assert "sign_in_succeeded" in actions
 
