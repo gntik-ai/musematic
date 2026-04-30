@@ -53,7 +53,7 @@ async function routeOAuthApi(page: Page) {
   await page.route("**/api/v1/admin/oauth/providers/google", async (route) => {
     await route.fulfill({ json: provider });
   });
-  await page.route("**/api/v1/admin/oauth-providers/google/test-connectivity", async (route) => {
+  await page.route("**/api/v1/admin/oauth-providers/*/test-connectivity", async (route) => {
     await route.fulfill({
       json: {
         reachable: true,
@@ -62,10 +62,10 @@ async function routeOAuthApi(page: Page) {
       },
     });
   });
-  await page.route("**/api/v1/admin/oauth-providers/google/rotate-secret", async (route) => {
+  await page.route("**/api/v1/admin/oauth-providers/*/rotate-secret", async (route) => {
     await route.fulfill({ status: 204, body: "" });
   });
-  await page.route("**/api/v1/admin/oauth-providers/google/reseed-from-env", async (route) => {
+  await page.route("**/api/v1/admin/oauth-providers/*/reseed-from-env", async (route) => {
     await route.fulfill({
       json: {
         diff: {
@@ -75,7 +75,7 @@ async function routeOAuthApi(page: Page) {
       },
     });
   });
-  await page.route("**/api/v1/admin/oauth-providers/google/history**", async (route) => {
+  await page.route("**/api/v1/admin/oauth-providers/*/history**", async (route) => {
     await route.fulfill({
       json: {
         entries: [
@@ -91,7 +91,7 @@ async function routeOAuthApi(page: Page) {
       },
     });
   });
-  await page.route("**/api/v1/admin/oauth-providers/google/status", async (route) => {
+  await page.route("**/api/v1/admin/oauth-providers/*/status", async (route) => {
     await route.fulfill({
       json: {
         provider_type: "google",
@@ -104,7 +104,7 @@ async function routeOAuthApi(page: Page) {
       },
     });
   });
-  await page.route("**/api/v1/admin/oauth-providers/google/rate-limits", async (route) => {
+  await page.route("**/api/v1/admin/oauth-providers/*/rate-limits", async (route) => {
     if (route.request().method() === "PUT") {
       await route.fulfill({
         json: {
@@ -141,9 +141,9 @@ test.describe("admin OAuth bootstrap panel", () => {
     await page.goto("/admin/settings?tab=oauth");
 
     await expect(page.getByText("Env var")).toBeVisible();
-    await page.getByRole("button", { name: "History" }).click();
+    await page.getByRole("button", { name: "History" }).first().click();
     await expect(page).toHaveURL(/provider_tab=history/);
-    await expect(page.getByText("provider_bootstrapped")).toBeVisible();
+    await expect(page.getByText("provider_bootstrapped").first()).toBeVisible();
   });
 
   test("runs connectivity, rotation, reseed, role mapping, and rate limit workflows", async ({
@@ -151,29 +151,30 @@ test.describe("admin OAuth bootstrap panel", () => {
   }) => {
     await page.goto("/admin/settings?tab=oauth");
 
-    await page.getByRole("button", { name: "Test connectivity" }).click();
+    await page.getByRole("button", { name: "Test connectivity" }).first().click();
     await expect(page.getByText("Connectivity check completed")).toBeVisible();
 
-    await page.getByRole("button", { name: "Rotate secret" }).click();
+    await page.getByRole("button", { name: "Rotate secret" }).first().click();
     await page.getByRole("dialog").getByLabel("New client secret").fill("rotated-secret");
     await page.getByRole("dialog").getByLabel(/written to Vault/).check();
     await page.getByRole("dialog").getByRole("button", { name: "Save" }).click();
     await expect(page.getByText("Secret rotated successfully")).toBeVisible();
 
-    await page.getByRole("button", { name: "Reseed from env" }).click();
+    await page.getByRole("button", { name: "Reseed from env" }).first().click();
     await page.getByRole("dialog").getByLabel(/overwrite manual changes/).check();
     await page.getByRole("dialog").getByRole("switch", { name: "Force update" }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Apply" }).click();
     await expect(page.getByText("Provider reseeded")).toBeVisible();
+    await page.getByRole("dialog").getByRole("button", { name: "Cancel" }).click();
 
-    await page.getByRole("button", { name: "Role mappings" }).click();
-    await expect(page.locator('input[value="admins@musematic.dev"]')).toBeVisible();
-    await page.getByRole("button", { name: "Save" }).click();
+    await page.getByRole("button", { name: "Role mappings" }).first().click();
+    await expect(page.locator('input[value="admins@musematic.dev"]').first()).toBeVisible();
+    await page.getByRole("button", { name: "Save" }).first().click();
     await expect(page.getByText("Role mappings saved")).toBeVisible();
 
-    await page.getByRole("button", { name: "Rate limits" }).click();
-    await page.getByLabel("Per-IP max").fill("20");
-    await page.getByRole("button", { name: "Save" }).click();
+    await page.getByRole("button", { name: "Rate limits" }).first().click();
+    await page.getByLabel("Per-IP max").first().fill("20");
+    await page.getByRole("button", { name: "Save" }).first().click();
     await expect(page.getByText("Rate limits saved")).toBeVisible();
   });
 });

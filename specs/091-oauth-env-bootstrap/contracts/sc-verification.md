@@ -59,3 +59,19 @@ Cluster-only evidence still pending:
 - `kubectl config current-context` reports `error: current-context is not set`; `kubectl get nodes --request-timeout=5s` falls back to localhost and is refused.
 - Kind-cluster OAuth login/signup smoke, 3-mode matrix CI, real J01/J19 journey execution, and 24-hour log secret regex capture were not run locally.
 - Platform chart top-level `--set oauth.google.*` does not flow into the aliased `controlPlane` subchart. The verified umbrella command uses `--set controlPlane.oauth.google.*`.
+
+## 2026-04-30 Final Local Rerun
+
+- `apps/control-plane/.venv/bin/python -m pytest apps/control-plane/tests/auth/ -q` -> 21 passed.
+- `apps/ops-cli/.venv/bin/python -m pytest apps/ops-cli/tests/commands/admin/ -q` -> 14 passed.
+- `tests/e2e/.venv/bin/python -m pytest tests/e2e/suites/oauth_bootstrap/ tests/e2e/journeys/test_j01_admin_bootstrap.py tests/e2e/journeys/test_j19_new_user_signup.py --collect-only -q` -> 33 tests collected.
+- `./node_modules/.bin/vitest run` from `apps/web` -> 161 files / 520 tests passed.
+- `./node_modules/.bin/tsc --noEmit` from `apps/web` -> passed.
+- `./node_modules/.bin/eslint . --max-warnings=0` from `apps/web` -> passed.
+- `./node_modules/.bin/eslint tests/e2e/admin-oauth-bootstrap.spec.ts --max-warnings=0` from `apps/web` -> passed after scoping duplicated provider-card selectors in the Playwright spec.
+- `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 PLAYWRIGHT_BROWSERS_PATH=/tmp/ms-playwright ./node_modules/.bin/playwright test --config tests/a11y/playwright.a11y.config.ts tests/a11y/admin-settings.spec.ts --project=a11y-light-en` from `apps/web` -> 6 passed.
+- `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 PLAYWRIGHT_BROWSERS_PATH=/tmp/ms-playwright ./node_modules/.bin/playwright test --config .tmp-playwright-oauth.config.cjs admin-oauth-bootstrap.spec.ts --project=chromium` from `apps/web` -> 2 passed using a temporary local config because the checked-in `playwright.config.ts` testDir does not include `tests/e2e`.
+- `python scripts/check-secret-access.py` -> passed.
+- `python scripts/check-admin-role-gates.py` -> passed.
+- `python scripts/check-doc-translation-parity.py docs` -> passed with grace-window warnings only.
+- `kubectl config current-context` -> `error: current-context is not set`; cluster-only smoke, full kind e2e, 3-mode CI matrix, real J01/J19 execution, and 24-hour log secret sweep remain pending.
