@@ -1,0 +1,38 @@
+{% set localized_sections = config.extra.localized_sections | d([]) %}
+{% set page_url = page.url | d("", true) %}
+{% set ns = namespace(show_language_selector=false) %}
+{% for section in localized_sections %}
+  {% if page_url == section ~ "/" or page_url.startswith(section ~ "/") %}
+    {% set ns.show_language_selector = true %}
+  {% endif %}
+  {% for alt in config.extra.alternate %}
+    {% if alt.lang != "en" %}
+      {% set localized_prefix = alt.lang ~ "/" ~ section ~ "/" %}
+      {% if page_url == localized_prefix or page_url.startswith(localized_prefix) %}
+        {% set ns.show_language_selector = true %}
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+{% endfor %}
+
+{% if ns.show_language_selector %}
+  <div class="md-header__option">
+    <div class="md-select">
+      {% set icon = config.theme.icon.alternate or "material/translate" %}
+      <button class="md-header__button md-icon" aria-label="{{ lang.t('select.language') }}">
+        {% include ".icons/" ~ icon ~ ".svg" %}
+      </button>
+      <div class="md-select__inner">
+        <ul class="md-select__list">
+          {% for alt in config.extra.alternate %}
+            <li class="md-select__item">
+              <a href="{{ alt.link | url }}" hreflang="{{ alt.lang }}" class="md-select__link">
+                {{ alt.name }}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+{% endif %}
