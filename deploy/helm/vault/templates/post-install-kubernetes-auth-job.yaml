@@ -22,6 +22,25 @@ subjects:
     name: {{ include "musematic-vault.fullname" . }}-auth-bootstrap
     namespace: {{ .Release.Namespace }}
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "musematic-vault.fullname" . }}-kubernetes-auth-clients
+  labels:
+{{ include "musematic-vault.labels" . | indent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+{{- range $namespace := .Values.kubernetesAuthJob.boundNamespaces }}
+{{- range $serviceAccount := $.Values.kubernetesAuthJob.boundServiceAccounts }}
+  - kind: ServiceAccount
+    name: {{ $serviceAccount }}
+    namespace: {{ $namespace }}
+{{- end }}
+{{- end }}
+---
 apiVersion: batch/v1
 kind: Job
 metadata:
@@ -78,11 +97,11 @@ spec:
               vault auth enable kubernetes >/dev/null 2>&1 || true
               vault write auth/kubernetes/config \
                 kubernetes_host="https://kubernetes.default.svc:443" \
-                kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
-                token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
+                kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
               vault write "auth/kubernetes/role/{{ .Values.kubernetesAuthJob.roleName }}" \
                 bound_service_account_names="{{ join "," .Values.kubernetesAuthJob.boundServiceAccounts }}" \
                 bound_service_account_namespaces="{{ join "," .Values.kubernetesAuthJob.boundNamespaces }}" \
+                bound_audiences="{{ .Values.kubernetesAuthJob.audience }}" \
                 policies="platform-auth,platform-model-catalog,platform-notifications,platform-runtime,platform-security-compliance,platform-accounts,platform-cost-governance" \
                 ttl="{{ .Values.kubernetesAuthJob.tokenTtl }}"
 {{- end }}

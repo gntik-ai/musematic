@@ -434,13 +434,25 @@ jobs:
       - name: Bootstrap kind cluster
         run: tests/e2e/cluster/bootstrap.sh
 
-      - name: Run J01 and J11 journeys
+      - name: Run OAuth bootstrap suite
+        working-directory: tests/e2e
+        env:
+          PLATFORM_VAULT_MODE: ${{ matrix.secret_mode }}
+        run: |
+          mkdir -p reports
+          python -m pytest \
+            suites/oauth_bootstrap \
+            -v \
+            --junitxml=reports/oauth-bootstrap-${{ matrix.secret_mode }}.xml
+
+      - name: Run J01, J11, and J19 journeys
         working-directory: tests/e2e
         run: |
           mkdir -p reports
           python -m pytest \
             journeys/test_j01_admin_bootstrap.py \
             journeys/test_j11_security_officer.py \
+            journeys/test_j19_new_user_signup.py \
             -m journey \
             -n "${E2E_JOURNEY_WORKERS}" \
             --dist=loadfile \

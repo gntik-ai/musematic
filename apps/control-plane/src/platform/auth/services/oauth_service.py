@@ -12,6 +12,7 @@ from platform.accounts.repository import AccountsRepository
 from platform.auth.events import (
     OAuthAccountLinkedPayload,
     OAuthAccountUnlinkedPayload,
+    OAuthConfigImportedPayload,
     OAuthProviderConfiguredPayload,
     OAuthRateLimitUpdatedPayload,
     OAuthSecretRotatedPayload,
@@ -22,6 +23,7 @@ from platform.auth.events import (
 )
 from platform.auth.exceptions import (
     InactiveUserError,
+    OAuthBootstrapEnvironmentError,
     OAuthLinkConflictError,
     OAuthProviderDisabledError,
     OAuthProviderNotFoundError,
@@ -55,10 +57,14 @@ from platform.auth.services.oauth_bootstrap import bootstrap_oauth_provider_from
 from platform.auth.services.oauth_providers.github import GitHubOAuthProvider
 from platform.auth.services.oauth_providers.google import GoogleOAuthProvider
 from platform.common.clients.redis import AsyncRedisClient
-from platform.common.config import PlatformSettings
+from platform.common.config import _VALID_OAUTH_BOOTSTRAP_ROLES, PlatformSettings
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import ValidationError
-from platform.common.secret_provider import SecretProvider
+from platform.common.secret_provider import (
+    CredentialPolicyDeniedError,
+    CredentialUnavailableError,
+    SecretProvider,
+)
 from platform.connectors.security import compute_hmac_sha256
 from typing import Any, cast
 from uuid import UUID, uuid4
@@ -66,6 +72,7 @@ from uuid import UUID, uuid4
 from fastapi.encoders import jsonable_encoder
 
 _PLAINTEXT_SECRET_PREFIX = "plain:"
+_REDACTED_PLAINTEXT_SECRET_REF = "plain:<redacted>"
 
 
 @dataclass(slots=True)
@@ -170,11 +177,13 @@ class OAuthService:
         group_role_mapping: dict[str, str],
         default_role: str,
         require_mfa: bool,
+        source: OAuthProviderSourceType | str = OAuthProviderSourceType.MANUAL,
     ) -> tuple[OAuthProviderAdminResponse, bool]:
         self._validate_role(default_role)
         for role in group_role_mapping.values():
             self._validate_role(role)
 
+        source_value = source.value if isinstance(source, OAuthProviderSourceType) else str(source)
         existing = await self.repository.get_provider_by_type(provider_type)
         before = self._provider_snapshot(existing)
         last_edited_by = await self._resolved_existing_actor_id(actor_id)
@@ -191,17 +200,18 @@ class OAuthService:
             group_role_mapping=group_role_mapping,
             default_role=default_role,
             require_mfa=require_mfa,
-            source="manual",
+            source=source_value,
             last_edited_by=last_edited_by,
             last_edited_at=datetime.now(UTC),
         )
         changed_fields = self._diff_provider(before, self._provider_snapshot(provider))
+        audit_action = "config_imported" if source_value == "imported" else "provider_configured"
         await self.repository.create_audit_entry(
             provider_type=provider.provider_type,
             provider_id=provider.id,
             user_id=None,
             external_id=None,
-            action="provider_configured",
+            action=audit_action,
             outcome="success",
             failure_reason=None,
             source_ip=None,
@@ -209,6 +219,19 @@ class OAuthService:
             actor_id=actor_id,
             changed_fields=changed_fields,
         )
+        if source_value == "imported":
+            await publish_auth_event(
+                "auth.oauth.config_imported",
+                OAuthConfigImportedPayload(
+                    actor_id=actor_id,
+                    provider_type=provider.provider_type,
+                    vault_path=provider.client_secret_ref,
+                ),
+                uuid4(),
+                self.producer,
+            )
+            return self._serialize_admin_provider(provider), created
+
         await publish_auth_event(
             "auth.oauth.provider_configured",
             OAuthProviderConfiguredPayload(
@@ -269,15 +292,9 @@ class OAuthService:
         secret_provider: SecretProvider,
     ) -> OAuthConfigReseedResponse:
         if provider_type == "google" and not settings.oauth_bootstrap.google.enabled:
-            raise ValidationError(
-                "OAUTH_BOOTSTRAP_ENV_NOT_SET",
-                "PLATFORM_OAUTH_GOOGLE_ENABLED is not set in the running pod; cannot reseed",
-            )
+            raise OAuthBootstrapEnvironmentError(provider_type)
         if provider_type == "github" and not settings.oauth_bootstrap.github.enabled:
-            raise ValidationError(
-                "OAUTH_BOOTSTRAP_ENV_NOT_SET",
-                "PLATFORM_OAUTH_GITHUB_ENABLED is not set in the running pod; cannot reseed",
-            )
+            raise OAuthBootstrapEnvironmentError(provider_type)
         if provider_type not in {"google", "github"}:
             raise OAuthProviderNotFoundError(provider_type)
         result = await bootstrap_oauth_provider_from_env(
@@ -993,7 +1010,12 @@ class OAuthService:
         await self._require_secret_provider().flush_cache(reference)
 
     async def _list_secret_versions(self, reference: str) -> list[int]:
-        return await self._require_secret_provider().list_versions(reference)
+        try:
+            return await self._require_secret_provider().list_versions(reference)
+        except CredentialPolicyDeniedError:
+            raise
+        except CredentialUnavailableError:
+            return []
 
     def _resolve_role(self, provider: Any, groups: list[str]) -> str:
         for group in groups:
@@ -1005,7 +1027,14 @@ class OAuthService:
     @staticmethod
     def _validate_role(role: str) -> None:
         if not role or not role.strip():
-            raise ValueError("OAuth role mapping cannot be blank")
+            raise ValidationError("OAUTH_ROLE_INVALID", "OAuth role mapping cannot be blank")
+        normalized = role.strip()
+        if normalized not in _VALID_OAUTH_BOOTSTRAP_ROLES:
+            valid_roles = ", ".join(sorted(_VALID_OAUTH_BOOTSTRAP_ROLES))
+            raise ValidationError(
+                "OAUTH_ROLE_INVALID",
+                f"Unknown OAuth role mapping role: {normalized}. Valid roles: {valid_roles}",
+            )
 
     def _provider_client(self, provider_type: str) -> Any:
         if provider_type == OAuthProviderType.GOOGLE.value:
@@ -1078,12 +1107,34 @@ class OAuthService:
         after: dict[str, Any] | None,
     ) -> dict[str, Any]:
         if before is None:
-            return {"created": True, **(after or {})}
+            return {
+                "created": True,
+                **{
+                    key: OAuthService._redact_provider_audit_value(key, value)
+                    for key, value in (after or {}).items()
+                },
+            }
         changed: dict[str, Any] = {}
         for key, value in (after or {}).items():
             if before.get(key) != value:
-                changed[key] = {"before": before.get(key), "after": value}
+                changed[key] = {
+                    "before": OAuthService._redact_provider_audit_value(
+                        key,
+                        before.get(key),
+                    ),
+                    "after": OAuthService._redact_provider_audit_value(key, value),
+                }
         return changed
+
+    @staticmethod
+    def _redact_provider_audit_value(key: str, value: Any) -> Any:
+        if (
+            key == "client_secret_ref"
+            and isinstance(value, str)
+            and value.startswith(_PLAINTEXT_SECRET_PREFIX)
+        ):
+            return _REDACTED_PLAINTEXT_SECRET_REF
+        return value
 
     @staticmethod
     def _serialize_admin_provider(provider: Any) -> OAuthProviderAdminResponse:

@@ -175,5 +175,109 @@
         "incidentIntegrations": "Open incident integrations"
       }
     }
+  },
+  "admin": {
+    "oauth": {
+      "actions": {
+        "testConnectivity": "Test connectivity",
+        "rotateSecret": "Rotate secret",
+        "reseed": "Reseed from env",
+        "cancel": "Cancel",
+        "save": "Save",
+        "apply": "Apply"
+      },
+      "tabs": {
+        "configuration": "Configuration",
+        "status": "Status",
+        "roleMappings": "Role mappings",
+        "history": "History",
+        "rateLimits": "Rate limits"
+      },
+      "source": {
+        "aria": "Configuration source: {source}",
+        "env_var": "Env var",
+        "manual": "Manual",
+        "imported": "Imported",
+        "env_varHelp": "Provisioned from platform OAuth environment variables.",
+        "manualHelp": "Managed directly in the admin interface.",
+        "importedHelp": "Imported from a GitOps promotion manifest."
+      },
+      "tooltips": {
+        "testConnectivity": "Generate a provider authorization URL and report diagnostics."
+      },
+      "connectivity": {
+        "success": "Connectivity check completed",
+        "failure": "Connectivity check failed"
+      },
+      "rotate": {
+        "title": "Rotate OAuth client secret",
+        "description": "Write a new client secret version through the configured secret provider.",
+        "newSecret": "New client secret",
+        "confirmation": "I understand the new secret will be written to Vault and will not be shown again.",
+        "success": "Secret rotated successfully",
+        "failure": "Unable to rotate secret"
+      },
+      "reseed": {
+        "title": "Reseed provider from environment",
+        "description": "Re-read the running pod environment and apply the configured provider values.",
+        "acknowledge": "This may overwrite manual changes. Continue?",
+        "forceUpdate": "Force update",
+        "forceUpdateHelp": "Overwrite an existing provider instead of preserving manual edits.",
+        "changedFields": "Changed fields",
+        "success": "Provider reseeded",
+        "failure": "Unable to reseed provider"
+      },
+      "status": {
+        "lastAuth": "Last successful auth",
+        "auth24h": "Auths in 24h",
+        "auth7d": "Auths in 7d",
+        "auth30d": "Auths in 30d",
+        "linkedUsers": "Linked users",
+        "never": "Never",
+        "loadFailed": "Unable to load provider status."
+      },
+      "roleMappings": {
+        "group": "Group or team",
+        "role": "Role",
+        "actions": "Actions",
+        "delete": "Delete mapping",
+        "empty": "No role mappings configured.",
+        "invalidGroup": "One or more group values do not match the provider format.",
+        "add": "Add mapping",
+        "saved": "Role mappings saved",
+        "saveFailed": "Unable to save role mappings"
+      },
+      "history": {
+        "timestamp": "Timestamp",
+        "admin": "Admin",
+        "action": "Action",
+        "expand": "Expand history row",
+        "collapse": "Collapse history row",
+        "system": "System",
+        "before": "Before",
+        "after": "After",
+        "loading": "Loading history...",
+        "empty": "No history entries found.",
+        "loadMore": "Load more",
+        "loadFailed": "Unable to load provider history."
+      },
+      "rateLimits": {
+        "per_ip_max": "Per-IP max",
+        "per_ip_window": "Per-IP window",
+        "per_user_max": "Per-user max",
+        "per_user_window": "Per-user window",
+        "global_max": "Global max",
+        "global_window": "Global window",
+        "per_ip_maxHelp": "Maximum attempts from one IP address during the window.",
+        "per_ip_windowHelp": "Per-IP window in seconds.",
+        "per_user_maxHelp": "Maximum attempts for one authenticated user during the window.",
+        "per_user_windowHelp": "Per-user window in seconds.",
+        "global_maxHelp": "Maximum provider attempts across the platform during the window.",
+        "global_windowHelp": "Global provider window in seconds.",
+        "saved": "Rate limits saved",
+        "saveFailed": "Unable to save rate limits",
+        "loadFailed": "Unable to load rate limits."
+      }
+    }
   }
 }

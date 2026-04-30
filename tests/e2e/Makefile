@@ -19,7 +19,7 @@ export PLATFORM_WS_URL ?= ws://localhost:$(PORT_WS)
 export MOCK_GOOGLE_OIDC_URL ?= http://localhost:$(PORT_GOOGLE_OIDC)
 export MOCK_GITHUB_OAUTH_URL ?= http://localhost:$(PORT_GITHUB_OAUTH)
 
-.PHONY: e2e-check render-kind-config load-images e2e-up e2e-down e2e-test e2e-chaos e2e-perf e2e-reset e2e-logs e2e-shell capture-state e2e-journeys e2e-j01 e2e-j02 e2e-j03 e2e-j04 e2e-j05 e2e-j06 e2e-j07 e2e-j08 e2e-j09
+.PHONY: e2e-check render-kind-config load-images e2e-up e2e-down e2e-test e2e-chaos e2e-perf e2e-reset e2e-logs e2e-shell capture-state e2e-journeys e2e-j01 e2e-j02 e2e-j03 e2e-j04 e2e-j05 e2e-j06 e2e-j07 e2e-j08 e2e-j09 e2e-j19
 
 e2e-check:
 	@command -v docker >/dev/null 2>&1 || (echo "docker is required" >&2; exit 1)
@@ -85,6 +85,10 @@ e2e-j08:
 e2e-j09:
 	@mkdir -p reports
 	@$(PYTEST) journeys/ -v -m j09_discovery --junitxml=reports/j09-junit.xml --html=reports/j09-report.html
+
+e2e-j19:
+	@mkdir -p reports
+	@$(PYTEST) journeys/test_j19_new_user_signup.py -v -m j19_new_user_signup --junitxml=reports/j19-junit.xml --html=reports/j19-report.html
 
 e2e-chaos:
 	@if [ -d chaos ] && find chaos -type f \( -name 'test_*.py' -o -name '*_test.py' \) | grep -q .; then \

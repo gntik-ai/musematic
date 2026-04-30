@@ -30,6 +30,8 @@ LOGGER = get_logger(__name__)
 
 ProviderType = Literal["google", "github"]
 _VALID_ENVIRONMENTS = {"production", "staging", "dev", "test", "ci"}
+_PLAINTEXT_SECRET_PREFIX = "plain:"
+_REDACTED_PLAINTEXT_SECRET_REF = "plain:<redacted>"
 
 
 @dataclass(frozen=True)
@@ -270,5 +272,18 @@ def _diff_provider(
     changed: dict[str, Any] = {}
     for key, value in (after or {}).items():
         if before.get(key) != value:
-            changed[key] = {"before": before.get(key), "after": value}
+            changed[key] = {
+                "before": _redact_provider_audit_value(key, before.get(key)),
+                "after": _redact_provider_audit_value(key, value),
+            }
     return changed
+
+
+def _redact_provider_audit_value(key: str, value: Any) -> Any:
+    if (
+        key == "client_secret_ref"
+        and isinstance(value, str)
+        and value.startswith(_PLAINTEXT_SECRET_PREFIX)
+    ):
+        return _REDACTED_PLAINTEXT_SECRET_REF
+    return value

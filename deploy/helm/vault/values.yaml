@@ -37,6 +37,8 @@ kubernetesAuthJob:
     - platform-reasoning
     - platform-simulation
     - platform-sandbox
+  # -- Expected audience for projected service-account tokens used by Vault clients.
+  audience: vault
   # -- Token TTL assigned by the role.
   tokenTtl: 1h
 

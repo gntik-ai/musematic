@@ -42,6 +42,8 @@ CANONICAL_SECRET_PATH_RE = re.compile(
     r"(oauth|model-providers|notifications|ibor|audit-chain|connectors|accounts|_internal)/"
     r"[a-zA-Z0-9_/-]+$"
 )
+K8S_SECRET_RESOURCE_RE = re.compile(r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$")
+K8S_SECRET_ENCODED_RESOURCE_PREFIX = "x-"
 
 __all__ = [
     "CredentialPolicyDeniedError",
@@ -186,7 +188,7 @@ def _now() -> datetime:
 def vault_path_to_k8s_secret_name(path: str) -> str:
     validate_secret_path(path)
     _, _, _, environment, domain, resource = path.split("/", 5)
-    return f"musematic-{environment}-{domain}-{resource.replace('/', '__')}"
+    return f"musematic-{environment}-{domain}-{_resource_to_k8s_suffix(resource)}"
 
 
 def k8s_secret_name_to_vault_path(name: str) -> str:
@@ -199,11 +201,26 @@ def k8s_secret_name_to_vault_path(name: str) -> str:
     for domain in sorted(_VALID_DOMAINS, key=len, reverse=True):
         prefix = f"{domain}-"
         if rest.startswith(prefix):
-            resource = rest.removeprefix(prefix).replace("__", "/")
+            resource = _resource_from_k8s_suffix(rest.removeprefix(prefix))
             path = f"secret/data/musematic/{environment}/{domain}/{resource}"
             validate_secret_path(path)
             return path
     raise InvalidVaultPathError(name)
+
+
+def _resource_to_k8s_suffix(resource: str) -> str:
+    if K8S_SECRET_RESOURCE_RE.fullmatch(resource):
+        return resource
+    return f"{K8S_SECRET_ENCODED_RESOURCE_PREFIX}{resource.encode('utf-8').hex()}"
+
+
+def _resource_from_k8s_suffix(resource: str) -> str:
+    if resource.startswith(K8S_SECRET_ENCODED_RESOURCE_PREFIX):
+        encoded = resource.removeprefix(K8S_SECRET_ENCODED_RESOURCE_PREFIX)
+        if len(encoded) % 2 == 0 and re.fullmatch(r"[0-9a-f]+", encoded):
+            with contextlib.suppress(ValueError, UnicodeDecodeError):
+                return bytes.fromhex(encoded).decode("utf-8")
+    return resource
 
 
 class MockSecretProvider:
@@ -215,6 +232,7 @@ class MockSecretProvider:
         validate_paths: bool = True,
     ) -> None:
         self.settings = settings
+        self._using_default_secrets_file = secrets_file is None
         self.secrets_file = secrets_file or str(
             getattr(getattr(settings, "connectors", object()), "vault_mock_secrets_file", "")
             or ".vault-secrets.json"
@@ -274,15 +292,25 @@ class MockSecretProvider:
 
     def _put_sync(self, path: str, values: dict[str, str]) -> None:
         candidates = self._candidate_paths()
-        target = candidates[0]
-        target.parent.mkdir(parents=True, exist_ok=True)
-        content: dict[str, Any] = {}
-        if target.exists():
-            loaded = json.loads(target.read_text(encoding="utf-8"))
-            if isinstance(loaded, dict):
-                content = loaded
-        content[path] = values.get("value") if set(values) == {"value"} else dict(values)
-        target.write_text(json.dumps(content, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+        last_error: Exception | None = None
+        for target in candidates:
+            try:
+                target.parent.mkdir(parents=True, exist_ok=True)
+                content: dict[str, Any] = {}
+                if target.exists():
+                    loaded = json.loads(target.read_text(encoding="utf-8"))
+                    if isinstance(loaded, dict):
+                        content = loaded
+                content[path] = values.get("value") if set(values) == {"value"} else dict(values)
+                target.write_text(
+                    json.dumps(content, sort_keys=True, indent=2) + "\n",
+                    encoding="utf-8",
+                )
+                return
+            except PermissionError as exc:
+                last_error = exc
+        if last_error is not None:
+            raise last_error
 
     def _has_readable_file(self) -> bool:
         for candidate in self._candidate_paths():
@@ -300,6 +328,12 @@ class MockSecretProvider:
         candidates = [configured]
         if not configured.is_absolute():
             candidates.insert(0, Path.cwd() / configured)
+        if self._using_default_secrets_file:
+            fallback = Path(
+                os.getenv("MUSEMATIC_MOCK_SECRETS_FILE", "/tmp/musematic-vault-secrets.json")
+            )
+            if fallback not in candidates:
+                candidates.append(fallback)
         return candidates
 
     @staticmethod

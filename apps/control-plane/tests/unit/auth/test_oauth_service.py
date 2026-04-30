@@ -14,6 +14,7 @@ from platform.auth.exceptions import (
 from platform.auth.schemas import OAuthProviderType
 from platform.auth.services.oauth_service import OAuthUserIdentity
 from platform.common.exceptions import ValidationError
+from platform.common.secret_provider import CredentialPolicyDeniedError, CredentialUnavailableError
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -384,12 +385,13 @@ async def test_upsert_provider_records_changed_fields_and_event(auth_settings) -
         domain_restrictions=["example.com"],
         org_restrictions=[],
         group_role_mapping={"admins": "platform_admin"},
-        default_role="viewer",
+        default_role="workspace_member",
         require_mfa=True,
     )
 
     assert created is False
     assert response.display_name == "Google Workspace"
+    assert response.default_role == "workspace_member"
     assert response.last_edited_by == actor_id
     assert repository.audit_entries[-1]["action"] == "provider_configured"
     assert repository.audit_entries[-1]["actor_id"] == actor_id
@@ -397,9 +399,16 @@ async def test_upsert_provider_records_changed_fields_and_event(auth_settings) -
         "before": False,
         "after": True,
     }
+    client_secret_diff = repository.audit_entries[-1]["changed_fields"]["client_secret_ref"]
+    assert client_secret_diff == {
+        "before": "plain:<redacted>",
+        "after": "plain:<redacted>",
+    }
+    assert "google-secret" not in str(repository.audit_entries[-1]["changed_fields"])
+    assert "new-secret" not in str(repository.audit_entries[-1]["changed_fields"])
     assert producer.events[-1]["event_type"] == "auth.oauth.provider_configured"
 
-    with pytest.raises(ValueError, match="cannot be blank"):
+    with pytest.raises(ValidationError, match="cannot be blank"):
         await service.upsert_provider(
             provider_type="google",
             actor_id=actor_id,
@@ -412,6 +421,23 @@ async def test_upsert_provider_records_changed_fields_and_event(auth_settings) -
             domain_restrictions=[],
             org_restrictions=[],
             group_role_mapping={"admins": "   "},
+            default_role="viewer",
+            require_mfa=False,
+        )
+
+    with pytest.raises(ValidationError, match="Unknown OAuth role mapping role"):
+        await service.upsert_provider(
+            provider_type="google",
+            actor_id=actor_id,
+            display_name="Google Workspace",
+            enabled=True,
+            client_id="google-client",
+            client_secret_ref="plain:secret",
+            redirect_uri="https://app.example.com/oauth/google/callback",
+            scopes=["openid"],
+            domain_restrictions=[],
+            org_restrictions=[],
+            group_role_mapping={"admins": "unknown_role"},
             default_role="viewer",
             require_mfa=False,
         )
@@ -632,6 +658,8 @@ async def test_oauth_secret_provider_and_serializer_edge_paths(monkeypatch, auth
         def __init__(self) -> None:
             self.put_calls: list[tuple[str, dict[str, str]]] = []
             self.flushed: list[str] = []
+            self.raise_policy_denied_versions = False
+            self.raise_unavailable_versions = False
 
         async def get(self, reference: str) -> str:
             assert reference == "vault/github"
@@ -645,6 +673,10 @@ async def test_oauth_secret_provider_and_serializer_edge_paths(monkeypatch, auth
 
         async def list_versions(self, reference: str) -> list[int]:
             assert reference
+            if self.raise_policy_denied_versions:
+                raise CredentialPolicyDeniedError(reference)
+            if self.raise_unavailable_versions:
+                raise CredentialUnavailableError(reference)
             return [1, 2]
 
     provider = build_provider(provider_type="github")
@@ -659,6 +691,12 @@ async def test_oauth_secret_provider_and_serializer_edge_paths(monkeypatch, auth
     assert await service._list_secret_versions("vault/github") == [1, 2]
     assert secret_provider.put_calls == [("vault/github", {"value": "rotated"})]
     assert secret_provider.flushed == ["vault/github"]
+    secret_provider.raise_unavailable_versions = True
+    assert await service._list_secret_versions("vault/github") == []
+    secret_provider.raise_unavailable_versions = False
+    secret_provider.raise_policy_denied_versions = True
+    with pytest.raises(CredentialPolicyDeniedError):
+        await service._list_secret_versions("vault/github")
 
     service.secret_provider = None
     with pytest.raises(ValidationError):
@@ -680,6 +718,12 @@ async def test_oauth_secret_provider_and_serializer_edge_paths(monkeypatch, auth
     assert snapshot["source"] == "env"
     assert service._provider_snapshot(None) is None
     assert service._diff_provider(None, snapshot)["created"] is True
+    created_plain_secret_diff = service._diff_provider(
+        None,
+        {"client_secret_ref": "plain:created-secret"},
+    )
+    assert created_plain_secret_diff["client_secret_ref"] == "plain:<redacted>"
+    assert "created-secret" not in str(created_plain_secret_diff)
     diff = service._diff_provider(
         {"display_name": "Old", "enabled": True},
         {"display_name": "New", "enabled": True},

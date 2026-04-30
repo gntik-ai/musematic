@@ -236,6 +236,7 @@ async def upsert_oauth_provider(
         group_role_mapping=payload.group_role_mapping,
         default_role=payload.default_role,
         require_mfa=payload.require_mfa,
+        source=payload.source,
     )
     if created:
         response.status_code = status.HTTP_201_CREATED

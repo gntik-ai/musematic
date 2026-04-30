@@ -3,12 +3,17 @@
 import { createApiClient } from "@/lib/api";
 import type {
   OAuthAuthorizeResponse,
+  OAuthConfigReseedResponse,
+  OAuthConnectivityTestResponse,
+  OAuthHistoryListResponse,
   OAuthLinkListResponse,
   OAuthProviderAdminListResponse,
   OAuthProviderAdminResponse,
   OAuthProviderPublicListResponse,
+  OAuthProviderStatusResponse,
   OAuthProviderType,
   OAuthProviderUpsertRequest,
+  OAuthRateLimitConfig,
 } from "@/lib/types/oauth";
 import type { ApiError } from "@/types/api";
 import type { AccountStatus, AuthSession, RoleType, UserProfile } from "@/types/auth";
@@ -319,6 +324,77 @@ export async function upsertAdminOAuthProvider(
   return authApi.put<OAuthProviderAdminResponse>(
     `/api/v1/admin/oauth/providers/${providerType}`,
     payload,
+  );
+}
+
+export async function testAdminOAuthProviderConnectivity(
+  providerType: OAuthProviderType,
+): Promise<OAuthConnectivityTestResponse> {
+  return authApi.post<OAuthConnectivityTestResponse>(
+    `/api/v1/admin/oauth-providers/${providerType}/test-connectivity`,
+  );
+}
+
+export async function rotateAdminOAuthProviderSecret(
+  providerType: OAuthProviderType,
+  newSecret: string,
+): Promise<void> {
+  return authApi.post<void>(
+    `/api/v1/admin/oauth-providers/${providerType}/rotate-secret`,
+    { new_secret: newSecret },
+    { skipRetry: true },
+  );
+}
+
+export async function reseedAdminOAuthProviderFromEnv(
+  providerType: OAuthProviderType,
+  forceUpdate: boolean,
+): Promise<OAuthConfigReseedResponse> {
+  return authApi.post<OAuthConfigReseedResponse>(
+    `/api/v1/admin/oauth-providers/${providerType}/reseed-from-env`,
+    { force_update: forceUpdate },
+    { skipRetry: true },
+  );
+}
+
+export async function getAdminOAuthProviderHistory(
+  providerType: OAuthProviderType,
+  cursor?: string | null,
+  limit = 50,
+): Promise<OAuthHistoryListResponse> {
+  const query = new URLSearchParams({ limit: String(limit) });
+  if (cursor) {
+    query.set("cursor", cursor);
+  }
+  return authApi.get<OAuthHistoryListResponse>(
+    `/api/v1/admin/oauth-providers/${providerType}/history?${query.toString()}`,
+  );
+}
+
+export async function getAdminOAuthProviderStatus(
+  providerType: OAuthProviderType,
+): Promise<OAuthProviderStatusResponse> {
+  return authApi.get<OAuthProviderStatusResponse>(
+    `/api/v1/admin/oauth-providers/${providerType}/status`,
+  );
+}
+
+export async function getAdminOAuthProviderRateLimits(
+  providerType: OAuthProviderType,
+): Promise<OAuthRateLimitConfig> {
+  return authApi.get<OAuthRateLimitConfig>(
+    `/api/v1/admin/oauth-providers/${providerType}/rate-limits`,
+  );
+}
+
+export async function putAdminOAuthProviderRateLimits(
+  providerType: OAuthProviderType,
+  payload: OAuthRateLimitConfig,
+): Promise<OAuthRateLimitConfig> {
+  return authApi.put<OAuthRateLimitConfig>(
+    `/api/v1/admin/oauth-providers/${providerType}/rate-limits`,
+    payload,
+    { skipRetry: true },
   );
 }
 

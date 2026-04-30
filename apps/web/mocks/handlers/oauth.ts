@@ -1,8 +1,11 @@
 import { http, HttpResponse } from "msw";
 import type {
+  OAuthHistoryEntryResponse,
   OAuthLinkResponse,
   OAuthProviderAdminResponse,
+  OAuthProviderStatusResponse,
   OAuthProviderType,
+  OAuthRateLimitConfig,
 } from "@/lib/types/oauth";
 
 function nowVersion(): string {
@@ -32,6 +35,10 @@ function buildProvider(
     group_role_mapping: { admins: "platform_admin" },
     default_role: "viewer",
     require_mfa: false,
+    source: "manual",
+    last_edited_by: null,
+    last_edited_at: null,
+    last_successful_auth_at: null,
     created_at: "2026-04-18T07:00:00.000Z",
     updated_at: nowVersion(),
     ...overrides,
@@ -58,16 +65,52 @@ function buildLink(
 }
 
 export interface OAuthMockState {
+  history: Record<OAuthProviderType, OAuthHistoryEntryResponse[]>;
   links: OAuthLinkResponse[];
   providers: Record<OAuthProviderType, OAuthProviderAdminResponse>;
+  rateLimits: Record<OAuthProviderType, OAuthRateLimitConfig>;
 }
 
 export function createOAuthMockState(): OAuthMockState {
   return {
+    history: {
+      github: [],
+      google: [
+        {
+          timestamp: "2026-04-18T07:15:00.000Z",
+          admin_id: null,
+          action: "provider_bootstrapped",
+          before: null,
+          after: { enabled: true, source: "env_var" },
+        },
+      ],
+    },
     links: [buildLink("google")],
     providers: {
       github: buildProvider("github", { enabled: true }),
-      google: buildProvider("google", { enabled: true }),
+      google: buildProvider("google", {
+        enabled: true,
+        source: "env_var",
+        last_successful_auth_at: "2026-04-18T07:30:00.000Z",
+      }),
+    },
+    rateLimits: {
+      github: {
+        per_ip_max: 10,
+        per_ip_window: 60,
+        per_user_max: 10,
+        per_user_window: 60,
+        global_max: 100,
+        global_window: 60,
+      },
+      google: {
+        per_ip_max: 10,
+        per_ip_window: 60,
+        per_user_max: 10,
+        per_user_window: 60,
+        global_max: 100,
+        global_window: 60,
+      },
     },
   };
 }
@@ -76,8 +119,10 @@ export const oauthFixtures = createOAuthMockState();
 
 export function resetOAuthFixtures(): void {
   const fresh = createOAuthMockState();
+  oauthFixtures.history = fresh.history;
   oauthFixtures.links = fresh.links;
   oauthFixtures.providers = fresh.providers;
+  oauthFixtures.rateLimits = fresh.rateLimits;
 }
 
 function getProvider(providerType: string): OAuthProviderAdminResponse | undefined {
@@ -178,5 +223,97 @@ export const oauthHandlers = [
     };
 
     return HttpResponse.json(oauthFixtures.providers[providerType]);
+  }),
+  http.post("*/api/v1/admin/oauth-providers/:provider/test-connectivity", ({ params }) => {
+    const provider = getProvider(String(params.provider));
+    return HttpResponse.json({
+      reachable: Boolean(provider),
+      auth_url_returned: Boolean(provider?.enabled),
+      diagnostic: provider?.enabled
+        ? "authorization_url_generated"
+        : "provider_not_enabled",
+    });
+  }),
+  http.post("*/api/v1/admin/oauth-providers/:provider/rotate-secret", ({ params }) => {
+    const providerType = String(params.provider) as OAuthProviderType;
+    oauthFixtures.history[providerType].unshift({
+      timestamp: nowVersion(),
+      admin_id: "admin-user-id",
+      action: "secret_rotated",
+      before: null,
+      after: { changed_fields: ["client_secret"] },
+    });
+    return new HttpResponse(null, { status: 204 });
+  }),
+  http.post("*/api/v1/admin/oauth-providers/:provider/reseed-from-env", async ({ params, request }) => {
+    const providerType = String(params.provider) as OAuthProviderType;
+    const body = (await request.json()) as { force_update?: boolean };
+    const provider = getProvider(providerType);
+    if (!provider) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: "OAUTH_PROVIDER_NOT_FOUND",
+            message: "Provider not found",
+          },
+        },
+        { status: 404 },
+      );
+    }
+    provider.source = "env_var";
+    provider.updated_at = nowVersion();
+    oauthFixtures.history[providerType].unshift({
+      timestamp: nowVersion(),
+      admin_id: "admin-user-id",
+      action: "config_reseeded",
+      before: { source: "manual" },
+      after: { source: "env_var", force_update: Boolean(body.force_update) },
+    });
+    return HttpResponse.json({
+      diff: {
+        status: "updated",
+        changed_fields: { source: "env_var", force_update: Boolean(body.force_update) },
+      },
+    });
+  }),
+  http.get("*/api/v1/admin/oauth-providers/:provider/history", ({ params }) => {
+    const providerType = String(params.provider) as OAuthProviderType;
+    return HttpResponse.json({
+      entries: oauthFixtures.history[providerType] ?? [],
+      next_cursor: null,
+    });
+  }),
+  http.get("*/api/v1/admin/oauth-providers/:provider/status", ({ params }) => {
+    const providerType = String(params.provider) as OAuthProviderType;
+    const provider = getProvider(providerType);
+    const response: OAuthProviderStatusResponse = {
+      provider_type: providerType,
+      source: provider?.source ?? "manual",
+      last_successful_auth_at: provider?.last_successful_auth_at ?? null,
+      auth_count_24h: providerType === "google" ? 3 : 0,
+      auth_count_7d: providerType === "google" ? 11 : 0,
+      auth_count_30d: providerType === "google" ? 27 : 0,
+      active_linked_users: oauthFixtures.links.filter(
+        (link) => link.provider_type === providerType,
+      ).length,
+    };
+    return HttpResponse.json(response);
+  }),
+  http.get("*/api/v1/admin/oauth-providers/:provider/rate-limits", ({ params }) => {
+    const providerType = String(params.provider) as OAuthProviderType;
+    return HttpResponse.json(oauthFixtures.rateLimits[providerType]);
+  }),
+  http.put("*/api/v1/admin/oauth-providers/:provider/rate-limits", async ({ params, request }) => {
+    const providerType = String(params.provider) as OAuthProviderType;
+    const body = (await request.json()) as OAuthRateLimitConfig;
+    oauthFixtures.rateLimits[providerType] = body;
+    oauthFixtures.history[providerType].unshift({
+      timestamp: nowVersion(),
+      admin_id: "admin-user-id",
+      action: "rate_limit_updated",
+      before: null,
+      after: { ...body },
+    });
+    return HttpResponse.json(body);
   }),
 ];

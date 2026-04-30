@@ -55,6 +55,59 @@ async function installA11yState(page: Page, theme: string, locale: string) {
 }
 
 async function mockA11yApis(page: Page) {
+  const oauthProviders = [
+    {
+      id: "google-provider-id",
+      provider_type: "google",
+      display_name: "Google",
+      enabled: true,
+      client_id: "google-client.apps.googleusercontent.com",
+      client_secret_ref: "secret/data/musematic/dev/oauth/google/client-secret",
+      redirect_uri: "https://app.musematic.dev/auth/oauth/google/callback",
+      scopes: ["openid", "email", "profile"],
+      domain_restrictions: ["musematic.dev"],
+      org_restrictions: [],
+      group_role_mapping: { "admins@musematic.dev": "admin" },
+      default_role: "member",
+      require_mfa: false,
+      source: "env_var",
+      last_edited_by: null,
+      last_edited_at: null,
+      last_successful_auth_at: "2026-04-18T07:30:00.000Z",
+      created_at: "2026-04-18T07:00:00.000Z",
+      updated_at: "2026-04-18T07:30:00.000Z",
+    },
+    {
+      id: "github-provider-id",
+      provider_type: "github",
+      display_name: "GitHub",
+      enabled: true,
+      client_id: "github-client",
+      client_secret_ref: "secret/data/musematic/dev/oauth/github/client-secret",
+      redirect_uri: "https://app.musematic.dev/auth/oauth/github/callback",
+      scopes: ["read:user", "user:email"],
+      domain_restrictions: [],
+      org_restrictions: ["musematic"],
+      group_role_mapping: { "musematic/platform-admins": "admin" },
+      default_role: "member",
+      require_mfa: false,
+      source: "manual",
+      last_edited_by: "admin-user-id",
+      last_edited_at: "2026-04-18T07:45:00.000Z",
+      last_successful_auth_at: null,
+      created_at: "2026-04-18T07:00:00.000Z",
+      updated_at: "2026-04-18T07:45:00.000Z",
+    },
+  ];
+  const oauthRateLimits = {
+    per_ip_max: 10,
+    per_ip_window: 60,
+    per_user_max: 10,
+    per_user_window: 60,
+    global_max: 100,
+    global_window: 60,
+  };
+
   await fulfillJson(page, "**/api/v1/workspaces", {
     items: [
       {
@@ -88,6 +141,31 @@ async function mockA11yApis(page: Page) {
     translations: {},
     published_at: "2026-04-10T09:00:00.000Z",
   });
+  await fulfillJson(page, "**/api/v1/admin/oauth/providers", {
+    providers: oauthProviders,
+  });
+  await fulfillJson(page, "**/api/v1/admin/oauth-providers/*/status", {
+    provider_type: "google",
+    source: "env_var",
+    last_successful_auth_at: "2026-04-18T07:30:00.000Z",
+    auth_count_24h: 3,
+    auth_count_7d: 11,
+    auth_count_30d: 27,
+    active_linked_users: 1,
+  });
+  await fulfillJson(page, "**/api/v1/admin/oauth-providers/*/history", {
+    entries: [
+      {
+        timestamp: "2026-04-18T07:15:00.000Z",
+        admin_id: null,
+        action: "provider_bootstrapped",
+        before: null,
+        after: { enabled: true, source: "env_var" },
+      },
+    ],
+    next_cursor: null,
+  });
+  await fulfillJson(page, "**/api/v1/admin/oauth-providers/*/rate-limits", oauthRateLimits);
 }
 
 export function runA11yGroup(group: A11ySurfaceGroup) {

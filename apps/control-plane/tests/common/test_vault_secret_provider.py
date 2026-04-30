@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import re
 from platform.common import secret_provider as module
 from platform.common.secret_provider import (
     CredentialPolicyDeniedError,
@@ -126,6 +127,13 @@ def test_vault_kubernetes_secret_name_mapping_round_trips() -> None:
 
     assert name == "musematic-production-oauth-google"
     assert k8s_secret_name_to_vault_path(name) == path
+    nested_path = "secret/data/musematic/dev/oauth/google/client-secret"
+    nested_name = vault_path_to_k8s_secret_name(nested_path)
+    assert nested_name == (
+        "musematic-dev-oauth-x-676f6f676c652f636c69656e742d736563726574"
+    )
+    assert re.fullmatch(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", nested_name)
+    assert k8s_secret_name_to_vault_path(nested_name) == nested_path
     assert (
         k8s_secret_name_to_vault_path("musematic-dev-model-providers/openai".replace("/", "-"))
         == "secret/data/musematic/dev/model-providers/openai"
@@ -238,3 +246,16 @@ async def test_kubernetes_secret_provider_round_trip_with_fake_api() -> None:
     assert await provider.list_versions(path) == [1]
     assert (await provider.health_check()).status == "green"
     assert api.patched is not None
+
+
+@pytest.mark.asyncio
+async def test_kubernetes_secret_provider_writes_nested_paths_with_safe_names() -> None:
+    api = _K8sApi()
+    provider = KubernetesSecretProvider(_settings(), api=api)
+    path = "secret/data/musematic/dev/oauth/google/client-secret"
+
+    await provider.put(path, {"value": "written"})
+
+    assert api.patched is not None
+    assert api.patched[0] == vault_path_to_k8s_secret_name(path)
+    assert "_" not in api.patched[0]

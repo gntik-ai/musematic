@@ -43,6 +43,34 @@ class AuthSettings(BaseSettings):
     assert entries["AUTH_OAUTH_STATE_SECRET"].description == "State signing secret."
 
 
+def test_settings_parser_reads_bootstrap_subsettings_without_parent_field(tmp_path: Path) -> None:
+    config = tmp_path / "config.py"
+    config.write_text(
+        """
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+class OAuthGoogleBootstrap(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="PLATFORM_OAUTH_GOOGLE_", extra="ignore")
+
+    enabled: bool = False
+    client_secret: str | None = None
+
+class OAuthBootstrapSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="PLATFORM_OAUTH_", extra="ignore")
+
+    google: OAuthGoogleBootstrap = Field(default_factory=OAuthGoogleBootstrap)
+""",
+        encoding="utf-8",
+    )
+
+    names = {entry.name for entry in generate_env_docs.parse_settings_entries(config)}
+
+    assert "PLATFORM_OAUTH_GOOGLE_ENABLED" in names
+    assert "PLATFORM_OAUTH_GOOGLE_CLIENT_SECRET" in names
+    assert "PLATFORM_OAUTH_GOOGLE" not in names
+
+
 def test_settings_parser_reads_alias_choices(tmp_path: Path) -> None:
     config = tmp_path / "config.py"
     config.write_text(

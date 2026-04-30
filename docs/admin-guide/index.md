@@ -5,6 +5,7 @@ The Administrator Guide mirrors the Admin Workbench sections from feature 086 an
 | Page | Scope |
 | --- | --- |
 | [Identity and Access](identity-access.md) | Users, roles, MFA, lockout, invitations, OAuth account state. |
+| [OAuth Providers](oauth-providers.md) | Google and GitHub OAuth provider setup, rotation, role mappings, history, and rate limits. |
 | [Tenancy and Workspaces](tenancy-workspaces.md) | Workspace creation, membership, quotas, visibility, goals. |
 | [System Configuration](system-config.md) | Provider credentials, OAuth, feature switches, safe configuration changes. |
 | [Security and Compliance](security-compliance.md) | Audit chain, evidence, vulnerability gates, privacy operations. |

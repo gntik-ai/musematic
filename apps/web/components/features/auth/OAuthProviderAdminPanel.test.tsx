@@ -1,11 +1,19 @@
 import { screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OAuthProviderAdminPanel } from "@/components/features/auth/OAuthProviderAdminPanel";
 import { renderWithProviders } from "@/test-utils/render";
 import { setPlatformAdminUser } from "@/tests/features/admin/test-helpers";
 
+const replace = vi.fn();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace }),
+  useSearchParams: () => new URLSearchParams(""),
+}));
+
 describe("OAuthProviderAdminPanel", () => {
   beforeEach(() => {
+    replace.mockClear();
     setPlatformAdminUser();
   });
 

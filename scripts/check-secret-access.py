@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Iterable
 
 SECRET_ENV_RE = re.compile(r"(^|_)(SECRET|PASSWORD|API_KEY|TOKEN)(_|$)")
+PLATFORM_OAUTH_CLIENT_SECRET_RE = re.compile(r"^PLATFORM_OAUTH_[A-Z0-9]+_CLIENT_SECRET$")
+LEGACY_OAUTH_SECRET_RE = re.compile(r"\bOAUTH_SECRET_[A-Z0-9_]*\b")
 GO_GETENV_RE = re.compile(r"os\.Getenv\(\s*([\"'])(?P<name>[^\"']+)\1\s*\)")
 FORBIDDEN_LOG_FIELDS = {"token", "secret_id", "kv_value", "client_secret"}
 
@@ -23,6 +25,10 @@ GO_EXCLUDE_PREFIXES = (Path("services/shared/secrets"),)
 VAULT_RESOLVER_ALLOWED = {
     Path("apps/control-plane/src/platform/common/secret_provider.py"),
     Path("apps/control-plane/src/platform/connectors/security.py"),
+}
+OAUTH_CLIENT_SECRET_ENV_ALLOWED = {
+    Path("apps/control-plane/src/platform/auth/services/oauth_bootstrap.py"),
+    Path("apps/control-plane/src/platform/auth/services/oauth_service.py"),
 }
 BASELINE_EXCEPTIONS = {
     (
@@ -62,6 +68,15 @@ def _is_secret_env_name(name: str) -> bool:
     return bool(SECRET_ENV_RE.search(name)) and "API_VERSION" not in name
 
 
+def _is_oauth_client_secret_env_name(name: str) -> bool:
+    return bool(PLATFORM_OAUTH_CLIENT_SECRET_RE.fullmatch(name))
+
+
+def _is_oauth_client_secret_allowed(path: Path) -> bool:
+    normalized = Path(*path.parts[-len(Path("apps/control-plane/src/platform/auth/services/oauth_bootstrap.py").parts) :])
+    return normalized in OAUTH_CLIENT_SECRET_ENV_ALLOWED
+
+
 def _is_excluded(path: Path, root: Path) -> bool:
     rel = path.relative_to(root)
     if rel in PYTHON_EXCLUDES:
@@ -95,7 +110,14 @@ class PythonSecretVisitor(ast.NodeVisitor):
         name = _call_name(node.func)
         if name in {"os.getenv", "os.environ.get"}:
             env_name = _literal_first_arg(node)
-            if env_name is not None and _is_secret_env_name(env_name):
+            if (
+                env_name is not None
+                and _is_secret_env_name(env_name)
+                and not (
+                    _is_oauth_client_secret_env_name(env_name)
+                    and _is_oauth_client_secret_allowed(self.path)
+                )
+            ):
                 self.violations.append(
                     Violation(
                         self.path,
@@ -136,12 +158,30 @@ def scan_python_file(path: Path) -> list[Violation]:
         raise ParseFailure(path, exc) from exc
     visitor = PythonSecretVisitor(path, source.splitlines())
     visitor.visit(tree)
+    for line_number, line in enumerate(source.splitlines(), start=1):
+        for match in LEGACY_OAUTH_SECRET_RE.finditer(line):
+            visitor.violations.append(
+                Violation(
+                    path,
+                    line_number,
+                    f"legacy OAuth secret environment fallback is forbidden: {match.group(0)}",
+                )
+            )
     return visitor.violations
 
 
 def scan_go_file(path: Path) -> list[Violation]:
     violations: list[Violation] = []
     for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        for legacy_match in LEGACY_OAUTH_SECRET_RE.finditer(line):
+            violations.append(
+                Violation(
+                    path,
+                    line_number,
+                    "legacy OAuth secret environment fallback is forbidden: "
+                    f"{legacy_match.group(0)}",
+                )
+            )
         for match in GO_GETENV_RE.finditer(line):
             env_name = match.group("name")
             if _is_secret_env_name(env_name):

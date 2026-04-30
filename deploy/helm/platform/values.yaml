@@ -20,6 +20,62 @@ superadmin:
   # -- Configures `superadmin.forcePasswordChange` for the platform chart.
   forcePasswordChange: true
 
+# @section -- OAuth
+# -- Documents OAuth provider bootstrap values for GitOps promotion.
+oauth:
+  # -- Configures `oauth.google` for the platform chart.
+  google:
+    # -- Configures `oauth.google.enabled` for the platform chart.
+    enabled: false
+    # -- Configures `oauth.google.clientId` for the platform chart.
+    clientId: ""
+    # -- Configures `oauth.google.clientSecretRef` for the platform chart.
+    clientSecretRef:
+      # -- Configures `oauth.google.clientSecretRef.name` for the platform chart.
+      name: ""
+      # -- Configures `oauth.google.clientSecretRef.key` for the platform chart.
+      key: client-secret
+    # -- Configures `oauth.google.clientSecretVaultPath` for the platform chart.
+    clientSecretVaultPath: ""
+    # -- Configures `oauth.google.redirectUri` for the platform chart.
+    redirectUri: ""
+    # -- Configures `oauth.google.allowedDomains` for the platform chart.
+    allowedDomains: []
+    # -- Configures `oauth.google.groupRoleMappings` for the platform chart.
+    groupRoleMappings: {}
+    # -- Configures `oauth.google.requireMfa` for the platform chart.
+    requireMfa: false
+    # -- Configures `oauth.google.defaultRole` for the platform chart.
+    defaultRole: member
+    # -- Configures `oauth.google.forceUpdate` for the platform chart.
+    forceUpdate: false
+  # -- Configures `oauth.github` for the platform chart.
+  github:
+    # -- Configures `oauth.github.enabled` for the platform chart.
+    enabled: false
+    # -- Configures `oauth.github.clientId` for the platform chart.
+    clientId: ""
+    # -- Configures `oauth.github.clientSecretRef` for the platform chart.
+    clientSecretRef:
+      # -- Configures `oauth.github.clientSecretRef.name` for the platform chart.
+      name: ""
+      # -- Configures `oauth.github.clientSecretRef.key` for the platform chart.
+      key: client-secret
+    # -- Configures `oauth.github.clientSecretVaultPath` for the platform chart.
+    clientSecretVaultPath: ""
+    # -- Configures `oauth.github.redirectUri` for the platform chart.
+    redirectUri: ""
+    # -- Configures `oauth.github.allowedOrgs` for the platform chart.
+    allowedOrgs: []
+    # -- Configures `oauth.github.teamRoleMappings` for the platform chart.
+    teamRoleMappings: {}
+    # -- Configures `oauth.github.requireMfa` for the platform chart.
+    requireMfa: false
+    # -- Configures `oauth.github.defaultRole` for the platform chart.
+    defaultRole: member
+    # -- Configures `oauth.github.forceUpdate` for the platform chart.
+    forceUpdate: false
+
 # @section -- Platforminstancename
 # -- Configures `platformInstanceName` for the platform chart.
 platformInstanceName: "Musematic Platform"
@@ -429,6 +485,60 @@ controlPlane:
     authMfaEncryptionKey: ""
     # -- Configures `controlPlane.connections.authJwtAlgorithm` for the platform chart.
     authJwtAlgorithm: HS256
+  # -- Configures `controlPlane.oauth` for the platform chart.
+  oauth:
+    # -- Configures `controlPlane.oauth.google` for the platform chart.
+    google:
+      # -- Configures `controlPlane.oauth.google.enabled` for the platform chart.
+      enabled: false
+      # -- Configures `controlPlane.oauth.google.clientId` for the platform chart.
+      clientId: ""
+      # -- Configures `controlPlane.oauth.google.clientSecretRef` for the platform chart.
+      clientSecretRef:
+        # -- Configures `controlPlane.oauth.google.clientSecretRef.name` for the platform chart.
+        name: ""
+        # -- Configures `controlPlane.oauth.google.clientSecretRef.key` for the platform chart.
+        key: client-secret
+      # -- Configures `controlPlane.oauth.google.clientSecretVaultPath` for the platform chart.
+      clientSecretVaultPath: ""
+      # -- Configures `controlPlane.oauth.google.redirectUri` for the platform chart.
+      redirectUri: ""
+      # -- Configures `controlPlane.oauth.google.allowedDomains` for the platform chart.
+      allowedDomains: []
+      # -- Configures `controlPlane.oauth.google.groupRoleMappings` for the platform chart.
+      groupRoleMappings: {}
+      # -- Configures `controlPlane.oauth.google.requireMfa` for the platform chart.
+      requireMfa: false
+      # -- Configures `controlPlane.oauth.google.defaultRole` for the platform chart.
+      defaultRole: member
+      # -- Configures `controlPlane.oauth.google.forceUpdate` for the platform chart.
+      forceUpdate: false
+    # -- Configures `controlPlane.oauth.github` for the platform chart.
+    github:
+      # -- Configures `controlPlane.oauth.github.enabled` for the platform chart.
+      enabled: false
+      # -- Configures `controlPlane.oauth.github.clientId` for the platform chart.
+      clientId: ""
+      # -- Configures `controlPlane.oauth.github.clientSecretRef` for the platform chart.
+      clientSecretRef:
+        # -- Configures `controlPlane.oauth.github.clientSecretRef.name` for the platform chart.
+        name: ""
+        # -- Configures `controlPlane.oauth.github.clientSecretRef.key` for the platform chart.
+        key: client-secret
+      # -- Configures `controlPlane.oauth.github.clientSecretVaultPath` for the platform chart.
+      clientSecretVaultPath: ""
+      # -- Configures `controlPlane.oauth.github.redirectUri` for the platform chart.
+      redirectUri: ""
+      # -- Configures `controlPlane.oauth.github.allowedOrgs` for the platform chart.
+      allowedOrgs: []
+      # -- Configures `controlPlane.oauth.github.teamRoleMappings` for the platform chart.
+      teamRoleMappings: {}
+      # -- Configures `controlPlane.oauth.github.requireMfa` for the platform chart.
+      requireMfa: false
+      # -- Configures `controlPlane.oauth.github.defaultRole` for the platform chart.
+      defaultRole: member
+      # -- Configures `controlPlane.oauth.github.forceUpdate` for the platform chart.
+      forceUpdate: false
   # -- Configures `controlPlane.migration` for the platform chart.
   migration:
     # -- Configures `controlPlane.migration.enabled` for the platform chart.

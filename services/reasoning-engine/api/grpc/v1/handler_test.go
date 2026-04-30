@@ -787,8 +787,13 @@ func TestHandlerAdditionalBranches(t *testing.T) { //nolint:gocyclo // This test
 
 		key := budget_tracker.Key("exec", "step")
 		registry.Register(key)
-		stream := &fakeBudgetEventStream{ctx: context.Background(), sendErr: errors.New("send failed")}
-		go registry.Publish(key, budget_tracker.BudgetEvent{ExecutionID: "exec", StepID: "step", EventType: "THRESHOLD_80", OccurredAt: time.Now().UTC()})
+		streamCtx, cancelStream := context.WithTimeout(context.Background(), time.Second)
+		defer cancelStream()
+		stream := &fakeBudgetEventStream{ctx: streamCtx, sendErr: errors.New("send failed")}
+		go func() {
+			waitForBudgetSubscriber(registry, key)
+			registry.Publish(key, budget_tracker.BudgetEvent{ExecutionID: "exec", StepID: "step", EventType: "THRESHOLD_80", OccurredAt: time.Now().UTC()})
+		}()
 		if err := handler.StreamBudgetEvents(&StreamBudgetEventsRequest{ExecutionId: "exec", StepId: "step"}, stream); err == nil || err.Error() != "send failed" {
 			t.Fatalf("StreamBudgetEvents() error = %v", err)
 		}

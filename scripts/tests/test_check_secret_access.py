@@ -132,3 +132,54 @@ def test_secret_like_logger_fields_are_denied(tmp_path) -> None:
         "kv_value",
         "client_secret",
     }
+
+
+def test_platform_oauth_client_secret_env_read_is_denied_outside_bootstrap(tmp_path) -> None:
+    module = _module()
+    _write(
+        tmp_path / "apps/control-plane/src/platform/auth/bad.py",
+        "import os\nvalue = os.getenv('PLATFORM_OAUTH_GOOGLE_CLIENT_SECRET')\n",
+    )
+
+    violations = module.scan(tmp_path)
+
+    assert len(violations) == 1
+    assert "PLATFORM_OAUTH_GOOGLE_CLIENT_SECRET" in violations[0].message
+
+
+def test_platform_oauth_client_secret_env_read_is_allowed_in_bootstrap_boundary(
+    tmp_path,
+) -> None:
+    module = _module()
+    _write(
+        tmp_path / "apps/control-plane/src/platform/auth/services/oauth_bootstrap.py",
+        "import os\nvalue = os.getenv('PLATFORM_OAUTH_GOOGLE_CLIENT_SECRET')\n",
+    )
+
+    assert module.scan(tmp_path) == []
+
+
+def test_legacy_oauth_secret_fallback_string_is_denied(tmp_path) -> None:
+    module = _module()
+    _write(
+        tmp_path / "apps/control-plane/src/platform/auth/service.py",
+        "legacy = 'OAUTH_SECRET_GOOGLE'\n",
+    )
+
+    violations = module.scan(tmp_path)
+
+    assert len(violations) == 1
+    assert "OAUTH_SECRET_GOOGLE" in violations[0].message
+
+
+def test_go_legacy_oauth_secret_fallback_string_is_denied(tmp_path) -> None:
+    module = _module()
+    _write(
+        tmp_path / "services/runtime-controller/main.go",
+        'package main\nconst legacy = "OAUTH_SECRET_GITHUB"\n',
+    )
+
+    violations = module.scan(tmp_path)
+
+    assert len(violations) == 1
+    assert "OAUTH_SECRET_GITHUB" in violations[0].message

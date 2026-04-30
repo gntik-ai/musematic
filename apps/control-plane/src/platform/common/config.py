@@ -187,6 +187,7 @@ _VALID_OAUTH_BOOTSTRAP_ROLES = {
     "user",
     "viewer",
     "workspace_admin",
+    "workspace_member",
     "workspace_owner",
 }
 _GITHUB_CLIENT_ID_RE = re.compile(r"^[A-Za-z0-9_-]+$")

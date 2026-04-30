@@ -25,6 +25,22 @@ spec:
                   audience: vault
                   expirationSeconds: 3600
                   path: vault-token
+{{ if .Values.oauth.google.clientSecretRef.name }}
+        - name: oauth-google-client-secret
+          secret:
+            secretName: {{ .Values.oauth.google.clientSecretRef.name | quote }}
+            items:
+              - key: {{ .Values.oauth.google.clientSecretRef.key | quote }}
+                path: client-secret
+{{- end }}
+{{ if .Values.oauth.github.clientSecretRef.name }}
+        - name: oauth-github-client-secret
+          secret:
+            secretName: {{ .Values.oauth.github.clientSecretRef.name | quote }}
+            items:
+              - key: {{ .Values.oauth.github.clientSecretRef.key | quote }}
+                path: client-secret
+{{- end }}
       containers:
         - name: api
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -34,6 +50,18 @@ spec:
             - name: vault-token
               mountPath: /var/run/secrets/tokens
               readOnly: true
+{{ if .Values.oauth.google.clientSecretRef.name }}
+            - name: oauth-google-client-secret
+              mountPath: /etc/secrets/google-client-secret
+              subPath: client-secret
+              readOnly: true
+{{- end }}
+{{ if .Values.oauth.github.clientSecretRef.name }}
+            - name: oauth-github-client-secret
+              mountPath: /etc/secrets/github-client-secret
+              subPath: client-secret
+              readOnly: true
+{{- end }}
           env:
             - name: PLATFORM_PROFILE
               value: api

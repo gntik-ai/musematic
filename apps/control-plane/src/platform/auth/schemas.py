@@ -249,6 +249,7 @@ class OAuthProviderCreate(BaseModel):
     group_role_mapping: dict[str, str] = Field(default_factory=dict)
     default_role: str = Field(default="member", min_length=1, max_length=64)
     require_mfa: bool = False
+    source: OAuthProviderSourceType = OAuthProviderSourceType.MANUAL
 
 
 class OAuthProviderUpdate(OAuthProviderCreate):

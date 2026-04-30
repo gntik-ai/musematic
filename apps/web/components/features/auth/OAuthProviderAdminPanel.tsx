@@ -3,14 +3,25 @@
 import { useEffect, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { KeyRound } from "lucide-react";
 import { ApiError } from "@/types/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { SettingsFormActions } from "@/components/features/admin/shared/SettingsFormActions";
+import { OAuthProviderHistoryTab } from "@/components/features/auth/OAuthProviderHistoryTab";
+import { OAuthProviderRateLimitsTab } from "@/components/features/auth/OAuthProviderRateLimitsTab";
+import { OAuthProviderReseedDialog } from "@/components/features/auth/OAuthProviderReseedDialog";
+import { OAuthProviderRoleMappingsTable } from "@/components/features/auth/OAuthProviderRoleMappingsTable";
+import { OAuthProviderRotateSecretDialog } from "@/components/features/auth/OAuthProviderRotateSecretDialog";
+import { OAuthProviderSourceBadge } from "@/components/features/auth/OAuthProviderSourceBadge";
+import { OAuthProviderStatusPanel } from "@/components/features/auth/OAuthProviderStatusPanel";
+import { OAuthProviderTestConnectivityButton } from "@/components/features/auth/OAuthProviderTestConnectivityButton";
 import { useToast } from "@/lib/hooks/use-toast";
 import { useAdminOAuthProviderMutation, useAdminOAuthProviders } from "@/lib/hooks/use-oauth";
 import {
@@ -45,6 +56,10 @@ function defaultProvider(providerType: OAuthProviderType): OAuthProviderAdminRes
     group_role_mapping: {},
     default_role: "viewer",
     require_mfa: false,
+    source: "manual",
+    last_edited_by: null,
+    last_edited_at: null,
+    last_successful_auth_at: null,
     created_at: new Date(0).toISOString(),
     updated_at: new Date(0).toISOString(),
   };
@@ -120,7 +135,24 @@ function ProviderConfigCard({
 }) {
   const mutation = useAdminOAuthProviderMutation();
   const { toast } = useToast();
+  const t = useTranslations("admin.oauth");
   const [isSaved, setIsSaved] = useState(false);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const providerTab = searchParams.get("provider_tab") ?? "configuration";
+  const tabs = [
+    { id: "configuration", label: t("tabs.configuration") },
+    { id: "status", label: t("tabs.status") },
+    { id: "role-mappings", label: t("tabs.roleMappings") },
+    { id: "history", label: t("tabs.history") },
+    { id: "rate-limits", label: t("tabs.rateLimits") },
+  ];
+
+  const setProviderTab = (tab: string) => {
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("provider_tab", tab);
+    router.replace(`?${next.toString()}`, { scroll: false });
+  };
 
   const form = useForm<OAuthProviderAdminFormValues>({
     defaultValues: toFormValues(provider),
@@ -136,15 +168,43 @@ function ProviderConfigCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <KeyRound className="h-4 w-4 text-brand-accent" />
-          {provider.display_name}
-        </CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Configure redirect URI, scopes, restrictions, and default role mapping.
-        </p>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 space-y-2">
+            <CardTitle className="flex flex-wrap items-center gap-2 text-base">
+              <KeyRound className="h-4 w-4 text-brand-accent" />
+              {provider.display_name}
+              <OAuthProviderSourceBadge source={provider.source} />
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Configure redirect URI, scopes, restrictions, and default role mapping.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <OAuthProviderTestConnectivityButton providerType={provider.provider_type} />
+            <OAuthProviderRotateSecretDialog providerType={provider.provider_type} />
+            <OAuthProviderReseedDialog providerType={provider.provider_type} />
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
+        <Tabs>
+          <TabsList className="flex w-full flex-wrap justify-start gap-1 bg-muted/70">
+            {tabs.map((tab) => (
+              <TabsTrigger
+                className={
+                  providerTab === tab.id
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground"
+                }
+                key={tab.id}
+                onClick={() => setProviderTab(tab.id)}
+              >
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          {providerTab === "configuration" ? (
+            <TabsContent>
         <Form {...form}>
           <form
             className="space-y-6"
@@ -342,6 +402,29 @@ function ProviderConfigCard({
             />
           </form>
         </Form>
+            </TabsContent>
+          ) : null}
+          {providerTab === "status" ? (
+            <TabsContent>
+              <OAuthProviderStatusPanel provider={provider} />
+            </TabsContent>
+          ) : null}
+          {providerTab === "role-mappings" ? (
+            <TabsContent>
+              <OAuthProviderRoleMappingsTable provider={provider} />
+            </TabsContent>
+          ) : null}
+          {providerTab === "history" ? (
+            <TabsContent>
+              <OAuthProviderHistoryTab providerType={provider.provider_type} />
+            </TabsContent>
+          ) : null}
+          {providerTab === "rate-limits" ? (
+            <TabsContent>
+              <OAuthProviderRateLimitsTab providerType={provider.provider_type} />
+            </TabsContent>
+          ) : null}
+        </Tabs>
       </CardContent>
     </Card>
   );

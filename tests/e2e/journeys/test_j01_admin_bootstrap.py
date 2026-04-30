@@ -77,6 +77,7 @@ async def test_j01_admin_bootstrap(
     governance_chain: dict[str, Any] | None = None
     policy_payload: dict[str, Any] | None = None
     alert_settings_payload: dict[str, Any] | None = None
+    env_bootstrapped_providers: dict[str, Any] = {}
 
     with journey_step("Admin logs in with bootstrap access and has platform-admin authority"):
         assert admin_client.access_token is not None
@@ -101,6 +102,27 @@ async def test_j01_admin_bootstrap(
         confirmation = confirm.json()
         assert confirmation["status"] == "active"
         assert confirmation["message"] == "MFA enrollment confirmed"
+
+    with journey_step("Verify env-var-bootstrapped Google and GitHub providers exist when configured"):
+        bootstrap_list = await admin_client.get("/api/v1/admin/oauth/providers")
+        bootstrap_list.raise_for_status()
+        env_bootstrapped_providers = {
+            item["provider_type"]: item
+            for item in bootstrap_list.json().get("providers", [])
+            if item.get("source") == "env_var"
+        }
+        if env_bootstrapped_providers:
+            assert {"google", "github"}.issubset(env_bootstrapped_providers)
+
+    with journey_step("Verify OAuth source badge data reads env_var for bootstrapped providers"):
+        for provider in env_bootstrapped_providers.values():
+            assert provider["source"] == "env_var"
+            assert provider["last_edited_by"] is None
+
+    with journey_step("Verify OAuth bootstrap Vault paths are populated on provider records"):
+        for provider_type, provider in env_bootstrapped_providers.items():
+            assert provider["client_secret_ref"].startswith("secret/data/musematic/")
+            assert f"/oauth/{provider_type}/" in provider["client_secret_ref"]
 
     with journey_step("Admin sees the OAuth provider admin inventory"):
         before_list = await admin_client.get("/api/v1/admin/oauth/providers")
