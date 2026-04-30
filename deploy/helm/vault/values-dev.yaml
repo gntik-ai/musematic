@@ -10,6 +10,7 @@ vault:
     enabled: true
     serviceType: ClusterIP
   server:
+    extraEnvironmentVars: null
     dev:
       enabled: true
       devRootToken: root

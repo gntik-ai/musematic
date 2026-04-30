@@ -85,6 +85,8 @@ def test_vault_dev_hooks_target_rendered_service_and_dev_token() -> None:
 
     assert values['vault']['fullnameOverride'] == 'musematic-vault'
     assert dev_values['policyJob']['vaultAddr'] == 'http://musematic-vault.platform-security.svc.cluster.local:8200'
+    assert values['vault']['server']['extraEnvironmentVars']['VAULT_CACERT'] == '/vault/userconfig/tls/ca.crt'
+    assert dev_values['vault']['server']['extraEnvironmentVars'] is None
     assert 'eq .Values.mode "dev"' in policies_job
     assert '.Values.vault.server.dev.devRootToken' in policies_job
     assert 'eq .Values.mode "dev"' in auth_job
