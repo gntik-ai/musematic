@@ -168,6 +168,35 @@ class OAuthConfigExportedPayload(BaseModel):
     target_env: str
 
 
+class WorkspaceMemberPayload(BaseModel):
+    workspace_id: UUID
+    user_id: UUID
+    actor_id: UUID
+    role: str | None = None
+    previous_role: str | None = None
+
+
+class WorkspaceTransferPayload(BaseModel):
+    workspace_id: UUID
+    actor_id: UUID
+    new_owner_id: UUID
+    previous_owner_id: UUID | None = None
+    challenge_id: UUID | None = None
+
+
+class WorkspaceSettingsUpdatedPayload(BaseModel):
+    workspace_id: UUID
+    actor_id: UUID
+    changed_fields: list[str]
+
+
+class WorkspaceConnectorPayload(BaseModel):
+    workspace_id: UUID
+    connector_instance_id: UUID
+    connector_type_slug: str
+    actor_id: UUID | None = None
+
+
 AUTH_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     "auth.user.authenticated": UserAuthenticatedPayload,
     "auth.user.locked": UserLockedPayload,
@@ -194,6 +223,16 @@ AUTH_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     "auth.oauth.rate_limit_updated": OAuthRateLimitUpdatedPayload,
     "auth.oauth.config_imported": OAuthConfigImportedPayload,
     "auth.oauth.config_exported": OAuthConfigExportedPayload,
+    "auth.workspace.member_added": WorkspaceMemberPayload,
+    "auth.workspace.member_removed": WorkspaceMemberPayload,
+    "auth.workspace.role_changed": WorkspaceMemberPayload,
+    "auth.workspace.transfer_initiated": WorkspaceTransferPayload,
+    "auth.workspace.transfer_committed": WorkspaceTransferPayload,
+    "auth.workspace.budget_updated": WorkspaceSettingsUpdatedPayload,
+    "auth.workspace.quota_updated": WorkspaceSettingsUpdatedPayload,
+    "auth.workspace.dlp_rules_updated": WorkspaceSettingsUpdatedPayload,
+    "auth.workspace.connector_added": WorkspaceConnectorPayload,
+    "auth.workspace.connector_removed": WorkspaceConnectorPayload,
 }
 
 

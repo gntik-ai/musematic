@@ -175,11 +175,60 @@ async function mockA11yApis(page: Page) {
     failure_reason: null,
     tombstone_id: null,
   };
+  const workspaceId = "workspace-1";
+  const connectorId = "connector-1";
+  const iborConnectorId = "ibor-connector-1";
+  const workspaceSettings = {
+    workspace_id: workspaceId,
+    subscribed_agents: [],
+    subscribed_fleets: [],
+    subscribed_policies: [],
+    subscribed_connectors: [],
+    cost_budget: { amount: 10000, hard_cap_enabled: true },
+    quota_config: { agents: 20, fleets: 4, executions: 10, storage_gb: 250 },
+    dlp_rules: { enabled: true, pii: "block" },
+    residency_config: { region: "eu-west-1", tier: "regulated" },
+    updated_at: timestamp,
+  };
+  const connector = {
+    id: connectorId,
+    workspace_id: workspaceId,
+    connector_type_id: "slack-type",
+    connector_type_slug: "slack",
+    name: "Slack workspace alerts",
+    config: { channel: "#alerts" },
+    status: "active",
+    health_status: "healthy",
+    last_health_check_at: timestamp,
+    health_check_error: null,
+    messages_sent: 24,
+    messages_failed: 1,
+    messages_retried: 1,
+    messages_dead_lettered: 0,
+    credential_keys: ["bot_token"],
+    created_at: timestamp,
+    updated_at: timestamp,
+  };
+  const iborConnector = {
+    id: iborConnectorId,
+    name: "Corporate directory",
+    source_type: "ldap",
+    sync_mode: "pull",
+    cadence_seconds: 3600,
+    credential_ref: "secret/data/musematic/dev/ibor/corporate-directory",
+    role_mapping_policy: [],
+    enabled: true,
+    last_run_at: timestamp,
+    last_run_status: "succeeded",
+    created_by: "user-a11y",
+    created_at: timestamp,
+    updated_at: timestamp,
+  };
 
   await fulfillJson(page, "**/api/v1/workspaces", {
     items: [
       {
-        id: "workspace-1",
+        id: workspaceId,
         name: "Risk Ops",
         slug: "risk-ops",
         description: "Primary workspace",
@@ -187,6 +236,144 @@ async function mockA11yApis(page: Page) {
         createdAt: "2026-04-10T09:00:00.000Z",
       },
     ],
+  });
+  await fulfillJson(page, `**/api/v1/workspaces/${workspaceId}/summary`, {
+    workspace_id: workspaceId,
+    active_goals: 3,
+    executions_in_flight: 5,
+    agent_count: 12,
+    budget: { amount: 10000, spent: 6000, currency: "USD" },
+    quotas: {
+      agents: { used: 12, limit: 20 },
+      fleets: { used: 2, limit: 4 },
+      executions: { used: 5, limit: 10 },
+      storage_gb: { used: 80, limit: 250 },
+    },
+    tags: { domain: ["science", "regulated"] },
+    dlp_violations: 2,
+    recent_activity: [{ event_type: "auth.workspace.member_added", created_at: timestamp }],
+    cards: {},
+    cached_until: timestamp,
+  });
+  await fulfillJson(page, `**/api/v1/workspaces/${workspaceId}/settings`, workspaceSettings);
+  await fulfillJson(page, `**/api/v1/workspaces/${workspaceId}/members**`, {
+    items: [
+      {
+        id: "member-owner",
+        workspace_id: workspaceId,
+        user_id: "user-a11y",
+        role: "owner",
+        created_at: timestamp,
+      },
+      {
+        id: "member-admin",
+        workspace_id: workspaceId,
+        user_id: "user-admin",
+        role: "admin",
+        created_at: timestamp,
+      },
+    ],
+    total: 2,
+    page: 1,
+    page_size: 50,
+    has_next: false,
+    has_prev: false,
+  });
+  await fulfillJson(page, `**/api/v1/workspaces/${workspaceId}/connectors`, {
+    items: [connector],
+    total: 1,
+  });
+  await fulfillJson(page, `**/api/v1/workspaces/${workspaceId}/connectors/${connectorId}`, connector);
+  await fulfillJson(page, `**/api/v1/workspaces/${workspaceId}/deliveries**`, {
+    items: [
+      {
+        id: "delivery-1",
+        workspace_id: workspaceId,
+        connector_instance_id: connectorId,
+        destination: "#alerts",
+        status: "delivered",
+        attempt_count: 1,
+        max_attempts: 3,
+        delivered_at: timestamp,
+        error_history: [],
+        created_at: timestamp,
+        updated_at: timestamp,
+      },
+      {
+        id: "delivery-2",
+        workspace_id: workspaceId,
+        connector_instance_id: connectorId,
+        destination: "#alerts",
+        status: "failed",
+        attempt_count: 3,
+        max_attempts: 3,
+        delivered_at: null,
+        error_history: [{ error: "rate_limited" }],
+        created_at: timestamp,
+        updated_at: timestamp,
+      },
+    ],
+    total: 2,
+  });
+  await fulfillJson(page, `**/api/v1/workspaces/${workspaceId}/visibility`, {
+    workspace_id: workspaceId,
+    visibility_agents: ["science:*"],
+    visibility_tools: ["tool://lab/*"],
+    updated_at: timestamp,
+  });
+  await fulfillJson(page, `**/api/v1/tags/workspace/${workspaceId}`, {
+    entity_type: "workspace",
+    entity_id: workspaceId,
+    tags: [{ tag: "science", created_by: null, created_at: timestamp }],
+  });
+  await fulfillJson(page, `**/api/v1/labels/workspace/${workspaceId}`, {
+    entity_type: "workspace",
+    entity_id: workspaceId,
+    labels: [
+      {
+        key: "region",
+        value: "eu",
+        created_by: null,
+        created_at: timestamp,
+        updated_at: timestamp,
+        is_reserved: false,
+      },
+    ],
+  });
+  await fulfillJson(page, "**/api/v1/admin/workspaces**", {
+    items: [{ id: workspaceId, name: "Risk Ops" }],
+    total: 1,
+  });
+  await fulfillJson(page, "**/api/v1/admin/settings/connectors", [
+    {
+      slug: "slack",
+      display_name: "Slack",
+      description: "Workspace messaging connector.",
+      is_enabled: true,
+      active_instance_count: 1,
+      max_payload_size_bytes: 262144,
+      default_retry_count: 3,
+      updated_at: timestamp,
+    },
+  ]);
+  await fulfillJson(page, "**/api/v1/auth/ibor/connectors", {
+    items: [iborConnector],
+  });
+  await fulfillJson(page, `**/api/v1/auth/ibor/connectors/${iborConnectorId}/sync-history**`, {
+    items: [
+      {
+        id: "sync-1",
+        connector_id: iborConnectorId,
+        mode: "pull",
+        started_at: timestamp,
+        finished_at: timestamp,
+        status: "succeeded",
+        counts: { users: 12 },
+        error_details: [],
+        triggered_by: null,
+      },
+    ],
+    next_cursor: null,
   });
   await fulfillJson(page, "**/api/v1/me/preferences", {
     id: "prefs-1",

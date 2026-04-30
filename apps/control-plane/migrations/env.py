@@ -41,6 +41,7 @@ Base = importlib.import_module("platform.common.models").Base
 importlib.import_module("platform.auth.models")
 importlib.import_module("platform.accounts.models")
 importlib.import_module("platform.workspaces.models")
+importlib.import_module("platform.two_person_approval.models")
 importlib.import_module("platform.analytics.models")
 importlib.import_module("platform.registry.models")
 importlib.import_module("platform.context_engineering.models")

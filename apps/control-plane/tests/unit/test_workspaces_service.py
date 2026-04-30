@@ -324,10 +324,13 @@ async def test_membership_flows_and_last_owner_guard() -> None:
     assert members.total == 2
     assert set(member_ids) == {owner_id, member_id}
     assert changed.role == WorkspaceRole.admin
-    assert [event["event_type"] for event in producer.events][-3:] == [
+    assert [event["event_type"] for event in producer.events][-6:] == [
         "workspaces.membership.added",
+        "auth.workspace.member_added",
         "workspaces.membership.role_changed",
+        "auth.workspace.role_changed",
         "workspaces.membership.removed",
+        "auth.workspace.member_removed",
     ]
 
     with pytest.raises(MemberAlreadyExistsError):

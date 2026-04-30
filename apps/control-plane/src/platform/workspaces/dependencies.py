@@ -6,6 +6,7 @@ from platform.audit.dependencies import build_audit_chain_service
 from platform.common.clients.object_storage import AsyncObjectStorageClient
 from platform.common.clients.opensearch import AsyncOpenSearchClient
 from platform.common.clients.qdrant import AsyncQdrantClient
+from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_db
 from platform.common.events.producer import EventProducer
@@ -41,6 +42,7 @@ def build_workspaces_service(
     accounts_service: AccountsService | None = None,
     saved_view_service: object | None = None,
     tagging_service: object | None = None,
+    redis_client: AsyncRedisClient | None = None,
 ) -> WorkspacesService:
     return WorkspacesService(
         repo=WorkspacesRepository(session),
@@ -49,6 +51,7 @@ def build_workspaces_service(
         accounts_service=accounts_service,
         saved_view_service=saved_view_service,
         tagging_service=tagging_service,
+        redis_client=redis_client,
     )
 
 
@@ -70,6 +73,7 @@ async def get_workspaces_service(
             build_audit_chain_service(session, _get_settings(request), _get_producer(request)),
         ),
         tagging_service=tagging_service,
+        redis_client=cast(AsyncRedisClient | None, request.app.state.clients.get("redis")),
     )
 
 

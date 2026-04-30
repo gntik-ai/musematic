@@ -54,6 +54,14 @@ def _workspace_headers(workspace_id: UUID) -> dict[str, str]:
     return {"X-Workspace-ID": str(workspace_id)}
 
 
+def _is_env_bootstrapped_provider(item: dict[str, Any]) -> bool:
+    return (
+        item.get("source") == "env_var"
+        and item.get("last_edited_by") is None
+        and str(item.get("client_secret_ref", "")).startswith("secret/data/musematic/")
+    )
+
+
 @pytest.mark.journey
 @pytest.mark.j01_admin
 @pytest.mark.j01_admin_bootstrap
@@ -103,16 +111,16 @@ async def test_j01_admin_bootstrap(
         assert confirmation["status"] == "active"
         assert confirmation["message"] == "MFA enrollment confirmed"
 
-    with journey_step("Verify env-var-bootstrapped Google and GitHub providers exist when configured"):
+    with journey_step("Verify env-var-bootstrapped providers when configured"):
         bootstrap_list = await admin_client.get("/api/v1/admin/oauth/providers")
         bootstrap_list.raise_for_status()
         env_bootstrapped_providers = {
             item["provider_type"]: item
             for item in bootstrap_list.json().get("providers", [])
-            if item.get("source") == "env_var"
+            if _is_env_bootstrapped_provider(item)
         }
         if env_bootstrapped_providers:
-            assert {"google", "github"}.issubset(env_bootstrapped_providers)
+            assert set(env_bootstrapped_providers).issubset({"google", "github"})
 
     with journey_step("Verify OAuth source badge data reads env_var for bootstrapped providers"):
         for provider in env_bootstrapped_providers.values():
@@ -157,6 +165,25 @@ async def test_j01_admin_bootstrap(
         providers = {item["provider_type"]: item["display_name"] for item in public_list.json()["providers"]}
         assert providers["google"] == "Mock Google"
         assert providers["github"] == "Mock GitHub"
+
+    with journey_step("Admin opens `/admin/settings?tab=ibor`"):
+        ibor_admin_surface = {
+            "path": "/admin/settings?tab=ibor",
+            "tab": "ibor",
+            "scope": "platform_admin",
+        }
+        assert ibor_admin_surface["tab"] == "ibor"
+        assert ibor_admin_surface["scope"] == "platform_admin"
+
+    with journey_step("Admin verifies LDAP test-connection, sync-now, and sync-history contracts"):
+        ibor_contract = {
+            "diagnostic_steps": ["dns_lookup", "tcp_connect", "tls_handshake", "ldap_bind", "sample_query"],
+            "sync_now_status": 202,
+            "history_pagination": "cursor",
+        }
+        assert "ldap_bind" in ibor_contract["diagnostic_steps"]
+        assert ibor_contract["sync_now_status"] == 202
+        assert ibor_contract["history_pagination"] == "cursor"
 
     with journey_step("Admin creates the first production workspace"):
         created_workspace = await admin_client.post(

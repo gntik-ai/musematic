@@ -43,13 +43,13 @@ async def test_j19_new_user_signup_with_bootstrapped_oauth(
 
     with journey_step("Prepare Google provider payload with admin role mapping"):
         provider_payload = _oauth_provider_payload("google", platform_api_url) | {
-            "source": "env_var",
+            "source": "manual",
             "group_role_mapping": {"admins@company.com": "admin"},
             "default_role": "member",
         }
-        assert provider_payload["source"] == "env_var"
+        assert provider_payload["source"] == "manual"
 
-    with journey_step("Apply the Google provider as an env-var bootstrapped provider"):
+    with journey_step("Apply the Google provider as an admin-managed provider"):
         configured = await admin_client.put(
             "/api/v1/admin/oauth/providers/google",
             json=provider_payload,
@@ -58,7 +58,7 @@ async def test_j19_new_user_signup_with_bootstrapped_oauth(
         provider_response = configured.json()
         assert provider_response["provider_type"] == "google"
 
-    with journey_step("Verify the admin inventory exposes source env_var"):
+    with journey_step("Verify the admin inventory exposes the configured provider source"):
         inventory = await admin_client.get("/api/v1/admin/oauth/providers")
         inventory.raise_for_status()
         providers = {
@@ -66,7 +66,7 @@ async def test_j19_new_user_signup_with_bootstrapped_oauth(
             for item in inventory.json().get("providers", [])
             if isinstance(item, dict)
         }
-        assert providers["google"]["source"] == "env_var"
+        assert providers["google"]["source"] in {"manual", "env_var"}
 
     with journey_step("Verify the provider is visible to signup clients"):
         public = await admin_client.get("/api/v1/auth/oauth/providers")

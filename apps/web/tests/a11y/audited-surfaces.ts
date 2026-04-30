@@ -14,7 +14,8 @@ export type A11ySurfaceGroup =
   | "costs"
   | "preferences"
   | "admin-locales"
-  | "self-service";
+  | "self-service"
+  | "workspace-owner";
 
 export interface AuditedSurface {
   id: string;
@@ -46,6 +47,9 @@ export const auditedSurfaces: AuditedSurface[] = [
   { id: "maintenance", group: "operator-dashboard", route: "/operator?tab=maintenance", ready: bodyReady },
   { id: "capacity", group: "operator-dashboard", route: "/operator?tab=capacity", ready: bodyReady },
   { id: "admin-settings", group: "admin-settings", route: "/admin/settings", ready: bodyReady },
+  { id: "admin-settings-workspaces", group: "workspace-owner", route: "/admin/settings?tab=workspaces", ready: bodyReady },
+  { id: "admin-settings-connectors", group: "workspace-owner", route: "/admin/settings?tab=connectors", ready: bodyReady },
+  { id: "admin-settings-ibor", group: "workspace-owner", route: "/admin/settings?tab=ibor", ready: bodyReady },
   { id: "admin-settings-oauth-config", group: "admin-settings", route: "/admin/settings?tab=oauth&provider_tab=configuration", ready: bodyReady },
   { id: "admin-settings-oauth-status", group: "admin-settings", route: "/admin/settings?tab=oauth&provider_tab=status", ready: bodyReady },
   { id: "admin-settings-oauth-role-mappings", group: "admin-settings", route: "/admin/settings?tab=oauth&provider_tab=role-mappings", ready: bodyReady },
@@ -88,6 +92,20 @@ export const auditedSurfaces: AuditedSurface[] = [
     ready: bodyReady,
   },
   { id: "privacy-dsr", group: "self-service", route: "/settings/privacy/dsr", ready: bodyReady },
+  { id: "workspaces-list", group: "workspace-owner", route: "/workspaces", ready: bodyReady },
+  { id: "workspace-dashboard", group: "workspace-owner", route: "/workspaces/workspace-1", ready: bodyReady },
+  { id: "workspace-members", group: "workspace-owner", route: "/workspaces/workspace-1/members", ready: bodyReady },
+  { id: "workspace-settings", group: "workspace-owner", route: "/workspaces/workspace-1/settings", ready: bodyReady },
+  { id: "workspace-connectors", group: "workspace-owner", route: "/workspaces/workspace-1/connectors", ready: bodyReady },
+  {
+    id: "workspace-connector-detail",
+    group: "workspace-owner",
+    route: "/workspaces/workspace-1/connectors/connector-1",
+    ready: bodyReady,
+  },
+  { id: "workspace-quotas", group: "workspace-owner", route: "/workspaces/workspace-1/quotas", ready: bodyReady },
+  { id: "workspace-tags", group: "workspace-owner", route: "/workspaces/workspace-1/tags", ready: bodyReady },
+  { id: "workspace-visibility", group: "workspace-owner", route: "/workspaces/workspace-1/visibility", ready: bodyReady },
 ];
 
 export function surfacesForGroup(group: A11ySurfaceGroup): AuditedSurface[] {

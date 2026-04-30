@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime, timedelta
-from platform.two_person_approval.models import TwoPersonApprovalChallenge
+from platform.two_person_approval.models import ChallengeStatus, TwoPersonApprovalChallenge
 from platform.two_person_approval.service import (
     TwoPersonApprovalConflictError,
     TwoPersonApprovalError,
@@ -54,22 +54,26 @@ def _challenge(
     initiator_id: UUID | None = None,
     expires_at: datetime | None = None,
     approved_at: datetime | None = None,
-    rejected_at: datetime | None = None,
     co_signer_id: UUID | None = None,
     consumed: bool = False,
 ) -> TwoPersonApprovalChallenge:
     now = datetime.now(UTC)
+    status = ChallengeStatus.pending
+    if approved_at is not None:
+        status = ChallengeStatus.approved
+    if consumed:
+        status = ChallengeStatus.consumed
     challenge = TwoPersonApprovalChallenge(
         id=challenge_id or uuid4(),
         action_type="workspace_transfer_ownership",
         action_payload={"workspace_id": str(uuid4())},
         initiator_id=initiator_id or uuid4(),
+        status=status,
         created_at=now,
         expires_at=expires_at or now + timedelta(minutes=5),
-        consumed=consumed,
+        consumed_at=now if consumed else None,
     )
     challenge.approved_at = approved_at
-    challenge.rejected_at = rejected_at
     challenge.co_signer_id = co_signer_id
     return challenge
 
@@ -194,8 +198,7 @@ async def test_approval_and_consumption_reject_invalid_states() -> None:
     assert not_approved.value.code == "TWO_PERSON_APPROVAL_NOT_APPROVED"
 
 
-def test_model_status_values_cover_rejected_branch() -> None:
+def test_model_status_values_cover_core_branches() -> None:
     assert _challenge().status == "pending"
     assert _challenge(approved_at=datetime.now(UTC), co_signer_id=uuid4()).status == "approved"
     assert _challenge(consumed=True).status == "consumed"
-    assert _challenge(rejected_at=datetime.now(UTC)).status == "rejected"
