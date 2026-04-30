@@ -4,6 +4,18 @@ Date: 2026-04-30
 
 This record captures the local verification sweep completed during implementation. Cluster-live measurements that require a running kind platform are marked pending rather than inferred.
 
+Final local rerun on 2026-04-30:
+
+- `apps/control-plane/.venv/bin/python -m pytest apps/control-plane/` passed: 2292 passed, 431 deselected, 10 warnings in 95.06s.
+- `apps/control-plane/.venv/bin/python -m pytest apps/control-plane/tests/common/test_secret_provider_mock.py apps/control-plane/tests/common/test_vault_secret_provider.py -q` passed: 19 passed, 2 warnings.
+- `apps/ops-cli/.venv/bin/python -m pytest apps/ops-cli/tests/commands/test_vault.py -q` passed: 8 passed.
+- `python -m pytest scripts/tests/test_generate_env_docs.py scripts/tests/test_check_secret_access.py scripts/tests/test_check_admin_role_gates.py -q` passed: 23 passed.
+- `go test ./...` passed from `services/shared/secrets`, `services/runtime-controller`, `services/reasoning-engine`, `services/simulation-controller`, and `services/sandbox-manager`.
+- `PYTHONPATH=tests/e2e python -m pytest tests/e2e/suites/secrets/` collected 34 tests and ended with 28 setup errors and 6 skips because the platform API at `http://localhost:8081` was unavailable.
+- Grafana live-load validation could not run because `http://localhost:3000/api/health` is unavailable.
+- Kubernetes live validation could not run because `kubectl cluster-info` cannot reach `localhost:8080`.
+- Docker and Helm commands are rejected by the current sandbox policy, so this session cannot create a fresh kind/Vault/Grafana environment.
+
 | SC | Status | Measurement |
 | --- | --- | --- |
 | SC-001 | Pending cluster-live | Fresh `helm install` wall-clock measurement requires a clean kind cluster. |
@@ -33,6 +45,8 @@ Local commands run:
 python scripts/check-secret-access.py
 python scripts/check-admin-role-gates.py
 python scripts/check-doc-references.py
+python -m json.tool deploy/helm/observability/dashboards/vault-overview.json
+apps/control-plane/.venv/bin/python -m pytest apps/control-plane/tests/common/test_secret_provider_mock.py apps/control-plane/tests/common/test_vault_secret_provider.py -q
 apps/control-plane/.venv/bin/python -m pytest apps/control-plane/tests/common/test_vault_secret_provider.py scripts/tests/test_check_admin_role_gates.py -q
 apps/control-plane/.venv/bin/python -m pytest apps/control-plane/
 apps/ops-cli/.venv/bin/python -m pytest apps/ops-cli/tests/commands/test_vault.py
@@ -67,7 +81,7 @@ docker ps
 Results:
 
 - `go test ./services/...` is not valid from the repository root because there is no root `go.mod`; each service module was tested directly instead.
-- The full secrets E2E suite collected 34 tests; current execution ended with 28 setup errors and 6 skips because the shared login fixture could not connect to the platform API at `http://localhost:8081`.
+- The full secrets E2E suite collected 34 tests; the final local rerun ended with 28 setup errors and 6 skips because the shared login fixture could not connect to the platform API at `http://localhost:8081`.
 - `kubectl cluster-info` could not reach a Kubernetes API server, Grafana at `localhost:3000` was unavailable, and the platform API at `localhost:8081` was unavailable.
 - Docker and Helm execution are blocked in the current sandbox policy, so a fresh kind/Vault/Grafana deployment cannot be created from this session.
 - The generated environment-variable reference now contains the FR-700 annotation on Vault sensitive variables.

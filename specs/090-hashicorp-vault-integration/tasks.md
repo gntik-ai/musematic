@@ -304,7 +304,7 @@ Independent-test discipline: every US MUST be verifiable in isolation. US1 = HA 
 
 ### SC sweep
 
-- [ ] T109 [W15G] Run the full SC verification sweep per plan.md design Phase 7 day 9 afternoon: SC-001 through SC-020. For each SC, document the actual measurement (e.g., SC-001's "30 minutes from `helm install`" — measured wall-clock time on a synthetic kind cluster; SC-010's "≥ 80% cache hit ratio within 5 minutes" — measured via Prometheus metric). Capture the verification record at `specs/090-hashicorp-vault-integration/contracts/sc-verification.md` (NEW file).
+- [x] T109 [W15G] Run the full SC verification sweep per plan.md design Phase 7 day 9 afternoon: SC-001 through SC-020. For each SC, document the actual measurement (e.g., SC-001's "30 minutes from `helm install`" — measured wall-clock time on a synthetic kind cluster; SC-010's "≥ 80% cache hit ratio within 5 minutes" — measured via Prometheus metric). Capture the verification record at `specs/090-hashicorp-vault-integration/contracts/sc-verification.md` (NEW file).
 
 ### FR document section 113
 
