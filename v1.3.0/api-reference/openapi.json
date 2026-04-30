@@ -23759,6 +23759,44 @@
         "title": "MfaConfirmResponse",
         "type": "object"
       },
+      "MfaDisableRequest": {
+        "properties": {
+          "password": {
+            "format": "password",
+            "title": "Password",
+            "type": "string",
+            "writeOnly": true
+          },
+          "totp_code": {
+            "maxLength": 64,
+            "minLength": 6,
+            "title": "Totp Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "password",
+          "totp_code"
+        ],
+        "title": "MfaDisableRequest",
+        "type": "object"
+      },
+      "MfaDisableResponse": {
+        "properties": {
+          "message": {
+            "default": "MFA disabled",
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "default": "disabled",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "title": "MfaDisableResponse",
+        "type": "object"
+      },
       "MfaEnrollResponse": {
         "properties": {
           "provisioning_uri": {
@@ -23783,6 +23821,37 @@
           "recovery_codes"
         ],
         "title": "MfaEnrollResponse",
+        "type": "object"
+      },
+      "MfaRecoveryCodesRegenerateRequest": {
+        "properties": {
+          "totp_code": {
+            "maxLength": 64,
+            "minLength": 6,
+            "title": "Totp Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "totp_code"
+        ],
+        "title": "MfaRecoveryCodesRegenerateRequest",
+        "type": "object"
+      },
+      "MfaRecoveryCodesRegenerateResponse": {
+        "properties": {
+          "recovery_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Recovery Codes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "recovery_codes"
+        ],
+        "title": "MfaRecoveryCodesRegenerateResponse",
         "type": "object"
       },
       "MfaVerifyRequest": {
@@ -62021,6 +62090,76 @@
         ]
       }
     },
+    "/api/v1/auth/mfa/disable": {
+      "post": {
+        "operationId": "disable_mfa_api_v1_auth_mfa_disable_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaDisableRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaDisableResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Disable Mfa",
+        "tags": [
+          "auth"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/auth/mfa/disable\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/auth/mfa/disable\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/auth/mfa/disable`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/auth/mfa/disable\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
     "/api/v1/auth/mfa/enroll": {
       "post": {
         "operationId": "enroll_mfa_api_v1_auth_mfa_enroll_post",
@@ -62067,6 +62206,76 @@
           {
             "lang": "curl",
             "source": "curl -X POST \"http://localhost:8000/api/v1/auth/mfa/enroll\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/mfa/recovery-codes/regenerate": {
+      "post": {
+        "operationId": "regenerate_mfa_recovery_codes_api_v1_auth_mfa_recovery_codes_regenerate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaRecoveryCodesRegenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaRecoveryCodesRegenerateResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Regenerate Mfa Recovery Codes",
+        "tags": [
+          "auth"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/auth/mfa/recovery-codes/regenerate\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/auth/mfa/recovery-codes/regenerate\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/auth/mfa/recovery-codes/regenerate`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/auth/mfa/recovery-codes/regenerate\" -H \"Authorization: Bearer $TOKEN\""
           }
         ]
       }
