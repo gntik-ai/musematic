@@ -11,6 +11,10 @@ from typing import Iterable
 
 ENV_NAME_RE = re.compile(r"^[A-Z][A-Z0-9_]{2,}$")
 SENSITIVE_RE = re.compile(r"(PASSWORD|SECRET|TOKEN|KEY|CREDENTIAL|PRIVATE)", re.I)
+SENSITIVE_ENV_OVERRIDES = {
+    "PLATFORM_VAULT_APPROLE_ROLE_ID",
+    "VAULT_APPROLE_ROLE_ID",
+}
 CONFIG_RE = re.compile(
     r"(URL|URI|HOST|PORT|ENDPOINT|ADDR|ADDRESS|DSN|BROKERS|REGION|BUCKET|NAMESPACE|DOMAIN|PATH|FILE)",
     re.I,
@@ -41,6 +45,8 @@ class EnvVarEntry:
 
 
 def classify_sensitivity(name: str) -> str:
+    if name in SENSITIVE_ENV_OVERRIDES:
+        return "sensitive"
     if SENSITIVE_RE.search(name):
         return "sensitive"
     if CONFIG_RE.search(name):

@@ -1,0 +1,24 @@
+{{- if .Values.policyJob.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "musematic-vault.fullname" . }}-policies
+  namespace: {{ .Release.Namespace }}
+  labels:
+{{ include "musematic-vault.labels" . | indent 4 }}
+data:
+  platform-auth.hcl: |
+{{ .Files.Get "policies/platform-auth.hcl" | indent 4 }}
+  platform-model-catalog.hcl: |
+{{ .Files.Get "policies/platform-model-catalog.hcl" | indent 4 }}
+  platform-notifications.hcl: |
+{{ .Files.Get "policies/platform-notifications.hcl" | indent 4 }}
+  platform-runtime.hcl: |
+{{ .Files.Get "policies/platform-runtime.hcl" | indent 4 }}
+  platform-security-compliance.hcl: |
+{{ .Files.Get "policies/platform-security-compliance.hcl" | indent 4 }}
+  platform-accounts.hcl: |
+{{ .Files.Get "policies/platform-accounts.hcl" | indent 4 }}
+  platform-cost-governance.hcl: |
+{{ .Files.Get "policies/platform-cost-governance.hcl" | indent 4 }}
+{{- end }}

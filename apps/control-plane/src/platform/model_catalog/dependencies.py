@@ -5,6 +5,7 @@ from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_db
 from platform.common.events.producer import EventProducer
+from platform.common.secret_provider import MockSecretProvider, SecretProvider
 from platform.model_catalog.repository import ModelCatalogRepository
 from platform.model_catalog.services.catalog_service import CatalogService
 from platform.model_catalog.services.credential_service import CredentialService
@@ -62,10 +63,15 @@ async def get_credential_service(
     session: AsyncSession = Depends(get_db),
 ) -> CredentialService:
     settings = _settings(request)
-    secret_provider = RotatableSecretProvider(settings, _redis(request))
+    secret_provider = cast(
+        SecretProvider,
+        getattr(request.app.state, "secret_provider", None)
+        or MockSecretProvider(settings, validate_paths=False),
+    )
+    rotation_provider = RotatableSecretProvider(settings, _redis(request), secret_provider)
     rotation_service = SecretRotationService(
         SecurityComplianceRepository(session),
-        secret_provider,
+        rotation_provider,
         producer=_producer(request),
         audit_chain=build_audit_chain_service(session, settings, _producer(request)),
     )

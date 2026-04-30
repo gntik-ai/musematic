@@ -584,8 +584,8 @@ class SecretReaderStub:
     def __init__(self, value: str = "secret") -> None:
         self.value = value
 
-    async def get_current(self, secret_name: str) -> str:
-        del secret_name
+    async def get(self, path: str, key: str = "value") -> str:
+        del path, key
         return self.value
 
 
@@ -700,8 +700,8 @@ async def test_credential_service_accepts_unverified_vault_ref_when_reader_absen
 
 
 class FailingSecretReaderStub:
-    async def get_current(self, secret_name: str) -> str:
-        del secret_name
+    async def get(self, path: str, key: str = "value") -> str:
+        del path, key
         raise RuntimeError("vault unavailable")
 
 

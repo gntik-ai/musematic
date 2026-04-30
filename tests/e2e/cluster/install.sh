@@ -18,8 +18,14 @@ PORT_API="${PORT_API:-8081}"
 PORT_WS="${PORT_WS:-8082}"
 PORT_GOOGLE_OIDC="${PORT_GOOGLE_OIDC:-8083}"
 PORT_GITHUB_OAUTH="${PORT_GITHUB_OAUTH:-8084}"
+PORT_VAULT="${PORT_VAULT:-30085}"
 SKIP_LOAD_IMAGES="${SKIP_LOAD_IMAGES:-false}"
 COMPOSITE_CHART_DIR="${ROOT_DIR}/deploy/helm/platform"
+VAULT_CHART_DIR="${ROOT_DIR}/deploy/helm/vault"
+VAULT_NAMESPACE="${VAULT_NAMESPACE:-platform-security}"
+VAULT_RELEASE_NAME="${VAULT_RELEASE_NAME:-vault}"
+VAULT_VALUES_FILE="${VAULT_VALUES_FILE:-${VAULT_CHART_DIR}/values-dev.yaml}"
+PLATFORM_VAULT_MODE="${PLATFORM_VAULT_MODE:-mock}"
 OBSERVABILITY_CHART_DIR="${ROOT_DIR}/deploy/helm/observability"
 OBSERVABILITY_NAMESPACE="${OBSERVABILITY_NAMESPACE:-platform-observability}"
 OBSERVABILITY_RELEASE_NAME="${OBSERVABILITY_RELEASE_NAME:-observability}"
@@ -76,7 +82,7 @@ check_prereqs() {
 }
 
 render_kind_config() {
-  CLUSTER_NAME="$CLUSTER_NAME" PORT_UI="$PORT_UI" PORT_API="$PORT_API" PORT_WS="$PORT_WS" PORT_GOOGLE_OIDC="$PORT_GOOGLE_OIDC" PORT_GITHUB_OAUTH="$PORT_GITHUB_OAUTH" envsubst < "$KIND_CONFIG_TEMPLATE" > "$KIND_CONFIG_PATH"
+  CLUSTER_NAME="$CLUSTER_NAME" PORT_UI="$PORT_UI" PORT_API="$PORT_API" PORT_WS="$PORT_WS" PORT_GOOGLE_OIDC="$PORT_GOOGLE_OIDC" PORT_GITHUB_OAUTH="$PORT_GITHUB_OAUTH" PORT_VAULT="$PORT_VAULT" envsubst < "$KIND_CONFIG_TEMPLATE" > "$KIND_CONFIG_PATH"
 }
 
 ensure_cluster() {
@@ -145,9 +151,29 @@ install_platform() {
   helm dependency build "${COMPOSITE_CHART_DIR}"
   helm upgrade --install "${RELEASE_NAME}" "${COMPOSITE_CHART_DIR}" \
     -f "${VALUES_FILE}" \
+    --set "controlPlane.vault.mode=${PLATFORM_VAULT_MODE}" \
     --namespace "${NAMESPACE}" \
     --create-namespace \
     --timeout "${HELM_TIMEOUT}"
+}
+
+install_vault() {
+  if [[ "${PLATFORM_VAULT_MODE}" != "vault" ]]; then
+    return
+  fi
+  if [[ ! -f "${VAULT_CHART_DIR}/Chart.yaml" ]]; then
+    echo "[e2e] missing Helm chart: ${VAULT_CHART_DIR}/Chart.yaml" >&2
+    exit 2
+  fi
+
+  echo "[e2e] installing Vault stack"
+  helm dependency build "${VAULT_CHART_DIR}"
+  helm upgrade --install "${VAULT_RELEASE_NAME}" "${VAULT_CHART_DIR}" \
+    --namespace "${VAULT_NAMESPACE}" \
+    --create-namespace \
+    -f "${VAULT_VALUES_FILE}" \
+    --timeout "${HELM_TIMEOUT}"
+  wait_for_labelled_pod "${VAULT_NAMESPACE}" "app.kubernetes.io/name=vault" "${PLATFORM_READY_TIMEOUT}"
 }
 
 wait_for_observability_stack() {
@@ -721,6 +747,7 @@ main() {
   fi
   install_observability
   install_platform
+  install_vault
   run_manual_init_jobs
   wait_for_kafka_ready
   wait_for_kafka_topics_ready "${PLATFORM_READY_TIMEOUT}"
@@ -732,6 +759,7 @@ main() {
   UI:  http://localhost:${PORT_UI}
   API: http://localhost:${PORT_API}
   WS:  ws://localhost:${PORT_WS}
+  Vault: http://localhost:${PORT_VAULT}
 EOF_SUMMARY
 }
 

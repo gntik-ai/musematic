@@ -16,12 +16,25 @@ spec:
 {{ include "musematic-control-plane.componentLabels" . | indent 8 }}
         app.kubernetes.io/name: {{ include "musematic-control-plane.wsHubName" . }}
     spec:
+      serviceAccountName: {{ include "musematic-control-plane.serviceAccountName" . }}
       terminationGracePeriodSeconds: 30
+      volumes:
+        - name: vault-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  audience: vault
+                  expirationSeconds: 3600
+                  path: vault-token
       containers:
         - name: ws-hub
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["python", "-m", "entrypoints.ws_main"]
+          volumeMounts:
+            - name: vault-token
+              mountPath: /var/run/secrets/tokens
+              readOnly: true
           env:
             - name: PLATFORM_PROFILE
               value: ws-hub

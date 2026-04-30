@@ -81,8 +81,9 @@ class InMemorySecretProvider:
     async def put(self, path: str, values: dict[str, str]) -> None:
         self._values[path] = dict(values)
 
-    async def flush_cache(self, path: str | None = None) -> None:
+    async def flush_cache(self, path: str | None = None) -> int:
         del path
+        return 0
 
     async def delete_version(self, path: str, version: int) -> None:
         del path, version

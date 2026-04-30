@@ -46,6 +46,62 @@ common:
   # -- Configures `common.extraEnv` for the control-plane chart.
   extraEnv: {}
 
+# @section -- Serviceaccount
+# -- Configures `serviceAccount` for the control-plane chart.
+serviceAccount:
+  # -- Configures `serviceAccount.create` for the control-plane chart.
+  create: true
+  # -- Configures `serviceAccount.name` for the control-plane chart.
+  name: ""
+  # -- Configures `serviceAccount.annotations` for the control-plane chart.
+  annotations: {}
+
+# @section -- Vault
+# -- Configures Vault-backed secret resolution for the control-plane chart.
+vault:
+  # -- Configures `vault.mode` for the control-plane chart.
+  mode: mock
+  # -- Configures `vault.addr` for the control-plane chart.
+  addr: http://musematic-vault.platform-security.svc.cluster.local:8200
+  # -- Configures `vault.namespace` for the control-plane chart.
+  namespace: ""
+  # -- Configures `vault.caCertSecretRef` for the control-plane chart.
+  caCertSecretRef: ""
+  # -- Configures `vault.authMethod` for the control-plane chart.
+  authMethod: kubernetes
+  # -- Configures `vault.kubernetes` for the control-plane chart.
+  kubernetes:
+    # -- Configures `vault.kubernetes.role` for the control-plane chart.
+    role: musematic-platform
+    # -- Configures `vault.kubernetes.serviceAccountTokenPath` for the control-plane chart.
+    serviceAccountTokenPath: /var/run/secrets/tokens/vault-token
+  # -- Configures `vault.approle` for the control-plane chart.
+  approle:
+    # -- Configures `vault.approle.roleId` for the control-plane chart.
+    roleId: ""
+    # -- Configures `vault.approle.secretIdSecretRef` for the control-plane chart.
+    secretIdSecretRef: ""
+  # -- Configures `vault.token` for the control-plane chart.
+  token: ""
+  # -- Configures `vault.kvMount` for the control-plane chart.
+  kvMount: secret
+  # -- Configures `vault.kvPrefix` for the control-plane chart.
+  kvPrefix: musematic/{environment}
+  # -- Configures `vault.cache` for the control-plane chart.
+  cache:
+    # -- Configures `vault.cache.ttlSeconds` for the control-plane chart.
+    ttlSeconds: 60
+    # -- Configures `vault.cache.maxStalenessSeconds` for the control-plane chart.
+    maxStalenessSeconds: 300
+  # -- Configures `vault.retry` for the control-plane chart.
+  retry:
+    # -- Configures `vault.retry.attempts` for the control-plane chart.
+    attempts: 3
+    # -- Configures `vault.retry.timeoutSeconds` for the control-plane chart.
+    timeoutSeconds: 10
+  # -- Configures `vault.leaseRenewalThreshold` for the control-plane chart.
+  leaseRenewalThreshold: 0.5
+
 # @section -- Privacy
 # -- Configures `privacy` for the control-plane chart.
 privacy:

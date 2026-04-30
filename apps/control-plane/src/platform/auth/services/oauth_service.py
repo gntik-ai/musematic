@@ -4,7 +4,6 @@ import base64
 import hashlib
 import hmac
 import json
-import os
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -91,7 +90,6 @@ class OAuthService:
         auth_service: AuthService,
         google_provider: GoogleOAuthProvider | None = None,
         github_provider: GitHubOAuthProvider | None = None,
-        credential_resolver: Any | None = None,
         secret_provider: SecretProvider | None = None,
     ) -> None:
         self.repository = repository
@@ -103,7 +101,6 @@ class OAuthService:
         self.auth_service = auth_service
         self.google_provider = google_provider or GoogleOAuthProvider()
         self.github_provider = github_provider or GitHubOAuthProvider()
-        self.credential_resolver = credential_resolver
         self.secret_provider = secret_provider
 
     async def list_public_providers(self) -> OAuthProviderPublicListResponse:
@@ -975,25 +972,7 @@ class OAuthService:
         return cast(dict[str, Any], jsonable_encoder(payload))
 
     async def _resolve_secret(self, reference: str) -> str:
-        if reference.startswith("plain:"):
-            return reference.split(":", 1)[1]
-        if self.credential_resolver is not None:
-            result = self.credential_resolver(reference)
-            if hasattr(result, "__await__"):
-                result = await result
-            if isinstance(result, str) and result:
-                return result
-        env_value = os.getenv(self._secret_env_key(reference))
-        if env_value:
-            return env_value
-        if self.secret_provider is not None:
-            return await self.secret_provider.get(reference)
-        return reference
-
-    @staticmethod
-    def _secret_env_key(reference: str) -> str:
-        normalized = reference.upper().replace("-", "_").replace("/", "_").replace(":", "_")
-        return f"OAUTH_SECRET_{normalized}"
+        return await self._require_secret_provider().get(reference)
 
     def _require_secret_provider(self) -> SecretProvider:
         if self.secret_provider is None:

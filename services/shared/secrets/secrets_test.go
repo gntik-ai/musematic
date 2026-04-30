@@ -14,6 +14,7 @@ func TestValidatePathAcceptsCanonicalPaths(t *testing.T) {
 		"secret/data/musematic/ci/audit-chain/signing-key",
 		"secret/data/musematic/production/connectors/slack/bot-token",
 		"secret/data/musematic/production/accounts/bootstrap",
+		"secret/data/musematic/dev/_internal/connectivity-test/probe",
 	}
 	for _, path := range valid {
 		if err := ValidatePath(path); err != nil {

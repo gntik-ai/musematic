@@ -1,0 +1,30 @@
+mode: ha
+
+vault:
+  injector:
+    enabled: false
+  ui:
+    enabled: true
+    serviceType: ClusterIP
+  server:
+    extraEnvironmentVars:
+      VAULT_CACERT: /vault/userconfig/tls/ca.crt
+    dataStorage:
+      enabled: true
+      size: 10Gi
+    auditStorage:
+      enabled: true
+      size: 5Gi
+    ha:
+      enabled: true
+      replicas: 3
+      raft:
+        enabled: true
+        setNodeId: true
+    affinity: |
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: vault
+            topologyKey: kubernetes.io/hostname

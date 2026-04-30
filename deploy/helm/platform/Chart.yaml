@@ -45,6 +45,11 @@ dependencies:
     repository: file://../opensearch
     version: 0.1.0
     condition: opensearch.enabled
+  - name: musematic-vault
+    alias: vault
+    repository: file://../vault
+    version: 0.1.0
+    condition: vault.enabled
   - name: musematic-control-plane
     alias: controlPlane
     repository: file://../control-plane

@@ -15,3 +15,10 @@ Date: 2026-04-27
 - UPD-040 documentation deliverables can live in this feature and merge into the UPD-039 docs site structure because the MkDocs substrate and generated-reference tooling are already present.
 - The Vault admin endpoint contract file in T095 is the handoff artifact for UPD-036.
 - If UPD-036 has not landed when UPD-040 merges, T097 must ensure the CLI status command is documented as the operator-facing fallback.
+
+## 2026-04-30 Coordination Outcome
+
+- The UPD-036 repository artifacts are present under `specs/086-administrator-workbench-and/`, but this working tree does not include a completed `/admin/security/vault` frontend route.
+- UPD-040 therefore treats the UI page as deferred to UPD-036 or a follow-up workbench wave.
+- The operator-facing fallback is `platform-cli vault status`, which calls `GET /api/v1/admin/vault/status` and presents the same health, auth, lease, cache, failure, and policy-denied fields intended for the UI panel.
+- `specs/090-hashicorp-vault-integration/contracts/admin-vault-endpoints.md` is the backend contract UPD-036 should consume when adding the page.

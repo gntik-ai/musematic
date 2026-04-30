@@ -14,6 +14,7 @@ from platform_cli.commands.install import install_app
 from platform_cli.commands.observability import observability_app
 from platform_cli.commands.superadmin import superadmin_app
 from platform_cli.commands.upgrade import upgrade_app
+from platform_cli.commands.vault import vault_app
 from platform_cli.output.console import configure_console
 from platform_cli.runtime import CLIState
 
@@ -76,6 +77,7 @@ app.add_typer(upgrade_app, name="upgrade")
 app.add_typer(admin_app, name="admin")
 app.add_typer(superadmin_app, name="superadmin")
 app.add_typer(observability_app, name="observability")
+app.add_typer(vault_app, name="vault")
 
 
 def run() -> None:

@@ -3296,106 +3296,9 @@ Loki label cardinality shall be bounded. Labels permitted: `service`, `bounded_c
 ### FR-545 Log Volume Observability
 Log ingestion rate (lines per second per service, bytes per second per service, rejected-log count) shall be exposed as Prometheus metrics from both Promtail (client-side) and Loki (server-side). An operator dashboard panel shall surface these rates and alert on sustained flooding (a service exceeding 1 MB/s sustained triggers operator review).
 
-## 113. HashiCorp Vault Integration
+## 113a. HashiCorp Vault Integration Legacy Draft
 
-### FR-621 Vault as the Primary Secret Backend
-The platform shall support HashiCorp Vault as a first-class secret backend for all credentials, API keys, OAuth client secrets, database passwords, model-provider API keys, webhook signing secrets, and encryption keys at rest. The current `VaultResolver` with its `mock` mode is retained for development but the `vault` mode must be fully implemented, not a placeholder that raises `CredentialUnavailableError`. All code paths that call `VaultResolver.resolve()` must transparently work against a real Vault server when configured.
-
-### FR-622 Vault Deployment Modes
-The platform shall support three Vault deployment modes selectable via configuration:
-- **`mock`** (dev default): in-process file-backed resolver (existing behavior), suitable for kind and local development.
-- **`vault`** (production): real HashiCorp Vault cluster accessed via HTTP API. This is the mode documented and recommended for production.
-- **`kubernetes`** (transitional): Kubernetes Secrets as the backend, preserving current behavior for installations that have not yet migrated to Vault.
-
-Mode selection is set via `PLATFORM_VAULT_MODE` environment variable.
-
-### FR-623 Vault Helm Sub-Chart
-The platform's unified Helm distribution shall include a Vault sub-chart (HashiCorp official chart, version-pinned) installable via `deploy/helm/platform/` or as a separate chart `deploy/helm/vault/`. Installation shall support: dev-mode single-node Vault (not for production), standalone production Vault (single replica with persistent storage), HA production Vault with Raft storage and three replicas. Sub-chart is optional — operators using an external managed Vault (HCP Vault, etc.) skip the sub-chart install and configure `PLATFORM_VAULT_ADDR` to point at the external endpoint.
-
-### FR-624 Vault Authentication Methods
-The platform shall support the following Vault authentication methods, selectable via configuration:
-- **Kubernetes auth** (recommended for in-cluster deployments): the platform's Kubernetes ServiceAccount authenticates to Vault using its projected token. Vault validates against the cluster API and returns a Vault token bound to a role.
-- **AppRole** (recommended for out-of-cluster or cross-cluster deployments): the platform holds a RoleID (non-sensitive, config) and authenticates using a periodically-rotated SecretID (sensitive, from Vault-side wrapping).
-- **Token** (development / CI only): a static Vault token set via `PLATFORM_VAULT_TOKEN`. Not permitted in production per constitution rule 10.
-
-### FR-625 Vault Secret Engines
-The platform shall use the following Vault secret engines:
-- **KV v2** (`secret/` mount): primary store for static secrets (OAuth client secrets, webhook signing secrets, API keys). Versioning enabled so rotation preserves history with rollback.
-- **Database secrets engine** (`database/` mount, optional): dynamic short-lived database credentials issued on demand. When enabled, the platform requests ephemeral PostgreSQL credentials per pod or per session rather than using a static password.
-- **Transit engine** (`transit/` mount, optional): envelope encryption for application-level encryption at rest. Used by the audit chain (UPD-024) for signing audit log exports.
-- **PKI engine** (`pki/` mount, optional): issuing internal mTLS certificates for service-to-service traffic within the platform.
-
-### FR-626 Vault Path Conventions
-All secret reads shall use a consistent path scheme: `secret/data/musematic/{environment}/{domain}/{resource}`. Examples:
-- `secret/data/musematic/production/oauth/google/client-secret`
-- `secret/data/musematic/production/database/postgres/password`
-- `secret/data/musematic/production/model-providers/openai/api-key`
-- `secret/data/musematic/production/webhooks/{webhook-id}/signing-secret`
-
-The `{environment}` component is derived from `PLATFORM_ENVIRONMENT` (one of `dev`, `staging`, `production`). Vault policies scope tokens to the environment prefix, preventing cross-environment access.
-
-### FR-627 Vault Configuration Environment Variables
-The platform shall recognize the following Vault-related environment variables:
-- `PLATFORM_VAULT_MODE`: one of `mock`, `vault`, `kubernetes` (default: `mock`).
-- `PLATFORM_VAULT_ADDR`: Vault HTTP endpoint URL (e.g., `https://vault.platform-observability.svc.cluster.local:8200`).
-- `PLATFORM_VAULT_NAMESPACE`: Vault Enterprise namespace, if applicable.
-- `PLATFORM_VAULT_CACERT`: path to a CA certificate file when Vault is served over HTTPS with a private CA.
-- `PLATFORM_VAULT_SKIP_VERIFY`: `true`/`false` to skip TLS verification (dev only; blocked in production per constitution rule 10).
-- `PLATFORM_VAULT_AUTH_METHOD`: one of `kubernetes`, `approle`, `token` (default: `kubernetes`).
-- `PLATFORM_VAULT_KUBE_ROLE`: the Vault Kubernetes auth role name the pod authenticates as.
-- `PLATFORM_VAULT_KUBE_SA_TOKEN_PATH`: path to the projected ServiceAccount token (default: `/var/run/secrets/tokens/vault-token`).
-- `PLATFORM_VAULT_APPROLE_ROLE_ID`: AppRole role ID.
-- `PLATFORM_VAULT_APPROLE_SECRET_ID`: AppRole secret ID (should be wrapped or short-lived).
-- `PLATFORM_VAULT_APPROLE_SECRET_ID_FILE`: path to a file containing the SecretID (alternative to the variable, for secret-mounted delivery).
-- `PLATFORM_VAULT_TOKEN`: static token (dev/CI only).
-- `PLATFORM_VAULT_KV_MOUNT`: KV v2 mount path (default: `secret`).
-- `PLATFORM_VAULT_KV_PREFIX`: common prefix for all secret paths (default: `musematic/{PLATFORM_ENVIRONMENT}`).
-- `PLATFORM_VAULT_CACHE_TTL`: client-side cache TTL for secret lookups (default: 60 seconds; respects Vault-side TTL as the upper bound).
-- `PLATFORM_VAULT_RETRY_ATTEMPTS`: retry attempts on transient Vault errors (default: 3).
-- `PLATFORM_VAULT_TIMEOUT`: HTTP timeout in seconds (default: 10).
-- `PLATFORM_VAULT_LEASE_RENEWAL_THRESHOLD`: fraction of lease TTL at which the client renews (default: 0.5).
-
-### FR-628 Vault Client Library Selection
-The platform's Python control plane shall use `hvac` (the official Python Vault client) for all Vault interactions. The Go satellite services shall use `vault/api` from `github.com/hashicorp/vault/api`. Both clients shall be wrapped in a platform-specific `SecretProvider` abstraction so that migration to alternative secret stores (AWS Secrets Manager, GCP Secret Manager) remains possible without rewriting business logic.
-
-### FR-629 Vault Token and Lease Lifecycle Management
-The platform shall implement full lifecycle management of Vault tokens and leases:
-- Token renewal before expiry (at `PLATFORM_VAULT_LEASE_RENEWAL_THRESHOLD` of the TTL).
-- Re-authentication on token revocation or expiry.
-- Lease revocation on pod shutdown (via SIGTERM handler).
-- Lease metrics exposed to Prometheus (lease count, time-to-expiry distribution, renewal success rate, authentication failures).
-- Structured log entries on every token/lease event (via UPD-034's logging discipline).
-
-### FR-630 Vault Caching and Performance
-The Vault client shall cache secret reads with a short TTL (default 60s, configurable per secret type) to minimize Vault API load. Cache is in-memory per pod; cross-pod consistency is the Vault server's responsibility. Cache invalidation occurs on: TTL expiry, explicit refresh (e.g., after a rotation event), and application signals (SIGHUP triggers cache flush).
-
-### FR-631 Vault Failure Handling
-On Vault unreachability:
-- For non-critical reads (e.g., cached metadata), the client serves stale data up to a configured maximum age.
-- For critical reads (e.g., login verification, OAuth callback), the request fails with an explicit, safe error — the platform never falls back to hardcoded credentials or bypasses authentication.
-- Vault unreachability triggers a platform-level alert with severity `critical`.
-- Read-heavy operations continue to function within the cache TTL window; write operations (secret rotation, new JIT credentials) fail until Vault returns.
-
-### FR-632 Vault Migration From Kubernetes Secrets
-The platform shall provide a migration CLI command (`platform-cli vault migrate-from-k8s`) that reads existing Kubernetes Secrets used by the platform and writes them into Vault at the canonical paths. The command is idempotent, produces a migration report, and leaves the Kubernetes Secrets in place (operator manually removes them after validation). After migration, a `PLATFORM_VAULT_MODE=vault` rollout cutover completes the transition.
-
-### FR-633 Vault Policies and Least Privilege
-The platform shall ship a set of Vault policies (as HCL files in `deploy/vault/policies/`) that implement least-privilege access per bounded context. Examples: the `auth` bounded context can read `secret/data/musematic/{env}/oauth/*` but not `secret/data/musematic/{env}/database/*`. The `runtime-controller` can read secrets for specific agents but not cross-tenant. Policies are version-controlled and applied via `vault policy write` during Helm install.
-
-### FR-634 Vault Secret Rotation Integration (UPD-024 alignment)
-The secret rotation scheduler from UPD-024 shall issue rotations directly against Vault when `PLATFORM_VAULT_MODE=vault`, using the KV v2 versioning to retain rotation history. Dual-credential windows are implemented by writing the new secret version while the old version remains readable by the read-through cache; after a configurable window, the old version is destroyed via `vault kv metadata delete`.
-
-### FR-635 Vault Admin Workbench Page
-The admin workbench (per UPD-036) shall include a new page at `/admin/security/vault` (super admin only) showing: Vault connection status, configured auth method, active token expiry, active lease count, recent authentication failures, secret read rates per bounded context, cache hit rate. From this page, a super admin can trigger: manual token renewal, cache flush, connectivity test, policy reload. All actions emit audit chain entries.
-
-### FR-636 Vault Audit Chain Integration
-Every Vault interaction (secret read, secret write, authentication, lease renewal, revocation) by the platform shall be logged as a structured event. Vault's own audit log is the authoritative source; the platform's audit chain captures only the platform-side decision to perform the operation, with a correlation ID matching a Vault audit log entry. Regulatory audit exports combine both sources.
-
-### FR-637 Vault Compatibility With Existing Code Paths
-Every existing code path referencing secrets via opaque `*_ref` fields (`client_secret_ref`, `vault_path`, `vault_ref`, `signing_secret_ref`) shall resolve through the `SecretProvider` abstraction rather than ad-hoc resolution. A CI check shall fail on any direct environment-variable lookup for a secret value outside the `SecretProvider` abstraction.
-
-### FR-638 Vault E2E Test Infrastructure
-The kind-based E2E test environment (UPD-021, UPD-035) shall support an in-cluster dev Vault deployed alongside the platform for E2E testing in `vault` mode. Journey tests shall run in both `mock` mode (fast, no Vault pod) and `vault` mode (slower, real Vault) to catch mode-specific regressions. A new bounded-context suite `tests/e2e/suites/secrets/` shall exercise Vault reads, writes, rotations, and failure handling.
+The prior draft in this location used stale FR-621 through FR-638 numbering. It is superseded by the canonical Section 113 added after FR-682, covering FR-683 through FR-700.
 
 ## 114. OAuth Provider Environment-Variable Bootstrap and Super Admin UI
 
@@ -3617,6 +3520,29 @@ The scientific discovery workbench (`/discovery/`) shall be extended with: a ses
 ### FR-682 Status Page and Platform State E2E Coverage
 A new E2E journey **J21 Platform State** shall exercise the visibility layer: trigger a synthetic incident, verify public status page reflects it within 60 seconds, verify logged-in users see the banner, verify subscribed user receives email notification, verify RSS feed contains the entry, resolve the incident, verify all surfaces update. The simulation scenario editor and discovery session detail are covered by extensions to J07 Evaluator and J09 Scientific Discovery journeys respectively.
 
+## 113. HashiCorp Vault Integration
+
+**Section 113 — HashiCorp Vault Integration** (FR-683 through FR-700 — NEW per spec correction §6 — appended after FR-682):
+
+- **FR-683**: The platform MUST support a `vault` deployment mode that integrates with HashiCorp Vault as a real secret backend (not a placeholder), in addition to the existing `mock` mode and a NEW transitional `kubernetes` mode that reads from Kubernetes Secrets.
+- **FR-684**: The platform MUST support three Vault authentication methods — `kubernetes`, `approle`, `token` — with `token` rejected at startup unless `ALLOW_INSECURE=true` AND `PLATFORM_ENVIRONMENT=dev` per constitutional Rule 10.
+- **FR-685**: The platform MUST consolidate secret resolution behind a single `SecretProvider` Protocol exposed at `apps/control-plane/src/platform/common/secret_provider.py` with methods `get(path, key) -> str`, `put(path, values: dict) -> None`, `delete_version(path, version) -> None`, `list_versions(path) -> list[int]`, `health_check() -> HealthStatus`. All bounded contexts that resolve secrets MUST use this Protocol; direct calls to `VaultResolver` are prohibited.
+- **FR-686**: A Go-side `SecretProvider` interface with equivalent semantics MUST exist at `services/shared/secrets/provider.go` and MUST be the resolution path for every Go satellite that reads platform credentials.
+- **FR-687**: A CI check MUST fail the build on any direct call to `os.getenv(...)` (Python) or `os.Getenv(...)` (Go) for variable names matching the secret patterns `*_SECRET`, `*_PASSWORD`, `*_API_KEY`, `*_TOKEN`, except inside the `SecretProvider` implementation files. The check is implemented as an extension to UPD-039's `scripts/generate-env-docs.py` deny-list per constitutional Rule 37.
+- **FR-688**: When Vault is unreachable, the platform MUST (a) serve cached values within the cache TTL; (b) serve stale values past TTL up to `maxStalenessSeconds`; (c) refuse critical reads (auth, OAuth callback, IBOR sync) on cache miss with a clear error; (d) NEVER invoke a hardcoded fallback credential path; (e) emit a Prometheus alert within 60 seconds.
+- **FR-689**: The KV v2 path scheme `secret/data/musematic/{env}/{domain}/{resource}` MUST be the canonical organisation; `{env}` ∈ {production, staging, dev, test, ci}; `{domain}` ∈ {oauth, model-providers, notifications, ibor, audit-chain, connectors, accounts}; `{resource}` is BC-defined.
+- **FR-690**: Vault token lifecycle MUST be honoured: lease renewal at 50% of token TTL (40% under detected clock skew); re-authentication on revocation; lease revocation on SIGTERM (graceful pod shutdown).
+- **FR-691**: The platform MUST cache resolved secrets in a per-pod in-process LRU with default TTL `60s` and default max staleness `300s` (both tunable via Helm values); cache flushes MUST be triggerable via `platform-cli vault flush-cache` AND via the `/admin/security/vault` cache-flush admin action.
+- **FR-692**: Secret rotation MUST be implemented via Vault's native KV v2 versioning: `vault kv put` writes a new version; both the prior and new versions MUST be readable for the dual-credential window (default 60s, matching cache TTL); the prior version MUST be destroyed via `vault kv metadata delete` after the window. The existing `RotatableSecretProvider` (UPD-024) is rewired onto this path; semantics preserved.
+- **FR-693**: A migration tool `platform-cli vault migrate-from-k8s` MUST mirror Kubernetes Secrets into Vault at canonical paths; MUST be idempotent (re-running migrates only missing items); MUST emit a manifest documenting source → destination → SHA-256 of value → success/failure (NEVER plaintext).
+- **FR-694**: A Vault Helm sub-chart at `deploy/helm/vault/` MUST wrap the upstream `hashicorp/vault` chart with platform-specific defaults and 3 sizing presets: `dev` (single pod, in-memory, no persistence — for kind), `standalone` (single pod with persistent storage — for small production), `ha` (3 pods with Raft — for production HA).
+- **FR-695**: Vault policies MUST be committed at `deploy/vault/policies/*.hcl` per bounded context (auth, model_catalog, notifications, runtime, security_compliance, ibor, accounts) and attached to the `musematic-platform` Kubernetes auth role; deny-by-default per Rule 10 means a BC with no committed policy receives no Vault read capability.
+- **FR-696**: Database / Transit / PKI secret engines MAY be optionally configured per documented operator-guide instructions; KV v2 is the only REQUIRED engine. The audit chain (UPD-024 / security_compliance BC) MAY use Transit for sign/verify in a follow-up — UPD-040 does NOT make that wiring mandatory.
+- **FR-697**: Prometheus metrics `vault_lease_count`, `vault_renewal_success_total`, `vault_renewal_failure_total`, `vault_auth_failure_total`, `vault_read_total`, `vault_write_total`, `vault_cache_hit_total`, `vault_cache_miss_total`, `vault_cache_hit_ratio`, `vault_serving_stale_total`, `vault_policy_denied_total` MUST be exposed by every control-plane and Go-satellite pod that integrates with Vault.
+- **FR-698**: The `/admin/security/vault` page (delivered by UPD-036; backend contracts owned by UPD-040) MUST surface connection / auth / token-expiry / lease-count / per-BC read rate / cache-hit-rate panels and MUST expose cache-flush + connectivity-test admin actions per constitutional Rule 30 (every admin endpoint role-gated).
+- **FR-699**: The migration tool's manifest MUST be verifiable post-hoc via `platform-cli vault verify-migration --manifest=path/to/manifest.json`; rollback (re-flipping `PLATFORM_VAULT_MODE` to `kubernetes`) MUST be operator-driven and documented in the operator guide (FR-617's runbook library).
+- **FR-700**: The auto-generated env-var reference (UPD-039 / FR-610) MUST classify `PLATFORM_VAULT_TOKEN`, `PLATFORM_VAULT_APPROLE_SECRET_ID`, and any future Vault-backed credential env vars as `sensitive` with the `Never log; never persist outside Vault.` annotation per constitutional Rule 31 (bootstrap secrets never logged).
+
 ## 71. Final Comprehensive Acceptance Criteria
 
 In addition to all earlier acceptance criteria, this complete revision shall not be considered done unless all of the following are also true:
@@ -3636,4 +3562,3 @@ In addition to all earlier acceptance criteria, this complete revision shall not
 13. at least one governance-aware CI/CD pipeline gates an agent deployment on evaluation results and behavioral regression checks;
 14. at least one semantic similarity test evaluates agent output quality using embedding-based scoring;
 15. at least one adversarial test suite probes an agent with prompt injection and edge-case scenarios.
-

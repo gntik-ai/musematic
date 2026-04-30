@@ -1,0 +1,31 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "musematic-vault.fullname" . }}-ingress
+  namespace: {{ .Release.Namespace }}
+  labels:
+{{ include "musematic-vault.labels" . | indent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: vault
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+{{- range .Values.networkPolicy.allowedNamespaces }}
+                  - {{ . | quote }}
+{{- end }}
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: musematic
+      ports:
+        - protocol: TCP
+          port: 8200
+{{- end }}

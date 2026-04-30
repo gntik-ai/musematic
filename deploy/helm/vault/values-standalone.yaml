@@ -1,0 +1,22 @@
+mode: standalone
+
+vault:
+  injector:
+    enabled: false
+  ui:
+    enabled: true
+    serviceType: ClusterIP
+  server:
+    standalone:
+      enabled: true
+    dataStorage:
+      enabled: true
+      size: 10Gi
+    auditStorage:
+      enabled: true
+      size: 5Gi
+    ha:
+      enabled: false
+    audit:
+      enabled: true
+      filePath: /vault/logs/audit.log

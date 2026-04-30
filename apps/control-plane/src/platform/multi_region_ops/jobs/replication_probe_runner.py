@@ -3,6 +3,7 @@ from __future__ import annotations
 from platform.common import database
 from platform.common.clients.clickhouse import AsyncClickHouseClient
 from platform.common.logging import get_logger
+from platform.common.secret_provider import MockSecretProvider
 from platform.incident_response.trigger_interface import get_incident_trigger
 from platform.multi_region_ops.repository import MultiRegionOpsRepository
 from platform.multi_region_ops.services.probes.base import ReplicationProbeRegistry
@@ -36,6 +37,8 @@ def build_replication_probe_scheduler(app: Any) -> Any | None:
         secret_provider = RotatableSecretProvider(
             settings=settings,
             redis_client=app.state.clients.get("redis"),
+            secret_provider=getattr(app.state, "secret_provider", None)
+            or MockSecretProvider(settings, validate_paths=False),
         )
         registry = ReplicationProbeRegistry()
         registry.register(PostgresReplicationProbe(secret_provider))

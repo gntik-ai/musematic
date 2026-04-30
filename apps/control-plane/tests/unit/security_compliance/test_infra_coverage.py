@@ -67,14 +67,28 @@ class RedisStub:
 
 
 class VaultStub:
-    def __init__(self, values: dict[tuple[str, str], str] | None = None) -> None:
+    def __init__(
+        self,
+        values: dict[str, str] | None = None,
+        versions: dict[str, dict[int, str]] | None = None,
+    ) -> None:
         self.values = values or {}
+        self.versions = versions or {}
 
-    def resolve(self, path: str, field: str) -> str:
-        key = (path, field)
-        if key not in self.values:
+    async def get(self, path: str, key: str = "value") -> str:
+        del key
+        if path not in self.values:
             raise RuntimeError("missing secret")
-        return self.values[key]
+        return self.values[path]
+
+    async def list_versions(self, path: str) -> list[int]:
+        return sorted(self.versions.get(path, {}))
+
+    async def get_version(self, path: str, version: int) -> str:
+        try:
+            return self.versions[path][version]
+        except KeyError as exc:
+            raise RuntimeError("missing secret version") from exc
 
 
 class ScalarSequenceStub:
@@ -140,9 +154,15 @@ class DependencyRepositoryMarker:
 
 
 class DependencySecretProviderMarker:
-    def __init__(self, settings: PlatformSettings, redis_client: object | None) -> None:
+    def __init__(
+        self,
+        settings: PlatformSettings,
+        redis_client: object | None,
+        secret_provider: object | None = None,
+    ) -> None:
         self.settings = settings
         self.redis_client = redis_client
+        self.secret_provider = secret_provider
 
 
 def _install_fake_scheduler(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -220,14 +240,12 @@ async def test_security_compliance_dependency_factories_wire_app_state(
 
 
 @pytest.mark.asyncio
-async def test_rotatable_secret_provider_reads_cache_env_vault_and_writes_state(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_rotatable_secret_provider_reads_cache_provider_and_writes_state() -> None:
     redis = RedisStub({"db-password": {"current": "cached-current", "previous": "cached-old"}})
     provider = RotatableSecretProvider(
         PlatformSettings(profile="test"),
         redis_client=redis,  # type: ignore[arg-type]
-        vault=VaultStub(),  # type: ignore[arg-type]
+        secret_provider=VaultStub(),
     )
 
     assert await provider.get_current("db-password") == "cached-current"
@@ -239,34 +257,31 @@ async def test_rotatable_secret_provider_reads_cache_env_vault_and_writes_state(
     assert redis.writes == [("rotation-state", "db-password", {"current": "next"}, 7)]
     await RotatableSecretProvider(
         PlatformSettings(profile="dev"),
-        vault=VaultStub(),  # type: ignore[arg-type]
+        secret_provider=VaultStub(),
     ).cache_rotation_state("api-key", {"current": "next"})
 
-    monkeypatch.setenv("ROTATING_SECRET_API_KEY_CURRENT", "env-current")
+    secret_path = "secret/data/musematic/dev/audit-chain/api-key"
     env_provider = RotatableSecretProvider(
         PlatformSettings(profile="dev"),
-        vault=VaultStub(),  # type: ignore[arg-type]
+        secret_provider=VaultStub(
+            values={secret_path: "provider-current"},
+            versions={secret_path: {1: "provider-old", 2: "provider-current"}},
+        ),
     )
-    assert await env_provider.get_current("api-key") == "env-current"
-    assert await env_provider.get_previous("api-key") is None
-    monkeypatch.setenv(
-        "ROTATING_SECRET_INCIDENT_RESPONSE_INTEGRATIONS_LOCAL_PAGERDUTY_CURRENT",
-        "env-routing-key",
-    )
-    assert (
-        await env_provider.get_current("incident-response/integrations/local-pagerduty")
-        == "env-routing-key"
-    )
+    assert await env_provider.get_current("api-key") == "provider-current"
+    assert await env_provider.get_previous("api-key") == "provider-old"
 
     with pytest.raises(RuntimeError):
         await RotatableSecretProvider(
             PlatformSettings(profile="dev"),
-            vault=VaultStub(),  # type: ignore[arg-type]
+            secret_provider=VaultStub(),
         ).get_current("missing")
     with pytest.raises(RuntimeError):
         await RotatableSecretProvider(
             PlatformSettings(profile="dev"),
-            vault=SimpleNamespace(resolve=lambda path, field: None),  # type: ignore[arg-type]
+            secret_provider=VaultStub(
+                values={"secret/data/musematic/dev/audit-chain/none-secret": ""}
+            ),
         ).get_current("none-secret")
 
 
