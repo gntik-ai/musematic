@@ -62,11 +62,15 @@ spec:
             - name: VAULT_ADDR
               value: {{ .Values.policyJob.vaultAddr | quote }}
             - name: VAULT_TOKEN
+{{- if and (eq .Values.mode "dev") .Values.vault.server.dev.enabled .Values.vault.server.dev.devRootToken }}
+              value: {{ .Values.vault.server.dev.devRootToken | quote }}
+{{- else }}
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.policyJob.tokenSecretName | quote }}
                   key: {{ .Values.policyJob.tokenSecretKey | quote }}
                   optional: true
+{{- end }}
           command:
             - /bin/sh
             - -ec

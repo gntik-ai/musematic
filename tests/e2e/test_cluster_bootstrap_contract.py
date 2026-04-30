@@ -77,6 +77,20 @@ def test_vault_install_adds_hashicorp_repo_before_dependency_build() -> None:
     )
 
 
+def test_vault_dev_hooks_target_rendered_service_and_dev_token() -> None:
+    values = _load_yaml('deploy/helm/vault/values.yaml')
+    dev_values = _load_yaml('deploy/helm/vault/values-dev.yaml')
+    policies_job = (ROOT / 'deploy/helm/vault/templates/post-install-policies-job.yaml').read_text()
+    auth_job = (ROOT / 'deploy/helm/vault/templates/post-install-kubernetes-auth-job.yaml').read_text()
+
+    assert values['vault']['fullnameOverride'] == 'musematic-vault'
+    assert dev_values['policyJob']['vaultAddr'] == 'http://musematic-vault.platform-security.svc.cluster.local:8200'
+    assert 'eq .Values.mode "dev"' in policies_job
+    assert '.Values.vault.server.dev.devRootToken' in policies_job
+    assert 'eq .Values.mode "dev"' in auth_job
+    assert '.Values.vault.server.dev.devRootToken' in auth_job
+
+
 def test_observability_install_uses_targeted_readiness_after_helm_apply() -> None:
     install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
     observability_install = install_script.split('install_observability() {', 1)[1].split(

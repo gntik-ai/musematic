@@ -56,6 +56,8 @@ networkPolicy:
 # @section -- Vault
 # -- Values passed to the upstream hashicorp/vault dependency.
 vault:
+  # -- Overrides the upstream Vault fullname so wrapper policy jobs and platform clients use the same service DNS name.
+  fullnameOverride: musematic-vault
   injector:
     enabled: false
   ui:
