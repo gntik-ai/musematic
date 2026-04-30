@@ -75,7 +75,8 @@ class InMemorySecretProvider:
     def __init__(self) -> None:
         self._values: dict[str, dict[str, str]] = {}
 
-    async def get(self, path: str, key: str = "value") -> str:
+    async def get(self, path: str, key: str = "value", *, critical: bool = False) -> str:
+        del critical
         return self._values.get(path, {}).get(key, "")
 
     async def put(self, path: str, values: dict[str, str]) -> None:

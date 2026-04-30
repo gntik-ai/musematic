@@ -39,7 +39,6 @@ spec:
     metadata:
       labels:
 {{ include "musematic-vault.labels" . | indent 8 }}
-        app.kubernetes.io/name: {{ include "musematic-vault.fullname" . }}-kubernetes-auth
     spec:
       restartPolicy: OnFailure
       serviceAccountName: {{ include "musematic-vault.fullname" . }}-auth-bootstrap

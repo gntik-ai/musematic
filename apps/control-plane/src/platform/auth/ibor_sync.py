@@ -20,9 +20,8 @@ from platform.auth.schemas import IBORSyncRunResponse, IBORSyncTriggerResponse
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.events.producer import EventProducer
-from platform.common.secret_provider import SecretProvider
 from platform.registry.models import AgentProfile, LifecycleStatus
-from typing import Any
+from typing import Any, Protocol
 from uuid import UUID, uuid4
 
 import httpx
@@ -40,12 +39,16 @@ class _CredentialResolverSecretProvider:
     def __init__(self, resolver: Any) -> None:
         self._resolver = resolver
 
-    async def get(self, path: str, key: str = "value") -> Any:
-        del key
+    async def get(self, path: str, key: str = "value", *, critical: bool = False) -> Any:
+        del key, critical
         result = self._resolver(path)
         if inspect.isawaitable(result):
             result = await result
         return result
+
+
+class _IBORSecretProvider(Protocol):
+    async def get(self, path: str, key: str = "value", *, critical: bool = False) -> Any: ...
 
 
 class IBORSyncService:
@@ -58,7 +61,7 @@ class IBORSyncService:
         settings: PlatformSettings,
         producer: EventProducer | None = None,
         session_factory: async_sessionmaker[AsyncSession] | None = None,
-        secret_provider: SecretProvider | None = None,
+        secret_provider: _IBORSecretProvider | None = None,
         credential_resolver: Any | None = None,
     ) -> None:
         self.repository = repository

@@ -17,7 +17,7 @@ from typing import Any, Literal, Protocol
 
 try:  # pragma: no cover - exercised when the optional Vault dependency is installed
     import hvac  # type: ignore[import-untyped]
-    from hvac import exceptions as hvac_exceptions  # type: ignore[import-untyped]
+    from hvac import exceptions as hvac_exceptions
 except Exception:  # pragma: no cover - keeps mock/test mode importable without hvac
     hvac = None
     hvac_exceptions = None
@@ -793,7 +793,7 @@ class KubernetesSecretProvider:
                 "kubernetes-asyncio is required for KubernetesSecretProvider"
             ) from exc
         with contextlib.suppress(Exception):
-            config.load_incluster_config()
+            config.load_incluster_config()  # type: ignore[no-untyped-call]
             self._api = client.CoreV1Api()
             return self._api
         await config.load_kube_config()

@@ -16,7 +16,6 @@ spec:
     metadata:
       labels:
 {{ include "musematic-vault.labels" . | indent 8 }}
-        app.kubernetes.io/name: {{ include "musematic-vault.fullname" . }}-policies
     spec:
       restartPolicy: OnFailure
       initContainers:

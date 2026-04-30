@@ -167,6 +167,32 @@ Control-plane deployment assets for Musematic.
 | scheduler.replicaCount | int | `1` | Configures `scheduler.replicaCount` for the control-plane chart. |
 | securityCompliance | object | `{"manualEvidenceBucket":"compliance-evidence"}` | Configures `securityCompliance` for the control-plane chart. |
 | securityCompliance.manualEvidenceBucket | string | `"compliance-evidence"` | Configures `securityCompliance.manualEvidenceBucket` for the control-plane chart. |
+| serviceAccount | object | `{"annotations":{},"create":true,"name":""}` | Configures `serviceAccount` for the control-plane chart. |
+| serviceAccount.annotations | object | `{}` | Configures `serviceAccount.annotations` for the control-plane chart. |
+| serviceAccount.create | bool | `true` | Configures `serviceAccount.create` for the control-plane chart. |
+| serviceAccount.name | string | `""` | Configures `serviceAccount.name` for the control-plane chart. |
+| vault | object | `{"addr":"http://musematic-vault.platform-security.svc.cluster.local:8200","approle":{"roleId":"","secretIdSecretRef":""},"authMethod":"kubernetes","caCertSecretRef":"","cache":{"maxStalenessSeconds":300,"ttlSeconds":60},"kubernetes":{"role":"musematic-platform","serviceAccountTokenPath":"/var/run/secrets/tokens/vault-token"},"kvMount":"secret","kvPrefix":"musematic/{environment}","leaseRenewalThreshold":0.5,"mode":"mock","namespace":"","retry":{"attempts":3,"timeoutSeconds":10},"token":""}` | Configures Vault-backed secret resolution for the control-plane chart. |
+| vault.addr | string | `"http://musematic-vault.platform-security.svc.cluster.local:8200"` | Configures `vault.addr` for the control-plane chart. |
+| vault.approle | object | `{"roleId":"","secretIdSecretRef":""}` | Configures `vault.approle` for the control-plane chart. |
+| vault.approle.roleId | string | `""` | Configures `vault.approle.roleId` for the control-plane chart. |
+| vault.approle.secretIdSecretRef | string | `""` | Configures `vault.approle.secretIdSecretRef` for the control-plane chart. |
+| vault.authMethod | string | `"kubernetes"` | Configures `vault.authMethod` for the control-plane chart. |
+| vault.caCertSecretRef | string | `""` | Configures `vault.caCertSecretRef` for the control-plane chart. |
+| vault.cache | object | `{"maxStalenessSeconds":300,"ttlSeconds":60}` | Configures `vault.cache` for the control-plane chart. |
+| vault.cache.maxStalenessSeconds | int | `300` | Configures `vault.cache.maxStalenessSeconds` for the control-plane chart. |
+| vault.cache.ttlSeconds | int | `60` | Configures `vault.cache.ttlSeconds` for the control-plane chart. |
+| vault.kubernetes | object | `{"role":"musematic-platform","serviceAccountTokenPath":"/var/run/secrets/tokens/vault-token"}` | Configures `vault.kubernetes` for the control-plane chart. |
+| vault.kubernetes.role | string | `"musematic-platform"` | Configures `vault.kubernetes.role` for the control-plane chart. |
+| vault.kubernetes.serviceAccountTokenPath | string | `"/var/run/secrets/tokens/vault-token"` | Configures `vault.kubernetes.serviceAccountTokenPath` for the control-plane chart. |
+| vault.kvMount | string | `"secret"` | Configures `vault.kvMount` for the control-plane chart. |
+| vault.kvPrefix | string | `"musematic/{environment}"` | Configures `vault.kvPrefix` for the control-plane chart. |
+| vault.leaseRenewalThreshold | float | `0.5` | Configures `vault.leaseRenewalThreshold` for the control-plane chart. |
+| vault.mode | string | `"mock"` | Configures `vault.mode` for the control-plane chart. |
+| vault.namespace | string | `""` | Configures `vault.namespace` for the control-plane chart. |
+| vault.retry | object | `{"attempts":3,"timeoutSeconds":10}` | Configures `vault.retry` for the control-plane chart. |
+| vault.retry.attempts | int | `3` | Configures `vault.retry.attempts` for the control-plane chart. |
+| vault.retry.timeoutSeconds | int | `10` | Configures `vault.retry.timeoutSeconds` for the control-plane chart. |
+| vault.token | string | `""` | Configures `vault.token` for the control-plane chart. |
 | worker | object | `{"enabled":true,"replicaCount":1}` | Configures `worker` for the control-plane chart. |
 | worker.enabled | bool | `true` | Configures `worker.enabled` for the control-plane chart. |
 | worker.replicaCount | int | `1` | Configures `worker.replicaCount` for the control-plane chart. |
@@ -975,6 +1001,7 @@ Composite Musematic platform chart used by production and E2E deployments.
 | file://../runtime-controller | runtimeController(musematic-runtime-controller) | 0.1.0 |
 | file://../simulation-controller | simulationController(simulation-controller) | 0.1.0 |
 | file://../ui | ui(musematic-ui) | 0.1.0 |
+| file://../vault | vault(musematic-vault) | 0.1.0 |
 
 ### Values
 
@@ -983,7 +1010,7 @@ Composite Musematic platform chart used by production and E2E deployments.
 | clickhouse | object | `{"createNamespace":false,"enabled":true}` | Configures `clickhouse` for the platform chart. |
 | clickhouse.createNamespace | bool | `false` | Configures `clickhouse.createNamespace` for the platform chart. |
 | clickhouse.enabled | bool | `true` | Configures `clickhouse.enabled` for the platform chart. |
-| controlPlane | object | `{"api":{"enabled":true,"replicaCount":1,"service":{"nodePort":null,"port":8000,"type":"ClusterIP"}},"common":{"featureE2EMode":false,"mockLlmEnabled":false,"otelExporterEndpoint":"http://otel-collector.platform-observability.svc.cluster.local:4318","otelResourceAttributes":"deployment.environment=production","otelServiceName":"control-plane","resources":{"limits":{"cpu":"1","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}},"wsClientBufferSize":1000,"wsHeartbeatIntervalSeconds":30,"wsHeartbeatTimeoutSeconds":10,"zeroTrustVisibility":false},"connections":{"authJwtAlgorithm":"HS256","authJwtSecretKey":"change-me","authMfaEncryptionKey":"","clickhouseDatabase":"default","clickhouseHost":"musematic-clickhouse.platform.svc.cluster.local","clickhousePassword":"","clickhousePort":8123,"clickhouseUser":"default","grpcReasoningEngine":"reasoning-engine.platform.svc.cluster.local:50052","grpcRuntimeController":"musematic-runtime-controller.platform.svc.cluster.local:50051","grpcSandboxManager":"sandbox-manager.platform.svc.cluster.local:50053","grpcSimulationController":"musematic-simulation-controller.platform.svc.cluster.local:50055","kafkaBrokers":"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092","neo4jPassword":"neo4j","neo4jUri":"bolt://musematic-neo4j.platform.svc.cluster.local:7687","neo4jUser":"neo4j","opensearchHosts":"http://musematic-opensearch.platform.svc.cluster.local:9200","opensearchPassword":"admin","opensearchUsername":"admin","postgresDsn":"postgresql+asyncpg://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic","qdrantGrpcPort":6334,"qdrantHost":"musematic-qdrant.platform.svc.cluster.local","qdrantPort":6333,"redisTestMode":"cluster","redisUrl":"redis://:change-me@musematic-redis.platform.svc.cluster.local:6379","s3AccessKey":"platform","s3BucketPrefix":"platform","s3EndpointUrl":"http://musematic-minio.platform-data.svc.cluster.local:9000","s3Provider":"generic","s3Region":"us-east-1","s3SecretKey":"change-me","s3UsePathStyle":true},"enabled":true,"image":{"pullPolicy":"IfNotPresent","repository":"ghcr.io/musematic/control-plane","tag":"latest"},"migration":{"backoffLimit":3,"enabled":true},"privacy":{"clickhousePiiTables":["execution_metrics","agent_performance","token_usage"],"dlpEnabled":false,"dsrEnabled":false,"residencyEnforcementEnabled":false},"scheduler":{"enabled":true,"replicaCount":1},"worker":{"enabled":true,"replicaCount":1},"wsHub":{"enabled":true,"replicaCount":1,"service":{"nodePort":null,"port":8001,"type":"ClusterIP"}}}` | Configures `controlPlane` for the platform chart. |
+| controlPlane | object | `{"api":{"enabled":true,"replicaCount":1,"service":{"nodePort":null,"port":8000,"type":"ClusterIP"}},"common":{"featureE2EMode":false,"mockLlmEnabled":false,"otelExporterEndpoint":"http://otel-collector.platform-observability.svc.cluster.local:4318","otelResourceAttributes":"deployment.environment=production","otelServiceName":"control-plane","resources":{"limits":{"cpu":"1","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}},"wsClientBufferSize":1000,"wsHeartbeatIntervalSeconds":30,"wsHeartbeatTimeoutSeconds":10,"zeroTrustVisibility":false},"connections":{"authJwtAlgorithm":"HS256","authJwtSecretKey":"change-me","authMfaEncryptionKey":"","clickhouseDatabase":"default","clickhouseHost":"musematic-clickhouse.platform.svc.cluster.local","clickhousePassword":"","clickhousePort":8123,"clickhouseUser":"default","grpcReasoningEngine":"reasoning-engine.platform.svc.cluster.local:50052","grpcRuntimeController":"musematic-runtime-controller.platform.svc.cluster.local:50051","grpcSandboxManager":"sandbox-manager.platform.svc.cluster.local:50053","grpcSimulationController":"musematic-simulation-controller.platform.svc.cluster.local:50055","kafkaBrokers":"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092","neo4jPassword":"neo4j","neo4jUri":"bolt://musematic-neo4j.platform.svc.cluster.local:7687","neo4jUser":"neo4j","opensearchHosts":"http://musematic-opensearch.platform.svc.cluster.local:9200","opensearchPassword":"admin","opensearchUsername":"admin","postgresDsn":"postgresql+asyncpg://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic","qdrantGrpcPort":6334,"qdrantHost":"musematic-qdrant.platform.svc.cluster.local","qdrantPort":6333,"redisTestMode":"cluster","redisUrl":"redis://:change-me@musematic-redis.platform.svc.cluster.local:6379","s3AccessKey":"platform","s3BucketPrefix":"platform","s3EndpointUrl":"http://musematic-minio.platform-data.svc.cluster.local:9000","s3Provider":"generic","s3Region":"us-east-1","s3SecretKey":"change-me","s3UsePathStyle":true},"enabled":true,"image":{"pullPolicy":"IfNotPresent","repository":"ghcr.io/musematic/control-plane","tag":"latest"},"migration":{"backoffLimit":3,"enabled":true},"privacy":{"clickhousePiiTables":["execution_metrics","agent_performance","token_usage"],"dlpEnabled":false,"dsrEnabled":false,"residencyEnforcementEnabled":false},"scheduler":{"enabled":true,"replicaCount":1},"serviceAccount":{"annotations":{},"create":true,"name":"musematic-control-plane"},"vault":{"addr":"http://musematic-vault.platform-security.svc.cluster.local:8200","approle":{"roleId":"","secretIdSecretRef":""},"authMethod":"kubernetes","caCertSecretRef":"","cache":{"maxStalenessSeconds":300,"ttlSeconds":60},"kubernetes":{"role":"musematic-platform","serviceAccountTokenPath":"/var/run/secrets/tokens/vault-token"},"kvMount":"secret","kvPrefix":"musematic/{environment}","leaseRenewalThreshold":0.5,"mode":"vault","namespace":"","retry":{"attempts":3,"timeoutSeconds":10},"token":""},"worker":{"enabled":true,"replicaCount":1},"wsHub":{"enabled":true,"replicaCount":1,"service":{"nodePort":null,"port":8001,"type":"ClusterIP"}}}` | Configures `controlPlane` for the platform chart. |
 | controlPlane.api | object | `{"enabled":true,"replicaCount":1,"service":{"nodePort":null,"port":8000,"type":"ClusterIP"}}` | Configures `controlPlane.api` for the platform chart. |
 | controlPlane.api.enabled | bool | `true` | Configures `controlPlane.api.enabled` for the platform chart. |
 | controlPlane.api.replicaCount | int | `1` | Configures `controlPlane.api.replicaCount` for the platform chart. |
@@ -1057,6 +1084,32 @@ Composite Musematic platform chart used by production and E2E deployments.
 | controlPlane.scheduler | object | `{"enabled":true,"replicaCount":1}` | Configures `controlPlane.scheduler` for the platform chart. |
 | controlPlane.scheduler.enabled | bool | `true` | Configures `controlPlane.scheduler.enabled` for the platform chart. |
 | controlPlane.scheduler.replicaCount | int | `1` | Configures `controlPlane.scheduler.replicaCount` for the platform chart. |
+| controlPlane.serviceAccount | object | `{"annotations":{},"create":true,"name":"musematic-control-plane"}` | Configures `controlPlane.serviceAccount` for the platform chart. |
+| controlPlane.serviceAccount.annotations | object | `{}` | Configures `controlPlane.serviceAccount.annotations` for the platform chart. |
+| controlPlane.serviceAccount.create | bool | `true` | Configures `controlPlane.serviceAccount.create` for the platform chart. |
+| controlPlane.serviceAccount.name | string | `"musematic-control-plane"` | Configures `controlPlane.serviceAccount.name` for the platform chart. |
+| controlPlane.vault | object | `{"addr":"http://musematic-vault.platform-security.svc.cluster.local:8200","approle":{"roleId":"","secretIdSecretRef":""},"authMethod":"kubernetes","caCertSecretRef":"","cache":{"maxStalenessSeconds":300,"ttlSeconds":60},"kubernetes":{"role":"musematic-platform","serviceAccountTokenPath":"/var/run/secrets/tokens/vault-token"},"kvMount":"secret","kvPrefix":"musematic/{environment}","leaseRenewalThreshold":0.5,"mode":"vault","namespace":"","retry":{"attempts":3,"timeoutSeconds":10},"token":""}` | Configures `controlPlane.vault` for the platform chart. |
+| controlPlane.vault.addr | string | `"http://musematic-vault.platform-security.svc.cluster.local:8200"` | Configures `controlPlane.vault.addr` for the platform chart. |
+| controlPlane.vault.approle | object | `{"roleId":"","secretIdSecretRef":""}` | Configures `controlPlane.vault.approle` for the platform chart. |
+| controlPlane.vault.approle.roleId | string | `""` | Configures `controlPlane.vault.approle.roleId` for the platform chart. |
+| controlPlane.vault.approle.secretIdSecretRef | string | `""` | Configures `controlPlane.vault.approle.secretIdSecretRef` for the platform chart. |
+| controlPlane.vault.authMethod | string | `"kubernetes"` | Configures `controlPlane.vault.authMethod` for the platform chart. |
+| controlPlane.vault.caCertSecretRef | string | `""` | Configures `controlPlane.vault.caCertSecretRef` for the platform chart. |
+| controlPlane.vault.cache | object | `{"maxStalenessSeconds":300,"ttlSeconds":60}` | Configures `controlPlane.vault.cache` for the platform chart. |
+| controlPlane.vault.cache.maxStalenessSeconds | int | `300` | Configures `controlPlane.vault.cache.maxStalenessSeconds` for the platform chart. |
+| controlPlane.vault.cache.ttlSeconds | int | `60` | Configures `controlPlane.vault.cache.ttlSeconds` for the platform chart. |
+| controlPlane.vault.kubernetes | object | `{"role":"musematic-platform","serviceAccountTokenPath":"/var/run/secrets/tokens/vault-token"}` | Configures `controlPlane.vault.kubernetes` for the platform chart. |
+| controlPlane.vault.kubernetes.role | string | `"musematic-platform"` | Configures `controlPlane.vault.kubernetes.role` for the platform chart. |
+| controlPlane.vault.kubernetes.serviceAccountTokenPath | string | `"/var/run/secrets/tokens/vault-token"` | Configures `controlPlane.vault.kubernetes.serviceAccountTokenPath` for the platform chart. |
+| controlPlane.vault.kvMount | string | `"secret"` | Configures `controlPlane.vault.kvMount` for the platform chart. |
+| controlPlane.vault.kvPrefix | string | `"musematic/{environment}"` | Configures `controlPlane.vault.kvPrefix` for the platform chart. |
+| controlPlane.vault.leaseRenewalThreshold | float | `0.5` | Configures `controlPlane.vault.leaseRenewalThreshold` for the platform chart. |
+| controlPlane.vault.mode | string | `"vault"` | Configures `controlPlane.vault.mode` for the platform chart. |
+| controlPlane.vault.namespace | string | `""` | Configures `controlPlane.vault.namespace` for the platform chart. |
+| controlPlane.vault.retry | object | `{"attempts":3,"timeoutSeconds":10}` | Configures `controlPlane.vault.retry` for the platform chart. |
+| controlPlane.vault.retry.attempts | int | `3` | Configures `controlPlane.vault.retry.attempts` for the platform chart. |
+| controlPlane.vault.retry.timeoutSeconds | int | `10` | Configures `controlPlane.vault.retry.timeoutSeconds` for the platform chart. |
+| controlPlane.vault.token | string | `""` | Configures `controlPlane.vault.token` for the platform chart. |
 | controlPlane.worker | object | `{"enabled":true,"replicaCount":1}` | Configures `controlPlane.worker` for the platform chart. |
 | controlPlane.worker.enabled | bool | `true` | Configures `controlPlane.worker.enabled` for the platform chart. |
 | controlPlane.worker.replicaCount | int | `1` | Configures `controlPlane.worker.replicaCount` for the platform chart. |
@@ -1251,6 +1304,12 @@ Composite Musematic platform chart used by production and E2E deployments.
 | ui.service.nodePort | string | `nil` | Configures `ui.service.nodePort` for the platform chart. |
 | ui.service.port | int | `3000` | Configures `ui.service.port` for the platform chart. |
 | ui.service.type | string | `"ClusterIP"` | Configures `ui.service.type` for the platform chart. |
+| vault | object | `{"enabled":false,"mode":"ha","policyJob":{"vaultAddr":"http://musematic-vault.platform-security.svc.cluster.local:8200"},"vault":{"injector":{"enabled":false},"server":{"auditStorage":{"enabled":true,"size":"5Gi"},"dataStorage":{"enabled":true,"size":"10Gi"},"ha":{"enabled":true,"raft":{"enabled":true,"setNodeId":true},"replicas":3}},"ui":{"enabled":true,"serviceType":"ClusterIP"}}}` | Configures `vault` for the platform chart. |
+| vault.enabled | bool | `false` | Configures `vault.enabled` for the platform chart. |
+| vault.mode | string | `"ha"` | Configures `vault.mode` for the platform chart. |
+| vault.policyJob | object | `{"vaultAddr":"http://musematic-vault.platform-security.svc.cluster.local:8200"}` | Configures `vault.policyJob` for the platform chart. |
+| vault.policyJob.vaultAddr | string | `"http://musematic-vault.platform-security.svc.cluster.local:8200"` | Configures `vault.policyJob.vaultAddr` for the platform chart. |
+| vault.vault | object | `{"injector":{"enabled":false},"server":{"auditStorage":{"enabled":true,"size":"5Gi"},"dataStorage":{"enabled":true,"size":"10Gi"},"ha":{"enabled":true,"raft":{"enabled":true,"setNodeId":true},"replicas":3}},"ui":{"enabled":true,"serviceType":"ClusterIP"}}` | Configures `vault.vault` for the upstream HashiCorp chart. |
 | webStatus | object | `{"enabled":false,"host":"status.local","image":{"repository":"","tag":""},"replicaCount":2}` | Configures the independent public status page deployment. |
 | webStatus.enabled | bool | `false` | Configures `webStatus.enabled` for the platform chart. |
 | webStatus.host | string | `"status.local"` | Configures `webStatus.host` for the platform chart. |
@@ -1590,6 +1649,44 @@ Next.js frontend for Musematic.
 | service.nodePort | string | `nil` | Configures `service.nodePort` for the ui chart. |
 | service.port | int | `3000` | Configures `service.port` for the ui chart. |
 | service.type | string | `"ClusterIP"` | Configures `service.type` for the ui chart. |
+
+----------------------------------------------
+Autogenerated from chart metadata using [helm-docs v1.13.1](https://github.com/norwoodj/helm-docs/releases/v1.13.1)
+
+## musematic-vault
+
+
+![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 1.21.2](https://img.shields.io/badge/AppVersion-1.21.2-informational?style=flat-square)
+
+Musematic wrapper chart for HashiCorp Vault.
+
+### Requirements
+
+| Repository | Name | Version |
+|------------|------|---------|
+| https://helm.releases.hashicorp.com | vault | 0.32.0 |
+
+### Values
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| kubernetesAuthJob | object | `{"boundNamespaces":["platform","platform-runtime","platform-reasoning","platform-simulation","platform-sandbox"],"boundServiceAccounts":["musematic-control-plane","musematic-runtime-controller","reasoning-engine","simulation-controller","sandbox-manager"],"enabled":true,"roleName":"musematic-platform","tokenTtl":"1h"}` | Configures Kubernetes auth bootstrap. |
+| kubernetesAuthJob.boundNamespaces | list | `["platform","platform-runtime","platform-reasoning","platform-simulation","platform-sandbox"]` | Namespaces containing the bound service accounts. |
+| kubernetesAuthJob.boundServiceAccounts | list | `["musematic-control-plane","musematic-runtime-controller","reasoning-engine","simulation-controller","sandbox-manager"]` | Bound service accounts allowed to use the role. |
+| kubernetesAuthJob.enabled | bool | `true` | Enables the Kubernetes auth bootstrap hook. |
+| kubernetesAuthJob.roleName | string | `"musematic-platform"` | Kubernetes auth role created for platform workloads. |
+| kubernetesAuthJob.tokenTtl | string | `"1h"` | Token TTL assigned by the role. |
+| mode | string | `"ha"` | Vault deployment mode used by Musematic wrapper logic: dev, standalone, or ha. |
+| networkPolicy | object | `{"allowedNamespaces":["platform","platform-runtime","platform-reasoning","platform-simulation","platform-sandbox"],"enabled":true}` | Restricts Vault ingress to platform control-plane and satellite namespaces. |
+| networkPolicy.allowedNamespaces | list | `["platform","platform-runtime","platform-reasoning","platform-simulation","platform-sandbox"]` | Namespaces allowed to initiate connections to Vault. |
+| networkPolicy.enabled | bool | `true` | Enables the Vault NetworkPolicy. |
+| policyJob | object | `{"enabled":true,"image":"hashicorp/vault:1.21.2","tokenSecretKey":"token","tokenSecretName":"vault-bootstrap-token","vaultAddr":"http://musematic-vault.platform-security.svc.cluster.local:8200"}` | Configures the post-install policy bootstrap job. |
+| policyJob.enabled | bool | `true` | Enables the policy bootstrap hook. |
+| policyJob.image | string | `"hashicorp/vault:1.21.2"` | Vault CLI image used by bootstrap jobs. |
+| policyJob.tokenSecretKey | string | `"token"` | Secret key containing the bootstrap token. |
+| policyJob.tokenSecretName | string | `"vault-bootstrap-token"` | Secret containing a bootstrap token with policy/auth management privileges. |
+| policyJob.vaultAddr | string | `"http://musematic-vault.platform-security.svc.cluster.local:8200"` | Vault address reachable from the bootstrap job. |
+| vault | object | `{"injector":{"enabled":false},"server":{"auditStorage":{"enabled":true,"size":"5Gi"},"dataStorage":{"enabled":true,"size":"10Gi"},"extraEnvironmentVars":{"VAULT_CACERT":"/vault/userconfig/tls/ca.crt"},"ha":{"enabled":true,"raft":{"enabled":true,"setNodeId":true},"replicas":3}},"ui":{"enabled":true,"serviceType":"ClusterIP"}}` | Values passed to the upstream hashicorp/vault dependency. |
 
 ----------------------------------------------
 Autogenerated from chart metadata using [helm-docs v1.13.1](https://github.com/norwoodj/helm-docs/releases/v1.13.1)
