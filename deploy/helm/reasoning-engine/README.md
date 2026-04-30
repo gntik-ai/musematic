@@ -8,12 +8,14 @@ Reasoning engine satellite service for Musematic.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| config | object | `{"budgetDefaultTTLSeconds":"3600","maxTotConcurrency":"10","otelExporterOtlpEndpoint":"http://otel-collector.platform-observability.svc.cluster.local:4317","otelResourceAttributes":"deployment.environment=production","otelServiceName":"reasoning-engine","traceBufferSize":"10000","tracePayloadThreshold":"65536"}` | Configures `config` for the reasoning-engine chart. |
+| config | object | `{"budgetDefaultTTLSeconds":"3600","maxTotConcurrency":"10","otelExporterOtlpEndpoint":"http://otel-collector.platform-observability.svc.cluster.local:4317","otelResourceAttributes":"deployment.environment=production","otelServiceName":"reasoning-engine","startupDependencyRetryIntervalSeconds":"5","startupDependencyTimeoutSeconds":"600","traceBufferSize":"10000","tracePayloadThreshold":"65536"}` | Configures `config` for the reasoning-engine chart. |
 | config.budgetDefaultTTLSeconds | string | `"3600"` | Configures `config.budgetDefaultTTLSeconds` for the reasoning-engine chart. |
 | config.maxTotConcurrency | string | `"10"` | Configures `config.maxTotConcurrency` for the reasoning-engine chart. |
 | config.otelExporterOtlpEndpoint | string | `"http://otel-collector.platform-observability.svc.cluster.local:4317"` | Configures `config.otelExporterOtlpEndpoint` for the reasoning-engine chart. |
 | config.otelResourceAttributes | string | `"deployment.environment=production"` | Configures `config.otelResourceAttributes` for the reasoning-engine chart. |
 | config.otelServiceName | string | `"reasoning-engine"` | Configures `config.otelServiceName` for the reasoning-engine chart. |
+| config.startupDependencyRetryIntervalSeconds | string | `"5"` | Configures `config.startupDependencyRetryIntervalSeconds` for the reasoning-engine chart. |
+| config.startupDependencyTimeoutSeconds | string | `"600"` | Configures `config.startupDependencyTimeoutSeconds` for the reasoning-engine chart. |
 | config.traceBufferSize | string | `"10000"` | Configures `config.traceBufferSize` for the reasoning-engine chart. |
 | config.tracePayloadThreshold | string | `"65536"` | Configures `config.tracePayloadThreshold` for the reasoning-engine chart. |
 | configSecretRef | string | `"reasoning-engine-config"` | Configures `configSecretRef` for the reasoning-engine chart. |
@@ -26,6 +28,10 @@ Reasoning engine satellite service for Musematic.
 | image.pullPolicy | string | `"IfNotPresent"` | Configures `image.pullPolicy` for the reasoning-engine chart. |
 | image.repository | string | `"ghcr.io/andrea-mucci/musematic/reasoning-engine"` | Configures `image.repository` for the reasoning-engine chart. |
 | image.tag | string | `"latest"` | Configures `image.tag` for the reasoning-engine chart. |
+| probes | object | `{"startup":{"failureThreshold":90,"periodSeconds":10}}` | Configures `probes` for the reasoning-engine chart. |
+| probes.startup | object | `{"failureThreshold":90,"periodSeconds":10}` | Configures `probes.startup` for the reasoning-engine chart. |
+| probes.startup.failureThreshold | int | `90` | Configures `probes.startup.failureThreshold` for the reasoning-engine chart. |
+| probes.startup.periodSeconds | int | `10` | Configures `probes.startup.periodSeconds` for the reasoning-engine chart. |
 | replicaCount | int | `2` | Configures `replicaCount` for the reasoning-engine chart. |
 | resources | object | `{"limits":{"cpu":"500m","memory":"256Mi"},"requests":{"cpu":"250m","memory":"128Mi"}}` | Configures `resources` for the reasoning-engine chart. |
 | resources.limits | object | `{"cpu":"500m","memory":"256Mi"}` | Configures `resources.limits` for the reasoning-engine chart. |

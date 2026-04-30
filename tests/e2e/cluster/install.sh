@@ -706,6 +706,16 @@ wait_for_kafka_topics_ready() {
   kubectl wait --for=condition=Ready -n "${KAFKA_NAMESPACE}" kafkatopic -l "$selector" --timeout="$timeout"
 }
 
+wait_for_redis_ready() {
+  if ! kubectl get statefulset -n "${NAMESPACE}" musematic-redis >/dev/null 2>&1; then
+    return
+  fi
+
+  echo "[e2e] waiting for Redis cluster before restarting platform deployments"
+  kubectl rollout status -n "${NAMESPACE}" statefulset/musematic-redis --timeout="${PLATFORM_READY_TIMEOUT}"
+  kubectl wait --for=condition=Ready -n "${NAMESPACE}" pod -l app.kubernetes.io/name=redis-cluster --timeout="${PLATFORM_READY_TIMEOUT}"
+}
+
 run_manual_init_jobs() {
   echo "[e2e] launching manual init jobs outside Helm hooks"
   launch_minio_bucket_init
@@ -757,6 +767,7 @@ main() {
   run_manual_init_jobs
   wait_for_kafka_ready
   wait_for_kafka_topics_ready "${PLATFORM_READY_TIMEOUT}"
+  wait_for_redis_ready
   restart_platform_deployments
   wait_for_rollouts
   seed_baseline

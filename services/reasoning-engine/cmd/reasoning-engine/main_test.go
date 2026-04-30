@@ -60,6 +60,8 @@ func TestEnvHelpersAndLoadConfig(t *testing.T) {
 	t.Setenv("TRACE_PAYLOAD_THRESHOLD", "1234")
 	t.Setenv("BUDGET_DEFAULT_TTL_SECONDS", "99")
 	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "otel-collector:4317")
+	t.Setenv("STARTUP_DEPENDENCY_TIMEOUT_SECONDS", "42")
+	t.Setenv("STARTUP_DEPENDENCY_RETRY_INTERVAL_SECONDS", "3")
 
 	cfg, err := loadConfig()
 	if err != nil {
@@ -70,6 +72,9 @@ func TestEnvHelpersAndLoadConfig(t *testing.T) {
 	}
 	if cfg.otlpExporterEndpoint != "otel-collector:4317" {
 		t.Fatalf("unexpected otlp endpoint: %q", cfg.otlpExporterEndpoint)
+	}
+	if cfg.startupDependencyTimeout != 42*time.Second || cfg.startupDependencyRetry != 3*time.Second {
+		t.Fatalf("unexpected startup dependency retry config: %+v", cfg)
 	}
 	if envString("MISSING_STRING", "fallback") != "fallback" {
 		t.Fatal("envString() did not return fallback")
@@ -133,6 +138,7 @@ func TestRunReturnsLuaLoadErrorAfterDependencies(t *testing.T) {
 	t.Setenv("KAFKA_BROKERS", "127.0.0.1:9092")
 	t.Setenv("MINIO_ENDPOINT", "http://127.0.0.1:9000")
 	t.Setenv("MINIO_BUCKET", "reasoning-traces")
+	t.Setenv("STARTUP_DEPENDENCY_TIMEOUT_SECONDS", "0")
 
 	if err := run(); err == nil {
 		t.Fatal("expected lua load error without a live redis instance")
@@ -168,6 +174,53 @@ func TestDefaultBuildRuntimeDepsSuccessPath(t *testing.T) {
 	}
 	if deps.handler.ModeSelector == nil || deps.handler.BudgetTracker == nil || deps.handler.EventRegistry == nil || deps.handler.CoTCoordinator == nil || deps.handler.ToTManager == nil || deps.handler.DebateService == nil || deps.handler.CorrectionLoop == nil || deps.handler.TraceStore == nil || deps.handler.TraceUploader == nil || deps.handler.ReasoningEvents == nil || deps.handler.Metrics == nil {
 		t.Fatalf("unexpected handler deps: %+v", deps.handler)
+	}
+	deps.cleanup()
+}
+
+func TestDefaultBuildRuntimeDepsRetriesLuaLoad(t *testing.T) {
+	originalLoadLua := loadLuaFn
+	originalAfter := dependencyRetryAfterFn
+	defer func() {
+		loadLuaFn = originalLoadLua
+		dependencyRetryAfterFn = originalAfter
+	}()
+
+	attempts := 0
+	loadLuaFn = func(context.Context, redis.Scripter) (map[string]string, error) {
+		attempts++
+		if attempts == 1 {
+			return nil, errors.New("redis not ready")
+		}
+		return map[string]string{
+			"budget_decrement":  "sha-budget",
+			"convergence_check": "sha-convergence",
+		}, nil
+	}
+	dependencyRetryAfterFn = func(time.Duration) <-chan time.Time {
+		ch := make(chan time.Time, 1)
+		ch <- time.Now()
+		return ch
+	}
+
+	deps, err := defaultBuildRuntimeDeps(context.Background(), config{
+		redisAddr:                "127.0.0.1:6379",
+		postgresDSN:              "postgres://user:pass@127.0.0.1:5432/musematic?sslmode=disable",
+		kafkaBrokers:             "127.0.0.1:9092",
+		minioEndpoint:            "http://127.0.0.1:9000",
+		minioBucket:              "reasoning-traces",
+		maxToTConcurrency:        4,
+		traceBufferSize:          16,
+		tracePayloadThreshold:    128,
+		budgetDefaultTTLSeconds:  90,
+		startupDependencyTimeout: time.Second,
+		startupDependencyRetry:   time.Millisecond,
+	})
+	if err != nil {
+		t.Fatalf("defaultBuildRuntimeDeps() error = %v", err)
+	}
+	if attempts != 2 {
+		t.Fatalf("loadLuaFn attempts = %d, want 2", attempts)
 	}
 	deps.cleanup()
 }

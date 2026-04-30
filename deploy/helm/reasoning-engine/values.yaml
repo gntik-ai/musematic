@@ -43,6 +43,10 @@ config:
   tracePayloadThreshold: "65536"
   # -- Configures `config.budgetDefaultTTLSeconds` for the reasoning-engine chart.
   budgetDefaultTTLSeconds: "3600"
+  # -- Configures `config.startupDependencyTimeoutSeconds` for the reasoning-engine chart.
+  startupDependencyTimeoutSeconds: "600"
+  # -- Configures `config.startupDependencyRetryIntervalSeconds` for the reasoning-engine chart.
+  startupDependencyRetryIntervalSeconds: "5"
   # -- Configures `config.otelExporterOtlpEndpoint` for the reasoning-engine chart.
   otelExporterOtlpEndpoint: http://otel-collector.platform-observability.svc.cluster.local:4317
   # -- Configures `config.otelServiceName` for the reasoning-engine chart.
@@ -79,3 +83,13 @@ hpa:
   maxReplicas: 10
   # -- Configures `hpa.targetCPUUtilizationPercentage` for the reasoning-engine chart.
   targetCPUUtilizationPercentage: 70
+
+# @section -- Probes
+# -- Configures `probes` for the reasoning-engine chart.
+probes:
+  # -- Configures `probes.startup` for the reasoning-engine chart.
+  startup:
+    # -- Configures `probes.startup.periodSeconds` for the reasoning-engine chart.
+    periodSeconds: 10
+    # -- Configures `probes.startup.failureThreshold` for the reasoning-engine chart.
+    failureThreshold: 90

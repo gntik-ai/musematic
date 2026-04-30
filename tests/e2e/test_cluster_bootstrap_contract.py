@@ -238,6 +238,19 @@ def test_install_script_runs_manual_init_jobs_and_ignores_completed_pods() -> No
     assert 'kubectl rollout restart -n "${NAMESPACE}" "$deployment"' in install_script
 
 
+def test_install_script_waits_for_redis_before_restarting_platform_deployments() -> None:
+    install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
+    main_section = install_script.split('main() {', 1)[1].split('\n}\n\nmain "$@"', 1)[0]
+    redis_wait = install_script.split('wait_for_redis_ready() {', 1)[1].split(
+        '\n}\n\nrun_manual_init_jobs',
+        1,
+    )[0]
+
+    assert 'kubectl rollout status -n "${NAMESPACE}" statefulset/musematic-redis' in redis_wait
+    assert 'kubectl wait --for=condition=Ready -n "${NAMESPACE}" pod -l app.kubernetes.io/name=redis-cluster' in redis_wait
+    assert main_section.index('wait_for_redis_ready') < main_section.index('restart_platform_deployments')
+
+
 def test_install_script_prints_kafka_diagnostics_on_readiness_timeout() -> None:
     install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
 

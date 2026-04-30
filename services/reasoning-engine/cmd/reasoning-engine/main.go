@@ -26,6 +26,7 @@ import (
 	"github.com/musematic/reasoning-engine/pkg/metrics"
 	"github.com/musematic/reasoning-engine/pkg/persistence"
 	"github.com/musematic/reasoning-engine/pkg/telemetry"
+	"github.com/redis/go-redis/v9"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/health"
@@ -33,17 +34,19 @@ import (
 )
 
 type config struct {
-	grpcPort                int
-	redisAddr               string
-	postgresDSN             string
-	kafkaBrokers            string
-	minioEndpoint           string
-	minioBucket             string
-	maxToTConcurrency       int
-	traceBufferSize         int
-	tracePayloadThreshold   int
-	budgetDefaultTTLSeconds int64
-	otlpExporterEndpoint    string
+	grpcPort                 int
+	redisAddr                string
+	postgresDSN              string
+	kafkaBrokers             string
+	minioEndpoint            string
+	minioBucket              string
+	maxToTConcurrency        int
+	traceBufferSize          int
+	tracePayloadThreshold    int
+	budgetDefaultTTLSeconds  int64
+	otlpExporterEndpoint     string
+	startupDependencyTimeout time.Duration
+	startupDependencyRetry   time.Duration
 }
 
 type grpcServer interface {
@@ -66,6 +69,7 @@ var (
 	registerHealthServiceFn    = healthpb.RegisterHealthServer
 	listenFn                   = net.Listen
 	afterFn                    = time.After
+	dependencyRetryAfterFn     = time.After
 	runFn                      = run
 	exitFn                     = os.Exit
 	loadLuaFn                  = lua.Load
@@ -174,7 +178,7 @@ func defaultBuildRuntimeDeps(ctx context.Context, cfg config) (runtimeDeps, erro
 	}
 
 	telemetry := metrics.New()
-	scripts, err := loadLuaFn(ctx, redisClient)
+	scripts, err := loadLuaWithRetry(ctx, redisClient, cfg.startupDependencyTimeout, cfg.startupDependencyRetry)
 	if err != nil {
 		kafkaProducer.Close()
 		pgPool.Close()
@@ -220,19 +224,54 @@ func defaultBuildRuntimeDeps(ctx context.Context, cfg config) (runtimeDeps, erro
 	}, nil
 }
 
+func loadLuaWithRetry(ctx context.Context, rdb redis.Scripter, timeout, retryInterval time.Duration) (map[string]string, error) {
+	if timeout <= 0 {
+		return loadLuaFn(ctx, rdb)
+	}
+	if retryInterval <= 0 {
+		retryInterval = time.Second
+	}
+
+	deadlineCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	attempt := 0
+	var lastErr error
+	for {
+		scripts, err := loadLuaFn(deadlineCtx, rdb)
+		if err == nil {
+			if attempt > 0 {
+				slog.Info("redis lua scripts loaded after retry", "attempts", attempt+1)
+			}
+			return scripts, nil
+		}
+		lastErr = err
+		attempt++
+		slog.Warn("waiting for redis lua scripts", "attempt", attempt, "retry_interval", retryInterval.String(), "error", err)
+
+		select {
+		case <-deadlineCtx.Done():
+			return nil, fmt.Errorf("redis lua scripts not ready after %s: %w", timeout, lastErr)
+		case <-dependencyRetryAfterFn(retryInterval):
+		}
+	}
+}
+
 func loadConfig() (config, error) {
 	return config{
-		grpcPort:                envInt("GRPC_PORT", 50052),
-		redisAddr:               os.Getenv("REDIS_ADDR"),
-		postgresDSN:             os.Getenv("POSTGRES_DSN"),
-		kafkaBrokers:            os.Getenv("KAFKA_BROKERS"),
-		minioEndpoint:           os.Getenv("MINIO_ENDPOINT"),
-		minioBucket:             envString("MINIO_BUCKET", "reasoning-traces"),
-		maxToTConcurrency:       envInt("MAX_TOT_CONCURRENCY", 10),
-		traceBufferSize:         envInt("TRACE_BUFFER_SIZE", 10000),
-		tracePayloadThreshold:   envInt("TRACE_PAYLOAD_THRESHOLD", 65536),
-		budgetDefaultTTLSeconds: envInt64("BUDGET_DEFAULT_TTL_SECONDS", 3600),
-		otlpExporterEndpoint:    os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"),
+		grpcPort:                 envInt("GRPC_PORT", 50052),
+		redisAddr:                os.Getenv("REDIS_ADDR"),
+		postgresDSN:              os.Getenv("POSTGRES_DSN"),
+		kafkaBrokers:             os.Getenv("KAFKA_BROKERS"),
+		minioEndpoint:            os.Getenv("MINIO_ENDPOINT"),
+		minioBucket:              envString("MINIO_BUCKET", "reasoning-traces"),
+		maxToTConcurrency:        envInt("MAX_TOT_CONCURRENCY", 10),
+		traceBufferSize:          envInt("TRACE_BUFFER_SIZE", 10000),
+		tracePayloadThreshold:    envInt("TRACE_PAYLOAD_THRESHOLD", 65536),
+		budgetDefaultTTLSeconds:  envInt64("BUDGET_DEFAULT_TTL_SECONDS", 3600),
+		otlpExporterEndpoint:     os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"),
+		startupDependencyTimeout: time.Duration(envInt("STARTUP_DEPENDENCY_TIMEOUT_SECONDS", 600)) * time.Second,
+		startupDependencyRetry:   time.Duration(envInt("STARTUP_DEPENDENCY_RETRY_INTERVAL_SECONDS", 5)) * time.Second,
 	}, nil
 }
 
