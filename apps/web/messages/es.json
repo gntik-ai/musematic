@@ -279,5 +279,290 @@
         "loadFailed": "TODO-translation: Unable to load rate limits."
       }
     }
+  },
+  "notifications": {
+    "inbox": {
+      "title": "TODO: Notifications",
+      "description": "TODO: Persistent alert history, filtered to your account.",
+      "loading": "TODO: Loading notifications...",
+      "empty": "TODO: No notifications match the current filters.",
+      "filters": {
+        "title": "TODO: Filters",
+        "reset": "TODO: Reset",
+        "state": "TODO: State",
+        "read": {
+          "all": "TODO: All",
+          "unread": "TODO: Unread",
+          "read": "TODO: Read"
+        },
+        "severity": "TODO: Severity",
+        "options": {
+          "all": "TODO: All"
+        },
+        "severityOptions": {
+          "info": "TODO: Info",
+          "warning": "TODO: Warning",
+          "critical": "TODO: Critical"
+        },
+        "channel": "TODO: Channel",
+        "channels": {
+          "in_app": "TODO: In-app",
+          "email": "TODO: Email",
+          "webhook": "TODO: Webhook",
+          "slack": "TODO: Slack",
+          "teams": "TODO: Teams",
+          "sms": "TODO: SMS"
+        },
+        "eventType": "TODO: Event type",
+        "from": "TODO: From",
+        "to": "TODO: To"
+      },
+      "bulk": {
+        "selectPage": "TODO: Select page",
+        "selected": "TODO: {count, plural, one {# selected} other {# selected}}",
+        "unread": "TODO: {count, plural, one {# unread} other {# unread}}",
+        "markAllRead": "TODO: Mark all read"
+      },
+      "item": {
+        "selectAria": "TODO: Select notification {title}",
+        "read": "TODO: Read",
+        "unread": "TODO: Unread",
+        "severity": {
+          "info": "TODO: Info",
+          "warning": "TODO: Warning",
+          "critical": "TODO: Critical"
+        },
+        "open": "TODO: Open"
+      }
+    },
+    "preferences": {
+      "title": "TODO: Notification Preferences",
+      "description": "TODO: Control channel routing, digest timing, and quiet hours.",
+      "save": "TODO: Save",
+      "eventChannels": {
+        "title": "TODO: Event Channels",
+        "description": "TODO: Security and incident events stay protected by server-side validation."
+      },
+      "digest": {
+        "title": "TODO: Digest Mode",
+        "description": "TODO: Choose delivery cadence per channel.",
+        "channels": {
+          "in_app": "TODO: In-app",
+          "email": "TODO: Email",
+          "webhook": "TODO: Webhook",
+          "slack": "TODO: Slack",
+          "teams": "TODO: Teams",
+          "sms": "TODO: SMS"
+        },
+        "modes": {
+          "immediate": "TODO: Immediate",
+          "hourly": "TODO: Hourly",
+          "daily": "TODO: Daily"
+        }
+      },
+      "quietHours": {
+        "title": "TODO: Quiet Hours",
+        "description": "TODO: Critical security and incident notifications bypass quiet hours.",
+        "start": "TODO: Start",
+        "end": "TODO: End",
+        "timezone": "TODO: Timezone"
+      },
+      "testEvents": {
+        "title": "TODO: Test Events",
+        "description": "TODO: Send a synthetic alert through your current preferences.",
+        "button": "TODO: Test"
+      },
+      "matrix": {
+        "event": "TODO: Event",
+        "channels": {
+          "in_app": "TODO: In-app",
+          "email": "TODO: Email",
+          "webhook": "TODO: Webhook",
+          "slack": "TODO: Slack",
+          "teams": "TODO: Teams",
+          "sms": "TODO: SMS"
+        },
+        "mandatoryTooltip": "TODO: Mandatory events must keep at least one channel.",
+        "channelAria": "TODO: {eventType} {channel}"
+      }
+    }
+  },
+  "apiKeys": {
+    "title": "TODO: API Keys",
+    "description": "TODO: Create and revoke personal access tokens for developer workflows.",
+    "usage": "TODO: {activeCount} of {maxActive} active keys used.",
+    "create": {
+      "trigger": "TODO: Create API key",
+      "title": "TODO: Create API key",
+      "description": "TODO: Personal keys inherit only scopes you already have. MFA is required when enabled.",
+      "name": "TODO: Name",
+      "scopes": "TODO: Scopes",
+      "expires": "TODO: Expires",
+      "mfaCode": "TODO: MFA code",
+      "cancel": "TODO: Cancel",
+      "submit": "TODO: Create"
+    },
+    "oneTime": {
+      "title": "TODO: New API key",
+      "description": "TODO: This is the only time you will see this value.",
+      "copy": "TODO: Copy",
+      "dismiss": "TODO: Dismiss"
+    },
+    "table": {
+      "empty": "TODO: No personal API keys have been created.",
+      "name": "TODO: Name",
+      "identifier": "TODO: Identifier",
+      "status": {
+        "label": "TODO: Status",
+        "active": "TODO: Active",
+        "disabled": "TODO: Disabled",
+        "revoked": "TODO: Revoked"
+      },
+      "created": "TODO: Created",
+      "lastUsed": "TODO: Last used",
+      "action": "TODO: Action",
+      "never": "TODO: Never",
+      "revokeAria": "TODO: Revoke {name}"
+    }
+  },
+  "security": {
+    "overview": {
+      "title": "TODO: Security",
+      "description": "TODO: Account controls for MFA, sessions, and audit history.",
+      "links": {
+        "mfa": {
+          "label": "TODO: Multi-factor authentication",
+          "description": "TODO: Enroll, confirm, and manage account MFA."
+        },
+        "sessions": {
+          "label": "TODO: Sessions",
+          "description": "TODO: Review active sessions and revoke access."
+        },
+        "activity": {
+          "label": "TODO: Activity",
+          "description": "TODO: Audit events involving your account."
+        }
+      }
+    },
+    "mfa": {
+      "title": "TODO: Multi-factor authentication",
+      "description": "TODO: Enroll, confirm, and manage account MFA.",
+      "enroll": "TODO: Enroll MFA",
+      "regenerateBackupCodes": "TODO: Regenerate backup codes",
+      "disable": "TODO: Disable MFA",
+      "statusTitle": "TODO: MFA status",
+      "status": {
+        "active": "TODO: Active",
+        "notEnrolled": "TODO: Not enrolled"
+      },
+      "activeDescription": "TODO: Your account requires an authenticator code during sign-in.",
+      "notEnrolledDescription": "TODO: Add an authenticator app to protect sign-in and sensitive account actions."
+    },
+    "sessions": {
+      "title": "TODO: Sessions",
+      "description": "TODO: Revoke sessions you no longer recognize.",
+      "revokeOthers": "TODO: Revoke other sessions",
+      "list": {
+        "empty": "TODO: No active sessions were returned.",
+        "unknownDevice": "TODO: Unknown device",
+        "current": "TODO: This session",
+        "unknownLocation": "TODO: Unknown location",
+        "unknown": "TODO: Unknown",
+        "lastActive": "TODO: Last active {date}",
+        "created": "TODO: Created {date}",
+        "revokeAria": "TODO: Revoke session {sessionId}",
+        "revoke": "TODO: Revoke"
+      }
+    },
+    "activity": {
+      "title": "TODO: Activity",
+      "description": "TODO: Audit events where your account is actor or subject.",
+      "empty": "TODO: No activity entries match the current filters.",
+      "loadMore": "TODO: Load more",
+      "filters": {
+        "title": "TODO: Filters",
+        "reset": "TODO: Reset",
+        "eventType": "TODO: Event type",
+        "start": "TODO: Start",
+        "end": "TODO: End"
+      }
+    }
+  },
+  "privacy": {
+    "consent": {
+      "title": "TODO: Consent",
+      "description": "TODO: Review current consent state and history.",
+      "tabs": {
+        "current": "TODO: Current",
+        "history": "TODO: History"
+      },
+      "empty": "TODO: No consent records were returned.",
+      "card": {
+        "never": "TODO: Never",
+        "grantedAt": "TODO: Granted {date}",
+        "revokedAt": "TODO: Revoked {date}",
+        "status": {
+          "granted": "TODO: Granted",
+          "revoked": "TODO: Revoked"
+        }
+      },
+      "revoke": {
+        "trigger": "TODO: Revoke",
+        "title": "TODO: Revoke consent",
+        "description": "TODO: Revoking {consentType} can disable related agent interactions, analytics, or training features until consent is granted again.",
+        "cancel": "TODO: Cancel",
+        "confirm": "TODO: Revoke consent"
+      },
+      "history": {
+        "never": "TODO: Never",
+        "empty": "TODO: No consent history.",
+        "revoked": "TODO: revoked {date}",
+        "granted": "TODO: granted {date}"
+      }
+    },
+    "dsr": {
+      "title": "TODO: Data Subject Requests",
+      "description": "TODO: Submit and review privacy requests for your account.",
+      "submit": {
+        "title": "TODO: Submit request",
+        "description": "TODO: Choose one GDPR right and submit it for processing.",
+        "requestType": "TODO: Request type",
+        "types": {
+          "access": "TODO: Access",
+          "rectification": "TODO: Rectification",
+          "erasure": "TODO: Erasure",
+          "portability": "TODO: Portability",
+          "restriction": "TODO: Restriction",
+          "objection": "TODO: Objection"
+        },
+        "confirmDelete": "TODO: Type DELETE",
+        "erasureTitle": "TODO: Permanent erasure",
+        "erasureDescription": "TODO: Active executions may fail when erasure is processed. Submit only after reviewing in-flight work.",
+        "legalBasis": "TODO: Legal basis or notes",
+        "submit": "TODO: Submit request"
+      },
+      "status": {
+        "empty": "TODO: No data subject requests have been submitted.",
+        "pending": "TODO: Pending",
+        "filed": "TODO: Filed {date}",
+        "completed": "TODO: Completed {date}",
+        "types": {
+          "access": "TODO: Access",
+          "rectification": "TODO: Rectification",
+          "erasure": "TODO: Erasure",
+          "portability": "TODO: Portability",
+          "restriction": "TODO: Restriction",
+          "objection": "TODO: Objection"
+        },
+        "states": {
+          "received": "TODO: Received",
+          "scheduled_with_hold": "TODO: Scheduled with hold",
+          "in_progress": "TODO: In progress",
+          "completed": "TODO: Completed",
+          "failed": "TODO: Failed",
+          "cancelled": "TODO: Cancelled"
+        }
+      }
+    }
   }
 }

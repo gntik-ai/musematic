@@ -9,7 +9,8 @@ from platform.auth.repository import AuthRepository
 from platform.auth.schemas import ServiceAccountCreateResponse
 from platform.auth.service import AuthService
 from platform.common.config import AuthSettings
-from platform.common.exceptions import NotFoundError
+from platform.common.exceptions import AuthorizationError, NotFoundError
+from platform.common.exceptions import ValidationError as PlatformValidationError
 from platform.me.router import (
     create_service_account as route_create_service_account,
 )
@@ -881,6 +882,42 @@ async def test_auth_service_self_service_sessions_and_api_keys() -> None:
     assert repository.created_credentials[-1]["created_by_user_id"] == user_id
     assert repository.created_credentials[-1]["workspace_id"] is None
 
+    scope_checks: list[tuple[str, str, UUID | None]] = []
+
+    async def allow_scope_check(
+        *,
+        user_id: UUID,
+        resource_type: str,
+        action: str,
+        workspace_id: UUID | None,
+        **_: Any,
+    ) -> SimpleNamespace:
+        del user_id
+        scope_checks.append((resource_type, action, workspace_id))
+        return SimpleNamespace(allowed=True)
+
+    service.check_permission = allow_scope_check  # type: ignore[method-assign]
+    await service.create_for_current_user(user_id, "scoped", scopes=["agents:read"])
+    await service.create_for_current_user(user_id, "dotted", scopes=["workspaces.read"])
+    assert scope_checks == [("agents", "read", None), ("workspaces", "read", None)]
+
+    async def deny_scope_check(
+        *,
+        user_id: UUID,
+        resource_type: str,
+        action: str,
+        workspace_id: UUID | None,
+        **_: Any,
+    ) -> SimpleNamespace:
+        del user_id, resource_type, action, workspace_id
+        return SimpleNamespace(allowed=False)
+
+    service.check_permission = deny_scope_check  # type: ignore[method-assign]
+    with pytest.raises(AuthorizationError):
+        await service.create_for_current_user(user_id, "forbidden", scopes=["admin:write"])
+    with pytest.raises(PlatformValidationError):
+        await service.create_for_current_user(user_id, "bad-scope", scopes=["malformed"])
+
     assert await service.list_for_current_user(user_id) == [repository.service_account]
 
     await service.revoke_for_current_user(user_id, repository.service_account.service_account_id)
@@ -892,7 +929,7 @@ async def test_auth_service_self_service_sessions_and_api_keys() -> None:
         )
 
     repository.active_count = 10
-    with pytest.raises(ValueError, match="maximum personal API key count reached"):
+    with pytest.raises(PlatformValidationError, match="maximum personal API key count reached"):
         await service.create_for_current_user(user_id, "too-many")
 
 
