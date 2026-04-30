@@ -277,6 +277,11 @@ topics:
     partitions: 6
     # -- Configures `topics.retentionMs` for the kafka chart.
     retentionMs: 604800000
+  - name: privacy.dsr.submitted
+    # -- Configures `topics.partitions` for the kafka chart.
+    partitions: 6
+    # -- Configures `topics.retentionMs` for the kafka chart.
+    retentionMs: 604800000
   - name: privacy.dsr.scheduled_with_hold
     # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
