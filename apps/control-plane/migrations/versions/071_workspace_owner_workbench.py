@@ -36,6 +36,7 @@ def upgrade() -> None:
     action_type = postgresql.ENUM(
         "workspace_transfer_ownership",
         name="two_person_approval_action_type",
+        create_type=False,
     )
     challenge_status = postgresql.ENUM(
         "pending",
@@ -43,6 +44,7 @@ def upgrade() -> None:
         "consumed",
         "expired",
         name="two_person_approval_challenge_status",
+        create_type=False,
     )
     bind = op.get_bind()
     action_type.create(bind, checkfirst=True)
