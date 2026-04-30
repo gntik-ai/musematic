@@ -49,16 +49,16 @@ make dev-down
 make dev-reset
 ```
 
-Consultez le [guide de developpement](./docs/development/) et le [guide d'exploitation](./docs/operations/) pour des details plus approfondis sur la configuration et l'exploitation.
+Consultez le [guide de developpement](./docs/developer-guide/) et le [guide d'exploitation](./docs/operator-guide/) pour des details plus approfondis sur la configuration et l'exploitation.
 
 ## Options d'installation
 
 | Cible | Cas d'utilisation | Guide |
 |---|---|---|
-| kind | Developpement local et tests end-to-end proches de la CI | [Harnais E2E](./tests/e2e/README.md) |
-| k3s | Laboratoires mono-noeud et petits environnements | [Guide d'exploitation](./docs/operations/) |
-| Hetzner avec repartiteur de charge | Clusters autogeres orientes production | [Guide d'exploitation](./docs/operations/) |
-| GKE, EKS ou AKS | Deploiements Kubernetes geres | [Guide d'exploitation](./docs/operations/) |
+| kind | Developpement local et tests end-to-end proches de la CI | [Installation kind](./docs/installation/kind.md) |
+| k3s | Laboratoires mono-noeud et petits environnements | [Installation k3s](./docs/installation/k3s.md) |
+| Hetzner avec repartiteur de charge | Clusters autogeres orientes production | [Installation Hetzner](./docs/installation/hetzner.md) |
+| GKE, EKS ou AKS | Deploiements Kubernetes geres | [Installation Kubernetes geree](./docs/installation/managed-k8s.md) |
 
 Tous les modes d'installation utilisent les memes charts Helm detenus par le depot sous `deploy/helm/` et les memes contrats du plan de controle.
 
@@ -76,14 +76,14 @@ La plateforme est concue pour que la gouvernance reste centralisee tandis que l'
 
 ## Documentation
 
-- [Guide d'administration](./docs/administration/)
-- [Guide d'exploitation](./docs/operations/)
-- [Guide de developpement](./docs/development/)
-- [Documentation des fonctionnalites](./docs/features/)
-- [Integrations](./docs/integrations/)
-- [Guide des agents](./docs/agents.md)
-- [Architecture systeme](./docs/system-architecture-v5.md)
-- [Architecture logicielle](./docs/software-architecture-v5.md)
+- [Guide d'administration](./docs/admin-guide/)
+- [Guide d'exploitation](./docs/operator-guide/)
+- [Guide de developpement](./docs/developer-guide/)
+- [Guide utilisateur](./docs/user-guide/)
+- [Integrations](./docs/admin-guide/integrations.md)
+- [Guide de creation d'agents](./docs/developer-guide/building-agents.md)
+- [Architecture systeme](./docs/system-architecture-v6.md)
+- [Architecture logicielle](./docs/software-architecture-v6.md)
 - [Exigences fonctionnelles](./docs/functional-requirements-revised-v6.md)
 
 ## Contribuer
@@ -97,6 +97,6 @@ Consultez [LICENSE](./LICENSE) pour les conditions de licence. Si le fichier est
 ## Communaute et support
 
 - Issues: [GitHub Issues](https://github.com/gntik-ai/musematic/issues)
-- Discussions: [GitHub Discussions](https://github.com/gntik-ai/musematic/discussions)
+- Discussions : utilisez [GitHub Issues](https://github.com/gntik-ai/musematic/issues) jusqu'à l'activation de GitHub Discussions.
 - Releases: [GitHub Releases](https://github.com/gntik-ai/musematic/releases)
-- Divulgation de securite : consultez [SECURITY.md](./SECURITY.md). Ce fichier est un futur artefact d'administration du depot hors UPD-038.
+- Divulgation de securite : consultez [SECURITY.md](./SECURITY.md) pour les consignes de divulgation responsable.

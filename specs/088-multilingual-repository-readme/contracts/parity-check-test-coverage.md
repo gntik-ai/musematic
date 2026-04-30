@@ -24,3 +24,11 @@ Command used for local verification:
 ```bash
 pytest scripts/tests/test_readme_parity.py -v
 ```
+
+Repository-state parity verification on 2026-04-30 used Pandoc 3.9.0.2 from `/tmp/musematic-pandoc/pandoc-3.9.0.2/bin`:
+
+```bash
+PATH=/tmp/musematic-pandoc/pandoc-3.9.0.2/bin:$PATH python scripts/check-readme-parity.py
+```
+
+Result: exit code `0`. The script emitted only the expected informational warnings for missing `./CONTRIBUTING.md` and `./LICENSE`, which are outside UPD-038.

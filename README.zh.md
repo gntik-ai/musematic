@@ -49,16 +49,16 @@ make dev-down
 make dev-reset
 ```
 
-有关更深入的设置和运营细节，请参阅[开发指南](./docs/development/)和[运营指南](./docs/operations/)。
+有关更深入的设置和运营细节，请参阅[开发指南](./docs/developer-guide/)和[运营指南](./docs/operator-guide/)。
 
 ## 安装选项
 
 | 目标 | 使用场景 | 指南 |
 |---|---|---|
-| kind | 本地开发和类似 CI 的端到端测试 | [E2E 测试框架](./tests/e2e/README.md) |
-| k3s | 单节点实验室和小型环境 | [运营指南](./docs/operations/) |
-| 带负载均衡器的 Hetzner | 面向生产的自管理集群 | [运营指南](./docs/operations/) |
-| GKE、EKS 或 AKS | 托管 Kubernetes 部署 | [运营指南](./docs/operations/) |
+| kind | 本地开发和类似 CI 的端到端测试 | [kind 安装](./docs/installation/kind.md) |
+| k3s | 单节点实验室和小型环境 | [k3s 安装](./docs/installation/k3s.md) |
+| 带负载均衡器的 Hetzner | 面向生产的自管理集群 | [Hetzner 安装](./docs/installation/hetzner.md) |
+| GKE、EKS 或 AKS | 托管 Kubernetes 部署 | [托管 Kubernetes 安装](./docs/installation/managed-k8s.md) |
 
 所有安装模式都使用仓库自有的同一组 Helm charts，位于 `deploy/helm/`，并使用相同的控制平面契约。
 
@@ -76,14 +76,14 @@ Kafka 在有界上下文之间传递领域事件。PostgreSQL 存储关系状态
 
 ## 文档
 
-- [管理指南](./docs/administration/)
-- [运营指南](./docs/operations/)
-- [开发指南](./docs/development/)
-- [功能文档](./docs/features/)
-- [集成](./docs/integrations/)
-- [智能体指南](./docs/agents.md)
-- [系统架构](./docs/system-architecture-v5.md)
-- [软件架构](./docs/software-architecture-v5.md)
+- [管理指南](./docs/admin-guide/)
+- [运营指南](./docs/operator-guide/)
+- [开发指南](./docs/developer-guide/)
+- [用户指南](./docs/user-guide/)
+- [集成](./docs/admin-guide/integrations.md)
+- [智能体构建指南](./docs/developer-guide/building-agents.md)
+- [系统架构](./docs/system-architecture-v6.md)
+- [软件架构](./docs/software-architecture-v6.md)
 - [功能需求](./docs/functional-requirements-revised-v6.md)
 
 ## 贡献
@@ -97,6 +97,6 @@ Kafka 在有界上下文之间传递领域事件。PostgreSQL 存储关系状态
 ## 社区和支持
 
 - Issues: [GitHub Issues](https://github.com/gntik-ai/musematic/issues)
-- Discussions: [GitHub Discussions](https://github.com/gntik-ai/musematic/discussions)
+- 讨论：在 GitHub Discussions 启用之前，请使用 [GitHub Issues](https://github.com/gntik-ai/musematic/issues)。
 - Releases: [GitHub Releases](https://github.com/gntik-ai/musematic/releases)
-- 安全披露：请参阅 [SECURITY.md](./SECURITY.md)。该文件是 UPD-038 范围外的未来仓库管理工件。
+- 安全披露：请参阅 [SECURITY.md](./SECURITY.md) 了解负责任披露指南。

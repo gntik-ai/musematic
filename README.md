@@ -49,16 +49,16 @@ make dev-down
 make dev-reset
 ```
 
-See the [development guide](./docs/development/) and [operations guide](./docs/operations/) for deeper setup and operating details.
+See the [developer guide](./docs/developer-guide/) and [operator guide](./docs/operator-guide/) for deeper setup and operating details.
 
 ## Installation options
 
 | Target | Use case | Guide |
 |---|---|---|
-| kind | Local development and CI-style end-to-end testing | [E2E harness](./tests/e2e/README.md) |
-| k3s | Single-node labs and small environments | [Operations guide](./docs/operations/) |
-| Hetzner with load balancer | Production-oriented self-managed clusters | [Operations guide](./docs/operations/) |
-| GKE, EKS, or AKS | Managed Kubernetes deployments | [Operations guide](./docs/operations/) |
+| kind | Local development and CI-style end-to-end testing | [kind installation](./docs/installation/kind.md) |
+| k3s | Single-node labs and small environments | [k3s installation](./docs/installation/k3s.md) |
+| Hetzner with load balancer | Production-oriented self-managed clusters | [Hetzner installation](./docs/installation/hetzner.md) |
+| GKE, EKS, or AKS | Managed Kubernetes deployments | [Managed Kubernetes installation](./docs/installation/managed-k8s.md) |
 
 All installation modes use the same repository-owned Helm charts under `deploy/helm/` and the same control-plane contracts.
 
@@ -76,14 +76,14 @@ The platform is designed so governance remains centralized while execution remai
 
 ## Documentation
 
-- [Administration Guide](./docs/administration/)
-- [Operations Guide](./docs/operations/)
-- [Development Guide](./docs/development/)
-- [Features Documentation](./docs/features/)
-- [Integrations](./docs/integrations/)
-- [Agents Guide](./docs/agents.md)
-- [System Architecture](./docs/system-architecture-v5.md)
-- [Software Architecture](./docs/software-architecture-v5.md)
+- [Administration Guide](./docs/admin-guide/)
+- [Operator Guide](./docs/operator-guide/)
+- [Developer Guide](./docs/developer-guide/)
+- [User Guide](./docs/user-guide/)
+- [Integrations](./docs/admin-guide/integrations.md)
+- [Agent Builder Guide](./docs/developer-guide/building-agents.md)
+- [System Architecture](./docs/system-architecture-v6.md)
+- [Software Architecture](./docs/software-architecture-v6.md)
 - [Functional Requirements](./docs/functional-requirements-revised-v6.md)
 
 ## Contributing
@@ -97,6 +97,6 @@ See [LICENSE](./LICENSE) for license terms. If the file is absent in a checkout,
 ## Community and support
 
 - Issues: [GitHub Issues](https://github.com/gntik-ai/musematic/issues)
-- Discussions: [GitHub Discussions](https://github.com/gntik-ai/musematic/discussions)
+- Discussions: use [GitHub Issues](https://github.com/gntik-ai/musematic/issues) until GitHub Discussions is enabled.
 - Releases: [GitHub Releases](https://github.com/gntik-ai/musematic/releases)
-- Security disclosure: see [SECURITY.md](./SECURITY.md). That file is a future repository administration artifact outside UPD-038.
+- Security disclosure: see [SECURITY.md](./SECURITY.md) for responsible disclosure guidance.

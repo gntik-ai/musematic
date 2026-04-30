@@ -51,3 +51,5 @@ Repository labels needed by this integration:
 - `docs`
 
 `scripts/open-or-update-drift-issue.sh` creates the tracking labels idempotently when it runs with a token. `docs-translation-exempt` remains a maintainer-applied override label.
+
+Verification on 2026-04-30 confirmed `docs-translation-exempt` exists in `gntik-ai/musematic` with colour `#d73a4a` and description `Exempts the PR from the README parity check; requires 30-day backfill follow-up issue per FR-602`.

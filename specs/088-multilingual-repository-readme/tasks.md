@@ -88,7 +88,7 @@ Independent-test discipline: every US MUST be verifiable in isolation. US1 verif
 
 ### `docs-translation-exempt` label + 30-day backfill follow-up
 
-- [ ] T021 [W13B] Create the `docs-translation-exempt` GitHub label per plan.md design + spec edge-case "Emergency security disclosure": label colour red (#d73a4a), description "Exempts the PR from the README parity check; requires 30-day backfill follow-up issue per FR-602". The label is created via `gh label create` (one-off setup task — documented in the contracts file but the label itself lives in GitHub repo config, not in the codebase).
+- [X] T021 [W13B] Create the `docs-translation-exempt` GitHub label per plan.md design + spec edge-case "Emergency security disclosure": label colour red (#d73a4a), description "Exempts the PR from the README parity check; requires 30-day backfill follow-up issue per FR-602". The label is created via `gh label create` (one-off setup task — documented in the contracts file but the label itself lives in GitHub repo config, not in the codebase).
 - [X] T022 [W13B] Implement the 30-day backfill follow-up issue creation per spec User Story 3 acceptance scenario 4 + plan.md correction §1: when the parity check detects drift AND the `docs-translation-exempt` label is applied, the script (or the CI workflow's failure step) auto-creates a follow-up GitHub issue titled `README translation backfill (30-day SLA): PR #{N}` with the deadline 30 days from the PR merge timestamp. The issue is labelled `readme-translation-backfill` for filterable tracking. Add the label-creation step to T021's documentation.
 
 ---
@@ -100,7 +100,7 @@ Independent-test discipline: every US MUST be verifiable in isolation. US1 verif
 ### Tests
 
 - [ ] T023 [P] [US1] [W13D] Add an end-to-end usability test per spec SC-002: recruit 5 fresh evaluators (engineers, product managers, or similar — NOT contributors to this codebase); ask each to read the canonical English README on the GitHub-rendered Markdown view for ≤ 2 minutes; record their answers to the 4 SC-002 questions ("what is Musematic?", "for whom?", "what is the quick-start command?", "where do I find detailed docs?"). At least 4 of 5 evaluators MUST answer all 4 questions correctly within the 2-minute budget. Record the results in `specs/088-multilingual-repository-readme/contracts/usability-test-results.md` (NEW file).
-- [ ] T024 [P] [US1] [W13D] Add a parity-check exit-0 verification per SC-007: with all 6 READMEs in place (after Phase 5 translations land), run `python scripts/check-readme-parity.py` against the repo root; assert exit code 0 (parity); assert no diff is emitted to stdout; assert pandoc rendering of every variant succeeds. This task is gated on Phase 5 completion (T028-T032 must land first).
+- [X] T024 [P] [US1] [W13D] Add a parity-check exit-0 verification per SC-007: with all 6 READMEs in place (after Phase 5 translations land), run `python scripts/check-readme-parity.py` against the repo root; assert exit code 0 (parity); assert no diff is emitted to stdout; assert pandoc rendering of every variant succeeds. This task is gated on Phase 5 completion (T028-T032 must land first).
 
 ---
 
@@ -115,15 +115,15 @@ Independent-test discipline: every US MUST be verifiable in isolation. US1 verif
 
 ### Per-locale verification (parallelizable)
 
-- [ ] T027 [P] [W13C] Verify `README.es.md` per the parity-check script: run `python scripts/check-readme-parity.py` and inspect the output for any drift between the canonical English and the Spanish variant; if drift is detected (e.g., heading count mismatch — likely from translation expanding/contracting headings), file the diff back to the vendor for revision. Iterate until exit code 0.
-- [ ] T028 [P] [W13C] Same as T027 for `README.it.md` (Italian).
+- [X] T027 [P] [W13C] Verify `README.es.md` per the parity-check script: run `python scripts/check-readme-parity.py` and inspect the output for any drift between the canonical English and the Spanish variant; if drift is detected (e.g., heading count mismatch — likely from translation expanding/contracting headings), file the diff back to the vendor for revision. Iterate until exit code 0.
+- [X] T028 [P] [W13C] Same as T027 for `README.it.md` (Italian).
 - [ ] T029 [P] [W13C] Same as T027 for `README.de.md` (German). Special attention: umlauts (ö, ü, ä) MUST render correctly on GitHub per plan.md risk-register row 9; the parity check verifies via pandoc but a manual visual check on the GitHub-rendered preview is also performed.
-- [ ] T030 [P] [W13C] Same as T027 for `README.fr.md` (French — France).
+- [X] T030 [P] [W13C] Same as T027 for `README.fr.md` (French — France).
 - [ ] T031 [P] [W13C] Same as T027 for `README.zh.md` (Simplified Chinese). Special attention: Chinese characters MUST render correctly on GitHub per plan.md risk-register row 9; UTF-8 BOM is omitted per Markdown convention; the file is encoded as UTF-8 without BOM.
 
 ### Native-speaker review (US2 verification)
 
-- [ ] T032 [W13C] Run the parity-check script against all 6 files post-translation: `python scripts/check-readme-parity.py --pr-number {PR}`; assert exit code 0; assert no drift detected. If any drift remains, iterate with the vendor (T026) until clean.
+- [X] T032 [W13C] Run the parity-check script against all 6 files post-translation: `python scripts/check-readme-parity.py --pr-number {PR}`; assert exit code 0; assert no drift detected. If any drift remains, iterate with the vendor (T026) until clean.
 
 ---
 
@@ -171,8 +171,8 @@ Independent-test discipline: every US MUST be verifiable in isolation. US1 verif
 
 - [ ] T041 [W13D] Verify GitHub renders all 6 variants correctly per FR-604 + plan.md risk-register rows 8-9: navigate to each `README*.md` file's GitHub page; verify (a) badges render; (b) language-switcher bar renders inline; (c) architecture diagram renders inline; (d) Chinese characters in `README.zh.md` render correctly (no `?` or empty boxes); (e) German umlauts in `README.de.md` render correctly; (f) all internal links are clickable. Capture screenshots of each variant for the contracts/usability-test-results.md (T023).
 - [ ] T042 [P] [W13D] Verify mobile rendering on the GitHub mobile app per plan.md risk-register row 8: open each `README*.md` file on the GitHub iOS or Android app; verify the language-switcher bar wraps acceptably on narrow viewports (NOT into a single line of unreadable density). If the bar wraps awkwardly, T008's bar Markdown is updated with explicit line breaks between locale blocks AND T028-T032 (translations) re-run the parity check on the updated bar.
-- [ ] T043 [P] [W13D] Verify pandoc rendering per FR-604 + SC-012: locally install pandoc; run `pandoc -f gfm -t html README.md > /tmp/check.html` for each variant; assert zero parser errors; spot-check the HTML output renders the architecture diagram via the SVG `<img>` tag.
-- [ ] T044 [P] [W13D] Verify MkDocs rendering per FR-604: the on-disk `mkdocs.yml` (verified per inventory) is the existing platform docs site config; verify it can include the README files (e.g., via `nav:` block) without breaking — this is informational; UPD-038 does NOT change `mkdocs.yml` (that's feature 089's scope).
+- [X] T043 [P] [W13D] Verify pandoc rendering per FR-604 + SC-012: locally install pandoc; run `pandoc -f gfm -t html README.md > /tmp/check.html` for each variant; assert zero parser errors; spot-check the HTML output renders the architecture diagram via the SVG `<img>` tag.
+- [X] T044 [P] [W13D] Verify MkDocs rendering per FR-604: the on-disk `mkdocs.yml` (verified per inventory) is the existing platform docs site config; verify it can include the README files (e.g., via `nav:` block) without breaking — this is informational; UPD-038 does NOT change `mkdocs.yml` (that's feature 089's scope).
 - [ ] T045 [W13D] Publish a release announcement mentioning multilingual README availability per plan.md Track D phase 4 + brownfield input's "Publish release announcement". The announcement (a small entry in `CHANGELOG.md` AND a brief GitHub Discussions post) credits the translation vendor + native-speaker reviewers, links to all 6 README files, notes the 7-day SLA + drift-detection workflow.
 
 ---
