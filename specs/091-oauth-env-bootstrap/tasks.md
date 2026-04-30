@@ -150,7 +150,7 @@ Independent-test discipline: every US MUST be verifiable in isolation. US1 = boo
 ### Playwright E2E + accessibility
 
 - [x] T057 [W16B] [US1, US3, US4] Create `apps/web/tests/e2e/admin-oauth-bootstrap.spec.ts` (NEW Playwright test file): ~12 scenarios covering: (a) source badge renders correctly for env_var / manual / imported; (b) test-connectivity button calls backend + renders diagnostic; (c) rotate-secret dialog accepts new secret + closes on 204; (d) reseed dialog warns about manual-change-overwrite + applies; (e) role-mappings table validates group format + role existence; (f) history tab renders paginated entries; (g) rate-limits tab saves correctly; (h) tab routing via `?provider_tab=...` URL param preserves on refresh.
-- [ ] T058 [P] [W16B] Run axe-core scan on the extended panel locally (`pnpm dev` + browser scan); verify zero AA violations per UPD-083 / FR-488 inheritance. Fix any violations introduced by the new sub-components (likely candidates: badge contrast, dialog focus management, table keyboard navigation).
+- [x] T058 [P] [W16B] Run axe-core scan on the extended panel locally (`pnpm dev` + browser scan); verify zero AA violations per UPD-083 / FR-488 inheritance. Fix any violations introduced by the new sub-components (likely candidates: badge contrast, dialog focus management, table keyboard navigation).
 - [x] T059 [W16B] Run `pnpm test` + `pnpm typecheck` + `pnpm lint` to verify the panel extensions pass all CI gates.
 
 ### Backward-compat verification
@@ -232,7 +232,7 @@ Independent-test discipline: every US MUST be verifiable in isolation. US1 = boo
 ### UPD-039 auto-doc verification
 
 - [x] T090 [W16D] [US1] If UPD-039 has landed, run `python scripts/generate-env-docs.py` to regenerate `docs/configuration/environment-variables.md`. Verify all `PLATFORM_OAUTH_GOOGLE_*` and `PLATFORM_OAUTH_GITHUB_*` env vars appear with the correct security classification: `*_CLIENT_SECRET` and `*_CLIENT_SECRET_FILE` are `sensitive`; the rest are `configuration`. CI fails any drift per FR-647.
-- [ ] T091 [W16D] If UPD-039 has landed, run `helm-docs --chart-search-root=deploy/helm/platform/` to regenerate the Helm values reference. Verify the new `oauth.*` block appears in `docs/configuration/helm-values.md` with all `# --` annotations parsed correctly.
+- [x] T091 [W16D] If UPD-039 has landed, run `helm-docs --chart-search-root=deploy/helm/platform/` to regenerate the Helm values reference. Verify the new `oauth.*` block appears in `docs/configuration/helm-values.md` with all `# --` annotations parsed correctly.
 
 **Checkpoint (end of Phase 5)**: `helm install platform deploy/helm/platform/ --set oauth.google.enabled=true --set oauth.google.clientId=... --set oauth.google.clientSecretRef.name=...` brings up the platform with the bootstrap running on first pod-start; the auto-doc env-var reference includes the new vars; the secret-leak CI passes.
 
@@ -255,7 +255,7 @@ Independent-test discipline: every US MUST be verifiable in isolation. US1 = boo
 
 ### Admin guide updates
 
-- [ ] T097 [P] [W16E] [US3, US4] Modify `docs/admin-guide/oauth-providers.md` (or wherever the existing UPD-039 admin-guide OAuth page lives — verify during T097): add sections for rotation flow, reseed action, role-mappings table, history tab, rate-limits tab. Reuse the existing screenshots from UPD-036 + add new ones for the 5 new sub-components. Reference Rule 44 + Rule 42.
+- [x] T097 [P] [W16E] [US3, US4] Modify `docs/admin-guide/oauth-providers.md` (or wherever the existing UPD-039 admin-guide OAuth page lives — verify during T097): add sections for rotation flow, reseed action, role-mappings table, history tab, rate-limits tab. Reuse the existing screenshots from UPD-036 + add new ones for the 5 new sub-components. Reference Rule 44 + Rule 42.
 
 ### Developer guide pages
 
@@ -271,7 +271,7 @@ Independent-test discipline: every US MUST be verifiable in isolation. US1 = boo
 - [ ] T101 [W16E] Run `pytest apps/control-plane/tests/auth/`, `pytest apps/ops-cli/tests/commands/admin/`, `pytest tests/e2e/suites/oauth_bootstrap/`, `pytest tests/e2e/journeys/test_j01_admin_bootstrap.py`, `pytest tests/e2e/journeys/test_j19_new_user_signup.py`, `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm test:i18n-parity` one final time → all pass.
 - [x] T102 [W16E] Run `python scripts/check-secret-access.py` and `python scripts/check-admin-role-gates.py` (UPD-040's gate from T090) → both pass with zero violations.
 - [ ] T103 [W16E] Run `helm template deploy/helm/platform/ --set oauth.google.enabled=true --set oauth.google.clientId=test...` → renders without errors; verify the rendered Deployment has the expected env-var injection + volume mounts.
-- [ ] T104 [W16E] If UPD-039 has landed, run `python scripts/check-doc-references.py` → no broken FR references; run `helm-docs --check` → no drift; run `python scripts/generate-env-docs.py --check` → no drift in env-var reference.
+- [x] T104 [W16E] If UPD-039 has landed, run `python scripts/check-doc-references.py` → no broken FR references; run `helm-docs --check` → no drift; run `python scripts/generate-env-docs.py --check` → no drift in env-var reference.
 - [ ] T105 [W16E] Address PR review feedback; merge. Verify the `091-oauth-env-bootstrap` branch passes all required CI gates (matrix-CI for 3 secret modes, secret-access check, role-gates check, axe-core AA scan, i18n parity, doc-references staleness if UPD-039 landed); merge to `main`.
 
 ---
