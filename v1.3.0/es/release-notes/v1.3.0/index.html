@@ -4548,6 +4548,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#vault-integration-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Vault Integration Notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4701,6 +4710,15 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#vault-integration-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Vault Integration Notes
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4727,6 +4745,7 @@
 <li>Public signup adds verification, approval, OAuth callback handling, and profile completion state.</li>
 <li>Repository README localization adds canonical English source, translation parity checks, and weekly external-link validation.</li>
 <li>Documentation site adds the FR-605 eleven-section MkDocs structure, generated OpenAPI, generated environment variable reference, generated Helm values reference, runbooks, installation guides, security guide, and localization scaffolding.</li>
+<li>HashiCorp Vault integration adds <code>mock</code>, <code>kubernetes</code>, and <code>vault</code> secret modes, the optional Vault Helm chart with <code>dev</code>, <code>standalone</code>, and <code>ha</code> presets, migration tooling, admin status endpoints, and Vault observability.</li>
 </ul>
 <h2 id="folded-feature-notes">Folded Feature Notes<a class="headerlink" href="#folded-feature-notes" title="Permanent link">&para;</a></h2>
 <p>The following migrated feature pages remain available for detail:</p>
@@ -4737,6 +4756,10 @@
 </ul>
 <h2 id="compatibility">Compatibility<a class="headerlink" href="#compatibility" title="Permanent link">&para;</a></h2>
 <p>REST APIs remain under <code>/api/v1</code>. The documentation build now treats generated API, environment, Helm, and FR-reference outputs as drift-checked artifacts. Chart value changes should include regenerated per-chart README files and the aggregate Helm values page.</p>
+<h2 id="vault-integration-notes">Vault Integration Notes<a class="headerlink" href="#vault-integration-notes" title="Permanent link">&para;</a></h2>
+<p>New environment variables use the <code>PLATFORM_VAULT_*</code> prefix, including <code>PLATFORM_VAULT_MODE</code>, <code>PLATFORM_VAULT_ADDR</code>, <code>PLATFORM_VAULT_AUTH_METHOD</code>, <code>PLATFORM_VAULT_TOKEN</code>, <code>PLATFORM_VAULT_APPROLE_ROLE_ID</code>, <code>PLATFORM_VAULT_APPROLE_SECRET_ID_SECRET_REF</code>, cache TTL/staleness settings, retry settings, and lease renewal threshold.</p>
+<p><code>CONNECTOR_VAULT_MODE</code> remains as a one-release compatibility alias and is deprecated for removal in v1.4.0. Imports of <code>SecretProvider</code> from <code>notifications/channel_router.py</code> are also deprecated; use <code>platform.common.secret_provider</code>.</p>
+<p>Operators can migrate with <code>platform-cli vault migrate-from-k8s</code>, verify with <code>platform-cli vault verify-migration</code>, and use <code>platform-cli vault status</code> as the operator-facing fallback until the UPD-036 <code>/admin/security/vault</code> page lands.</p>
 
 
 

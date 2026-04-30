@@ -4606,6 +4606,39 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#musematic-vault" class="md-nav__link">
+    <span class="md-ellipsis">
+      musematic-vault
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="musematic-vault">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#requirements_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Requirements
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#values_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      Values
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -5467,6 +5500,39 @@
         
           <li class="md-nav__item">
   <a href="#values_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      Values
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#musematic-vault" class="md-nav__link">
+    <span class="md-ellipsis">
+      musematic-vault
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="musematic-vault">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#requirements_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      Requirements
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#values_15" class="md-nav__link">
     <span class="md-ellipsis">
       Values
     </span>
@@ -6359,6 +6425,162 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>string</td>
 <td><code>"compliance-evidence"</code></td>
 <td>Configures <code>securityCompliance.manualEvidenceBucket</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>serviceAccount</td>
+<td>object</td>
+<td><code>{"annotations":{},"create":true,"name":""}</code></td>
+<td>Configures <code>serviceAccount</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>serviceAccount.annotations</td>
+<td>object</td>
+<td><code>{}</code></td>
+<td>Configures <code>serviceAccount.annotations</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>serviceAccount.create</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Configures <code>serviceAccount.create</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>serviceAccount.name</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>serviceAccount.name</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>vault</td>
+<td>object</td>
+<td><code>{"addr":"http://musematic-vault.platform-security.svc.cluster.local:8200","approle":{"roleId":"","secretIdSecretRef":""},"authMethod":"kubernetes","caCertSecretRef":"","cache":{"maxStalenessSeconds":300,"ttlSeconds":60},"kubernetes":{"role":"musematic-platform","serviceAccountTokenPath":"/var/run/secrets/tokens/vault-token"},"kvMount":"secret","kvPrefix":"musematic/{environment}","leaseRenewalThreshold":0.5,"mode":"mock","namespace":"","retry":{"attempts":3,"timeoutSeconds":10},"token":""}</code></td>
+<td>Configures Vault-backed secret resolution for the control-plane chart.</td>
+</tr>
+<tr>
+<td>vault.addr</td>
+<td>string</td>
+<td><code>"http://musematic-vault.platform-security.svc.cluster.local:8200"</code></td>
+<td>Configures <code>vault.addr</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>vault.approle</td>
+<td>object</td>
+<td><code>{"roleId":"","secretIdSecretRef":""}</code></td>
+<td>Configures <code>vault.approle</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>vault.approle.roleId</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>vault.approle.roleId</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>vault.approle.secretIdSecretRef</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>vault.approle.secretIdSecretRef</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>vault.authMethod</td>
+<td>string</td>
+<td><code>"kubernetes"</code></td>
+<td>Configures <code>vault.authMethod</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>vault.caCertSecretRef</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>vault.caCertSecretRef</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>vault.cache</td>
+<td>object</td>
+<td><code>{"maxStalenessSeconds":300,"ttlSeconds":60}</code></td>
+<td>Configures <code>vault.cache</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>vault.cache.maxStalenessSeconds</td>
+<td>int</td>
+<td><code>300</code></td>
+<td>Configures <code>vault.cache.maxStalenessSeconds</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>vault.cache.ttlSeconds</td>
+<td>int</td>
+<td><code>60</code></td>
+<td>Configures <code>vault.cache.ttlSeconds</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>vault.kubernetes</td>
+<td>object</td>
+<td><code>{"role":"musematic-platform","serviceAccountTokenPath":"/var/run/secrets/tokens/vault-token"}</code></td>
+<td>Configures <code>vault.kubernetes</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>vault.kubernetes.role</td>
+<td>string</td>
+<td><code>"musematic-platform"</code></td>
+<td>Configures <code>vault.kubernetes.role</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>vault.kubernetes.serviceAccountTokenPath</td>
+<td>string</td>
+<td><code>"/var/run/secrets/tokens/vault-token"</code></td>
+<td>Configures <code>vault.kubernetes.serviceAccountTokenPath</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>vault.kvMount</td>
+<td>string</td>
+<td><code>"secret"</code></td>
+<td>Configures <code>vault.kvMount</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>vault.kvPrefix</td>
+<td>string</td>
+<td><code>"musematic/{environment}"</code></td>
+<td>Configures <code>vault.kvPrefix</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>vault.leaseRenewalThreshold</td>
+<td>float</td>
+<td><code>0.5</code></td>
+<td>Configures <code>vault.leaseRenewalThreshold</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>vault.mode</td>
+<td>string</td>
+<td><code>"mock"</code></td>
+<td>Configures <code>vault.mode</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>vault.namespace</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>vault.namespace</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>vault.retry</td>
+<td>object</td>
+<td><code>{"attempts":3,"timeoutSeconds":10}</code></td>
+<td>Configures <code>vault.retry</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>vault.retry.attempts</td>
+<td>int</td>
+<td><code>3</code></td>
+<td>Configures <code>vault.retry.attempts</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>vault.retry.timeoutSeconds</td>
+<td>int</td>
+<td><code>10</code></td>
+<td>Configures <code>vault.retry.timeoutSeconds</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>vault.token</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>vault.token</code> for the control-plane chart.</td>
 </tr>
 <tr>
 <td>worker</td>
@@ -8445,7 +8667,7 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>kube-prometheus-stack</td>
 <td>object</td>
-<td><code>{"alertmanager":{"alertmanagerSpec":{"storage":{"volumeClaimTemplate":{"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}}}}}},"config":{"global":{"resolve_timeout":"5m"},"receivers":[{"name":"platform-alerts-default"},{"name":"platform-alerts-critical"},{"name":"platform-alerts-warning"},{"name":"incident-response-audit-chain-anomaly","webhook_configs":[{"send_resolved":false,"url":"http://musematic-control-plane-api.platform-control.svc.cluster.local:8000/api/v1/internal/alerts/audit-chain-anomaly"}]}],"route":{"group_by":["alertname","service","severity"],"group_interval":"5m","group_wait":"30s","receiver":"platform-alerts-default","repeat_interval":"4h","routes":[{"continue":true,"matchers":["incident_trigger = \"audit_chain_anomaly\""],"receiver":"incident-response-audit-chain-anomaly"},{"matchers":["severity = \"critical\""],"receiver":"platform-alerts-critical"},{"matchers":["severity = \"warning\""],"receiver":"platform-alerts-warning"}]}}},"cleanPrometheusOperatorObjectNames":true,"fullnameOverride":"observability-kube-prometh","grafana":{"adminPassword":"admin","plugins":["grafana-image-renderer"],"sidecar":{"dashboards":{"enabled":true,"label":"grafana_dashboard","labelValue":"1","searchNamespace":"platform-observability"},"datasources":{"enabled":true,"label":"grafana_datasource","labelValue":"1","searchNamespace":"platform-observability"}}},"prometheus":{"prometheusSpec":{"podMonitorSelector":{"matchLabels":{"prometheus":"musematic"}},"retention":"15d","ruleSelector":{"matchLabels":{"prometheus":"musematic"}},"scrapeInterval":"15s","serviceMonitorSelector":{"matchLabels":{"prometheus":"musematic"}},"storageSpec":{"volumeClaimTemplate":{"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"20Gi"}}}}}}}}</code></td>
+<td><code>{"alertmanager":{"alertmanagerSpec":{"storage":{"volumeClaimTemplate":{"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"5Gi"}}}}}},"config":{"global":{"resolve_timeout":"5m"},"receivers":[{"name":"platform-alerts-default"},{"name":"platform-alerts-critical"},{"name":"platform-alerts-warning"},{"name":"incident-response-audit-chain-anomaly","webhook_configs":[{"send_resolved":false,"url":"http://musematic-control-plane-api.platform-control.svc.cluster.local:8000/api/v1/internal/alerts/audit-chain-anomaly"}]}],"route":{"group_by":["alertname","service","severity"],"group_interval":"5m","group_wait":"30s","receiver":"platform-alerts-default","repeat_interval":"4h","routes":[{"continue":true,"matchers":["incident_trigger = \"audit_chain_anomaly\""],"receiver":"incident-response-audit-chain-anomaly"},{"matchers":["severity = \"critical\""],"receiver":"platform-alerts-critical"},{"matchers":["severity = \"warning\""],"receiver":"platform-alerts-warning"}]}}},"cleanPrometheusOperatorObjectNames":true,"fullnameOverride":"observability-kube-prometh","grafana":{"adminPassword":"admin","plugins":["grafana-image-renderer"],"sidecar":{"dashboards":{"enabled":true,"label":"grafana_dashboard","labelValue":"1","searchNamespace":"platform-observability"},"datasources":{"defaultDatasourceEnabled":false,"enabled":true,"isDefaultDatasource":false,"label":"grafana_datasource","labelValue":"1","searchNamespace":"platform-observability"}}},"prometheus":{"prometheusSpec":{"podMonitorSelector":{"matchLabels":{"prometheus":"musematic"}},"retention":"15d","ruleSelector":{"matchLabels":{"prometheus":"musematic"}},"scrapeInterval":"15s","serviceMonitorSelector":{"matchLabels":{"prometheus":"musematic"}},"storageSpec":{"volumeClaimTemplate":{"spec":{"accessModes":["ReadWriteOnce"],"resources":{"requests":{"storage":"20Gi"}}}}}}}}</code></td>
 <td>Configures <code>kube-prometheus-stack</code> for the observability chart.</td>
 </tr>
 <tr>
@@ -8523,7 +8745,7 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>kube-prometheus-stack.grafana</td>
 <td>object</td>
-<td><code>{"adminPassword":"admin","plugins":["grafana-image-renderer"],"sidecar":{"dashboards":{"enabled":true,"label":"grafana_dashboard","labelValue":"1","searchNamespace":"platform-observability"},"datasources":{"enabled":true,"label":"grafana_datasource","labelValue":"1","searchNamespace":"platform-observability"}}}</code></td>
+<td><code>{"adminPassword":"admin","plugins":["grafana-image-renderer"],"sidecar":{"dashboards":{"enabled":true,"label":"grafana_dashboard","labelValue":"1","searchNamespace":"platform-observability"},"datasources":{"defaultDatasourceEnabled":false,"enabled":true,"isDefaultDatasource":false,"label":"grafana_datasource","labelValue":"1","searchNamespace":"platform-observability"}}}</code></td>
 <td>Configures <code>kube-prometheus-stack.grafana</code> for the observability chart.</td>
 </tr>
 <tr>
@@ -8541,7 +8763,7 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>kube-prometheus-stack.grafana.sidecar</td>
 <td>object</td>
-<td><code>{"dashboards":{"enabled":true,"label":"grafana_dashboard","labelValue":"1","searchNamespace":"platform-observability"},"datasources":{"enabled":true,"label":"grafana_datasource","labelValue":"1","searchNamespace":"platform-observability"}}</code></td>
+<td><code>{"dashboards":{"enabled":true,"label":"grafana_dashboard","labelValue":"1","searchNamespace":"platform-observability"},"datasources":{"defaultDatasourceEnabled":false,"enabled":true,"isDefaultDatasource":false,"label":"grafana_datasource","labelValue":"1","searchNamespace":"platform-observability"}}</code></td>
 <td>Configures <code>kube-prometheus-stack.grafana.sidecar</code> for the observability chart.</td>
 </tr>
 <tr>
@@ -8577,14 +8799,26 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>kube-prometheus-stack.grafana.sidecar.datasources</td>
 <td>object</td>
-<td><code>{"enabled":true,"label":"grafana_datasource","labelValue":"1","searchNamespace":"platform-observability"}</code></td>
+<td><code>{"defaultDatasourceEnabled":false,"enabled":true,"isDefaultDatasource":false,"label":"grafana_datasource","labelValue":"1","searchNamespace":"platform-observability"}</code></td>
 <td>Configures <code>kube-prometheus-stack.grafana.sidecar.datasources</code> for the observability chart.</td>
+</tr>
+<tr>
+<td>kube-prometheus-stack.grafana.sidecar.datasources.defaultDatasourceEnabled</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>kube-prometheus-stack.grafana.sidecar.datasources.defaultDatasourceEnabled</code> to let the platform datasource ConfigMaps own Prometheus.</td>
 </tr>
 <tr>
 <td>kube-prometheus-stack.grafana.sidecar.datasources.enabled</td>
 <td>bool</td>
 <td><code>true</code></td>
 <td>Configures <code>kube-prometheus-stack.grafana.sidecar.datasources.enabled</code> for the observability chart.</td>
+</tr>
+<tr>
+<td>kube-prometheus-stack.grafana.sidecar.datasources.isDefaultDatasource</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>kube-prometheus-stack.grafana.sidecar.datasources.isDefaultDatasource</code> to avoid duplicate default datasource provisioning.</td>
 </tr>
 <tr>
 <td>kube-prometheus-stack.grafana.sidecar.datasources.label</td>
@@ -9231,31 +9465,31 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>opentelemetry-collector</td>
 <td>object</td>
-<td><code>{"alternateConfig":{"exporters":{"otlp/jaeger":{"endpoint":"musematic-observability-jaeger-collector:4317","tls":{"insecure":true}},"prometheus":{"endpoint":"0.0.0.0:8889"}},"extensions":{"health_check":{"endpoint":"0.0.0.0:13133"}},"processors":{"batch":{},"memory_limiter":{"check_interval":"5s","limit_percentage":80,"spike_limit_percentage":25},"transform/correlation":{"error_mode":"ignore","trace_statements":[{"context":"span","statements":["set(resource.attributes[\"correlation_id\"], attributes[\"correlation_id\"]) where attributes[\"correlation_id\"] != nil"]}]}},"receivers":{"otlp":{"protocols":{"grpc":{"endpoint":"0.0.0.0:4317"},"http":{"endpoint":"0.0.0.0:4318"}}}},"service":{"extensions":["health_check"],"pipelines":{"metrics":{"exporters":["prometheus"],"processors":["memory_limiter","batch"],"receivers":["otlp"]},"traces":{"exporters":["otlp/jaeger"],"processors":["memory_limiter","transform/correlation","batch"],"receivers":["otlp"]}}}},"command":{"name":"otelcol-contrib"},"fullnameOverride":"otel-collector","image":{"repository":"otel/opentelemetry-collector-contrib"},"mode":"deployment","ports":{"jaeger-compact":{"enabled":false},"jaeger-grpc":{"enabled":false},"jaeger-thrift":{"enabled":false},"metrics":{"containerPort":8889,"enabled":true,"protocol":"TCP","servicePort":8889},"otlp":{"appProtocol":"grpc","containerPort":4317,"enabled":true,"protocol":"TCP","servicePort":4317},"otlp-http":{"containerPort":4318,"enabled":true,"protocol":"TCP","servicePort":4318},"zipkin":{"enabled":false}},"replicaCount":2,"resources":{"limits":{"cpu":"1","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}},"serviceMonitor":{"enabled":false}}</code></td>
+<td><code>{"alternateConfig":{"exporters":{"otlp/jaeger":{"endpoint":"observability-jaeger-collector:4317","tls":{"insecure":true}},"prometheus":{"endpoint":"0.0.0.0:8889"}},"extensions":{"health_check":{"endpoint":"0.0.0.0:13133"}},"processors":{"batch":{},"memory_limiter":{"check_interval":"5s","limit_percentage":80,"spike_limit_percentage":25},"transform/correlation":{"error_mode":"ignore","trace_statements":[{"context":"span","statements":["set(resource.attributes[\"correlation_id\"], attributes[\"correlation_id\"]) where attributes[\"correlation_id\"] != nil"]}]}},"receivers":{"otlp":{"protocols":{"grpc":{"endpoint":"0.0.0.0:4317"},"http":{"endpoint":"0.0.0.0:4318"}}}},"service":{"extensions":["health_check"],"pipelines":{"metrics":{"exporters":["prometheus"],"processors":["memory_limiter","batch"],"receivers":["otlp"]},"traces":{"exporters":["otlp/jaeger"],"processors":["memory_limiter","transform/correlation","batch"],"receivers":["otlp"]}}}},"command":{"name":"otelcol-contrib"},"fullnameOverride":"otel-collector","image":{"repository":"otel/opentelemetry-collector-contrib"},"mode":"deployment","ports":{"jaeger-compact":{"enabled":false},"jaeger-grpc":{"enabled":false},"jaeger-thrift":{"enabled":false},"metrics":{"containerPort":8889,"enabled":true,"protocol":"TCP","servicePort":8889},"otlp":{"appProtocol":"grpc","containerPort":4317,"enabled":true,"protocol":"TCP","servicePort":4317},"otlp-http":{"containerPort":4318,"enabled":true,"protocol":"TCP","servicePort":4318},"zipkin":{"enabled":false}},"replicaCount":2,"resources":{"limits":{"cpu":"1","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}},"serviceMonitor":{"enabled":false}}</code></td>
 <td>Configures <code>opentelemetry-collector</code> for the observability chart.</td>
 </tr>
 <tr>
 <td>opentelemetry-collector.alternateConfig</td>
 <td>object</td>
-<td><code>{"exporters":{"otlp/jaeger":{"endpoint":"musematic-observability-jaeger-collector:4317","tls":{"insecure":true}},"prometheus":{"endpoint":"0.0.0.0:8889"}},"extensions":{"health_check":{"endpoint":"0.0.0.0:13133"}},"processors":{"batch":{},"memory_limiter":{"check_interval":"5s","limit_percentage":80,"spike_limit_percentage":25},"transform/correlation":{"error_mode":"ignore","trace_statements":[{"context":"span","statements":["set(resource.attributes[\"correlation_id\"], attributes[\"correlation_id\"]) where attributes[\"correlation_id\"] != nil"]}]}},"receivers":{"otlp":{"protocols":{"grpc":{"endpoint":"0.0.0.0:4317"},"http":{"endpoint":"0.0.0.0:4318"}}}},"service":{"extensions":["health_check"],"pipelines":{"metrics":{"exporters":["prometheus"],"processors":["memory_limiter","batch"],"receivers":["otlp"]},"traces":{"exporters":["otlp/jaeger"],"processors":["memory_limiter","transform/correlation","batch"],"receivers":["otlp"]}}}}</code></td>
+<td><code>{"exporters":{"otlp/jaeger":{"endpoint":"observability-jaeger-collector:4317","tls":{"insecure":true}},"prometheus":{"endpoint":"0.0.0.0:8889"}},"extensions":{"health_check":{"endpoint":"0.0.0.0:13133"}},"processors":{"batch":{},"memory_limiter":{"check_interval":"5s","limit_percentage":80,"spike_limit_percentage":25},"transform/correlation":{"error_mode":"ignore","trace_statements":[{"context":"span","statements":["set(resource.attributes[\"correlation_id\"], attributes[\"correlation_id\"]) where attributes[\"correlation_id\"] != nil"]}]}},"receivers":{"otlp":{"protocols":{"grpc":{"endpoint":"0.0.0.0:4317"},"http":{"endpoint":"0.0.0.0:4318"}}}},"service":{"extensions":["health_check"],"pipelines":{"metrics":{"exporters":["prometheus"],"processors":["memory_limiter","batch"],"receivers":["otlp"]},"traces":{"exporters":["otlp/jaeger"],"processors":["memory_limiter","transform/correlation","batch"],"receivers":["otlp"]}}}}</code></td>
 <td>Configures <code>opentelemetry-collector.alternateConfig</code> for the observability chart.</td>
 </tr>
 <tr>
 <td>opentelemetry-collector.alternateConfig.exporters</td>
 <td>object</td>
-<td><code>{"otlp/jaeger":{"endpoint":"musematic-observability-jaeger-collector:4317","tls":{"insecure":true}},"prometheus":{"endpoint":"0.0.0.0:8889"}}</code></td>
+<td><code>{"otlp/jaeger":{"endpoint":"observability-jaeger-collector:4317","tls":{"insecure":true}},"prometheus":{"endpoint":"0.0.0.0:8889"}}</code></td>
 <td>Configures <code>opentelemetry-collector.alternateConfig.exporters</code> for the observability chart.</td>
 </tr>
 <tr>
 <td>opentelemetry-collector.alternateConfig.exporters.otlp/jaeger</td>
 <td>object</td>
-<td><code>{"endpoint":"musematic-observability-jaeger-collector:4317","tls":{"insecure":true}}</code></td>
+<td><code>{"endpoint":"observability-jaeger-collector:4317","tls":{"insecure":true}}</code></td>
 <td>Configures <code>opentelemetry-collector.alternateConfig.exporters.otlp/jaeger</code> for the observability chart.</td>
 </tr>
 <tr>
 <td>opentelemetry-collector.alternateConfig.exporters.otlp/jaeger.endpoint</td>
 <td>string</td>
-<td><code>"musematic-observability-jaeger-collector:4317"</code></td>
+<td><code>"observability-jaeger-collector:4317"</code></td>
 <td>Configures <code>opentelemetry-collector.alternateConfig.exporters.otlp/jaeger.endpoint</code> for the observability chart.</td>
 </tr>
 <tr>
@@ -10699,6 +10933,11 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>ui(musematic-ui)</td>
 <td>0.1.0</td>
 </tr>
+<tr>
+<td>file://../vault</td>
+<td>vault(musematic-vault)</td>
+<td>0.1.0</td>
+</tr>
 </tbody>
 </table>
 <h3 id="values_7">Values<a class="headerlink" href="#values_7" title="Permanent link">&para;</a></h3>
@@ -10733,7 +10972,7 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>controlPlane</td>
 <td>object</td>
-<td><code>{"api":{"enabled":true,"replicaCount":1,"service":{"nodePort":null,"port":8000,"type":"ClusterIP"}},"common":{"featureE2EMode":false,"mockLlmEnabled":false,"otelExporterEndpoint":"http://otel-collector.platform-observability.svc.cluster.local:4318","otelResourceAttributes":"deployment.environment=production","otelServiceName":"control-plane","resources":{"limits":{"cpu":"1","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}},"wsClientBufferSize":1000,"wsHeartbeatIntervalSeconds":30,"wsHeartbeatTimeoutSeconds":10,"zeroTrustVisibility":false},"connections":{"authJwtAlgorithm":"HS256","authJwtSecretKey":"change-me","authMfaEncryptionKey":"","clickhouseDatabase":"default","clickhouseHost":"musematic-clickhouse.platform.svc.cluster.local","clickhousePassword":"","clickhousePort":8123,"clickhouseUser":"default","grpcReasoningEngine":"reasoning-engine.platform.svc.cluster.local:50052","grpcRuntimeController":"musematic-runtime-controller.platform.svc.cluster.local:50051","grpcSandboxManager":"sandbox-manager.platform.svc.cluster.local:50053","grpcSimulationController":"musematic-simulation-controller.platform.svc.cluster.local:50055","kafkaBrokers":"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092","neo4jPassword":"neo4j","neo4jUri":"bolt://musematic-neo4j.platform.svc.cluster.local:7687","neo4jUser":"neo4j","opensearchHosts":"http://musematic-opensearch.platform.svc.cluster.local:9200","opensearchPassword":"admin","opensearchUsername":"admin","postgresDsn":"postgresql+asyncpg://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic","qdrantGrpcPort":6334,"qdrantHost":"musematic-qdrant.platform.svc.cluster.local","qdrantPort":6333,"redisTestMode":"cluster","redisUrl":"redis://:change-me@musematic-redis.platform.svc.cluster.local:6379","s3AccessKey":"platform","s3BucketPrefix":"platform","s3EndpointUrl":"http://musematic-minio.platform-data.svc.cluster.local:9000","s3Provider":"generic","s3Region":"us-east-1","s3SecretKey":"change-me","s3UsePathStyle":true},"enabled":true,"image":{"pullPolicy":"IfNotPresent","repository":"ghcr.io/musematic/control-plane","tag":"latest"},"migration":{"backoffLimit":3,"enabled":true},"privacy":{"clickhousePiiTables":["execution_metrics","agent_performance","token_usage"],"dlpEnabled":false,"dsrEnabled":false,"residencyEnforcementEnabled":false},"scheduler":{"enabled":true,"replicaCount":1},"worker":{"enabled":true,"replicaCount":1},"wsHub":{"enabled":true,"replicaCount":1,"service":{"nodePort":null,"port":8001,"type":"ClusterIP"}}}</code></td>
+<td><code>{"api":{"enabled":true,"replicaCount":1,"service":{"nodePort":null,"port":8000,"type":"ClusterIP"}},"common":{"featureE2EMode":false,"mockLlmEnabled":false,"otelExporterEndpoint":"http://otel-collector.platform-observability.svc.cluster.local:4318","otelResourceAttributes":"deployment.environment=production","otelServiceName":"control-plane","resources":{"limits":{"cpu":"1","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}},"wsClientBufferSize":1000,"wsHeartbeatIntervalSeconds":30,"wsHeartbeatTimeoutSeconds":10,"zeroTrustVisibility":false},"connections":{"authJwtAlgorithm":"HS256","authJwtSecretKey":"change-me","authMfaEncryptionKey":"","clickhouseDatabase":"default","clickhouseHost":"musematic-clickhouse.platform.svc.cluster.local","clickhousePassword":"","clickhousePort":8123,"clickhouseUser":"default","grpcReasoningEngine":"reasoning-engine.platform.svc.cluster.local:50052","grpcRuntimeController":"musematic-runtime-controller.platform.svc.cluster.local:50051","grpcSandboxManager":"sandbox-manager.platform.svc.cluster.local:50053","grpcSimulationController":"musematic-simulation-controller.platform.svc.cluster.local:50055","kafkaBrokers":"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092","neo4jPassword":"neo4j","neo4jUri":"bolt://musematic-neo4j.platform.svc.cluster.local:7687","neo4jUser":"neo4j","opensearchHosts":"http://musematic-opensearch.platform.svc.cluster.local:9200","opensearchPassword":"admin","opensearchUsername":"admin","postgresDsn":"postgresql+asyncpg://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic","qdrantGrpcPort":6334,"qdrantHost":"musematic-qdrant.platform.svc.cluster.local","qdrantPort":6333,"redisTestMode":"cluster","redisUrl":"redis://:change-me@musematic-redis.platform.svc.cluster.local:6379","s3AccessKey":"platform","s3BucketPrefix":"platform","s3EndpointUrl":"http://musematic-minio.platform-data.svc.cluster.local:9000","s3Provider":"generic","s3Region":"us-east-1","s3SecretKey":"change-me","s3UsePathStyle":true},"enabled":true,"image":{"pullPolicy":"IfNotPresent","repository":"ghcr.io/musematic/control-plane","tag":"latest"},"migration":{"backoffLimit":3,"enabled":true},"privacy":{"clickhousePiiTables":["execution_metrics","agent_performance","token_usage"],"dlpEnabled":false,"dsrEnabled":false,"residencyEnforcementEnabled":false},"scheduler":{"enabled":true,"replicaCount":1},"serviceAccount":{"annotations":{},"create":true,"name":"musematic-control-plane"},"vault":{"addr":"http://musematic-vault.platform-security.svc.cluster.local:8200","approle":{"roleId":"","secretIdSecretRef":""},"authMethod":"kubernetes","caCertSecretRef":"","cache":{"maxStalenessSeconds":300,"ttlSeconds":60},"kubernetes":{"role":"musematic-platform","serviceAccountTokenPath":"/var/run/secrets/tokens/vault-token"},"kvMount":"secret","kvPrefix":"musematic/{environment}","leaseRenewalThreshold":0.5,"mode":"vault","namespace":"","retry":{"attempts":3,"timeoutSeconds":10},"token":""},"worker":{"enabled":true,"replicaCount":1},"wsHub":{"enabled":true,"replicaCount":1,"service":{"nodePort":null,"port":8001,"type":"ClusterIP"}}}</code></td>
 <td>Configures <code>controlPlane</code> for the platform chart.</td>
 </tr>
 <tr>
@@ -11173,6 +11412,162 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>int</td>
 <td><code>1</code></td>
 <td>Configures <code>controlPlane.scheduler.replicaCount</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.serviceAccount</td>
+<td>object</td>
+<td><code>{"annotations":{},"create":true,"name":"musematic-control-plane"}</code></td>
+<td>Configures <code>controlPlane.serviceAccount</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.serviceAccount.annotations</td>
+<td>object</td>
+<td><code>{}</code></td>
+<td>Configures <code>controlPlane.serviceAccount.annotations</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.serviceAccount.create</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Configures <code>controlPlane.serviceAccount.create</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.serviceAccount.name</td>
+<td>string</td>
+<td><code>"musematic-control-plane"</code></td>
+<td>Configures <code>controlPlane.serviceAccount.name</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.vault</td>
+<td>object</td>
+<td><code>{"addr":"http://musematic-vault.platform-security.svc.cluster.local:8200","approle":{"roleId":"","secretIdSecretRef":""},"authMethod":"kubernetes","caCertSecretRef":"","cache":{"maxStalenessSeconds":300,"ttlSeconds":60},"kubernetes":{"role":"musematic-platform","serviceAccountTokenPath":"/var/run/secrets/tokens/vault-token"},"kvMount":"secret","kvPrefix":"musematic/{environment}","leaseRenewalThreshold":0.5,"mode":"vault","namespace":"","retry":{"attempts":3,"timeoutSeconds":10},"token":""}</code></td>
+<td>Configures <code>controlPlane.vault</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.vault.addr</td>
+<td>string</td>
+<td><code>"http://musematic-vault.platform-security.svc.cluster.local:8200"</code></td>
+<td>Configures <code>controlPlane.vault.addr</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.vault.approle</td>
+<td>object</td>
+<td><code>{"roleId":"","secretIdSecretRef":""}</code></td>
+<td>Configures <code>controlPlane.vault.approle</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.vault.approle.roleId</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>controlPlane.vault.approle.roleId</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.vault.approle.secretIdSecretRef</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>controlPlane.vault.approle.secretIdSecretRef</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.vault.authMethod</td>
+<td>string</td>
+<td><code>"kubernetes"</code></td>
+<td>Configures <code>controlPlane.vault.authMethod</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.vault.caCertSecretRef</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>controlPlane.vault.caCertSecretRef</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.vault.cache</td>
+<td>object</td>
+<td><code>{"maxStalenessSeconds":300,"ttlSeconds":60}</code></td>
+<td>Configures <code>controlPlane.vault.cache</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.vault.cache.maxStalenessSeconds</td>
+<td>int</td>
+<td><code>300</code></td>
+<td>Configures <code>controlPlane.vault.cache.maxStalenessSeconds</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.vault.cache.ttlSeconds</td>
+<td>int</td>
+<td><code>60</code></td>
+<td>Configures <code>controlPlane.vault.cache.ttlSeconds</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.vault.kubernetes</td>
+<td>object</td>
+<td><code>{"role":"musematic-platform","serviceAccountTokenPath":"/var/run/secrets/tokens/vault-token"}</code></td>
+<td>Configures <code>controlPlane.vault.kubernetes</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.vault.kubernetes.role</td>
+<td>string</td>
+<td><code>"musematic-platform"</code></td>
+<td>Configures <code>controlPlane.vault.kubernetes.role</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.vault.kubernetes.serviceAccountTokenPath</td>
+<td>string</td>
+<td><code>"/var/run/secrets/tokens/vault-token"</code></td>
+<td>Configures <code>controlPlane.vault.kubernetes.serviceAccountTokenPath</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.vault.kvMount</td>
+<td>string</td>
+<td><code>"secret"</code></td>
+<td>Configures <code>controlPlane.vault.kvMount</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.vault.kvPrefix</td>
+<td>string</td>
+<td><code>"musematic/{environment}"</code></td>
+<td>Configures <code>controlPlane.vault.kvPrefix</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.vault.leaseRenewalThreshold</td>
+<td>float</td>
+<td><code>0.5</code></td>
+<td>Configures <code>controlPlane.vault.leaseRenewalThreshold</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.vault.mode</td>
+<td>string</td>
+<td><code>"vault"</code></td>
+<td>Configures <code>controlPlane.vault.mode</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.vault.namespace</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>controlPlane.vault.namespace</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.vault.retry</td>
+<td>object</td>
+<td><code>{"attempts":3,"timeoutSeconds":10}</code></td>
+<td>Configures <code>controlPlane.vault.retry</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.vault.retry.attempts</td>
+<td>int</td>
+<td><code>3</code></td>
+<td>Configures <code>controlPlane.vault.retry.attempts</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.vault.retry.timeoutSeconds</td>
+<td>int</td>
+<td><code>10</code></td>
+<td>Configures <code>controlPlane.vault.retry.timeoutSeconds</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.vault.token</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>controlPlane.vault.token</code> for the platform chart.</td>
 </tr>
 <tr>
 <td>controlPlane.worker</td>
@@ -12339,6 +12734,42 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>Configures <code>ui.service.type</code> for the platform chart.</td>
 </tr>
 <tr>
+<td>vault</td>
+<td>object</td>
+<td><code>{"enabled":false,"mode":"ha","policyJob":{"vaultAddr":"http://musematic-vault.platform-security.svc.cluster.local:8200"},"vault":{"injector":{"enabled":false},"server":{"auditStorage":{"enabled":true,"size":"5Gi"},"dataStorage":{"enabled":true,"size":"10Gi"},"ha":{"enabled":true,"raft":{"enabled":true,"setNodeId":true},"replicas":3}},"ui":{"enabled":true,"serviceType":"ClusterIP"}}}</code></td>
+<td>Configures <code>vault</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>vault.enabled</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>vault.enabled</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>vault.mode</td>
+<td>string</td>
+<td><code>"ha"</code></td>
+<td>Configures <code>vault.mode</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>vault.policyJob</td>
+<td>object</td>
+<td><code>{"vaultAddr":"http://musematic-vault.platform-security.svc.cluster.local:8200"}</code></td>
+<td>Configures <code>vault.policyJob</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>vault.policyJob.vaultAddr</td>
+<td>string</td>
+<td><code>"http://musematic-vault.platform-security.svc.cluster.local:8200"</code></td>
+<td>Configures <code>vault.policyJob.vaultAddr</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>vault.vault</td>
+<td>object</td>
+<td><code>{"injector":{"enabled":false},"server":{"auditStorage":{"enabled":true,"size":"5Gi"},"dataStorage":{"enabled":true,"size":"10Gi"},"ha":{"enabled":true,"raft":{"enabled":true,"setNodeId":true},"replicas":3}},"ui":{"enabled":true,"serviceType":"ClusterIP"}}</code></td>
+<td>Configures <code>vault.vault</code> for the upstream HashiCorp chart.</td>
+</tr>
+<tr>
 <td>webStatus</td>
 <td>object</td>
 <td><code>{"enabled":false,"host":"status.local","image":{"repository":"","tag":""},"replicaCount":2}</code></td>
@@ -12826,7 +13257,7 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>config</td>
 <td>object</td>
-<td><code>{"budgetDefaultTTLSeconds":"3600","maxTotConcurrency":"10","otelExporterOtlpEndpoint":"http://otel-collector.platform-observability.svc.cluster.local:4317","otelResourceAttributes":"deployment.environment=production","otelServiceName":"reasoning-engine","traceBufferSize":"10000","tracePayloadThreshold":"65536"}</code></td>
+<td><code>{"budgetDefaultTTLSeconds":"3600","maxTotConcurrency":"10","otelExporterOtlpEndpoint":"http://otel-collector.platform-observability.svc.cluster.local:4317","otelResourceAttributes":"deployment.environment=production","otelServiceName":"reasoning-engine","startupDependencyRetryIntervalSeconds":"5","startupDependencyTimeoutSeconds":"600","traceBufferSize":"10000","tracePayloadThreshold":"65536"}</code></td>
 <td>Configures <code>config</code> for the reasoning-engine chart.</td>
 </tr>
 <tr>
@@ -12858,6 +13289,18 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>string</td>
 <td><code>"reasoning-engine"</code></td>
 <td>Configures <code>config.otelServiceName</code> for the reasoning-engine chart.</td>
+</tr>
+<tr>
+<td>config.startupDependencyRetryIntervalSeconds</td>
+<td>string</td>
+<td><code>"5"</code></td>
+<td>Configures <code>config.startupDependencyRetryIntervalSeconds</code> for the reasoning-engine chart.</td>
+</tr>
+<tr>
+<td>config.startupDependencyTimeoutSeconds</td>
+<td>string</td>
+<td><code>"600"</code></td>
+<td>Configures <code>config.startupDependencyTimeoutSeconds</code> for the reasoning-engine chart.</td>
 </tr>
 <tr>
 <td>config.traceBufferSize</td>
@@ -12930,6 +13373,30 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>string</td>
 <td><code>"latest"</code></td>
 <td>Configures <code>image.tag</code> for the reasoning-engine chart.</td>
+</tr>
+<tr>
+<td>probes</td>
+<td>object</td>
+<td><code>{"startup":{"failureThreshold":90,"periodSeconds":10}}</code></td>
+<td>Configures <code>probes</code> for the reasoning-engine chart.</td>
+</tr>
+<tr>
+<td>probes.startup</td>
+<td>object</td>
+<td><code>{"failureThreshold":90,"periodSeconds":10}</code></td>
+<td>Configures <code>probes.startup</code> for the reasoning-engine chart.</td>
+</tr>
+<tr>
+<td>probes.startup.failureThreshold</td>
+<td>int</td>
+<td><code>90</code></td>
+<td>Configures <code>probes.startup.failureThreshold</code> for the reasoning-engine chart.</td>
+</tr>
+<tr>
+<td>probes.startup.periodSeconds</td>
+<td>int</td>
+<td><code>10</code></td>
+<td>Configures <code>probes.startup.periodSeconds</code> for the reasoning-engine chart.</td>
 </tr>
 <tr>
 <td>replicaCount</td>
@@ -13829,6 +14296,149 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>string</td>
 <td><code>"ClusterIP"</code></td>
 <td>Configures <code>service.type</code> for the ui chart.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<p>Autogenerated from chart metadata using <a href="https://github.com/norwoodj/helm-docs/releases/v1.13.1">helm-docs v1.13.1</a></p>
+<h2 id="musematic-vault">musematic-vault<a class="headerlink" href="#musematic-vault" title="Permanent link">&para;</a></h2>
+<p><img alt="Version: 0.1.0" src="https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square" /> <img alt="Type: application" src="https://img.shields.io/badge/Type-application-informational?style=flat-square" /> <img alt="AppVersion: 1.21.2" src="https://img.shields.io/badge/AppVersion-1.21.2-informational?style=flat-square" /></p>
+<p>Musematic wrapper chart for HashiCorp Vault.</p>
+<h3 id="requirements_6">Requirements<a class="headerlink" href="#requirements_6" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Repository</th>
+<th>Name</th>
+<th>Version</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>https://helm.releases.hashicorp.com</td>
+<td>vault</td>
+<td>0.32.0</td>
+</tr>
+</tbody>
+</table>
+<h3 id="values_15">Values<a class="headerlink" href="#values_15" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>kubernetesAuthJob</td>
+<td>object</td>
+<td><code>{"boundNamespaces":["platform","platform-runtime","platform-reasoning","platform-simulation","platform-sandbox"],"boundServiceAccounts":["musematic-control-plane","musematic-runtime-controller","reasoning-engine","simulation-controller","sandbox-manager"],"enabled":true,"roleName":"musematic-platform","tokenTtl":"1h"}</code></td>
+<td>Configures Kubernetes auth bootstrap.</td>
+</tr>
+<tr>
+<td>kubernetesAuthJob.boundNamespaces</td>
+<td>list</td>
+<td><code>["platform","platform-runtime","platform-reasoning","platform-simulation","platform-sandbox"]</code></td>
+<td>Namespaces containing the bound service accounts.</td>
+</tr>
+<tr>
+<td>kubernetesAuthJob.boundServiceAccounts</td>
+<td>list</td>
+<td><code>["musematic-control-plane","musematic-runtime-controller","reasoning-engine","simulation-controller","sandbox-manager"]</code></td>
+<td>Bound service accounts allowed to use the role.</td>
+</tr>
+<tr>
+<td>kubernetesAuthJob.enabled</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Enables the Kubernetes auth bootstrap hook.</td>
+</tr>
+<tr>
+<td>kubernetesAuthJob.roleName</td>
+<td>string</td>
+<td><code>"musematic-platform"</code></td>
+<td>Kubernetes auth role created for platform workloads.</td>
+</tr>
+<tr>
+<td>kubernetesAuthJob.tokenTtl</td>
+<td>string</td>
+<td><code>"1h"</code></td>
+<td>Token TTL assigned by the role.</td>
+</tr>
+<tr>
+<td>mode</td>
+<td>string</td>
+<td><code>"ha"</code></td>
+<td>Vault deployment mode used by Musematic wrapper logic: dev, standalone, or ha.</td>
+</tr>
+<tr>
+<td>networkPolicy</td>
+<td>object</td>
+<td><code>{"allowedNamespaces":["platform","platform-runtime","platform-reasoning","platform-simulation","platform-sandbox"],"enabled":true}</code></td>
+<td>Restricts Vault ingress to platform control-plane and satellite namespaces.</td>
+</tr>
+<tr>
+<td>networkPolicy.allowedNamespaces</td>
+<td>list</td>
+<td><code>["platform","platform-runtime","platform-reasoning","platform-simulation","platform-sandbox"]</code></td>
+<td>Namespaces allowed to initiate connections to Vault.</td>
+</tr>
+<tr>
+<td>networkPolicy.enabled</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Enables the Vault NetworkPolicy.</td>
+</tr>
+<tr>
+<td>policyJob</td>
+<td>object</td>
+<td><code>{"enabled":true,"image":"hashicorp/vault:1.21.2","tokenSecretKey":"token","tokenSecretName":"vault-bootstrap-token","vaultAddr":"http://musematic-vault.platform-security.svc.cluster.local:8200"}</code></td>
+<td>Configures the post-install policy bootstrap job.</td>
+</tr>
+<tr>
+<td>policyJob.enabled</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Enables the policy bootstrap hook.</td>
+</tr>
+<tr>
+<td>policyJob.image</td>
+<td>string</td>
+<td><code>"hashicorp/vault:1.21.2"</code></td>
+<td>Vault CLI image used by bootstrap jobs.</td>
+</tr>
+<tr>
+<td>policyJob.tokenSecretKey</td>
+<td>string</td>
+<td><code>"token"</code></td>
+<td>Secret key containing the bootstrap token.</td>
+</tr>
+<tr>
+<td>policyJob.tokenSecretName</td>
+<td>string</td>
+<td><code>"vault-bootstrap-token"</code></td>
+<td>Secret containing a bootstrap token with policy/auth management privileges.</td>
+</tr>
+<tr>
+<td>policyJob.vaultAddr</td>
+<td>string</td>
+<td><code>"http://musematic-vault.platform-security.svc.cluster.local:8200"</code></td>
+<td>Vault address reachable from the bootstrap job.</td>
+</tr>
+<tr>
+<td>vault</td>
+<td>object</td>
+<td><code>{"fullnameOverride":"musematic-vault","injector":{"enabled":false},"server":{"auditStorage":{"enabled":true,"size":"5Gi"},"dataStorage":{"enabled":true,"size":"10Gi"},"extraEnvironmentVars":{"VAULT_CACERT":"/vault/userconfig/tls/ca.crt"},"ha":{"enabled":true,"raft":{"enabled":true,"setNodeId":true},"replicas":3}},"ui":{"enabled":true,"serviceType":"ClusterIP"}}</code></td>
+<td>Values passed to the upstream hashicorp/vault dependency.</td>
+</tr>
+<tr>
+<td>vault.fullnameOverride</td>
+<td>string</td>
+<td><code>"musematic-vault"</code></td>
+<td>Overrides the upstream Vault fullname so wrapper policy jobs and platform clients use the same service DNS name.</td>
 </tr>
 </tbody>
 </table>

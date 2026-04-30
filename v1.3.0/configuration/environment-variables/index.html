@@ -6460,7 +6460,7 @@
 <td>optional</td>
 <td>-</td>
 <td>sensitive</td>
-<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td>Accepted by the platform flat-settings compatibility mapper. Never log; never persist outside Vault.</td>
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 </tbody>
@@ -7057,6 +7057,14 @@
 <td><code>services/runtime-controller/pkg/k8s/client.go</code><br><code>services/sandbox-manager/pkg/k8s/client.go</code><br><code>services/simulation-controller/cmd/simulation-controller/main.go</code></td>
 </tr>
 <tr>
+<td><code>HOSTNAME</code></td>
+<td>optional</td>
+<td><code>unknown</code></td>
+<td>configuration</td>
+<td>Referenced directly by Go service code.</td>
+<td><code>apps/control-plane/src/platform/common/secret_provider.py</code><br><code>services/shared/secrets/metrics.go</code></td>
+</tr>
+<tr>
 <td><code>INT_KEY</code></td>
 <td>optional</td>
 <td>-</td>
@@ -7151,6 +7159,22 @@
 <td>configuration</td>
 <td>Referenced directly by Go service code.</td>
 <td><code>services/simulation-controller/cmd/simulation-controller/main.go</code></td>
+</tr>
+<tr>
+<td><code>STARTUP_DEPENDENCY_RETRY_INTERVAL_SECONDS</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Go service code.</td>
+<td><code>services/reasoning-engine/cmd/reasoning-engine/main.go</code></td>
+</tr>
+<tr>
+<td><code>STARTUP_DEPENDENCY_TIMEOUT_SECONDS</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Go service code.</td>
+<td><code>services/reasoning-engine/cmd/reasoning-engine/main.go</code></td>
 </tr>
 <tr>
 <td><code>STRING_KEY</code></td>
@@ -7523,7 +7547,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>apps/control-plane/src/platform/auth/services/oauth_bootstrap.py</code><br><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/platform/templates/platform-bootstrap-job.yaml</code></td>
+<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>apps/control-plane/src/platform/admin/services/vault_admin_service.py</code><br><code>apps/control-plane/src/platform/auth/services/oauth_bootstrap.py</code><br><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/platform/templates/platform-bootstrap-job.yaml</code></td>
 </tr>
 <tr>
 <td><code>PLATFORM_INSTANCE_NAME</code></td>
@@ -10091,7 +10115,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/auth/services/oauth_bootstrap.py</code><br><code>apps/control-plane/src/platform/common/config.py</code></td>
+<td><code>apps/control-plane/src/platform/admin/services/vault_admin_service.py</code><br><code>apps/control-plane/src/platform/auth/services/oauth_bootstrap.py</code><br><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
 <td><code>ENVIRONMENT</code></td>
@@ -10099,7 +10123,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>apps/control-plane/src/platform/auth/services/oauth_bootstrap.py</code><br><code>apps/control-plane/src/platform/common/config.py</code></td>
+<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>apps/control-plane/src/platform/admin/services/vault_admin_service.py</code><br><code>apps/control-plane/src/platform/auth/services/oauth_bootstrap.py</code><br><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
 <td><code>EOF</code></td>
@@ -10651,7 +10675,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/admin/read_only_middleware.py</code><br><code>apps/control-plane/src/platform/common/auth_middleware.py</code></td>
+<td><code>apps/control-plane/src/platform/admin/read_only_middleware.py</code><br><code>apps/control-plane/src/platform/common/auth_middleware.py</code><br><code>apps/control-plane/src/platform/common/secret_provider.py</code></td>
 </tr>
 <tr>
 <td><code>GOAL_MESSAGE_NOT_FOUND</code></td>
@@ -10772,14 +10796,6 @@
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
 <td><code>apps/control-plane/src/platform/auth/exceptions.py</code></td>
-</tr>
-<tr>
-<td><code>IBOR_CREDENTIAL_</code></td>
-<td>optional</td>
-<td>-</td>
-<td>sensitive</td>
-<td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/auth/ibor_sync.py</code></td>
 </tr>
 <tr>
 <td><code>IBOR_CREDENTIAL_RESOLUTION_FAILED</code></td>
@@ -11830,14 +11846,6 @@
 <td><code>apps/control-plane/src/platform/auth/services/oauth_service.py</code></td>
 </tr>
 <tr>
-<td><code>OAUTH_SECRET_</code></td>
-<td>optional</td>
-<td>-</td>
-<td>sensitive</td>
-<td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/auth/services/oauth_service.py</code></td>
-</tr>
-<tr>
 <td><code>OAUTH_STATE_EXPIRED</code></td>
 <td>optional</td>
 <td>-</td>
@@ -11987,7 +11995,7 @@
 <td><code>(computed)</code></td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/auth/services/oauth_bootstrap.py</code><br><code>apps/control-plane/src/platform/common/config.py</code></td>
+<td><code>apps/control-plane/src/platform/admin/services/vault_admin_service.py</code><br><code>apps/control-plane/src/platform/auth/services/oauth_bootstrap.py</code><br><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
 <td><code>PLATFORM_FORCE_RESET_SUPERADMIN</code></td>
@@ -11996,6 +12004,14 @@
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
 <td><code>apps/control-plane/src/platform/admin/bootstrap.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_KUBERNETES_NAMESPACE</code></td>
+<td>optional</td>
+<td><code>platform</code></td>
+<td>configuration</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/common/secret_provider.py</code></td>
 </tr>
 <tr>
 <td><code>PLATFORM_OAUTH_</code></td>
@@ -12604,14 +12620,6 @@
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
 <td><code>apps/control-plane/src/platform/execution/exceptions.py</code></td>
-</tr>
-<tr>
-<td><code>ROTATING_SECRET_</code></td>
-<td>optional</td>
-<td>-</td>
-<td>sensitive</td>
-<td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/security_compliance/providers/rotatable_secret_provider.py</code></td>
 </tr>
 <tr>
 <td><code>ROTATION_NOT_FOUND</code></td>
@@ -14782,8 +14790,16 @@
 <td><code>PLATFORM_VAULT_APPROLE_ROLE_ID</code></td>
 <td>optional</td>
 <td>-</td>
-<td>informational</td>
-<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td>sensitive</td>
+<td>Accepted by the platform flat-settings compatibility mapper. Never log; never persist outside Vault.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_VAULT_APPROLE_SECRET_ID</code></td>
+<td>optional</td>
+<td>-</td>
+<td>sensitive</td>
+<td>Accepted by the platform flat-settings compatibility mapper. Never log; never persist outside Vault.</td>
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
@@ -14791,7 +14807,7 @@
 <td>optional</td>
 <td>-</td>
 <td>sensitive</td>
-<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td>Accepted by the platform flat-settings compatibility mapper. Never log; never persist outside Vault.</td>
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
@@ -14823,7 +14839,7 @@
 <td>optional</td>
 <td>-</td>
 <td>sensitive</td>
-<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td>Accepted by the platform flat-settings compatibility mapper. Never log; never persist outside Vault.</td>
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
@@ -14895,7 +14911,7 @@
 <td>optional</td>
 <td>-</td>
 <td>sensitive</td>
-<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td>Accepted by the platform flat-settings compatibility mapper. Never log; never persist outside Vault.</td>
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
@@ -14903,7 +14919,7 @@
 <td>optional</td>
 <td>-</td>
 <td>sensitive</td>
-<td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td>Accepted by the platform flat-settings compatibility mapper. Never log; never persist outside Vault.</td>
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
@@ -14912,14 +14928,22 @@
 <td><code>""</code></td>
 <td>configuration</td>
 <td>Configures <code>addr</code> for Vault.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/vault/templates/post-install-kubernetes-auth-job.yaml</code><br><code>deploy/helm/vault/templates/post-install-policies-job.yaml</code></td>
 </tr>
 <tr>
 <td><code>VAULT_APPROLE_ROLE_ID</code></td>
 <td>optional</td>
 <td><code>""</code></td>
-<td>informational</td>
-<td>Configures <code>approle_role_id</code> for Vault.</td>
+<td>sensitive</td>
+<td>Configures <code>approle_role_id</code> for Vault. Never log; never persist outside Vault.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>VAULT_APPROLE_SECRET_ID</code></td>
+<td>optional</td>
+<td><code>null</code></td>
+<td>sensitive</td>
+<td>Configures <code>approle_secret_id_secret_ref</code> for Vault. Never log; never persist outside Vault.</td>
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
@@ -14927,7 +14951,7 @@
 <td>optional</td>
 <td><code>null</code></td>
 <td>sensitive</td>
-<td>Configures <code>approle_secret_id_secret_ref</code> for Vault.</td>
+<td>Configures <code>approle_secret_id_secret_ref</code> for Vault. Never log; never persist outside Vault.</td>
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
@@ -14959,7 +14983,7 @@
 <td>optional</td>
 <td><code>null</code></td>
 <td>sensitive</td>
-<td>Configures <code>ca_cert_secret_ref</code> for Vault.</td>
+<td>Configures <code>ca_cert_secret_ref</code> for Vault. Never log; never persist outside Vault.</td>
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
@@ -15031,7 +15055,7 @@
 <td>optional</td>
 <td><code>/var/run/secrets/tokens/vault-token</code></td>
 <td>sensitive</td>
-<td>Configures <code>service_account_token_path</code> for Vault.</td>
+<td>Configures <code>service_account_token_path</code> for Vault. Never log; never persist outside Vault.</td>
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
@@ -15039,8 +15063,8 @@
 <td>optional</td>
 <td><code>""</code></td>
 <td>sensitive</td>
-<td>Configures <code>token</code> for Vault.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+<td>Configures <code>token</code> for Vault. Never log; never persist outside Vault.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/vault/templates/post-install-kubernetes-auth-job.yaml</code><br><code>deploy/helm/vault/templates/post-install-policies-job.yaml</code></td>
 </tr>
 </tbody>
 </table>
