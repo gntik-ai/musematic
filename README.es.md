@@ -49,16 +49,16 @@ make dev-down
 make dev-reset
 ```
 
-Consulta la [guia de desarrollo](./docs/development/) y la [guia de operaciones](./docs/operations/) para una configuracion y operacion mas detalladas.
+Consulta la [guia de desarrollo](./docs/developer-guide/) y la [guia de operaciones](./docs/operator-guide/) para una configuracion y operacion mas detalladas.
 
 ## Opciones de instalacion
 
 | Destino | Caso de uso | Guia |
 |---|---|---|
-| kind | Desarrollo local y pruebas end-to-end similares a CI | [Arnes E2E](./tests/e2e/README.md) |
-| k3s | Laboratorios de un solo nodo y entornos pequenos | [Guia de operaciones](./docs/operations/) |
-| Hetzner con balanceador de carga | Clusters autogestionados orientados a produccion | [Guia de operaciones](./docs/operations/) |
-| GKE, EKS o AKS | Despliegues Kubernetes gestionados | [Guia de operaciones](./docs/operations/) |
+| kind | Desarrollo local y pruebas end-to-end similares a CI | [Instalacion en kind](./docs/installation/kind.md) |
+| k3s | Laboratorios de un solo nodo y entornos pequenos | [Instalacion en k3s](./docs/installation/k3s.md) |
+| Hetzner con balanceador de carga | Clusters autogestionados orientados a produccion | [Instalacion en Hetzner](./docs/installation/hetzner.md) |
+| GKE, EKS o AKS | Despliegues Kubernetes gestionados | [Instalacion en Kubernetes gestionado](./docs/installation/managed-k8s.md) |
 
 Todos los modos de instalacion usan los mismos charts de Helm propiedad del repositorio en `deploy/helm/` y los mismos contratos del plano de control.
 
@@ -76,14 +76,14 @@ La plataforma esta disenada para que la gobernanza siga centralizada mientras la
 
 ## Documentacion
 
-- [Guia de administracion](./docs/administration/)
-- [Guia de operaciones](./docs/operations/)
-- [Guia de desarrollo](./docs/development/)
-- [Documentacion de funcionalidades](./docs/features/)
-- [Integraciones](./docs/integrations/)
-- [Guia de agentes](./docs/agents.md)
-- [Arquitectura del sistema](./docs/system-architecture-v5.md)
-- [Arquitectura de software](./docs/software-architecture-v5.md)
+- [Guia de administracion](./docs/admin-guide/)
+- [Guia de operaciones](./docs/operator-guide/)
+- [Guia de desarrollo](./docs/developer-guide/)
+- [Guia de usuario](./docs/user-guide/)
+- [Integraciones](./docs/admin-guide/integrations.md)
+- [Guia para crear agentes](./docs/developer-guide/building-agents.md)
+- [Arquitectura del sistema](./docs/system-architecture-v6.md)
+- [Arquitectura de software](./docs/software-architecture-v6.md)
 - [Requisitos funcionales](./docs/functional-requirements-revised-v6.md)
 
 ## Contribuir
@@ -99,4 +99,4 @@ Consulta [LICENSE](./LICENSE) para los terminos de licencia. Si el archivo no ex
 - Issues: [GitHub Issues](https://github.com/gntik-ai/musematic/issues)
 - Discussions: [GitHub Discussions](https://github.com/gntik-ai/musematic/discussions)
 - Releases: [GitHub Releases](https://github.com/gntik-ai/musematic/releases)
-- Divulgacion de seguridad: consulta [SECURITY.md](./SECURITY.md). Ese archivo es un futuro artefacto de administracion del repositorio fuera de UPD-038.
+- Divulgacion de seguridad: consulta [SECURITY.md](./SECURITY.md) para la guia de divulgacion responsable.

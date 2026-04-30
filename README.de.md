@@ -49,16 +49,16 @@ make dev-down
 make dev-reset
 ```
 
-Weitere Details zu Einrichtung und Betrieb findest du im [Entwicklungsleitfaden](./docs/development/) und im [Betriebsleitfaden](./docs/operations/).
+Weitere Details zu Einrichtung und Betrieb findest du im [Entwicklungsleitfaden](./docs/developer-guide/) und im [Betriebsleitfaden](./docs/operator-guide/).
 
 ## Installationsoptionen
 
 | Ziel | Anwendungsfall | Leitfaden |
 |---|---|---|
-| kind | Lokale Entwicklung und CI-aehnliche End-to-End-Tests | [E2E-Harness](./tests/e2e/README.md) |
-| k3s | Single-Node-Labore und kleine Umgebungen | [Betriebsleitfaden](./docs/operations/) |
-| Hetzner mit Load Balancer | Produktionsorientierte selbstverwaltete Cluster | [Betriebsleitfaden](./docs/operations/) |
-| GKE, EKS oder AKS | Managed-Kubernetes-Deployments | [Betriebsleitfaden](./docs/operations/) |
+| kind | Lokale Entwicklung und CI-aehnliche End-to-End-Tests | [kind-Installation](./docs/installation/kind.md) |
+| k3s | Single-Node-Labore und kleine Umgebungen | [k3s-Installation](./docs/installation/k3s.md) |
+| Hetzner mit Load Balancer | Produktionsorientierte selbstverwaltete Cluster | [Hetzner-Installation](./docs/installation/hetzner.md) |
+| GKE, EKS oder AKS | Managed-Kubernetes-Deployments | [Managed-Kubernetes-Installation](./docs/installation/managed-k8s.md) |
 
 Alle Installationsmodi verwenden dieselben repositoryeigenen Helm-Charts unter `deploy/helm/` und dieselben Control-Plane-Vertraege.
 
@@ -76,14 +76,14 @@ Die Plattform ist so entworfen, dass Governance zentral bleibt, waehrend Ausfueh
 
 ## Dokumentation
 
-- [Administrationsleitfaden](./docs/administration/)
-- [Betriebsleitfaden](./docs/operations/)
-- [Entwicklungsleitfaden](./docs/development/)
-- [Funktionsdokumentation](./docs/features/)
-- [Integrationen](./docs/integrations/)
-- [Agentenleitfaden](./docs/agents.md)
-- [Systemarchitektur](./docs/system-architecture-v5.md)
-- [Softwarearchitektur](./docs/software-architecture-v5.md)
+- [Administrationsleitfaden](./docs/admin-guide/)
+- [Betriebsleitfaden](./docs/operator-guide/)
+- [Entwicklungsleitfaden](./docs/developer-guide/)
+- [Benutzerleitfaden](./docs/user-guide/)
+- [Integrationen](./docs/admin-guide/integrations.md)
+- [Leitfaden zum Erstellen von Agenten](./docs/developer-guide/building-agents.md)
+- [Systemarchitektur](./docs/system-architecture-v6.md)
+- [Softwarearchitektur](./docs/software-architecture-v6.md)
 - [Funktionale Anforderungen](./docs/functional-requirements-revised-v6.md)
 
 ## Beitragen
@@ -99,4 +99,4 @@ Siehe [LICENSE](./LICENSE) fuer Lizenzbedingungen. Wenn die Datei in einem Check
 - Issues: [GitHub Issues](https://github.com/gntik-ai/musematic/issues)
 - Discussions: [GitHub Discussions](https://github.com/gntik-ai/musematic/discussions)
 - Releases: [GitHub Releases](https://github.com/gntik-ai/musematic/releases)
-- Sicherheitsmeldung: siehe [SECURITY.md](./SECURITY.md). Diese Datei ist ein zukuenftiges Repository-Administrationsartefakt ausserhalb von UPD-038.
+- Sicherheitsmeldung: siehe [SECURITY.md](./SECURITY.md) fuer Hinweise zur verantwortungsvollen Offenlegung.
