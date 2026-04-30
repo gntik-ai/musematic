@@ -403,7 +403,7 @@ jobs:
   docs-staleness:
     name: Docs staleness
     needs: changes
-    if: needs.changes.outputs.docs == 'true' || needs.changes.outputs.helm == 'true'
+    if: needs.changes.outputs.docs == 'true' || needs.changes.outputs.helm == 'true' || needs.changes.outputs.python == 'true' || needs.changes.outputs.go-any == 'true'
     runs-on: ubuntu-latest
     env:
       DISABLE_MKDOCS_2_WARNING: "true"
@@ -442,7 +442,7 @@ jobs:
         continue-on-error: true
         run: |
           set -euo pipefail
-          echo "Checking env-var docs drift" | tee -a /tmp/docs-staleness.out
+          echo "Checking env-var-doc drift" | tee -a /tmp/docs-staleness.out
           python scripts/generate-env-docs.py > /tmp/environment-variables.md
           diff -u docs/configuration/environment-variables.md /tmp/environment-variables.md \
             >> /tmp/docs-staleness.out 2>&1
@@ -483,7 +483,7 @@ jobs:
             echo "Docs staleness detected."
             echo
             echo "Remediation:"
-            echo "- Re-run python scripts/generate-env-docs.py --output docs/configuration/environment-variables.md and commit the result"
+            echo "- Env-var-doc drift: re-run python scripts/generate-env-docs.py --output docs/configuration/environment-variables.md and commit the result"
             echo "- Re-run helm-docs --chart-search-root=deploy/helm and commit changed chart README files"
             echo "- Re-run python scripts/aggregate-helm-docs.py --output docs/configuration/helm-values.md and commit the result"
             echo "- Fix any broken FR references reported above"
