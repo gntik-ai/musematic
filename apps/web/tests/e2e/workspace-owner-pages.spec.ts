@@ -430,9 +430,10 @@ test.describe("workspace owner workbench", () => {
     await expect(page.getByText(newOwnerId)).toBeVisible();
 
     await page.getByRole("button", { name: "Invite" }).click();
-    await page.getByLabel("User ID").fill(newOwnerId);
-    await page.getByLabel("Role").selectOption("viewer");
-    await page.getByRole("button", { name: "Add member" }).click();
+    const inviteDialog = page.getByRole("dialog");
+    await inviteDialog.getByLabel("User ID").fill(newOwnerId);
+    await inviteDialog.getByLabel("Role").selectOption("viewer");
+    await inviteDialog.getByRole("button", { name: "Add member" }).click();
 
     await page.getByRole("combobox").first().selectOption("viewer");
     await page.getByRole("button", { name: "Remove member" }).last().click();

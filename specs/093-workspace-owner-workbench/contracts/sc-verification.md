@@ -19,6 +19,18 @@ Status: partial local verification complete; live measurements pending.
 - Static Rule 45 endpoint-to-UI mapping is documented in `rule45-ui-mapping.md`.
 - Playwright and Python E2E scaffolding were added for workspace-owner pages, J20, and J01 IBOR extensions.
 - J01 live journey was attempted on 2026-04-30 and blocked before test execution because `http://localhost:8081` had no platform API listener for the session-level seed fixture.
+- Verification refresh on 2026-04-30 passed with sandbox-local dependency caches:
+  - `UV_CACHE_DIR=/tmp/uv-cache UV_PYTHON=/usr/bin/python3.12 uv run --extra test pytest tests/two_person_approval tests/workspaces tests/connectors tests/auth` from `apps/control-plane`: 37 passed.
+  - `UV_CACHE_DIR=/tmp/uv-cache UV_PYTHON=/usr/bin/python3.12 uv run pytest suites/workspace_owner -v` from `tests/e2e`: 12 passed.
+  - `UV_CACHE_DIR=/tmp/uv-cache UV_PYTHON=/usr/bin/python3.12 uv run pytest journeys/test_j20_workspace_owner.py -v` from `tests/e2e`: 1 passed.
+  - `PNPM_HOME=/tmp/pnpm-home XDG_DATA_HOME=/tmp/xdg PNPM_STORE_DIR=/tmp/pnpm-store pnpm --dir apps/web test`: 161 files, 520 tests passed.
+  - `PNPM_HOME=/tmp/pnpm-home XDG_DATA_HOME=/tmp/xdg PNPM_STORE_DIR=/tmp/pnpm-store pnpm --dir apps/web type-check`: passed.
+  - `PNPM_HOME=/tmp/pnpm-home XDG_DATA_HOME=/tmp/xdg PNPM_STORE_DIR=/tmp/pnpm-store pnpm --dir apps/web lint`: passed.
+  - `PNPM_HOME=/tmp/pnpm-home XDG_DATA_HOME=/tmp/xdg PNPM_STORE_DIR=/tmp/pnpm-store pnpm --dir apps/web test:i18n-parity`: passed for 5 locale catalogs.
+  - `PLAYWRIGHT_BROWSERS_PATH=/tmp/pw-browsers PLAYWRIGHT_BASE_URL=http://127.0.0.1:3100 pnpm --dir apps/web exec playwright test tests/e2e/workspace-owner-pages.spec.ts --project=chromium --reporter=line`: 4 passed after scoping the invite-role selector to the active dialog.
+  - `PLAYWRIGHT_BROWSERS_PATH=/tmp/pw-browsers PLAYWRIGHT_BASE_URL=http://127.0.0.1:3100 pnpm --dir apps/web exec playwright test --config tests/a11y/playwright.a11y.config.ts tests/a11y/workspace-owner.spec.ts --project=a11y-light-en --reporter=line`: 12 passed.
+- J01 refresh on 2026-04-30 remained blocked: `uv run pytest journeys/test_j01_admin_bootstrap.py -v` collected 3 tests, but all failed during `ensure_seeded` setup with `httpx.ConnectError: All connection attempts failed` against `http://localhost:8081`.
+- Kind-backed verification could not run in this sandbox on 2026-04-30: no kind clusters were present, `http://localhost:8081` and `http://localhost:8080` had no listeners before the local Next.js-only browser checks, and Docker inspection was rejected by the sandbox approval policy.
 
 ## Pending Live Measurements
 
