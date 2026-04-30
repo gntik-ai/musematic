@@ -97,6 +97,6 @@ Kafka 在有界上下文之间传递领域事件。PostgreSQL 存储关系状态
 ## 社区和支持
 
 - Issues: [GitHub Issues](https://github.com/gntik-ai/musematic/issues)
-- Discussions: [GitHub Discussions](https://github.com/gntik-ai/musematic/discussions)
+- 讨论：在 GitHub Discussions 启用之前，请使用 [GitHub Issues](https://github.com/gntik-ai/musematic/issues)。
 - Releases: [GitHub Releases](https://github.com/gntik-ai/musematic/releases)
 - 安全披露：请参阅 [SECURITY.md](./SECURITY.md) 了解负责任披露指南。

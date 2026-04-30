@@ -97,6 +97,6 @@ Consulta [LICENSE](./LICENSE) para los terminos de licencia. Si el archivo no ex
 ## Comunidad y soporte
 
 - Issues: [GitHub Issues](https://github.com/gntik-ai/musematic/issues)
-- Discussions: [GitHub Discussions](https://github.com/gntik-ai/musematic/discussions)
+- Discusiones: usa [GitHub Issues](https://github.com/gntik-ai/musematic/issues) hasta que GitHub Discussions esté habilitado.
 - Releases: [GitHub Releases](https://github.com/gntik-ai/musematic/releases)
 - Divulgacion de seguridad: consulta [SECURITY.md](./SECURITY.md) para la guia de divulgacion responsable.

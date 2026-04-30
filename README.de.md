@@ -97,6 +97,6 @@ Siehe [LICENSE](./LICENSE) fuer Lizenzbedingungen. Wenn die Datei in einem Check
 ## Community und Support
 
 - Issues: [GitHub Issues](https://github.com/gntik-ai/musematic/issues)
-- Discussions: [GitHub Discussions](https://github.com/gntik-ai/musematic/discussions)
+- Diskussionen: nutze [GitHub Issues](https://github.com/gntik-ai/musematic/issues), bis GitHub Discussions aktiviert ist.
 - Releases: [GitHub Releases](https://github.com/gntik-ai/musematic/releases)
 - Sicherheitsmeldung: siehe [SECURITY.md](./SECURITY.md) fuer Hinweise zur verantwortungsvollen Offenlegung.
