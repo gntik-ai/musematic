@@ -658,7 +658,12 @@ wait_for_active_pods() {
   local deadline
   local pod
 
-  mapfile -t pods < <(kubectl get pods -n "$namespace" --field-selector=status.phase!=Succeeded -o name 2>/dev/null || true)
+  mapfile -t pods < <(
+    kubectl get pods -n "$namespace" \
+      --field-selector=status.phase!=Succeeded \
+      -l '!cnpg.io/jobRole' \
+      -o name 2>/dev/null || true
+  )
   if [[ "${#pods[@]}" -eq 0 ]]; then
     return
   fi
@@ -864,7 +869,7 @@ run_manual_init_jobs() {
   if kubectl get statefulset -n "${NEO4J_NAMESPACE}" musematic-neo4j >/dev/null 2>&1; then
     launch_neo4j_schema_init
   fi
-  wait_for_labelled_pod "${PLATFORM_DATA_NAMESPACE}" "cnpg.io/cluster=musematic-postgres" "${POSTGRES_READY_TIMEOUT}"
+  wait_for_labelled_pod "${PLATFORM_DATA_NAMESPACE}" "cnpg.io/cluster=musematic-postgres,cnpg.io/podRole=instance" "${POSTGRES_READY_TIMEOUT}"
   launch_control_plane_migration
 
   wait_for_job_completion "${PLATFORM_DATA_NAMESPACE}" "${RELEASE_NAME}-minio-bucket-init" "${JOB_READY_TIMEOUT}"

@@ -127,6 +127,8 @@ def test_journey_observability_helpers_use_gateway_supported_loki_probe() -> Non
     log_helper = (ROOT / 'tests/e2e/journeys/helpers/assert_log_entry.py').read_text()
 
     assert 'LOKI_READY_PATH = "/loki/api/v1/status/buildinfo"' in readiness_helper
+    assert 'wait_for_observability_stack_ready(timeout_seconds: int = 180)' in readiness_helper
+    assert 'httpx.AsyncClient(timeout=10.0)' in readiness_helper
     assert '"loki": (_loki_url(), LOKI_READY_PATH)' in readiness_helper
     assert 'loki_client.get(LOKI_READY_PATH)' in log_helper
     assert 'loki_client.get("/ready")' not in log_helper
@@ -276,6 +278,8 @@ def test_install_script_runs_manual_init_jobs_and_ignores_completed_pods() -> No
     assert 'launch_control_plane_migration' in install_script
     assert 'wait_for_job_completion' in install_script
     assert '--field-selector=status.phase!=Succeeded' in install_script
+    assert "-l '!cnpg.io/jobRole'" in install_script
+    assert 'cnpg.io/cluster=musematic-postgres,cnpg.io/podRole=instance' in install_script
     assert 'timeout_to_seconds "$timeout"' in install_script
     assert 'pod_ready_or_succeeded "$namespace" "$pod"' in install_script
     assert '$phase" == "Succeeded"' in install_script
