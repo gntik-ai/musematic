@@ -72,6 +72,7 @@ from uuid import UUID, uuid4
 from fastapi.encoders import jsonable_encoder
 
 _PLAINTEXT_SECRET_PREFIX = "plain:"
+_REDACTED_PLAINTEXT_SECRET_REF = "plain:<redacted>"
 
 
 @dataclass(slots=True)
@@ -1106,12 +1107,34 @@ class OAuthService:
         after: dict[str, Any] | None,
     ) -> dict[str, Any]:
         if before is None:
-            return {"created": True, **(after or {})}
+            return {
+                "created": True,
+                **{
+                    key: OAuthService._redact_provider_audit_value(key, value)
+                    for key, value in (after or {}).items()
+                },
+            }
         changed: dict[str, Any] = {}
         for key, value in (after or {}).items():
             if before.get(key) != value:
-                changed[key] = {"before": before.get(key), "after": value}
+                changed[key] = {
+                    "before": OAuthService._redact_provider_audit_value(
+                        key,
+                        before.get(key),
+                    ),
+                    "after": OAuthService._redact_provider_audit_value(key, value),
+                }
         return changed
+
+    @staticmethod
+    def _redact_provider_audit_value(key: str, value: Any) -> Any:
+        if (
+            key == "client_secret_ref"
+            and isinstance(value, str)
+            and value.startswith(_PLAINTEXT_SECRET_PREFIX)
+        ):
+            return _REDACTED_PLAINTEXT_SECRET_REF
+        return value
 
     @staticmethod
     def _serialize_admin_provider(provider: Any) -> OAuthProviderAdminResponse:

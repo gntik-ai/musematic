@@ -399,6 +399,13 @@ async def test_upsert_provider_records_changed_fields_and_event(auth_settings) -
         "before": False,
         "after": True,
     }
+    client_secret_diff = repository.audit_entries[-1]["changed_fields"]["client_secret_ref"]
+    assert client_secret_diff == {
+        "before": "plain:<redacted>",
+        "after": "plain:<redacted>",
+    }
+    assert "google-secret" not in str(repository.audit_entries[-1]["changed_fields"])
+    assert "new-secret" not in str(repository.audit_entries[-1]["changed_fields"])
     assert producer.events[-1]["event_type"] == "auth.oauth.provider_configured"
 
     with pytest.raises(ValidationError, match="cannot be blank"):
@@ -711,6 +718,12 @@ async def test_oauth_secret_provider_and_serializer_edge_paths(monkeypatch, auth
     assert snapshot["source"] == "env"
     assert service._provider_snapshot(None) is None
     assert service._diff_provider(None, snapshot)["created"] is True
+    created_plain_secret_diff = service._diff_provider(
+        None,
+        {"client_secret_ref": "plain:created-secret"},
+    )
+    assert created_plain_secret_diff["client_secret_ref"] == "plain:<redacted>"
+    assert "created-secret" not in str(created_plain_secret_diff)
     diff = service._diff_provider(
         {"display_name": "Old", "enabled": True},
         {"display_name": "New", "enabled": True},

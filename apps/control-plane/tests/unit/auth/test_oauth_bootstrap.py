@@ -139,3 +139,8 @@ async def test_bootstrap_force_update_overwrites_existing_provider(
     assert existing.domain_restrictions == ["example.com"]
     assert repository.audit_entries[-1]["action"] == "config_reseeded"
     assert repository.audit_entries[-1]["changed_fields"]["severity"] == "critical"
+    assert (
+        repository.audit_entries[-1]["changed_fields"]["client_secret_ref"]["before"]
+        == "plain:<redacted>"
+    )
+    assert "google-secret" not in str(repository.audit_entries[-1]["changed_fields"])
