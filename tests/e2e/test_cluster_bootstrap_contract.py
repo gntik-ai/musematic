@@ -280,6 +280,12 @@ def test_install_script_runs_manual_init_jobs_and_ignores_completed_pods() -> No
     assert 'launch_neo4j_schema_init' in install_script
     assert 'launch_control_plane_migration' in install_script
     assert 'wait_for_job_completion' in install_script
+    assert 'JOB_READY_TIMEOUT="${JOB_READY_TIMEOUT:-900s}"' in install_script
+    assert 'JOB_COMPLETION_RECHECK_TIMEOUT="${JOB_COMPLETION_RECHECK_TIMEOUT:-60s}"' in install_script
+    assert 'job_completed "$namespace" "$job_name"' in install_script
+    assert 'completed after kubectl wait returned non-zero' in install_script
+    assert 'jsonpath=\'{.status.succeeded}\'' in install_script
+    assert '-l "job-name=${job_name}"' in install_script
     assert '--field-selector=status.phase!=Succeeded' in install_script
     assert "-l '!cnpg.io/jobRole'" in install_script
     assert 'cnpg.io/cluster=musematic-postgres,cnpg.io/podRole=instance' in install_script

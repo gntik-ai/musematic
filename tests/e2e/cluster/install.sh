@@ -39,7 +39,8 @@ STRIMZI_MANIFEST_URL="${STRIMZI_MANIFEST_URL:-https://strimzi.io/install/latest?
 HELM_TIMEOUT="${HELM_TIMEOUT:-20m}"
 PLATFORM_READY_TIMEOUT="${PLATFORM_READY_TIMEOUT:-600s}"
 POSTGRES_READY_TIMEOUT="${POSTGRES_READY_TIMEOUT:-600s}"
-JOB_READY_TIMEOUT="${JOB_READY_TIMEOUT:-600s}"
+JOB_READY_TIMEOUT="${JOB_READY_TIMEOUT:-900s}"
+JOB_COMPLETION_RECHECK_TIMEOUT="${JOB_COMPLETION_RECHECK_TIMEOUT:-60s}"
 MIGRATION_RETRY_ATTEMPTS="${MIGRATION_RETRY_ATTEMPTS:-60}"
 MIGRATION_RETRY_DELAY_SECONDS="${MIGRATION_RETRY_DELAY_SECONDS:-5}"
 CONTROL_PLANE_MIGRATION_IMAGE="${CONTROL_PLANE_MIGRATION_IMAGE:-ghcr.io/musematic/control-plane:local}"
@@ -369,14 +370,67 @@ wait_for_job_completion() {
   local namespace="$1"
   local job_name="$2"
   local timeout="$3"
+  local recheck_timeout_seconds
+  local deadline
 
-  if ! kubectl wait -n "$namespace" --for=condition=complete "job/${job_name}" --timeout="$timeout"; then
-    echo "[e2e] job ${job_name} failed or timed out" >&2
-    kubectl describe job -n "$namespace" "$job_name" || true
-    kubectl logs -n "$namespace" "job/${job_name}" --all-containers=true || true
-    exit 1
+  if kubectl wait -n "$namespace" --for=condition=complete "job/${job_name}" --timeout="$timeout"; then
+    kubectl delete job -n "$namespace" "$job_name" --ignore-not-found >/dev/null 2>&1 || true
+    return
   fi
-  kubectl delete job -n "$namespace" "$job_name" --ignore-not-found >/dev/null 2>&1 || true
+
+  recheck_timeout_seconds="$(timeout_to_seconds "$JOB_COMPLETION_RECHECK_TIMEOUT")"
+  deadline=$(( $(date +%s) + recheck_timeout_seconds ))
+  while true; do
+    if job_completed "$namespace" "$job_name"; then
+      echo "[e2e] job ${job_name} completed after kubectl wait returned non-zero"
+      kubectl delete job -n "$namespace" "$job_name" --ignore-not-found >/dev/null 2>&1 || true
+      return
+    fi
+    if (( $(date +%s) >= deadline )); then
+      break
+    fi
+    sleep 5
+  done
+
+  echo "[e2e] job ${job_name} failed or timed out" >&2
+  kubectl describe job -n "$namespace" "$job_name" || true
+  kubectl logs -n "$namespace" "job/${job_name}" --all-containers=true || true
+  exit 1
+}
+
+job_completed() {
+  local namespace="$1"
+  local job_name="$2"
+  local complete
+  local succeeded
+  local phase
+  local saw_pod=false
+
+  complete="$(
+    kubectl get job -n "$namespace" "$job_name" \
+      -o jsonpath='{range .status.conditions[?(@.type=="Complete")]}{.status}{end}' 2>/dev/null || true
+  )"
+  if [[ "$complete" == "True" ]]; then
+    return 0
+  fi
+
+  succeeded="$(kubectl get job -n "$namespace" "$job_name" -o jsonpath='{.status.succeeded}' 2>/dev/null || true)"
+  if [[ "${succeeded:-0}" =~ ^[1-9][0-9]*$ ]]; then
+    return 0
+  fi
+
+  while IFS= read -r phase; do
+    [[ -z "$phase" ]] && continue
+    saw_pod=true
+    if [[ "$phase" != "Succeeded" ]]; then
+      return 1
+    fi
+  done < <(
+    kubectl get pods -n "$namespace" -l "job-name=${job_name}" \
+      -o jsonpath='{range .items[*]}{.status.phase}{"\n"}{end}' 2>/dev/null || true
+  )
+
+  [[ "$saw_pod" == "true" ]]
 }
 
 launch_minio_bucket_init() {
