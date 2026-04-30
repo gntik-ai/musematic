@@ -343,6 +343,17 @@ class AuthRepository:
         )
         return bool(getattr(result, "rowcount", 0))
 
+    async def update_mfa_recovery_codes(
+        self,
+        enrollment_id: UUID,
+        recovery_hashes: list[str],
+    ) -> None:
+        await self.db.execute(
+            update(MfaEnrollment)
+            .where(MfaEnrollment.id == enrollment_id)
+            .values(recovery_codes_hash=recovery_hashes)
+        )
+
     async def consume_recovery_code(
         self,
         enrollment_id: UUID,

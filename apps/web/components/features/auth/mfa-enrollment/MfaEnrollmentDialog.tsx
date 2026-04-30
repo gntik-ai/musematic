@@ -29,6 +29,7 @@ export function MfaEnrollmentDialog({
 }: MfaEnrollmentDialogProps) {
   const [step, setStep] = useState<MfaEnrollmentStep>("qr_display");
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
+  const [pendingRecoveryCodes, setPendingRecoveryCodes] = useState<string[]>([]);
   const [pulseAcknowledgement, setPulseAcknowledgement] = useState(false);
 
   useEffect(() => {
@@ -49,6 +50,7 @@ export function MfaEnrollmentDialog({
     if (open) {
       setStep("qr_display");
       setRecoveryCodes([]);
+      setPendingRecoveryCodes([]);
       setPulseAcknowledgement(false);
     }
   }, [open]);
@@ -102,7 +104,8 @@ export function MfaEnrollmentDialog({
         {step === "qr_display" ? (
           <QrCodeStep
             allowSkip={allowSkip}
-            onNext={() => {
+            onNext={(codes) => {
+              setPendingRecoveryCodes(codes ?? []);
               setStep("verification");
             }}
             onSkip={onSkip}
@@ -115,7 +118,7 @@ export function MfaEnrollmentDialog({
               setStep("qr_display");
             }}
             onSuccess={(codes) => {
-              setRecoveryCodes(codes);
+              setRecoveryCodes(codes?.length ? codes : pendingRecoveryCodes);
               setStep("recovery_codes");
             }}
           />

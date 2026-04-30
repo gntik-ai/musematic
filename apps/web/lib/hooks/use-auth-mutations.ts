@@ -4,8 +4,10 @@ import { useMutation, type UseMutationResult } from "@tanstack/react-query";
 import {
   completePasswordReset,
   confirmMfa,
+  disableMfa,
   enrollMfa,
   login,
+  regenerateMfaRecoveryCodes,
   requestPasswordReset,
   resendVerification,
   register,
@@ -16,7 +18,11 @@ import {
   type LoginResponse,
   type MfaConfirmRequest,
   type MfaConfirmResponse,
+  type MfaDisableRequest,
+  type MfaDisableResponse,
   type MfaEnrollResponse,
+  type MfaRecoveryCodesRegenerateRequest,
+  type MfaRecoveryCodesRegenerateResponse,
   type MfaVerifyRequest,
   type MfaVerifyResponse,
   type PasswordResetCompleteRequest,
@@ -128,5 +134,25 @@ export function useMfaConfirmMutation(): UseMutationResult<
 > {
   return useMutation({
     mutationFn: confirmMfa,
+  });
+}
+
+export function useMfaRecoveryCodesRegenerateMutation(): UseMutationResult<
+  MfaRecoveryCodesRegenerateResponse,
+  ApiError,
+  MfaRecoveryCodesRegenerateRequest
+> {
+  return useMutation({
+    mutationFn: regenerateMfaRecoveryCodes,
+  });
+}
+
+export function useMfaDisableMutation(): UseMutationResult<
+  MfaDisableResponse,
+  ApiError,
+  MfaDisableRequest
+> {
+  return useMutation({
+    mutationFn: disableMfa,
   });
 }

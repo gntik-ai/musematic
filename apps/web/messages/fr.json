@@ -456,7 +456,71 @@
         "notEnrolled": "TODO: Not enrolled"
       },
       "activeDescription": "TODO: Your account requires an authenticator code during sign-in.",
-      "notEnrolledDescription": "TODO: Add an authenticator app to protect sign-in and sensitive account actions."
+      "notEnrolledDescription": "TODO: Add an authenticator app to protect sign-in and sensitive account actions.",
+      "enrollFlow": {
+        "title": "TODO: Enrollment flow",
+        "stepCounter": "TODO: Step {current} of {total}",
+        "progressAria": "TODO: MFA enrollment progress",
+        "enableTitle": "TODO: Start with your authenticator app",
+        "enableDescription": "TODO: You will scan a QR code, confirm a 6-digit code, and save one-time backup codes.",
+        "begin": "TODO: Start enrollment",
+        "loading": "TODO: Preparing",
+        "qrTitle": "TODO: Scan or enter the setup key",
+        "qrDescription": "TODO: Use an authenticator app that supports time-based one-time passwords.",
+        "confirmTitle": "TODO: Confirm the authenticator code",
+        "confirmDescription": "TODO: Enter the current 6-digit code from your authenticator app.",
+        "backupTitle": "TODO: Save your backup codes",
+        "backupDescription": "TODO: These codes are shown once. Store them before leaving this step.",
+        "codeAria": "TODO: Authenticator verification code",
+        "back": "TODO: Back",
+        "next": "TODO: Next",
+        "verify": "TODO: Verify",
+        "verifying": "TODO: Verifying",
+        "successTitle": "TODO: MFA enrollment completed",
+        "errors": {
+          "enroll": "TODO: Unable to prepare MFA enrollment.",
+          "confirm": "TODO: Unable to verify that code."
+        }
+      },
+      "qr": {
+        "aria": "TODO: MFA QR code",
+        "manualTitle": "TODO: Manual entry",
+        "manualDescription": "TODO: If you cannot scan the QR code, enter this setup key in your authenticator app.",
+        "copy": "TODO: Copy setup key",
+        "copied": "TODO: Copied"
+      },
+      "backupCodes": {
+        "title": "TODO: One-time backup codes",
+        "description": "TODO: Each code can be used once if you lose access to your authenticator.",
+        "copy": "TODO: Copy all codes",
+        "copied": "TODO: Copied",
+        "download": "TODO: Download",
+        "acknowledge": "TODO: I have saved these backup codes somewhere safe.",
+        "dismiss": "TODO: I saved them"
+      },
+      "regenerateDialog": {
+        "title": "TODO: Regenerate backup codes",
+        "description": "TODO: Existing unused backup codes will stop working after regeneration.",
+        "code": "TODO: Authenticator code",
+        "codeAria": "TODO: Authenticator code for backup-code regeneration",
+        "cancel": "TODO: Cancel",
+        "submit": "TODO: Regenerate",
+        "submitting": "TODO: Regenerating",
+        "successTitle": "TODO: Backup codes regenerated",
+        "error": "TODO: Unable to regenerate backup codes."
+      },
+      "disableDialog": {
+        "title": "TODO: Disable MFA",
+        "description": "TODO: Enter your password and current authenticator code. If MFA is enforced by policy, this action will be refused.",
+        "password": "TODO: Password",
+        "code": "TODO: Authenticator code",
+        "codeAria": "TODO: Authenticator code for disabling MFA",
+        "cancel": "TODO: Cancel",
+        "submit": "TODO: Disable MFA",
+        "submitting": "TODO: Disabling",
+        "successTitle": "TODO: MFA disabled",
+        "error": "TODO: Unable to disable MFA."
+      }
     },
     "sessions": {
       "title": "TODO: Sessions",

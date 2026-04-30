@@ -265,7 +265,7 @@ describe("use-auth-mutations", () => {
       response = await result.current.mutateAsync({ code: "123456" });
     });
 
-    expect(requestBody).toEqual({ code: "123456" });
+    expect(requestBody).toEqual({ totp_code: "123456" });
     expect(response).toEqual({ recovery_codes: ["alpha", "bravo"] });
   });
 });

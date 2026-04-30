@@ -48,7 +48,9 @@ from platform.auth.schemas import (
     LoginResponse,
     MfaChallengeResponse,
     MfaConfirmResponse,
+    MfaDisableResponse,
     MfaEnrollResponse,
+    MfaRecoveryCodesRegenerateResponse,
     MfaStatus,
     PermissionCheckResponse,
     ServiceAccountCreateResponse,
@@ -466,6 +468,63 @@ class AuthService:
             self.producer,
         )
         return MfaConfirmResponse()
+
+    async def regenerate_mfa_recovery_codes(
+        self,
+        user_id: UUID,
+        totp_code: str,
+        *,
+        correlation_id: UUID | None = None,
+    ) -> MfaRecoveryCodesRegenerateResponse:
+        enrollment = await self.repository.get_mfa_enrollment(user_id)
+        if enrollment is None or enrollment.status != MfaStatus.ACTIVE.value:
+            raise InvalidMfaTokenError("Active MFA enrollment required")
+
+        secret = decrypt_secret(enrollment.encrypted_secret, self.settings.mfa_encryption_key)
+        if not verify_totp_code(secret, totp_code.strip()):
+            raise InvalidMfaCodeError()
+
+        recovery_codes, recovery_hashes = generate_recovery_codes()
+        await self.repository.update_mfa_recovery_codes(enrollment.id, recovery_hashes)
+        await publish_auth_event(
+            "auth.mfa.recovery_codes_regenerated",
+            MfaRecoveryCodesRegeneratedPayload(user_id=user_id),
+            correlation_id or uuid4(),
+            self.producer,
+        )
+        return MfaRecoveryCodesRegenerateResponse(recovery_codes=recovery_codes)
+
+    async def disable_mfa_self_service(
+        self,
+        user_id: UUID,
+        password: str,
+        totp_code: str,
+        *,
+        correlation_id: UUID | None = None,
+    ) -> MfaDisableResponse:
+        credential = await self.repository.get_credential_by_user_id(user_id)
+        if credential is None or not credential.is_active:
+            raise InvalidCredentialsError()
+        if not verify_password(password, credential.password_hash):
+            raise InvalidCredentialsError()
+
+        enrollment = await self.repository.get_mfa_enrollment(user_id)
+        if enrollment is None or enrollment.status != MfaStatus.ACTIVE.value:
+            raise InvalidMfaTokenError("Active MFA enrollment required")
+
+        secret = decrypt_secret(enrollment.encrypted_secret, self.settings.mfa_encryption_key)
+        if not verify_totp_code(secret, totp_code.strip()):
+            raise InvalidMfaCodeError()
+
+        disabled = await self.repository.disable_mfa_enrollment(user_id)
+        if disabled:
+            await publish_auth_event(
+                "auth.mfa.disabled",
+                MfaDisabledPayload(user_id=user_id),
+                correlation_id or uuid4(),
+                self.producer,
+            )
+        return MfaDisableResponse()
 
     async def _ensure_user_records(self, *, user_id: UUID, email: str) -> None:
         normalized_email = email.strip().lower()

@@ -456,7 +456,71 @@
         "notEnrolled": "Not enrolled"
       },
       "activeDescription": "Your account requires an authenticator code during sign-in.",
-      "notEnrolledDescription": "Add an authenticator app to protect sign-in and sensitive account actions."
+      "notEnrolledDescription": "Add an authenticator app to protect sign-in and sensitive account actions.",
+      "enrollFlow": {
+        "title": "Enrollment flow",
+        "stepCounter": "Step {current} of {total}",
+        "progressAria": "MFA enrollment progress",
+        "enableTitle": "Start with your authenticator app",
+        "enableDescription": "You will scan a QR code, confirm a 6-digit code, and save one-time backup codes.",
+        "begin": "Start enrollment",
+        "loading": "Preparing",
+        "qrTitle": "Scan or enter the setup key",
+        "qrDescription": "Use an authenticator app that supports time-based one-time passwords.",
+        "confirmTitle": "Confirm the authenticator code",
+        "confirmDescription": "Enter the current 6-digit code from your authenticator app.",
+        "backupTitle": "Save your backup codes",
+        "backupDescription": "These codes are shown once. Store them before leaving this step.",
+        "codeAria": "Authenticator verification code",
+        "back": "Back",
+        "next": "Next",
+        "verify": "Verify",
+        "verifying": "Verifying",
+        "successTitle": "MFA enrollment completed",
+        "errors": {
+          "enroll": "Unable to prepare MFA enrollment.",
+          "confirm": "Unable to verify that code."
+        }
+      },
+      "qr": {
+        "aria": "MFA QR code",
+        "manualTitle": "Manual entry",
+        "manualDescription": "If you cannot scan the QR code, enter this setup key in your authenticator app.",
+        "copy": "Copy setup key",
+        "copied": "Copied"
+      },
+      "backupCodes": {
+        "title": "One-time backup codes",
+        "description": "Each code can be used once if you lose access to your authenticator.",
+        "copy": "Copy all codes",
+        "copied": "Copied",
+        "download": "Download",
+        "acknowledge": "I have saved these backup codes somewhere safe.",
+        "dismiss": "I saved them"
+      },
+      "regenerateDialog": {
+        "title": "Regenerate backup codes",
+        "description": "Existing unused backup codes will stop working after regeneration.",
+        "code": "Authenticator code",
+        "codeAria": "Authenticator code for backup-code regeneration",
+        "cancel": "Cancel",
+        "submit": "Regenerate",
+        "submitting": "Regenerating",
+        "successTitle": "Backup codes regenerated",
+        "error": "Unable to regenerate backup codes."
+      },
+      "disableDialog": {
+        "title": "Disable MFA",
+        "description": "Enter your password and current authenticator code. If MFA is enforced by policy, this action will be refused.",
+        "password": "Password",
+        "code": "Authenticator code",
+        "codeAria": "Authenticator code for disabling MFA",
+        "cancel": "Cancel",
+        "submit": "Disable MFA",
+        "submitting": "Disabling",
+        "successTitle": "MFA disabled",
+        "error": "Unable to disable MFA."
+      }
     },
     "sessions": {
       "title": "Sessions",

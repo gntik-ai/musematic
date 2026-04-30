@@ -23,7 +23,11 @@ from platform.auth.schemas import (
     MfaChallengeResponse,
     MfaConfirmRequest,
     MfaConfirmResponse,
+    MfaDisableRequest,
+    MfaDisableResponse,
     MfaEnrollResponse,
+    MfaRecoveryCodesRegenerateRequest,
+    MfaRecoveryCodesRegenerateResponse,
     MfaVerifyRequest,
     RefreshRequest,
     ServiceAccountCreateRequest,
@@ -137,6 +141,34 @@ async def verify_mfa(
     auth_service: AuthService = Depends(get_auth_service),
 ) -> TokenPair:
     return await auth_service.verify_mfa(payload.mfa_token, payload.totp_code)
+
+
+@router.post(
+    "/mfa/recovery-codes/regenerate",
+    response_model=MfaRecoveryCodesRegenerateResponse,
+)
+async def regenerate_mfa_recovery_codes(
+    payload: MfaRecoveryCodesRegenerateRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> MfaRecoveryCodesRegenerateResponse:
+    return await auth_service.regenerate_mfa_recovery_codes(
+        UUID(str(current_user["sub"])),
+        payload.totp_code,
+    )
+
+
+@router.post("/mfa/disable", response_model=MfaDisableResponse)
+async def disable_mfa(
+    payload: MfaDisableRequest,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> MfaDisableResponse:
+    return await auth_service.disable_mfa_self_service(
+        UUID(str(current_user["sub"])),
+        payload.password.get_secret_value(),
+        payload.totp_code,
+    )
 
 
 @router.post("/service-accounts", response_model=ServiceAccountCreateResponse)

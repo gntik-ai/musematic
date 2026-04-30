@@ -445,6 +445,17 @@ jobs:
             -v \
             --junitxml=reports/oauth-bootstrap-${{ matrix.secret_mode }}.xml
 
+      - name: Run self-service suite
+        working-directory: tests/e2e
+        env:
+          PLATFORM_VAULT_MODE: ${{ matrix.secret_mode }}
+        run: |
+          mkdir -p reports
+          python -m pytest \
+            suites/self_service \
+            -v \
+            --junitxml=reports/self-service-${{ matrix.secret_mode }}.xml
+
       - name: Run J01, J11, and J19 journeys
         working-directory: tests/e2e
         run: |

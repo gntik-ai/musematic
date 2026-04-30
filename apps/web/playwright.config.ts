@@ -2,9 +2,17 @@ import { defineConfig, devices } from "@playwright/test";
 
 const chromiumExecutablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 const firefoxExecutablePath = process.env.PLAYWRIGHT_FIREFOX_EXECUTABLE_PATH;
+const webRootPattern = process
+  .cwd()
+  .replace(/\\/g, "/")
+  .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 export default defineConfig({
-  testDir: "./e2e",
+  testDir: ".",
+  testMatch: [
+    new RegExp(`^${webRootPattern}/e2e/.*\\.spec\\.ts$`),
+    new RegExp(`^${webRootPattern}/tests/e2e/self-service-pages\\.spec\\.ts$`),
+  ],
   fullyParallel: true,
   retries: 0,
   reporter: "html",

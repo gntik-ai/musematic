@@ -697,6 +697,49 @@ async def test_j03_consumer_discovery_execution(
             assert unread_count == 1
             assert alerts.json()["items"][0]["title"] == "Interaction transitioned to completed"
 
+        with journey_step("Consumer receives the completion alert in the self-service notification center"):
+            unread = await consumer_workspace.get("/api/v1/me/alerts/unread-count")
+            unread.raise_for_status()
+            assert unread.json()["count"] >= 1
+
+        with journey_step("Consumer opens the bell-sized alert query and sees the five most recent notifications"):
+            bell_alerts = await consumer_workspace.get(
+                "/api/v1/me/alerts",
+                params={"read": "all", "limit": 5},
+            )
+            bell_alerts.raise_for_status()
+            assert len(bell_alerts.json()["items"]) <= 5
+
+        with journey_step("Consumer reads the inbox with unread filtering and clears all alerts"):
+            inbox = await consumer_workspace.get(
+                "/api/v1/me/alerts",
+                params={"read": "unread", "limit": 50},
+            )
+            inbox.raise_for_status()
+            assert inbox.json()["items"]
+            cleared = await consumer_workspace.post("/api/v1/me/alerts/mark-all-read")
+            cleared.raise_for_status()
+            assert cleared.json()["unread_count"] == 0
+
+        with journey_step("Consumer updates notification preferences through the event channel matrix contract"):
+            preferences = await consumer_workspace.put(
+                "/api/v1/me/notification-preferences",
+                json={
+                    "per_channel_preferences": {
+                        "security.session": ["in_app"],
+                        "interactions.completed": ["in_app", "email"],
+                    },
+                    "digest_mode": {"email": "daily"},
+                    "quiet_hours": {
+                        "start_time": "22:00",
+                        "end_time": "07:00",
+                        "timezone": "UTC",
+                    },
+                },
+            )
+            preferences.raise_for_status()
+            assert preferences.json()["digest_mode"]["email"] == "daily"
+
         with journey_step("Conversation history ends with two completed interactions and both execution traces persisted"):
             interactions = await consumer_workspace.get(
                 f"/api/v1/interactions/conversations/{conversation_payload['id']}/interactions"

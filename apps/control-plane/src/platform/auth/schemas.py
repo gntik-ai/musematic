@@ -94,6 +94,24 @@ class MfaConfirmResponse(BaseModel):
     message: str = "MFA enrollment confirmed"
 
 
+class MfaRecoveryCodesRegenerateRequest(BaseModel):
+    totp_code: str = Field(min_length=6, max_length=64)
+
+
+class MfaRecoveryCodesRegenerateResponse(BaseModel):
+    recovery_codes: list[str]
+
+
+class MfaDisableRequest(BaseModel):
+    password: SecretStr
+    totp_code: str = Field(min_length=6, max_length=64)
+
+
+class MfaDisableResponse(BaseModel):
+    status: str = "disabled"
+    message: str = "MFA disabled"
+
+
 class RefreshRequest(BaseModel):
     refresh_token: str
 
