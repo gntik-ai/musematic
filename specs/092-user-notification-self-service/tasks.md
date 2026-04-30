@@ -41,7 +41,7 @@ Independent-test discipline: every US MUST be verifiable in isolation. US1 = 15 
 ### Alembic migration
 
 - [X] T005 [W17A] [US1, US2, US3] Create `apps/control-plane/migrations/versions/070_user_self_service_extensions.py` (or the verified next-sequence number from T003) per plan.md design D2 + D13: 3 ALTER TABLE statements adding NEW JSONB columns to `user_alert_settings` per spec correction §7 — `per_channel_preferences: JSONB DEFAULT '{}'` (event_type → list of enabled channels), `digest_mode: JSONB DEFAULT '{}'` (channel → "immediate" / "hourly" / "daily"), `quiet_hours: JSONB DEFAULT NULL` (`{start_time, end_time, timezone}`). 1 ALTER TABLE adding `created_by_user_id: UUID FK to users.id NULLABLE` to `service_account_credentials` per spec correction §3 + design D3. Reversible downgrade.
-- [ ] T006 [W17A] Run `alembic upgrade head` locally against a test DB; verify the migration applies cleanly with existing rows preserved (per spec correction §5 — backward-compat default values); verify `alembic downgrade -1` removes the 4 columns without data loss per SC-019.
+- [X] T006 [W17A] Run `alembic upgrade head` locally against a test DB; verify the migration applies cleanly with existing rows preserved (per spec correction §5 — backward-compat default values); verify `alembic downgrade -1` removes the 4 columns without data loss per SC-019.
 
 ### Model + repository extensions
 
@@ -192,7 +192,7 @@ Independent-test discipline: every US MUST be verifiable in isolation. US1 = 15 
 - [X] T089 [W17B] [US1, US2, US3, US4, US5, US6, US7] Modify `apps/web/messages/en.json` per plan.md research R10: add ~80 new i18n keys under `notifications.{inbox,preferences}`, `apiKeys.*`, `security.{mfa,sessions,activity}`, `privacy.{consent,dsr}` namespaces. Reference these in all new TSX components via `useTranslations(...)` from `next-intl`.
 - [X] T090 [P] [W17B] Modify `apps/web/messages/{de,es,fr,it,zh-CN}.json`: copy English keys with TODO-translation markers per UPD-088's parity check; vendor translates per UPD-039 / FR-620. The 7-day grace window applies. Note: per spec correction §6 the FR-620 6-locale set excludes `ja` for the docs site — but UI catalogs include `ja` (legacy from feature 083). This task updates all 6 locale files including `ja.json`.
 - [X] T091 [P] [W17B] Run `pnpm test:i18n-parity` (UPD-088's parity check) — verify all 6 locale catalogs have all new keys; flag missing.
-- [ ] T092 [W17B] Run axe-core scan on all 9 new pages locally (`pnpm dev` + browser scan); verify zero AA violations per Rule 41 inheritance from UPD-083. Fix any violations introduced by the new sub-components (likely candidates: dialog focus management, table keyboard navigation, badge contrast).
+- [X] T092 [W17B] Run axe-core scan on all 9 new pages locally (`pnpm dev` + browser scan); verify zero AA violations per Rule 41 inheritance from UPD-083. Fix any violations introduced by the new sub-components (likely candidates: dialog focus management, table keyboard navigation, badge contrast).
 - [X] T093 [W17B] Run `pnpm test`, `pnpm typecheck`, `pnpm lint`, `pnpm test:i18n-parity` to verify all CI gates pass.
 
 ### Playwright E2E

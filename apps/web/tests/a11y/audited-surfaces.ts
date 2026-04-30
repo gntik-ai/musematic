@@ -13,7 +13,8 @@ export type A11ySurfaceGroup =
   | "evaluation"
   | "costs"
   | "preferences"
-  | "admin-locales";
+  | "admin-locales"
+  | "self-service";
 
 export interface AuditedSurface {
   id: string;
@@ -58,6 +59,35 @@ export const auditedSurfaces: AuditedSurface[] = [
   { id: "costs", group: "costs", route: "/costs", ready: bodyReady },
   { id: "preferences", group: "preferences", route: "/settings/preferences", ready: bodyReady },
   { id: "admin-locales", group: "admin-locales", route: "/admin/locales", ready: bodyReady },
+  { id: "notifications-inbox", group: "self-service", route: "/notifications", ready: bodyReady },
+  {
+    id: "notification-preferences",
+    group: "self-service",
+    route: "/settings/notifications",
+    ready: bodyReady,
+  },
+  { id: "api-keys", group: "self-service", route: "/settings/api-keys", ready: bodyReady },
+  { id: "security-overview", group: "self-service", route: "/settings/security", ready: bodyReady },
+  { id: "security-mfa", group: "self-service", route: "/settings/security/mfa", ready: bodyReady },
+  {
+    id: "security-sessions",
+    group: "self-service",
+    route: "/settings/security/sessions",
+    ready: bodyReady,
+  },
+  {
+    id: "security-activity",
+    group: "self-service",
+    route: "/settings/security/activity",
+    ready: bodyReady,
+  },
+  {
+    id: "privacy-consent",
+    group: "self-service",
+    route: "/settings/privacy/consent",
+    ready: bodyReady,
+  },
+  { id: "privacy-dsr", group: "self-service", route: "/settings/privacy/dsr", ready: bodyReady },
 ];
 
 export function surfacesForGroup(group: A11ySurfaceGroup): AuditedSurface[] {

@@ -31,4 +31,11 @@ The final sweep must verify SC-001 through SC-020 from `spec.md` against a live 
 
 ## Current Workspace Result
 
-Not executed end to end in this workspace. Static and unit-level checks should be run locally before handing the branch to CI, and the matrix CI must run the new self-service suite in `mock`, `kubernetes`, and `vault` secret modes.
+Partial local verification was completed on 2026-04-30:
+
+- SC-018 static scope gate passed: `python scripts/check-me-endpoint-scope.py`.
+- SC-019 self-service axe scan passed for the 9 audited pages: `216 passed` via `apps/web/tests/a11y/self-service.spec.ts`.
+- Migration compatibility for the four additive columns passed: fresh upgrade to revision `070`, seeded-row upgrade from `069` to `070`, downgrade back to `069`, and upgrade to current `head`.
+- Supporting local gates passed: `python scripts/check-secret-access.py`, `python scripts/check-admin-role-gates.py`, `apps/control-plane/.venv/bin/pytest tests/me/`, `pnpm --dir apps/web test`, `pnpm --dir apps/web type-check`, `pnpm --dir apps/web lint`, and `pnpm --dir apps/web test:i18n-parity`.
+
+The full SC-001 through SC-020 sweep remains blocked in this workspace because there is no live platform API, WebSocket gateway, Kubernetes context, matrix CI run, or 24-hour synthetic log source attached to this session.

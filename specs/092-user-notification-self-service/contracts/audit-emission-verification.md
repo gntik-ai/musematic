@@ -23,4 +23,10 @@ For each state-changing self-service endpoint, run a synthetic request and asser
 
 Not executed in this workspace because the task requires a live database-backed platform instance and synthetic identities with MFA, sessions, consents, and API keys.
 
-The new E2E suite includes coverage hooks under `tests/e2e/suites/self_service/` for these flows.
+Local supporting coverage was completed on 2026-04-30:
+
+- `python scripts/check-me-endpoint-scope.py` passed, confirming `/me/*` endpoints do not accept caller-supplied user scope.
+- `python scripts/check-secret-access.py` passed, confirming the implemented flows do not introduce direct secret reads outside approved providers.
+- The new E2E suite includes coverage hooks under `tests/e2e/suites/self_service/` for these flows.
+
+This does not replace the required T111 synthetic audit-chain row-count verification.

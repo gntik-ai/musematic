@@ -28,4 +28,8 @@ The scan must cover:
 
 Not executed in this workspace because there is no running 24-hour synthetic workload or Kubernetes log source attached to this session.
 
-The static secret-access gate remains available through `python scripts/check-secret-access.py`.
+Local static coverage was completed on 2026-04-30:
+
+- `python scripts/check-secret-access.py` passed with zero direct secret-access violations.
+
+This does not replace the required SC-014 24-hour `kubectl logs` scan.
