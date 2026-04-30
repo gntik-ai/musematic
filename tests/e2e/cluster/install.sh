@@ -706,14 +706,124 @@ wait_for_kafka_topics_ready() {
   kubectl wait --for=condition=Ready -n "${KAFKA_NAMESPACE}" kafkatopic -l "$selector" --timeout="$timeout"
 }
 
+redis_cluster_pods() {
+  kubectl get pods -n "${NAMESPACE}" -l app.kubernetes.io/name=redis-cluster \
+    -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | sort
+}
+
+wait_for_redis_processes() {
+  local pod
+  local attempt
+  local ready
+  local redis_pods=("$@")
+
+  for pod in "${redis_pods[@]}"; do
+    ready=false
+    for attempt in $(seq 1 120); do
+      if kubectl exec -n "${NAMESPACE}" "$pod" -- bash -ec '
+        REDISCLI_AUTH="$(cat "$REDIS_PASSWORD_FILE")"
+        export REDISCLI_AUTH
+        redis-cli -h 127.0.0.1 -p "${REDIS_PORT_NUMBER:-6379}" ping
+      ' >/dev/null 2>&1; then
+        ready=true
+        break
+      fi
+      sleep 5
+    done
+    if [[ "$ready" != "true" ]]; then
+      echo "[e2e] Redis process in ${pod} did not accept PING before timeout" >&2
+      return 1
+    fi
+  done
+}
+
+redis_cluster_state() {
+  kubectl exec -n "${NAMESPACE}" musematic-redis-0 -- bash -ec '
+    REDISCLI_AUTH="$(cat "$REDIS_PASSWORD_FILE")"
+    export REDISCLI_AUTH
+    redis-cli -h 127.0.0.1 -p "${REDIS_PORT_NUMBER:-6379}" cluster info \
+      | sed -n "s/^cluster_state://p" \
+      | tr -d "\r"
+  ' 2>/dev/null || true
+}
+
+redis_cluster_node_targets() {
+  local pod
+  for pod in "$@"; do
+    printf '%s.musematic-redis-headless.%s.svc.cluster.local:6379\n' "$pod" "${NAMESPACE}"
+  done
+}
+
+reset_redis_cluster_nodes() {
+  local pod
+  for pod in "$@"; do
+    kubectl exec -n "${NAMESPACE}" "$pod" -- bash -ec '
+      REDISCLI_AUTH="$(cat "$REDIS_PASSWORD_FILE")"
+      export REDISCLI_AUTH
+      redis-cli -h 127.0.0.1 -p "${REDIS_PORT_NUMBER:-6379}" cluster reset hard >/dev/null 2>&1 || true
+    '
+  done
+}
+
+create_redis_cluster() {
+  local bootstrap_pod="$1"
+  shift
+
+  kubectl exec -n "${NAMESPACE}" "$bootstrap_pod" -- bash -ec '
+    REDISCLI_AUTH="$(cat "$REDIS_PASSWORD_FILE")"
+    export REDISCLI_AUTH
+    redis-cli --cluster create "$@" --cluster-replicas 0 --cluster-yes
+  ' redis-cluster-create "$@"
+}
+
+ensure_redis_cluster_initialized() {
+  local attempt
+  local state
+  local -a redis_pods
+  local -a node_targets
+
+  mapfile -t redis_pods < <(redis_cluster_pods)
+  if [[ "${#redis_pods[@]}" -eq 0 ]]; then
+    echo "[e2e] Redis StatefulSet exists but no redis-cluster pods were found" >&2
+    exit 1
+  fi
+
+  wait_for_redis_processes "${redis_pods[@]}"
+
+  state="$(redis_cluster_state)"
+  if [[ "$state" == "ok" ]]; then
+    return
+  fi
+
+  echo "[e2e] Redis cluster state is ${state:-unknown}; recreating e2e cluster topology"
+  reset_redis_cluster_nodes "${redis_pods[@]}"
+  mapfile -t node_targets < <(redis_cluster_node_targets "${redis_pods[@]}")
+  create_redis_cluster "${redis_pods[0]}" "${node_targets[@]}"
+
+  for attempt in $(seq 1 60); do
+    state="$(redis_cluster_state)"
+    if [[ "$state" == "ok" ]]; then
+      return
+    fi
+    sleep 5
+  done
+
+  echo "[e2e] Redis cluster did not reach cluster_state:ok after manual initialization" >&2
+  kubectl get pods -n "${NAMESPACE}" -l app.kubernetes.io/name=redis-cluster -o wide >&2 || true
+  kubectl describe pods -n "${NAMESPACE}" -l app.kubernetes.io/name=redis-cluster >&2 || true
+  kubectl logs -n "${NAMESPACE}" -l app.kubernetes.io/name=redis-cluster --tail=200 >&2 || true
+  exit 1
+}
+
 wait_for_redis_ready() {
   if ! kubectl get statefulset -n "${NAMESPACE}" musematic-redis >/dev/null 2>&1; then
     return
   fi
 
   echo "[e2e] waiting for Redis cluster before restarting platform deployments"
-  kubectl rollout status -n "${NAMESPACE}" statefulset/musematic-redis --timeout="${PLATFORM_READY_TIMEOUT}"
+  ensure_redis_cluster_initialized
   kubectl wait --for=condition=Ready -n "${NAMESPACE}" pod -l app.kubernetes.io/name=redis-cluster --timeout="${PLATFORM_READY_TIMEOUT}"
+  kubectl rollout status -n "${NAMESPACE}" statefulset/musematic-redis --timeout="${PLATFORM_READY_TIMEOUT}"
 }
 
 run_manual_init_jobs() {

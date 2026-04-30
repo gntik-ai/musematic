@@ -13,6 +13,6 @@ data:
         uid: jaeger
         type: jaeger
         access: proxy
-        url: http://musematic-observability-jaeger-query.platform-observability.svc.cluster.local:16686
+        url: http://observability-jaeger-query.{{ include "musematic-observability.namespace" . }}.svc.cluster.local:16686
         isDefault: false
         editable: false

@@ -23,15 +23,42 @@ opentelemetry-collector:
     # -- Configures `opentelemetry-collector.resources.requests` for the observability chart.
     requests:
       # -- Configures `opentelemetry-collector.resources.requests.cpu` for the observability chart.
-      cpu: 25m
+      cpu: 50m
       # -- Configures `opentelemetry-collector.resources.requests.memory` for the observability chart.
-      memory: 64Mi
+      memory: 128Mi
     # -- Configures `opentelemetry-collector.resources.limits` for the observability chart.
     limits:
       # -- Configures `opentelemetry-collector.resources.limits.cpu` for the observability chart.
-      cpu: 200m
+      cpu: 500m
       # -- Configures `opentelemetry-collector.resources.limits.memory` for the observability chart.
-      memory: 128Mi
+      memory: 512Mi
+  # -- Configures `opentelemetry-collector.startupProbe` for slow kind runners.
+  startupProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 60
+    httpGet:
+      port: 13133
+      path: /
+  # -- Configures `opentelemetry-collector.livenessProbe` for slow kind runners.
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 12
+    httpGet:
+      port: 13133
+      path: /
+  # -- Configures `opentelemetry-collector.readinessProbe` for slow kind runners.
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 24
+    httpGet:
+      port: 13133
+      path: /
   # -- Configures `opentelemetry-collector.alternateConfig` for the observability chart.
   alternateConfig:
     # -- Configures `opentelemetry-collector.alternateConfig.processors` for the observability chart.

@@ -182,6 +182,31 @@ def test_e2e_observability_uses_pullable_prometheus_operator_webhook_patch_image
     assert patch_image['sha'] == ''
 
 
+def test_observability_chart_uses_single_prometheus_datasource_owner() -> None:
+    values = _load_yaml('deploy/helm/observability/values.yaml')
+    datasources = values['kube-prometheus-stack']['grafana']['sidecar']['datasources']
+    prometheus_datasource = (ROOT / 'deploy/helm/observability/templates/grafana-datasources/prometheus.yaml').read_text()
+    jaeger_datasource = (ROOT / 'deploy/helm/observability/templates/grafana-datasources/jaeger.yaml').read_text()
+
+    assert datasources['defaultDatasourceEnabled'] is False
+    assert datasources['isDefaultDatasource'] is False
+    assert 'observability-kube-prometh-prometheus' in prometheus_datasource
+    assert 'kube-prometheus-stack-prometheus' not in prometheus_datasource
+    assert 'observability-jaeger-query' in jaeger_datasource
+    assert 'musematic-observability-jaeger-query' not in jaeger_datasource
+
+
+def test_e2e_observability_otel_has_probe_tolerance_and_headroom() -> None:
+    values = _load_yaml('deploy/helm/observability/values-e2e.yaml')
+    collector = values['opentelemetry-collector']
+
+    assert collector['resources']['requests'] == {'cpu': '50m', 'memory': '128Mi'}
+    assert collector['resources']['limits'] == {'cpu': '500m', 'memory': '512Mi'}
+    assert collector['startupProbe']['failureThreshold'] >= 60
+    assert collector['livenessProbe']['timeoutSeconds'] == 5
+    assert collector['readinessProbe']['failureThreshold'] >= 24
+
+
 def test_makefile_renders_cluster_specific_kind_config() -> None:
     makefile = (ROOT / 'tests/e2e/Makefile').read_text()
     assert 'render-kind-config' in makefile
@@ -246,8 +271,14 @@ def test_install_script_waits_for_redis_before_restarting_platform_deployments()
         1,
     )[0]
 
+    assert 'ensure_redis_cluster_initialized' in install_script
+    assert 'redis-cli --cluster create "$@" --cluster-replicas 0 --cluster-yes' in install_script
+    assert 'redis-cli -h 127.0.0.1 -p "${REDIS_PORT_NUMBER:-6379}" cluster reset hard' in install_script
     assert 'kubectl rollout status -n "${NAMESPACE}" statefulset/musematic-redis' in redis_wait
     assert 'kubectl wait --for=condition=Ready -n "${NAMESPACE}" pod -l app.kubernetes.io/name=redis-cluster' in redis_wait
+    assert redis_wait.index('ensure_redis_cluster_initialized') < redis_wait.index(
+        'kubectl wait --for=condition=Ready',
+    )
     assert main_section.index('wait_for_redis_ready') < main_section.index('restart_platform_deployments')
 
 
