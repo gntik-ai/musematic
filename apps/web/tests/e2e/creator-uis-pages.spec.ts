@@ -476,6 +476,29 @@ test("contract page renders schema editor and enum summary", async ({
   await expect(page.getByText("executor, planner")).toBeVisible();
 });
 
+test("Monaco editor surfaces expose keyboard and screen reader labels", async ({
+  page,
+}) => {
+  await page.goto("/agent-management/creator-ui%3Aagent/context-profile");
+  const profileEditor = page.getByLabel(/Profile JSON code editor/i).first();
+  await expect(profileEditor).toBeAttached();
+  await profileEditor.focus();
+  await expect(profileEditor).toBeFocused();
+  await page.keyboard.press("Escape");
+
+  await page.goto("/agent-management/creator-ui%3Aagent/contract");
+  await page.getByRole("button", { name: "YAML" }).focus();
+  await expect(page.getByRole("button", { name: "YAML" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "JSON" })).toBeFocused();
+
+  const contractEditor = page.getByLabel(/Contract code editor/i).first();
+  await expect(contractEditor).toBeAttached();
+  await contractEditor.focus();
+  await expect(contractEditor).toBeFocused();
+  await page.keyboard.press("Escape");
+});
+
 test("contract preview actions are disabled before a contract exists", async ({
   page,
 }) => {

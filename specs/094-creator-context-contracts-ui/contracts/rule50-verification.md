@@ -24,6 +24,11 @@ Verified the UPD-044 creator-preview implementation against Rule 50:
   preview invokes the mock service and does not increment a real-LLM counter.
 - `apps/control-plane/tests/trust/test_contract_preview.py` asserts mock default,
   real-LLM acknowledgement rejection, and acknowledged opt-in behavior.
+- `apps/control-plane/src/platform/context_engineering/service.py` emits
+  `creator.context_profile.preview_executed`.
+- `apps/control-plane/src/platform/trust/contract_service.py` emits
+  `creator.contract.preview_executed` and conditionally emits
+  `creator.contract.real_llm_preview_used`.
 
 ## Local Run
 
@@ -42,3 +47,9 @@ UV_CACHE_DIR=/tmp/uv-cache uv run pytest \
 
 Result: 29 passed. The initial ambient `pytest` run was blocked by missing
 `grpc`; running through `uv` used the control-plane project environment.
+
+## Remaining Environment-Scope Verification
+
+Endpoint-level Rule 50 verification against a live API is covered by the
+kind/matrix E2E tasks. In this local sandbox, those tests stop before exercising
+the feature because no platform API is available at `http://localhost:8081`.

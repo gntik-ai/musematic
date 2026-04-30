@@ -55,6 +55,9 @@ async function installA11yState(page: Page, theme: string, locale: string) {
 }
 
 async function mockA11yApis(page: Page) {
+  const creatorProfileId = "22222222-2222-4222-8222-222222222222";
+  const creatorContractId = "33333333-3333-4333-8333-333333333333";
+  const creatorTemplateId = "44444444-4444-4444-8444-444444444444";
   const oauthProviders = [
     {
       id: "google-provider-id",
@@ -469,6 +472,76 @@ async function mockA11yApis(page: Page) {
     next_cursor: null,
   });
   await fulfillJson(page, "**/api/v1/admin/oauth-providers/*/rate-limits", oauthRateLimits);
+  await fulfillJson(page, "**/api/v1/context-engineering/profiles/schema", {
+    type: "object",
+    properties: {
+      name: { type: "string" },
+      source_config: { type: "array" },
+    },
+  });
+  await fulfillJson(page, "**/api/v1/context-engineering/profiles/*/versions**", {
+    versions: [
+      {
+        id: "55555555-5555-4555-8555-555555555555",
+        profile_id: creatorProfileId,
+        version_number: 1,
+        content_snapshot: { name: "creator-profile" },
+        change_summary: "Initial profile creation",
+        created_by: "user-a11y",
+        created_at: timestamp,
+      },
+    ],
+    next_cursor: null,
+  });
+  await fulfillJson(page, "**/api/v1/trust/contracts/schema", {
+    type: "object",
+    properties: {
+      agent_id: { type: "string" },
+      task_scope: { type: "string" },
+    },
+  });
+  await fulfillJson(page, "**/api/v1/trust/contracts/schema-enums", {
+    resource_types: ["workspace", "agent_revision"],
+    role_types: ["executor", "planner"],
+    workspace_constraints: ["workspace_visibility"],
+    failure_modes: ["continue", "warn", "throttle", "escalate", "terminate"],
+  });
+  await fulfillJson(page, "**/api/v1/trust/contracts/templates", {
+    items: [
+      {
+        id: creatorTemplateId,
+        name: "Customer support agent contract",
+        description: "Baseline contract for support agents.",
+        category: "customer-support",
+        template_content: {},
+        version_number: 1,
+        forked_from_template_id: null,
+        created_by_user_id: null,
+        is_platform_authored: true,
+        is_published: true,
+        created_at: timestamp,
+        updated_at: timestamp,
+      },
+    ],
+    total: 1,
+  });
+  await fulfillJson(page, `**/api/v1/trust/contracts/${creatorContractId}`, {
+    id: creatorContractId,
+    workspace_id: workspaceId,
+    agent_id: "creator-ui:agent",
+    task_scope: "Answer customer questions using approved sources.",
+    expected_outputs: { required: ["answer", "citations"] },
+    quality_thresholds: { minimum_confidence: 0.72 },
+    time_constraint_seconds: null,
+    cost_limit_tokens: null,
+    escalation_conditions: { pii_detected: "escalate" },
+    success_criteria: { must_include_citation: true },
+    enforcement_policy: "warn",
+    is_archived: false,
+    attached_revision_id: null,
+    created_at: timestamp,
+    updated_at: timestamp,
+  });
 }
 
 export function runA11yGroup(group: A11ySurfaceGroup) {

@@ -26,6 +26,7 @@ The implementation emits structured events for the new creator actions:
 
 The current implementation uses structured logging for these creator events.
 The plan requested audit-chain row growth assertions against
-`audit_chain_entries`; those require the full control-plane test dependency set
-and migrated database. Local pytest execution is currently blocked by missing
-`grpc` during shared test bootstrap.
+`audit_chain_entries`; those require a migrated database and a running
+control-plane API. Local E2E execution is currently blocked because no platform
+API is available at `http://localhost:8081`, and local Alembic execution is
+blocked because no `DATABASE_URL` / `POSTGRES_DSN` is configured.

@@ -114,6 +114,7 @@ export function YamlJsonEditor({
           language={language}
           onChange={handleChange}
           options={{
+            ariaLabel: `${label} code editor`,
             automaticLayout: true,
             fontFamily: "var(--font-mono)",
             fontSize: 13,

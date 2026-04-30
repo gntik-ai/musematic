@@ -10,24 +10,72 @@ Date: 2026-05-01
   `tests/e2e/suites/creator_uis/`.
 - Web Playwright coverage was added at
   `apps/web/tests/e2e/creator-uis-pages.spec.ts`.
-- New Python and E2E suite files pass `ruff check`.
-- The Playwright spec passes `eslint` when pnpm cache paths are redirected to
-  `/tmp`.
 - `pnpm lint`, `pnpm type-check`, `pnpm test`, and
   `pnpm test:i18n-parity` passed for `apps/web`.
 - `apps/web/tests/e2e/creator-uis-pages.spec.ts` passed on Chromium against a
-  local Next.js dev server at `http://127.0.0.1:3000`.
+  local Next.js dev server at `http://127.0.0.1:3000` with 22 passing
+  scenarios, including the Monaco keyboard/screen-reader label check.
+- `apps/web/tests/a11y/creator-uis.spec.ts` passed on `a11y-light-en` with
+  5/5 creator routes passing axe WCAG 2.1 A/AA checks.
 - The targeted UPD-044 control-plane tests passed through `uv` with
   29 passing tests.
 
+## Local Commands
+
+```sh
+cd apps/control-plane && UV_CACHE_DIR=/tmp/uv-cache uv run pytest \
+  tests/mock_llm/test_provider.py \
+  tests/context_engineering/test_versioning.py \
+  tests/context_engineering/test_preview.py \
+  tests/trust/test_contract_preview.py \
+  tests/trust/test_contract_templates.py \
+  tests/trust/test_attach_to_revision.py \
+  -q
+```
+
+Result: 29 passed.
+
+```sh
+cd apps/web && PNPM_HOME=/tmp/pnpm-home XDG_CACHE_HOME=/tmp/xdg-cache pnpm lint
+cd apps/web && PNPM_HOME=/tmp/pnpm-home XDG_CACHE_HOME=/tmp/xdg-cache pnpm type-check
+cd apps/web && PNPM_HOME=/tmp/pnpm-home XDG_CACHE_HOME=/tmp/xdg-cache pnpm test
+cd apps/web && PNPM_HOME=/tmp/pnpm-home XDG_CACHE_HOME=/tmp/xdg-cache pnpm test:i18n-parity
+```
+
+Results: lint passed; type-check passed; 161 Vitest files / 520 tests passed;
+i18n parity passed for 5 locale catalogs.
+
+```sh
+cd apps/web && PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 \
+  pnpm exec playwright test tests/e2e/creator-uis-pages.spec.ts --project=chromium
+```
+
+Result: 22 passed.
+
+```sh
+cd apps/web && PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 \
+  pnpm exec playwright test --config tests/a11y/playwright.a11y.config.ts \
+  tests/a11y/creator-uis.spec.ts --project=a11y-light-en
+```
+
+Result: 5 passed.
+
 ## Blocked Checks
 
-- Full axe, matrix-CI, and kind-cluster verification were not run in this
-  sandbox.
+- Alembic upgrade/downgrade verification is blocked locally because
+  `DATABASE_URL` / `POSTGRES_DSN` is unset and Docker/testcontainers access is
+  blocked by the current approval policy.
+- `pytest tests/e2e/suites/creator_uis/ -v` and
+  `pytest tests/e2e/journeys/test_j02_creator_to_publication.py -v` both stop
+  in the shared E2E seed/login fixture because no platform API is listening on
+  `http://localhost:8081`.
+- Matrix-CI verification is blocked because the current branch has no GitHub PR
+  and no Actions runs.
 
 ## Follow-Up Required In CI
 
-- Run the full control-plane test target with dependencies installed.
+- Run Alembic upgrade/downgrade against a migrated PostgreSQL database.
 - Run `pytest tests/e2e/suites/creator_uis/ -v` against a deployed stack.
-- Run the web Playwright, typecheck, lint, and i18n parity gates.
-- Run the axe AA scan for all new pages and Monaco keyboard navigation.
+- Run `pytest tests/e2e/journeys/test_j02_creator_to_publication.py -v`
+  against the same stack.
+- Open a PR and run the matrix-CI modes (`mock`, `kubernetes`, `vault`).
