@@ -167,6 +167,7 @@ install_vault() {
   fi
 
   echo "[e2e] installing Vault stack"
+  ensure_vault_helm_repos
   helm dependency build "${VAULT_CHART_DIR}"
   helm upgrade --install "${VAULT_RELEASE_NAME}" "${VAULT_CHART_DIR}" \
     --namespace "${VAULT_NAMESPACE}" \
@@ -174,6 +175,11 @@ install_vault() {
     -f "${VAULT_VALUES_FILE}" \
     --timeout "${HELM_TIMEOUT}"
   wait_for_labelled_pod "${VAULT_NAMESPACE}" "app.kubernetes.io/name=vault" "${PLATFORM_READY_TIMEOUT}"
+}
+
+ensure_vault_helm_repos() {
+  helm repo add hashicorp https://helm.releases.hashicorp.com --force-update
+  helm repo update
 }
 
 wait_for_observability_stack() {

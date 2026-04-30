@@ -63,6 +63,20 @@ def test_observability_install_adds_helm_repositories_before_dependency_build() 
     )
 
 
+def test_vault_install_adds_hashicorp_repo_before_dependency_build() -> None:
+    install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
+    vault_install = install_script.split('install_vault() {', 1)[1].split(
+        '\n}\n\nensure_vault_helm_repos',
+        1,
+    )[0]
+
+    assert 'ensure_vault_helm_repos' in install_script
+    assert 'https://helm.releases.hashicorp.com' in install_script
+    assert vault_install.index('ensure_vault_helm_repos') < vault_install.index(
+        'helm dependency build "${VAULT_CHART_DIR}"',
+    )
+
+
 def test_observability_install_uses_targeted_readiness_after_helm_apply() -> None:
     install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
     observability_install = install_script.split('install_observability() {', 1)[1].split(
