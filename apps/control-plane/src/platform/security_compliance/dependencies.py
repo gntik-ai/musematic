@@ -6,6 +6,7 @@ from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_db
 from platform.common.events.producer import EventProducer
+from platform.common.secret_provider import MockSecretProvider, SecretProvider
 from platform.security_compliance.providers.rotatable_secret_provider import RotatableSecretProvider
 from platform.security_compliance.repository import SecurityComplianceRepository
 from platform.security_compliance.services.compliance_service import ComplianceService
@@ -59,9 +60,14 @@ async def get_rotation_service(
     session: AsyncSession = Depends(get_db),
 ) -> SecretRotationService:
     settings = _settings(request)
+    secret_provider = cast(
+        SecretProvider,
+        getattr(request.app.state, "secret_provider", None)
+        or MockSecretProvider(settings, validate_paths=False),
+    )
     return SecretRotationService(
         SecurityComplianceRepository(session),
-        RotatableSecretProvider(settings, _redis(request)),
+        RotatableSecretProvider(settings, _redis(request), secret_provider),
         producer=_producer(request),
         audit_chain=build_audit_chain_service(session, settings, _producer(request)),
     )

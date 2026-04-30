@@ -11,6 +11,10 @@ from typing import Iterable
 
 ENV_NAME_RE = re.compile(r"^[A-Z][A-Z0-9_]{2,}$")
 SENSITIVE_RE = re.compile(r"(PASSWORD|SECRET|TOKEN|KEY|CREDENTIAL|PRIVATE)", re.I)
+SENSITIVE_ENV_OVERRIDES = {
+    "PLATFORM_VAULT_APPROLE_ROLE_ID",
+    "VAULT_APPROLE_ROLE_ID",
+}
 CONFIG_RE = re.compile(
     r"(URL|URI|HOST|PORT|ENDPOINT|ADDR|ADDRESS|DSN|BROKERS|REGION|BUCKET|NAMESPACE|DOMAIN|PATH|FILE)",
     re.I,
@@ -27,6 +31,7 @@ SPECIAL_DESCRIPTIONS = {
         "`superadmin.passwordSecretRef`. Related requirement: FR-004."
     ),
 }
+VAULT_SENSITIVE_ANNOTATION = "Never log; never persist outside Vault."
 
 
 @dataclasses.dataclass(slots=True)
@@ -41,6 +46,8 @@ class EnvVarEntry:
 
 
 def classify_sensitivity(name: str) -> str:
+    if name in SENSITIVE_ENV_OVERRIDES:
+        return "sensitive"
     if SENSITIVE_RE.search(name):
         return "sensitive"
     if CONFIG_RE.search(name):
@@ -49,7 +56,14 @@ def classify_sensitivity(name: str) -> str:
 
 
 def describe_env_var(name: str, fallback: str) -> str:
-    return SPECIAL_DESCRIPTIONS.get(name, fallback)
+    description = SPECIAL_DESCRIPTIONS.get(name, fallback)
+    if (
+        name.startswith(("PLATFORM_VAULT_", "VAULT_"))
+        and classify_sensitivity(name) == "sensitive"
+        and VAULT_SENSITIVE_ANNOTATION not in description
+    ):
+        description = f"{description} {VAULT_SENSITIVE_ANNOTATION}"
+    return description
 
 
 def normalize_default(value: object) -> str:

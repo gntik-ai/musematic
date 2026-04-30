@@ -19,5 +19,8 @@ nodes:
       - containerPort: 30084
         hostPort: ${PORT_GITHUB_OAUTH}
         protocol: TCP
+      - containerPort: 30085
+        hostPort: ${PORT_VAULT}
+        protocol: TCP
   - role: worker
   - role: worker

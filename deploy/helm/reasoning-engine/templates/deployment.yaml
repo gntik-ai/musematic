@@ -25,6 +25,11 @@ spec:
                 name: {{ .Values.configSecretRef }}
             - configMapRef:
                 name: reasoning-engine-config
+          startupProbe:
+            grpc:
+              port: {{ .Values.grpcPort }}
+            periodSeconds: {{ .Values.probes.startup.periodSeconds }}
+            failureThreshold: {{ .Values.probes.startup.failureThreshold }}
           livenessProbe:
             grpc:
               port: {{ .Values.grpcPort }}

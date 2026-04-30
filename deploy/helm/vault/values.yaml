@@ -1,0 +1,80 @@
+# @section -- Global
+# -- Vault deployment mode used by Musematic wrapper logic: dev, standalone, or ha.
+mode: ha
+
+# @section -- Policy Job
+# -- Configures the post-install policy bootstrap job.
+policyJob:
+  # -- Enables the policy bootstrap hook.
+  enabled: true
+  # -- Vault CLI image used by bootstrap jobs.
+  image: hashicorp/vault:1.21.2
+  # -- Vault address reachable from the bootstrap job.
+  vaultAddr: http://musematic-vault.platform-security.svc.cluster.local:8200
+  # -- Secret containing a bootstrap token with policy/auth management privileges.
+  tokenSecretName: vault-bootstrap-token
+  # -- Secret key containing the bootstrap token.
+  tokenSecretKey: token
+
+# @section -- Kubernetes Auth Job
+# -- Configures Kubernetes auth bootstrap.
+kubernetesAuthJob:
+  # -- Enables the Kubernetes auth bootstrap hook.
+  enabled: true
+  # -- Kubernetes auth role created for platform workloads.
+  roleName: musematic-platform
+  # -- Bound service accounts allowed to use the role.
+  boundServiceAccounts:
+    - musematic-control-plane
+    - musematic-runtime-controller
+    - reasoning-engine
+    - simulation-controller
+    - sandbox-manager
+  # -- Namespaces containing the bound service accounts.
+  boundNamespaces:
+    - platform
+    - platform-runtime
+    - platform-reasoning
+    - platform-simulation
+    - platform-sandbox
+  # -- Token TTL assigned by the role.
+  tokenTtl: 1h
+
+# @section -- Network Policy
+# -- Restricts Vault ingress to platform control-plane and satellite namespaces.
+networkPolicy:
+  # -- Enables the Vault NetworkPolicy.
+  enabled: true
+  # -- Namespaces allowed to initiate connections to Vault.
+  allowedNamespaces:
+    - platform
+    - platform-runtime
+    - platform-reasoning
+    - platform-simulation
+    - platform-sandbox
+
+# @section -- Vault
+# -- Values passed to the upstream hashicorp/vault dependency.
+vault:
+  # -- Overrides the upstream Vault fullname so wrapper policy jobs and platform clients use the same service DNS name.
+  fullnameOverride: musematic-vault
+  injector:
+    enabled: false
+  ui:
+    enabled: true
+    serviceType: ClusterIP
+  server:
+    extraEnvironmentVars:
+      VAULT_CACERT: /vault/userconfig/tls/ca.crt
+    dataStorage:
+      enabled: true
+      size: 10Gi
+    auditStorage:
+      enabled: true
+      size: 5Gi
+    ha:
+      enabled: true
+      replicas: 3
+      raft:
+        enabled: true
+        setNodeId: true

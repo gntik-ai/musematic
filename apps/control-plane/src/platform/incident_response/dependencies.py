@@ -9,6 +9,8 @@ from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_db
 from platform.common.events.producer import EventProducer
+from platform.common.secret_provider import MockSecretProvider as CanonicalMockSecretProvider
+from platform.common.secret_provider import SecretProvider as CanonicalSecretProvider
 from platform.execution.dependencies import get_execution_service
 from platform.execution.service import ExecutionService
 from platform.incident_response.repository import IncidentResponseRepository
@@ -55,6 +57,11 @@ def get_secret_provider(request: Request) -> SecretProvider:
     provider = RotatableSecretProvider(
         settings=_get_settings(request),
         redis_client=_get_redis(request),
+        secret_provider=cast(
+            CanonicalSecretProvider,
+            getattr(request.app.state, "secret_provider", None)
+            or CanonicalMockSecretProvider(_get_settings(request), validate_paths=False),
+        ),
     )
     request.app.state.incident_response_secret_provider = provider
     return provider

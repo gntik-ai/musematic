@@ -63,6 +63,36 @@ def test_observability_install_adds_helm_repositories_before_dependency_build() 
     )
 
 
+def test_vault_install_adds_hashicorp_repo_before_dependency_build() -> None:
+    install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
+    vault_install = install_script.split('install_vault() {', 1)[1].split(
+        '\n}\n\nensure_vault_helm_repos',
+        1,
+    )[0]
+
+    assert 'ensure_vault_helm_repos' in install_script
+    assert 'https://helm.releases.hashicorp.com' in install_script
+    assert vault_install.index('ensure_vault_helm_repos') < vault_install.index(
+        'helm dependency build "${VAULT_CHART_DIR}"',
+    )
+
+
+def test_vault_dev_hooks_target_rendered_service_and_dev_token() -> None:
+    values = _load_yaml('deploy/helm/vault/values.yaml')
+    dev_values = _load_yaml('deploy/helm/vault/values-dev.yaml')
+    policies_job = (ROOT / 'deploy/helm/vault/templates/post-install-policies-job.yaml').read_text()
+    auth_job = (ROOT / 'deploy/helm/vault/templates/post-install-kubernetes-auth-job.yaml').read_text()
+
+    assert values['vault']['fullnameOverride'] == 'musematic-vault'
+    assert dev_values['policyJob']['vaultAddr'] == 'http://musematic-vault.platform-security.svc.cluster.local:8200'
+    assert values['vault']['server']['extraEnvironmentVars']['VAULT_CACERT'] == '/vault/userconfig/tls/ca.crt'
+    assert dev_values['vault']['server']['extraEnvironmentVars'] is None
+    assert 'eq .Values.mode "dev"' in policies_job
+    assert '.Values.vault.server.dev.devRootToken' in policies_job
+    assert 'eq .Values.mode "dev"' in auth_job
+    assert '.Values.vault.server.dev.devRootToken' in auth_job
+
+
 def test_observability_install_uses_targeted_readiness_after_helm_apply() -> None:
     install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
     observability_install = install_script.split('install_observability() {', 1)[1].split(
@@ -97,6 +127,8 @@ def test_journey_observability_helpers_use_gateway_supported_loki_probe() -> Non
     log_helper = (ROOT / 'tests/e2e/journeys/helpers/assert_log_entry.py').read_text()
 
     assert 'LOKI_READY_PATH = "/loki/api/v1/status/buildinfo"' in readiness_helper
+    assert 'wait_for_observability_stack_ready(timeout_seconds: int = 180)' in readiness_helper
+    assert 'httpx.AsyncClient(timeout=10.0)' in readiness_helper
     assert '"loki": (_loki_url(), LOKI_READY_PATH)' in readiness_helper
     assert 'loki_client.get(LOKI_READY_PATH)' in log_helper
     assert 'loki_client.get("/ready")' not in log_helper
@@ -168,6 +200,31 @@ def test_e2e_observability_uses_pullable_prometheus_operator_webhook_patch_image
     assert patch_image['sha'] == ''
 
 
+def test_observability_chart_uses_single_prometheus_datasource_owner() -> None:
+    values = _load_yaml('deploy/helm/observability/values.yaml')
+    datasources = values['kube-prometheus-stack']['grafana']['sidecar']['datasources']
+    prometheus_datasource = (ROOT / 'deploy/helm/observability/templates/grafana-datasources/prometheus.yaml').read_text()
+    jaeger_datasource = (ROOT / 'deploy/helm/observability/templates/grafana-datasources/jaeger.yaml').read_text()
+
+    assert datasources['defaultDatasourceEnabled'] is False
+    assert datasources['isDefaultDatasource'] is False
+    assert 'observability-kube-prometh-prometheus' in prometheus_datasource
+    assert 'kube-prometheus-stack-prometheus' not in prometheus_datasource
+    assert 'observability-jaeger-query' in jaeger_datasource
+    assert 'musematic-observability-jaeger-query' not in jaeger_datasource
+
+
+def test_e2e_observability_otel_has_probe_tolerance_and_headroom() -> None:
+    values = _load_yaml('deploy/helm/observability/values-e2e.yaml')
+    collector = values['opentelemetry-collector']
+
+    assert collector['resources']['requests'] == {'cpu': '50m', 'memory': '128Mi'}
+    assert collector['resources']['limits'] == {'cpu': '500m', 'memory': '512Mi'}
+    assert collector['startupProbe']['failureThreshold'] >= 60
+    assert collector['livenessProbe']['timeoutSeconds'] == 5
+    assert collector['readinessProbe']['failureThreshold'] >= 24
+
+
 def test_makefile_renders_cluster_specific_kind_config() -> None:
     makefile = (ROOT / 'tests/e2e/Makefile').read_text()
     assert 'render-kind-config' in makefile
@@ -221,7 +278,34 @@ def test_install_script_runs_manual_init_jobs_and_ignores_completed_pods() -> No
     assert 'launch_control_plane_migration' in install_script
     assert 'wait_for_job_completion' in install_script
     assert '--field-selector=status.phase!=Succeeded' in install_script
+    assert "-l '!cnpg.io/jobRole'" in install_script
+    assert 'cnpg.io/cluster=musematic-postgres,cnpg.io/podRole=instance' in install_script
+    assert 'timeout_to_seconds "$timeout"' in install_script
+    assert 'pod_ready_or_succeeded "$namespace" "$pod"' in install_script
+    assert '$phase" == "Succeeded"' in install_script
     assert 'kubectl rollout restart -n "${NAMESPACE}" "$deployment"' in install_script
+
+
+def test_install_script_waits_for_redis_before_restarting_platform_deployments() -> None:
+    install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
+    values = _load_yaml('tests/e2e/cluster/values-e2e.yaml')
+    redis_cluster = values['redis']['redis-cluster']
+    main_section = install_script.split('main() {', 1)[1].split('\n}\n\nmain "$@"', 1)[0]
+    redis_wait = install_script.split('wait_for_redis_ready() {', 1)[1].split(
+        '\n}\n\nrun_manual_init_jobs',
+        1,
+    )[0]
+
+    assert redis_cluster['cluster']['init'] is False
+    assert 'ensure_redis_cluster_initialized' in install_script
+    assert 'redis-cli --cluster create "$@" --cluster-replicas 0 --cluster-yes' in install_script
+    assert 'redis-cli -h 127.0.0.1 -p "${REDIS_PORT_NUMBER:-6379}" cluster reset hard' in install_script
+    assert 'kubectl rollout status -n "${NAMESPACE}" statefulset/musematic-redis' in redis_wait
+    assert 'kubectl wait --for=condition=Ready -n "${NAMESPACE}" pod -l app.kubernetes.io/name=redis-cluster' in redis_wait
+    assert redis_wait.index('ensure_redis_cluster_initialized') < redis_wait.index(
+        'kubectl wait --for=condition=Ready',
+    )
+    assert main_section.index('wait_for_redis_ready') < main_section.index('restart_platform_deployments')
 
 
 def test_install_script_prints_kafka_diagnostics_on_readiness_timeout() -> None:

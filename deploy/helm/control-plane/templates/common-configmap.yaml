@@ -38,6 +38,22 @@ data:
   WS_CLIENT_BUFFER_SIZE: {{ .Values.common.wsClientBufferSize | quote }}
   WS_HEARTBEAT_INTERVAL_SECONDS: {{ .Values.common.wsHeartbeatIntervalSeconds | quote }}
   WS_HEARTBEAT_TIMEOUT_SECONDS: {{ .Values.common.wsHeartbeatTimeoutSeconds | quote }}
+  PLATFORM_VAULT_MODE: {{ .Values.vault.mode | quote }}
+  PLATFORM_VAULT_ADDR: {{ .Values.vault.addr | quote }}
+  PLATFORM_VAULT_NAMESPACE: {{ .Values.vault.namespace | quote }}
+  PLATFORM_VAULT_CA_CERT_SECRET_REF: {{ .Values.vault.caCertSecretRef | quote }}
+  PLATFORM_VAULT_AUTH_METHOD: {{ .Values.vault.authMethod | quote }}
+  PLATFORM_VAULT_KUBERNETES_ROLE: {{ .Values.vault.kubernetes.role | quote }}
+  PLATFORM_VAULT_SERVICE_ACCOUNT_TOKEN_PATH: {{ .Values.vault.kubernetes.serviceAccountTokenPath | quote }}
+  PLATFORM_VAULT_APPROLE_ROLE_ID: {{ .Values.vault.approle.roleId | quote }}
+  PLATFORM_VAULT_APPROLE_SECRET_ID_SECRET_REF: {{ .Values.vault.approle.secretIdSecretRef | quote }}
+  PLATFORM_VAULT_KV_MOUNT: {{ .Values.vault.kvMount | quote }}
+  PLATFORM_VAULT_KV_PREFIX: {{ .Values.vault.kvPrefix | quote }}
+  PLATFORM_VAULT_CACHE_TTL_SECONDS: {{ .Values.vault.cache.ttlSeconds | quote }}
+  PLATFORM_VAULT_CACHE_MAX_STALENESS_SECONDS: {{ .Values.vault.cache.maxStalenessSeconds | quote }}
+  PLATFORM_VAULT_RETRY_ATTEMPTS: {{ .Values.vault.retry.attempts | quote }}
+  PLATFORM_VAULT_RETRY_TIMEOUT_SECONDS: {{ .Values.vault.retry.timeoutSeconds | quote }}
+  PLATFORM_VAULT_LEASE_RENEWAL_THRESHOLD: {{ .Values.vault.leaseRenewalThreshold | quote }}
   FEATURE_PRIVACY_DSR_ENABLED: {{ ternary "true" "false" .Values.privacy.dsrEnabled | quote }}
   FEATURE_DLP_ENABLED: {{ ternary "true" "false" .Values.privacy.dlpEnabled | quote }}
   FEATURE_RESIDENCY_ENFORCEMENT: {{ ternary "true" "false" .Values.privacy.residencyEnforcementEnabled | quote }}

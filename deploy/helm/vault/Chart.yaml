@@ -1,0 +1,10 @@
+apiVersion: v2
+name: musematic-vault
+description: Musematic wrapper chart for HashiCorp Vault.
+type: application
+version: 0.1.0
+appVersion: "1.21.2"
+dependencies:
+  - name: vault
+    repository: https://helm.releases.hashicorp.com
+    version: 0.32.0

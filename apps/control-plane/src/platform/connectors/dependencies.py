@@ -5,6 +5,7 @@ from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_db
 from platform.common.events.producer import EventProducer
+from platform.common.secret_provider import MockSecretProvider, SecretProvider
 from platform.connectors.repository import ConnectorsRepository
 from platform.connectors.service import ConnectorsService
 from typing import cast
@@ -36,6 +37,7 @@ def build_connectors_service(
     producer: EventProducer | None,
     redis_client: AsyncRedisClient,
     object_storage: AsyncObjectStorageClient,
+    secret_provider: SecretProvider | None = None,
 ) -> ConnectorsService:
     return ConnectorsService(
         repository=ConnectorsRepository(session),
@@ -43,6 +45,7 @@ def build_connectors_service(
         producer=producer,
         redis_client=redis_client,
         object_storage=object_storage,
+        secret_provider=secret_provider or MockSecretProvider(settings, validate_paths=False),
     )
 
 
@@ -56,4 +59,9 @@ async def get_connectors_service(
         producer=_get_producer(request),
         redis_client=_get_redis(request),
         object_storage=_get_object_storage(request),
+        secret_provider=cast(
+            SecretProvider,
+            getattr(request.app.state, "secret_provider", None)
+            or MockSecretProvider(_get_settings(request), validate_paths=False),
+        ),
     )

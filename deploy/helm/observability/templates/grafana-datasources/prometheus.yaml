@@ -13,6 +13,6 @@ data:
         uid: prometheus
         type: prometheus
         access: proxy
-        url: http://kube-prometheus-stack-prometheus.platform-observability.svc.cluster.local:9090
+        url: http://observability-kube-prometh-prometheus.{{ include "musematic-observability.namespace" . }}.svc.cluster.local:9090
         isDefault: true
         editable: false

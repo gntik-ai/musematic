@@ -80,7 +80,12 @@ from platform.common.logging import configure_logging, get_logger
 from platform.common.middleware.api_versioning_middleware import ApiVersioningMiddleware
 from platform.common.middleware.correlation_logging_middleware import CorrelationLoggingMiddleware
 from platform.common.middleware.rate_limit_middleware import RateLimitMiddleware
-from platform.common.secret_provider import MockSecretProvider
+from platform.common.secret_provider import (
+    KubernetesSecretProvider,
+    MockSecretProvider,
+    SecretProvider,
+    VaultSecretProvider,
+)
 from platform.common.tagging.router import (
     admin_labels_router as tagging_admin_labels_router,
 )
@@ -1307,7 +1312,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     )
     app.state.settings = resolved
     app.state.clients = _build_clients(resolved)
-    app.state.secret_provider = MockSecretProvider(resolved)
+    app.state.secret_provider = _build_secret_provider(resolved)
     app.state.analytics_repository = AnalyticsRepository(
         cast(AsyncClickHouseClient, app.state.clients["clickhouse"])
     )
@@ -1700,6 +1705,14 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     return app
 
 
+def _build_secret_provider(settings: PlatformSettings) -> SecretProvider:
+    if settings.vault.mode == "vault":
+        return VaultSecretProvider(settings.vault)
+    if settings.vault.mode == "kubernetes":
+        return KubernetesSecretProvider(settings.vault)
+    return MockSecretProvider(settings)
+
+
 def _build_security_rotation_service(app: FastAPI, session: Any) -> Any:
     from platform.audit.dependencies import build_audit_chain_service
     from platform.security_compliance.providers.rotatable_secret_provider import (
@@ -1716,6 +1729,11 @@ def _build_security_rotation_service(app: FastAPI, session: Any) -> Any:
         RotatableSecretProvider(
             settings,
             cast(AsyncRedisClient | None, app.state.clients.get("redis")),
+            cast(
+                SecretProvider,
+                getattr(app.state, "secret_provider", None)
+                or MockSecretProvider(settings, validate_paths=False),
+            ),
         ),
         producer=cast(EventProducer | None, app.state.clients.get("kafka")),
         audit_chain=build_audit_chain_service(

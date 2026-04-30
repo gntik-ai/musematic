@@ -15,3 +15,5 @@ The Developer Guide is for contributors and integrators extending Musematic. It 
 | [Evaluation Authoring](evaluation-authoring.md) | ATE scenarios and semantic tests. |
 | [Self-Correction Tuning](self-correction-tuning.md) | Convergence and correction controls. |
 | [Structured Logging](structured-logging.md) | Log format and correlation conventions. |
+| [Secret Provider Protocol](secret-provider-protocol.md) | Vault, Kubernetes, and mock secret resolution. |
+| [Adding a New Secret](adding-a-new-secret.md) | Canonical paths, policy updates, and callsite wiring. |

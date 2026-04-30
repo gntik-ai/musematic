@@ -219,6 +219,38 @@ opensearch:
   # -- Configures `opensearch.enabled` for the platform chart.
   enabled: true
 
+# @section -- Vault
+# -- Configures `vault` for the platform chart.
+vault:
+  # -- Configures `vault.enabled` for the platform chart.
+  enabled: false
+  # -- Configures `vault.mode` for the platform chart.
+  mode: ha
+  # -- Configures `vault.policyJob` for the platform chart.
+  policyJob:
+    # -- Configures `vault.policyJob.vaultAddr` for the platform chart.
+    vaultAddr: http://musematic-vault.platform-security.svc.cluster.local:8200
+  # -- Configures `vault.vault` for the upstream HashiCorp chart.
+  vault:
+    server:
+      ha:
+        enabled: true
+        replicas: 3
+        raft:
+          enabled: true
+          setNodeId: true
+      dataStorage:
+        enabled: true
+        size: 10Gi
+      auditStorage:
+        enabled: true
+        size: 5Gi
+    ui:
+      enabled: true
+      serviceType: ClusterIP
+    injector:
+      enabled: false
+
 # @section -- Controlplane
 # -- Configures `controlPlane` for the platform chart.
 controlPlane:
@@ -266,6 +298,58 @@ controlPlane:
     wsHeartbeatIntervalSeconds: 30
     # -- Configures `controlPlane.common.wsHeartbeatTimeoutSeconds` for the platform chart.
     wsHeartbeatTimeoutSeconds: 10
+  # -- Configures `controlPlane.serviceAccount` for the platform chart.
+  serviceAccount:
+    # -- Configures `controlPlane.serviceAccount.create` for the platform chart.
+    create: true
+    # -- Configures `controlPlane.serviceAccount.name` for the platform chart.
+    name: musematic-control-plane
+    # -- Configures `controlPlane.serviceAccount.annotations` for the platform chart.
+    annotations: {}
+  # -- Configures `controlPlane.vault` for the platform chart.
+  vault:
+    # -- Configures `controlPlane.vault.mode` for the platform chart.
+    mode: vault
+    # -- Configures `controlPlane.vault.addr` for the platform chart.
+    addr: http://musematic-vault.platform-security.svc.cluster.local:8200
+    # -- Configures `controlPlane.vault.namespace` for the platform chart.
+    namespace: ""
+    # -- Configures `controlPlane.vault.caCertSecretRef` for the platform chart.
+    caCertSecretRef: ""
+    # -- Configures `controlPlane.vault.authMethod` for the platform chart.
+    authMethod: kubernetes
+    # -- Configures `controlPlane.vault.kubernetes` for the platform chart.
+    kubernetes:
+      # -- Configures `controlPlane.vault.kubernetes.role` for the platform chart.
+      role: musematic-platform
+      # -- Configures `controlPlane.vault.kubernetes.serviceAccountTokenPath` for the platform chart.
+      serviceAccountTokenPath: /var/run/secrets/tokens/vault-token
+    # -- Configures `controlPlane.vault.approle` for the platform chart.
+    approle:
+      # -- Configures `controlPlane.vault.approle.roleId` for the platform chart.
+      roleId: ""
+      # -- Configures `controlPlane.vault.approle.secretIdSecretRef` for the platform chart.
+      secretIdSecretRef: ""
+    # -- Configures `controlPlane.vault.token` for the platform chart.
+    token: ""
+    # -- Configures `controlPlane.vault.kvMount` for the platform chart.
+    kvMount: secret
+    # -- Configures `controlPlane.vault.kvPrefix` for the platform chart.
+    kvPrefix: musematic/{environment}
+    # -- Configures `controlPlane.vault.cache` for the platform chart.
+    cache:
+      # -- Configures `controlPlane.vault.cache.ttlSeconds` for the platform chart.
+      ttlSeconds: 60
+      # -- Configures `controlPlane.vault.cache.maxStalenessSeconds` for the platform chart.
+      maxStalenessSeconds: 300
+    # -- Configures `controlPlane.vault.retry` for the platform chart.
+    retry:
+      # -- Configures `controlPlane.vault.retry.attempts` for the platform chart.
+      attempts: 3
+      # -- Configures `controlPlane.vault.retry.timeoutSeconds` for the platform chart.
+      timeoutSeconds: 10
+    # -- Configures `controlPlane.vault.leaseRenewalThreshold` for the platform chart.
+    leaseRenewalThreshold: 0.5
   # -- Configures `controlPlane.privacy` for the platform chart.
   privacy:
     # -- Configures `controlPlane.privacy.dsrEnabled` for the platform chart.

@@ -12,6 +12,7 @@ from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_current_user, get_db
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import AuthorizationError
+from platform.common.secret_provider import MockSecretProvider, SecretProvider
 from typing import Any, cast
 from uuid import UUID
 
@@ -30,6 +31,15 @@ def _get_redis_client(request: Request) -> AsyncRedisClient:
 def _get_producer(request: Request) -> EventProducer | None:
     producer = request.app.state.clients.get("kafka")
     return cast(EventProducer | None, producer)
+
+
+def _get_secret_provider(request: Request) -> SecretProvider:
+    settings = _get_settings(request)
+    return cast(
+        SecretProvider,
+        getattr(request.app.state, "secret_provider", None)
+        or MockSecretProvider(settings, validate_paths=False),
+    )
 
 
 def build_auth_service(request: Request, db: AsyncSession) -> AuthService:
@@ -54,6 +64,7 @@ def build_ibor_sync_service(request: Request, db: AsyncSession) -> IBORSyncServi
         settings=_get_settings(request),
         producer=_get_producer(request),
         session_factory=database.AsyncSessionLocal,
+        secret_provider=_get_secret_provider(request),
     )
 
 

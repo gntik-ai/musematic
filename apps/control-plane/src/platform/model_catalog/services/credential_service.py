@@ -17,7 +17,7 @@ from uuid import UUID
 
 
 class SecretReader(Protocol):
-    async def get_current(self, secret_name: str) -> str: ...
+    async def get(self, path: str, key: str = "value") -> str: ...
 
 
 class CredentialService:
@@ -144,7 +144,7 @@ class CredentialService:
         if self.secret_reader is None:
             return
         try:
-            value = await self.secret_reader.get_current(vault_ref)
+            value = await self.secret_reader.get(vault_ref)
         except Exception as exc:
             raise ValidationError(
                 "VAULT_REFERENCE_UNAVAILABLE",

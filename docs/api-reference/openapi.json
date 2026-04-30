@@ -5526,6 +5526,85 @@
         "title": "BundleExportResponse",
         "type": "object"
       },
+      "CacheFlushRequest": {
+        "properties": {
+          "all_pods": {
+            "default": false,
+            "title": "All Pods",
+            "type": "boolean"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "pod": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pod"
+          }
+        },
+        "title": "CacheFlushRequest",
+        "type": "object"
+      },
+      "CacheFlushResponse": {
+        "properties": {
+          "all_pods_requested": {
+            "default": false,
+            "title": "All Pods Requested",
+            "type": "boolean"
+          },
+          "flushed_count": {
+            "title": "Flushed Count",
+            "type": "integer"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "pod": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pod"
+          },
+          "scope": {
+            "const": "current-pod",
+            "default": "current-pod",
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "flushed_count"
+        ],
+        "title": "CacheFlushResponse",
+        "type": "object"
+      },
       "CalibrationRunCreate": {
         "additionalProperties": false,
         "properties": {
@@ -8796,6 +8875,35 @@
         ],
         "title": "ConflictStatus",
         "type": "string"
+      },
+      "ConnectivityTestResponse": {
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "latency_ms": {
+            "title": "Latency Ms",
+            "type": "number"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "latency_ms"
+        ],
+        "title": "ConnectivityTestResponse",
+        "type": "object"
       },
       "ConnectorHealthStatus": {
         "enum": [
@@ -35105,6 +35213,68 @@
         "title": "TokenPair",
         "type": "object"
       },
+      "TokenRotationRequest": {
+        "properties": {
+          "pod": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pod"
+          }
+        },
+        "title": "TokenRotationRequest",
+        "type": "object"
+      },
+      "TokenRotationResponse": {
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "pod": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pod"
+          },
+          "status": {
+            "enum": [
+              "green",
+              "yellow",
+              "red"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "status"
+        ],
+        "title": "TokenRotationResponse",
+        "type": "object"
+      },
       "TombstoneResponse": {
         "properties": {
           "cascade_log": {
@@ -38002,6 +38172,132 @@
           "fingerprint"
         ],
         "title": "ValidationManifest",
+        "type": "object"
+      },
+      "VaultStatusResponse": {
+        "properties": {
+          "auth_failure_counts_by_method": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Auth Failure Counts By Method",
+            "type": "object"
+          },
+          "auth_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Auth Method"
+          },
+          "cache_hit_rate": {
+            "default": 0.0,
+            "title": "Cache Hit Rate",
+            "type": "number"
+          },
+          "cache_hit_total": {
+            "default": 0.0,
+            "title": "Cache Hit Total",
+            "type": "number"
+          },
+          "cache_miss_total": {
+            "default": 0.0,
+            "title": "Cache Miss Total",
+            "type": "number"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "lease_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lease Count"
+          },
+          "mode": {
+            "title": "Mode",
+            "type": "string"
+          },
+          "policy_denied_counts_by_path": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Policy Denied Counts By Path",
+            "type": "object"
+          },
+          "read_counts_by_domain": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Read Counts By Domain",
+            "type": "object"
+          },
+          "recent_failures": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Recent Failures",
+            "type": "array"
+          },
+          "renewal_failure_total": {
+            "default": 0.0,
+            "title": "Renewal Failure Total",
+            "type": "number"
+          },
+          "renewal_success_total": {
+            "default": 0.0,
+            "title": "Renewal Success Total",
+            "type": "number"
+          },
+          "serving_stale_total": {
+            "default": 0.0,
+            "title": "Serving Stale Total",
+            "type": "number"
+          },
+          "status": {
+            "enum": [
+              "green",
+              "yellow",
+              "red"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "token_expiry_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Expiry At"
+          }
+        },
+        "required": [
+          "status",
+          "mode"
+        ],
+        "title": "VaultStatusResponse",
         "type": "object"
       },
       "VerdictListResponse": {
@@ -55921,6 +56217,250 @@
           {
             "lang": "curl",
             "source": "curl -X POST \"http://localhost:8000/api/v1/admin/users/{user_id}/suspend\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/vault/cache-flush": {
+      "post": {
+        "operationId": "flush_cache_api_v1_admin_vault_cache_flush_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CacheFlushRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CacheFlushResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Flush Cache",
+        "tags": [
+          "admin",
+          "vault"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/vault/cache-flush\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/vault/cache-flush\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/vault/cache-flush`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/vault/cache-flush\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/vault/connectivity-test": {
+      "post": {
+        "operationId": "connectivity_test_api_v1_admin_vault_connectivity_test_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectivityTestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Connectivity Test",
+        "tags": [
+          "admin",
+          "vault"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/vault/connectivity-test\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/vault/connectivity-test\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/vault/connectivity-test`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/vault/connectivity-test\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/vault/rotate-token": {
+      "post": {
+        "operationId": "rotate_token_api_v1_admin_vault_rotate_token_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenRotationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenRotationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Rotate Token",
+        "tags": [
+          "admin",
+          "vault"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/vault/rotate-token\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/vault/rotate-token\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/vault/rotate-token`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/vault/rotate-token\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/vault/status": {
+      "get": {
+        "operationId": "get_status_api_v1_admin_vault_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VaultStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Get Status",
+        "tags": [
+          "admin",
+          "vault"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/admin/vault/status\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/admin/vault/status\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/vault/status`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/admin/vault/status\" -H \"Authorization: Bearer $TOKEN\""
           }
         ]
       }

@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import inspect
 import json
-import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from platform.accounts.models import SignupSource, UserStatus
@@ -22,7 +21,7 @@ from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.events.producer import EventProducer
 from platform.registry.models import AgentProfile, LifecycleStatus
-from typing import Any
+from typing import Any, Protocol
 from uuid import UUID, uuid4
 
 import httpx
@@ -36,6 +35,22 @@ class _LocalLock:
     token: str | None = None
 
 
+class _CredentialResolverSecretProvider:
+    def __init__(self, resolver: Any) -> None:
+        self._resolver = resolver
+
+    async def get(self, path: str, key: str = "value", *, critical: bool = False) -> Any:
+        del key, critical
+        result = self._resolver(path)
+        if inspect.isawaitable(result):
+            result = await result
+        return result
+
+
+class _IBORSecretProvider(Protocol):
+    async def get(self, path: str, key: str = "value", *, critical: bool = False) -> Any: ...
+
+
 class IBORSyncService:
     def __init__(
         self,
@@ -46,6 +61,7 @@ class IBORSyncService:
         settings: PlatformSettings,
         producer: EventProducer | None = None,
         session_factory: async_sessionmaker[AsyncSession] | None = None,
+        secret_provider: _IBORSecretProvider | None = None,
         credential_resolver: Any | None = None,
     ) -> None:
         self.repository = repository
@@ -54,7 +70,11 @@ class IBORSyncService:
         self.settings = settings
         self.producer = producer
         self.session_factory = session_factory
-        self.credential_resolver = credential_resolver
+        self._secret_provider = secret_provider or (
+            _CredentialResolverSecretProvider(credential_resolver)
+            if credential_resolver is not None
+            else None
+        )
         self._background_tasks: set[asyncio.Task[Any]] = set()
 
     async def trigger_sync(
@@ -155,7 +175,7 @@ class IBORSyncService:
                 settings=self.settings,
                 producer=self.producer,
                 session_factory=self.session_factory,
-                credential_resolver=self.credential_resolver,
+                secret_provider=self._secret_provider,
             )
             try:
                 await service._continue_sync(
@@ -482,27 +502,15 @@ class IBORSyncService:
         return self._normalize_directory_users(normalized)
 
     async def _resolve_credential(self, connector: IBORConnector) -> dict[str, Any]:
-        if self.credential_resolver is not None:
-            result = self.credential_resolver(connector.credential_ref)
-            if inspect.isawaitable(result):
-                result = await result
-            if isinstance(result, dict):
-                return result
-
-        inline = connector.credential_ref.strip()
-        if inline.startswith("{"):
-            return dict(json.loads(inline))
-
-        env_key = self._credential_env_key(inline)
-        env_value = os.getenv(env_key)
-        if env_value:
-            return dict(json.loads(env_value))
+        if self._secret_provider is not None:
+            try:
+                raw = await self._secret_provider.get(connector.credential_ref)
+                payload = json.loads(raw) if isinstance(raw, str) else raw
+            except Exception as exc:
+                raise IBORCredentialResolutionError(connector.name) from exc
+            if isinstance(payload, dict):
+                return payload
         raise IBORCredentialResolutionError(connector.name)
-
-    @staticmethod
-    def _credential_env_key(reference: str) -> str:
-        normalized = reference.upper().replace("-", "_").replace("/", "_")
-        return f"IBOR_CREDENTIAL_{normalized}"
 
     @staticmethod
     def _credential_headers(credentials: dict[str, Any]) -> dict[str, str]:

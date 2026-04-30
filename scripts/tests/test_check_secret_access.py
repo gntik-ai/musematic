@@ -105,14 +105,30 @@ def test_vault_resolver_direct_call_is_denied(tmp_path) -> None:
     assert "VaultResolver.resolve" in violations[0].message
 
 
-def test_secret_like_logger_fields_are_denied(tmp_path) -> None:
+def test_baseline_secret_access_exceptions_are_ignored(tmp_path) -> None:
     module = _module()
     _write(
-        tmp_path / "apps/control-plane/src/platform/auth/service.py",
-        "def f(logger):\n    logger.info('x', token='abc')\n",
+        tmp_path / "apps/control-plane/src/platform/admin/bootstrap.py",
+        "import os\nvalue = os.getenv('PLATFORM_SUPERADMIN_PASSWORD')\n",
     )
+
+    assert module.scan(tmp_path) == []
+
+
+def test_secret_like_logger_fields_are_denied(tmp_path) -> None:
+    module = _module()
+    for field in ("token", "secret_id", "kv_value", "client_secret"):
+        _write(
+            tmp_path / f"apps/control-plane/src/platform/auth/{field}.py",
+            f"def f(logger):\n    logger.info('x', {field}='abc')\n",
+        )
 
     violations = module.scan(tmp_path)
 
-    assert len(violations) == 1
-    assert "token" in violations[0].message
+    assert len(violations) == 4
+    assert {violation.message.rsplit(": ", 1)[1] for violation in violations} == {
+        "token",
+        "secret_id",
+        "kv_value",
+        "client_secret",
+    }

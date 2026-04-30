@@ -17,9 +17,15 @@ class RepositoryMarker:
 
 
 class SecretProviderMarker:
-    def __init__(self, settings: object, redis_client: object | None) -> None:
+    def __init__(
+        self,
+        settings: object,
+        redis_client: object | None,
+        secret_provider: object,
+    ) -> None:
         self.settings = settings
         self.redis_client = redis_client
+        self.secret_provider = secret_provider
 
 
 class SecurityRepositoryMarker:
@@ -49,11 +55,16 @@ async def test_model_catalog_dependency_factories_wire_request_state(
     settings = object()
     kafka = object()
     redis = object()
+    canonical_secret_provider = object()
     audit_chain = object()
     session = object()
     request = SimpleNamespace(
         app=SimpleNamespace(
-            state=SimpleNamespace(settings=settings, clients={"kafka": kafka, "redis": redis})
+            state=SimpleNamespace(
+                settings=settings,
+                clients={"kafka": kafka, "redis": redis},
+                secret_provider=canonical_secret_provider,
+            )
         )
     )
 
@@ -93,8 +104,12 @@ async def test_model_catalog_dependency_factories_wire_request_state(
     assert fallback.repository.session is session
     assert card.producer is kafka
     assert credential.repository.session is session
-    assert credential.secret_reader.settings is settings  # type: ignore[attr-defined]
-    assert credential.secret_reader.redis_client is redis  # type: ignore[attr-defined]
+    assert credential.secret_reader is canonical_secret_provider
+    assert credential.rotation_service.secret_provider.settings is settings  # type: ignore[attr-defined]
+    assert credential.rotation_service.secret_provider.redis_client is redis  # type: ignore[attr-defined]
+    assert (  # type: ignore[attr-defined]
+        credential.rotation_service.secret_provider.secret_provider is canonical_secret_provider
+    )
     assert credential.rotation_service.repository.session is session  # type: ignore[attr-defined]
     assert credential.rotation_service.producer is kafka  # type: ignore[attr-defined]
     assert credential.rotation_service.audit_chain[0] is audit_chain  # type: ignore[attr-defined,index]

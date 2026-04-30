@@ -159,6 +159,13 @@ def test_sensitivity_heuristic() -> None:
     assert generate_env_docs.classify_sensitivity("FEATURE_E2E_MODE") == "informational"
 
 
+def test_vault_sensitive_description_includes_rule_31_annotation() -> None:
+    assert generate_env_docs.describe_env_var(
+        "PLATFORM_VAULT_TOKEN",
+        "Configures `token` for Vault.",
+    ) == "Configures `token` for Vault. Never log; never persist outside Vault."
+
+
 def test_render_markdown_is_deterministic() -> None:
     entries = [
         generate_env_docs.EnvVarEntry(

@@ -23,6 +23,7 @@ from tests.auth_oauth_support import (
     GitHubProviderStub,
     GoogleProviderStub,
     OAuthRepositoryStub,
+    OAuthSecretProviderStub,
     build_oauth_service_fixture,
     build_provider,
     extract_query_param,
@@ -572,25 +573,31 @@ async def test_handle_callback_audits_identity_resolution_failure(auth_settings)
 
 
 @pytest.mark.asyncio
-async def test_oauth_internal_helpers_cover_error_paths(monkeypatch, auth_settings) -> None:
-    async def resolver(reference: str) -> str:
-        assert reference == "vault/google"
-        return "resolved-secret"
+async def test_oauth_resolve_secret_supports_plain_inline_refs(auth_settings) -> None:
+    class RejectingSecretProvider:
+        async def get(self, reference: str) -> str:
+            raise AssertionError(f"unexpected secret provider lookup: {reference}")
 
+    service, *_ = build_oauth_service_fixture(
+        auth_settings,
+        secret_provider=RejectingSecretProvider(),
+    )
+
+    assert await service._resolve_secret("plain:mock-google-client-secret") == (
+        "mock-google-client-secret"
+    )
+
+
+@pytest.mark.asyncio
+async def test_oauth_internal_helpers_cover_error_paths(auth_settings) -> None:
     provider = build_provider(provider_type="google", enabled=False)
     service, _, _, _, redis_client, _, _ = build_oauth_service_fixture(
         auth_settings,
         provider=provider,
-        credential_resolver=resolver,
+        secret_provider=OAuthSecretProviderStub({"vault/google": "resolved-secret"}),
     )
 
     assert await service._resolve_secret("vault/google") == "resolved-secret"
-    service.credential_resolver = None
-    assert await service._resolve_secret("plain:inline") == "inline"
-    monkeypatch.setenv("OAUTH_SECRET_VAULT_GOOGLE", "env-secret")
-    assert await service._resolve_secret("vault/google") == "env-secret"
-    monkeypatch.delenv("OAUTH_SECRET_VAULT_GOOGLE")
-    assert await service._resolve_secret("vault/google") == "vault/google"
     assert service._resolve_role(provider, ["unmapped"]) == provider.default_role
 
     with pytest.raises(OAuthProviderDisabledError):
@@ -664,7 +671,6 @@ async def test_oauth_secret_provider_and_serializer_edge_paths(monkeypatch, auth
     with pytest.raises(OAuthStateInvalidError):
         service._verify_state(f"{signed}tampered")
 
-    assert service._secret_env_key("vault/github-token") == "OAUTH_SECRET_VAULT_GITHUB_TOKEN"
     assert service._parse_optional_uuid(None) is None
     user_id = uuid4()
     assert service._parse_optional_uuid(str(user_id)) == user_id

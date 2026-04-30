@@ -5,6 +5,7 @@ from platform.common import database
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.events.producer import EventProducer
+from platform.common.secret_provider import MockSecretProvider
 from platform.incident_response.dependencies import build_incident_service, build_runbook_service
 from platform.incident_response.schemas import IncidentRef, IncidentSignal
 from platform.incident_response.services.providers.opsgenie import OpsGenieClient
@@ -36,6 +37,8 @@ class AppIncidentTrigger:
             secret_provider = RotatableSecretProvider(
                 settings=settings,
                 redis_client=redis_client,
+                secret_provider=getattr(self.app.state, "secret_provider", None)
+                or MockSecretProvider(settings, validate_paths=False),
             )
             timeout = settings.incident_response.external_alert_request_timeout_seconds
             incident_service = build_incident_service(

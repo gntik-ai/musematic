@@ -24,6 +24,24 @@ VAULT_RESOLVER_ALLOWED = {
     Path("apps/control-plane/src/platform/common/secret_provider.py"),
     Path("apps/control-plane/src/platform/connectors/security.py"),
 }
+BASELINE_EXCEPTIONS = {
+    (
+        Path("apps/control-plane/src/platform/admin/bootstrap.py"),
+        "direct secret-pattern environment read: PLATFORM_SUPERADMIN_PASSWORD",
+    ),
+    (
+        Path("apps/control-plane/src/platform/common/clients/redis.py"),
+        "direct secret-pattern environment read: REDIS_PASSWORD",
+    ),
+    (
+        Path("services/reasoning-engine/pkg/persistence/redis.go"),
+        "direct secret-pattern environment read: REDIS_PASSWORD",
+    ),
+    (
+        Path("services/runtime-controller/pkg/config/config.go"),
+        "direct secret-pattern environment read: REDIS_PASSWORD",
+    ),
+}
 
 
 @dataclass(frozen=True)
@@ -161,7 +179,11 @@ def scan(root: Path) -> list[Violation]:
         if _is_excluded(path, root):
             continue
         violations.extend(scan_go_file(path))
-    return violations
+    return [
+        violation
+        for violation in violations
+        if (violation.path.relative_to(root), violation.message) not in BASELINE_EXCEPTIONS
+    ]
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -18,6 +18,14 @@
 {{- printf "%s-secrets" (include "musematic-control-plane.fullname" .) -}}
 {{- end -}}
 
+{{- define "musematic-control-plane.serviceAccountName" -}}
+{{- if .Values.serviceAccount.create -}}
+{{- default (include "musematic-control-plane.fullname" .) .Values.serviceAccount.name -}}
+{{- else -}}
+{{- default "default" .Values.serviceAccount.name -}}
+{{- end -}}
+{{- end -}}
+
 {{- define "musematic-control-plane.componentLabels" -}}
 app.kubernetes.io/instance: {{ .Release.Name }}
 app.kubernetes.io/part-of: musematic

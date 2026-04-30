@@ -775,7 +775,13 @@ class VaultSettings(BaseSettings):
     kubernetes_role: str = "musematic-platform"
     service_account_token_path: str = "/var/run/secrets/tokens/vault-token"
     approle_role_id: str = ""
-    approle_secret_id_secret_ref: str | None = None
+    approle_secret_id_secret_ref: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "VAULT_APPROLE_SECRET_ID_SECRET_REF",
+            "VAULT_APPROLE_SECRET_ID",
+        ),
+    )
     token: str = ""
     kv_mount: str = "secret"
     kv_prefix: str = "musematic/{environment}"
@@ -1840,6 +1846,10 @@ class PlatformSettings(BaseSettings):
             ),
             "PLATFORM_VAULT_APPROLE_ROLE_ID": ("vault", "approle_role_id"),
             "PLATFORM_VAULT_APPROLE_SECRET_ID_SECRET_REF": (
+                "vault",
+                "approle_secret_id_secret_ref",
+            ),
+            "PLATFORM_VAULT_APPROLE_SECRET_ID": (
                 "vault",
                 "approle_secret_id_secret_ref",
             ),

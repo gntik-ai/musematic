@@ -381,6 +381,29 @@ class RateLimitRedisStub(FakeAsyncRedisClient):
         return self.result
 
 
+class OAuthSecretProviderStub:
+    def __init__(self, values: dict[str, str] | None = None) -> None:
+        self.values = values or {}
+
+    async def get(self, reference: str, key: str = "value") -> str:
+        del key
+        if reference in self.values:
+            return self.values[reference]
+        if reference.startswith("plain:"):
+            return reference.split(":", 1)[1]
+        return reference
+
+    async def put(self, reference: str, values: dict[str, str]) -> None:
+        self.values[reference] = values.get("value", "")
+
+    async def flush_cache(self, reference: str) -> None:
+        del reference
+
+    async def list_versions(self, reference: str) -> list[int]:
+        del reference
+        return [1]
+
+
 def build_oauth_service_fixture(
     auth_settings: Any,
     *,
@@ -393,7 +416,7 @@ def build_oauth_service_fixture(
     redis_client: FakeAsyncRedisClient | None = None,
     auth_service: AuthServiceStub | None = None,
     producer: RecordingProducer | None = None,
-    credential_resolver: Any | None = None,
+    secret_provider: Any | None = None,
 ) -> tuple[
     OAuthService,
     OAuthRepositoryStub,
@@ -422,7 +445,7 @@ def build_oauth_service_fixture(
         auth_service=auth_service,
         google_provider=google_provider or GoogleProviderStub(),
         github_provider=github_provider or GitHubProviderStub(),
-        credential_resolver=credential_resolver,
+        secret_provider=secret_provider or OAuthSecretProviderStub(),
     )
     return (
         service,

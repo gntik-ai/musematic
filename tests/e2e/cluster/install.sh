@@ -18,8 +18,14 @@ PORT_API="${PORT_API:-8081}"
 PORT_WS="${PORT_WS:-8082}"
 PORT_GOOGLE_OIDC="${PORT_GOOGLE_OIDC:-8083}"
 PORT_GITHUB_OAUTH="${PORT_GITHUB_OAUTH:-8084}"
+PORT_VAULT="${PORT_VAULT:-30085}"
 SKIP_LOAD_IMAGES="${SKIP_LOAD_IMAGES:-false}"
 COMPOSITE_CHART_DIR="${ROOT_DIR}/deploy/helm/platform"
+VAULT_CHART_DIR="${ROOT_DIR}/deploy/helm/vault"
+VAULT_NAMESPACE="${VAULT_NAMESPACE:-platform-security}"
+VAULT_RELEASE_NAME="${VAULT_RELEASE_NAME:-vault}"
+VAULT_VALUES_FILE="${VAULT_VALUES_FILE:-${VAULT_CHART_DIR}/values-dev.yaml}"
+PLATFORM_VAULT_MODE="${PLATFORM_VAULT_MODE:-mock}"
 OBSERVABILITY_CHART_DIR="${ROOT_DIR}/deploy/helm/observability"
 OBSERVABILITY_NAMESPACE="${OBSERVABILITY_NAMESPACE:-platform-observability}"
 OBSERVABILITY_RELEASE_NAME="${OBSERVABILITY_RELEASE_NAME:-observability}"
@@ -76,7 +82,7 @@ check_prereqs() {
 }
 
 render_kind_config() {
-  CLUSTER_NAME="$CLUSTER_NAME" PORT_UI="$PORT_UI" PORT_API="$PORT_API" PORT_WS="$PORT_WS" PORT_GOOGLE_OIDC="$PORT_GOOGLE_OIDC" PORT_GITHUB_OAUTH="$PORT_GITHUB_OAUTH" envsubst < "$KIND_CONFIG_TEMPLATE" > "$KIND_CONFIG_PATH"
+  CLUSTER_NAME="$CLUSTER_NAME" PORT_UI="$PORT_UI" PORT_API="$PORT_API" PORT_WS="$PORT_WS" PORT_GOOGLE_OIDC="$PORT_GOOGLE_OIDC" PORT_GITHUB_OAUTH="$PORT_GITHUB_OAUTH" PORT_VAULT="$PORT_VAULT" envsubst < "$KIND_CONFIG_TEMPLATE" > "$KIND_CONFIG_PATH"
 }
 
 ensure_cluster() {
@@ -145,9 +151,35 @@ install_platform() {
   helm dependency build "${COMPOSITE_CHART_DIR}"
   helm upgrade --install "${RELEASE_NAME}" "${COMPOSITE_CHART_DIR}" \
     -f "${VALUES_FILE}" \
+    --set "controlPlane.vault.mode=${PLATFORM_VAULT_MODE}" \
     --namespace "${NAMESPACE}" \
     --create-namespace \
     --timeout "${HELM_TIMEOUT}"
+}
+
+install_vault() {
+  if [[ "${PLATFORM_VAULT_MODE}" != "vault" ]]; then
+    return
+  fi
+  if [[ ! -f "${VAULT_CHART_DIR}/Chart.yaml" ]]; then
+    echo "[e2e] missing Helm chart: ${VAULT_CHART_DIR}/Chart.yaml" >&2
+    exit 2
+  fi
+
+  echo "[e2e] installing Vault stack"
+  ensure_vault_helm_repos
+  helm dependency build "${VAULT_CHART_DIR}"
+  helm upgrade --install "${VAULT_RELEASE_NAME}" "${VAULT_CHART_DIR}" \
+    --namespace "${VAULT_NAMESPACE}" \
+    --create-namespace \
+    -f "${VAULT_VALUES_FILE}" \
+    --timeout "${HELM_TIMEOUT}"
+  wait_for_labelled_pod "${VAULT_NAMESPACE}" "app.kubernetes.io/name=vault" "${PLATFORM_READY_TIMEOUT}"
+}
+
+ensure_vault_helm_repos() {
+  helm repo add hashicorp https://helm.releases.hashicorp.com --force-update
+  helm repo update
 }
 
 wait_for_observability_stack() {
@@ -622,21 +654,55 @@ restart_platform_deployments() {
 wait_for_active_pods() {
   local namespace="$1"
   local timeout="$2"
+  local timeout_seconds
+  local deadline
   local pod
 
-  mapfile -t pods < <(kubectl get pods -n "$namespace" --field-selector=status.phase!=Succeeded -o name 2>/dev/null || true)
+  mapfile -t pods < <(
+    kubectl get pods -n "$namespace" \
+      --field-selector=status.phase!=Succeeded \
+      -l '!cnpg.io/jobRole' \
+      -o name 2>/dev/null || true
+  )
   if [[ "${#pods[@]}" -eq 0 ]]; then
     return
   fi
 
+  timeout_seconds="$(timeout_to_seconds "$timeout")"
   for pod in "${pods[@]}"; do
-    if kubectl wait -n "$namespace" --for=condition=Ready "$pod" --timeout="$timeout" >/dev/null 2>&1; then
-      continue
-    fi
-    if kubectl get -n "$namespace" "$pod" >/dev/null 2>&1; then
-      kubectl wait -n "$namespace" --for=condition=Ready "$pod" --timeout="$timeout"
-    fi
+    deadline=$(( $(date +%s) + timeout_seconds ))
+    while ! pod_ready_or_succeeded "$namespace" "$pod"; do
+      if (( $(date +%s) >= deadline )); then
+        kubectl wait -n "$namespace" --for=condition=Ready "$pod" --timeout=0s
+      fi
+      sleep 5
+    done
   done
+}
+
+timeout_to_seconds() {
+  local timeout="$1"
+
+  case "$timeout" in
+    *m) echo "$(( ${timeout%m} * 60 ))" ;;
+    *s) echo "${timeout%s}" ;;
+    *) echo "$timeout" ;;
+  esac
+}
+
+pod_ready_or_succeeded() {
+  local namespace="$1"
+  local pod="$2"
+  local phase
+  local ready
+
+  phase="$(kubectl get -n "$namespace" "$pod" -o jsonpath='{.status.phase}' 2>/dev/null || true)"
+  if [[ -z "$phase" || "$phase" == "Succeeded" ]]; then
+    return 0
+  fi
+
+  ready="$(kubectl get -n "$namespace" "$pod" -o jsonpath='{range .status.conditions[?(@.type=="Ready")]}{.status}{end}' 2>/dev/null || true)"
+  [[ "$ready" == "True" ]]
 }
 
 wait_for_deployment_rollouts() {
@@ -674,6 +740,126 @@ wait_for_kafka_topics_ready() {
   kubectl wait --for=condition=Ready -n "${KAFKA_NAMESPACE}" kafkatopic -l "$selector" --timeout="$timeout"
 }
 
+redis_cluster_pods() {
+  kubectl get pods -n "${NAMESPACE}" -l app.kubernetes.io/name=redis-cluster \
+    -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}' | sort
+}
+
+wait_for_redis_processes() {
+  local pod
+  local attempt
+  local ready
+  local redis_pods=("$@")
+
+  for pod in "${redis_pods[@]}"; do
+    ready=false
+    for attempt in $(seq 1 120); do
+      if kubectl exec -n "${NAMESPACE}" "$pod" -- bash -ec '
+        REDISCLI_AUTH="$(cat "$REDIS_PASSWORD_FILE")"
+        export REDISCLI_AUTH
+        redis-cli -h 127.0.0.1 -p "${REDIS_PORT_NUMBER:-6379}" ping
+      ' >/dev/null 2>&1; then
+        ready=true
+        break
+      fi
+      sleep 5
+    done
+    if [[ "$ready" != "true" ]]; then
+      echo "[e2e] Redis process in ${pod} did not accept PING before timeout" >&2
+      return 1
+    fi
+  done
+}
+
+redis_cluster_state() {
+  kubectl exec -n "${NAMESPACE}" musematic-redis-0 -- bash -ec '
+    REDISCLI_AUTH="$(cat "$REDIS_PASSWORD_FILE")"
+    export REDISCLI_AUTH
+    redis-cli -h 127.0.0.1 -p "${REDIS_PORT_NUMBER:-6379}" cluster info \
+      | sed -n "s/^cluster_state://p" \
+      | tr -d "\r"
+  ' 2>/dev/null || true
+}
+
+redis_cluster_node_targets() {
+  local pod
+  for pod in "$@"; do
+    printf '%s.musematic-redis-headless.%s.svc.cluster.local:6379\n' "$pod" "${NAMESPACE}"
+  done
+}
+
+reset_redis_cluster_nodes() {
+  local pod
+  for pod in "$@"; do
+    kubectl exec -n "${NAMESPACE}" "$pod" -- bash -ec '
+      REDISCLI_AUTH="$(cat "$REDIS_PASSWORD_FILE")"
+      export REDISCLI_AUTH
+      redis-cli -h 127.0.0.1 -p "${REDIS_PORT_NUMBER:-6379}" cluster reset hard >/dev/null 2>&1 || true
+    '
+  done
+}
+
+create_redis_cluster() {
+  local bootstrap_pod="$1"
+  shift
+
+  kubectl exec -n "${NAMESPACE}" "$bootstrap_pod" -- bash -ec '
+    REDISCLI_AUTH="$(cat "$REDIS_PASSWORD_FILE")"
+    export REDISCLI_AUTH
+    redis-cli --cluster create "$@" --cluster-replicas 0 --cluster-yes
+  ' redis-cluster-create "$@"
+}
+
+ensure_redis_cluster_initialized() {
+  local attempt
+  local state
+  local -a redis_pods
+  local -a node_targets
+
+  mapfile -t redis_pods < <(redis_cluster_pods)
+  if [[ "${#redis_pods[@]}" -eq 0 ]]; then
+    echo "[e2e] Redis StatefulSet exists but no redis-cluster pods were found" >&2
+    exit 1
+  fi
+
+  wait_for_redis_processes "${redis_pods[@]}"
+
+  state="$(redis_cluster_state)"
+  if [[ "$state" == "ok" ]]; then
+    return
+  fi
+
+  echo "[e2e] Redis cluster state is ${state:-unknown}; recreating e2e cluster topology"
+  reset_redis_cluster_nodes "${redis_pods[@]}"
+  mapfile -t node_targets < <(redis_cluster_node_targets "${redis_pods[@]}")
+  create_redis_cluster "${redis_pods[0]}" "${node_targets[@]}"
+
+  for attempt in $(seq 1 60); do
+    state="$(redis_cluster_state)"
+    if [[ "$state" == "ok" ]]; then
+      return
+    fi
+    sleep 5
+  done
+
+  echo "[e2e] Redis cluster did not reach cluster_state:ok after manual initialization" >&2
+  kubectl get pods -n "${NAMESPACE}" -l app.kubernetes.io/name=redis-cluster -o wide >&2 || true
+  kubectl describe pods -n "${NAMESPACE}" -l app.kubernetes.io/name=redis-cluster >&2 || true
+  kubectl logs -n "${NAMESPACE}" -l app.kubernetes.io/name=redis-cluster --tail=200 >&2 || true
+  exit 1
+}
+
+wait_for_redis_ready() {
+  if ! kubectl get statefulset -n "${NAMESPACE}" musematic-redis >/dev/null 2>&1; then
+    return
+  fi
+
+  echo "[e2e] waiting for Redis cluster before restarting platform deployments"
+  ensure_redis_cluster_initialized
+  kubectl wait --for=condition=Ready -n "${NAMESPACE}" pod -l app.kubernetes.io/name=redis-cluster --timeout="${PLATFORM_READY_TIMEOUT}"
+  kubectl rollout status -n "${NAMESPACE}" statefulset/musematic-redis --timeout="${PLATFORM_READY_TIMEOUT}"
+}
+
 run_manual_init_jobs() {
   echo "[e2e] launching manual init jobs outside Helm hooks"
   launch_minio_bucket_init
@@ -683,7 +869,7 @@ run_manual_init_jobs() {
   if kubectl get statefulset -n "${NEO4J_NAMESPACE}" musematic-neo4j >/dev/null 2>&1; then
     launch_neo4j_schema_init
   fi
-  wait_for_labelled_pod "${PLATFORM_DATA_NAMESPACE}" "cnpg.io/cluster=musematic-postgres" "${POSTGRES_READY_TIMEOUT}"
+  wait_for_labelled_pod "${PLATFORM_DATA_NAMESPACE}" "cnpg.io/cluster=musematic-postgres,cnpg.io/podRole=instance" "${POSTGRES_READY_TIMEOUT}"
   launch_control_plane_migration
 
   wait_for_job_completion "${PLATFORM_DATA_NAMESPACE}" "${RELEASE_NAME}-minio-bucket-init" "${JOB_READY_TIMEOUT}"
@@ -721,9 +907,11 @@ main() {
   fi
   install_observability
   install_platform
+  install_vault
   run_manual_init_jobs
   wait_for_kafka_ready
   wait_for_kafka_topics_ready "${PLATFORM_READY_TIMEOUT}"
+  wait_for_redis_ready
   restart_platform_deployments
   wait_for_rollouts
   seed_baseline
@@ -732,6 +920,7 @@ main() {
   UI:  http://localhost:${PORT_UI}
   API: http://localhost:${PORT_API}
   WS:  ws://localhost:${PORT_WS}
+  Vault: http://localhost:${PORT_VAULT}
 EOF_SUMMARY
 }
 

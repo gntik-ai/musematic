@@ -40,6 +40,7 @@ redis:
     existingSecret: redis-credentials
     existingSecretPasswordKey: password
     cluster:
+      init: false
       nodes: 3
       replicas: 0
     volumePermissions:
@@ -48,6 +49,23 @@ redis:
       enabled: false
     redis:
       maxmemory: 256Mi
+      resources:
+        requests:
+          cpu: 150m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+      livenessProbe:
+        initialDelaySeconds: 60
+        periodSeconds: 10
+        timeoutSeconds: 5
+        failureThreshold: 12
+      readinessProbe:
+        initialDelaySeconds: 30
+        periodSeconds: 5
+        timeoutSeconds: 5
+        failureThreshold: 60
     persistence:
       size: 2Gi
     metrics:

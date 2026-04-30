@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import os
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
-from platform.connectors.security import VaultResolver
+from platform.common.secret_provider import MockSecretProvider, SecretProvider
 from typing import Any
 
 
@@ -12,18 +11,24 @@ class RotatableSecretProvider:
         self,
         settings: PlatformSettings,
         redis_client: AsyncRedisClient | None = None,
-        vault: VaultResolver | None = None,
+        secret_provider: SecretProvider | None = None,
     ) -> None:
         self.settings = settings
         self.redis_client = redis_client
-        self.vault = vault or VaultResolver(settings)
+        self._secret_provider = secret_provider or MockSecretProvider(
+            settings, validate_paths=False
+        )
 
     async def get_current(self, secret_name: str) -> str:
         cached = await self._cached(secret_name)
         if isinstance(cached.get("current"), str):
             return str(cached["current"])
-        value = self._read_secret(secret_name, "current")
-        if value is None:
+        path = self._secret_path(secret_name)
+        try:
+            value = await self._secret_provider.get(path)
+        except Exception as exc:
+            raise RuntimeError(f"Required secret {secret_name!r} is missing") from exc
+        if not value:
             raise RuntimeError(f"Required secret {secret_name!r} is missing")
         return value
 
@@ -31,7 +36,25 @@ class RotatableSecretProvider:
         cached = await self._cached(secret_name)
         if isinstance(cached.get("previous"), str):
             return str(cached["previous"])
-        return self._read_secret(secret_name, "previous", required=False)
+        path = self._secret_path(secret_name)
+        try:
+            versions = await self._secret_provider.list_versions(path)
+        except Exception:
+            return None
+        if not versions:
+            return None
+        latest = max(versions)
+        previous_versions = [version for version in versions if version < latest]
+        if not previous_versions:
+            return None
+        previous = max(previous_versions)
+        get_version = getattr(self._secret_provider, "get_version", None)
+        if get_version is None:
+            return None
+        try:
+            return str(await get_version(path, previous))
+        except Exception:
+            return None
 
     async def validate_either(self, secret_name: str, presented: str) -> bool:
         current = await self.get_current(secret_name)
@@ -61,23 +84,17 @@ class RotatableSecretProvider:
         cached = await self.redis_client.cache_get("rotation-state", secret_name)
         return cached or {}
 
-    def _read_secret(self, secret_name: str, slot: str, *, required: bool = True) -> str | None:
-        env_key = self._env_key(secret_name, slot)
-        env_value = os.environ.get(env_key)
-        if env_value:
-            return env_value
-        try:
-            return self.vault.resolve(
-                f"secret/data/musematic/{self.settings.profile}/rotating/{secret_name}",
-                slot,
-            )
-        except Exception:
-            if required:
-                raise
-            return None
-
-    @staticmethod
-    def _env_key(secret_name: str, slot: str) -> str:
-        return "ROTATING_SECRET_" + "".join(
-            char if char.isalnum() else "_" for char in f"{secret_name}_{slot}"
-        ).upper()
+    def _secret_path(self, secret_name: str) -> str:
+        if secret_name.startswith("secret/data/musematic/"):
+            return secret_name
+        profile = getattr(self.settings, "profile", "dev")
+        environment = (
+            profile
+            if profile in {"production", "staging", "dev", "test", "ci"}
+            else "dev"
+        )
+        resource = "".join(
+            char if char.isalnum() or char in {"/", "_", "-"} else "-"
+            for char in secret_name.strip("/")
+        )
+        return f"secret/data/musematic/{environment}/audit-chain/{resource}"

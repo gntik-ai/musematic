@@ -1,0 +1,88 @@
+{{- if .Values.kubernetesAuthJob.enabled }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "musematic-vault.fullname" . }}-auth-bootstrap
+  namespace: {{ .Release.Namespace }}
+  labels:
+{{ include "musematic-vault.labels" . | indent 4 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "musematic-vault.fullname" . }}-auth-bootstrap
+  labels:
+{{ include "musematic-vault.labels" . | indent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "musematic-vault.fullname" . }}-auth-bootstrap
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "musematic-vault.fullname" . }}-kubernetes-auth
+  namespace: {{ .Release.Namespace }}
+  labels:
+{{ include "musematic-vault.labels" . | indent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "20"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+{{ include "musematic-vault.labels" . | indent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: {{ include "musematic-vault.fullname" . }}-auth-bootstrap
+      initContainers:
+        - name: wait-for-vault
+          image: {{ .Values.policyJob.image | quote }}
+          env:
+            - name: VAULT_ADDR
+              value: {{ .Values.policyJob.vaultAddr | quote }}
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              until vault status >/dev/null 2>&1; do
+                sleep 5
+              done
+      containers:
+        - name: configure-kubernetes-auth
+          image: {{ .Values.policyJob.image | quote }}
+          env:
+            - name: VAULT_ADDR
+              value: {{ .Values.policyJob.vaultAddr | quote }}
+            - name: VAULT_TOKEN
+{{- if and (eq .Values.mode "dev") .Values.vault.server.dev.enabled .Values.vault.server.dev.devRootToken }}
+              value: {{ .Values.vault.server.dev.devRootToken | quote }}
+{{- else }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.policyJob.tokenSecretName | quote }}
+                  key: {{ .Values.policyJob.tokenSecretKey | quote }}
+                  optional: true
+{{- end }}
+          command:
+            - /bin/sh
+            - -ec
+            - |
+              vault auth enable kubernetes >/dev/null 2>&1 || true
+              vault write auth/kubernetes/config \
+                kubernetes_host="https://kubernetes.default.svc:443" \
+                kubernetes_ca_cert=@/var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
+                token_reviewer_jwt="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
+              vault write "auth/kubernetes/role/{{ .Values.kubernetesAuthJob.roleName }}" \
+                bound_service_account_names="{{ join "," .Values.kubernetesAuthJob.boundServiceAccounts }}" \
+                bound_service_account_namespaces="{{ join "," .Values.kubernetesAuthJob.boundNamespaces }}" \
+                policies="platform-auth,platform-model-catalog,platform-notifications,platform-runtime,platform-security-compliance,platform-accounts,platform-cost-governance" \
+                ttl="{{ .Values.kubernetesAuthJob.tokenTtl }}"
+{{- end }}

@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from fnmatch import fnmatch
 from platform.common.events.envelope import CorrelationContext
 from platform.common.logging import get_logger
+from platform.common.secret_provider import MockSecretProvider, SecretProvider
 from platform.connectors.events import (
     ConnectorDeadLetteredPayload,
     ConnectorDeliveryFailedPayload,
@@ -65,11 +66,9 @@ from platform.connectors.schemas import (
     TestConnectivityResponse,
 )
 from platform.connectors.security import (
-    VaultResolver,
     assert_slack_signature,
     assert_webhook_signature,
     payload_to_json,
-    resolve_connector_secret,
     scrub_secret_text,
 )
 from typing import Any
@@ -87,13 +86,14 @@ class ConnectorsService:
         producer: Any | None,
         redis_client: Any,
         object_storage: Any,
+        secret_provider: SecretProvider | None = None,
     ) -> None:
         self.repository = repository
         self.settings = settings
         self.producer = producer
         self.redis_client = redis_client
         self.object_storage = object_storage
-        self.vault = VaultResolver(settings)
+        self.secret_provider = secret_provider or MockSecretProvider(settings, validate_paths=False)
         self.logger = get_logger(__name__)
 
     async def list_connector_types(self) -> ConnectorTypeListResponse:
@@ -247,7 +247,7 @@ class ConnectorsService:
             else {item.credential_key: item.vault_path for item in instance.credential_refs}
         )
         await self._validate_connector_config(instance.connector_type.slug, config, credential_refs)
-        resolved_config, secrets = self._resolve_config(config, credential_refs)
+        resolved_config, secrets = await self._resolve_config(config, credential_refs)
         result = await connector.test_connectivity(resolved_config, credential_refs)
         return TestConnectivityResponse(
             connector_instance_id=instance.id,
@@ -765,28 +765,28 @@ class ConnectorsService:
         instance: ConnectorInstance,
     ) -> tuple[dict[str, Any], list[str]]:
         refs = {item.credential_key: item.vault_path for item in instance.credential_refs}
-        return self._resolve_config(instance.config_json, refs)
+        return await self._resolve_config(instance.config_json, refs)
 
-    def _resolve_config(
+    async def _resolve_config(
         self,
         config: dict[str, Any],
         refs: dict[str, str],
     ) -> tuple[dict[str, Any], list[str]]:
         secrets: list[str] = []
 
-        def _resolve(value: Any) -> Any:
+        async def _resolve(value: Any) -> Any:
             if isinstance(value, dict):
                 if "$ref" in value:
                     key = str(value["$ref"])
-                    secret = resolve_connector_secret(self.vault, refs[key], key)
+                    secret = await self.secret_provider.get(refs[key], key)
                     secrets.append(secret)
                     return secret
-                return {name: _resolve(item) for name, item in value.items()}
+                return {name: await _resolve(item) for name, item in value.items()}
             if isinstance(value, list):
-                return [_resolve(item) for item in value]
+                return [await _resolve(item) for item in value]
             return value
 
-        resolved = _resolve(config)
+        resolved = await _resolve(config)
         if not isinstance(resolved, dict):
             raise ConnectorConfigError("Connector config must resolve to an object.")
         return resolved, secrets

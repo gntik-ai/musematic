@@ -9,6 +9,7 @@ from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.events.producer import EventProducer
 from platform.common.logging import get_logger
+from platform.common.secret_provider import MockSecretProvider
 from platform.incident_response.dependencies import (
     build_incident_service,
     build_runbook_service,
@@ -31,6 +32,8 @@ async def run_delivery_retry_scan(app: Any) -> int:
         secret_provider = RotatableSecretProvider(
             settings=settings,
             redis_client=cast(AsyncRedisClient | None, app.state.clients.get("redis")),
+            secret_provider=getattr(app.state, "secret_provider", None)
+            or MockSecretProvider(settings, validate_paths=False),
         )
         provider_clients: dict[str, PagingProviderClient] = {
             "pagerduty": PagerDutyClient(

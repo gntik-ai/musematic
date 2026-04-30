@@ -171,7 +171,7 @@ opentelemetry-collector:
       # -- Configures `opentelemetry-collector.alternateConfig.exporters.otlp/jaeger` for the observability chart.
       otlp/jaeger:
         # -- Configures `opentelemetry-collector.alternateConfig.exporters.otlp/jaeger.endpoint` for the observability chart.
-        endpoint: musematic-observability-jaeger-collector:4317
+        endpoint: observability-jaeger-collector:4317
         # -- Configures `opentelemetry-collector.alternateConfig.exporters.otlp/jaeger.tls` for the observability chart.
         tls:
           # -- Configures `opentelemetry-collector.alternateConfig.exporters.otlp/jaeger.tls.insecure` for the observability chart.
@@ -239,6 +239,10 @@ kube-prometheus-stack:
       datasources:
         # -- Configures `kube-prometheus-stack.grafana.sidecar.datasources.enabled` for the observability chart.
         enabled: true
+        # -- Configures `kube-prometheus-stack.grafana.sidecar.datasources.defaultDatasourceEnabled` to let the platform datasource ConfigMaps own Prometheus.
+        defaultDatasourceEnabled: false
+        # -- Configures `kube-prometheus-stack.grafana.sidecar.datasources.isDefaultDatasource` to avoid duplicate default datasource provisioning.
+        isDefaultDatasource: false
         # -- Configures `kube-prometheus-stack.grafana.sidecar.datasources.label` for the observability chart.
         label: grafana_datasource
         # -- Configures `kube-prometheus-stack.grafana.sidecar.datasources.labelValue` for the observability chart.

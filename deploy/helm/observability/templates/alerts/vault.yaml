@@ -1,0 +1,52 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-vault-alerts
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.ruleLabels" . | indent 4 }}
+spec:
+  groups:
+    - name: platform.vault
+      interval: 1m
+      rules:
+        - alert: VaultUnreachable
+          expr: sum(increase(vault_auth_failure_total[5m])) > 5 or up{job=~"musematic-platform.*"} == 0
+          for: 1m
+          labels:
+            severity: critical
+            team: security
+          annotations:
+            summary: Vault is unreachable or authentication is repeatedly failing
+            description: Vault auth failures exceeded the five-minute threshold or a platform service scrape is down.
+            dashboard_url: http://musematic-observability-grafana/d/vault-overview
+        - alert: VaultAuthFailureRate
+          expr: sum(rate(vault_auth_failure_total[5m])) > 0.01
+          for: 5m
+          labels:
+            severity: warning
+            team: security
+          annotations:
+            summary: Vault authentication failures are increasing
+            description: Vault authentication failures are occurring above the warning threshold.
+            dashboard_url: http://musematic-observability-grafana/d/vault-overview
+        - alert: VaultLeaseRenewalFailing
+          expr: vault_renewal_failure_total > 0
+          for: 0m
+          labels:
+            severity: warning
+            team: security
+          annotations:
+            summary: Vault lease renewal has failed
+            description: A platform Vault client reported at least one lease renewal failure.
+            dashboard_url: http://musematic-observability-grafana/d/vault-overview
+        - alert: VaultStalenessHigh
+          expr: vault_serving_stale_total > 0
+          for: 5m
+          labels:
+            severity: warning
+            team: security
+          annotations:
+            summary: Vault client is serving stale cached secrets
+            description: A platform Vault client served stale cached values because Vault reads were unavailable.
+            dashboard_url: http://musematic-observability-grafana/d/vault-overview

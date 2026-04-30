@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import sys
 from datetime import UTC, datetime
 from platform.auth.exceptions import (
@@ -101,8 +100,8 @@ async def test_trigger_sync_background_paths_and_continue_sync_failure(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repository = InMemoryIBORRepository()
-    connector = await _create_connector(repository, credential_ref='{"users": []}')
-    service = _service(repository)
+    connector = await _create_connector(repository, credential_ref="empty-users")
+    service = _service(repository, credential_resolver=lambda _ref: {"users": []})
 
     triggered = await service.trigger_sync(connector.id, triggered_by=uuid4())
     await asyncio.gather(*tuple(service._background_tasks))
@@ -164,13 +163,14 @@ async def test_sync_helpers_cover_credentials_adapters_and_lock_fallback(
 ) -> None:
     repository = InMemoryIBORRepository()
     redis_client = FakeAsyncRedisClient()
-    connector = await _create_connector(repository, credential_ref=json.dumps({"token": "inline"}))
-    service = _service(repository, redis_client=redis_client)
+    connector = await _create_connector(repository, credential_ref="inline-creds")
+    service = _service(
+        repository,
+        redis_client=redis_client,
+        credential_resolver=lambda ref: {"inline-creds": {"token": "inline"}}[ref],
+    )
 
     inline = await service._resolve_credential(connector)
-    monkeypatch.setenv(service._credential_env_key("env-creds"), json.dumps({"token": "env"}))
-    env_connector = await _create_connector(repository, credential_ref="env-creds")
-    env_value = await service._resolve_credential(env_connector)
 
     connector.credential_ref = "missing-creds"
     with pytest.raises(IBORCredentialResolutionError):
@@ -277,7 +277,6 @@ async def test_sync_helpers_cover_credentials_adapters_and_lock_fallback(
     push_counts, push_errors = await helper_service._push_scim(push_connector)
 
     assert inline == {"token": "inline"}
-    assert env_value == {"token": "env"}
     assert headers["Authorization"] == "Bearer secret"
     assert headers["X-Test"] == "1"
     assert normalized_payload[0]["email"] == "alice@corp.com"
