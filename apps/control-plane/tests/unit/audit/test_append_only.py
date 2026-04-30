@@ -8,6 +8,9 @@ from uuid import uuid4
 import pytest
 
 
+CONTROL_PLANE_ROOT = Path(__file__).resolve().parents[3]
+
+
 class ScalarSequenceStub:
     def __init__(self, items: list[object]) -> None:
         self._items = items
@@ -57,7 +60,9 @@ async def test_audit_repository_update_delete_are_disabled() -> None:
 
 
 def test_audit_migration_installs_update_delete_blocking_trigger() -> None:
-    migration = Path("migrations/versions/058_security_compliance.py").read_text(encoding="utf-8")
+    migration = (CONTROL_PLANE_ROOT / "migrations/versions/058_security_compliance.py").read_text(
+        encoding="utf-8"
+    )
 
     assert "audit_chain_entries_append_only" in migration
     assert "BEFORE UPDATE OR DELETE ON audit_chain_entries" in migration

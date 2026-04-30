@@ -249,7 +249,7 @@ Independent-test discipline: every US MUST be verifiable in isolation. US1 = HA 
   - `VaultAuthFailureRate` — `rate(vault_auth_failure_total[5m]) > 0.01`, for=5m, severity=warning.
   - `VaultLeaseRenewalFailing` — `vault_renewal_failure_total > 0`, for=any, severity=warning.
   - `VaultStalenessHigh` — `vault_serving_stale_total > 0`, for=5m, severity=warning.
-- [ ] T092 [P] [W15E] Run `promtool check rules deploy/helm/observability/templates/alerts/vault.yaml` to validate; commit only if it passes.
+- [x] T092 [P] [W15E] Run `promtool check rules deploy/helm/observability/templates/alerts/vault.yaml` to validate; commit only if it passes.
 
 ### Grafana dashboard
 
