@@ -456,12 +456,14 @@ jobs:
             -v \
             --junitxml=reports/self-service-${{ matrix.secret_mode }}.xml
 
-      - name: Run J01, J11, and J19 journeys
+      - name: Run self-service journey extensions
         working-directory: tests/e2e
         run: |
           mkdir -p reports
           python -m pytest \
             journeys/test_j01_admin_bootstrap.py \
+            journeys/test_j03_consumer_discovery_execution.py \
+            journeys/test_j10_multi_channel_notifications.py \
             journeys/test_j11_security_officer.py \
             journeys/test_j19_new_user_signup.py \
             -m journey \
