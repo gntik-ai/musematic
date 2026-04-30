@@ -10,7 +10,7 @@ import { toast } from "@/lib/hooks/use-toast";
 
 interface QrCodeStepProps {
   allowSkip?: boolean | undefined;
-  onNext: () => void;
+  onNext: (recoveryCodes?: string[]) => void;
   onSkip?: (() => void) | undefined;
 }
 
@@ -29,11 +29,12 @@ export function QrCodeStep({
   }, [mutate, status]);
 
   const handleCopy = async () => {
-    if (!data?.secret_key) {
+    const secret = data?.secret ?? data?.secret_key;
+    if (!secret) {
       return;
     }
 
-    await navigator.clipboard.writeText(data.secret_key);
+    await navigator.clipboard.writeText(secret);
     toast({
       title: "Secret key copied",
       variant: "success",
@@ -81,7 +82,7 @@ export function QrCodeStep({
             <p className="text-sm font-medium">Can&apos;t scan? Enter this code manually:</p>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <code className="break-all rounded-lg bg-background px-3 py-2 font-mono text-sm">
-                {data.secret_key}
+                {data.secret ?? data.secret_key}
               </code>
               <Button onClick={() => void handleCopy()} type="button" variant="outline">
                 <Copy className="h-4 w-4" />
@@ -100,7 +101,7 @@ export function QrCodeStep({
         ) : null}
         <Button
           disabled={!data || isPending}
-          onClick={onNext}
+          onClick={() => onNext(data?.recovery_codes)}
           type="button"
         >
           {isPending ? (

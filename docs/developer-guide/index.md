@@ -18,3 +18,5 @@ The Developer Guide is for contributors and integrators extending Musematic. It 
 | [Secret Provider Protocol](secret-provider-protocol.md) | Vault, Kubernetes, and mock secret resolution. |
 | [Adding a New Secret](adding-a-new-secret.md) | Canonical paths, policy updates, and callsite wiring. |
 | [OAuth Bootstrap Internals](oauth-bootstrap-internals.md) | Startup bootstrap, Vault writes, audit events, migrations, and Helm wiring. |
+| [`/me` Endpoint Pattern](me-endpoints.md) | Self-service router rules, endpoint inventory, Rule 46 enforcement, and audit handling. |
+| [Notification Preferences Internals](notification-preferences-internals.md) | Matrix data model, mandatory events, quiet hours, and digest behavior. |

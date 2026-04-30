@@ -9,7 +9,7 @@ import { ApiError } from "@/types/api";
 
 interface VerificationStepProps {
   onBack: () => void;
-  onSuccess: (recoveryCodes: string[]) => void;
+  onSuccess: (recoveryCodes?: string[]) => void;
 }
 
 export function VerificationStep({

@@ -279,5 +279,354 @@
         "loadFailed": "Unable to load rate limits."
       }
     }
+  },
+  "notifications": {
+    "inbox": {
+      "title": "Notifications",
+      "description": "Persistent alert history, filtered to your account.",
+      "loading": "Loading notifications...",
+      "empty": "No notifications match the current filters.",
+      "filters": {
+        "title": "Filters",
+        "reset": "Reset",
+        "state": "State",
+        "read": {
+          "all": "All",
+          "unread": "Unread",
+          "read": "Read"
+        },
+        "severity": "Severity",
+        "options": {
+          "all": "All"
+        },
+        "severityOptions": {
+          "info": "Info",
+          "warning": "Warning",
+          "critical": "Critical"
+        },
+        "channel": "Channel",
+        "channels": {
+          "in_app": "In-app",
+          "email": "Email",
+          "webhook": "Webhook",
+          "slack": "Slack",
+          "teams": "Teams",
+          "sms": "SMS"
+        },
+        "eventType": "Event type",
+        "from": "From",
+        "to": "To"
+      },
+      "bulk": {
+        "selectPage": "Select page",
+        "selected": "{count, plural, one {# selected} other {# selected}}",
+        "unread": "{count, plural, one {# unread} other {# unread}}",
+        "markAllRead": "Mark all read"
+      },
+      "item": {
+        "selectAria": "Select notification {title}",
+        "read": "Read",
+        "unread": "Unread",
+        "severity": {
+          "info": "Info",
+          "warning": "Warning",
+          "critical": "Critical"
+        },
+        "open": "Open"
+      }
+    },
+    "preferences": {
+      "title": "Notification Preferences",
+      "description": "Control channel routing, digest timing, and quiet hours.",
+      "save": "Save",
+      "eventChannels": {
+        "title": "Event Channels",
+        "description": "Security and incident events stay protected by server-side validation."
+      },
+      "digest": {
+        "title": "Digest Mode",
+        "description": "Choose delivery cadence per channel.",
+        "channels": {
+          "in_app": "In-app",
+          "email": "Email",
+          "webhook": "Webhook",
+          "slack": "Slack",
+          "teams": "Teams",
+          "sms": "SMS"
+        },
+        "modes": {
+          "immediate": "Immediate",
+          "hourly": "Hourly",
+          "daily": "Daily"
+        }
+      },
+      "quietHours": {
+        "title": "Quiet Hours",
+        "description": "Critical security and incident notifications bypass quiet hours.",
+        "start": "Start",
+        "end": "End",
+        "timezone": "Timezone"
+      },
+      "testEvents": {
+        "title": "Test Events",
+        "description": "Send a synthetic alert through your current preferences.",
+        "button": "Test"
+      },
+      "matrix": {
+        "event": "Event",
+        "channels": {
+          "in_app": "In-app",
+          "email": "Email",
+          "webhook": "Webhook",
+          "slack": "Slack",
+          "teams": "Teams",
+          "sms": "SMS"
+        },
+        "mandatoryTooltip": "Mandatory events must keep at least one channel.",
+        "channelAria": "{eventType} {channel}"
+      }
+    }
+  },
+  "apiKeys": {
+    "title": "API Keys",
+    "description": "Create and revoke personal access tokens for developer workflows.",
+    "usage": "{activeCount} of {maxActive} active keys used.",
+    "create": {
+      "trigger": "Create API key",
+      "title": "Create API key",
+      "description": "Personal keys inherit only scopes you already have. MFA is required when enabled.",
+      "name": "Name",
+      "scopes": "Scopes",
+      "expires": "Expires",
+      "mfaCode": "MFA code",
+      "cancel": "Cancel",
+      "submit": "Create"
+    },
+    "oneTime": {
+      "title": "New API key",
+      "description": "This is the only time you will see this value.",
+      "copy": "Copy",
+      "dismiss": "Dismiss"
+    },
+    "table": {
+      "empty": "No personal API keys have been created.",
+      "name": "Name",
+      "identifier": "Identifier",
+      "status": {
+        "label": "Status",
+        "active": "Active",
+        "disabled": "Disabled",
+        "revoked": "Revoked"
+      },
+      "created": "Created",
+      "lastUsed": "Last used",
+      "action": "Action",
+      "never": "Never",
+      "revokeAria": "Revoke {name}"
+    }
+  },
+  "security": {
+    "overview": {
+      "title": "Security",
+      "description": "Account controls for MFA, sessions, and audit history.",
+      "links": {
+        "mfa": {
+          "label": "Multi-factor authentication",
+          "description": "Enroll, confirm, and manage account MFA."
+        },
+        "sessions": {
+          "label": "Sessions",
+          "description": "Review active sessions and revoke access."
+        },
+        "activity": {
+          "label": "Activity",
+          "description": "Audit events involving your account."
+        }
+      }
+    },
+    "mfa": {
+      "title": "Multi-factor authentication",
+      "description": "Enroll, confirm, and manage account MFA.",
+      "enroll": "Enroll MFA",
+      "regenerateBackupCodes": "Regenerate backup codes",
+      "disable": "Disable MFA",
+      "statusTitle": "MFA status",
+      "status": {
+        "active": "Active",
+        "notEnrolled": "Not enrolled"
+      },
+      "activeDescription": "Your account requires an authenticator code during sign-in.",
+      "notEnrolledDescription": "Add an authenticator app to protect sign-in and sensitive account actions.",
+      "enrollFlow": {
+        "title": "Enrollment flow",
+        "stepCounter": "Step {current} of {total}",
+        "progressAria": "MFA enrollment progress",
+        "enableTitle": "Start with your authenticator app",
+        "enableDescription": "You will scan a QR code, confirm a 6-digit code, and save one-time backup codes.",
+        "begin": "Start enrollment",
+        "loading": "Preparing",
+        "qrTitle": "Scan or enter the setup key",
+        "qrDescription": "Use an authenticator app that supports time-based one-time passwords.",
+        "confirmTitle": "Confirm the authenticator code",
+        "confirmDescription": "Enter the current 6-digit code from your authenticator app.",
+        "backupTitle": "Save your backup codes",
+        "backupDescription": "These codes are shown once. Store them before leaving this step.",
+        "codeAria": "Authenticator verification code",
+        "back": "Back",
+        "next": "Next",
+        "verify": "Verify",
+        "verifying": "Verifying",
+        "successTitle": "MFA enrollment completed",
+        "errors": {
+          "enroll": "Unable to prepare MFA enrollment.",
+          "confirm": "Unable to verify that code."
+        }
+      },
+      "qr": {
+        "aria": "MFA QR code",
+        "manualTitle": "Manual entry",
+        "manualDescription": "If you cannot scan the QR code, enter this setup key in your authenticator app.",
+        "copy": "Copy setup key",
+        "copied": "Copied"
+      },
+      "backupCodes": {
+        "title": "One-time backup codes",
+        "description": "Each code can be used once if you lose access to your authenticator.",
+        "copy": "Copy all codes",
+        "copied": "Copied",
+        "download": "Download",
+        "acknowledge": "I have saved these backup codes somewhere safe.",
+        "dismiss": "I saved them"
+      },
+      "regenerateDialog": {
+        "title": "Regenerate backup codes",
+        "description": "Existing unused backup codes will stop working after regeneration.",
+        "code": "Authenticator code",
+        "codeAria": "Authenticator code for backup-code regeneration",
+        "cancel": "Cancel",
+        "submit": "Regenerate",
+        "submitting": "Regenerating",
+        "successTitle": "Backup codes regenerated",
+        "error": "Unable to regenerate backup codes."
+      },
+      "disableDialog": {
+        "title": "Disable MFA",
+        "description": "Enter your password and current authenticator code. If MFA is enforced by policy, this action will be refused.",
+        "password": "Password",
+        "code": "Authenticator code",
+        "codeAria": "Authenticator code for disabling MFA",
+        "cancel": "Cancel",
+        "submit": "Disable MFA",
+        "submitting": "Disabling",
+        "successTitle": "MFA disabled",
+        "error": "Unable to disable MFA."
+      }
+    },
+    "sessions": {
+      "title": "Sessions",
+      "description": "Revoke sessions you no longer recognize.",
+      "revokeOthers": "Revoke other sessions",
+      "list": {
+        "empty": "No active sessions were returned.",
+        "unknownDevice": "Unknown device",
+        "current": "This session",
+        "unknownLocation": "Unknown location",
+        "unknown": "Unknown",
+        "lastActive": "Last active {date}",
+        "created": "Created {date}",
+        "revokeAria": "Revoke session {sessionId}",
+        "revoke": "Revoke"
+      }
+    },
+    "activity": {
+      "title": "Activity",
+      "description": "Audit events where your account is actor or subject.",
+      "empty": "No activity entries match the current filters.",
+      "loadMore": "Load more",
+      "filters": {
+        "title": "Filters",
+        "reset": "Reset",
+        "eventType": "Event type",
+        "start": "Start",
+        "end": "End"
+      }
+    }
+  },
+  "privacy": {
+    "consent": {
+      "title": "Consent",
+      "description": "Review current consent state and history.",
+      "tabs": {
+        "current": "Current",
+        "history": "History"
+      },
+      "empty": "No consent records were returned.",
+      "card": {
+        "never": "Never",
+        "grantedAt": "Granted {date}",
+        "revokedAt": "Revoked {date}",
+        "status": {
+          "granted": "Granted",
+          "revoked": "Revoked"
+        }
+      },
+      "revoke": {
+        "trigger": "Revoke",
+        "title": "Revoke consent",
+        "description": "Revoking {consentType} can disable related agent interactions, analytics, or training features until consent is granted again.",
+        "cancel": "Cancel",
+        "confirm": "Revoke consent"
+      },
+      "history": {
+        "never": "Never",
+        "empty": "No consent history.",
+        "revoked": "revoked {date}",
+        "granted": "granted {date}"
+      }
+    },
+    "dsr": {
+      "title": "Data Subject Requests",
+      "description": "Submit and review privacy requests for your account.",
+      "submit": {
+        "title": "Submit request",
+        "description": "Choose one GDPR right and submit it for processing.",
+        "requestType": "Request type",
+        "types": {
+          "access": "Access",
+          "rectification": "Rectification",
+          "erasure": "Erasure",
+          "portability": "Portability",
+          "restriction": "Restriction",
+          "objection": "Objection"
+        },
+        "confirmDelete": "Type DELETE",
+        "erasureTitle": "Permanent erasure",
+        "erasureDescription": "Active executions may fail when erasure is processed. Submit only after reviewing in-flight work.",
+        "legalBasis": "Legal basis or notes",
+        "submit": "Submit request"
+      },
+      "status": {
+        "empty": "No data subject requests have been submitted.",
+        "pending": "Pending",
+        "filed": "Filed {date}",
+        "completed": "Completed {date}",
+        "types": {
+          "access": "Access",
+          "rectification": "Rectification",
+          "erasure": "Erasure",
+          "portability": "Portability",
+          "restriction": "Restriction",
+          "objection": "Objection"
+        },
+        "states": {
+          "received": "Received",
+          "scheduled_with_hold": "Scheduled with hold",
+          "in_progress": "In progress",
+          "completed": "Completed",
+          "failed": "Failed",
+          "cancelled": "Cancelled"
+        }
+      }
+    }
   }
 }

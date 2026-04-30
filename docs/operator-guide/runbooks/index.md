@@ -21,3 +21,7 @@ Runbooks are written for search during incidents. Each page follows Symptom, Dia
 | [Incident Response Procedures](incident-response-procedures.md) | incident, runbook, postmortem | Run the incident lifecycle. |
 | [Log Query Cookbook](log-query-cookbook.md) | loki, logql, query | Query common incident patterns. |
 | [TLS Emergency Renewal](tls-emergency-renewal.md) | tls, cert-manager, certificate | Renew certificates when automation fails. |
+| [Notification Preferences Troubleshooting](notification-preferences-troubleshooting.md) | notifications, preferences, quiet-hours | Diagnose missing or delayed user notifications. |
+| [MFA Self-Service Issues](mfa-self-service-issues.md) | mfa, backup-codes, authenticator | Resolve MFA enrollment, backup-code, and policy-disable issues. |
+| [Session Revocation Incident](session-revocation-incident.md) | session, stolen-device, revoke | Revoke suspicious user sessions after compromise reports. |
+| [DSR Self-Service Flow](dsr-self-service-flow.md) | dsr, gdpr, privacy | Handle self-service data subject requests. |

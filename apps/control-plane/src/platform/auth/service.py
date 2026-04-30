@@ -8,7 +8,9 @@ from platform.auth.events import (
     ApiKeyCreatedPayload,
     ApiKeyRevokedPayload,
     ApiKeyRotatedPayload,
+    MfaDisabledPayload,
     MfaEnrolledPayload,
+    MfaRecoveryCodesRegeneratedPayload,
     SessionRevokedPayload,
     SessionsRevokedAllOthersPayload,
     UserAuthenticatedPayload,
@@ -46,7 +48,9 @@ from platform.auth.schemas import (
     LoginResponse,
     MfaChallengeResponse,
     MfaConfirmResponse,
+    MfaDisableResponse,
     MfaEnrollResponse,
+    MfaRecoveryCodesRegenerateResponse,
     MfaStatus,
     PermissionCheckResponse,
     ServiceAccountCreateResponse,
@@ -57,7 +61,7 @@ from platform.auth.tokens import create_access_token, create_token_pair, decode_
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import AuthSettings, PlatformSettings
 from platform.common.events.producer import EventProducer
-from platform.common.exceptions import NotFoundError
+from platform.common.exceptions import AuthorizationError, NotFoundError, ValidationError
 from typing import Any, cast
 from uuid import UUID, uuid4
 
@@ -465,6 +469,63 @@ class AuthService:
         )
         return MfaConfirmResponse()
 
+    async def regenerate_mfa_recovery_codes(
+        self,
+        user_id: UUID,
+        totp_code: str,
+        *,
+        correlation_id: UUID | None = None,
+    ) -> MfaRecoveryCodesRegenerateResponse:
+        enrollment = await self.repository.get_mfa_enrollment(user_id)
+        if enrollment is None or enrollment.status != MfaStatus.ACTIVE.value:
+            raise InvalidMfaTokenError("Active MFA enrollment required")
+
+        secret = decrypt_secret(enrollment.encrypted_secret, self.settings.mfa_encryption_key)
+        if not verify_totp_code(secret, totp_code.strip()):
+            raise InvalidMfaCodeError()
+
+        recovery_codes, recovery_hashes = generate_recovery_codes()
+        await self.repository.update_mfa_recovery_codes(enrollment.id, recovery_hashes)
+        await publish_auth_event(
+            "auth.mfa.recovery_codes_regenerated",
+            MfaRecoveryCodesRegeneratedPayload(user_id=user_id),
+            correlation_id or uuid4(),
+            self.producer,
+        )
+        return MfaRecoveryCodesRegenerateResponse(recovery_codes=recovery_codes)
+
+    async def disable_mfa_self_service(
+        self,
+        user_id: UUID,
+        password: str,
+        totp_code: str,
+        *,
+        correlation_id: UUID | None = None,
+    ) -> MfaDisableResponse:
+        credential = await self.repository.get_credential_by_user_id(user_id)
+        if credential is None or not credential.is_active:
+            raise InvalidCredentialsError()
+        if not verify_password(password, credential.password_hash):
+            raise InvalidCredentialsError()
+
+        enrollment = await self.repository.get_mfa_enrollment(user_id)
+        if enrollment is None or enrollment.status != MfaStatus.ACTIVE.value:
+            raise InvalidMfaTokenError("Active MFA enrollment required")
+
+        secret = decrypt_secret(enrollment.encrypted_secret, self.settings.mfa_encryption_key)
+        if not verify_totp_code(secret, totp_code.strip()):
+            raise InvalidMfaCodeError()
+
+        disabled = await self.repository.disable_mfa_enrollment(user_id)
+        if disabled:
+            await publish_auth_event(
+                "auth.mfa.disabled",
+                MfaDisabledPayload(user_id=user_id),
+                correlation_id or uuid4(),
+                self.producer,
+            )
+        return MfaDisableResponse()
+
     async def _ensure_user_records(self, *, user_id: UUID, email: str) -> None:
         normalized_email = email.strip().lower()
         display_name = normalized_email.split('@', 1)[0]
@@ -597,7 +658,7 @@ class AuthService:
         expiry: datetime | None = None,
         mfa_token: str | None = None,
     ) -> ServiceAccountCreateResponse:
-        del scopes, expiry
+        del expiry
         enrollment = await self.repository.get_mfa_enrollment(user_id)
         if enrollment is not None and enrollment.status == MfaStatus.ACTIVE.value:
             if not mfa_token:
@@ -606,9 +667,15 @@ class AuthService:
             if not verify_totp_code(secret, mfa_token.strip()):
                 raise InvalidMfaCodeError()
 
+        await self._validate_personal_api_key_scopes(user_id, scopes or [])
+
         active_count = await self.repository.count_active_service_accounts_for_user(user_id)
         if active_count >= 10:
-            raise ValueError("maximum personal API key count reached")
+            raise ValidationError(
+                "API_KEY_LIMIT_REACHED",
+                "maximum personal API key count reached",
+                {"max_active": 10},
+            )
 
         service_account_id = uuid4()
         raw_key = f"msk_{secrets.token_urlsafe(40)}"
@@ -701,7 +768,70 @@ class AuthService:
         return await self.session_store.delete_all_sessions(user_id)
 
     async def reset_mfa(self, user_id: UUID) -> bool:
-        return await self.repository.disable_mfa_enrollment(user_id)
+        disabled = await self.repository.disable_mfa_enrollment(user_id)
+        if disabled:
+            await publish_auth_event(
+                "auth.mfa.disabled",
+                MfaDisabledPayload(user_id=user_id),
+                uuid4(),
+                self.producer,
+            )
+        return disabled
+
+    async def publish_mfa_recovery_codes_regenerated(
+        self,
+        user_id: UUID,
+        *,
+        correlation_id: UUID | None = None,
+    ) -> None:
+        await publish_auth_event(
+            "auth.mfa.recovery_codes_regenerated",
+            MfaRecoveryCodesRegeneratedPayload(user_id=user_id),
+            correlation_id or uuid4(),
+            self.producer,
+        )
+
+    async def _validate_personal_api_key_scopes(
+        self,
+        user_id: UUID,
+        scopes: list[str],
+    ) -> None:
+        for scope in scopes:
+            resource_type, action = self._parse_personal_api_key_scope(scope)
+            permission = await self.check_permission(
+                user_id=user_id,
+                resource_type=resource_type,
+                action=action,
+                workspace_id=None,
+                correlation_id=uuid4(),
+            )
+            if not permission.allowed:
+                raise AuthorizationError(
+                    "API_KEY_SCOPE_FORBIDDEN",
+                    f"requested scope '{scope}' is not permitted for the current user",
+                    {"scope": scope},
+                )
+
+    @staticmethod
+    def _parse_personal_api_key_scope(scope: str) -> tuple[str, str]:
+        normalized = scope.strip()
+        if ":" in normalized:
+            resource_type, action = normalized.split(":", 1)
+        elif "." in normalized:
+            resource_type, action = normalized.rsplit(".", 1)
+        else:
+            raise ValidationError(
+                "API_KEY_SCOPE_INVALID",
+                "scope must use 'resource:action' or 'resource.action' format",
+                {"scope": scope},
+            )
+        if not resource_type or not action:
+            raise ValidationError(
+                "API_KEY_SCOPE_INVALID",
+                "scope must include both resource and action",
+                {"scope": scope},
+            )
+        return resource_type, action
 
     @staticmethod
     def _city_level_location(ip_address: str) -> str | None:

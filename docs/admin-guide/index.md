@@ -15,5 +15,6 @@ The Administrator Guide mirrors the Admin Workbench sections from feature 086 an
 | [Integrations](integrations.md) | Notification channels, webhooks, A2A endpoints, provider tests. |
 | [Lifecycle](lifecycle.md) | Agent, workspace, user, model, and release lifecycle controls. |
 | [Audit Logs](audit-logs.md) | Search, export, attestations, evidence review, correlation. |
+| [Self-Service Surfaces](self-service-surfaces.md) | User-facing equivalents for notifications, API keys, MFA, sessions, consent, DSR, and activity. |
 
 High-risk actions may require step-up authentication or two-person approval. If an action fails with `admin_read_only_mode` or `two_person_approval_required`, start the required approval flow before retrying.

@@ -107,6 +107,74 @@ async function mockA11yApis(page: Page) {
     global_max: 100,
     global_window: 60,
   };
+  const timestamp = "2026-04-30T09:00:00.000Z";
+  const alert = {
+    id: "00000000-0000-0000-0000-000000000101",
+    alert_type: "security.session",
+    title: "New security alert",
+    body: "A new session was created from Madrid.",
+    urgency: "high",
+    read: false,
+    interaction_id: null,
+    source_reference: { channel: "in_app", url: "/settings/security/activity" },
+    created_at: timestamp,
+    updated_at: timestamp,
+  };
+  const notificationPreferences = {
+    state_transitions: ["working_to_pending", "any_to_complete", "any_to_failed"],
+    delivery_method: "in_app",
+    webhook_url: null,
+    per_channel_preferences: {
+      "security.session": ["in_app", "email"],
+      "incidents.created": ["in_app", "email", "slack"],
+      "privacy.dsr": ["in_app"],
+    },
+    digest_mode: {
+      in_app: "immediate",
+      email: "daily",
+      webhook: "immediate",
+      slack: "hourly",
+      teams: "hourly",
+      sms: "immediate",
+    },
+    quiet_hours: {
+      start_time: "22:00",
+      end_time: "07:00",
+      timezone: "Europe/Madrid",
+    },
+  };
+  const serviceAccount = {
+    service_account_id: "00000000-0000-0000-0000-000000000201",
+    name: "Local automation",
+    role: "service_account",
+    status: "active",
+    workspace_id: null,
+    created_at: timestamp,
+    last_used_at: null,
+    api_key_prefix: "hash:fixture201",
+  };
+  const consent = {
+    id: "00000000-0000-0000-0000-000000000301",
+    consent_type: "ai_interaction",
+    granted: true,
+    granted_at: timestamp,
+    revoked_at: null,
+    workspace_id: null,
+  };
+  const dsr = {
+    id: "00000000-0000-0000-0000-000000000401",
+    subject_user_id: "00000000-0000-0000-0000-000000000501",
+    request_type: "access",
+    requested_by: "00000000-0000-0000-0000-000000000501",
+    status: "received",
+    legal_basis: "self_service",
+    scheduled_release_at: null,
+    requested_at: timestamp,
+    completed_at: null,
+    completion_proof_hash: null,
+    failure_reason: null,
+    tombstone_id: null,
+  };
 
   await fulfillJson(page, "**/api/v1/workspaces", {
     items: [
@@ -141,6 +209,54 @@ async function mockA11yApis(page: Page) {
     translations: {},
     published_at: "2026-04-10T09:00:00.000Z",
   });
+  await fulfillJson(page, "**/api/v1/me/alerts**", {
+    items: [alert],
+    next_cursor: null,
+    total_unread: 1,
+  });
+  await fulfillJson(page, "**/api/v1/me/notification-preferences", notificationPreferences);
+  await fulfillJson(page, "**/api/v1/me/service-accounts", {
+    items: [serviceAccount],
+    max_active: 10,
+  });
+  await fulfillJson(page, "**/api/v1/me/sessions", {
+    items: [
+      {
+        session_id: "00000000-0000-0000-0000-000000000601",
+        device_info: "Firefox on Linux",
+        ip_address: "203.0.113.10",
+        location: "Madrid, Spain",
+        created_at: "2026-04-30T07:00:00.000Z",
+        last_activity: timestamp,
+        is_current: true,
+      },
+      {
+        session_id: "00000000-0000-0000-0000-000000000602",
+        device_info: "Chrome on macOS",
+        ip_address: "198.51.100.8",
+        location: "Lisbon, Portugal",
+        created_at: "2026-04-29T15:00:00.000Z",
+        last_activity: "2026-04-29T16:00:00.000Z",
+        is_current: false,
+      },
+    ],
+  });
+  await fulfillJson(page, "**/api/v1/me/activity**", {
+    items: [
+      {
+        id: "00000000-0000-0000-0000-000000000701",
+        event_type: "auth.session.revoked",
+        audit_event_source: "self_service",
+        severity: "info",
+        created_at: timestamp,
+        canonical_payload: { actor_id: "00000000-0000-0000-0000-000000000501" },
+      },
+    ],
+    next_cursor: null,
+  });
+  await fulfillJson(page, "**/api/v1/me/consent/history", { items: [consent] });
+  await fulfillJson(page, "**/api/v1/me/consent", { items: [consent] });
+  await fulfillJson(page, "**/api/v1/me/dsr**", { items: [dsr], next_cursor: null });
   await fulfillJson(page, "**/api/v1/admin/oauth/providers", {
     providers: oauthProviders,
   });

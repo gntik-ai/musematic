@@ -143,8 +143,8 @@ const authHandlers = [
     }),
   ),
   http.post("*/api/v1/auth/mfa/confirm", async ({ request }) => {
-    const body = (await request.json()) as { code?: string };
-    if (body.code === "000000") {
+    const body = (await request.json()) as { code?: string; totp_code?: string };
+    if ((body.totp_code ?? body.code) === "000000") {
       return HttpResponse.json(
         {
           error: {

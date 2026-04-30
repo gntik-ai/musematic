@@ -20,6 +20,8 @@ export default function MainLayout({ children }: Readonly<{ children: React.Reac
   const setUser = useAuthStore((state) => state.setUser);
   const [mounted, setMounted] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const shouldShowGlobalMfaEnrollment =
+    Boolean(user && !user.mfaEnrolled) && pathname !== "/settings/security/mfa";
 
   const redirectTarget = useMemo(() => {
     if (typeof window === "undefined") {
@@ -56,7 +58,7 @@ export default function MainLayout({ children }: Readonly<{ children: React.Reac
             <DesktopBestHint />
             {children}
           </main>
-          {user && !user.mfaEnrolled ? (
+          {shouldShowGlobalMfaEnrollment && user ? (
             <MfaEnrollmentDialog
               onEnrolled={() => {
                 setUser({ ...user, mfaEnrolled: true });

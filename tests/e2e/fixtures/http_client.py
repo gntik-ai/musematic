@@ -1,10 +1,23 @@
 from __future__ import annotations
 
+import base64
+import json
 from collections.abc import AsyncIterator
 from typing import Any
 
 import httpx
 import pytest
+
+
+def _decode_jwt_payload(token: str) -> dict[str, Any]:
+    try:
+        payload = token.split(".")[1]
+        padded = payload + "=" * (-len(payload) % 4)
+        decoded = base64.urlsafe_b64decode(padded.encode("ascii"))
+        data = json.loads(decoded)
+    except (IndexError, ValueError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 class AuthenticatedAsyncClient(httpx.AsyncClient):
@@ -31,12 +44,18 @@ class AuthenticatedAsyncClient(httpx.AsyncClient):
         self.refresh_token = payload.get("refresh_token") or payload.get(
             "refreshToken",
         )
+        if not self.access_token:
+            if payload.get("mfa_required"):
+                raise RuntimeError(f"login for {email} requires MFA")
+            raise RuntimeError(f"login for {email} did not return an access token")
+        token_payload = _decode_jwt_payload(self.access_token)
         user = payload.get("user") or payload.get("account") or {}
-        self.current_user_id = user.get("id")
+        self.current_user_id = user.get("id") or token_payload.get("sub")
         self.current_workspace_id = (
             payload.get("workspace_id")
             or payload.get("workspaceId")
             or user.get("workspace_id")
+            or token_payload.get("workspace_id")
         )
 
     async def request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:

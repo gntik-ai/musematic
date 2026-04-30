@@ -166,6 +166,39 @@ async def test_j10_multi_channel_notifications(
         )
         assert replay.status_code in {200, 202, 404}
 
+    with journey_step("Consumer submits a self-service DSR through the same privacy request contract"):
+        self_service_dsr = await consumer_client.post(
+            "/api/v1/me/dsr",
+            json={
+                "request_type": "access",
+                "legal_basis": None,
+                "hold_hours": 0,
+            },
+        )
+        self_service_dsr.raise_for_status()
+        self_service_payload = self_service_dsr.json()
+        assert self_service_payload["subject_user_id"] == self_service_payload["requested_by"]
+
+    with journey_step("Admin DSR path targets the same subject and exposes Rule 34 audit visibility"):
+        admin_dsr = await admin_client.post(
+            "/api/v1/privacy/dsr",
+            json={
+                "subject_user_id": self_service_payload["subject_user_id"],
+                "request_type": "access",
+                "legal_basis": "support-verification",
+                "hold_hours": 0,
+            },
+        )
+        assert admin_dsr.status_code in {201, 403}
+        if admin_dsr.status_code == 201:
+            assert admin_dsr.json()["subject_user_id"] == self_service_payload["subject_user_id"]
+        activity = await consumer_client.get(
+            "/api/v1/me/activity",
+            params={"event_type": "privacy.dsr.submitted"},
+        )
+        activity.raise_for_status()
+        assert "items" in activity.json()
+
     with journey_step("Admin deactivates the temporary webhook after the journey"):
         assert webhook_payload is not None
         deleted = await admin_client.delete(f"/api/v1/notifications/webhooks/{webhook_payload['id']}")

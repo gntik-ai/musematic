@@ -91,7 +91,9 @@ export interface PasswordResetTokenErrorResponse {
 
 export interface MfaEnrollResponse {
   provisioning_uri: string;
-  secret_key: string;
+  secret: string;
+  recovery_codes: string[];
+  secret_key?: string;
 }
 
 export interface MfaConfirmRequest {
@@ -99,7 +101,27 @@ export interface MfaConfirmRequest {
 }
 
 export interface MfaConfirmResponse {
+  status?: string;
+  message?: string;
+  recovery_codes?: string[];
+}
+
+export interface MfaRecoveryCodesRegenerateRequest {
+  totp_code: string;
+}
+
+export interface MfaRecoveryCodesRegenerateResponse {
   recovery_codes: string[];
+}
+
+export interface MfaDisableRequest {
+  password: string;
+  totp_code: string;
+}
+
+export interface MfaDisableResponse {
+  status: string;
+  message: string;
 }
 
 export interface OAuthCallbackSuccessResponse {
@@ -203,7 +225,31 @@ export async function enrollMfa(): Promise<MfaEnrollResponse> {
 export async function confirmMfa(
   request: MfaConfirmRequest,
 ): Promise<MfaConfirmResponse> {
-  return authApi.post<MfaConfirmResponse>("/api/v1/auth/mfa/confirm", request, {
+  return authApi.post<MfaConfirmResponse>(
+    "/api/v1/auth/mfa/confirm",
+    { totp_code: request.code },
+    {
+      skipRetry: true,
+    },
+  );
+}
+
+export async function regenerateMfaRecoveryCodes(
+  request: MfaRecoveryCodesRegenerateRequest,
+): Promise<MfaRecoveryCodesRegenerateResponse> {
+  return authApi.post<MfaRecoveryCodesRegenerateResponse>(
+    "/api/v1/auth/mfa/recovery-codes/regenerate",
+    request,
+    {
+      skipRetry: true,
+    },
+  );
+}
+
+export async function disableMfa(
+  request: MfaDisableRequest,
+): Promise<MfaDisableResponse> {
+  return authApi.post<MfaDisableResponse>("/api/v1/auth/mfa/disable", request, {
     skipRetry: true,
   });
 }

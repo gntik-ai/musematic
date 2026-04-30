@@ -41,6 +41,16 @@ class MfaEnrolledPayload(BaseModel):
     method: str
 
 
+class MfaDisabledPayload(BaseModel):
+    user_id: UUID
+    source: str = "self_service"
+
+
+class MfaRecoveryCodesRegeneratedPayload(BaseModel):
+    user_id: UUID
+    source: str = "self_service"
+
+
 class PermissionDeniedPayload(BaseModel):
     user_id: UUID
     resource_type: str
@@ -164,6 +174,8 @@ AUTH_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     "auth.session.revoked": SessionRevokedPayload,
     "auth.session.revoked_all_others": SessionsRevokedAllOthersPayload,
     "auth.mfa.enrolled": MfaEnrolledPayload,
+    "auth.mfa.disabled": MfaDisabledPayload,
+    "auth.mfa.recovery_codes_regenerated": MfaRecoveryCodesRegeneratedPayload,
     "auth.permission.denied": PermissionDeniedPayload,
     "auth.apikey.rotated": ApiKeyRotatedPayload,
     "auth.api_key.created": ApiKeyCreatedPayload,
