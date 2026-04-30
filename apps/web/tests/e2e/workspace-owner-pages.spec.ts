@@ -419,7 +419,7 @@ test.describe("workspace owner workbench", () => {
     await expect(page.getByRole("heading", { name: "Agents" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "DLP violations" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Budget" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Quotas" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Quota usage" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Tags" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Recent activity" })).toBeVisible();
   });
@@ -438,16 +438,16 @@ test.describe("workspace owner workbench", () => {
     await page.getByRole("button", { name: "Remove member" }).last().click();
 
     await page.getByRole("button", { name: "Transfer ownership" }).click();
-    await page.getByLabel("New owner ID").fill(newOwnerId);
-    await page.getByRole("button", { name: "Initiate 2PA challenge" }).click();
+    await page.getByLabel("New owner user ID").fill(newOwnerId);
+    await page.getByRole("button", { name: "Create 2PA challenge" }).click();
     await expect(page.getByText("Challenge approved")).toBeVisible();
-    await page.getByRole("button", { name: "Consume approved challenge" }).click();
+    await page.getByRole("button", { name: "Consume challenge" }).click();
   });
 
   test("connector setup, detail activity, and rotation surfaces render", async ({ page }) => {
     await page.goto(`/workspaces/${workspaceId}/connectors`);
     await expect(page.getByRole("heading", { name: "Connectors" })).toBeVisible();
-    await expect(page.getByText("workspace-owned")).toBeVisible();
+    await expect(page.getByText("Workspace-owned", { exact: true })).toBeVisible();
 
     await page.getByRole("button", { name: "Add connector" }).click();
     await expect(page.getByText("Slack prerequisites")).toBeVisible();
@@ -470,7 +470,7 @@ test.describe("workspace owner workbench", () => {
   test("settings, tags, visibility, and admin IBOR tab render", async ({ page }) => {
     await page.goto(`/workspaces/${workspaceId}/settings`);
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
-    await expect(page.getByLabel("Budget amount")).toHaveValue("10000");
+    await expect(page.getByLabel("Monthly limit")).toHaveValue("10000");
     await page.getByRole("button", { name: "Save budget" }).click();
 
     await page.goto(`/workspaces/${workspaceId}/tags`);

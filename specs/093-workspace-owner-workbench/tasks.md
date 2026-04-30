@@ -163,7 +163,7 @@ Independent-test discipline: every US MUST be verifiable in isolation. US1 = wor
 
 ### Accessibility + frontend tests
 
-- [ ] T076 [W18B] Run axe-core scan on all 8 new pages + 3 admin tab extensions locally; verify zero AA violations per Rule 41 inheritance from UPD-083. Fix any violations introduced (likely candidates: dialog focus management, table keyboard nav, badge contrast, graph keyboard nav for visibility explorer).
+- [X] T076 [W18B] Run axe-core scan on all 8 new pages + 3 admin tab extensions locally; verify zero AA violations per Rule 41 inheritance from UPD-083. Fix any violations introduced (likely candidates: dialog focus management, table keyboard nav, badge contrast, graph keyboard nav for visibility explorer).
 - [X] T077 [W18B] Run `pnpm test`, `pnpm typecheck`, `pnpm lint` to verify all CI gates pass.
 
 ### Playwright E2E

@@ -70,6 +70,7 @@ export function ConnectorSetupWizard() {
             ))}
           </div>
           <Select
+            aria-label={t("title")}
             className="w-full md:w-64"
             value={type}
             onChange={(event) => setType(event.target.value as (typeof connectorTypes)[number])}

@@ -102,6 +102,7 @@ export function IBORConnectorWizard({ onCreated }: { onCreated?: (connector: IBO
             <div className="space-y-2">
               <Label>{t("directoryType")}</Label>
               <Select
+                aria-label={t("directoryType")}
                 value={form.source_type}
                 onChange={(event) =>
                   setForm({
@@ -133,6 +134,7 @@ export function IBORConnectorWizard({ onCreated }: { onCreated?: (connector: IBO
             <div className="space-y-2">
               <Label>{t("syncMode")}</Label>
               <Select
+                aria-label={t("syncMode")}
                 value={form.sync_mode}
                 onChange={(event) =>
                   setForm({

@@ -6,6 +6,8 @@ Status: partial local verification complete; live measurements pending.
 
 - Frontend type check passed with `pnpm --dir apps/web type-check` using `/tmp` tool caches.
 - i18n parity passed with `pnpm --dir apps/web test:i18n-parity`.
+- Workspace-owner axe scan passed with `pnpm --dir apps/web exec playwright test --config tests/a11y/playwright.a11y.config.ts tests/a11y/workspace-owner.spec.ts --project=a11y-light-en --reporter=line` against local Next.js at `http://127.0.0.1:3100`.
+- Workspace-owner Playwright spec passed with `pnpm --dir apps/web exec playwright test tests/e2e/workspace-owner-pages.spec.ts --project=chromium --reporter=line` against local Next.js at `http://127.0.0.1:3100`.
 - Static Rule 45 endpoint-to-UI mapping is documented in `rule45-ui-mapping.md`.
 - Playwright and Python E2E scaffolding were added for workspace-owner pages, J20, and J01 IBOR extensions.
 

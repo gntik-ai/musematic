@@ -59,6 +59,7 @@ export default function WorkspaceMembersPage() {
                         <span className="text-sm font-medium">{t("roles.owner")}</span>
                       ) : (
                         <Select
+                          aria-label={t("role")}
                           className="w-36"
                           value={member.role}
                           onChange={(event) => {
