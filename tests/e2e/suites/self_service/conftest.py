@@ -1,25 +1,44 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from typing import Any
+from uuid import uuid4
 
+import pyotp
 import pytest
 
+from fixtures.http_client import AuthenticatedAsyncClient
 from suites._helpers import assert_status, get_json, post_json
 
-
-@pytest.fixture
-async def self_service_client(http_client_workspace_member):
-    return http_client_workspace_member
+SELF_SERVICE_PASSWORD = "e2e-test-password"
 
 
 @pytest.fixture
-async def clean_self_service_state(self_service_client):
-    response = await self_service_client.post(
-        "/api/v1/_e2e/reset",
-        json={"scope": "self_service", "include_baseline": True},
+async def self_service_client(
+    platform_api_url: str,
+    http_client_superadmin,
+) -> AsyncIterator[AuthenticatedAsyncClient]:
+    user_id = uuid4()
+    email = f"self-service-{user_id.hex}@e2e.test"
+    provisioned = await http_client_superadmin.post(
+        "/api/v1/_e2e/users",
+        json={
+            "id": str(user_id),
+            "email": email,
+            "password": SELF_SERVICE_PASSWORD,
+            "display_name": "E2E Self-Service User",
+            "status": "active",
+            "roles": ["workspace_member"],
+        },
     )
-    if response.status_code not in {200, 202, 204, 404}:
-        assert_status(response)
+    assert_status(provisioned)
+    async with AuthenticatedAsyncClient(platform_api_url) as client:
+        await client.login_as(email, SELF_SERVICE_PASSWORD)
+        yield client
+
+
+@pytest.fixture
+async def clean_self_service_state():
     yield
 
 
@@ -37,12 +56,15 @@ async def logged_in_user_with_alerts(self_service_client, clean_self_service_sta
 
 @pytest.fixture
 async def mfa_enabled_user(self_service_client, clean_self_service_state):
-    response = await self_service_client.post(
-        "/api/v1/_e2e/self-service/mfa",
-        json={"enabled": True},
+    enrollment = assert_status(await self_service_client.post("/api/v1/auth/mfa/enroll", json={}))
+    secret = str(enrollment.get("secret") or enrollment.get("secret_key") or "")
+    code = pyotp.TOTP(secret.replace(" ", "")).now()
+    assert_status(
+        await self_service_client.post(
+            "/api/v1/auth/mfa/confirm",
+            json={"totp_code": code},
+        )
     )
-    if response.status_code not in {200, 201, 202, 204, 404}:
-        assert_status(response)
     return self_service_client
 
 
