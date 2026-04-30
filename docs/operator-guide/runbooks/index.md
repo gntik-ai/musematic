@@ -9,6 +9,9 @@ Runbooks are written for search during incidents. Each page follows Symptom, Dia
 | [Disaster Recovery Restore](disaster-recovery-restore.md) | backup, restore, disaster | Restore from object-storage-backed backups. |
 | [Multi-Region Failover and Failback](multi-region-failover-failback.md) | region, failover, failback | Execute and reverse a regional failover. |
 | [Secret Rotation](secret-rotation.md) | secret, vault, credential | Rotate regular or emergency secrets. |
+| [OAuth Bootstrap](oauth-bootstrap.md) | oauth, bootstrap, gitops | Configure Google and GitHub OAuth at install time. |
+| [OAuth Secret Rotation](oauth-secret-rotation.md) | oauth, secret, rotation | Rotate OAuth client secrets through Vault KV v2. |
+| [OAuth Config Promotion](oauth-config-promotion.md) | oauth, export, import | Promote OAuth provider config without plaintext secrets. |
 | [Vault Migration From Kubernetes Secrets](vault-migration-from-k8s.md) | vault, migration, kubernetes secret | Move existing Kubernetes Secrets into Vault. |
 | [Vault Secret Rotation](vault-rotation.md) | vault, kv, rotation | Rotate Vault-backed KV v2 secrets. |
 | [Vault Cache Flush](vault-cache-flush.md) | vault, cache, stale | Clear per-pod Vault caches after rotation. |

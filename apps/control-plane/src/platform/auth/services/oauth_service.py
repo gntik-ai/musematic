@@ -12,6 +12,7 @@ from platform.accounts.repository import AccountsRepository
 from platform.auth.events import (
     OAuthAccountLinkedPayload,
     OAuthAccountUnlinkedPayload,
+    OAuthConfigImportedPayload,
     OAuthProviderConfiguredPayload,
     OAuthRateLimitUpdatedPayload,
     OAuthSecretRotatedPayload,
@@ -22,6 +23,7 @@ from platform.auth.events import (
 )
 from platform.auth.exceptions import (
     InactiveUserError,
+    OAuthBootstrapEnvironmentError,
     OAuthLinkConflictError,
     OAuthProviderDisabledError,
     OAuthProviderNotFoundError,
@@ -170,11 +172,13 @@ class OAuthService:
         group_role_mapping: dict[str, str],
         default_role: str,
         require_mfa: bool,
+        source: OAuthProviderSourceType | str = OAuthProviderSourceType.MANUAL,
     ) -> tuple[OAuthProviderAdminResponse, bool]:
         self._validate_role(default_role)
         for role in group_role_mapping.values():
             self._validate_role(role)
 
+        source_value = source.value if isinstance(source, OAuthProviderSourceType) else str(source)
         existing = await self.repository.get_provider_by_type(provider_type)
         before = self._provider_snapshot(existing)
         last_edited_by = await self._resolved_existing_actor_id(actor_id)
@@ -191,17 +195,18 @@ class OAuthService:
             group_role_mapping=group_role_mapping,
             default_role=default_role,
             require_mfa=require_mfa,
-            source="manual",
+            source=source_value,
             last_edited_by=last_edited_by,
             last_edited_at=datetime.now(UTC),
         )
         changed_fields = self._diff_provider(before, self._provider_snapshot(provider))
+        audit_action = "config_imported" if source_value == "imported" else "provider_configured"
         await self.repository.create_audit_entry(
             provider_type=provider.provider_type,
             provider_id=provider.id,
             user_id=None,
             external_id=None,
-            action="provider_configured",
+            action=audit_action,
             outcome="success",
             failure_reason=None,
             source_ip=None,
@@ -209,6 +214,19 @@ class OAuthService:
             actor_id=actor_id,
             changed_fields=changed_fields,
         )
+        if source_value == "imported":
+            await publish_auth_event(
+                "auth.oauth.config_imported",
+                OAuthConfigImportedPayload(
+                    actor_id=actor_id,
+                    provider_type=provider.provider_type,
+                    vault_path=provider.client_secret_ref,
+                ),
+                uuid4(),
+                self.producer,
+            )
+            return self._serialize_admin_provider(provider), created
+
         await publish_auth_event(
             "auth.oauth.provider_configured",
             OAuthProviderConfiguredPayload(
@@ -269,15 +287,9 @@ class OAuthService:
         secret_provider: SecretProvider,
     ) -> OAuthConfigReseedResponse:
         if provider_type == "google" and not settings.oauth_bootstrap.google.enabled:
-            raise ValidationError(
-                "OAUTH_BOOTSTRAP_ENV_NOT_SET",
-                "PLATFORM_OAUTH_GOOGLE_ENABLED is not set in the running pod; cannot reseed",
-            )
+            raise OAuthBootstrapEnvironmentError(provider_type)
         if provider_type == "github" and not settings.oauth_bootstrap.github.enabled:
-            raise ValidationError(
-                "OAUTH_BOOTSTRAP_ENV_NOT_SET",
-                "PLATFORM_OAUTH_GITHUB_ENABLED is not set in the running pod; cannot reseed",
-            )
+            raise OAuthBootstrapEnvironmentError(provider_type)
         if provider_type not in {"google", "github"}:
             raise OAuthProviderNotFoundError(provider_type)
         result = await bootstrap_oauth_provider_from_env(

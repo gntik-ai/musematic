@@ -182,3 +182,17 @@ class OAuthRestrictionError(PlatformError):
 
     def __init__(self, code: str, message: str) -> None:
         super().__init__(code, message)
+
+
+class OAuthBootstrapEnvironmentError(PlatformError):
+    status_code = 400
+
+    def __init__(self, provider_type: str) -> None:
+        env_provider = provider_type.upper()
+        super().__init__(
+            "OAUTH_BOOTSTRAP_ENV_NOT_SET",
+            (
+                f"PLATFORM_OAUTH_{env_provider}_ENABLED is not set in the running pod; "
+                "cannot reseed"
+            ),
+        )

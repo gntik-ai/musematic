@@ -25,3 +25,47 @@ export const oauthProviderAdminSchema = z.object({
 });
 
 export type OAuthProviderAdminFormValues = z.infer<typeof oauthProviderAdminSchema>;
+
+export const oauthSecretRotateSchema = z.object({
+  new_secret: z.string().trim().min(1, "Secret is required"),
+});
+
+export const oauthConfigReseedSchema = z.object({
+  force_update: z.boolean().default(false),
+});
+
+export const oauthRateLimitConfigSchema = z.object({
+  per_ip_max: z.coerce.number().int().min(1, "Per-IP limit must be at least 1"),
+  per_ip_window: z.coerce.number().int().min(1, "Per-IP window must be at least 1"),
+  per_user_max: z.coerce.number().int().min(1, "Per-user limit must be at least 1"),
+  per_user_window: z.coerce.number().int().min(1, "Per-user window must be at least 1"),
+  global_max: z.coerce.number().int().min(1, "Global limit must be at least 1"),
+  global_window: z.coerce.number().int().min(1, "Global window must be at least 1"),
+});
+
+export const oauthHistoryEntrySchema = z.object({
+  timestamp: z.string(),
+  admin_id: z.string().nullable(),
+  action: z.string(),
+  before: z.record(z.unknown()).nullable(),
+  after: z.record(z.unknown()).nullable(),
+});
+
+export const oauthHistoryListSchema = z.object({
+  entries: z.array(oauthHistoryEntrySchema),
+  next_cursor: z.string().nullable(),
+});
+
+export const oauthConnectivityTestSchema = z.object({
+  reachable: z.boolean(),
+  auth_url_returned: z.boolean(),
+  diagnostic: z.string(),
+});
+
+export const oauthConfigReseedResponseSchema = z.object({
+  diff: z.record(z.unknown()),
+});
+
+export type OAuthSecretRotateValues = z.infer<typeof oauthSecretRotateSchema>;
+export type OAuthConfigReseedValues = z.infer<typeof oauthConfigReseedSchema>;
+export type OAuthRateLimitConfigValues = z.infer<typeof oauthRateLimitConfigSchema>;

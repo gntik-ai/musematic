@@ -17,3 +17,4 @@ The Developer Guide is for contributors and integrators extending Musematic. It 
 | [Structured Logging](structured-logging.md) | Log format and correlation conventions. |
 | [Secret Provider Protocol](secret-provider-protocol.md) | Vault, Kubernetes, and mock secret resolution. |
 | [Adding a New Secret](adding-a-new-secret.md) | Canonical paths, policy updates, and callsite wiring. |
+| [OAuth Bootstrap Internals](oauth-bootstrap-internals.md) | Startup bootstrap, Vault writes, audit events, migrations, and Helm wiring. |

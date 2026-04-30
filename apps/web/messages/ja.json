@@ -175,5 +175,109 @@
         "incidentIntegrations": "インシデント連携を開く"
       }
     }
+  },
+  "admin": {
+    "oauth": {
+      "actions": {
+        "testConnectivity": "TODO-translation: Test connectivity",
+        "rotateSecret": "TODO-translation: Rotate secret",
+        "reseed": "TODO-translation: Reseed from env",
+        "cancel": "TODO-translation: Cancel",
+        "save": "TODO-translation: Save",
+        "apply": "TODO-translation: Apply"
+      },
+      "tabs": {
+        "configuration": "TODO-translation: Configuration",
+        "status": "TODO-translation: Status",
+        "roleMappings": "TODO-translation: Role mappings",
+        "history": "TODO-translation: History",
+        "rateLimits": "TODO-translation: Rate limits"
+      },
+      "source": {
+        "aria": "TODO-translation: Configuration source: {source}",
+        "env_var": "TODO-translation: Env var",
+        "manual": "TODO-translation: Manual",
+        "imported": "TODO-translation: Imported",
+        "env_varHelp": "TODO-translation: Provisioned from platform OAuth environment variables.",
+        "manualHelp": "TODO-translation: Managed directly in the admin interface.",
+        "importedHelp": "TODO-translation: Imported from a GitOps promotion manifest."
+      },
+      "tooltips": {
+        "testConnectivity": "TODO-translation: Generate a provider authorization URL and report diagnostics."
+      },
+      "connectivity": {
+        "success": "TODO-translation: Connectivity check completed",
+        "failure": "TODO-translation: Connectivity check failed"
+      },
+      "rotate": {
+        "title": "TODO-translation: Rotate OAuth client secret",
+        "description": "TODO-translation: Write a new client secret version through the configured secret provider.",
+        "newSecret": "TODO-translation: New client secret",
+        "confirmation": "TODO-translation: I understand the new secret will be written to Vault and will not be shown again.",
+        "success": "TODO-translation: Secret rotated successfully",
+        "failure": "TODO-translation: Unable to rotate secret"
+      },
+      "reseed": {
+        "title": "TODO-translation: Reseed provider from environment",
+        "description": "TODO-translation: Re-read the running pod environment and apply the configured provider values.",
+        "acknowledge": "TODO-translation: This may overwrite manual changes. Continue?",
+        "forceUpdate": "TODO-translation: Force update",
+        "forceUpdateHelp": "TODO-translation: Overwrite an existing provider instead of preserving manual edits.",
+        "changedFields": "TODO-translation: Changed fields",
+        "success": "TODO-translation: Provider reseeded",
+        "failure": "TODO-translation: Unable to reseed provider"
+      },
+      "status": {
+        "lastAuth": "TODO-translation: Last successful auth",
+        "auth24h": "TODO-translation: Auths in 24h",
+        "auth7d": "TODO-translation: Auths in 7d",
+        "auth30d": "TODO-translation: Auths in 30d",
+        "linkedUsers": "TODO-translation: Linked users",
+        "never": "TODO-translation: Never",
+        "loadFailed": "TODO-translation: Unable to load provider status."
+      },
+      "roleMappings": {
+        "group": "TODO-translation: Group or team",
+        "role": "TODO-translation: Role",
+        "actions": "TODO-translation: Actions",
+        "delete": "TODO-translation: Delete mapping",
+        "empty": "TODO-translation: No role mappings configured.",
+        "invalidGroup": "TODO-translation: One or more group values do not match the provider format.",
+        "add": "TODO-translation: Add mapping",
+        "saved": "TODO-translation: Role mappings saved",
+        "saveFailed": "TODO-translation: Unable to save role mappings"
+      },
+      "history": {
+        "timestamp": "TODO-translation: Timestamp",
+        "admin": "TODO-translation: Admin",
+        "action": "TODO-translation: Action",
+        "expand": "TODO-translation: Expand history row",
+        "collapse": "TODO-translation: Collapse history row",
+        "system": "TODO-translation: System",
+        "before": "TODO-translation: Before",
+        "after": "TODO-translation: After",
+        "loading": "TODO-translation: Loading history...",
+        "empty": "TODO-translation: No history entries found.",
+        "loadMore": "TODO-translation: Load more",
+        "loadFailed": "TODO-translation: Unable to load provider history."
+      },
+      "rateLimits": {
+        "per_ip_max": "TODO-translation: Per-IP max",
+        "per_ip_window": "TODO-translation: Per-IP window",
+        "per_user_max": "TODO-translation: Per-user max",
+        "per_user_window": "TODO-translation: Per-user window",
+        "global_max": "TODO-translation: Global max",
+        "global_window": "TODO-translation: Global window",
+        "per_ip_maxHelp": "TODO-translation: Maximum attempts from one IP address during the window.",
+        "per_ip_windowHelp": "TODO-translation: Per-IP window in seconds.",
+        "per_user_maxHelp": "TODO-translation: Maximum attempts for one authenticated user during the window.",
+        "per_user_windowHelp": "TODO-translation: Per-user window in seconds.",
+        "global_maxHelp": "TODO-translation: Maximum provider attempts across the platform during the window.",
+        "global_windowHelp": "TODO-translation: Global provider window in seconds.",
+        "saved": "TODO-translation: Rate limits saved",
+        "saveFailed": "TODO-translation: Unable to save rate limits",
+        "loadFailed": "TODO-translation: Unable to load rate limits."
+      }
+    }
   }
 }

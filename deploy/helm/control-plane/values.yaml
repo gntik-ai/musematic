@@ -225,6 +225,62 @@ auth:
       # -- Configures `auth.oauth.github.orgMembershipUrlTemplate` for the control-plane chart.
       orgMembershipUrlTemplate: https://api.github.com/user/memberships/orgs/{org}
 
+# @section -- OAuth
+# -- Configures environment-variable OAuth provider bootstrap for the control-plane chart.
+oauth:
+  # -- Configures `oauth.google` for the control-plane chart.
+  google:
+    # -- Configures `oauth.google.enabled` for the control-plane chart.
+    enabled: false
+    # -- Configures `oauth.google.clientId` for the control-plane chart.
+    clientId: ""
+    # -- Configures `oauth.google.clientSecretRef` for the control-plane chart.
+    clientSecretRef:
+      # -- Configures `oauth.google.clientSecretRef.name` for the control-plane chart.
+      name: ""
+      # -- Configures `oauth.google.clientSecretRef.key` for the control-plane chart.
+      key: client-secret
+    # -- Configures `oauth.google.clientSecretVaultPath` for the control-plane chart.
+    clientSecretVaultPath: ""
+    # -- Configures `oauth.google.redirectUri` for the control-plane chart.
+    redirectUri: ""
+    # -- Configures `oauth.google.allowedDomains` for the control-plane chart.
+    allowedDomains: []
+    # -- Configures `oauth.google.groupRoleMappings` for the control-plane chart.
+    groupRoleMappings: {}
+    # -- Configures `oauth.google.requireMfa` for the control-plane chart.
+    requireMfa: false
+    # -- Configures `oauth.google.defaultRole` for the control-plane chart.
+    defaultRole: member
+    # -- Configures `oauth.google.forceUpdate` for the control-plane chart.
+    forceUpdate: false
+  # -- Configures `oauth.github` for the control-plane chart.
+  github:
+    # -- Configures `oauth.github.enabled` for the control-plane chart.
+    enabled: false
+    # -- Configures `oauth.github.clientId` for the control-plane chart.
+    clientId: ""
+    # -- Configures `oauth.github.clientSecretRef` for the control-plane chart.
+    clientSecretRef:
+      # -- Configures `oauth.github.clientSecretRef.name` for the control-plane chart.
+      name: ""
+      # -- Configures `oauth.github.clientSecretRef.key` for the control-plane chart.
+      key: client-secret
+    # -- Configures `oauth.github.clientSecretVaultPath` for the control-plane chart.
+    clientSecretVaultPath: ""
+    # -- Configures `oauth.github.redirectUri` for the control-plane chart.
+    redirectUri: ""
+    # -- Configures `oauth.github.allowedOrgs` for the control-plane chart.
+    allowedOrgs: []
+    # -- Configures `oauth.github.teamRoleMappings` for the control-plane chart.
+    teamRoleMappings: {}
+    # -- Configures `oauth.github.requireMfa` for the control-plane chart.
+    requireMfa: false
+    # -- Configures `oauth.github.defaultRole` for the control-plane chart.
+    defaultRole: member
+    # -- Configures `oauth.github.forceUpdate` for the control-plane chart.
+    forceUpdate: false
+
 # @section -- Migration
 # -- Configures `migration` for the control-plane chart.
 migration:

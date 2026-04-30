@@ -152,7 +152,7 @@ def _settings_env_prefix(class_node: ast.ClassDef) -> str:
 
 
 def _is_settings_class(class_node: ast.ClassDef) -> bool:
-    if not class_node.name.endswith("Settings"):
+    if not class_node.name.endswith(("Settings", "Bootstrap")):
         return False
     return any(_call_name(base) == "BaseSettings" for base in class_node.bases) or class_node.name == "PlatformSettings"
 
@@ -173,11 +173,13 @@ def _annotation_name(node: ast.AST | None) -> str:
 
 def _looks_like_nested_settings(item: ast.AnnAssign) -> bool:
     annotation = _annotation_name(item.annotation)
-    if annotation.endswith("Settings") and annotation != "PlatformSettings":
+    if annotation.endswith(("Settings", "Bootstrap")) and annotation != "PlatformSettings":
         return True
     if isinstance(item.value, ast.Call) and _call_name(item.value.func) == "Field":
         for keyword in item.value.keywords:
-            if keyword.arg == "default_factory" and _call_name(keyword.value).endswith("Settings"):
+            if keyword.arg == "default_factory" and _call_name(keyword.value).endswith(
+                ("Settings", "Bootstrap")
+            ):
                 return True
     return False
 
