@@ -385,12 +385,13 @@ async def test_upsert_provider_records_changed_fields_and_event(auth_settings) -
         domain_restrictions=["example.com"],
         org_restrictions=[],
         group_role_mapping={"admins": "platform_admin"},
-        default_role="viewer",
+        default_role="workspace_member",
         require_mfa=True,
     )
 
     assert created is False
     assert response.display_name == "Google Workspace"
+    assert response.default_role == "workspace_member"
     assert response.last_edited_by == actor_id
     assert repository.audit_entries[-1]["action"] == "provider_configured"
     assert repository.audit_entries[-1]["actor_id"] == actor_id
