@@ -42,6 +42,8 @@ CANONICAL_SECRET_PATH_RE = re.compile(
     r"(oauth|model-providers|notifications|ibor|audit-chain|connectors|accounts|_internal)/"
     r"[a-zA-Z0-9_/-]+$"
 )
+K8S_SECRET_RESOURCE_RE = re.compile(r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$")
+K8S_SECRET_ENCODED_RESOURCE_PREFIX = "x-"
 
 __all__ = [
     "CredentialPolicyDeniedError",
@@ -186,7 +188,7 @@ def _now() -> datetime:
 def vault_path_to_k8s_secret_name(path: str) -> str:
     validate_secret_path(path)
     _, _, _, environment, domain, resource = path.split("/", 5)
-    return f"musematic-{environment}-{domain}-{resource.replace('/', '__')}"
+    return f"musematic-{environment}-{domain}-{_resource_to_k8s_suffix(resource)}"
 
 
 def k8s_secret_name_to_vault_path(name: str) -> str:
@@ -199,11 +201,26 @@ def k8s_secret_name_to_vault_path(name: str) -> str:
     for domain in sorted(_VALID_DOMAINS, key=len, reverse=True):
         prefix = f"{domain}-"
         if rest.startswith(prefix):
-            resource = rest.removeprefix(prefix).replace("__", "/")
+            resource = _resource_from_k8s_suffix(rest.removeprefix(prefix))
             path = f"secret/data/musematic/{environment}/{domain}/{resource}"
             validate_secret_path(path)
             return path
     raise InvalidVaultPathError(name)
+
+
+def _resource_to_k8s_suffix(resource: str) -> str:
+    if K8S_SECRET_RESOURCE_RE.fullmatch(resource):
+        return resource
+    return f"{K8S_SECRET_ENCODED_RESOURCE_PREFIX}{resource.encode('utf-8').hex()}"
+
+
+def _resource_from_k8s_suffix(resource: str) -> str:
+    if resource.startswith(K8S_SECRET_ENCODED_RESOURCE_PREFIX):
+        encoded = resource.removeprefix(K8S_SECRET_ENCODED_RESOURCE_PREFIX)
+        if len(encoded) % 2 == 0 and re.fullmatch(r"[0-9a-f]+", encoded):
+            with contextlib.suppress(ValueError, UnicodeDecodeError):
+                return bytes.fromhex(encoded).decode("utf-8")
+    return resource
 
 
 class MockSecretProvider:
