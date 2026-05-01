@@ -23,8 +23,15 @@ func NewS3Uploader(endpoint string, bucket string) *S3Uploader {
 	return &S3Uploader{
 		bucket:   strings.TrimSpace(bucket),
 		endpoint: normaliseObjectStorageEndpoint(endpoint),
-		client:   http.DefaultClient,
+		client:   newS3HTTPClient(),
 	}
+}
+
+func newS3HTTPClient() *http.Client {
+	if transport, ok := http.DefaultTransport.(*http.Transport); ok {
+		return &http.Client{Transport: transport.Clone()}
+	}
+	return &http.Client{Transport: http.DefaultTransport}
 }
 
 func (u *S3Uploader) Upload(ctx context.Context, key string, body io.Reader, contentType string) error {
