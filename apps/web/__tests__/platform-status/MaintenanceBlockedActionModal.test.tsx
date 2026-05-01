@@ -26,7 +26,7 @@ describe("MaintenanceBlockedActionModal", () => {
     );
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByText("Action paused for maintenance")).toBeInTheDocument();
+    expect(screen.getByText("Maintenance is in progress")).toBeInTheDocument();
     expect(screen.getByText(/try again after/i)).toBeInTheDocument();
     expect(screen.queryByText(/503/)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /retry after/i })).toBeDisabled();

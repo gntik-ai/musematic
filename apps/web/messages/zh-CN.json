@@ -51,7 +51,7 @@
     "endsAt": "Ends at {date}",
     "dismiss": "Dismiss",
     "viewStatusPage": "View status page",
-    "blockedActionTitle": "Action paused for maintenance",
+    "blockedActionTitle": "Maintenance is in progress",
     "blockedActionExplanation": "Writes are temporarily paused for maintenance. You can try again after {date}.",
     "retryAfter": "Retry after",
     "unknownEnd": "the maintenance window ends",

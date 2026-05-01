@@ -62,7 +62,7 @@ export default function DiscoveryHypothesesPage({ params }: DiscoveryHypothesesP
       <HypothesisFilterBar value={filters} onChange={setFilters} />
       {filtered.length === 0 ? (
         <EmptyState
-          description="No hypotheses match the current filters."
+          description="Adjust the filters to view saved hypotheses."
           icon={Lightbulb}
           title="No hypotheses"
         />
