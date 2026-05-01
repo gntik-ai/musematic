@@ -22,7 +22,7 @@ describe("maintenance blocked events", () => {
     const invalidDetails = {
       retry_after_seconds: "soon",
       window_end_at: 123,
-    } as MaintenanceBlockedDetails;
+    } as unknown as MaintenanceBlockedDetails;
     const fallback = new MaintenanceBlockedError("Writes are paused.", 503, invalidDetails);
     expect(fallback.retryAfterSeconds).toBeUndefined();
     expect(fallback.windowEndAt).toBeUndefined();
