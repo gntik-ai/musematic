@@ -8,6 +8,8 @@ PostgreSQL foundation chart for the Musematic platform using CloudNativePG.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| bootstrap | object | `{"postInitSQL":[]}` | Configures optional CloudNativePG initdb bootstrap SQL. |
+| bootstrap.postInitSQL | list | `[]` | Configures `bootstrap.postInitSQL` for the postgresql chart. |
 | createNamespace | bool | `true` | Configures `createNamespace` for the postgresql chart. |
 | credentials | object | `{"database":"musematic","existingSecret":"","password":"change-me","username":"musematic"}` | Configures `credentials` for the postgresql chart. |
 | credentials.database | string | `"musematic"` | Configures `credentials.database` for the postgresql chart. |
