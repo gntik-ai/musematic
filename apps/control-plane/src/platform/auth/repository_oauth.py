@@ -11,6 +11,8 @@ from platform.auth.models import (
     UserCredential,
 )
 from platform.common.audit_hook import audit_chain_hook
+from platform.common.tenant_context import current_tenant
+from platform.tenants.seeder import DEFAULT_TENANT_ID
 from typing import Any
 from uuid import UUID
 
@@ -26,22 +28,33 @@ class OAuthRepository:
         self.audit_chain = audit_chain
 
     async def get_provider_by_type(self, provider_type: str) -> OAuthProvider | None:
+        tenant_id = _current_tenant_id()
         result = await self.session.execute(
-            select(OAuthProvider).where(OAuthProvider.provider_type == provider_type)
+            select(OAuthProvider).where(
+                OAuthProvider.tenant_id == tenant_id,
+                OAuthProvider.provider_type == provider_type,
+            )
         )
         return result.scalar_one_or_none()
 
     async def get_by_type_for_update(self, provider_type: str) -> OAuthProvider | None:
+        tenant_id = _current_tenant_id()
         result = await self.session.execute(
             select(OAuthProvider)
-            .where(OAuthProvider.provider_type == provider_type)
+            .where(
+                OAuthProvider.tenant_id == tenant_id,
+                OAuthProvider.provider_type == provider_type,
+            )
             .with_for_update(skip_locked=True)
         )
         return result.scalar_one_or_none()
 
     async def get_all_providers(self) -> list[OAuthProvider]:
+        tenant_id = _current_tenant_id()
         result = await self.session.execute(
-            select(OAuthProvider).order_by(OAuthProvider.provider_type.asc())
+            select(OAuthProvider)
+            .where(OAuthProvider.tenant_id == tenant_id)
+            .order_by(OAuthProvider.provider_type.asc())
         )
         return list(result.scalars().all())
 
@@ -65,7 +78,9 @@ class OAuthRepository:
         last_edited_at: datetime | None = None,
         last_successful_auth_at: datetime | None = None,
     ) -> tuple[OAuthProvider, bool]:
+        tenant_id = _current_tenant_id()
         values = {
+            "tenant_id": tenant_id,
             "provider_type": provider_type,
             "display_name": display_name,
             "enabled": enabled,
@@ -89,8 +104,12 @@ class OAuthRepository:
             insert(OAuthProvider)
             .values(**values)
             .on_conflict_do_update(
-                index_elements=[OAuthProvider.provider_type],
-                set_={key: value for key, value in values.items() if key != "provider_type"},
+                index_elements=[OAuthProvider.tenant_id, OAuthProvider.provider_type],
+                set_={
+                    key: value
+                    for key, value in values.items()
+                    if key not in {"tenant_id", "provider_type"}
+                },
             )
             .returning(OAuthProvider.id, created_expr)
         )
@@ -392,3 +411,8 @@ class OAuthRepository:
         if limits is None:  # pragma: no cover - guarded by RETURNING
             raise LookupError(f"OAuth rate limits for provider={provider_id} disappeared")
         return limits
+
+
+def _current_tenant_id() -> UUID:
+    tenant = current_tenant.get(None)
+    return tenant.id if tenant is not None else DEFAULT_TENANT_ID

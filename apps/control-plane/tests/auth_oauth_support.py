@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from platform.auth.schemas import TokenPair
 from platform.auth.services.oauth_service import OAuthService
+from platform.tenants.seeder import DEFAULT_TENANT_ID
 from types import SimpleNamespace
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse
@@ -25,6 +26,7 @@ def build_provider(
     now = datetime.now(UTC)
     return SimpleNamespace(
         id=uuid4(),
+        tenant_id=DEFAULT_TENANT_ID,
         provider_type=provider_type,
         display_name="Google" if provider_type == "google" else "GitHub",
         enabled=enabled,

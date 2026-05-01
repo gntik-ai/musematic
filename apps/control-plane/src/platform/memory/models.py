@@ -3,7 +3,12 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 from platform.common.models.base import Base
-from platform.common.models.mixins import SoftDeleteMixin, TimestampMixin, UUIDMixin
+from platform.common.models.mixins import (
+    SoftDeleteMixin,
+    TenantScopedMixin,
+    TimestampMixin,
+    UUIDMixin,
+)
 from uuid import UUID
 
 from sqlalchemy import Computed, DateTime, Float, ForeignKey, Index, Integer, String, Text, text
@@ -50,7 +55,7 @@ class PatternStatus(StrEnum):
     rejected = "rejected"
 
 
-class MemoryEntry(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
+class MemoryEntry(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "memory_entries"
     __table_args__ = (
         Index("ix_memory_entries_workspace_scope", "workspace_id", "scope"),
@@ -105,7 +110,7 @@ class MemoryEntry(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     )
 
 
-class EvidenceConflict(Base, UUIDMixin, TimestampMixin):
+class EvidenceConflict(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "evidence_conflicts"
     __table_args__ = (
         Index("ix_evidence_conflicts_pair", "memory_entry_id_a", "memory_entry_id_b", unique=True),
@@ -140,7 +145,7 @@ class EvidenceConflict(Base, UUIDMixin, TimestampMixin):
     resolution_notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
 
-class EmbeddingJob(Base, UUIDMixin, TimestampMixin):
+class EmbeddingJob(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "embedding_jobs"
 
     memory_entry_id: Mapped[UUID] = mapped_column(
@@ -161,11 +166,9 @@ class EmbeddingJob(Base, UUIDMixin, TimestampMixin):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
-class TrajectoryRecord(Base, UUIDMixin, TimestampMixin):
+class TrajectoryRecord(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "trajectory_records"
-    __table_args__ = (
-        Index("ix_trajectory_records_workspace_agent", "workspace_id", "agent_fqn"),
-    )
+    __table_args__ = (Index("ix_trajectory_records_workspace_agent", "workspace_id", "agent_fqn"),)
 
     workspace_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
@@ -208,7 +211,7 @@ class TrajectoryRecord(Base, UUIDMixin, TimestampMixin):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
-class PatternAsset(Base, UUIDMixin, TimestampMixin):
+class PatternAsset(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "pattern_assets"
 
     workspace_id: Mapped[UUID] = mapped_column(
@@ -247,7 +250,7 @@ class PatternAsset(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class KnowledgeNode(Base, UUIDMixin, TimestampMixin):
+class KnowledgeNode(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "knowledge_nodes"
     __table_args__ = (
         Index("ix_knowledge_nodes_workspace_type", "workspace_id", "node_type"),
@@ -277,7 +280,7 @@ class KnowledgeNode(Base, UUIDMixin, TimestampMixin):
     created_by_fqn: Mapped[str] = mapped_column(String(length=255), nullable=False)
 
 
-class KnowledgeEdge(Base, UUIDMixin, TimestampMixin):
+class KnowledgeEdge(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "knowledge_edges"
     __table_args__ = (
         Index("ix_knowledge_edges_source_target", "source_node_id", "target_node_id"),

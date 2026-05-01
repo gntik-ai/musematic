@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from platform.common.models.base import Base
-from platform.common.models.mixins import TimestampMixin, UUIDMixin
+from platform.common.models.mixins import TenantScopedMixin, TimestampMixin, UUIDMixin
 from uuid import UUID
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String
@@ -10,7 +10,7 @@ from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 
-class Session(Base, UUIDMixin, TimestampMixin):
+class Session(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "sessions"
 
     user_id: Mapped[UUID] = mapped_column(

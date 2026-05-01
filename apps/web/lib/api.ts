@@ -103,8 +103,12 @@ function withOptionalBody(
   return {
     ...options,
     method,
-    body: JSON.stringify(body),
+    body: isFormDataBody(body) ? body : JSON.stringify(body),
   };
+}
+
+function isFormDataBody(value: unknown): value is FormData {
+  return typeof FormData !== "undefined" && value instanceof FormData;
 }
 
 export function createApiClient(baseUrl: string): ApiClient {
@@ -116,8 +120,9 @@ export function createApiClient(baseUrl: string): ApiClient {
   ): Promise<T> => {
     const { accessToken, clearAuth } = useAuthStore.getState();
     const headers = new Headers(options.headers);
+    const hasBody = options.body !== undefined && options.body !== null;
 
-    if (!headers.has("Content-Type") && options.body) {
+    if (!headers.has("Content-Type") && hasBody && !isFormDataBody(options.body)) {
       headers.set("Content-Type", "application/json");
     }
 

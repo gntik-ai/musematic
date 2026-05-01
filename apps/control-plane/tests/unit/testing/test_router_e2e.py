@@ -423,7 +423,7 @@ async def test_router_e2e_account_and_incident_helpers(monkeypatch) -> None:
         provision_session,
     )
     assert provisioned.id == user_id
-    assert len(provision_session.calls) == 6
+    assert len(provision_session.calls) == 7
 
     class IncidentServiceStub:
         def __init__(self) -> None:

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from platform.common.models.user import User as PlatformUser
+from platform.common.tenant_context import current_tenant
+from platform.tenants.seeder import DEFAULT_TENANT_ID
 from platform.workspaces.models import (
     GoalStatus,
     Membership,
@@ -24,6 +26,10 @@ class WorkspacesRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
+    def _tenant_id(self) -> UUID:
+        tenant = current_tenant.get(None)
+        return tenant.id if tenant is not None else DEFAULT_TENANT_ID
+
     async def create_workspace(
         self,
         *,
@@ -38,6 +44,7 @@ class WorkspacesRepository:
             owner_id=owner_id,
             is_default=is_default,
             status=WorkspaceStatus.active,
+            tenant_id=self._tenant_id(),
         )
         self.session.add(workspace)
         await self.session.flush()
@@ -49,7 +56,9 @@ class WorkspacesRepository:
             .join(Membership, Membership.workspace_id == Workspace.id)
             .where(
                 Workspace.id == workspace_id,
+                Workspace.tenant_id == self._tenant_id(),
                 Membership.user_id == user_id,
+                Membership.tenant_id == self._tenant_id(),
                 Workspace.status != WorkspaceStatus.deleted,
             )
         )
@@ -59,6 +68,7 @@ class WorkspacesRepository:
         result = await self.session.execute(
             select(Workspace).where(
                 Workspace.id == workspace_id,
+                Workspace.tenant_id == self._tenant_id(),
                 Workspace.status != WorkspaceStatus.deleted,
             )
         )
@@ -74,6 +84,7 @@ class WorkspacesRepository:
         query = select(Workspace).where(
             Workspace.owner_id == owner_id,
             Workspace.name == name,
+            Workspace.tenant_id == self._tenant_id(),
             Workspace.status != WorkspaceStatus.deleted,
         )
         if exclude_workspace_id is not None:
@@ -92,6 +103,8 @@ class WorkspacesRepository:
         target_status = status_filter or WorkspaceStatus.active
         filters = [
             Membership.user_id == user_id,
+            Membership.tenant_id == self._tenant_id(),
+            Workspace.tenant_id == self._tenant_id(),
             Workspace.status == target_status,
         ]
         if allowed_ids is not None:
@@ -143,6 +156,7 @@ class WorkspacesRepository:
             .select_from(Workspace)
             .where(
                 Workspace.owner_id == owner_id,
+                Workspace.tenant_id == self._tenant_id(),
                 Workspace.status == WorkspaceStatus.active,
             )
         )
@@ -153,6 +167,7 @@ class WorkspacesRepository:
             select(Workspace).where(
                 Workspace.owner_id == owner_id,
                 Workspace.is_default.is_(True),
+                Workspace.tenant_id == self._tenant_id(),
                 Workspace.status != WorkspaceStatus.deleted,
             )
         )
@@ -164,7 +179,12 @@ class WorkspacesRepository:
         user_id: UUID,
         role: WorkspaceRole,
     ) -> Membership:
-        membership = Membership(workspace_id=workspace_id, user_id=user_id, role=role)
+        membership = Membership(
+            workspace_id=workspace_id,
+            user_id=user_id,
+            role=role,
+            tenant_id=self._tenant_id(),
+        )
         self.session.add(membership)
         await self.session.flush()
         return membership
@@ -176,6 +196,8 @@ class WorkspacesRepository:
             .where(
                 Membership.workspace_id == workspace_id,
                 Membership.user_id == user_id,
+                Membership.tenant_id == self._tenant_id(),
+                Workspace.tenant_id == self._tenant_id(),
                 Workspace.status != WorkspaceStatus.deleted,
             )
         )
@@ -184,7 +206,10 @@ class WorkspacesRepository:
     async def list_member_ids(self, workspace_id: UUID) -> list[UUID]:
         result = await self.session.execute(
             select(Membership.user_id)
-            .where(Membership.workspace_id == workspace_id)
+            .where(
+                Membership.workspace_id == workspace_id,
+                Membership.tenant_id == self._tenant_id(),
+            )
             .order_by(Membership.user_id.asc())
         )
         return [UUID(str(user_id)) for user_id in result.scalars().all()]
@@ -204,12 +229,18 @@ class WorkspacesRepository:
         total = await self.session.scalar(
             select(func.count())
             .select_from(Membership)
-            .where(Membership.workspace_id == workspace_id)
+            .where(
+                Membership.workspace_id == workspace_id,
+                Membership.tenant_id == self._tenant_id(),
+            )
         )
         result = await self.session.execute(
             select(Membership)
             .join(PlatformUser, PlatformUser.id == Membership.user_id, isouter=True)
-            .where(Membership.workspace_id == workspace_id)
+            .where(
+                Membership.workspace_id == workspace_id,
+                Membership.tenant_id == self._tenant_id(),
+            )
             .order_by(role_rank.asc(), PlatformUser.display_name.asc(), Membership.user_id.asc())
             .offset((page - 1) * page_size)
             .limit(page_size)
@@ -235,6 +266,7 @@ class WorkspacesRepository:
             .select_from(Membership)
             .where(
                 Membership.workspace_id == workspace_id,
+                Membership.tenant_id == self._tenant_id(),
                 Membership.role == WorkspaceRole.owner,
             )
         )
@@ -263,6 +295,7 @@ class WorkspacesRepository:
             state=WorkspaceGoalState.ready,
             auto_complete_timeout_seconds=auto_complete_timeout_seconds,
             created_by=created_by,
+            tenant_id=self._tenant_id(),
         )
         self.session.add(goal)
         await self.session.flush()
@@ -273,6 +306,7 @@ class WorkspacesRepository:
             select(WorkspaceGoal).where(
                 WorkspaceGoal.workspace_id == workspace_id,
                 WorkspaceGoal.id == goal_id,
+                WorkspaceGoal.tenant_id == self._tenant_id(),
             )
         )
         return result.scalar_one_or_none()
@@ -284,7 +318,10 @@ class WorkspacesRepository:
         page_size: int,
         status_filter: GoalStatus | None,
     ) -> tuple[list[WorkspaceGoal], int]:
-        filters = [WorkspaceGoal.workspace_id == workspace_id]
+        filters = [
+            WorkspaceGoal.workspace_id == workspace_id,
+            WorkspaceGoal.tenant_id == self._tenant_id(),
+        ]
         if status_filter is not None:
             filters.append(WorkspaceGoal.status == status_filter)
         total = await self.session.scalar(
@@ -311,7 +348,8 @@ class WorkspacesRepository:
     async def get_visibility_grant(self, workspace_id: UUID) -> WorkspaceVisibilityGrant | None:
         result = await self.session.execute(
             select(WorkspaceVisibilityGrant).where(
-                WorkspaceVisibilityGrant.workspace_id == workspace_id
+                WorkspaceVisibilityGrant.workspace_id == workspace_id,
+                WorkspaceVisibilityGrant.tenant_id == self._tenant_id(),
             )
         )
         return result.scalar_one_or_none()
@@ -329,6 +367,7 @@ class WorkspacesRepository:
                 workspace_id=workspace_id,
                 visibility_agents=visibility_agents,
                 visibility_tools=visibility_tools,
+                tenant_id=self._tenant_id(),
             )
             self.session.add(existing)
         else:
@@ -347,7 +386,10 @@ class WorkspacesRepository:
 
     async def get_settings(self, workspace_id: UUID) -> WorkspaceSettings | None:
         result = await self.session.execute(
-            select(WorkspaceSettings).where(WorkspaceSettings.workspace_id == workspace_id)
+            select(WorkspaceSettings).where(
+                WorkspaceSettings.workspace_id == workspace_id,
+                WorkspaceSettings.tenant_id == self._tenant_id(),
+            )
         )
         return result.scalar_one_or_none()
 
@@ -368,6 +410,7 @@ class WorkspacesRepository:
                 quota_config={},
                 dlp_rules={},
                 residency_config={},
+                tenant_id=self._tenant_id(),
             )
             self.session.add(settings)
             await self.session.flush()
@@ -382,6 +425,7 @@ class WorkspacesRepository:
             .select_from(WorkspaceGoal)
             .where(
                 WorkspaceGoal.workspace_id == workspace_id,
+                WorkspaceGoal.tenant_id == self._tenant_id(),
                 WorkspaceGoal.status.in_([GoalStatus.open, GoalStatus.in_progress]),
             )
         )
@@ -423,6 +467,7 @@ class WorkspacesRepository:
                     workspace_id=workspace.id,
                     user_id=new_owner_id,
                     role=WorkspaceRole.owner,
+                    tenant_id=self._tenant_id(),
                 )
             )
         else:
@@ -436,6 +481,8 @@ class WorkspacesRepository:
             .join(Workspace, Workspace.id == Membership.workspace_id)
             .where(
                 Membership.user_id == user_id,
+                Membership.tenant_id == self._tenant_id(),
+                Workspace.tenant_id == self._tenant_id(),
                 Workspace.status == WorkspaceStatus.active,
             )
             .order_by(Membership.created_at.asc())
@@ -444,7 +491,10 @@ class WorkspacesRepository:
 
     async def get_goal_by_gid(self, goal_gid: UUID) -> WorkspaceGoal | None:
         result = await self.session.execute(
-            select(WorkspaceGoal).where(WorkspaceGoal.gid == goal_gid)
+            select(WorkspaceGoal).where(
+                WorkspaceGoal.gid == goal_gid,
+                WorkspaceGoal.tenant_id == self._tenant_id(),
+            )
         )
         return result.scalar_one_or_none()
 
@@ -478,7 +528,8 @@ class WorkspacesRepository:
     async def get_workspace_id_for_fleet(self, fleet_id: UUID) -> UUID | None:
         result = await self.session.execute(
             select(WorkspaceSettings.workspace_id).where(
-                WorkspaceSettings.subscribed_fleets.any(cast(Any, fleet_id))
+                WorkspaceSettings.subscribed_fleets.any(cast(Any, fleet_id)),
+                WorkspaceSettings.tenant_id == self._tenant_id(),
             )
         )
         return result.scalar_one_or_none()

@@ -32,6 +32,7 @@ class AuditChainRepository:
         previous_hash: str,
         entry_hash: str,
         audit_event_id: UUID | None,
+        tenant_id: UUID | None,
         audit_event_source: str,
         canonical_payload_hash: str,
         event_type: str | None = None,
@@ -45,6 +46,7 @@ class AuditChainRepository:
             previous_hash=previous_hash,
             entry_hash=entry_hash,
             audit_event_id=audit_event_id,
+            tenant_id=tenant_id,
             audit_event_source=audit_event_source,
             canonical_payload_hash=canonical_payload_hash,
             event_type=event_type,
@@ -62,6 +64,12 @@ class AuditChainRepository:
             select(AuditChainEntry).order_by(AuditChainEntry.sequence_number.desc()).limit(1)
         )
         return result.scalar_one_or_none()
+
+    async def has_event_type(self, event_type: str) -> bool:
+        result = await self.session.execute(
+            select(AuditChainEntry.id).where(AuditChainEntry.event_type == event_type).limit(1)
+        )
+        return result.scalar_one_or_none() is not None
 
     async def get_by_sequence_range(
         self,

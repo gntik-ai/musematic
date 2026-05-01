@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 from platform.common.models.base import Base
-from platform.common.models.mixins import TimestampMixin, UUIDMixin, WorkspaceScopedMixin
+from platform.common.models.mixins import (
+    TenantScopedMixin,
+    TimestampMixin,
+    UUIDMixin,
+    WorkspaceScopedMixin,
+)
 from uuid import UUID
 
 from sqlalchemy import ForeignKey, String, UniqueConstraint
@@ -9,7 +14,7 @@ from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 
-class Membership(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class Membership(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "memberships"
     __table_args__ = (
         UniqueConstraint(

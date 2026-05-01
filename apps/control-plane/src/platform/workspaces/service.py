@@ -13,6 +13,9 @@ from platform.common.events.producer import EventProducer
 from platform.common.exceptions import NotFoundError
 from platform.common.tagging.filter_extension import TagLabelFilterParams
 from platform.common.tagging.listing import resolve_filtered_entity_ids
+from platform.common.tenant_context import current_tenant
+from platform.common.tenant_enforcement import record_tenant_enforcement_violation
+from platform.tenants.seeder import DEFAULT_TENANT_ID
 from platform.workspaces.events import (
     GoalPayload,
     MembershipPayload,
@@ -171,6 +174,11 @@ class WorkspacesService:
     async def get_workspace(self, workspace_id: UUID, user_id: UUID) -> WorkspaceResponse:
         workspace = await self.repo.get_workspace_by_id(workspace_id, user_id)
         if workspace is None:
+            await self._record_zero_row_violation(
+                table_name=Workspace.__tablename__,
+                query_text="WorkspacesRepository.get_workspace_by_id",
+                observed_violation=f"workspace {workspace_id} was not visible for user {user_id}",
+            )
             raise WorkspaceNotFoundError()
         return self._workspace_response(workspace)
 
@@ -337,6 +345,7 @@ class WorkspacesService:
         await publish_membership_added(
             self.kafka_producer,
             MembershipPayload(
+                tenant_id=self._tenant_id(),
                 workspace_id=workspace.id,
                 user_id=membership.user_id,
                 role=membership.role,
@@ -398,6 +407,7 @@ class WorkspacesService:
         await publish_membership_role_changed(
             self.kafka_producer,
             MembershipPayload(
+                tenant_id=self._tenant_id(),
                 workspace_id=workspace_id,
                 user_id=target_user_id,
                 role=updated.role,
@@ -446,6 +456,7 @@ class WorkspacesService:
         await publish_membership_removed(
             self.kafka_producer,
             MembershipPayload(
+                tenant_id=self._tenant_id(),
                 workspace_id=workspace_id,
                 user_id=target_user_id,
                 role=membership.role,
@@ -483,6 +494,7 @@ class WorkspacesService:
         await publish_goal_created(
             self.kafka_producer,
             GoalPayload(
+                tenant_id=self._tenant_id(),
                 workspace_id=workspace_id,
                 goal_id=goal.id,
                 gid=goal.gid,
@@ -539,6 +551,7 @@ class WorkspacesService:
         await publish_goal_status_changed(
             self.kafka_producer,
             GoalPayload(
+                tenant_id=self._tenant_id(),
                 workspace_id=workspace_id,
                 goal_id=goal.id,
                 gid=goal.gid,
@@ -566,6 +579,7 @@ class WorkspacesService:
         await publish_visibility_grant_updated(
             self.kafka_producer,
             VisibilityGrantPayload(
+                tenant_id=self._tenant_id(),
                 workspace_id=workspace_id,
                 visibility_agents=visibility.visibility_agents,
                 visibility_tools=visibility.visibility_tools,
@@ -937,9 +951,35 @@ class WorkspacesService:
             updated_at=visibility.updated_at,
         )
 
+    async def _record_zero_row_violation(
+        self,
+        *,
+        table_name: str,
+        query_text: str,
+        observed_violation: str,
+    ) -> None:
+        session = getattr(self.repo, "session", None)
+        if session is None:
+            return
+        tenant = current_tenant.get(None)
+        await record_tenant_enforcement_violation(
+            session,
+            table_name=table_name,
+            query_text=query_text,
+            expected_tenant_id=tenant.id if tenant is not None else None,
+            observed_violation=observed_violation,
+            settings=self.platform_settings,
+        )
+
+    @staticmethod
+    def _tenant_id() -> UUID:
+        tenant = current_tenant.get(None)
+        return tenant.id if tenant is not None else DEFAULT_TENANT_ID
+
     @staticmethod
     def _workspace_payload(workspace: Workspace) -> WorkspacePayload:
         return WorkspacePayload(
+            tenant_id=workspace.tenant_id,
             workspace_id=workspace.id,
             owner_id=workspace.owner_id,
             name=workspace.name,

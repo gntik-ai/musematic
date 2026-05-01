@@ -1,0 +1,17 @@
+# Production overrides for tenant hostname resolution.
+tenancy:
+  defaultTenantSlug: default
+  defaultTenantSubdomain: app
+  reservedSlugs:
+    - api
+    - grafana
+    - status
+    - www
+    - admin
+    - platform
+    - webhooks
+    - public
+    - docs
+    - help
+  cacheTtlSeconds: 60
+  hostnameMiddlewareEnabled: true

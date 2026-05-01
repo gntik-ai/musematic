@@ -20,6 +20,7 @@ import { LoginForm } from "@/components/features/auth/login-form/LoginForm";
 import { LockoutMessage } from "@/components/features/auth/login-form/LockoutMessage";
 import { MfaChallengeForm } from "@/components/features/auth/login-form/MfaChallengeForm";
 import { Button } from "@/components/ui/button";
+import { useTenantBranding, useTenantContext } from "@/lib/hooks/use-tenant-context";
 import { toast } from "@/lib/hooks/use-toast";
 import { useAuthStore } from "@/store/auth-store";
 
@@ -62,6 +63,8 @@ function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const tenant = useTenantContext();
+  const branding = useTenantBranding();
   const [state, setState] = useState<LoginFlowState>({ step: "credentials" });
   const errorCode = searchParams.get("error");
   const message = searchParams.get("message");
@@ -156,6 +159,22 @@ function LoginPageContent() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <div
+          className="flex h-10 w-10 items-center justify-center rounded-md border text-sm font-semibold"
+          style={{ borderColor: branding.accent_color_hex ?? undefined }}
+        >
+          {branding.logo_url ? (
+            <img alt="" className="max-h-8 max-w-8 object-contain" src={branding.logo_url} />
+          ) : (
+            tenant.displayName.slice(0, 2).toUpperCase()
+          )}
+        </div>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold">{tenant.displayName}</p>
+          <p className="text-xs text-muted-foreground">{tenant.kind}</p>
+        </div>
+      </div>
       {state.step === "credentials" ? (
         <>
           <LoginForm

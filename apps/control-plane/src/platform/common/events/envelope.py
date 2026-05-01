@@ -10,6 +10,9 @@ from pydantic import BaseModel, Field
 
 
 class CorrelationContext(BaseModel):
+    tenant_id: UUID | None = None
+    tenant_slug: str | None = None
+    tenant_kind: str | None = None
     workspace_id: UUID | None = None
     conversation_id: UUID | None = None
     interaction_id: UUID | None = None

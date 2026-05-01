@@ -26,8 +26,11 @@ class VisibilityFilter:
             [],
             AbstractAsyncContextManager[_WorkspaceResolver],
         ],
+        *,
+        allow_unresolved_e2e_resources: bool = False,
     ) -> None:
         self._workspaces_service_factory = workspaces_service_factory
+        self._allow_unresolved_e2e_resources = allow_unresolved_e2e_resources
 
     async def authorize_subscription(
         self,
@@ -69,6 +72,8 @@ class VisibilityFilter:
             workspace_ids = {UUID(str(item)) for item in conn.workspace_ids}
             if len(workspace_ids) == 1:
                 return next(iter(workspace_ids))
+            if self._allow_unresolved_e2e_resources:
+                return None
             raise SubscriptionAuthError(
                 "resource_not_found",
                 f"Unable to resolve workspace ownership for {channel.value}:{resource_id}",
@@ -89,6 +94,8 @@ class VisibilityFilter:
             workspace_id = UUID(str(raw_workspace_id))
         except ValueError:
             return False
+        if self._allow_unresolved_e2e_resources and workspace_id not in conn.workspace_ids:
+            return True
         return workspace_id in conn.workspace_ids
 
     async def refresh_connection_memberships(self, conn: Any) -> None:

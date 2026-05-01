@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from platform.common.models.base import Base
-from platform.common.models.mixins import TimestampMixin, UUIDMixin
+from platform.common.models.mixins import TenantScopedMixin, TimestampMixin, UUIDMixin
 from typing import Any
 from uuid import UUID
 
@@ -27,7 +27,7 @@ def _check_values(column: str, values: tuple[str, ...]) -> str:
     return f"{column} IN ({','.join(repr(value) for value in values)})"
 
 
-class UserPreferences(Base, UUIDMixin, TimestampMixin):
+class UserPreferences(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "user_preferences"
     __table_args__ = (
         UniqueConstraint("user_id", name="uq_user_preferences_user_id"),
@@ -85,7 +85,7 @@ class UserPreferences(Base, UUIDMixin, TimestampMixin):
     default_workspace: Mapped[Any | None] = relationship("platform.workspaces.models.Workspace")
 
 
-class LocaleFile(Base, UUIDMixin):
+class LocaleFile(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "locale_files"
     __table_args__ = (
         UniqueConstraint("locale_code", "version", name="uq_locale_files_locale_version"),

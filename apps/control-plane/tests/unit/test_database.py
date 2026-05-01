@@ -60,7 +60,7 @@ def test_configure_database_replaces_module_state(monkeypatch) -> None:
     fake_engine = object()
     fake_factory = object()
     monkeypatch.setattr(database, "create_database_engine", lambda *args, **kwargs: fake_engine)
-    monkeypatch.setattr(database, "create_session_factory", lambda engine: fake_factory)
+    monkeypatch.setattr(database, "create_session_factory", lambda engine, **kwargs: fake_factory)
 
     database.configure_database(PlatformSettings(POSTGRES_DSN="postgresql+asyncpg://configured/test"))
 
@@ -121,3 +121,24 @@ async def test_get_async_session_yields_context_managed_session(monkeypatch) -> 
     with pytest.raises(StopAsyncIteration):
         await generator.asend(None)
     assert session.closed is True
+
+
+@pytest.mark.asyncio
+async def test_regular_and_platform_session_helpers_use_expected_factories(monkeypatch) -> None:
+    regular = FakeSession()
+    platform = FakeSession()
+    monkeypatch.setattr(database, "AsyncSessionLocal", lambda: regular)
+    monkeypatch.setattr(database, "PlatformStaffAsyncSessionLocal", lambda: platform)
+
+    regular_generator = database.get_session()
+    assert await anext(regular_generator) is regular
+    with pytest.raises(StopAsyncIteration):
+        await regular_generator.asend(None)
+
+    platform_generator = database.get_platform_staff_session()
+    assert await anext(platform_generator) is platform
+    with pytest.raises(StopAsyncIteration):
+        await platform_generator.asend(None)
+
+    assert regular.closed is True
+    assert platform.closed is True

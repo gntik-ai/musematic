@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 from platform.common.models.base import Base
-from platform.common.models.mixins import TimestampMixin, UUIDMixin
+from platform.common.models.mixins import TenantScopedMixin, TimestampMixin, UUIDMixin
 from uuid import UUID
 
 from sqlalchemy import Enum as SAEnum
@@ -32,7 +32,7 @@ TERMINAL_VERDICT_TYPES: frozenset[VerdictType] = frozenset(
 )
 
 
-class GovernanceVerdict(Base, UUIDMixin, TimestampMixin):
+class GovernanceVerdict(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "governance_verdicts"
     __table_args__ = (
         Index("ix_governance_verdicts_workspace_id", "workspace_id"),
@@ -70,7 +70,7 @@ class GovernanceVerdict(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class EnforcementAction(Base, UUIDMixin, TimestampMixin):
+class EnforcementAction(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "enforcement_actions"
     __table_args__ = (
         Index("ix_enforcement_actions_verdict_id", "verdict_id"),

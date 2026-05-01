@@ -3,7 +3,12 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 from platform.common.models.base import Base
-from platform.common.models.mixins import TimestampMixin, UUIDMixin, WorkspaceScopedMixin
+from platform.common.models.mixins import (
+    TenantScopedMixin,
+    TimestampMixin,
+    UUIDMixin,
+    WorkspaceScopedMixin,
+)
 from typing import Any
 from uuid import UUID
 
@@ -38,7 +43,7 @@ class AdversarialCategory(StrEnum):
     resource_exhaustion = "resource_exhaustion"
 
 
-class GeneratedTestSuite(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class GeneratedTestSuite(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "testing_generated_suites"
     __table_args__ = (
         Index("ix_testing_generated_suites_agent_fqn", "agent_fqn"),
@@ -78,7 +83,7 @@ class GeneratedTestSuite(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     )
 
 
-class AdversarialTestCase(Base, UUIDMixin, TimestampMixin):
+class AdversarialTestCase(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "testing_adversarial_cases"
     __table_args__ = (
         Index("ix_testing_adversarial_cases_suite_id", "suite_id"),
@@ -108,7 +113,9 @@ class AdversarialTestCase(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class CoordinationTestResult(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class CoordinationTestResult(
+    Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin
+):
     __tablename__ = "testing_coordination_results"
     __table_args__ = (
         Index("ix_testing_coordination_results_fleet_id", "fleet_id"),
@@ -129,7 +136,7 @@ class CoordinationTestResult(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMix
     insufficient_members: Mapped[bool] = mapped_column(Boolean(), nullable=False, default=False)
 
 
-class DriftAlert(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class DriftAlert(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "testing_drift_alerts"
     __table_args__ = (
         Index("ix_testing_drift_alerts_agent_fqn", "agent_fqn"),

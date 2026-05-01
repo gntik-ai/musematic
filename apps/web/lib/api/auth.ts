@@ -178,6 +178,14 @@ export interface ProfileUpdateResponse {
   timezone: string | null;
 }
 
+export interface SetupTenantAdminRequest {
+  token: string;
+  display_name: string;
+  password: string;
+}
+
+export type SetupTenantAdminResponse = LoginSuccessResponse;
+
 export async function login(request: LoginRequest): Promise<LoginResponse> {
   return authApi.post<LoginResponse>("/api/v1/auth/login", request, {
     skipAuth: true,
@@ -338,6 +346,19 @@ export async function resendVerification(
   return authApi.post<ResendVerificationResponse>(
     "/api/v1/accounts/resend-verification",
     { email },
+    {
+      skipAuth: true,
+      skipRetry: true,
+    },
+  );
+}
+
+export async function setupTenantAdmin(
+  payload: SetupTenantAdminRequest,
+): Promise<SetupTenantAdminResponse> {
+  return authApi.post<SetupTenantAdminResponse>(
+    "/api/v1/auth/setup-tenant-admin",
+    payload,
     {
       skipAuth: true,
       skipRetry: true,

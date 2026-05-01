@@ -6,7 +6,6 @@ from pathlib import Path
 
 import httpx
 import pytest
-
 from fixtures.http_client import AuthenticatedAsyncClient
 
 pytest_plugins = [
@@ -19,6 +18,8 @@ pytest_plugins = [
     "fixtures.policy",
     "fixtures.mock_llm",
 ]
+
+TENANT_ARCHITECTURE_SUITE = Path("apps/control-plane/tests/e2e/suites/tenant_architecture")
 
 _SETUP_RETRY_EXCEPTIONS = (
     httpx.ConnectError,

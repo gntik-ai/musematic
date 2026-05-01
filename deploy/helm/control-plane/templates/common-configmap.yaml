@@ -1,4 +1,5 @@
 {{- $global := default dict .Values.global }}
+{{- $tenancy := default dict .Values.tenancy }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -40,6 +41,9 @@ data:
   WS_HEARTBEAT_INTERVAL_SECONDS: {{ .Values.common.wsHeartbeatIntervalSeconds | quote }}
   WS_HEARTBEAT_TIMEOUT_SECONDS: {{ .Values.common.wsHeartbeatTimeoutSeconds | quote }}
   PLATFORM_ENVIRONMENT: {{ default "production" $global.environment | quote }}
+  PLATFORM_DOMAIN: {{ default "musematic.ai" $global.domain | quote }}
+  PLATFORM_TENANT_ENFORCEMENT_LEVEL: {{ default "lenient" $tenancy.enforcementLevel | quote }}
+  TENANT_RESOLVER_CACHE_TTL_SECONDS: {{ default 60 $tenancy.cacheTtlSeconds | quote }}
   PLATFORM_VAULT_MODE: {{ .Values.vault.mode | quote }}
   PLATFORM_VAULT_ADDR: {{ .Values.vault.addr | quote }}
   PLATFORM_VAULT_NAMESPACE: {{ .Values.vault.namespace | quote }}

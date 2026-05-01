@@ -142,9 +142,7 @@ def test_vault_kubernetes_secret_name_mapping_round_trips() -> None:
     assert k8s_secret_name_to_vault_path(name) == path
     nested_path = "secret/data/musematic/dev/oauth/google/client-secret"
     nested_name = vault_path_to_k8s_secret_name(nested_path)
-    assert nested_name == (
-        "musematic-dev-oauth-x-676f6f676c652f636c69656e742d736563726574"
-    )
+    assert nested_name == ("musematic-dev-oauth-x-676f6f676c652f636c69656e742d736563726574")
     assert re.fullmatch(r"[a-z0-9]([-a-z0-9]*[a-z0-9])?", nested_name)
     assert k8s_secret_name_to_vault_path(nested_name) == nested_path
     assert (
@@ -183,6 +181,22 @@ def test_metric_helpers_and_invalid_secret_name_edges(monkeypatch) -> None:
     with pytest.raises(InvalidVaultPathError):
         k8s_secret_name_to_vault_path("musematic-dev-unknown-google")
     assert module._resource_from_k8s_suffix("x-not-hex") == "x-not-hex"
+
+
+def test_validate_secret_path_accepts_tenant_and_platform_scoped_paths() -> None:
+    module.validate_secret_path("secret/data/musematic/dev/oauth/google/client-secret")
+    module.validate_secret_path("secret/data/musematic/dev/tenants/acme/oauth/google/client-secret")
+    module.validate_secret_path("secret/data/musematic/dev/_platform/_internal/cert-manager")
+
+    with pytest.raises(InvalidVaultPathError):
+        module.validate_secret_path("secret/data/musematic/dev/tenants/Api/oauth/client")
+
+    assert (
+        vault_path_to_k8s_secret_name(
+            "secret/data/musematic/dev/tenants/acme/oauth/google/client-secret"
+        )
+        == "musematic-dev-oauth-x-676f6f676c652f636c69656e742d736563726574"
+    )
 
 
 @pytest.mark.asyncio

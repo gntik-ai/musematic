@@ -3,7 +3,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from enum import StrEnum
 from platform.common.models.base import Base
-from platform.common.models.mixins import TimestampMixin, UUIDMixin, WorkspaceScopedMixin
+from platform.common.models.mixins import (
+    TenantScopedMixin,
+    TimestampMixin,
+    UUIDMixin,
+    WorkspaceScopedMixin,
+)
 from typing import Any
 from uuid import UUID
 
@@ -70,7 +75,7 @@ class CompositionAuditEventType(StrEnum):
     generation_failed = "generation_failed"
 
 
-class CompositionRequest(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class CompositionRequest(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     """Root record for a composition request."""
 
     __tablename__ = "composition_requests"
@@ -111,7 +116,7 @@ class CompositionRequest(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     )
 
 
-class AgentBlueprint(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class AgentBlueprint(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     """AI-generated agent configuration proposal."""
 
     __tablename__ = "composition_agent_blueprints"
@@ -191,7 +196,7 @@ class AgentBlueprint(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     )
 
 
-class FleetBlueprint(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class FleetBlueprint(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     """AI-generated fleet configuration proposal."""
 
     __tablename__ = "composition_fleet_blueprints"
@@ -267,7 +272,9 @@ class FleetBlueprint(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     )
 
 
-class CompositionValidation(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class CompositionValidation(
+    Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin
+):
     """Validation results for an agent or fleet blueprint."""
 
     __tablename__ = "composition_validations"
@@ -331,7 +338,7 @@ class CompositionValidation(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixi
     )
 
 
-class CompositionAuditEntry(Base, UUIDMixin, WorkspaceScopedMixin):
+class CompositionAuditEntry(Base, TenantScopedMixin, UUIDMixin, WorkspaceScopedMixin):
     """Append-only audit entry for a composition request."""
 
     __tablename__ = "composition_audit_entries"

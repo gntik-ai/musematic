@@ -8,7 +8,7 @@ from platform.common.dependencies import get_db
 from typing import Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(tags=["admin", "audit"])
@@ -16,11 +16,12 @@ router = APIRouter(tags=["admin", "audit"])
 
 @router.get("/audit", response_model=AdminListResponse)
 async def query_audit_entries(
+    request: Request,
     event_type: str | None = Query(default=None),
     actor: str | None = Query(default=None),
     current_user: dict[str, Any] = Depends(require_admin),
 ) -> AdminListResponse:
-    response = empty_list("audit", current_user)
+    response = empty_list("audit", current_user, request)
     response.items = [
         {"event_type": event_type, "actor": actor}
         for _ in range(1)
@@ -39,6 +40,7 @@ async def export_audit_selection(
 
 @router.get("/activity", response_model=AdminListResponse)
 async def list_activity(
+    request: Request,
     tenant_id: UUID | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=500),
     since: datetime | None = Query(default=None),
@@ -46,7 +48,7 @@ async def list_activity(
     session: AsyncSession = Depends(get_db),
 ) -> AdminListResponse:
     entries = await list_admin_activity(session, tenant_id=tenant_id, limit=limit, since=since)
-    response = empty_list("activity", current_user)
+    response = empty_list("activity", current_user, request)
     response.items = [
         {
             "id": str(getattr(entry, "id", "")),

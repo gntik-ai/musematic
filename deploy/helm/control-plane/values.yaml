@@ -46,6 +46,14 @@ common:
   # -- Configures `common.extraEnv` for the control-plane chart.
   extraEnv: {}
 
+# @section -- Tenancy
+# -- Configures hostname tenant resolution for the control-plane chart.
+tenancy:
+  # -- Configures `tenancy.enforcementLevel` for the control-plane chart.
+  enforcementLevel: lenient
+  # -- Configures `tenancy.cacheTtlSeconds` for the control-plane chart.
+  cacheTtlSeconds: 60
+
 # @section -- Serviceaccount
 # -- Configures `serviceAccount` for the control-plane chart.
 serviceAccount:
@@ -128,6 +136,8 @@ securityCompliance:
 connections:
   # -- Configures `connections.postgresDsn` for the control-plane chart.
   postgresDsn: postgresql+asyncpg://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic
+  # -- Configures `connections.platformStaffPostgresDsn` for the control-plane chart.
+  platformStaffPostgresDsn: ""
   # -- Configures `connections.redisUrl` for the control-plane chart.
   redisUrl: redis://:change-me@musematic-redis.platform.svc.cluster.local:6379
   # -- Configures `connections.redisTestMode` for the control-plane chart.

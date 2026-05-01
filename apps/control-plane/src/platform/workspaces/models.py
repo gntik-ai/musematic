@@ -10,6 +10,8 @@ from platform.common.models.mixins import (
     UUIDMixin,
     WorkspaceScopedMixin,
 )
+from platform.common.tenant_context import current_tenant
+from platform.tenants.seeder import DEFAULT_TENANT_ID
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -28,6 +30,11 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+
+def _default_tenant_id() -> UUID:
+    tenant = current_tenant.get(None)
+    return tenant.id if tenant is not None else DEFAULT_TENANT_ID
 
 
 class WorkspaceStatus(StrEnum):
@@ -79,6 +86,11 @@ class Workspace(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, AuditMixin):
     )
     owner_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    tenant_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        nullable=False,
+        default=_default_tenant_id,
+    )
 
     memberships: Mapped[list[Membership]] = relationship(
         "platform.workspaces.models.Membership",
@@ -122,6 +134,11 @@ class Membership(Base, UUIDMixin, TimestampMixin):
         nullable=False,
     )
     user_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
+    tenant_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        nullable=False,
+        default=_default_tenant_id,
+    )
     role: Mapped[WorkspaceRole] = mapped_column(
         SAEnum(WorkspaceRole, name="workspaces_workspace_role"),
         nullable=False,
@@ -171,6 +188,11 @@ class WorkspaceGoal(Base, UUIDMixin, TimestampMixin):
     )
     gid: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False, default=uuid4)
     created_by: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
+    tenant_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        nullable=False,
+        default=_default_tenant_id,
+    )
 
     workspace: Mapped[Workspace] = relationship(
         "platform.workspaces.models.Workspace",
@@ -189,6 +211,11 @@ class WorkspaceAgentDecisionConfig(Base, UUIDMixin, TimestampMixin):
         PG_UUID(as_uuid=True),
         ForeignKey("workspaces_workspaces.id", ondelete="CASCADE"),
         nullable=False,
+    )
+    tenant_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        nullable=False,
+        default=_default_tenant_id,
     )
     agent_fqn: Mapped[str] = mapped_column(Text(), nullable=False)
     response_decision_strategy: Mapped[str] = mapped_column(
@@ -213,6 +240,11 @@ class WorkspaceSettings(Base, UUIDMixin, TimestampMixin):
         PG_UUID(as_uuid=True),
         ForeignKey("workspaces_workspaces.id", ondelete="CASCADE"),
         nullable=False,
+    )
+    tenant_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        nullable=False,
+        default=_default_tenant_id,
     )
     subscribed_agents: Mapped[list[str]] = mapped_column(
         ARRAY(Text()),
@@ -276,6 +308,11 @@ class WorkspaceVisibilityGrant(Base, UUIDMixin, TimestampMixin):
         ForeignKey("workspaces_workspaces.id", ondelete="CASCADE"),
         nullable=False,
     )
+    tenant_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        nullable=False,
+        default=_default_tenant_id,
+    )
     visibility_agents: Mapped[list[str]] = mapped_column(
         ARRAY(Text()),
         nullable=False,
@@ -315,6 +352,11 @@ class WorkspaceGovernanceChain(Base, UUIDMixin, TimestampMixin, WorkspaceScopedM
         PG_UUID(as_uuid=True),
         ForeignKey("workspaces_workspaces.id", ondelete="CASCADE"),
         nullable=False,
+    )
+    tenant_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        nullable=False,
+        default=_default_tenant_id,
     )
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     observer_fqns: Mapped[list[str]] = mapped_column(

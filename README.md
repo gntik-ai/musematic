@@ -17,6 +17,8 @@ The platform is built for engineering, product, security, and operations teams t
 
 Musematic is intentionally portable. The same system can run in local kind clusters, small k3s labs, Hetzner-backed production deployments, or managed Kubernetes environments. Its architecture separates a Python control plane from Go satellite services so operators can scale hot execution paths while keeping governance and audit behavior centralized.
 
+Musematic now runs as a default-plus-Enterprise multi-tenant SaaS platform. Hostname resolution establishes tenant context before authentication, PostgreSQL RLS enforces tenant isolation, and platform-staff operations are separated under audited `/api/v1/platform/*` endpoints. See the [tenant architecture](./docs/saas/tenant-architecture.md) documentation and [tenant provisioning runbook](./deploy/runbooks/tenant-provisioning.md).
+
 ## Core capabilities
 
 - **Agent lifecycle management**: register, revise, certify, decommission, and discover agents by fully qualified namespace.
@@ -84,6 +86,7 @@ The platform is designed so governance remains centralized while execution remai
 - [Agent Builder Guide](./docs/developer-guide/building-agents.md)
 - [System Architecture](./docs/system-architecture-v6.md)
 - [Software Architecture](./docs/software-architecture-v6.md)
+- [Tenant Architecture](./docs/saas/tenant-architecture.md)
 - [Functional Requirements](./docs/functional-requirements-revised-v6.md)
 
 ## Contributing

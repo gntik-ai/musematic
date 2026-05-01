@@ -89,6 +89,7 @@ testpaths = ["tests"]
 addopts = "-ra -m 'not integration' --import-mode=importlib"
 markers = [
   "integration: requires external services or Docker-backed dependencies",
+  "e2e: end-to-end scenario requiring a deployed stack",
 ]
 
 [tool.ruff]
@@ -150,6 +151,9 @@ module = [
   "clickhouse_connect",
   "grpc",
   "grpc.*",
+  "feedgen.*",
+  "kubernetes_asyncio",
+  "kubernetes_asyncio.*",
   "ldap3",
   "neo4j",
   "neo4j.*",
@@ -159,6 +163,8 @@ module = [
   "opentelemetry.*",
   "opensearchpy",
   "opensearchpy.*",
+  "prometheus_client",
+  "prometheus_client.*",
   "qdrant_client",
   "qdrant_client.*",
   "scipy",

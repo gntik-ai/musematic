@@ -5,6 +5,7 @@ from platform.common.models.mixins import (
     AuditMixin,
     EventSourcedMixin,
     SoftDeleteMixin,
+    TenantScopedMixin,
     TimestampMixin,
     UUIDMixin,
     WorkspaceScopedMixin,
@@ -21,10 +22,10 @@ __all__ = [
     "Membership",
     "Session",
     "SoftDeleteMixin",
+    "TenantScopedMixin",
     "TimestampMixin",
     "UUIDMixin",
     "User",
     "Workspace",
     "WorkspaceScopedMixin",
 ]
-

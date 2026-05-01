@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+from platform.common.tenant_context import TenantContext, current_tenant
 from platform.ws_hub import router as ws_router
-from platform.ws_hub.router import websocket_endpoint
+from platform.ws_hub.router import _workspace_ids_from_payload, websocket_endpoint
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -43,6 +45,42 @@ class BlockingFirstEnsureFanout(RecordingFanout):
             await self.release_block.wait()
 
 
+class StaticTenantResolver:
+    def __init__(self, tenant: TenantContext | None) -> None:
+        self.tenant = tenant
+        self.hosts: list[str] = []
+
+    async def resolve(self, host: str) -> TenantContext | None:
+        self.hosts.append(host)
+        return self.tenant
+
+
+class TenantAwareAuthService(StaticAuthService):
+    def __init__(self, tenant: TenantContext, token_payloads: dict[str, dict[str, Any]]) -> None:
+        super().__init__(token_payloads)
+        self.tenant = tenant
+
+    async def validate_token(self, token: str) -> dict[str, Any]:
+        assert current_tenant.get(None) == self.tenant
+        return await super().validate_token(token)
+
+
+def test_workspace_ids_from_payload_reads_top_level_and_role_scoped_claims() -> None:
+    top_level_workspace_id = uuid4()
+    role_workspace_id = uuid4()
+
+    assert _workspace_ids_from_payload(
+        {
+            "workspace_id": str(top_level_workspace_id),
+            "roles": [
+                {"role": "workspace_member", "workspace_id": str(role_workspace_id)},
+                {"role": "platform_admin", "workspace_id": None},
+                {"role": "bad", "workspace_id": "not-a-uuid"},
+            ],
+        }
+    ) == {top_level_workspace_id, role_workspace_id}
+
+
 @pytest.mark.asyncio
 async def test_websocket_endpoint_denies_missing_or_invalid_token() -> None:
     state = build_state()
@@ -68,6 +106,46 @@ async def test_websocket_endpoint_denies_missing_or_invalid_token() -> None:
     )
 
     assert invalid_token.denial_status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_websocket_endpoint_binds_tenant_before_auth_validation() -> None:
+    tenant = TenantContext(
+        id=uuid4(),
+        slug="acme",
+        subdomain="acme",
+        kind="enterprise",
+        status="active",
+        region="eu",
+    )
+    user_id = uuid4()
+    workspace_id = uuid4()
+    token = "tenant-token"
+    resolver = StaticTenantResolver(tenant)
+    state = build_state(
+        auth_service=TenantAwareAuthService(
+            tenant,
+            {token: {"sub": str(user_id), "type": "access"}},
+        ),
+        workspaces_service=StaticWorkspacesService(workspace_ids_by_user={user_id: [workspace_id]}),
+    )
+    state.tenant_resolver = resolver
+    websocket = FakeWebSocket(
+        state,
+        headers={"Authorization": f"Bearer {token}", "host": "acme.localhost"},
+    )
+
+    await websocket_endpoint(
+        websocket,
+        state.connection_registry,
+        state.subscription_registry,
+        state.fanout,
+        state.visibility_filter,
+    )
+
+    assert websocket.accepted is True
+    assert resolver.hosts == ["acme.localhost"]
+    assert current_tenant.get(None) is None
 
 
 @pytest.mark.asyncio

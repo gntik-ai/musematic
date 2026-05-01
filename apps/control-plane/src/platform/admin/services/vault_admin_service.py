@@ -20,6 +20,7 @@ from platform.common.secret_provider import (
     SecretProvider,
     validate_secret_path,
 )
+from platform.tenants.vault_paths import platform_vault_path
 from typing import Any, cast
 
 
@@ -74,9 +75,10 @@ class VaultAdminService:
         )
 
     async def connectivity_test(self) -> ConnectivityTestResponse:
-        path = (
-            f"secret/data/musematic/{self._environment()}/"
-            f"_internal/connectivity-test/{uuid.uuid4().hex}"
+        path = platform_vault_path(
+            self._environment(),
+            "_internal",
+            f"connectivity-test/{uuid.uuid4().hex}",
         )
         probe_value = uuid.uuid4().hex
         start = time.perf_counter()
@@ -120,12 +122,16 @@ class VaultAdminService:
 
     def _environment(self) -> str:
         raw = (
-            os.getenv("PLATFORM_ENVIRONMENT")
-            or os.getenv("PLATFORM_ENV")
-            or os.getenv("ENVIRONMENT")
-            or os.getenv("ENV")
-            or "dev"
-        ).strip().lower()
+            (
+                os.getenv("PLATFORM_ENVIRONMENT")
+                or os.getenv("PLATFORM_ENV")
+                or os.getenv("ENVIRONMENT")
+                or os.getenv("ENV")
+                or "dev"
+            )
+            .strip()
+            .lower()
+        )
         return raw if raw in {"production", "staging", "dev", "test", "ci"} else "dev"
 
     def _collect_metrics(self) -> _VaultMetricSnapshot:

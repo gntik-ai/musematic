@@ -3,6 +3,8 @@ from __future__ import annotations
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.secret_provider import MockSecretProvider, SecretProvider
+from platform.common.tenant_context import current_tenant
+from platform.tenants.vault_paths import tenant_vault_path
 from typing import Any
 
 
@@ -89,12 +91,16 @@ class RotatableSecretProvider:
             return secret_name
         profile = getattr(self.settings, "profile", "dev")
         environment = (
-            profile
-            if profile in {"production", "staging", "dev", "test", "ci"}
-            else "dev"
+            profile if profile in {"production", "staging", "dev", "test", "ci"} else "dev"
         )
         resource = "".join(
             char if char.isalnum() or char in {"/", "_", "-"} else "-"
             for char in secret_name.strip("/")
         )
-        return f"secret/data/musematic/{environment}/audit-chain/{resource}"
+        tenant = current_tenant.get(None)
+        return tenant_vault_path(
+            environment,
+            tenant.slug if tenant is not None else "default",
+            "audit-chain",
+            resource,
+        )

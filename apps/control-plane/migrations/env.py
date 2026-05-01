@@ -67,6 +67,7 @@ importlib.import_module("platform.security_compliance.models")
 importlib.import_module("platform.incident_response.models")
 importlib.import_module("platform.localization.models")
 importlib.import_module("platform.status_page.models")
+importlib.import_module("platform.tenants.models")
 
 config = context.config
 

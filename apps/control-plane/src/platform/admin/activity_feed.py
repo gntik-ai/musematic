@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from platform.audit.models import AuditChainEntry
+from platform.common.tenant_context import current_tenant
 from uuid import UUID
 
 from sqlalchemy import select
@@ -14,6 +15,9 @@ async def list_admin_activity(
     limit: int = 50,
     since: datetime | None = None,
 ) -> list[AuditChainEntry]:
+    resolved_tenant = current_tenant.get(None)
+    if tenant_id is None and resolved_tenant is not None:
+        tenant_id = resolved_tenant.id
     statement = select(AuditChainEntry).where(
         AuditChainEntry.audit_event_source.like("platform.admin%")
     )

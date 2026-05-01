@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 from platform.common.models.base import Base
-from platform.common.models.mixins import TimestampMixin, UUIDMixin
+from platform.common.models.mixins import TenantScopedMixin, TimestampMixin, UUIDMixin
 from typing import Any
 from uuid import UUID
 
@@ -74,7 +74,7 @@ class ConsentType(StrEnum):
     training_use = "training_use"
 
 
-class PrivacyDSRRequest(Base, UUIDMixin):
+class PrivacyDSRRequest(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "privacy_dsr_requests"
     __table_args__ = (
         CheckConstraint(
@@ -113,7 +113,7 @@ class PrivacyDSRRequest(Base, UUIDMixin):
     )
 
 
-class PrivacyDeletionTombstone(Base, UUIDMixin):
+class PrivacyDeletionTombstone(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "privacy_deletion_tombstones"
     __table_args__ = (
         UniqueConstraint("proof_hash", name="uq_privacy_tombstone_proof_hash"),
@@ -128,7 +128,7 @@ class PrivacyDeletionTombstone(Base, UUIDMixin):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
-class PrivacyResidencyConfig(Base, UUIDMixin, TimestampMixin):
+class PrivacyResidencyConfig(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "privacy_residency_configs"
     __table_args__ = (UniqueConstraint("workspace_id", name="uq_privacy_residency_workspace"),)
 
@@ -141,7 +141,7 @@ class PrivacyResidencyConfig(Base, UUIDMixin, TimestampMixin):
     allowed_transfer_regions: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
 
 
-class PrivacyDLPRule(Base, UUIDMixin):
+class PrivacyDLPRule(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "privacy_dlp_rules"
     __table_args__ = (
         CheckConstraint(
@@ -165,7 +165,7 @@ class PrivacyDLPRule(Base, UUIDMixin):
     seeded: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
-class PrivacyDLPEvent(Base, UUIDMixin):
+class PrivacyDLPEvent(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "privacy_dlp_events"
     __table_args__ = (
         CheckConstraint(
@@ -192,7 +192,7 @@ class PrivacyDLPEvent(Base, UUIDMixin):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
-class PrivacyImpactAssessment(Base, UUIDMixin, TimestampMixin):
+class PrivacyImpactAssessment(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "privacy_impact_assessments"
     __table_args__ = (
         CheckConstraint(
@@ -234,7 +234,7 @@ class PrivacyImpactAssessment(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class PrivacyConsentRecord(Base, UUIDMixin):
+class PrivacyConsentRecord(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "privacy_consent_records"
     __table_args__ = (
         CheckConstraint(

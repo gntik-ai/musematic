@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from enum import StrEnum
 from platform.common.models.base import Base
-from platform.common.models.mixins import TimestampMixin, UUIDMixin
+from platform.common.models.mixins import TenantScopedMixin, TimestampMixin, UUIDMixin
 from typing import Any
 from uuid import UUID
 
@@ -33,7 +33,7 @@ class A2ADirection(StrEnum):
     outbound = "outbound"
 
 
-class A2ATask(Base, UUIDMixin, TimestampMixin):
+class A2ATask(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "a2a_tasks"
     __table_args__ = (
         Index("ix_a2a_tasks_state", "a2a_state"),
@@ -83,7 +83,7 @@ class A2ATask(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class A2AExternalEndpoint(Base, UUIDMixin, TimestampMixin):
+class A2AExternalEndpoint(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "a2a_external_endpoints"
     __table_args__ = (
         Index("ix_a2a_endpoints_workspace", "workspace_id"),
@@ -109,7 +109,7 @@ class A2AExternalEndpoint(Base, UUIDMixin, TimestampMixin):
     created_by: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
 
 
-class A2AAuditRecord(Base, UUIDMixin):
+class A2AAuditRecord(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "a2a_audit_records"
     __table_args__ = (
         Index("ix_a2a_audit_task", "task_id"),

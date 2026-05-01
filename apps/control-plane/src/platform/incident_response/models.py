@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from platform.common.models.base import Base
-from platform.common.models.mixins import UUIDMixin
+from platform.common.models.mixins import TenantScopedMixin, UUIDMixin
 from typing import Any
 from uuid import UUID
 
@@ -24,7 +24,7 @@ from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 
-class IncidentIntegration(Base, UUIDMixin):
+class IncidentIntegration(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "incident_integrations"
     __table_args__ = (
         UniqueConstraint(
@@ -59,7 +59,7 @@ class IncidentIntegration(Base, UUIDMixin):
     )
 
 
-class Incident(Base, UUIDMixin):
+class Incident(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "incidents"
     __table_args__ = (
         CheckConstraint(
@@ -110,7 +110,7 @@ class Incident(Base, UUIDMixin):
     )
 
 
-class IncidentExternalAlert(Base, UUIDMixin):
+class IncidentExternalAlert(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "incident_external_alerts"
     __table_args__ = (
         UniqueConstraint(
@@ -151,7 +151,7 @@ class IncidentExternalAlert(Base, UUIDMixin):
     next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
-class Runbook(Base, UUIDMixin):
+class Runbook(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "runbooks"
     __table_args__ = (
         UniqueConstraint("scenario", name="uq_runbooks_scenario"),
@@ -197,7 +197,7 @@ class Runbook(Base, UUIDMixin):
     )
 
 
-class PostMortem(Base, UUIDMixin):
+class PostMortem(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "post_mortems"
     __table_args__ = (
         UniqueConstraint("incident_id", name="uq_post_mortems_incident_id"),

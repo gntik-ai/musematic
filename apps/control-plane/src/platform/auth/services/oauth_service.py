@@ -65,14 +65,25 @@ from platform.common.secret_provider import (
     CredentialUnavailableError,
     SecretProvider,
 )
+from platform.common.tenant_context import current_tenant
 from platform.connectors.security import compute_hmac_sha256
 from typing import Any, cast
+from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 from fastapi.encoders import jsonable_encoder
 
 _PLAINTEXT_SECRET_PREFIX = "plain:"
 _REDACTED_PLAINTEXT_SECRET_REF = "plain:<redacted>"
+_LOOPBACK_REDIRECT_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+def _is_loopback_redirect_uri(uri: str) -> bool:
+    try:
+        host = urlsplit(uri).hostname
+    except ValueError:
+        return False
+    return host in _LOOPBACK_REDIRECT_HOSTS
 
 
 @dataclass(slots=True)
@@ -435,6 +446,10 @@ class OAuthService:
             "link_for_user_id": str(link_for_user_id) if link_for_user_id else None,
             "intent": intent,
             "recovery_email": recovery_email.strip().lower() if recovery_email else None,
+            "tenant_id": str(provider.tenant_id),
+            "redirect_uri": self._tenant_callback_url(
+                provider.provider_type, provider.redirect_uri
+            ),
         }
         if not dry_run:
             await self.redis_client.set(
@@ -445,7 +460,7 @@ class OAuthService:
         state = self._sign_state(nonce)
         redirect_url = self._provider_client(provider.provider_type).get_auth_url(
             client_id=provider.client_id,
-            redirect_uri=provider.redirect_uri,
+            redirect_uri=str(payload["redirect_uri"]),
             scopes=list(provider.scopes),
             state=state,
             code_challenge=self._build_code_challenge(code_verifier),
@@ -496,7 +511,10 @@ class OAuthService:
             raise OAuthProviderDisabledError(provider_type)
         try:
             identity = await self._resolve_identity(
-                provider, code, str(state_payload["code_verifier"])
+                provider,
+                code,
+                str(state_payload["code_verifier"]),
+                redirect_uri=str(state_payload.get("redirect_uri") or provider.redirect_uri),
             )
         except Exception as exc:
             await self.repository.create_audit_entry(
@@ -861,13 +879,15 @@ class OAuthService:
         provider: Any,
         code: str,
         code_verifier: str,
+        *,
+        redirect_uri: str,
     ) -> OAuthUserIdentity:
         client_secret = await self._resolve_secret(provider.client_secret_ref)
         client = self._provider_client(provider.provider_type)
         token_payload = await client.exchange_code(
             client_id=provider.client_id,
             client_secret=client_secret,
-            redirect_uri=provider.redirect_uri,
+            redirect_uri=redirect_uri,
             code=code,
             code_verifier=code_verifier,
         )
@@ -988,7 +1008,19 @@ class OAuthService:
         )
         if str(payload.get("provider_type")) != provider_type:
             raise OAuthStateInvalidError()
+        tenant = current_tenant.get(None)
+        if tenant is not None and str(payload.get("tenant_id")) != str(tenant.id):
+            raise OAuthStateInvalidError()
         return cast(dict[str, Any], jsonable_encoder(payload))
+
+    def _tenant_callback_url(self, provider_type: str, fallback: str) -> str:
+        tenant = current_tenant.get(None)
+        domain = self.settings.PLATFORM_DOMAIN.strip().lower().rstrip(".")
+        if _is_loopback_redirect_uri(fallback):
+            return fallback
+        if tenant is None or not domain:
+            return fallback
+        return f"https://{tenant.subdomain}.{domain}/auth/oauth/{provider_type}/callback"
 
     async def _resolve_secret(self, reference: str) -> str:
         if reference.startswith(_PLAINTEXT_SECRET_PREFIX):

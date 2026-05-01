@@ -4,7 +4,12 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from enum import StrEnum
 from platform.common.models.base import Base
-from platform.common.models.mixins import TimestampMixin, UUIDMixin, WorkspaceScopedMixin
+from platform.common.models.mixins import (
+    TenantScopedMixin,
+    TimestampMixin,
+    UUIDMixin,
+    WorkspaceScopedMixin,
+)
 from uuid import UUID
 
 from sqlalchemy import (
@@ -102,7 +107,7 @@ class SnapshotType(StrEnum):
     post_apply = "post_apply"
 
 
-class AgentHealthConfig(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class AgentHealthConfig(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "agentops_health_configs"
     __table_args__ = (
         Index("uq_agentops_health_configs_workspace_id", "workspace_id", unique=True),
@@ -170,7 +175,7 @@ class AgentHealthConfig(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     )
 
 
-class AgentHealthScore(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class AgentHealthScore(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "agentops_health_scores"
     __table_args__ = (
         Index("ix_agentops_health_scores_agent_workspace", "agent_fqn", "workspace_id"),
@@ -227,7 +232,7 @@ class AgentHealthScore(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     insufficient_data: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
-class BehavioralBaseline(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class BehavioralBaseline(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "agentops_behavioral_baselines"
     __table_args__ = (
         Index("ix_agentops_baselines_agent_workspace", "agent_fqn", "workspace_id"),
@@ -255,7 +260,9 @@ class BehavioralBaseline(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     )
 
 
-class BehavioralRegressionAlert(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class BehavioralRegressionAlert(
+    Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin
+):
     __tablename__ = "agentops_regression_alerts"
     __table_args__ = (
         Index("ix_agentops_regression_agent_workspace", "agent_fqn", "workspace_id"),
@@ -298,7 +305,7 @@ class BehavioralRegressionAlert(Base, UUIDMixin, TimestampMixin, WorkspaceScoped
     triggered_rollback: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
-class CiCdGateResult(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class CiCdGateResult(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "agentops_cicd_gate_results"
     __table_args__ = (
         Index("ix_agentops_gate_results_agent_workspace", "agent_fqn", "workspace_id"),
@@ -358,7 +365,7 @@ class CiCdGateResult(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     evaluation_duration_ms: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
-class CanaryDeployment(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class CanaryDeployment(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "agentops_canary_deployments"
     __table_args__ = (
         Index("ix_agentops_canary_agent_workspace", "agent_fqn", "workspace_id"),
@@ -400,7 +407,7 @@ class CanaryDeployment(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     )
 
 
-class RetirementWorkflow(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class RetirementWorkflow(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "agentops_retirement_workflows"
     __table_args__ = (
         Index("ix_agentops_retirement_agent_workspace", "agent_fqn", "workspace_id"),
@@ -447,7 +454,7 @@ class RetirementWorkflow(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     halt_reason: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
 
-class GovernanceEvent(Base, UUIDMixin, _CreatedOnlyMixin, WorkspaceScopedMixin):
+class GovernanceEvent(Base, TenantScopedMixin, UUIDMixin, _CreatedOnlyMixin, WorkspaceScopedMixin):
     __tablename__ = "agentops_governance_events"
     __table_args__ = (
         Index("ix_agentops_governance_agent_workspace", "agent_fqn", "workspace_id"),
@@ -466,7 +473,7 @@ class GovernanceEvent(Base, UUIDMixin, _CreatedOnlyMixin, WorkspaceScopedMixin):
     )
 
 
-class AdaptationProposal(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class AdaptationProposal(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "agentops_adaptation_proposals"
     __table_args__ = (
         Index("ix_agentops_adaptation_agent_workspace", "agent_fqn", "workspace_id"),
@@ -516,7 +523,7 @@ class AdaptationProposal(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     completion_note: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
 
-class AdaptationSnapshot(Base, UUIDMixin, TimestampMixin):
+class AdaptationSnapshot(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "agentops_adaptation_snapshots"
     __table_args__ = (
         Index("ix_agentops_adaptation_snapshots_proposal", "proposal_id"),
@@ -543,7 +550,7 @@ class AdaptationSnapshot(Base, UUIDMixin, TimestampMixin):
     retention_expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
-class AdaptationOutcome(Base, UUIDMixin, TimestampMixin):
+class AdaptationOutcome(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "agentops_adaptation_outcomes"
     __table_args__ = (
         Index("ix_agentops_adaptation_outcomes_proposal", "proposal_id", unique=True),
@@ -587,7 +594,9 @@ class AdaptationOutcome(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class ProficiencyAssessment(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class ProficiencyAssessment(
+    Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin
+):
     __tablename__ = "agentops_proficiency_assessments"
     __table_args__ = (
         Index("ix_agentops_proficiency_agent_workspace", "agent_fqn", "workspace_id"),

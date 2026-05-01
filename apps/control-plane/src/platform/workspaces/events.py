@@ -26,6 +26,7 @@ class WorkspacesEventType(StrEnum):
 
 
 class WorkspacePayload(BaseModel):
+    tenant_id: UUID | None = None
     workspace_id: UUID
     owner_id: UUID
     name: str
@@ -34,6 +35,7 @@ class WorkspacePayload(BaseModel):
 
 
 class MembershipPayload(BaseModel):
+    tenant_id: UUID | None = None
     workspace_id: UUID
     user_id: UUID
     role: WorkspaceRole | None = None
@@ -41,6 +43,7 @@ class MembershipPayload(BaseModel):
 
 
 class GoalPayload(BaseModel):
+    tenant_id: UUID | None = None
     workspace_id: UUID
     goal_id: UUID
     gid: UUID
@@ -51,6 +54,7 @@ class GoalPayload(BaseModel):
 
 
 class VisibilityGrantPayload(BaseModel):
+    tenant_id: UUID | None = None
     workspace_id: UUID
     visibility_agents: list[str]
     visibility_tools: list[str]

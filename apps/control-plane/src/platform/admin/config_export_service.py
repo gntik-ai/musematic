@@ -7,6 +7,7 @@ import tarfile
 from dataclasses import dataclass
 from platform.audit.service import AuditChainService
 from platform.common.config import PlatformSettings
+from platform.common.tenant_context import current_tenant
 from typing import Literal
 from uuid import UUID
 
@@ -31,6 +32,9 @@ class ConfigExportService:
         scope: ConfigScope,
         tenant_id: UUID | None = None,
     ) -> tuple[bytes, str]:
+        resolved_tenant = current_tenant.get(None)
+        if scope == "tenant" and tenant_id is None and resolved_tenant is not None:
+            tenant_id = resolved_tenant.id
         config = _redacted_config(scope, tenant_id)
         config_yaml = yaml.safe_dump(config, sort_keys=True).encode("utf-8")
         manifest = {

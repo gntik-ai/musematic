@@ -79,6 +79,8 @@ tenants/
 └── events.py                         # Kafka events: tenant.provisioned, .suspended, .deleted
 ```
 
+The implementation uses `TenantScopedMixin` for catalogued tenant tables and a session-level SQLAlchemy loader criterion for regular ORM reads. The resolver cache invalidation channel is `tenants:invalidate`; tenant updates delete tier-2 Redis keys and publish invalidations so other API instances evict tier-1 entries. Lifecycle operations are exposed from `admin_router.py`, while force-cascade deletion and workspace bypass reads are isolated in platform routers that require the platform-staff role.
+
 ### Lifecycle Events
 
 ```python

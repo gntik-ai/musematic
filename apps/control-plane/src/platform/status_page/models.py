@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 from platform.common.models.base import Base
-from platform.common.models.mixins import TimestampMixin, UUIDMixin
+from platform.common.models.mixins import TenantScopedMixin, TimestampMixin, UUIDMixin
 from typing import Any
 from uuid import UUID
 
@@ -91,7 +91,7 @@ def _values(values: type[StrEnum] | tuple[str, ...]) -> str:
     return ",".join(f"'{value}'" for value in iterable)
 
 
-class PlatformStatusSnapshot(Base, UUIDMixin):
+class PlatformStatusSnapshot(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "platform_status_snapshots"
     __table_args__ = (
         Index(
@@ -131,7 +131,7 @@ class PlatformStatusSnapshot(Base, UUIDMixin):
     )
 
 
-class StatusSubscription(Base, UUIDMixin, TimestampMixin):
+class StatusSubscription(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "status_subscriptions"
     __table_args__ = (
         Index("IX_status_subscriptions_user_id", "user_id"),
@@ -185,7 +185,7 @@ class StatusSubscription(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class SubscriptionDispatch(Base, UUIDMixin):
+class SubscriptionDispatch(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "subscription_dispatches"
     __table_args__ = (
         Index(

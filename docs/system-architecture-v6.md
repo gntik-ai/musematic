@@ -10,6 +10,8 @@ After the SaaS pass, Musematic operates as a **multi-tenant SaaS platform** runn
 
 Every layer of the system is now **tenant-aware**: hostname middleware resolves tenant from `Host` header, PostgreSQL Row-Level Security enforces data isolation as defense-in-depth, Vault paths are tenant-scoped, OAuth providers per tenant, cookies subdomain-scoped, Kafka events carry `tenant_id`, observability dashboards filterable per tenant, billing per-workspace (default tenant) or per-tenant (Enterprise).
 
+UPD-046 codifies this tenant primitive in the control plane. Regular database sessions bind `app.tenant_id` and install ORM loader criteria for `TenantScopedMixin`; platform-staff sessions use a separate `musematic_platform_staff` role and are only exposed through `/api/v1/platform/*` routers. Unknown hosts return the same opaque 404 body and headers, independent of whether the hostname is malformed, unallocated, or pending deletion.
+
 ---
 
 ## 2. Cluster Topology

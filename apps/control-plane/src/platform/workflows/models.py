@@ -5,6 +5,7 @@ from enum import StrEnum
 from platform.common.models.base import Base
 from platform.common.models.mixins import (
     AuditMixin,
+    TenantScopedMixin,
     TimestampMixin,
     UUIDMixin,
     WorkspaceScopedMixin,
@@ -39,7 +40,9 @@ class TriggerType(StrEnum):
     workspace_goal = "workspace_goal"
 
 
-class WorkflowDefinition(Base, UUIDMixin, TimestampMixin, AuditMixin, WorkspaceScopedMixin):
+class WorkflowDefinition(
+    Base, TenantScopedMixin, UUIDMixin, TimestampMixin, AuditMixin, WorkspaceScopedMixin
+):
     """Represent the workflow definition."""
 
     __tablename__ = "workflow_definitions"
@@ -88,7 +91,7 @@ class WorkflowDefinition(Base, UUIDMixin, TimestampMixin, AuditMixin, WorkspaceS
     )
 
 
-class WorkflowVersion(Base, UUIDMixin, TimestampMixin):
+class WorkflowVersion(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     """Represent the workflow version."""
 
     __tablename__ = "workflow_versions"
@@ -127,7 +130,7 @@ class WorkflowVersion(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class WorkflowTriggerDefinition(Base, UUIDMixin, TimestampMixin):
+class WorkflowTriggerDefinition(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     """Represent the workflow trigger definition."""
 
     __tablename__ = "workflow_trigger_definitions"

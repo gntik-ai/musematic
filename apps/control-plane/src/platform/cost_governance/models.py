@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 from platform.common.models.base import Base
-from platform.common.models.mixins import AuditMixin, TimestampMixin, UUIDMixin
+from platform.common.models.mixins import AuditMixin, TenantScopedMixin, TimestampMixin, UUIDMixin
 from typing import Any
 from uuid import UUID
 
@@ -27,7 +27,7 @@ from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 
-class CostAttribution(Base, UUIDMixin):
+class CostAttribution(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "cost_attributions"
     __table_args__ = (
         Index("ix_cost_attributions_workspace_created", "workspace_id", "created_at"),
@@ -137,7 +137,7 @@ class CostAttribution(Base, UUIDMixin):
     )
 
 
-class WorkspaceBudget(Base, UUIDMixin, TimestampMixin, AuditMixin):
+class WorkspaceBudget(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, AuditMixin):
     __tablename__ = "workspace_budgets"
     __table_args__ = (
         UniqueConstraint("workspace_id", "period_type", name="uq_workspace_budget_period"),
@@ -166,7 +166,7 @@ class WorkspaceBudget(Base, UUIDMixin, TimestampMixin, AuditMixin):
     currency: Mapped[str] = mapped_column(String(length=3), nullable=False, default="USD")
 
 
-class BudgetAlert(Base, UUIDMixin):
+class BudgetAlert(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "budget_alerts"
     __table_args__ = (
         UniqueConstraint(
@@ -199,7 +199,7 @@ class BudgetAlert(Base, UUIDMixin):
     )
 
 
-class CostForecast(Base, UUIDMixin):
+class CostForecast(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "cost_forecasts"
     __table_args__ = (
         Index("ix_cost_forecasts_workspace_period_end", "workspace_id", "period_end"),
@@ -229,7 +229,7 @@ class CostForecast(Base, UUIDMixin):
     )
 
 
-class CostAnomaly(Base, UUIDMixin):
+class CostAnomaly(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "cost_anomalies"
     __table_args__ = (
         CheckConstraint(
@@ -281,7 +281,7 @@ class CostAnomaly(Base, UUIDMixin):
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
-class OverrideRecord(Base, UUIDMixin):
+class OverrideRecord(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "cost_overrides"
     __table_args__ = (
         Index("ix_cost_overrides_workspace_created", "workspace_id", "created_at"),

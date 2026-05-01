@@ -95,6 +95,7 @@ USER_IDENTITY_COLUMNS: dict[str, list[str]] = {
     "platform_status_snapshots": ["created_by"],
     "simulation_scenarios": ["created_by"],
     "status_subscriptions": ["user_id"],
+    "tenants": ["created_by_super_admin_id"],
 }
 
 

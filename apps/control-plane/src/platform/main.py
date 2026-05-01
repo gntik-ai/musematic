@@ -80,6 +80,7 @@ from platform.common.logging import configure_logging, get_logger
 from platform.common.middleware.api_versioning_middleware import ApiVersioningMiddleware
 from platform.common.middleware.correlation_logging_middleware import CorrelationLoggingMiddleware
 from platform.common.middleware.rate_limit_middleware import RateLimitMiddleware
+from platform.common.middleware.tenant_resolver import TenantResolverMiddleware
 from platform.common.secret_provider import (
     KubernetesSecretProvider,
     MockSecretProvider,
@@ -246,6 +247,11 @@ from platform.simulation.events import register_simulation_event_types
 from platform.simulation.router import router as simulation_router
 from platform.status_page.me_router import router as status_page_me_router
 from platform.status_page.router import router as status_page_router
+from platform.tenants.events import register_tenant_event_types
+from platform.tenants.jobs.deletion_grace import build_tenant_deletion_scheduler
+from platform.tenants.platform_router import router as tenants_platform_router
+from platform.tenants.router import router as tenants_router
+from platform.tenants.seeder import provision_default_tenant_if_missing
 from platform.testing.dependencies import build_drift_service
 from platform.testing.events import register_testing_event_types
 from platform.testing.router_e2e import router as testing_e2e_router
@@ -270,6 +276,7 @@ from platform.workflows.router import router as workflows_router
 from platform.workspaces.consumer import WorkspacesConsumer
 from platform.workspaces.dependencies import build_workspaces_service
 from platform.workspaces.events import register_workspaces_event_types
+from platform.workspaces.platform_router import router as workspaces_platform_router
 from platform.workspaces.router import router as workspaces_router
 from typing import Any, cast
 from uuid import UUID, uuid4
@@ -519,6 +526,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_multi_region_ops_event_types()
     register_localization_event_types()
     register_admin_event_types()
+    register_tenant_event_types()
     register_incident_trigger(AppIncidentTrigger(app))
 
     for name, client in app.state.clients.items():
@@ -532,6 +540,14 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             LOGGER.warning("Failed to connect %s during startup: %s", name, exc)
 
     app.state.startup_errors = startup_errors
+    try:
+        async with database.AsyncSessionLocal() as session:
+            await provision_default_tenant_if_missing(session)
+    except Exception as exc:
+        app.state.degraded = True
+        startup_errors["tenant_default_seed"] = str(exc)
+        LOGGER.warning("Failed to provision default tenant during startup: %s", exc)
+
     if os.getenv("PLATFORM_SUPERADMIN_USERNAME"):
         try:
             await bootstrap_superadmin_from_env(
@@ -787,6 +803,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         "incident_response_runbook_freshness_scheduler",
         None,
     )
+    tenant_deletion_scheduler = getattr(app.state, "tenant_deletion_scheduler", None)
     multi_region_replication_probe_scheduler = getattr(
         app.state,
         "multi_region_replication_probe_scheduler",
@@ -1009,6 +1026,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["incident_response_runbook_freshness_scheduler"] = str(exc)
             LOGGER.warning("Failed to start incident response runbook freshness scheduler: %s", exc)
+    if tenant_deletion_scheduler is not None:
+        try:
+            tenant_deletion_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["tenant_deletion_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start tenant deletion scheduler: %s", exc)
     for scheduler_name, scheduler in (
         ("multi_region_replication_probe_scheduler", multi_region_replication_probe_scheduler),
         ("multi_region_maintenance_window_scheduler", multi_region_maintenance_window_scheduler),
@@ -1061,6 +1085,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
                     "Failed to stop incident response runbook freshness scheduler cleanly: %s",
                     exc,
                 )
+        if tenant_deletion_scheduler is not None:
+            try:
+                tenant_deletion_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning("Failed to stop tenant deletion scheduler cleanly: %s", exc)
         for scheduler_name, scheduler in (
             ("multi_region_replication_probe_scheduler", multi_region_replication_probe_scheduler),
             (
@@ -1360,6 +1389,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.model_catalog_auto_deprecation_scheduler = None
     app.state.incident_response_delivery_retry_scheduler = None
     app.state.incident_response_runbook_freshness_scheduler = None
+    app.state.tenant_deletion_scheduler = None
     app.state.multi_region_replication_probe_scheduler = None
     app.state.multi_region_maintenance_window_scheduler = None
     app.state.multi_region_capacity_projection_scheduler = None
@@ -1446,6 +1476,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.incident_response_runbook_freshness_scheduler = build_runbook_freshness_scheduler(
             app
         )
+        app.state.tenant_deletion_scheduler = build_tenant_deletion_scheduler(app)
         app.state.multi_region_replication_probe_scheduler = build_replication_probe_scheduler(app)
         app.state.multi_region_maintenance_window_scheduler = build_maintenance_window_scheduler(
             app
@@ -1466,6 +1497,9 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         platform_exception_handler,
     )
     app.add_exception_handler(PlatformError, exception_handler)
+    # Starlette executes middleware in reverse registration order. TenantResolverMiddleware
+    # is added last so hostname tenant resolution runs before auth, maintenance, rate limits,
+    # debug capture, API versioning, and correlation middleware.
     app.add_middleware(ApiVersioningMiddleware)
     app.add_middleware(DebugCaptureMiddleware)
     app.add_middleware(RateLimitMiddleware)
@@ -1474,6 +1508,12 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.add_middleware(AuthMiddleware)
     app.add_middleware(CorrelationLoggingMiddleware)
     app.add_middleware(CorrelationMiddleware)
+    app.add_middleware(
+        TenantResolverMiddleware,
+        settings=resolved,
+        session_factory=database.AsyncSessionLocal,
+        redis_client=cast(AsyncRedisClient | None, app.state.clients.get("redis")),
+    )
     app.include_router(health_router)
     consumer_manager = app.state.clients.get("kafka_consumer")
     if isinstance(consumer_manager, EventConsumerManager):
@@ -1665,6 +1705,9 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(interactions_router)
         app.include_router(notifications_router, prefix="/api/v1")
         app.include_router(me_router, prefix="/api/v1")
+        app.include_router(tenants_router)
+        app.include_router(tenants_platform_router)
+        app.include_router(workspaces_platform_router)
         app.include_router(notifications_webhooks_router, prefix="/api/v1")
         app.include_router(notifications_deadletter_router, prefix="/api/v1")
         app.include_router(governance_router, prefix="/api/v1")

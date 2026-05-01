@@ -30,7 +30,21 @@ class AdminActionResponse(BaseModel):
     change_preview: dict[str, Any] | None = None
 
 
-def tenant_id_from_user(current_user: dict[str, Any]) -> UUID | None:
+def tenant_id_from_user(
+    current_user: dict[str, Any],
+    request: Any | None = None,
+) -> UUID | None:
+    tenant = (
+        getattr(getattr(request, "state", None), "tenant", None) if request is not None else None
+    )
+    tenant_id = getattr(tenant, "id", None)
+    if isinstance(tenant_id, UUID):
+        return tenant_id
+    if tenant_id is not None:
+        try:
+            return UUID(str(tenant_id))
+        except ValueError:
+            return None
     raw_tenant_id = current_user.get("tenant_id")
     if raw_tenant_id is None:
         return None
@@ -40,8 +54,15 @@ def tenant_id_from_user(current_user: dict[str, Any]) -> UUID | None:
         return None
 
 
-def empty_list(resource: str, current_user: dict[str, Any]) -> AdminListResponse:
-    return AdminListResponse(resource=resource, tenant_id=tenant_id_from_user(current_user))
+def empty_list(
+    resource: str,
+    current_user: dict[str, Any],
+    request: Any | None = None,
+) -> AdminListResponse:
+    return AdminListResponse(
+        resource=resource,
+        tenant_id=tenant_id_from_user(current_user, request),
+    )
 
 
 def empty_detail(resource: str, resource_id: str) -> AdminDetailResponse:

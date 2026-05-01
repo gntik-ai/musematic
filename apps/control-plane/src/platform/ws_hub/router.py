@@ -3,11 +3,13 @@ from __future__ import annotations
 import asyncio
 import json
 from contextlib import suppress
+from contextvars import Token
 from datetime import UTC, datetime
 from importlib import import_module
 from platform.common import database
 from platform.common.events.envelope import CorrelationContext, make_envelope
 from platform.common.logging import get_logger
+from platform.common.tenant_context import TenantContext, current_tenant
 from platform.execution.repository import ExecutionRepository
 from platform.ws_hub.connection import ConnectionRegistry, WebSocketConnection
 from platform.ws_hub.dependencies import (
@@ -90,6 +92,32 @@ async def websocket_endpoint(
     fanout: KafkaFanout = Depends(get_fanout),
     visibility_filter: VisibilityFilter = Depends(get_visibility_filter),
 ) -> None:
+    try:
+        tenant_token = await _bind_websocket_tenant(websocket)
+    except _ConnectionDeniedError as exc:
+        await _deny(websocket, exc.status_code, exc.message)
+        return
+
+    try:
+        await _websocket_endpoint(
+            websocket,
+            connection_registry,
+            subscription_registry,
+            fanout,
+            visibility_filter,
+        )
+    finally:
+        if tenant_token is not None:
+            current_tenant.reset(tenant_token)
+
+
+async def _websocket_endpoint(
+    websocket: WebSocket,
+    connection_registry: ConnectionRegistry,
+    subscription_registry: SubscriptionRegistry,
+    fanout: KafkaFanout,
+    visibility_filter: VisibilityFilter,
+) -> None:
     token = _extract_token(websocket)
     if token is None:
         await _deny(websocket, 401, "Missing authentication token")
@@ -102,14 +130,15 @@ async def websocket_endpoint(
         return
 
     user_id = UUID(str(auth_payload["sub"]))
-    workspace_ids = await _load_workspace_ids(websocket, user_id)
+    workspace_ids = set(await _load_workspace_ids(websocket, user_id))
+    workspace_ids.update(_workspace_ids_from_payload(auth_payload))
     role_names = _role_names(auth_payload)
 
     await websocket.accept()
     connection = WebSocketConnection(
         connection_id=str(uuid4()),
         user_id=user_id,
-        workspace_ids=set(workspace_ids),
+        workspace_ids=workspace_ids,
         role_names=role_names,
         websocket=websocket,
         send_queue=asyncio.Queue(maxsize=websocket.app.state.settings.WS_CLIENT_BUFFER_SIZE),
@@ -679,6 +708,22 @@ def _extract_token(websocket: WebSocket) -> str | None:
     return query_token.strip() if query_token else None
 
 
+async def _bind_websocket_tenant(websocket: WebSocket) -> Token[TenantContext | None] | None:
+    if current_tenant.get(None) is not None:
+        return None
+
+    resolver = getattr(websocket.app.state, "tenant_resolver", None)
+    if resolver is None:
+        return None
+
+    tenant = await resolver.resolve(websocket.headers.get("host", ""))
+    if tenant is None:
+        raise _ConnectionDeniedError(404, "Not Found")
+    if tenant.status == "pending_deletion":
+        raise _ConnectionDeniedError(404, "Not Found")
+    return current_tenant.set(tenant)
+
+
 def _role_names(auth_payload: dict[str, object]) -> set[str]:
     roles = auth_payload.get("roles")
     if not isinstance(roles, list):
@@ -688,6 +733,23 @@ def _role_names(auth_payload: dict[str, object]) -> set[str]:
         for role in roles
         if isinstance(role, dict) and role.get("role") is not None
     }
+
+
+def _workspace_ids_from_payload(auth_payload: dict[str, object]) -> set[UUID]:
+    workspace_ids: set[UUID] = set()
+    raw_workspace_id = auth_payload.get("workspace_id")
+    if raw_workspace_id is not None:
+        with suppress(ValueError):
+            workspace_ids.add(UUID(str(raw_workspace_id)))
+
+    roles = auth_payload.get("roles")
+    if isinstance(roles, list):
+        for role in roles:
+            if not isinstance(role, dict) or role.get("workspace_id") is None:
+                continue
+            with suppress(ValueError):
+                workspace_ids.add(UUID(str(role["workspace_id"])))
+    return workspace_ids
 
 
 async def _validate_token(websocket: WebSocket, token: str) -> dict[str, object]:

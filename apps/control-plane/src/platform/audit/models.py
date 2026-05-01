@@ -27,6 +27,7 @@ class AuditChainEntry(Base, UUIDMixin):
     previous_hash: Mapped[str] = mapped_column(String(length=64), nullable=False)
     entry_hash: Mapped[str] = mapped_column(String(length=64), nullable=False, unique=True)
     audit_event_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
+    tenant_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
     audit_event_source: Mapped[str] = mapped_column(String(length=64), nullable=False)
     canonical_payload_hash: Mapped[str] = mapped_column(String(length=64), nullable=False)
     event_type: Mapped[str | None] = mapped_column(String(length=100), nullable=True)

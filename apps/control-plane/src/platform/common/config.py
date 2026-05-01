@@ -15,6 +15,7 @@ class DatabaseSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="POSTGRES_", extra="ignore")
 
     dsn: str = "postgresql+asyncpg://musematic:musematic@localhost:5432/musematic"
+    platform_staff_dsn: str = ""
     pool_size: int = 20
     max_overflow: int = 10
 
@@ -227,12 +228,16 @@ def _validate_bootstrap_roles(*roles: str) -> None:
 
 def _platform_environment() -> str:
     return (
-        os.getenv("PLATFORM_ENVIRONMENT")
-        or os.getenv("PLATFORM_ENV")
-        or os.getenv("ENVIRONMENT")
-        or os.getenv("ENV")
-        or "dev"
-    ).strip().lower()
+        (
+            os.getenv("PLATFORM_ENVIRONMENT")
+            or os.getenv("PLATFORM_ENV")
+            or os.getenv("ENVIRONMENT")
+            or os.getenv("ENV")
+            or "dev"
+        )
+        .strip()
+        .lower()
+    )
 
 
 class OAuthGoogleBootstrap(BaseSettings):
@@ -1004,6 +1009,17 @@ class SecurityComplianceSettings(BaseSettings):
 
 
 class PlatformSettings(BaseSettings):
+    """Top-level platform settings.
+
+    Tenant architecture settings:
+    - PLATFORM_DOMAIN: canonical root domain used by hostname tenant resolution.
+    - PLATFORM_TENANT_ENFORCEMENT_LEVEL: lenient records rollout telemetry; strict
+      enforces tenant mismatch failures without compatibility fallbacks.
+    - TENANT_RESOLVER_CACHE_TTL_SECONDS: hostname resolver tier-1/tier-2 cache TTL.
+    - TENANT_DELETION_GRACE_HOURS: lifecycle grace window before cascade deletion.
+    - TENANT_MIGRATION_ROLLBACK_WINDOW_HOURS: documented operator rollback window.
+    """
+
     model_config = SettingsConfigDict(
         env_prefix="PLATFORM_",
         extra="ignore",
@@ -1087,6 +1103,46 @@ class PlatformSettings(BaseSettings):
     checkpoint_retention_days: int = 30
     checkpoint_max_size_bytes: int = 10_485_760
     profile: str = "api"
+    PLATFORM_DOMAIN: str = Field(
+        default="musematic.ai",
+        description="Canonical root domain used by hostname tenant resolution.",
+        validation_alias="PLATFORM_DOMAIN",
+    )
+    PLATFORM_TENANT_ENFORCEMENT_LEVEL: Literal["lenient", "strict"] = Field(
+        default="lenient",
+        description=(
+            "Tenant rollout enforcement level: lenient keeps compatibility telemetry, "
+            "strict rejects mismatches without fallbacks."
+        ),
+        validation_alias="PLATFORM_TENANT_ENFORCEMENT_LEVEL",
+    )
+    TENANT_RESOLVER_CACHE_TTL_SECONDS: int = Field(
+        default=60,
+        ge=1,
+        description="TTL in seconds for tenant hostname resolver process and Redis caches.",
+        validation_alias=AliasChoices(
+            "TENANT_RESOLVER_CACHE_TTL_SECONDS",
+            "PLATFORM_TENANT_RESOLVER_CACHE_TTL_SECONDS",
+        ),
+    )
+    TENANT_DELETION_GRACE_HOURS: int = Field(
+        default=72,
+        ge=1,
+        description="Grace period in hours before pending-deletion tenants are cascaded.",
+        validation_alias=AliasChoices(
+            "TENANT_DELETION_GRACE_HOURS",
+            "PLATFORM_TENANT_DELETION_GRACE_HOURS",
+        ),
+    )
+    TENANT_MIGRATION_ROLLBACK_WINDOW_HOURS: int = Field(
+        default=24,
+        ge=1,
+        description="Operator rollback window in hours for tenant migration rollout.",
+        validation_alias=AliasChoices(
+            "TENANT_MIGRATION_ROLLBACK_WINDOW_HOURS",
+            "PLATFORM_TENANT_MIGRATION_ROLLBACK_WINDOW_HOURS",
+        ),
+    )
 
     @model_validator(mode="before")
     @classmethod

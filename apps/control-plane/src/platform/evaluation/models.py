@@ -5,6 +5,7 @@ from enum import StrEnum
 from platform.common.models.base import Base
 from platform.common.models.mixins import (
     SoftDeleteMixin,
+    TenantScopedMixin,
     TimestampMixin,
     UUIDMixin,
     WorkspaceScopedMixin,
@@ -86,7 +87,9 @@ class FairnessMetricName(StrEnum):
     calibration = "calibration"
 
 
-class EvalSet(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin, SoftDeleteMixin):
+class EvalSet(
+    Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin, SoftDeleteMixin
+):
     __tablename__ = "evaluation_eval_sets"
     __table_args__ = (
         Index("ix_evaluation_eval_sets_workspace_status", "workspace_id", "status"),
@@ -126,7 +129,7 @@ class EvalSet(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin, SoftDeleteM
     )
 
 
-class BenchmarkCase(Base, UUIDMixin, TimestampMixin):
+class BenchmarkCase(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "evaluation_benchmark_cases"
     __table_args__ = (
         Index("ix_evaluation_benchmark_cases_eval_set_id", "eval_set_id"),
@@ -172,7 +175,7 @@ class BenchmarkCase(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class EvaluationRun(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class EvaluationRun(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "evaluation_runs"
     __table_args__ = (
         Index("ix_evaluation_runs_eval_set_id", "eval_set_id"),
@@ -212,7 +215,7 @@ class EvaluationRun(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     )
 
 
-class JudgeVerdict(Base, UUIDMixin, TimestampMixin):
+class JudgeVerdict(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "evaluation_judge_verdicts"
     __table_args__ = (
         Index("ix_evaluation_judge_verdicts_run_id", "run_id"),
@@ -264,7 +267,7 @@ class JudgeVerdict(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class FairnessEvaluation(Base, UUIDMixin):
+class FairnessEvaluation(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "fairness_evaluations"
     __table_args__ = (
         CheckConstraint(
@@ -321,7 +324,7 @@ class FairnessEvaluation(Base, UUIDMixin):
     )
 
 
-class Rubric(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
+class Rubric(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "evaluation_rubrics"
     __table_args__ = (
         Index("ix_evaluation_rubrics_workspace_id", "workspace_id"),
@@ -364,7 +367,7 @@ class Rubric(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     )
 
 
-class CalibrationRun(Base, UUIDMixin, TimestampMixin):
+class CalibrationRun(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "evaluation_calibration_runs"
     __table_args__ = (
         Index("ix_evaluation_calibration_runs_rubric_id", "rubric_id"),
@@ -405,7 +408,7 @@ class CalibrationRun(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class AbExperiment(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class AbExperiment(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "evaluation_ab_experiments"
     __table_args__ = (
         Index("ix_evaluation_ab_experiments_workspace_status", "workspace_id", "status"),
@@ -431,7 +434,9 @@ class AbExperiment(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     analysis_summary: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
 
-class ATEConfig(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin, SoftDeleteMixin):
+class ATEConfig(
+    Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin, SoftDeleteMixin
+):
     __tablename__ = "evaluation_ate_configs"
     __table_args__ = (
         Index("ix_evaluation_ate_configs_workspace_id", "workspace_id"),
@@ -469,7 +474,7 @@ class ATEConfig(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin, SoftDelet
     created_by: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
 
 
-class ATERun(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class ATERun(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "evaluation_ate_runs"
     __table_args__ = (
         Index("ix_evaluation_ate_runs_ate_config_id", "ate_config_id"),
@@ -503,7 +508,7 @@ class ATERun(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     )
 
 
-class RobustnessTestRun(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class RobustnessTestRun(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "evaluation_robustness_runs"
     __table_args__ = (
         Index("ix_evaluation_robustness_runs_eval_set_id", "eval_set_id"),
@@ -542,7 +547,7 @@ class RobustnessTestRun(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     )
 
 
-class HumanAiGrade(Base, UUIDMixin, TimestampMixin):
+class HumanAiGrade(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "evaluation_human_grades"
     __table_args__ = (
         Index("ix_evaluation_human_grades_reviewer_id", "reviewer_id"),

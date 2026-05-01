@@ -14,6 +14,7 @@ import {
   updateProfile,
   verifyEmail,
   verifyMfa,
+  setupTenantAdmin,
   type LoginRequest,
   type LoginResponse,
   type MfaConfirmRequest,
@@ -33,6 +34,8 @@ import {
   type RegisterRequest,
   type RegisterResponse,
   type ResendVerificationResponse,
+  type SetupTenantAdminRequest,
+  type SetupTenantAdminResponse,
   type VerifyEmailResponse,
 } from "@/lib/api/auth";
 import type { ApiError } from "@/types/api";
@@ -104,6 +107,16 @@ export function useUpdateProfileMutation(): UseMutationResult<
 > {
   return useMutation({
     mutationFn: updateProfile,
+  });
+}
+
+export function useSetupTenantAdminMutation(): UseMutationResult<
+  SetupTenantAdminResponse,
+  ApiError,
+  SetupTenantAdminRequest
+> {
+  return useMutation({
+    mutationFn: setupTenantAdmin,
   });
 }
 

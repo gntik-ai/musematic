@@ -8,6 +8,7 @@ import { RouteCommandRegistration } from "@/components/layout/command-palette/Ro
 import { MfaEnrollmentDialog } from "@/components/features/auth/mfa-enrollment/MfaEnrollmentDialog";
 import { MaintenanceModalProvider } from "@/components/features/platform-status/MaintenanceModalProvider";
 import { PlatformStatusBanner } from "@/components/features/platform-status/PlatformStatusBanner";
+import { SuspensionBanner } from "@/components/features/shell/SuspensionBanner";
 import { Header } from "@/components/layout/header/Header";
 import { Sidebar } from "@/components/layout/sidebar/Sidebar";
 import { DesktopBestHint } from "@/components/layout/desktop-best-hint/DesktopBestHint";
@@ -56,6 +57,7 @@ export default function MainLayout({ children }: Readonly<{ children: React.Reac
           <Sidebar />
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
+          <SuspensionBanner />
           <PlatformStatusBanner />
           <Header onOpenMobileNav={() => setMobileNavOpen(true)} />
           <main className="flex-1 overflow-auto p-4 sm:p-6">
