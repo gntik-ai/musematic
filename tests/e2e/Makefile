@@ -2,6 +2,7 @@ CLUSTER_NAME ?= amp-e2e
 PORT_UI ?= 8080
 PORT_API ?= 8081
 PORT_WS ?= 8082
+PORT_STATUS ?= 8085
 PORT_GOOGLE_OIDC ?= 8083
 PORT_GITHUB_OAUTH ?= 8084
 PORT_VAULT ?= 30085
@@ -19,6 +20,7 @@ KIND_CONFIG_RENDERED := /tmp/kind-config-$(CLUSTER_NAME).yaml
 
 export PLATFORM_API_URL ?= http://localhost:$(PORT_API)
 export PLATFORM_WS_URL ?= ws://localhost:$(PORT_WS)
+export PLATFORM_STATUS_URL ?= http://localhost:$(PORT_STATUS)
 export MOCK_GOOGLE_OIDC_URL ?= http://localhost:$(PORT_GOOGLE_OIDC)
 export MOCK_GITHUB_OAUTH_URL ?= http://localhost:$(PORT_GITHUB_OAUTH)
 export PLAYWRIGHT_BROWSERS_PATH
@@ -48,6 +50,10 @@ e2e-up: render-kind-config
 	@CLUSTER_NAME=$(CLUSTER_NAME) PORT_UI=$(PORT_UI) PORT_API=$(PORT_API) PORT_WS=$(PORT_WS) PORT_GOOGLE_OIDC=$(PORT_GOOGLE_OIDC) PORT_GITHUB_OAUTH=$(PORT_GITHUB_OAUTH) PORT_VAULT=$(PORT_VAULT) RELEASE_NAME=$(RELEASE_NAME) NAMESPACE=$(NAMESPACE) KIND_CONFIG_PATH=$(KIND_CONFIG_RENDERED) ./cluster/install.sh
 
 e2e-down:
+	@if [ -f /tmp/musematic-e2e-web-status-$(CLUSTER_NAME).pid ]; then \
+		kill "$$(cat /tmp/musematic-e2e-web-status-$(CLUSTER_NAME).pid)" >/dev/null 2>&1 || true; \
+		rm -f /tmp/musematic-e2e-web-status-$(CLUSTER_NAME).pid; \
+	fi
 	@kind delete cluster --name $(CLUSTER_NAME)
 	@rm -f $(KIND_CONFIG_RENDERED)
 

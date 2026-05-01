@@ -10,9 +10,14 @@ interface AuthActions {
   setAuth: (session: AuthSession) => void;
   clearAuth: () => void;
   setLoading: (loading: boolean) => void;
+  setHasHydrated: (hasHydrated: boolean) => void;
 }
 
-export type AuthStore = AuthState & AuthActions;
+interface AuthHydrationState {
+  hasHydrated: boolean;
+}
+
+export type AuthStore = AuthState & AuthHydrationState & AuthActions;
 
 const initialState: AuthState = {
   user: null,
@@ -26,6 +31,7 @@ export const useAuthStore = create<AuthStore>()(
   persist(
     (set) => ({
       ...initialState,
+      hasHydrated: false,
       setTokens: (tokens) =>
         set((state) => ({
           ...state,
@@ -47,8 +53,9 @@ export const useAuthStore = create<AuthStore>()(
           refreshToken,
           isAuthenticated: true,
         })),
-      clearAuth: () => set({ ...initialState }),
+      clearAuth: () => set({ ...initialState, hasHydrated: true }),
       setLoading: (loading) => set({ isLoading: loading }),
+      setHasHydrated: (hasHydrated) => set({ hasHydrated }),
     }),
     {
       name: "auth-storage",
@@ -68,6 +75,9 @@ export const useAuthStore = create<AuthStore>()(
           isAuthenticated:
             hydratedState.refreshToken !== null || hydratedState.user !== null,
         };
+      },
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
       },
     },
   ),

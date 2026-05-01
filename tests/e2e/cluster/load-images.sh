@@ -17,6 +17,7 @@ fi
 images=(
   "ghcr.io/musematic/control-plane:local|apps/control-plane/Dockerfile|apps/control-plane"
   "ghcr.io/musematic/ui:local|apps/web/Dockerfile|."
+  "ghcr.io/musematic/web-status:local|apps/web-status/Dockerfile|."
   "ghcr.io/musematic/runtime-controller:local|services/runtime-controller/Dockerfile|services/runtime-controller"
   "ghcr.io/musematic/reasoning-engine:local|services/reasoning-engine/Dockerfile|services/reasoning-engine"
   "ghcr.io/musematic/sandbox-manager:local|services/sandbox-manager/Dockerfile|services/sandbox-manager"

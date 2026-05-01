@@ -87,4 +87,15 @@ describe("auth-store", () => {
     useAuthStore.getState().setLoading(true);
     expect(useAuthStore.getState().isLoading).toBe(true);
   });
+
+  it("tracks persisted auth hydration separately from authentication", () => {
+    useAuthStore.getState().setHasHydrated(false);
+    expect(useAuthStore.getState().hasHydrated).toBe(false);
+
+    useAuthStore.getState().setHasHydrated(true);
+    expect(useAuthStore.getState().hasHydrated).toBe(true);
+
+    useAuthStore.getState().clearAuth();
+    expect(useAuthStore.getState().hasHydrated).toBe(true);
+  });
 });

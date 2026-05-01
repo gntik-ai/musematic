@@ -12,6 +12,7 @@ export default function AdminRouteLayout({ children }: Readonly<{ children: Reac
   const pathname = usePathname();
   const user = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const hasHydrated = useAuthStore((state) => state.hasHydrated);
   const [mounted, setMounted] = useState(false);
   const roles = user?.roles ?? [];
   const isSuperAdmin = roles.includes("superadmin");
@@ -29,12 +30,12 @@ export default function AdminRouteLayout({ children }: Readonly<{ children: Reac
   }, []);
 
   useEffect(() => {
-    if (mounted && !isAuthenticated) {
+    if (mounted && hasHydrated && !isAuthenticated) {
       router.replace(`/login?redirectTo=${encodeURIComponent(redirectTarget)}`);
     }
-  }, [isAuthenticated, mounted, redirectTarget, router]);
+  }, [hasHydrated, isAuthenticated, mounted, redirectTarget, router]);
 
-  if (!mounted || !isAuthenticated) {
+  if (!mounted || !hasHydrated || !isAuthenticated) {
     return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Redirecting to login...</div>;
   }
 

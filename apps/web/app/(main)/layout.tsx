@@ -18,6 +18,7 @@ export default function MainLayout({ children }: Readonly<{ children: React.Reac
   const router = useRouter();
   const pathname = usePathname();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const hasHydrated = useAuthStore((state) => state.hasHydrated);
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
   const [mounted, setMounted] = useState(false);
@@ -38,12 +39,12 @@ export default function MainLayout({ children }: Readonly<{ children: React.Reac
   }, []);
 
   useEffect(() => {
-    if (mounted && !isAuthenticated) {
+    if (mounted && hasHydrated && !isAuthenticated) {
       router.replace(`/login?redirectTo=${encodeURIComponent(redirectTarget)}`);
     }
-  }, [isAuthenticated, mounted, redirectTarget, router]);
+  }, [hasHydrated, isAuthenticated, mounted, redirectTarget, router]);
 
-  if (!mounted || !isAuthenticated) {
+  if (!mounted || !hasHydrated || !isAuthenticated) {
     return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Redirecting to login…</div>;
   }
 
