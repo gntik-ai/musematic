@@ -79,6 +79,7 @@ class _RouterMetrics:
 
 
 ROUTER_METRICS = _RouterMetrics()
+_INITIAL_FANOUT_START_DELAY_SECONDS = 0.25
 
 
 @router.websocket("/ws")
@@ -127,11 +128,9 @@ async def websocket_endpoint(
     }
 
     try:
-        await fanout.ensure_consuming(["auth.events"])
-        auto_subscriptions = await _auto_subscribe_user_channels(
+        auto_subscriptions, auto_topic_batches = _auto_subscribe_user_channels(
             connection,
             subscription_registry,
-            fanout,
         )
         welcome = ConnectionEstablishedMessage(
             connection_id=connection.connection_id,
@@ -140,6 +139,11 @@ async def websocket_endpoint(
             auto_subscriptions=auto_subscriptions,
         )
         await websocket.send_text(welcome.model_dump_json())
+        connection.tasks.add(
+            asyncio.create_task(
+                _ensure_initial_fanout_topics(connection, fanout, auto_topic_batches)
+            )
+        )
         await _receive_loop(
             websocket,
             connection,
@@ -149,6 +153,28 @@ async def websocket_endpoint(
         )
     finally:
         await _cleanup_connection(connection, connection_registry, subscription_registry, fanout)
+
+
+async def _ensure_initial_fanout_topics(
+    connection: WebSocketConnection,
+    fanout: KafkaFanout,
+    auto_topic_batches: list[list[str]],
+) -> None:
+    try:
+        await asyncio.sleep(_INITIAL_FANOUT_START_DELAY_SECONDS)
+        await fanout.ensure_consuming(["auth.events"])
+        for topics in auto_topic_batches:
+            await fanout.ensure_consuming(topics)
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        LOGGER.exception(
+            "ws-hub failed to start initial Kafka fanout topics",
+            extra={"connection_id": connection.connection_id},
+        )
+        connection.closed.set()
+        with suppress(Exception):
+            await connection.websocket.close(code=1011, reason="fanout-startup-failed")
 
 
 async def _receive_loop(
@@ -526,12 +552,12 @@ async def _auto_subscribe_alerts(
     ]
 
 
-async def _auto_subscribe_user_channels(
+def _auto_subscribe_user_channels(
     connection: WebSocketConnection,
     subscription_registry: SubscriptionRegistry,
-    fanout: KafkaFanout,
-) -> list[SubscriptionInfo]:
+) -> tuple[list[SubscriptionInfo], list[list[str]]]:
     subscriptions: list[SubscriptionInfo] = []
+    topic_batches: list[list[str]] = []
     for channel in sorted(USER_SCOPED_GLOBAL_CHANNELS, key=lambda item: item.value):
         subscription = Subscription(
             channel=channel,
@@ -541,7 +567,7 @@ async def _auto_subscribe_user_channels(
         key = subscription_key(subscription.channel, subscription.resource_id)
         connection.subscriptions[key] = subscription
         topics = subscription_registry.subscribe(connection.connection_id, subscription)
-        await fanout.ensure_consuming(topics)
+        topic_batches.append(topics)
         subscriptions.append(
             SubscriptionInfo(
                 channel=subscription.channel.value,
@@ -550,7 +576,7 @@ async def _auto_subscribe_user_channels(
                 auto=subscription.auto,
             )
         )
-    return subscriptions
+    return subscriptions, topic_batches
 
 
 async def _handle_validation_error(
