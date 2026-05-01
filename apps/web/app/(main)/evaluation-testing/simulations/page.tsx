@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Orbit } from "lucide-react";
+import { Library, Orbit } from "lucide-react";
 import { SimulationRunDataTable } from "@/components/features/simulations/SimulationRunDataTable";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { Button } from "@/components/ui/button";
 import { useSimulationMutations } from "@/lib/hooks/use-simulation-mutations";
 import { useSimulationRuns } from "@/lib/hooks/use-simulation-runs";
 import { useAuthStore } from "@/store/auth-store";
@@ -32,11 +33,20 @@ export default function SimulationsPage() {
 
   return (
     <section className="space-y-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">Simulations</h1>
-        <p className="text-sm text-muted-foreground md:text-base">
-          Launch and compare digital twin simulations from one operational surface.
-        </p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-semibold tracking-tight">Simulations</h1>
+          <p className="text-sm text-muted-foreground md:text-base">
+            Launch and compare digital twin simulations from one operational surface.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => router.push("/evaluation-testing/simulations/scenarios")}
+        >
+          <Library className="h-4 w-4" />
+          Scenario Library
+        </Button>
       </div>
       <SimulationRunDataTable
         isLoading={runsQuery.isLoading}

@@ -70,6 +70,9 @@ class StatusPageProjectionConsumer:
             )
             try:
                 await service.compose_current_snapshot(source_kind=SourceKind.kafka)
+                event_kind = _status_event_kind(envelope)
+                if event_kind is not None:
+                    await service.dispatch_event(event_kind, dict(envelope.payload))
                 await session.commit()
             except Exception:
                 await session.rollback()
@@ -202,3 +205,23 @@ def _health_targets_from_env() -> Mapping[str, str] | None:
 def _should_recompose(envelope: EventEnvelope) -> bool:
     event_type = envelope.event_type
     return any(event_type.startswith(prefix) for prefix in STATUS_RECOMPOSE_EVENT_PREFIXES)
+
+
+def _status_event_kind(envelope: EventEnvelope) -> str | None:
+    event_type = envelope.event_type
+    return {
+        "incident.triggered": "incident.created",
+        "incident.created": "incident.created",
+        "incident.updated": "incident.updated",
+        "incident.resolved": "incident.resolved",
+        "incident_response.incident.triggered": "incident.created",
+        "incident_response.incident.created": "incident.created",
+        "incident_response.incident.updated": "incident.updated",
+        "incident_response.incident.resolved": "incident.resolved",
+        "maintenance.scheduled": "maintenance.scheduled",
+        "maintenance.mode.enabled": "maintenance.started",
+        "maintenance.mode.disabled": "maintenance.ended",
+        "multi_region_ops.maintenance.scheduled": "maintenance.scheduled",
+        "multi_region_ops.maintenance.started": "maintenance.started",
+        "multi_region_ops.maintenance.ended": "maintenance.ended",
+    }.get(event_type)

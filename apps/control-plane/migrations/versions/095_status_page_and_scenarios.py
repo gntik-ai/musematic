@@ -118,6 +118,7 @@ def upgrade() -> None:
             server_default=sa.text("ARRAY[]::text[]"),
         ),
         sa.Column("confirmation_token_hash", sa.LargeBinary(), nullable=True),
+        sa.Column("unsubscribe_token_hash", sa.LargeBinary(), nullable=True),
         _ts("confirmed_at", nullable=True),
         sa.Column("health", sa.String(length=16), nullable=False, server_default="pending"),
         sa.Column(

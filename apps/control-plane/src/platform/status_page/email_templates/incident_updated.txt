@@ -1,0 +1,4 @@
+Musematic incident updated.
+
+Event: {event_kind}
+Payload: {payload}

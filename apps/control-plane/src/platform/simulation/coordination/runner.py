@@ -37,6 +37,7 @@ class SimulationRunner:
         max_duration_seconds: int,
         isolation_policy_id: UUID | None,
         initiated_by: UUID,
+        scenario_id: UUID | None = None,
     ) -> SimulationRun:
         response = await self._create_controller_run(
             workspace_id=workspace_id,
@@ -52,6 +53,7 @@ class SimulationRunner:
                 digital_twin_ids=[str(item) for item in digital_twin_ids],
                 scenario_config=scenario_config,
                 isolation_policy_id=isolation_policy_id,
+                scenario_id=scenario_id,
                 controller_run_id=_field(response, "controller_run_id"),
                 status="provisioning",
                 results={"provisioning_events": _field(response, "provisioning_events", [])},

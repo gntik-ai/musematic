@@ -16,7 +16,7 @@ from platform.status_page.models import (
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import desc, select
+from sqlalchemy import desc, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -171,6 +171,125 @@ class StatusPageRepository:
                 or affected.intersection(subscription.scope_components)
             )
         ]
+
+    async def create_subscription(
+        self,
+        *,
+        channel: str,
+        target: str,
+        scope_components: list[str],
+        confirmation_token_hash: bytes | None = None,
+        unsubscribe_token_hash: bytes | None = None,
+        confirmed_at: datetime | None = None,
+        health: str = "pending",
+        workspace_id: UUID | None = None,
+        user_id: UUID | None = None,
+        webhook_id: UUID | None = None,
+    ) -> StatusSubscription:
+        subscription = StatusSubscription(
+            channel=channel,
+            target=target,
+            scope_components=scope_components,
+            confirmation_token_hash=confirmation_token_hash,
+            unsubscribe_token_hash=unsubscribe_token_hash,
+            confirmed_at=confirmed_at,
+            health=health,
+            workspace_id=workspace_id,
+            user_id=user_id,
+            webhook_id=webhook_id,
+        )
+        self.session.add(subscription)
+        await self.session.flush()
+        return subscription
+
+    async def get_subscription_by_confirmation_hash(
+        self,
+        token_hash: bytes,
+    ) -> StatusSubscription | None:
+        result = await self.session.execute(
+            select(StatusSubscription).where(
+                StatusSubscription.confirmation_token_hash == token_hash,
+                StatusSubscription.health == "pending",
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_subscription_by_unsubscribe_hash(
+        self,
+        token_hash: bytes,
+    ) -> StatusSubscription | None:
+        result = await self.session.execute(
+            select(StatusSubscription).where(
+                StatusSubscription.unsubscribe_token_hash == token_hash,
+                StatusSubscription.health != "unsubscribed",
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def confirm_subscription(self, subscription: StatusSubscription) -> StatusSubscription:
+        subscription.confirmed_at = datetime.now(UTC)
+        subscription.health = "healthy"
+        subscription.confirmation_token_hash = None
+        await self.session.flush()
+        return subscription
+
+    async def mark_unsubscribed(self, subscription: StatusSubscription) -> StatusSubscription:
+        subscription.health = "unsubscribed"
+        await self.session.flush()
+        return subscription
+
+    async def list_user_subscriptions(
+        self,
+        *,
+        user_id: UUID,
+        workspace_id: UUID | None = None,
+    ) -> list[StatusSubscription]:
+        statement = select(StatusSubscription).where(StatusSubscription.user_id == user_id)
+        if workspace_id is not None:
+            statement = statement.where(StatusSubscription.workspace_id == workspace_id)
+        statement = statement.order_by(
+            desc(StatusSubscription.created_at),
+            desc(StatusSubscription.id),
+        )
+        result = await self.session.execute(statement)
+        return list(result.scalars().all())
+
+    async def get_user_subscription(
+        self,
+        *,
+        subscription_id: UUID,
+        user_id: UUID,
+    ) -> StatusSubscription | None:
+        result = await self.session.execute(
+            select(StatusSubscription).where(
+                StatusSubscription.id == subscription_id,
+                StatusSubscription.user_id == user_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def update_user_subscription(
+        self,
+        *,
+        subscription_id: UUID,
+        user_id: UUID,
+        values: dict[str, Any],
+    ) -> StatusSubscription | None:
+        if not values:
+            return await self.get_user_subscription(
+                subscription_id=subscription_id,
+                user_id=user_id,
+            )
+        await self.session.execute(
+            update(StatusSubscription)
+            .where(
+                StatusSubscription.id == subscription_id,
+                StatusSubscription.user_id == user_id,
+            )
+            .values(**values)
+        )
+        await self.session.flush()
+        return await self.get_user_subscription(subscription_id=subscription_id, user_id=user_id)
 
     async def insert_dispatch(
         self,

@@ -57,6 +57,7 @@ class SimulationRunResponse(BaseModel):
     digital_twin_ids: list[UUID]
     scenario_config: dict[str, Any]
     isolation_policy_id: UUID | None = None
+    scenario_id: UUID | None = None
     controller_run_id: str | None = None
     started_at: datetime | None = None
     completed_at: datetime | None = None
@@ -73,6 +74,79 @@ class SimulationRunResponse(BaseModel):
 class SimulationRunListResponse(BaseModel):
     items: list[SimulationRunResponse]
     next_cursor: str | None = None
+
+
+class ScenarioCreate(BaseModel):
+    workspace_id: UUID
+    name: str = Field(min_length=1, max_length=255)
+    description: str | None = None
+    agents_config: dict[str, Any] = Field(default_factory=dict)
+    workflow_template_id: UUID | None = None
+    mock_set_config: dict[str, Any] = Field(default_factory=dict)
+    input_distribution: dict[str, Any] = Field(default_factory=dict)
+    twin_fidelity: dict[str, Any] = Field(default_factory=dict)
+    success_criteria: list[dict[str, Any]] = Field(min_length=1)
+    run_schedule: dict[str, Any] | None = None
+
+
+class ScenarioUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    description: str | None = None
+    agents_config: dict[str, Any] | None = None
+    workflow_template_id: UUID | None = None
+    mock_set_config: dict[str, Any] | None = None
+    input_distribution: dict[str, Any] | None = None
+    twin_fidelity: dict[str, Any] | None = None
+    success_criteria: list[dict[str, Any]] | None = None
+    run_schedule: dict[str, Any] | None = None
+
+
+class ScenarioRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    workspace_id: UUID
+    name: str
+    description: str | None = None
+    agents_config: dict[str, Any]
+    workflow_template_id: UUID | None = None
+    mock_set_config: dict[str, Any]
+    input_distribution: dict[str, Any]
+    twin_fidelity: dict[str, Any]
+    success_criteria: list[dict[str, Any]]
+    run_schedule: dict[str, Any] | None = None
+    archived_at: datetime | None = None
+    created_by: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class ScenarioListResponse(BaseModel):
+    items: list[ScenarioRead]
+    next_cursor: str | None = None
+
+
+class ScenarioRunRequest(BaseModel):
+    iterations: int = Field(default=1, ge=1, le=100)
+    use_real_llm: bool = False
+    confirmation_token: str | None = None
+
+
+class ScenarioRunSummary(BaseModel):
+    scenario_id: UUID
+    queued_runs: list[UUID]
+    iterations: int
+
+
+class DigitalTwinDivergenceReportRead(BaseModel):
+    run_id: UUID
+    mock_components: list[str]
+    real_components: list[str]
+    divergence_points: list[dict[str, Any]]
+    simulated_time_ms: int | None = None
+    wall_clock_time_ms: int | None = None
+    reference_execution_id: str | None = None
+    reference_available: bool = False
 
 
 class DigitalTwinCreateRequest(BaseModel):

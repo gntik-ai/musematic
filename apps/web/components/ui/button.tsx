@@ -1,11 +1,16 @@
+"use client";
+
 import * as React from "react";
+import { usePlatformStatus } from "@/lib/hooks/use-platform-status";
 import { cn } from "@/lib/utils";
 
 type ButtonVariant = "default" | "secondary" | "outline" | "ghost" | "destructive";
 type ButtonSize = "default" | "sm" | "lg" | "icon";
+type MaintenanceDisabledConfig = boolean | { endsAt?: string | null };
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   asChild?: boolean;
+  disabledByMaintenance?: MaintenanceDisabledConfig;
   variant?: ButtonVariant;
   size?: ButtonSize;
 }
@@ -25,8 +30,21 @@ const sizeClasses: Record<ButtonSize, string> = {
   icon: "h-10 w-10",
 };
 
-export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ asChild = false, children, className, size = "default", variant = "default", type = "button", ...props }, ref) => {
+type BaseButtonProps = Omit<ButtonProps, "disabledByMaintenance">;
+
+const BaseButton = React.forwardRef<HTMLButtonElement, BaseButtonProps>(
+  (
+    {
+      asChild = false,
+      children,
+      className,
+      size = "default",
+      variant = "default",
+      type = "button",
+      ...props
+    },
+    ref,
+  ) => {
     const sharedClassName = cn(
       "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
       variantClasses[variant],
@@ -51,6 +69,65 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {children}
       </button>
     );
+  },
+);
+
+BaseButton.displayName = "BaseButton";
+
+function formatMaintenanceEnd(value?: string | null) {
+  if (!value) {
+    return "the maintenance window ends";
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
+const MaintenanceAwareButton = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ disabledByMaintenance, disabled, title, ...props }, ref) => {
+    const { data } = usePlatformStatus();
+    const maintenance = data?.active_maintenance;
+    const configuredEndsAt =
+      typeof disabledByMaintenance === "object" ? disabledByMaintenance.endsAt : undefined;
+    const endsAt = configuredEndsAt ?? maintenance?.ends_at;
+    const blocked = Boolean(disabledByMaintenance && maintenance?.blocks_writes);
+    const message = `Writes are paused until ${formatMaintenanceEnd(endsAt)}.`;
+    const descriptionId = React.useId();
+
+    return (
+      <span className="inline-flex">
+        <BaseButton
+          ref={ref}
+          {...props}
+          aria-describedby={blocked ? descriptionId : props["aria-describedby"]}
+          disabled={disabled || blocked}
+          title={blocked ? message : title}
+        />
+        {blocked ? (
+          <span className="sr-only" id={descriptionId}>
+            {message}
+          </span>
+        ) : null}
+      </span>
+    );
+  },
+);
+
+MaintenanceAwareButton.displayName = "MaintenanceAwareButton";
+
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ disabledByMaintenance = false, ...props }, ref) => {
+    if (disabledByMaintenance) {
+      return (
+        <MaintenanceAwareButton
+          ref={ref}
+          disabledByMaintenance={disabledByMaintenance}
+          {...props}
+        />
+      );
+    }
+
+    return <BaseButton ref={ref} {...props} />;
   },
 );
 

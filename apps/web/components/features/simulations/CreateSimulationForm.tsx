@@ -331,7 +331,7 @@ export function CreateSimulationForm({
         </div>
 
         <div className="flex justify-end">
-          <Button disabled={createRun.isPending} type="submit">
+          <Button disabled={createRun.isPending} disabledByMaintenance type="submit">
             Launch Simulation
           </Button>
         </div>

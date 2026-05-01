@@ -2,6 +2,7 @@ import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PlatformStatusBanner } from "@/components/features/platform-status/PlatformStatusBanner";
 import { renderWithProviders } from "@/test-utils/render";
+import type * as PlatformStatusHook from "@/lib/hooks/use-platform-status";
 import type { MyPlatformStatus } from "@/lib/hooks/use-platform-status";
 
 let currentStatus: MyPlatformStatus | undefined;
@@ -12,7 +13,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/lib/hooks/use-platform-status", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/hooks/use-platform-status")>(
+  const actual = await vi.importActual<typeof PlatformStatusHook>(
     "@/lib/hooks/use-platform-status",
   );
   return {
@@ -83,7 +84,7 @@ describe("PlatformStatusBanner", () => {
         {
           id: "incident-1",
           title: "Elevated errors",
-          severity: "critical",
+          severity: "warning",
           started_at: "2026-05-01T12:00:00.000Z",
           resolved_at: null,
           components_affected: ["control-plane-api"],
@@ -96,6 +97,30 @@ describe("PlatformStatusBanner", () => {
 
     const view = renderWithProviders(<PlatformStatusBanner />);
     expect(screen.getByText("Active incident")).toBeInTheDocument();
+    expect(screen.getByText("Warning")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "View incident" })).toHaveAttribute(
+      "href",
+      "https://status.musematic.ai/incidents/incident-1",
+    );
+
+    currentStatus = status({
+      overall_state: "degraded",
+      active_incidents: [
+        {
+          id: "incident-1",
+          title: "Elevated errors",
+          severity: "critical",
+          started_at: "2026-05-01T12:00:00.000Z",
+          resolved_at: null,
+          components_affected: ["control-plane-api"],
+          last_update_at: "2026-05-01T12:03:00.000Z",
+          last_update_summary: "Escalated",
+          affects_my_features: [],
+        },
+      ],
+    });
+
+    view.rerender(<PlatformStatusBanner />);
     expect(screen.getByText("Critical")).toBeInTheDocument();
 
     currentStatus = status({ overall_state: "degraded" });

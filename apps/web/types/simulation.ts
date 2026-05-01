@@ -31,6 +31,7 @@ export interface SimulationRunResponse {
   digital_twin_ids: string[];
   scenario_config: Record<string, unknown>;
   isolation_policy_id: string | null;
+  scenario_id?: string | null;
   controller_run_id: string | null;
   started_at: string | null;
   completed_at: string | null;
@@ -106,6 +107,65 @@ export interface SimulationComparisonReportResponse {
   created_at: string;
 }
 
+export interface SimulationScenario {
+  id: string;
+  workspace_id: string;
+  name: string;
+  description: string | null;
+  agents_config: Record<string, unknown>;
+  workflow_template_id: string | null;
+  mock_set_config: Record<string, unknown>;
+  input_distribution: Record<string, unknown>;
+  twin_fidelity: Record<string, unknown>;
+  success_criteria: Array<Record<string, unknown>>;
+  run_schedule: Record<string, unknown> | null;
+  archived_at: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SimulationScenarioListResponse {
+  items: SimulationScenario[];
+  next_cursor: string | null;
+}
+
+export interface SimulationScenarioInput {
+  workspace_id: string;
+  name: string;
+  description?: string | null;
+  agents_config: Record<string, unknown>;
+  workflow_template_id?: string | null;
+  mock_set_config: Record<string, unknown>;
+  input_distribution: Record<string, unknown>;
+  twin_fidelity: Record<string, unknown>;
+  success_criteria: Array<Record<string, unknown>>;
+  run_schedule?: Record<string, unknown> | null;
+}
+
+export interface ScenarioRunInput {
+  iterations: number;
+  use_real_llm: boolean;
+  confirmation_token?: string | null;
+}
+
+export interface ScenarioRunSummary {
+  scenario_id: string;
+  queued_runs: string[];
+  iterations: number;
+}
+
+export interface DigitalTwinDivergenceReport {
+  run_id: string;
+  mock_components: string[];
+  real_components: string[];
+  divergence_points: Array<Record<string, unknown>>;
+  simulated_time_ms: number | null;
+  wall_clock_time_ms: number | null;
+  reference_execution_id: string | null;
+  reference_available: boolean;
+}
+
 export interface SimulationRunCreateInput {
   workspace_id: string;
   name: string;
@@ -134,4 +194,10 @@ export const simQueryKeys = {
     ["evaluationTesting", "simulations", "isolationPolicies", workspaceId ?? "none"] as const,
   comparison: (reportId: string | null | undefined) =>
     ["evaluationTesting", "simulations", "comparison", reportId ?? "none"] as const,
+  scenarios: (workspaceId: string | null | undefined, cursor?: string | null) =>
+    ["evaluationTesting", "simulations", "scenarios", workspaceId ?? "none", cursor ?? "root"] as const,
+  scenario: (scenarioId: string | null | undefined) =>
+    ["evaluationTesting", "simulations", "scenario", scenarioId ?? "none"] as const,
+  digitalTwinReport: (runId: string | null | undefined) =>
+    ["evaluationTesting", "simulations", "digitalTwinReport", runId ?? "none"] as const,
 };

@@ -318,6 +318,25 @@ class KafkaFanout:
         topic: str,
         envelope: dict[str, Any],
     ) -> dict[str, Any]:
+        if topic == "incident_response.events":
+            event_type = str(envelope.get("event_type", ""))
+            platform_event_type = {
+                "incident.triggered": "platform.incident.created",
+                "incident.created": "platform.incident.created",
+                "incident.updated": "platform.incident.updated",
+                "incident.resolved": "platform.incident.resolved",
+                "incident_response.incident.triggered": "platform.incident.created",
+                "incident_response.incident.created": "platform.incident.created",
+                "incident_response.incident.updated": "platform.incident.updated",
+                "incident_response.incident.resolved": "platform.incident.resolved",
+            }.get(event_type)
+            if platform_event_type is None:
+                return envelope
+            transformed = dict(envelope)
+            transformed["event_type"] = platform_event_type
+            transformed["source"] = "platform.ws_hub.platform_status"
+            return transformed
+
         if topic != "multi_region_ops.events":
             return envelope
 

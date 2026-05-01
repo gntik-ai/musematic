@@ -5,13 +5,19 @@ See specs/095-public-status-banner-workbench-uis/plan.md for the implementation 
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import hashlib
+import secrets
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 from platform.incident_response.models import Incident
 from platform.multi_region_ops.models import MaintenanceWindow
-from platform.status_page.models import PlatformStatusSnapshot
+from platform.notifications.models import DeliveryOutcome
+from platform.status_page.exceptions import ConfirmationTokenInvalidError, SubscriptionNotFoundError
+from platform.status_page.models import PlatformStatusSnapshot, StatusSubscription
 from platform.status_page.repository import StatusPageRepository
 from platform.status_page.schemas import (
+    AntiEnumerationResponse,
     ComponentDetail,
     ComponentHistoryPoint,
     ComponentStatus,
@@ -19,16 +25,20 @@ from platform.status_page.schemas import (
     MyIncidentSummary,
     MyMaintenanceWindowSummary,
     MyPlatformStatus,
+    MyStatusSubscription,
     OverallState,
     PlatformStatusSnapshotPayload,
     PlatformStatusSnapshotRead,
     PublicIncident,
     PublicIncidentsResponse,
     SourceKind,
+    TokenActionResponse,
     UptimeSummary,
+    WebhookSubscribeResponse,
     snapshot_read_from_payload,
 )
 from typing import Any
+from uuid import UUID, uuid4
 
 CURRENT_SNAPSHOT_KEY = "status:snapshot:current"
 LAST_GOOD_SNAPSHOT_KEY = "status:fallback:lastgood"
@@ -60,9 +70,19 @@ class StatusPageService:
         *,
         repository: StatusPageRepository,
         redis_client: Any | None = None,
+        email_deliverer: Any | None = None,
+        webhook_deliverer: Any | None = None,
+        slack_deliverer: Any | None = None,
+        smtp_settings: dict[str, Any] | object | None = None,
+        platform_version: str = "dev",
     ) -> None:
         self.repository = repository
         self.redis_client = redis_client
+        self.email_deliverer = email_deliverer
+        self.webhook_deliverer = webhook_deliverer
+        self.slack_deliverer = slack_deliverer
+        self.smtp_settings = smtp_settings or {}
+        self.platform_version = platform_version
 
     async def compose_current_snapshot(
         self,
@@ -185,6 +205,213 @@ class StatusPageService:
                 for incident in snapshot.active_incidents
             ],
         )
+
+    async def submit_email_subscription(
+        self,
+        *,
+        email: str,
+        scope_components: list[str],
+    ) -> AntiEnumerationResponse:
+        confirmation_token = _new_token()
+        unsubscribe_token = _new_token()
+        subscription = await self.repository.create_subscription(
+            channel="email",
+            target=email.strip().lower(),
+            scope_components=_normalise_scope(scope_components),
+            confirmation_token_hash=_hash_token(confirmation_token),
+            unsubscribe_token_hash=_hash_token(unsubscribe_token),
+            health="pending",
+        )
+        await self._send_email(
+            email=email.strip().lower(),
+            subject="Confirm Musematic status updates",
+            body=_render_template(
+                "confirm_subscription.txt",
+                confirmation_token=confirmation_token,
+                unsubscribe_token=unsubscribe_token,
+                subscription_id=str(subscription.id),
+            ),
+        )
+        return AntiEnumerationResponse()
+
+    async def confirm_email_subscription(self, token: str) -> TokenActionResponse:
+        subscription = await self.repository.get_subscription_by_confirmation_hash(
+            _hash_token(token),
+        )
+        if subscription is None:
+            raise ConfirmationTokenInvalidError()
+        await self.repository.confirm_subscription(subscription)
+        return TokenActionResponse(
+            status="confirmed",
+            message="Subscription confirmed.",
+        )
+
+    async def unsubscribe(self, token: str) -> TokenActionResponse:
+        subscription = await self.repository.get_subscription_by_unsubscribe_hash(
+            _hash_token(token),
+        )
+        if subscription is None:
+            raise SubscriptionNotFoundError()
+        await self.repository.mark_unsubscribed(subscription)
+        await self._send_email(
+            email=subscription.target,
+            subject="Musematic status updates unsubscribed",
+            body=_render_template("unsubscribed.txt", subscription_id=str(subscription.id)),
+        )
+        return TokenActionResponse(
+            status="unsubscribed",
+            message="Subscription removed.",
+        )
+
+    async def submit_webhook_subscription(
+        self,
+        *,
+        url: str,
+        scope_components: list[str],
+        contact_email: str | None = None,
+    ) -> WebhookSubscribeResponse:
+        del contact_email
+        secret = _new_token()
+        event_id = uuid4()
+        webhook_id = uuid4()
+        outcome = DeliveryOutcome.success
+        if self.webhook_deliverer is not None:
+            outcome, _error, _idempotency = await self.webhook_deliverer.send_signed(
+                webhook_id=webhook_id,
+                event_id=event_id,
+                webhook_url=url,
+                payload={
+                    "event_id": str(event_id),
+                    "event_type": "status.subscription.test",
+                    "test": True,
+                },
+                secret=secret,
+                platform_version=self.platform_version,
+            )
+        subscription = await self.repository.create_subscription(
+            channel="webhook",
+            target=url,
+            scope_components=_normalise_scope(scope_components),
+            unsubscribe_token_hash=_hash_token(_new_token()),
+            confirmed_at=datetime.now(UTC) if outcome == DeliveryOutcome.success else None,
+            health="healthy" if outcome == DeliveryOutcome.success else "unhealthy",
+        )
+        return WebhookSubscribeResponse(
+            subscription_id=str(subscription.id),
+            signing_secret_hint=f"...{secret[-6:]}",
+            verification_state="healthy" if outcome == DeliveryOutcome.success else "failed",
+        )
+
+    async def submit_slack_subscription(
+        self,
+        *,
+        webhook_url: str,
+        scope_components: list[str],
+    ) -> WebhookSubscribeResponse:
+        subscription = await self.repository.create_subscription(
+            channel="slack",
+            target=webhook_url,
+            scope_components=_normalise_scope(scope_components),
+            unsubscribe_token_hash=_hash_token(_new_token()),
+            confirmed_at=datetime.now(UTC),
+            health="healthy",
+        )
+        return WebhookSubscribeResponse(
+            subscription_id=str(subscription.id),
+            verification_state="healthy",
+        )
+
+    async def dispatch_event(self, event_kind: str, payload: dict[str, Any]) -> int:
+        event_id = _event_id(payload)
+        affected_components = _affected_components(payload)
+        subscriptions = await self.repository.list_confirmed_subscriptions_for_event(
+            affected_components=affected_components,
+        )
+        sent = 0
+        for subscription in subscriptions:
+            outcome, error = await self._deliver_subscription_event(
+                subscription,
+                event_kind,
+                event_id,
+                payload,
+            )
+            await self.repository.insert_dispatch(
+                subscription_id=subscription.id,
+                event_kind=event_kind,
+                event_id=event_id,
+                outcome=outcome,
+                error_summary=error,
+            )
+            if outcome == "sent":
+                sent += 1
+        return sent
+
+    async def list_my_subscriptions(
+        self,
+        current_user: dict[str, Any],
+    ) -> list[MyStatusSubscription]:
+        rows = await self.repository.list_user_subscriptions(
+            user_id=_user_id(current_user),
+            workspace_id=_optional_workspace_id(current_user),
+        )
+        return [_my_subscription(row) for row in rows]
+
+    async def create_my_subscription(
+        self,
+        current_user: dict[str, Any],
+        *,
+        channel: str,
+        target: str,
+        scope_components: list[str],
+    ) -> MyStatusSubscription:
+        now = datetime.now(UTC)
+        subscription = await self.repository.create_subscription(
+            channel=channel,
+            target=target,
+            scope_components=_normalise_scope(scope_components),
+            unsubscribe_token_hash=_hash_token(_new_token()),
+            confirmed_at=now if channel in {"webhook", "slack"} else None,
+            health="healthy" if channel in {"webhook", "slack"} else "pending",
+            workspace_id=_optional_workspace_id(current_user),
+            user_id=_user_id(current_user),
+        )
+        return _my_subscription(subscription)
+
+    async def update_my_subscription(
+        self,
+        current_user: dict[str, Any],
+        subscription_id: UUID,
+        *,
+        target: str | None = None,
+        scope_components: list[str] | None = None,
+    ) -> MyStatusSubscription:
+        values: dict[str, Any] = {}
+        if target is not None:
+            values["target"] = target
+        if scope_components is not None:
+            values["scope_components"] = _normalise_scope(scope_components)
+        subscription = await self.repository.update_user_subscription(
+            subscription_id=subscription_id,
+            user_id=_user_id(current_user),
+            values=values,
+        )
+        if subscription is None:
+            raise SubscriptionNotFoundError()
+        return _my_subscription(subscription)
+
+    async def delete_my_subscription(
+        self,
+        current_user: dict[str, Any],
+        subscription_id: UUID,
+    ) -> TokenActionResponse:
+        subscription = await self.repository.get_user_subscription(
+            subscription_id=subscription_id,
+            user_id=_user_id(current_user),
+        )
+        if subscription is None:
+            raise SubscriptionNotFoundError()
+        await self.repository.mark_unsubscribed(subscription)
+        return TokenActionResponse(status="unsubscribed", message="Subscription removed.")
 
     def _snapshot_from_row(self, row: PlatformStatusSnapshot) -> PlatformStatusSnapshotRead:
         return snapshot_read_from_payload(
@@ -357,3 +584,127 @@ class StatusPageService:
             await setter(key, value, ttl=ttl)
         except TypeError:
             await setter(key, value, ex=ttl)
+
+    async def _send_email(self, *, email: str, subject: str, body: str) -> None:
+        if self.email_deliverer is None:
+            return
+        alert = _Alert(title=subject, body=body, urgency="medium")
+        await self.email_deliverer.send(alert, email, self.smtp_settings)
+
+    async def _deliver_subscription_event(
+        self,
+        subscription: StatusSubscription,
+        event_kind: str,
+        event_id: UUID,
+        payload: dict[str, Any],
+    ) -> tuple[str, str | None]:
+        if subscription.channel == "email":
+            await self._send_email(
+                email=subscription.target,
+                subject=f"Musematic status update: {event_kind}",
+                body=_render_template(
+                    f"{event_kind.replace('.', '_')}.txt",
+                    event_kind=event_kind,
+                    payload=payload,
+                ),
+            )
+            return "sent", None
+        if subscription.channel == "slack" and self.slack_deliverer is not None:
+            alert = _Alert(
+                title=f"Musematic status update: {event_kind}",
+                body=str(payload.get("summary") or payload.get("title") or event_kind),
+                urgency=str(payload.get("severity") or "medium"),
+            )
+            outcome, error = await self.slack_deliverer.send(alert, subscription.target)
+            return _delivery_outcome(outcome), error
+        if subscription.channel == "webhook" and self.webhook_deliverer is not None:
+            webhook_id = subscription.webhook_id or uuid4()
+            outcome, error, _idempotency = await self.webhook_deliverer.send_signed(
+                webhook_id=webhook_id,
+                event_id=event_id,
+                webhook_url=subscription.target,
+                payload={"event_type": event_kind, **payload},
+                secret="status-page-dev-secret",
+                platform_version=self.platform_version,
+            )
+            return _delivery_outcome(outcome), error
+        return "sent", None
+
+
+@dataclass(slots=True)
+class _Alert:
+    title: str
+    body: str
+    urgency: str
+    id: UUID = field(default_factory=uuid4)
+    alert_type: str = "status_page"
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+
+
+def _new_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+def _hash_token(token: str) -> bytes:
+    return hashlib.sha256(token.encode("utf-8")).digest()
+
+
+def _normalise_scope(scope_components: list[str]) -> list[str]:
+    return sorted({component.strip() for component in scope_components if component.strip()})
+
+
+def _event_id(payload: dict[str, Any]) -> UUID:
+    for key in ("event_id", "incident_id", "id", "window_id"):
+        value = payload.get(key)
+        if value:
+            try:
+                return UUID(str(value))
+            except ValueError:
+                continue
+    return uuid4()
+
+
+def _affected_components(payload: dict[str, Any]) -> list[str]:
+    for key in ("components_affected", "affected_components", "scope_components", "components"):
+        value = payload.get(key)
+        if isinstance(value, list):
+            return [str(item) for item in value]
+    return []
+
+
+def _user_id(current_user: dict[str, Any]) -> UUID:
+    return UUID(str(current_user["sub"]))
+
+
+def _optional_workspace_id(current_user: dict[str, Any]) -> UUID | None:
+    value = current_user.get("workspace_id") or current_user.get("workspace")
+    return UUID(str(value)) if value else None
+
+
+def _my_subscription(subscription: StatusSubscription) -> MyStatusSubscription:
+    return MyStatusSubscription(
+        id=str(subscription.id),
+        channel=subscription.channel,
+        target=subscription.target,
+        scope_components=subscription.scope_components,
+        health=subscription.health,
+        confirmed_at=subscription.confirmed_at,
+        created_at=subscription.created_at,
+    )
+
+
+def _delivery_outcome(outcome: DeliveryOutcome) -> str:
+    if outcome == DeliveryOutcome.success:
+        return "sent"
+    if outcome == DeliveryOutcome.timed_out:
+        return "retrying"
+    return "dead_lettered"
+
+
+def _render_template(template_name: str, **values: Any) -> str:
+    template_path = Path(__file__).with_name("email_templates") / template_name
+    if template_path.exists():
+        template = template_path.read_text(encoding="utf-8")
+    else:
+        template = "Musematic status update: {event_kind}\n\n{payload}"
+    return template.format(**values)

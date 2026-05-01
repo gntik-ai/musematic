@@ -158,6 +158,7 @@ export default function WorkflowExecutionListPage({
         <Button
           className="shrink-0"
           disabled={startExecution.isPending}
+          disabledByMaintenance
           onClick={async () => {
             const execution = await startExecution.mutateAsync({
               workflowVersionId: workflowQuery.data.version.id,
@@ -179,6 +180,7 @@ export default function WorkflowExecutionListPage({
         </div>
       ) : executions.length === 0 ? (
         <EmptyState
+          ctaButtonProps={{ disabledByMaintenance: true }}
           ctaLabel="Start execution"
           description="No executions have run for this workflow yet."
           icon={Rows3}

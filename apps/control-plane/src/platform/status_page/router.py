@@ -8,12 +8,21 @@ from __future__ import annotations
 from datetime import datetime
 from platform.common.dependencies import get_current_user
 from platform.common.exceptions import AuthorizationError
-from platform.status_page.dependencies import get_status_page_service
+from platform.status_page.dependencies import (
+    enforce_subscribe_rate_limit,
+    get_status_page_service,
+)
 from platform.status_page.feed_builders import build_atom, build_rss
 from platform.status_page.schemas import (
+    AntiEnumerationResponse,
     ComponentDetail,
+    EmailSubscribeRequest,
     PlatformStatusSnapshotRead,
     PublicIncidentsResponse,
+    SlackSubscribeRequest,
+    TokenActionResponse,
+    WebhookSubscribeRequest,
+    WebhookSubscribeResponse,
 )
 from platform.status_page.service import StatusPageService
 from typing import Any
@@ -127,6 +136,71 @@ async def get_public_status_atom(
         content=build_atom(snapshot, incidents, base_url=_base_url(request)),
         media_type="application/atom+xml; charset=utf-8",
         headers=dict(response.headers),
+    )
+
+
+@router.post(
+    "/api/v1/public/subscribe/email",
+    response_model=AntiEnumerationResponse,
+    status_code=202,
+    dependencies=[Depends(enforce_subscribe_rate_limit)],
+)
+async def subscribe_email(
+    payload: EmailSubscribeRequest,
+    service: StatusPageService = Depends(get_status_page_service),
+) -> AntiEnumerationResponse:
+    return await service.submit_email_subscription(
+        email=payload.email,
+        scope_components=payload.scope_components,
+    )
+
+
+@router.get("/api/v1/public/subscribe/email/confirm", response_model=TokenActionResponse)
+async def confirm_email_subscription(
+    token: str = Query(min_length=16),
+    service: StatusPageService = Depends(get_status_page_service),
+) -> TokenActionResponse:
+    return await service.confirm_email_subscription(token)
+
+
+@router.get("/api/v1/public/subscribe/email/unsubscribe", response_model=TokenActionResponse)
+async def unsubscribe_email_subscription(
+    token: str = Query(min_length=16),
+    service: StatusPageService = Depends(get_status_page_service),
+) -> TokenActionResponse:
+    return await service.unsubscribe(token)
+
+
+@router.post(
+    "/api/v1/public/subscribe/webhook",
+    response_model=WebhookSubscribeResponse,
+    status_code=202,
+    dependencies=[Depends(enforce_subscribe_rate_limit)],
+)
+async def subscribe_webhook(
+    payload: WebhookSubscribeRequest,
+    service: StatusPageService = Depends(get_status_page_service),
+) -> WebhookSubscribeResponse:
+    return await service.submit_webhook_subscription(
+        url=payload.url,
+        scope_components=payload.scope_components,
+        contact_email=payload.contact_email,
+    )
+
+
+@router.post(
+    "/api/v1/public/subscribe/slack",
+    response_model=WebhookSubscribeResponse,
+    status_code=202,
+    dependencies=[Depends(enforce_subscribe_rate_limit)],
+)
+async def subscribe_slack(
+    payload: SlackSubscribeRequest,
+    service: StatusPageService = Depends(get_status_page_service),
+) -> WebhookSubscribeResponse:
+    return await service.submit_slack_subscription(
+        webhook_url=payload.webhook_url,
+        scope_components=payload.scope_components,
     )
 
 

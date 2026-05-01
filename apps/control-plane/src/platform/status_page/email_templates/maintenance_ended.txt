@@ -1,0 +1,4 @@
+Musematic maintenance ended.
+
+Event: {event_kind}
+Payload: {payload}

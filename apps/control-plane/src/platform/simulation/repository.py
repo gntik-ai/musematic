@@ -9,6 +9,7 @@ from platform.simulation.models import (
     SimulationComparisonReport,
     SimulationIsolationPolicy,
     SimulationRun,
+    SimulationScenario,
 )
 from typing import Any, cast
 from uuid import UUID
@@ -29,6 +30,89 @@ class SimulationRepository:
         self.session.add(run)
         await self.session.flush()
         return run
+
+    async def create_scenario(self, scenario: SimulationScenario) -> SimulationScenario:
+        self.session.add(scenario)
+        await self.session.flush()
+        return scenario
+
+    async def get_scenario(
+        self,
+        scenario_id: UUID,
+        workspace_id: UUID,
+    ) -> SimulationScenario | None:
+        result = await self.session.execute(
+            select(SimulationScenario).where(
+                SimulationScenario.id == scenario_id,
+                SimulationScenario.workspace_id == workspace_id,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def list_scenarios(
+        self,
+        workspace_id: UUID,
+        *,
+        include_archived: bool = False,
+        limit: int = 20,
+        cursor: str | None = None,
+    ) -> tuple[list[SimulationScenario], str | None]:
+        query = select(SimulationScenario).where(SimulationScenario.workspace_id == workspace_id)
+        if not include_archived:
+            query = query.where(SimulationScenario.archived_at.is_(None))
+        query = _apply_uuid_cursor(query, SimulationScenario.id, cursor)
+        query = query.order_by(
+            SimulationScenario.updated_at.desc(),
+            SimulationScenario.id.desc(),
+        ).limit(limit + 1)
+        return _items_with_cursor(list((await self.session.execute(query)).scalars().all()), limit)
+
+    async def update_scenario(
+        self,
+        scenario_id: UUID,
+        workspace_id: UUID,
+        values: dict[str, Any],
+    ) -> SimulationScenario | None:
+        if values:
+            await self.session.execute(
+                update(SimulationScenario)
+                .where(
+                    SimulationScenario.id == scenario_id,
+                    SimulationScenario.workspace_id == workspace_id,
+                )
+                .values(**values)
+            )
+            await self.session.flush()
+        return await self.get_scenario(scenario_id, workspace_id)
+
+    async def archive_scenario(
+        self,
+        scenario_id: UUID,
+        workspace_id: UUID,
+    ) -> SimulationScenario | None:
+        return await self.update_scenario(
+            scenario_id,
+            workspace_id,
+            {"archived_at": datetime.now(UTC)},
+        )
+
+    async def list_runs_for_scenario(
+        self,
+        scenario_id: UUID,
+        workspace_id: UUID,
+        *,
+        limit: int = 20,
+    ) -> list[SimulationRun]:
+        result = await self.session.execute(
+            select(SimulationRun)
+            .where(
+                SimulationRun.scenario_id == scenario_id,
+                SimulationRun.workspace_id == workspace_id,
+            )
+            .order_by(SimulationRun.created_at.desc(), SimulationRun.id.desc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())
 
     async def get_run(self, run_id: UUID, workspace_id: UUID) -> SimulationRun | None:
         result = await self.session.execute(

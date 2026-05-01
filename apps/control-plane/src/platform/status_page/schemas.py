@@ -123,6 +123,11 @@ class AntiEnumerationResponse(BaseModel):
     message: str = "If the address is valid, a confirmation link has been sent."
 
 
+class TokenActionResponse(BaseModel):
+    status: str
+    message: str
+
+
 class WebhookSubscribeResponse(BaseModel):
     subscription_id: str
     signing_secret_hint: str | None = None
@@ -153,6 +158,10 @@ class MyStatusSubscription(BaseModel):
     health: str
     confirmed_at: datetime | None = None
     created_at: datetime
+
+
+class MyStatusSubscriptionList(BaseModel):
+    items: list[MyStatusSubscription]
 
 
 class CreateMyStatusSubscriptionRequest(StatusSubscriptionScope):
