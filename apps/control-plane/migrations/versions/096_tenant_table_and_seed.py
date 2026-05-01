@@ -206,7 +206,7 @@ def _seed_default_tenant() -> None:
                 feature_flags_json
             )
             VALUES (
-                :id,
+                CAST(:id AS UUID),
                 'default',
                 'default',
                 'app',

@@ -1,6 +1,6 @@
 """Make tenant_id not null and indexed.
 
-Revision ID: 099_tenant_id_not_null_and_indexes
+Revision ID: 099_tenant_id_nn_indexes
 Revises: 098_tenant_id_backfill_default
 Create Date: 2026-05-01
 """
@@ -14,7 +14,7 @@ from platform.tenants.table_catalog import TENANT_SCOPED_TABLES
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = "099_tenant_id_not_null_and_indexes"
+revision: str = "099_tenant_id_nn_indexes"
 down_revision: str | None = "098_tenant_id_backfill_default"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None

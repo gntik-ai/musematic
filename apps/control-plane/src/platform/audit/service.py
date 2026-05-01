@@ -17,10 +17,13 @@ from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.impersonation_context import get_impersonation_context
 from platform.common.logging import get_logger
+from platform.common.tenant_context import current_tenant
+from platform.tenants.seeder import DEFAULT_TENANT_ID
 from typing import Any
 from uuid import UUID, uuid4
 
 GENESIS_HASH = "0" * 64
+TENANT_ID_BOUNDARY_EVENT = "audit.schema.tenant_id_added"
 
 
 def compute_entry_hash(
@@ -60,13 +63,24 @@ class AuditChainService:
         severity: str = "info",
         canonical_payload_json: dict[str, object] | None = None,
         impersonation_user_id: UUID | None = None,
+        tenant_id: UUID | None = None,
     ) -> AuditChainEntry:
         await self.repository.acquire_append_lock()
         latest = await self.repository.get_latest_entry()
+        if await self._should_append_tenant_boundary(latest, event_type):
+            latest = await self._append_tenant_boundary(latest)
         sequence_number = await self.repository.next_sequence_number()
         previous_hash = latest.entry_hash if latest is not None else GENESIS_HASH
-        canonical_payload_hash = hashlib.sha256(canonical_payload).hexdigest()
         persisted_payload = canonical_payload_json or self._decode_payload(canonical_payload)
+        resolved_tenant_id = self._resolve_tenant_id(tenant_id, persisted_payload)
+        if persisted_payload is not None:
+            persisted_payload.setdefault("tenant_id", str(resolved_tenant_id))
+            canonical_payload = json.dumps(
+                persisted_payload,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        canonical_payload_hash = hashlib.sha256(canonical_payload).hexdigest()
         context = get_impersonation_context()
         if context is not None:
             if persisted_payload is None:
@@ -88,6 +102,7 @@ class AuditChainService:
             previous_hash=previous_hash,
             entry_hash=entry_hash,
             audit_event_id=audit_event_id,
+            tenant_id=resolved_tenant_id,
             audit_event_source=audit_event_source,
             canonical_payload_hash=canonical_payload_hash,
             event_type=event_type,
@@ -112,6 +127,67 @@ class AuditChainService:
         except (UnicodeDecodeError, json.JSONDecodeError):
             return None
         return decoded if isinstance(decoded, dict) else None
+
+    async def _should_append_tenant_boundary(
+        self,
+        latest: AuditChainEntry | None,
+        event_type: str | None,
+    ) -> bool:
+        if latest is None or event_type == TENANT_ID_BOUNDARY_EVENT:
+            return False
+        if isinstance(latest.canonical_payload, dict) and "tenant_id" in latest.canonical_payload:
+            return False
+        has_boundary = getattr(self.repository, "has_event_type", None)
+        if has_boundary is None:
+            return False
+        return not await has_boundary(TENANT_ID_BOUNDARY_EVENT)
+
+    async def _append_tenant_boundary(self, latest: AuditChainEntry) -> AuditChainEntry:
+        sequence_number = await self.repository.next_sequence_number()
+        payload: dict[str, object] = {
+            "tenant_id": str(DEFAULT_TENANT_ID),
+            "schema_boundary": "tenant_id_added",
+            "previous_hash": latest.entry_hash,
+        }
+        canonical_payload = json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+        canonical_payload_hash = hashlib.sha256(canonical_payload).hexdigest()
+        entry_hash = compute_entry_hash(
+            previous_hash=latest.entry_hash,
+            sequence_number=sequence_number,
+            canonical_payload_hash=canonical_payload_hash,
+        )
+        return await self.repository.insert_entry(
+            sequence_number=sequence_number,
+            previous_hash=latest.entry_hash,
+            entry_hash=entry_hash,
+            audit_event_id=None,
+            tenant_id=DEFAULT_TENANT_ID,
+            audit_event_source="audit",
+            canonical_payload_hash=canonical_payload_hash,
+            event_type=TENANT_ID_BOUNDARY_EVENT,
+            actor_role="system",
+            severity="info",
+            canonical_payload=payload,
+            impersonation_user_id=None,
+        )
+
+    @staticmethod
+    def _resolve_tenant_id(
+        tenant_id: UUID | None,
+        payload: dict[str, Any] | None,
+    ) -> UUID:
+        if tenant_id is not None:
+            return tenant_id
+        if payload is not None and payload.get("tenant_id") is not None:
+            return UUID(str(payload["tenant_id"]))
+        tenant = current_tenant.get(None)
+        if tenant is not None:
+            return tenant.id
+        return DEFAULT_TENANT_ID
 
     async def verify(
         self,

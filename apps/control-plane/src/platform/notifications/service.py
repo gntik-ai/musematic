@@ -60,6 +60,8 @@ from types import MappingProxyType
 from typing import Any, ClassVar
 from uuid import UUID, uuid4
 
+import jwt
+
 LOGGER = get_logger(__name__)
 
 
@@ -172,6 +174,45 @@ class AlertService:
         self.channel_router = channel_router
         self.sms_deliverer = sms_deliverer
         self.localization_service = localization_service
+
+    async def send_first_admin_invitation(self, tenant: Any, email: str) -> str:
+        now = datetime.now(UTC)
+        jti = uuid4()
+        token_payload = {
+            "sub": email,
+            "tenant_id": str(tenant.id),
+            "tenant_slug": tenant.slug,
+            "tenant_kind": tenant.kind,
+            "type": "tenant_first_admin_setup",
+            "jti": str(jti),
+            "iat": int(now.timestamp()),
+            "exp": int((now + timedelta(hours=24)).timestamp()),
+        }
+        signing_key = self.settings.auth.signing_key
+        token = (
+            jwt.encode(
+                token_payload,
+                signing_key,
+                algorithm=self.settings.auth.jwt_algorithm,
+            )
+            if signing_key
+            else secrets.token_urlsafe(32)
+        )
+        await self.redis.set(
+            f"tenant:first-admin-invite:{jti}",
+            str(tenant.id).encode("utf-8"),
+            ttl=86_400,
+        )
+        invite_url = (
+            f"https://{tenant.subdomain}.{self.settings.PLATFORM_DOMAIN}/setup?token={token}"
+        )
+        LOGGER.info(
+            "notifications.first_admin_invitation.created",
+            tenant_id=str(tenant.id),
+            tenant_slug=tenant.slug,
+            recipient=email,
+        )
+        return invite_url
 
     @classmethod
     def matches_transition_pattern(cls, pattern: str, from_state: str, to_state: str) -> bool:

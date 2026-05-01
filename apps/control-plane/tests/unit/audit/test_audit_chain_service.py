@@ -7,9 +7,15 @@ from hashlib import sha256
 from platform.audit import dependencies as audit_dependencies
 from platform.audit.exceptions import AuditChainIntegrityError
 from platform.audit.models import AuditChainEntry
-from platform.audit.service import GENESIS_HASH, AuditChainService, compute_entry_hash
+from platform.audit.service import (
+    GENESIS_HASH,
+    TENANT_ID_BOUNDARY_EVENT,
+    AuditChainService,
+    compute_entry_hash,
+)
 from platform.audit.signing import AuditChainSigning
 from platform.common.config import PlatformSettings
+from platform.tenants.seeder import DEFAULT_TENANT_ID
 from types import SimpleNamespace
 from typing import Any
 from uuid import UUID, uuid4
@@ -28,6 +34,9 @@ class InMemoryAuditChainRepository:
     async def get_latest_entry(self) -> AuditChainEntry | None:
         return self.entries[-1] if self.entries else None
 
+    async def has_event_type(self, event_type: str) -> bool:
+        return any(entry.event_type == event_type for entry in self.entries)
+
     async def next_sequence_number(self) -> int:
         return len(self.entries) + 1
 
@@ -38,6 +47,7 @@ class InMemoryAuditChainRepository:
         previous_hash: str,
         entry_hash: str,
         audit_event_id: UUID | None,
+        tenant_id: UUID | None,
         audit_event_source: str,
         canonical_payload_hash: str,
         event_type: str | None = None,
@@ -52,6 +62,7 @@ class InMemoryAuditChainRepository:
             previous_hash=previous_hash,
             entry_hash=entry_hash,
             audit_event_id=audit_event_id,
+            tenant_id=tenant_id,
             audit_event_source=audit_event_source,
             canonical_payload_hash=canonical_payload_hash,
             event_type=event_type,
@@ -144,12 +155,49 @@ async def test_audit_chain_single_entry_matches_hash_formula() -> None:
     payload = b'{"action":"created"}'
 
     entry = await service.append(uuid4(), "unit-test", payload)
+    expected_payload = json.dumps(
+        {"action": "created", "tenant_id": str(DEFAULT_TENANT_ID)},
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
 
     assert entry.entry_hash == compute_entry_hash(
         previous_hash=GENESIS_HASH,
         sequence_number=1,
-        canonical_payload_hash=sha256(payload).hexdigest(),
+        canonical_payload_hash=sha256(expected_payload).hexdigest(),
     )
+
+
+@pytest.mark.asyncio
+async def test_tenant_boundary_entry_links_existing_v1_chain() -> None:
+    settings = _settings()
+    repository = InMemoryAuditChainRepository()
+    legacy_hash = "a" * 64
+    repository.entries.append(
+        AuditChainEntry(
+            id=uuid4(),
+            sequence_number=1,
+            previous_hash=GENESIS_HASH,
+            entry_hash=legacy_hash,
+            audit_event_id=uuid4(),
+            tenant_id=None,
+            audit_event_source="legacy",
+            canonical_payload_hash="b" * 64,
+            event_type="legacy.event",
+            actor_role="system",
+            severity="info",
+            canonical_payload={"action": "legacy"},
+            created_at=datetime.now(UTC),
+        )
+    )
+    service = AuditChainService(repository=repository, settings=settings)
+
+    entry = await service.append(uuid4(), "unit-test", b'{"action":"created"}')
+
+    assert repository.entries[1].event_type == TENANT_ID_BOUNDARY_EVENT
+    assert repository.entries[1].previous_hash == legacy_hash
+    assert entry.sequence_number == 3
+    assert entry.previous_hash == repository.entries[1].entry_hash
 
 
 @pytest.mark.asyncio

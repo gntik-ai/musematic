@@ -7,7 +7,6 @@ from uuid import uuid4
 
 import pytest
 
-
 CONTROL_PLANE_ROOT = Path(__file__).resolve().parents[3]
 
 
@@ -96,6 +95,7 @@ async def test_audit_repository_sql_paths() -> None:
         previous_hash="0" * 64,
         entry_hash=entry_hash,
         audit_event_id=audit_event_id,
+        tenant_id=None,
         audit_event_source="unit",
         canonical_payload_hash="a" * 64,
     )

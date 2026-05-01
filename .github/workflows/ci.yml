@@ -231,6 +231,9 @@ jobs:
       - name: Verify admin OpenAPI tags
         run: python scripts/verify_admin_openapi_tags.py
 
+      - name: Check reserved tenant slug parity
+        run: scripts/lint/check_reserved_slug_parity.sh
+
   typecheck-python:
     name: Type-check Python
     needs: changes

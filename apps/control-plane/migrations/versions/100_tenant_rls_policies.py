@@ -1,7 +1,7 @@
 """Enable tenant RLS policies.
 
 Revision ID: 100_tenant_rls_policies
-Revises: 099_tenant_id_not_null_and_indexes
+Revises: 099_tenant_id_nn_indexes
 Create Date: 2026-05-01
 """
 
@@ -14,7 +14,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "100_tenant_rls_policies"
-down_revision: str | None = "099_tenant_id_not_null_and_indexes"
+down_revision: str | None = "099_tenant_id_nn_indexes"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
