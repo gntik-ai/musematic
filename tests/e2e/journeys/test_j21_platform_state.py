@@ -9,6 +9,13 @@ from journeys.helpers.narrative import journey_step
 from suites._helpers import assert_eventually
 from suites.ui_playwright import route_platform_shell_apis, ui_page as ui_page  # noqa: F401
 
+# Cross-context inventory:
+# - auth
+# - audit
+# - interactions
+# - notifications
+# - workspaces
+
 JOURNEY_ID = "j21"
 TIMEOUT_SECONDS = 240
 
@@ -17,6 +24,26 @@ async def _json(client: AuthenticatedAsyncClient, method: str, path: str, **kwar
     response = await client.request(method, path, **kwargs)
     response.raise_for_status()
     return response.json() if response.content else {}
+
+
+def assert_status_snapshot_shape(snapshot: dict[str, Any]) -> None:
+    assert "overall_state" in snapshot
+    assert isinstance(snapshot.get("active_incidents"), list)
+    assert isinstance(snapshot.get("components"), list)
+
+
+def assert_incident_present(snapshot: dict[str, Any], incident_id: str) -> None:
+    assert snapshot["overall_state"] in {"degraded", "partial_outage", "full_outage"}
+    assert any(
+        item.get("id") == incident_id
+        or "J21 synthetic control-plane latency" in str(item.get("title"))
+        for item in snapshot.get("active_incidents", [])
+    )
+
+
+def assert_feed_mentions_incident(response: Any) -> None:
+    assert response.status_code == 200
+    assert "J21 synthetic control-plane latency" in response.text
 
 
 @pytest.mark.journey
@@ -33,13 +60,19 @@ async def test_j21_platform_state_visibility_loop(
     email = f"{journey_context.prefix}status-subscriber@e2e.test"
     incident_id: str | None = None
 
-    with journey_step("Visitor subscribes to email updates and confirms opt-in"):
+    with journey_step("Public status baseline exposes component inventory"):
+        baseline = await _json(operator_client, "GET", "/api/v1/public/status")
+        assert_status_snapshot_shape(baseline)
+
+    with journey_step("Visitor submits an email update subscription"):
         await _json(
             operator_client,
             "POST",
             "/api/v1/public/subscribe/email",
             json={"email": email, "scope_components": ["control-plane-api"]},
         )
+
+    with journey_step("Visitor receives the confirmation token"):
         token_payload = await assert_eventually(
             lambda: _json(
                 operator_client,
@@ -51,6 +84,8 @@ async def test_j21_platform_state_visibility_loop(
             timeout=20,
             message="status subscription confirmation token was not captured",
         )
+
+    with journey_step("Visitor confirms the email subscription"):
         await _json(
             operator_client,
             "GET",
@@ -83,7 +118,7 @@ async def test_j21_platform_state_visibility_loop(
             timeout=60,
             message="public status did not show the synthetic incident",
         )
-        assert snapshot["overall_state"] in {"degraded", "partial_outage", "full_outage"}
+        assert_incident_present(snapshot, incident_id)
 
     with journey_step("Authenticated shell banner displays the active incident"):
         await route_platform_shell_apis(ui_page, maintenance_state="incident")
@@ -113,7 +148,7 @@ async def test_j21_platform_state_visibility_loop(
     with journey_step("RSS feed includes the same incident"):
         feed = await operator_client.get("/api/v1/public/status/feed.rss")
         feed.raise_for_status()
-        assert "J21 synthetic control-plane latency" in feed.text
+        assert_feed_mentions_incident(feed)
 
     with journey_step("Resolving the incident clears public status surfaces"):
         assert incident_id is not None
