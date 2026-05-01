@@ -735,8 +735,22 @@ webStatus:
     repository: ""
     # -- Configures `webStatus.image.tag` for the platform chart.
     tag: ""
+    # -- Configures `webStatus.image.pullPolicy` for the platform chart.
+    pullPolicy: IfNotPresent
   # -- Configures `webStatus.host` for the platform chart.
   host: status.local
+  # -- Configures `webStatus.statusApiInternalUrl` for fallback refreshes.
+  statusApiInternalUrl: http://musematic-control-plane-api.platform.svc.cluster.local:8000
+  # -- Configures `webStatus.snapshotCronSchedule` for fallback refreshes.
+  snapshotCronSchedule: "* * * * *"
+  # -- Configures `webStatus.snapshotAdminTokenSecretRef` for the internal refresh route.
+  snapshotAdminTokenSecretRef:
+    name: ""
+    key: token
+  # -- Configures `webStatus.tls` for the public status ingress.
+  tls:
+    enabled: true
+    clusterIssuer: letsencrypt-prod
 
 # @section -- Mockoauth
 # -- Configures `mockOAuth` for the platform chart.

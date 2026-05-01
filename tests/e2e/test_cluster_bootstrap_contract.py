@@ -40,6 +40,24 @@ def test_install_script_bootstraps_cluster_operators_and_platform_chart() -> Non
     assert 'python3 -m seeders.base --all' in install_script
 
 
+def test_kafka_chart_provisions_status_page_ws_topic() -> None:
+    values = _load_yaml('deploy/helm/kafka/values.yaml')
+    topic_names = {topic['name'] for topic in values['topics']}
+
+    assert 'platform.status.derived' in topic_names
+
+
+def test_web_status_image_uses_non_privileged_http_port() -> None:
+    dockerfile = (ROOT / 'apps/web-status/Dockerfile').read_text()
+    nginx_config = (ROOT / 'apps/web-status/nginx.conf').read_text()
+    deployment = (ROOT / 'deploy/helm/platform/templates/web-status-deployment.yaml').read_text()
+
+    assert 'EXPOSE 8080' in dockerfile
+    assert 'listen 8080;' in nginx_config
+    assert 'containerPort: 8080' in deployment
+    assert 'containerPort: 80' not in deployment
+
+
 def test_operator_installs_use_server_side_apply_for_large_crds() -> None:
     install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
     assert 'kubectl apply --server-side=true --force-conflicts -f "${CNPG_MANIFEST_URL}"' in install_script
@@ -127,12 +145,17 @@ def test_observability_loki_port_forward_probe_uses_gateway_supported_path() -> 
 
 def test_journey_observability_helpers_use_gateway_supported_loki_probe() -> None:
     readiness_helper = (ROOT / 'tests/e2e/journeys/helpers/observability_readiness.py').read_text()
+    journey_conftest = (ROOT / 'tests/e2e/journeys/conftest.py').read_text()
     log_helper = (ROOT / 'tests/e2e/journeys/helpers/assert_log_entry.py').read_text()
 
     assert 'LOKI_READY_PATH = "/loki/api/v1/status/buildinfo"' in readiness_helper
-    assert 'wait_for_observability_stack_ready(timeout_seconds: int = 180)' in readiness_helper
+    assert 'async def wait_for_observability_stack_ready(' in readiness_helper
+    assert 'timeout_seconds: int = 180' in readiness_helper
     assert 'httpx.AsyncClient(timeout=10.0)' in readiness_helper
     assert '"loki": (_loki_url(), LOKI_READY_PATH)' in readiness_helper
+    assert 'require_grafana: bool = True' in readiness_helper
+    assert 'wait_for_observability_stack_ready(require_grafana=False)' in journey_conftest
+    assert 'wait_for_observability_stack_ready(require_grafana=True)' in journey_conftest
     assert 'loki_client.get(LOKI_READY_PATH)' in log_helper
     assert 'loki_client.get("/ready")' not in log_helper
 
@@ -439,3 +462,15 @@ def test_e2e_test_target_uses_versioned_test_paths() -> None:
     assert 'E2E_TEST_PATHS ?= suites' in makefile
     assert '$(PYTEST) $(E2E_TEST_PATHS)' in makefile
     assert '$(PYTEST) suites' not in makefile
+
+
+def test_e2e_make_targets_install_playwright_browsers_when_available() -> None:
+    makefile = (ROOT / 'tests/e2e/Makefile').read_text()
+
+    assert 'PLAYWRIGHT_BROWSERS_PATH ?= /tmp/musematic-ms-playwright' in makefile
+    assert 'export PLAYWRIGHT_BROWSERS_PATH' in makefile
+    assert 'ensure-playwright-browsers:' in makefile
+    assert 'importlib.util.find_spec("playwright")' in makefile
+    assert '$(PYTHON) -m playwright install $(PLAYWRIGHT_BROWSER)' in makefile
+    assert 'e2e-test: ensure-playwright-browsers' in makefile
+    assert 'e2e-journeys: ensure-playwright-browsers' in makefile

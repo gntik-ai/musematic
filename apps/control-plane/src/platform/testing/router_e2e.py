@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import secrets
 from datetime import UTC, datetime
 from platform.auth.password import hash_password
@@ -12,6 +13,9 @@ from platform.common.logging import get_logger
 from platform.incident_response.dependencies import get_incident_service
 from platform.incident_response.schemas import IncidentRef, IncidentSeverity, IncidentSignal
 from platform.incident_response.services.incident_service import IncidentService
+from platform.status_page.dependencies import get_status_page_service
+from platform.status_page.schemas import SourceKind
+from platform.status_page.service import StatusPageService
 from platform.testing.schemas_e2e import (
     ChaosKillPodRequest,
     ChaosKillPodResponse,
@@ -41,7 +45,7 @@ from platform.testing.service_e2e import (
     build_mock_llm_service,
 )
 from typing import Any, Literal, cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, Query, Request, Response, status
 from pydantic import BaseModel
@@ -58,6 +62,19 @@ class E2ESignupModeRequest(BaseModel):
 
 class E2EExpiredVerificationTokenRequest(BaseModel):
     email: str
+
+
+class E2EIncidentTriggerRequest(BaseModel):
+    scenario: str = "status_page"
+    severity: IncidentSeverity = IncidentSeverity.critical
+    title: str | None = None
+    description: str | None = None
+
+
+class E2EIncidentResolveRequest(BaseModel):
+    incident_id: UUID
+    resolved_at: datetime | None = None
+    auto_resolved: bool = False
 
 
 def _role_names(current_user: dict[str, Any]) -> set[str]:
@@ -153,6 +170,69 @@ async def get_account_verification_token(
     raw = await client.get(f"e2e:accounts:verification-token:{email.lower()}")
     token = raw.decode("utf-8") if isinstance(raw, bytes) else raw
     return {"email": email.lower(), "token": token}
+
+
+@router.get("/status-subscriptions/tokens")
+async def get_status_subscription_tokens(
+    request: Request,
+    email: str = Query(...),
+    current_user: dict[str, Any] = Depends(require_admin_or_e2e_scope),
+) -> dict[str, str | None]:
+    del current_user
+    normalized = email.strip().lower()
+    client = await _redis(request)._get_client()
+    raw = await client.get(f"e2e:status-subscriptions:tokens:{normalized}")
+    if raw is None:
+        return {
+            "email": normalized,
+            "confirmation_token": None,
+            "unsubscribe_token": None,
+        }
+    value = raw.decode("utf-8") if isinstance(raw, bytes) else str(raw)
+    payload = json.loads(value)
+    return {
+        "email": normalized,
+        "confirmation_token": payload.get("confirmation_token"),
+        "unsubscribe_token": payload.get("unsubscribe_token"),
+    }
+
+
+@router.get("/status-subscriptions/dispatches")
+async def get_status_subscription_dispatches(
+    email: str = Query(...),
+    event_kind: str = Query("incident.created"),
+    outcome: str = Query("sent"),
+    current_user: dict[str, Any] = Depends(require_admin_or_e2e_scope),
+    session: AsyncSession = Depends(get_db),
+) -> dict[str, str | int]:
+    del current_user
+    normalized = email.strip().lower()
+    count = (
+        await session.execute(
+            text(
+                """
+                SELECT count(*)
+                  FROM subscription_dispatches dispatch
+                  JOIN status_subscriptions subscription
+                    ON subscription.id = dispatch.subscription_id
+                 WHERE subscription.target = :email
+                   AND dispatch.event_kind = :event_kind
+                   AND dispatch.outcome = :outcome
+                """
+            ),
+            {
+                "email": normalized,
+                "event_kind": event_kind,
+                "outcome": outcome,
+            },
+        )
+    ).scalar_one()
+    return {
+        "email": normalized,
+        "event_kind": event_kind,
+        "outcome": outcome,
+        "count": int(count or 0),
+    }
 
 
 @router.post("/accounts/expired-verification-token")
@@ -323,6 +403,90 @@ async def seed_incident(
         runbook_scenario=normalized,
     )
     return await incident_service.create_from_signal(signal)
+
+
+@router.post("/incidents/trigger", response_model=IncidentRef)
+async def trigger_incident(
+    payload: E2EIncidentTriggerRequest,
+    current_user: dict[str, Any] = Depends(require_operator_or_e2e_scope),
+    incident_service: IncidentService = Depends(get_incident_service),
+    status_page_service: StatusPageService = Depends(get_status_page_service),
+) -> IncidentRef:
+    del current_user
+    normalized = payload.scenario.replace("-", "_")
+    fingerprint = hashlib.sha256(f"e2e:trigger:{normalized}:{uuid4()}".encode()).hexdigest()
+    signal = IncidentSignal(
+        alert_rule_class=f"e2e_{normalized}",
+        severity=payload.severity,
+        title=payload.title or f"E2E {normalized.replace('_', ' ').title()} Incident",
+        description=payload.description
+        or "Synthetic E2E incident generated by /api/v1/_e2e/incidents/trigger.",
+        condition_fingerprint=fingerprint,
+        runbook_scenario=normalized,
+    )
+    incident = await incident_service.create_from_signal(signal)
+    await _refresh_status_projection(
+        status_page_service,
+        event_kind="incident.created",
+        payload={
+            "incident_id": str(incident.incident_id),
+            "title": signal.title,
+            "severity": signal.severity.value,
+            "components_affected": _status_components_for_scenario(normalized, signal.title),
+        },
+    )
+    return incident
+
+
+@router.post("/incidents/resolve", response_model=IncidentRef)
+async def resolve_incident(
+    payload: E2EIncidentResolveRequest,
+    current_user: dict[str, Any] = Depends(require_operator_or_e2e_scope),
+    incident_service: IncidentService = Depends(get_incident_service),
+    status_page_service: StatusPageService = Depends(get_status_page_service),
+) -> IncidentRef:
+    del current_user
+    incident = await incident_service.resolve(
+        payload.incident_id,
+        resolved_at=payload.resolved_at,
+        auto_resolved=payload.auto_resolved,
+    )
+    await _refresh_status_projection(
+        status_page_service,
+        event_kind="incident.resolved",
+        payload={
+            "incident_id": str(incident.id),
+            "title": incident.title,
+            "severity": incident.severity.value,
+            "components_affected": _status_components_for_scenario(
+                incident.runbook_scenario or "",
+                incident.title,
+            ),
+        },
+    )
+    return IncidentRef(incident_id=incident.id)
+
+
+async def _refresh_status_projection(
+    status_page_service: StatusPageService,
+    *,
+    event_kind: str,
+    payload: dict[str, Any],
+) -> None:
+    await status_page_service.compose_current_snapshot(source_kind=SourceKind.kafka)
+    await status_page_service.dispatch_event(event_kind, payload)
+
+
+def _status_components_for_scenario(scenario: str, title: str) -> list[str]:
+    lowered = f"{scenario} {title}".lower()
+    components: list[str] = []
+    if "status" in lowered or "control" in lowered or "api" in lowered:
+        components.append("control-plane-api")
+    if "reasoning" in lowered:
+        components.append("reasoning-engine")
+    if "workflow" in lowered or "execution" in lowered:
+        components.append("workflow-engine")
+    return components
 
 
 @router.post("/chaos/kill-pod", response_model=ChaosKillPodResponse)

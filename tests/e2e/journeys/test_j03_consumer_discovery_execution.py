@@ -94,6 +94,11 @@ def _reasoning_step_id(event: dict[str, Any]) -> str | None:
 
 
 
+def _matches_resource(event: dict[str, Any], resource_id: str) -> bool:
+    return str(event.get("resource_id")) == str(resource_id)
+
+
+
 def _status_projection(events: list[dict[str, Any]]) -> list[dict[str, str]]:
     projected: list[dict[str, str]] = []
     for event in events:
@@ -471,10 +476,14 @@ async def test_j03_consumer_discovery_execution(
                 assert reasoning_subscription.resource_id == first_execution_payload["id"]
 
             with journey_step("The first execution reaches completion and execution websocket updates remain in causal order"):
+                target_execution_id = first_execution_payload["id"]
                 first_runtime_event = await _wait_for_ws_event(
                     execution_events,
-                    lambda event: _execution_status(event) in {"running", "completed"}
-                    or _gateway_event_type(event) != "event",
+                    lambda event: _matches_resource(event, target_execution_id)
+                    and (
+                        _execution_status(event) in {"running", "completed"}
+                        or _gateway_event_type(event) != "event"
+                    ),
                     timeout=120.0,
                     description="first execution runtime event",
                 )
@@ -484,14 +493,29 @@ async def test_j03_consumer_discovery_execution(
                     timeout=180.0,
                     expected_states=("completed",),
                 )
-                if "completed" not in {status for status in (_execution_status(item) for item in execution_subscription.received_events) if status is not None}:
+                target_execution_events = [
+                    item
+                    for item in execution_subscription.received_events
+                    if _matches_resource(item, target_execution_id)
+                ]
+                if "completed" not in {
+                    status
+                    for status in (_execution_status(item) for item in target_execution_events)
+                    if status is not None
+                }:
                     await _wait_for_ws_event(
                         execution_events,
-                        lambda event: _execution_status(event) == "completed",
+                        lambda event: _matches_resource(event, target_execution_id)
+                        and _execution_status(event) == "completed",
                         timeout=60.0,
                         description="completed execution status",
                     )
-                status_projection = _status_projection(execution_subscription.received_events)
+                target_execution_events = [
+                    item
+                    for item in execution_subscription.received_events
+                    if _matches_resource(item, target_execution_id)
+                ]
+                status_projection = _status_projection(target_execution_events)
                 expected_statuses = ["completed"]
                 if any(item["type"] == "running" for item in status_projection):
                     expected_statuses = ["running", "completed"]
@@ -502,8 +526,11 @@ async def test_j03_consumer_discovery_execution(
             with journey_step("Reasoning websocket updates and the persisted reasoning trace expose live execution metadata"):
                 first_reasoning_event = await _wait_for_ws_event(
                     reasoning_events,
-                    lambda event: _gateway_event_type(event).startswith("reasoning.")
-                    or _reasoning_step_id(event) is not None,
+                    lambda event: _matches_resource(event, first_execution_payload["id"])
+                    and (
+                        _gateway_event_type(event).startswith("reasoning.")
+                        or _reasoning_step_id(event) is not None
+                    ),
                     timeout=120.0,
                     description="first reasoning event",
                 )

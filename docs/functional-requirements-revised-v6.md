@@ -3497,27 +3497,35 @@ The J02 Creator journey (UPD-022, extended in UPD-035, UPD-036, UPD-037) shall b
 ## 118. Public Status Page, Maintenance Banner, and User-Visible Platform State
 
 ### FR-675 Public Platform Status Page
+Traceability: [UPD-045 feature spec](https://github.com/gntik-ai/musematic/blob/main/specs/095-public-status-banner-workbench-uis/spec.md#functional-requirements).
 The platform shall publish a public status page at `status.musematic.ai` (or `{env}.status.musematic.ai` for non-production) showing: current overall platform status (operational / degraded / partial outage / full outage), per-component status (API, WebSocket, workflow execution, reasoning engine, marketplace, observability, Vault), active incidents with last update timestamp, scheduled maintenance windows, recent resolved incidents (7-day history), historical uptime per component (30-day rolling view), subscribe-to-updates via email / RSS / webhook / Atom. The page is static (generated from health endpoints via a scheduled job) and does not require login.
 
 ### FR-676 Platform Status Banner for Logged-In Users
+Traceability: [UPD-045 feature spec](https://github.com/gntik-ai/musematic/blob/main/specs/095-public-status-banner-workbench-uis/spec.md#functional-requirements).
 The main application shell shall include a `<PlatformStatusBanner>` component that renders at the top of every authenticated page when platform state is anything other than operational. Banner variants: maintenance window scheduled (info), maintenance in progress (warning with blocking indicator on affected features), incident active (warning or critical per severity), degraded performance (info). Banner shows a concise title, link to the incident detail on the status page, optional ETA, and a dismiss-for-this-session action that re-surfaces on next navigation. Severity determines color and prominence per accessibility best practices (not color alone).
 
 ### FR-677 Maintenance-Mode User Experience
+Traceability: [UPD-045 feature spec](https://github.com/gntik-ai/musematic/blob/main/specs/095-public-status-banner-workbench-uis/spec.md#functional-requirements).
 When maintenance mode (FR-502) is active, the UI shall NOT show generic errors. Instead: the status banner shows maintenance in progress, affected actions are disabled with clear tooltips ("This action will be available again after the maintenance window ends at HH:MM"), read-only operations remain functional, attempts to submit blocked actions show a graceful modal explaining the state and offering to retry later. The user is never left to guess what happened.
 
 ### FR-678 Incident Subscription Management
+Traceability: [UPD-045 feature spec](https://github.com/gntik-ai/musematic/blob/main/specs/095-public-status-banner-workbench-uis/spec.md#functional-requirements).
 Users and anonymous visitors to the public status page shall be able to subscribe to platform-level status updates via: email subscription (confirm-opt-in), RSS / Atom feed URLs, outbound webhook for integration with their own monitoring, Slack incoming webhook URL. Subscriptions can be limited to specific components (e.g., only API status). Management UI for authenticated users lives at `/settings/status-subscriptions`.
 
 ### FR-679 Simulation Scenario Editor
+Traceability: [UPD-045 feature spec](https://github.com/gntik-ai/musematic/blob/main/specs/095-public-status-banner-workbench-uis/spec.md#functional-requirements).
 The evaluation and testing workbench shall include a simulation scenario editor at `/evaluation-testing/simulations/scenarios/{id}` where authorized users can: define scenario parameters (agents involved, workflow template, tool mock set, input distributions), configure digital twin fidelity (which subsystems are mocked, which are real), set success criteria and assertions, schedule runs. The editor complements the existing simulation pages (new / compare / [runId]) with a missing creation surface for reusable scenarios.
 
 ### FR-680 Digital Twin Visualization
+Traceability: [UPD-045 feature spec](https://github.com/gntik-ai/musematic/blob/main/specs/095-public-status-banner-workbench-uis/spec.md#functional-requirements).
 The simulation detail page (`/evaluation-testing/simulations/[runId]`) shall be extended with a digital twin visualization panel showing: which components ran as mocks vs real, divergence points between simulation and production, simulated time vs wall-clock time, trace comparison to a reference production execution if available. This surfaces the digital twin concept (§14 in system architecture) for operators and creators.
 
 ### FR-681 Scientific Discovery Session Detail
+Traceability: [UPD-045 feature spec](https://github.com/gntik-ai/musematic/blob/main/specs/095-public-status-banner-workbench-uis/spec.md#functional-requirements).
 The scientific discovery workbench (`/discovery/`) shall be extended with: a session detail page at `/discovery/{session_id}` beyond the network view (currently the only page), a hypothesis library browser at `/discovery/{session_id}/hypotheses` with ranking and filtering, an experiment launcher at `/discovery/{session_id}/experiments/new` to propose and run an experiment testing a hypothesis, an evidence inspector at `/discovery/{session_id}/evidence/{evidence_id}` for deep-inspection of supporting data. These complete the discovery workbench surface that today is limited to a single network view.
 
 ### FR-682 Status Page and Platform State E2E Coverage
+Traceability: [UPD-045 feature spec](https://github.com/gntik-ai/musematic/blob/main/specs/095-public-status-banner-workbench-uis/spec.md#functional-requirements).
 A new E2E journey **J21 Platform State** shall exercise the visibility layer: trigger a synthetic incident, verify public status page reflects it within 60 seconds, verify logged-in users see the banner, verify subscribed user receives email notification, verify RSS feed contains the entry, resolve the incident, verify all surfaces update. The simulation scenario editor and discovery session detail are covered by extensions to J07 Evaluator and J09 Scientific Discovery journeys respectively.
 
 ## 113. HashiCorp Vault Integration

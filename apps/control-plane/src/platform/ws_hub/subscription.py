@@ -150,6 +150,14 @@ class SubscriptionRegistry:
     def get_subscribers(self, channel: ChannelType, resource_id: str) -> set[str]:
         return set(self._subscribers.get(subscription_key(channel, resource_id), set()))
 
+    def get_resource_ids(self, channel: ChannelType) -> set[str]:
+        prefix = f"{channel.value}:"
+        return {
+            key.removeprefix(prefix)
+            for key in self._subscribers
+            if key.startswith(prefix)
+        }
+
     def get_active_topics(self) -> set[str]:
         return {topic for topic, refcount in self._topic_refcount.items() if refcount > 0}
 

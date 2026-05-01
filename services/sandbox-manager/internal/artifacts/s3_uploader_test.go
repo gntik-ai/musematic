@@ -53,6 +53,18 @@ func TestS3UploaderReturnsServerErrors(t *testing.T) {
 	}
 }
 
+func TestS3UploaderUsesDedicatedHTTPTransport(t *testing.T) {
+	t.Parallel()
+
+	uploader := NewS3Uploader("http://minio:9000", "musematic-artifacts")
+	if uploader.client == http.DefaultClient {
+		t.Fatal("expected a dedicated HTTP client")
+	}
+	if uploader.client.Transport == http.DefaultTransport {
+		t.Fatal("expected a dedicated HTTP transport")
+	}
+}
+
 func TestNormaliseObjectStorageEndpointAddsScheme(t *testing.T) {
 	t.Parallel()
 

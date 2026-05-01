@@ -6,6 +6,7 @@ import { ScaleDialog } from "@/components/features/fleet/ScaleDialog";
 import { StressTestDialog } from "@/components/features/fleet/StressTestDialog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { usePauseFleet, useResumeFleet } from "@/lib/hooks/use-fleet-actions";
 import {
   useFleetGovernance,
@@ -50,10 +51,12 @@ export function FleetControlsPanel({
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {(currentStatus === "active" || currentStatus === "degraded") ? (
-          <button
+          <Button
             aria-label="Pause fleet"
-            className="rounded-[1.75rem] border border-border/60 bg-card/80 p-5 text-left shadow-sm transition-colors hover:bg-card"
+            className="h-auto flex-col items-start justify-start rounded-[1.75rem] border border-border/60 bg-card/80 p-5 text-left shadow-sm transition-colors hover:bg-card"
+            disabledByMaintenance
             type="button"
+            variant="ghost"
             onClick={() => setPauseDialogOpen(true)}
           >
             <PauseCircle className="h-5 w-5 text-brand-accent" />
@@ -61,14 +64,16 @@ export function FleetControlsPanel({
             <p className="mt-2 text-sm text-muted-foreground">
               Drain current work and block new execution starts.
             </p>
-          </button>
+          </Button>
         ) : null}
 
         {currentStatus === "paused" ? (
-          <button
+          <Button
             aria-label="Resume fleet"
-            className="rounded-[1.75rem] border border-border/60 bg-card/80 p-5 text-left shadow-sm transition-colors hover:bg-card"
+            className="h-auto flex-col items-start justify-start rounded-[1.75rem] border border-border/60 bg-card/80 p-5 text-left shadow-sm transition-colors hover:bg-card"
+            disabledByMaintenance
             type="button"
+            variant="ghost"
             onClick={() => setResumeDialogOpen(true)}
           >
             <PlayCircle className="h-5 w-5 text-brand-accent" />
@@ -76,13 +81,15 @@ export function FleetControlsPanel({
             <p className="mt-2 text-sm text-muted-foreground">
               Return the fleet to active routing and scheduling.
             </p>
-          </button>
+          </Button>
         ) : null}
 
-        <button
+        <Button
           aria-label="Scale fleet"
-          className="rounded-[1.75rem] border border-border/60 bg-card/80 p-5 text-left shadow-sm transition-colors hover:bg-card"
+          className="h-auto flex-col items-start justify-start rounded-[1.75rem] border border-border/60 bg-card/80 p-5 text-left shadow-sm transition-colors hover:bg-card"
+          disabledByMaintenance
           type="button"
+          variant="ghost"
           onClick={() => setScaleDialogOpen(true)}
         >
           <Scaling className="h-5 w-5 text-brand-accent" />
@@ -90,14 +97,16 @@ export function FleetControlsPanel({
           <p className="mt-2 text-sm text-muted-foreground">
             Expand the fleet by adding compatible worker agents.
           </p>
-        </button>
+        </Button>
 
-        <button
+        <Button
           aria-label="Stress test fleet"
-          className="rounded-[1.75rem] border border-border/60 bg-card/80 p-5 text-left shadow-sm transition-colors hover:bg-card disabled:cursor-not-allowed disabled:opacity-60"
+          className="h-auto flex-col items-start justify-start rounded-[1.75rem] border border-border/60 bg-card/80 p-5 text-left shadow-sm transition-colors hover:bg-card disabled:cursor-not-allowed disabled:opacity-60"
           disabled={stressTestRunning}
+          disabledByMaintenance
           title={stressTestRunning ? "A stress test is already running." : undefined}
           type="button"
+          variant="ghost"
           onClick={() => setStressDialogOpen(true)}
         >
           <ShieldEllipsis className="h-5 w-5 text-brand-accent" />
@@ -105,7 +114,7 @@ export function FleetControlsPanel({
           <p className="mt-2 text-sm text-muted-foreground">
             Simulate sustained load with live execution telemetry.
           </p>
-        </button>
+        </Button>
       </div>
 
       {transitionLabel ? (

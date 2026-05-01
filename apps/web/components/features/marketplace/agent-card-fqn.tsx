@@ -227,6 +227,7 @@ export function AgentCardFqn({
             <TooltipTrigger>
               <Button
                 disabled={!invokeAllowed}
+                disabledByMaintenance
                 size="sm"
                 type="button"
                 variant="ghost"

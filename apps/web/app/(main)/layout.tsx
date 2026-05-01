@@ -6,6 +6,8 @@ import { CommandPalette } from "@/components/layout/command-palette/CommandPalet
 import { CommandPaletteProvider } from "@/components/layout/command-palette/CommandPaletteProvider";
 import { RouteCommandRegistration } from "@/components/layout/command-palette/RouteCommandRegistration";
 import { MfaEnrollmentDialog } from "@/components/features/auth/mfa-enrollment/MfaEnrollmentDialog";
+import { MaintenanceModalProvider } from "@/components/features/platform-status/MaintenanceModalProvider";
+import { PlatformStatusBanner } from "@/components/features/platform-status/PlatformStatusBanner";
 import { Header } from "@/components/layout/header/Header";
 import { Sidebar } from "@/components/layout/sidebar/Sidebar";
 import { DesktopBestHint } from "@/components/layout/desktop-best-hint/DesktopBestHint";
@@ -16,6 +18,7 @@ export default function MainLayout({ children }: Readonly<{ children: React.Reac
   const router = useRouter();
   const pathname = usePathname();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const hasHydrated = useAuthStore((state) => state.hasHydrated);
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
   const [mounted, setMounted] = useState(false);
@@ -36,12 +39,12 @@ export default function MainLayout({ children }: Readonly<{ children: React.Reac
   }, []);
 
   useEffect(() => {
-    if (mounted && !isAuthenticated) {
+    if (mounted && hasHydrated && !isAuthenticated) {
       router.replace(`/login?redirectTo=${encodeURIComponent(redirectTarget)}`);
     }
-  }, [isAuthenticated, mounted, redirectTarget, router]);
+  }, [hasHydrated, isAuthenticated, mounted, redirectTarget, router]);
 
-  if (!mounted || !isAuthenticated) {
+  if (!mounted || !hasHydrated || !isAuthenticated) {
     return <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">Redirecting to login…</div>;
   }
 
@@ -53,11 +56,13 @@ export default function MainLayout({ children }: Readonly<{ children: React.Reac
           <Sidebar />
         </div>
         <div className="flex min-w-0 flex-1 flex-col">
+          <PlatformStatusBanner />
           <Header onOpenMobileNav={() => setMobileNavOpen(true)} />
           <main className="flex-1 overflow-auto p-4 sm:p-6">
             <DesktopBestHint />
             {children}
           </main>
+          <MaintenanceModalProvider />
           {shouldShowGlobalMfaEnrollment && user ? (
             <MfaEnrollmentDialog
               onEnrolled={() => {

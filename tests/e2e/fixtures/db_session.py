@@ -32,7 +32,7 @@ class E2EDatabaseProbe:
         return await self.connection.fetchval(query, *args)
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 async def db(db_dsn: str, http_client) -> AsyncIterator[E2EDatabaseProbe]:
     async with E2EDatabaseProbe(http_client, db_dsn) as probe:
         yield probe

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import os
 from pathlib import Path
 
+import httpx
 import pytest
 
 from fixtures.http_client import AuthenticatedAsyncClient
@@ -17,6 +19,15 @@ pytest_plugins = [
     "fixtures.policy",
     "fixtures.mock_llm",
 ]
+
+_SETUP_RETRY_EXCEPTIONS = (
+    httpx.ConnectError,
+    httpx.ConnectTimeout,
+    httpx.ReadError,
+    httpx.ReadTimeout,
+    httpx.RemoteProtocolError,
+)
+_SETUP_RETRY_ATTEMPTS = 6
 
 
 def _port(name: str, default: str) -> str:
@@ -54,9 +65,19 @@ def kafka_bootstrap() -> str:
 @pytest.fixture(scope="session", autouse=True)
 async def ensure_seeded(platform_api_url: str) -> None:
     async with AuthenticatedAsyncClient(platform_api_url) as client:
-        await client.login_as("admin@e2e.test", "e2e-test-password")
-        response = await client.post("/api/v1/_e2e/seed", json={"scope": "all"})
-        assert response.status_code == 200, response.text
+        last_error: Exception | None = None
+        for attempt in range(_SETUP_RETRY_ATTEMPTS):
+            try:
+                await client.login_as("admin@e2e.test", "e2e-test-password")
+                response = await client.post("/api/v1/_e2e/seed", json={"scope": "all"})
+                assert response.status_code == 200, response.text
+                return
+            except _SETUP_RETRY_EXCEPTIONS as exc:
+                last_error = exc
+                if attempt < _SETUP_RETRY_ATTEMPTS - 1:
+                    await asyncio.sleep(min(2**attempt, 10))
+        if last_error is not None:
+            raise last_error
 
 
 @pytest.fixture(autouse=True)

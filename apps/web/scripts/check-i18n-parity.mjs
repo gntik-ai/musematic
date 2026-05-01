@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const locales = ["de", "es", "fr", "ja", "zh-CN"];
+const locales = ["de", "es", "fr", "it", "ja", "zh-CN"];
 
 async function readMessages(locale) {
   const filePath = path.join(root, "messages", `${locale}.json`);

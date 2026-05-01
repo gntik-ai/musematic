@@ -24,6 +24,7 @@ dependencies = [
 [project.optional-dependencies]
 e2e = [
   "axe-playwright-python>=0.1.7",
+  "feedparser>=6.0,<7.0",
   "playwright>=1.45",
   "pytest-xdist>=3.6",
 ]
@@ -55,6 +56,11 @@ markers = [
   "slow: test takes more than 30 seconds",
   "requires_warm_pool: test assumes the runtime warm pool is filled",
   "journey: extended user journey scenario",
+  "j07_evaluator: evaluator improvement and simulation journey",
+  "j07_evaluator_ui: evaluator scenario workbench UI journey",
+  "j09_discovery: scientific discovery journey",
+  "j09_scientific_discovery_ui: scientific discovery workbench UI journey",
+  "j21_platform_state: platform-state visibility journey",
   "multi_region_ops: multi-region operations bounded-context suite",
   "j10_privacy_officer: privacy officer journey",
   "j11_security_officer: security officer journey",

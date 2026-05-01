@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import asyncio
 import json
+from platform.ws_hub import router as ws_router
 from platform.ws_hub.router import websocket_endpoint
 from uuid import uuid4
 
 import pytest
+from starlette.websockets import WebSocketDisconnect
 
 from tests.ws_hub_support import (
     FakeWebSocket,
@@ -13,6 +16,31 @@ from tests.ws_hub_support import (
     StaticWorkspacesService,
     build_state,
 )
+
+
+class BlockingReceiveWebSocket(FakeWebSocket):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.disconnect_requested = asyncio.Event()
+
+    async def receive_text(self) -> str:
+        await self.disconnect_requested.wait()
+        raise WebSocketDisconnect(code=1000)
+
+
+class BlockingFirstEnsureFanout(RecordingFanout):
+    def __init__(self) -> None:
+        super().__init__()
+        self.block_started = asyncio.Event()
+        self.release_block = asyncio.Event()
+        self._blocked_once = False
+
+    async def ensure_consuming(self, topics: list[str]) -> None:
+        self.ensured.append(sorted(topics))
+        if not self._blocked_once:
+            self._blocked_once = True
+            self.block_started.set()
+            await self.release_block.wait()
 
 
 @pytest.mark.asyncio
@@ -67,18 +95,58 @@ async def test_websocket_endpoint_sends_welcome_and_cleans_up_last_connection() 
     assert websocket.accepted is True
     assert messages[0]["type"] == "connection_established"
     assert [item["channel"] for item in messages[0]["auto_subscriptions"]] == [
-        "attention",
         "alerts",
+        "attention",
+        "platform-status",
     ]
-    assert fanout.ensured[0] == ["auth.events"]
-    assert fanout.ensured[1] == ["interaction.attention"]
-    assert fanout.ensured[2] == ["monitor.alerts", "notifications.alerts"]
     assert fanout.released[-1] == [
         "auth.events",
+        "incident_response.events",
         "interaction.attention",
         "monitor.alerts",
+        "multi_region_ops.events",
         "notifications.alerts",
+        "platform.status.derived",
     ]
+
+
+@pytest.mark.asyncio
+async def test_websocket_endpoint_sends_welcome_before_fanout_startup(monkeypatch) -> None:
+    monkeypatch.setattr(ws_router, "_INITIAL_FANOUT_START_DELAY_SECONDS", 0)
+    user_id = uuid4()
+    workspace_id = uuid4()
+    token = "good-token"
+    fanout = BlockingFirstEnsureFanout()
+    state = build_state(
+        auth_service=StaticAuthService({token: {"sub": str(user_id), "type": "access"}}),
+        workspaces_service=StaticWorkspacesService(workspace_ids_by_user={user_id: [workspace_id]}),
+        fanout=fanout,
+    )
+    websocket = BlockingReceiveWebSocket(state, headers={"Authorization": f"Bearer {token}"})
+
+    endpoint_task = asyncio.create_task(
+        websocket_endpoint(
+            websocket,
+            state.connection_registry,
+            state.subscription_registry,
+            state.fanout,
+            state.visibility_filter,
+        )
+    )
+
+    try:
+        await asyncio.wait_for(fanout.block_started.wait(), timeout=1)
+        messages = websocket.decoded_messages()
+        assert messages[0]["type"] == "connection_established"
+        assert [item["channel"] for item in messages[0]["auto_subscriptions"]] == [
+            "alerts",
+            "attention",
+            "platform-status",
+        ]
+    finally:
+        fanout.release_block.set()
+        websocket.disconnect_requested.set()
+        await asyncio.wait_for(endpoint_task, timeout=1)
 
 
 @pytest.mark.asyncio
@@ -133,7 +201,12 @@ async def test_websocket_endpoint_handles_subscribe_list_and_unsubscribe() -> No
         "subscription_error",
         "subscription_removed",
     ]
-    assert messages[2]["subscriptions"][0]["channel"] == "attention"
+    assert [subscription["channel"] for subscription in messages[2]["subscriptions"]] == [
+        "alerts",
+        "attention",
+        "platform-status",
+        "workspace",
+    ]
     assert messages[3]["code"] == "cannot_unsubscribe_auto"
     assert fanout.ensured[-1] == ["workspaces.events"]
 

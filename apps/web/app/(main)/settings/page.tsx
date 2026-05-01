@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bell, Eye, Landmark, Settings2, UserCog } from "lucide-react";
+import { Bell, BellPlus, Eye, Landmark, Settings2, UserCog } from "lucide-react";
 
 const settingsSections = [
   {
@@ -25,6 +25,12 @@ const settingsSections = [
     label: "Alerts",
     description: "Notification channels and alert routing.",
     icon: Bell,
+  },
+  {
+    href: "/settings/status-subscriptions",
+    label: "Status subscriptions",
+    description: "Email, webhook, and Slack updates for public platform status.",
+    icon: BellPlus,
   },
 ] as const;
 

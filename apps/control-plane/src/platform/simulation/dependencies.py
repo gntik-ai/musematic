@@ -82,6 +82,7 @@ def build_simulation_service(
         comparison_analyzer=comparison_analyzer,
         events_consumer=events_consumer,
         prediction_worker=prediction_worker,
+        registry_service=registry_service,
     )
 
 

@@ -656,7 +656,8 @@ This is a new architectural plane that provides isolated environments for what-i
 - coordinate A/B and canary experiments;
 - rank hypotheses through tournament-style evaluation;
 - enforce clear separation between simulation and production artifacts;
-- provide simulation comparison analytics.
+- provide simulation comparison analytics;
+- expose the simulation run detail `<DigitalTwinPanel>` UI so operators and creators can compare mock-vs-real subsystems, divergence points, simulated time, and reference production executions without leaving the workbench.
 
 ## 7.9 Testing and quality plane
 
@@ -1337,6 +1338,7 @@ sequenceDiagram
 ## 11.1 Namespaces
 
 - `platform-edge`: ingress controller, API gateway, WebSocket gateway.
+- Public status delivery remains operationally independent from the authenticated shell: `apps/web-status` is built as a static status surface with its own ingress/edge path and last-known-good fallback, while the control plane only publishes public status APIs and fallback snapshots.
 - `platform-control`: control-plane monolith profiles (api, scheduler, worker, projection, trust, context-engineering, reasoning, agentops), BFFs.
 - `platform-execution`: runtime controller, sandbox manager, HostOps broker, connector workers, browser workers, broadcast/multicast service, acknowledgment tracker.
 - `platform-simulation`: simulation controller, simulation pods, digital twin manager.

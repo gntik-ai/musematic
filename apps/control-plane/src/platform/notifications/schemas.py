@@ -19,6 +19,16 @@ _SEVERITY_RANK = {
     "high": 3,
     "critical": 4,
 }
+STATUS_PAGE_WEBHOOK_EVENT_TYPES = {
+    "incident.created",
+    "incident.updated",
+    "incident.resolved",
+    "maintenance.scheduled",
+    "maintenance.started",
+    "maintenance.ended",
+    "component.degraded",
+    "component.recovered",
+}
 
 
 class UserAlertSettingsRead(BaseModel):
@@ -181,6 +191,11 @@ class OutboundWebhookCreate(BaseModel):
     retry_policy: dict[str, Any] | None = None
     region_pinned_to: str | None = Field(default=None, max_length=64)
 
+    @field_validator("event_types")
+    @classmethod
+    def _normalise_event_types(cls, value: list[str]) -> list[str]:
+        return _normalise_event_types(value)
+
 
 class OutboundWebhookUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=120)
@@ -189,6 +204,11 @@ class OutboundWebhookUpdate(BaseModel):
     active: bool | None = None
     retry_policy: dict[str, Any] | None = None
     region_pinned_to: str | None = Field(default=None, max_length=64)
+
+    @field_validator("event_types")
+    @classmethod
+    def _normalise_event_types(cls, value: list[str] | None) -> list[str] | None:
+        return None if value is None else _normalise_event_types(value)
 
 
 class OutboundWebhookRead(BaseModel):
@@ -267,3 +287,9 @@ class DeadLetterReplayBatchResponse(BaseModel):
 
 def _severity_rank(severity: str) -> int:
     return _SEVERITY_RANK.get(severity.lower(), 1)
+
+
+def _normalise_event_types(value: list[str]) -> list[str]:
+    # Existing integrations may define domain-specific event names; keep the
+    # schema permissive while making status-page event kinds first-class inputs.
+    return sorted({str(item) for item in value})

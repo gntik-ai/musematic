@@ -1,0 +1,9 @@
+Confirm your Musematic status subscription:
+
+{confirmation_token}
+
+Use the unsubscribe token if you need to stop updates:
+
+{unsubscribe_token}
+
+Subscription: {subscription_id}

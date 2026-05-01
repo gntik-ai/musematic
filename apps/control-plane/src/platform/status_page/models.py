@@ -161,6 +161,7 @@ class StatusSubscription(Base, UUIDMixin, TimestampMixin):
         default=list,
     )
     confirmation_token_hash: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    unsubscribe_token_hash: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     health: Mapped[str] = mapped_column(
         String(length=16),

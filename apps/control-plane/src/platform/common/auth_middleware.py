@@ -31,7 +31,7 @@ EXEMPT_PATHS: frozenset[str] = frozenset(
         "/api/v1/security/audit-chain/public-key",
     }
 )
-EXEMPT_PREFIXES: frozenset[str] = frozenset()
+EXEMPT_PREFIXES: frozenset[str] = frozenset({"/api/v1/public/"})
 
 EXTERNAL_A2A_CERT_HEADERS: tuple[str, ...] = (
     "X-Client-Cert-Fingerprint",

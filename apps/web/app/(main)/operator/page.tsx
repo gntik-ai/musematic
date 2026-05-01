@@ -48,7 +48,7 @@ export default function OperatorDashboardPage() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const activePanel = resolvePanel(searchParams.get("panel"));
+  const activePanel = resolvePanel(searchParams.get("panel") ?? searchParams.get("tab"));
   const metricsQuery = useOperatorMetrics();
   const serviceHealthQuery = useServiceHealth();
   const activeExecutionsQuery = useActiveExecutions(workspaceId, filters);

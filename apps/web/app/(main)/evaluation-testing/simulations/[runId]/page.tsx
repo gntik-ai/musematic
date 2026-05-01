@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { use } from "react";
 import { useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { DigitalTwinPanel } from "@/components/features/simulations/DigitalTwinPanel";
 import { SimulationDetailView } from "@/components/features/simulations/SimulationDetailView";
 import { useDigitalTwins } from "@/lib/hooks/use-digital-twins";
 import { useSimulationRun } from "@/lib/hooks/use-simulation-runs";
@@ -18,6 +20,7 @@ interface SimulationDetailPageProps {
 export default function SimulationDetailPage({ params }: SimulationDetailPageProps) {
   const { runId } = use(params);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const currentWorkspaceId = useWorkspaceStore((state) => state.currentWorkspace?.id ?? null);
   const authWorkspaceId = useAuthStore((state) => state.user?.workspaceId ?? null);
   const workspaceId = currentWorkspaceId ?? authWorkspaceId;
@@ -48,6 +51,12 @@ export default function SimulationDetailPage({ params }: SimulationDetailPagePro
           Loading simulation detail…
         </div>
       )}
+      {runQuery.data ? (
+        <DigitalTwinPanel
+          reportId={searchParams.get("report")}
+          runId={runQuery.data.run_id}
+        />
+      ) : null}
     </section>
   );
 }

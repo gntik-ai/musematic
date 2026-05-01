@@ -17,6 +17,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    text,
 )
 from sqlalchemy import (
     UUID as SQLUUID,
@@ -96,6 +97,48 @@ class SimulationIsolationPolicy(Base, UUIDMixin, TimestampMixin, WorkspaceScoped
     halt_on_critical_breach: Mapped[bool] = mapped_column(Boolean(), nullable=False, default=True)
 
 
+class SimulationScenario(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+    __tablename__ = "simulation_scenarios"
+    __table_args__ = (
+        Index("IX_simulation_scenarios_workspace_id_archived_at", "workspace_id", "archived_at"),
+        Index(
+            "UQ_simulation_scenarios_workspace_name_active",
+            "workspace_id",
+            "name",
+            unique=True,
+            postgresql_where=text("archived_at IS NULL"),
+        ),
+    )
+
+    name: Mapped[str] = mapped_column(String(length=255), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    agents_config: Mapped[dict[str, Any]] = mapped_column(JSONBType, nullable=False, default=dict)
+    workflow_template_id: Mapped[UUID | None] = mapped_column(
+        SQLUUID(as_uuid=True),
+        ForeignKey("workflow_definitions.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+    mock_set_config: Mapped[dict[str, Any]] = mapped_column(JSONBType, nullable=False, default=dict)
+    input_distribution: Mapped[dict[str, Any]] = mapped_column(
+        JSONBType,
+        nullable=False,
+        default=dict,
+    )
+    twin_fidelity: Mapped[dict[str, Any]] = mapped_column(JSONBType, nullable=False, default=dict)
+    success_criteria: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONBType,
+        nullable=False,
+        default=list,
+    )
+    run_schedule: Mapped[dict[str, Any] | None] = mapped_column(JSONBType, nullable=True)
+    archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_by: Mapped[UUID] = mapped_column(
+        SQLUUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=False,
+    )
+
+
 class SimulationRun(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "simulation_runs"
     __table_args__ = (
@@ -120,6 +163,11 @@ class SimulationRun(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
         ForeignKey("simulation_isolation_policies.id", ondelete="SET NULL"),
         nullable=True,
     )
+    scenario_id: Mapped[UUID | None] = mapped_column(
+        SQLUUID(as_uuid=True),
+        ForeignKey("simulation_scenarios.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     controller_run_id: Mapped[str | None] = mapped_column(String(length=128), nullable=True)
     isolation_bundle_fingerprint: Mapped[str | None] = mapped_column(
         String(length=255),
@@ -132,6 +180,9 @@ class SimulationRun(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
 
     isolation_policy: Mapped[SimulationIsolationPolicy | None] = relationship(
         "platform.simulation.models.SimulationIsolationPolicy",
+    )
+    scenario: Mapped[SimulationScenario | None] = relationship(
+        "platform.simulation.models.SimulationScenario",
     )
 
 

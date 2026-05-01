@@ -90,6 +90,20 @@ export class WebSocketClient {
     };
   }
 
+  observe<T = unknown>(channel: WsChannel, handler: WsEventHandler<T>): WsUnsubscribeFn {
+    const currentHandlers = this.subscriptions.get(channel) ?? new Set<WsEventHandler>();
+    currentHandlers.add(handler as WsEventHandler);
+    this.subscriptions.set(channel, currentHandlers);
+
+    return () => {
+      const handlers = this.subscriptions.get(channel);
+      handlers?.delete(handler as WsEventHandler);
+      if (handlers && handlers.size === 0) {
+        this.subscriptions.delete(channel);
+      }
+    };
+  }
+
   send(channel: WsChannel, type: string, payload: unknown): void {
     if (!this.socket || this.connectionState !== "connected") {
       return;

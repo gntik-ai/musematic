@@ -1,8 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { AgentCardGrid } from "@/components/features/marketplace/agent-card-grid";
 import { marketplaceFixtures } from "@/mocks/handlers/marketplace";
 import { useComparisonStore } from "@/lib/stores/use-comparison-store";
+import { renderWithProviders } from "@/test-utils/render";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
@@ -10,7 +11,7 @@ vi.mock("next/navigation", () => ({
 
 describe("AgentCardGrid", () => {
   it("renders loading skeletons", () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <AgentCardGrid
         agents={[]}
         hasNextPage={false}
@@ -25,7 +26,7 @@ describe("AgentCardGrid", () => {
   });
 
   it("renders the empty state when there are no agents", () => {
-    render(
+    renderWithProviders(
       <AgentCardGrid
         agents={[]}
         hasNextPage={false}
@@ -42,7 +43,7 @@ describe("AgentCardGrid", () => {
   it("renders agent cards", () => {
     useComparisonStore.getState().clear();
 
-    render(
+    renderWithProviders(
       <AgentCardGrid
         agents={marketplaceFixtures.agents.slice(0, 2)}
         hasNextPage={false}

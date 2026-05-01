@@ -189,7 +189,7 @@ export function AgentDetail({
                     agentFqn={agent.fqn}
                     isVisible={canInvoke}
                     trigger={
-                      <Button className="w-full" disabled={!canInvoke}>
+                      <Button className="w-full" disabled={!canInvoke} disabledByMaintenance>
                         <MessageSquareText className="h-4 w-4" />
                         Start Conversation
                       </Button>

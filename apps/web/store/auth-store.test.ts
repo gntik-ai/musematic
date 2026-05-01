@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { useAuthStore } from "@/store/auth-store";
+import { mergePersistedAuthState, useAuthStore } from "@/store/auth-store";
 
 describe("auth-store", () => {
   it("persists only the refresh token", () => {
@@ -86,5 +86,36 @@ describe("auth-store", () => {
   it("updates the loading flag", () => {
     useAuthStore.getState().setLoading(true);
     expect(useAuthStore.getState().isLoading).toBe(true);
+  });
+
+  it("tracks persisted auth hydration separately from authentication", () => {
+    useAuthStore.getState().setHasHydrated(false);
+    expect(useAuthStore.getState().hasHydrated).toBe(false);
+
+    useAuthStore.getState().setHasHydrated(true);
+    expect(useAuthStore.getState().hasHydrated).toBe(true);
+
+    useAuthStore.getState().clearAuth();
+    expect(useAuthStore.getState().hasHydrated).toBe(true);
+  });
+
+  it("marks persisted auth as hydrated and authenticated in one merge", () => {
+    const merged = mergePersistedAuthState(
+      {
+        refreshToken: "refresh",
+        user: null,
+      },
+      {
+        ...useAuthStore.getState(),
+        accessToken: null,
+        refreshToken: null,
+        user: null,
+        isAuthenticated: false,
+        hasHydrated: false,
+      },
+    );
+
+    expect(merged.hasHydrated).toBe(true);
+    expect(merged.isAuthenticated).toBe(true);
   });
 });

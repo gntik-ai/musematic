@@ -204,6 +204,7 @@ export function RubricEditor({ suiteId }: RubricEditorProps) {
         <div className="flex justify-end">
           <Button
             disabled={isSaveDisabled}
+            disabledByMaintenance
             onClick={() =>
               void saveRubric.mutateAsync({
                 name: name.trim(),

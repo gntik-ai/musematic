@@ -244,6 +244,8 @@ from platform.security_compliance.router import router as security_compliance_ro
 from platform.simulation.dependencies import build_simulation_service
 from platform.simulation.events import register_simulation_event_types
 from platform.simulation.router import router as simulation_router
+from platform.status_page.me_router import router as status_page_me_router
+from platform.status_page.router import router as status_page_router
 from platform.testing.dependencies import build_drift_service
 from platform.testing.events import register_testing_event_types
 from platform.testing.router_e2e import router as testing_e2e_router
@@ -1313,6 +1315,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.settings = resolved
     app.state.clients = _build_clients(resolved)
     app.state.secret_provider = _build_secret_provider(resolved)
+    app.state.status_last_good_path = os.environ.get("STATUS_LAST_GOOD_PATH")
     app.state.analytics_repository = AnalyticsRepository(
         cast(AsyncClickHouseClient, app.state.clients["clickhouse"])
     )
@@ -1686,6 +1689,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(audit_router)
         app.include_router(security_compliance_router)
         app.include_router(incident_response_router)
+        app.include_router(status_page_router)
+        app.include_router(status_page_me_router)
         app.include_router(multi_region_ops_router)
         app.include_router(localization_router)
         app.include_router(tagging_tags_router)

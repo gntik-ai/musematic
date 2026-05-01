@@ -1,6 +1,11 @@
 "use client";
 
 import { refreshAccessToken } from "@/lib/auth";
+import {
+  MaintenanceBlockedError,
+  emitMaintenanceBlocked,
+  type MaintenanceBlockedDetails,
+} from "@/lib/maintenance-blocked";
 import { useAuthStore } from "@/store/auth-store";
 import { ApiError, type ApiErrorPayload, type ApiRequestOptions } from "@/types/api";
 
@@ -23,6 +28,27 @@ function isApiErrorPayload(value: unknown): value is { error: ApiErrorPayload } 
   return typeof error === "object" && error !== null;
 }
 
+function getErrorPayload(value: unknown): ApiErrorPayload | null {
+  if (isApiErrorPayload(value)) {
+    return value.error;
+  }
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "code" in value &&
+    typeof (value as { code: unknown }).code === "string"
+  ) {
+    return value as ApiErrorPayload;
+  }
+  return null;
+}
+
+function maintenanceDetails(value: unknown): MaintenanceBlockedDetails {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as MaintenanceBlockedDetails)
+    : {};
+}
+
 async function normalizeError(response: Response): Promise<never> {
   let payload: unknown;
 
@@ -32,13 +58,27 @@ async function normalizeError(response: Response): Promise<never> {
     throw new ApiError("unknown_error", response.statusText || "Request failed", response.status);
   }
 
-  if (isApiErrorPayload(payload)) {
+  const errorPayload = getErrorPayload(payload);
+  if (errorPayload) {
+    if (
+      response.status === 503 &&
+      errorPayload.code === "platform.maintenance.blocked"
+    ) {
+      const error = new MaintenanceBlockedError(
+        errorPayload.message,
+        response.status,
+        maintenanceDetails(errorPayload.details),
+      );
+      emitMaintenanceBlocked(error);
+      throw error;
+    }
+
     throw new ApiError(
-      payload.error.code,
-      payload.error.message,
+      errorPayload.code,
+      errorPayload.message,
       response.status,
-      payload.error.details,
-      payload.error,
+      Array.isArray(errorPayload.details) ? errorPayload.details : undefined,
+      errorPayload,
     );
   }
 

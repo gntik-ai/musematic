@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-const locales = ["en", "es", "fr", "de", "ja", "zh-CN"] as const;
+const locales = ["en", "es", "fr", "de", "it", "ja", "zh-CN"] as const;
 
 test.describe("i18n", () => {
   for (const locale of locales) {

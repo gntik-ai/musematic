@@ -1,5 +1,108 @@
 {{- if .Values.webStatus.enabled }}
-{{- /*
-Filled by feature 095 task T037.
-*/ -}}
+{{- $imageRepository := required "webStatus.image.repository is required when webStatus.enabled=true" .Values.webStatus.image.repository }}
+{{- $imageTag := required "webStatus.image.tag is required when webStatus.enabled=true" .Values.webStatus.image.tag }}
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: platform-edge
+  labels:
+    app.kubernetes.io/name: web-status
+    app.kubernetes.io/part-of: musematic
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-web-status-last-known-good
+  namespace: platform-edge
+  labels:
+    app.kubernetes.io/name: web-status
+    app.kubernetes.io/part-of: musematic
+data:
+  last-known-good.json: |
+    {"snapshot_id":"helm-bootstrap","generated_at":"1970-01-01T00:00:00.000Z","overall_state":"operational","components":[],"active_incidents":[],"scheduled_maintenance":[],"active_maintenance":null,"recently_resolved_incidents":[],"uptime_30d":{},"source_kind":"fallback"}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-web-status
+  namespace: platform-edge
+  labels:
+    app.kubernetes.io/name: web-status
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: musematic
+spec:
+  replicas: {{ .Values.webStatus.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: web-status
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: web-status
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/part-of: musematic
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        fsGroup: 101
+      containers:
+        - name: web-status
+          image: "{{ $imageRepository }}:{{ $imageTag }}"
+          imagePullPolicy: {{ .Values.webStatus.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: NEXT_PUBLIC_STATUS_API_BASE_URL
+              value: "https://{{ .Values.webStatus.host }}"
+          volumeMounts:
+            - name: last-known-good
+              mountPath: /status-cache/last-known-good.json
+              subPath: last-known-good.json
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 20
+            periodSeconds: 30
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: false
+      volumes:
+        - name: last-known-good
+          configMap:
+            name: {{ .Release.Name }}-web-status-last-known-good
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-web-status
+  namespace: platform-edge
+  labels:
+    app.kubernetes.io/name: web-status
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: musematic
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: web-status
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
 {{- end }}

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createApiClient } from "@/lib/api";
+import { useAuthStore } from "@/store/auth-store";
 import { useWorkspaceStore } from "@/store/workspace-store";
 
 const discoveryApi = createApiClient(
@@ -47,7 +48,9 @@ interface ClusterListResponse {
 }
 
 export function useDiscoveryNetwork(sessionId: string) {
-  const workspaceId = useWorkspaceStore((state) => state.currentWorkspace?.id ?? null);
+  const currentWorkspaceId = useWorkspaceStore((state) => state.currentWorkspace?.id ?? null);
+  const authWorkspaceId = useAuthStore((state) => state.user?.workspaceId ?? null);
+  const workspaceId = currentWorkspaceId ?? authWorkspaceId;
   const [snapshot, setSnapshot] = useState<string>("current");
 
   const enabled = Boolean(sessionId && workspaceId);
@@ -61,7 +64,7 @@ export function useDiscoveryNetwork(sessionId: string) {
     enabled,
     queryFn: async () => {
       const response = await discoveryApi.get<HypothesisListResponse>(
-        `/api/v1/discovery/sessions/${sessionId}/hypotheses?${queryParams}&limit=100`,
+        `/api/v1/discovery/sessions/${encodeURIComponent(sessionId)}/hypotheses?${queryParams}&limit=100`,
       );
       return response.items;
     },
@@ -72,7 +75,7 @@ export function useDiscoveryNetwork(sessionId: string) {
     enabled,
     queryFn: async () => {
       return discoveryApi.get<ClusterListResponse>(
-        `/api/v1/discovery/sessions/${sessionId}/clusters?${queryParams}`,
+        `/api/v1/discovery/sessions/${encodeURIComponent(sessionId)}/clusters?${queryParams}`,
       );
     },
   });

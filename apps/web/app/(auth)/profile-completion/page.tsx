@@ -23,7 +23,7 @@ import {
 } from "@/lib/schemas/auth-schemas";
 import { useAuthStore } from "@/store/auth-store";
 
-const LOCALES = ["en", "es", "fr", "de", "ja", "zh-CN"] as const;
+const LOCALES = ["en", "es", "fr", "de", "it", "ja", "zh-CN"] as const;
 
 function defaultLocale(): ProfileCompletionFormValues["locale"] {
   const language = navigator.language.toLowerCase();

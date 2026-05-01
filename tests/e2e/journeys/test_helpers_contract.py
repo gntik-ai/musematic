@@ -193,15 +193,21 @@ async def test_grant_required_consents_records_all_privacy_choices() -> None:
 
 
 class _FakeWebSocket:
-    def __init__(self, inbound: list[dict[str, object] | str]) -> None:
-        self._inbound = [item if isinstance(item, str) else json.dumps(item) for item in inbound]
+    def __init__(self, inbound: list[dict[str, object] | str | BaseException]) -> None:
+        self._inbound = [
+            item if isinstance(item, (str, BaseException)) else json.dumps(item)
+            for item in inbound
+        ]
         self.sent_messages: list[dict[str, object]] = []
         self.closed = False
 
     async def recv(self) -> str:
         if not self._inbound:
             raise AssertionError("no websocket messages left to receive")
-        return self._inbound.pop(0)
+        item = self._inbound.pop(0)
+        if isinstance(item, BaseException):
+            raise item
+        return item
 
     async def send(self, payload: str) -> None:
         self.sent_messages.append(json.loads(payload))
@@ -216,6 +222,18 @@ class _FakeWsClient:
 
     async def connect(self) -> _FakeWebSocket:
         return self.websocket
+
+
+class _SequenceWsClient:
+    def __init__(self, *websockets: _FakeWebSocket) -> None:
+        self.websockets = list(websockets)
+        self.connect_count = 0
+
+    async def connect(self) -> _FakeWebSocket:
+        self.connect_count += 1
+        if not self.websockets:
+            raise AssertionError("no fake websocket connections left")
+        return self.websockets.pop(0)
 
 
 @pytest.mark.asyncio
@@ -265,3 +283,22 @@ async def test_subscribe_ws_buffers_events_before_confirmation() -> None:
     assert event == early_event
     assert subscription.received_events == [early_event]
     assert websocket.closed is True
+
+
+@pytest.mark.asyncio
+async def test_subscribe_ws_retries_transient_handshake_failure() -> None:
+    first = _FakeWebSocket([OSError("temporary handshake close")])
+    second = _FakeWebSocket(
+        [
+            {"type": "connection_established", "connection_id": "conn-1", "user_id": str(uuid4())},
+            {"type": "subscription_confirmed", "channel": "conversation", "resource_id": "conv-1"},
+        ]
+    )
+    client = _SequenceWsClient(first, second)
+
+    async with subscribe_ws(client, "conversation", "conv-1") as subscription:
+        assert subscription.channel == "conversation"
+
+    assert client.connect_count == 2
+    assert first.closed is True
+    assert second.closed is True

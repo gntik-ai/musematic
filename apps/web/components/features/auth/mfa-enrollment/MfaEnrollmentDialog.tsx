@@ -86,6 +86,7 @@ export function MfaEnrollmentDialog({
       open={open}
     >
       <DialogContent
+        aria-label="Set up multi-factor authentication"
         className="max-w-2xl overflow-hidden p-4 sm:p-6"
         onEscapeKeyDown={(event) => {
           event.preventDefault();

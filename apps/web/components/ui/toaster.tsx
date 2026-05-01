@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { Toast, type ToastVariant } from "@/components/ui/toast";
 import { TOAST_EVENT, type ToastPayload } from "@/lib/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 interface ToastRecord extends ToastPayload {
   id: string;
@@ -49,7 +50,12 @@ export function Toaster() {
         <div key={toast.id} className="pointer-events-auto relative">
           <button
             aria-label="Dismiss notification"
-            className="absolute right-3 top-3 rounded-full p-1 text-muted-foreground transition hover:bg-muted"
+            className={cn(
+              "absolute right-3 top-3 rounded-full p-1 transition",
+              toast.variant === "destructive"
+                ? "text-destructive-foreground/90 hover:bg-destructive-foreground/15"
+                : "text-muted-foreground hover:bg-muted",
+            )}
             onClick={() => {
               setToasts((current) => current.filter((item) => item.id !== toast.id));
             }}

@@ -14,6 +14,7 @@ from platform.simulation.models import (
 )
 from platform.simulation.prediction.forecaster import BehavioralForecaster, PredictionWorker
 from platform.simulation.repository import SimulationRepository
+from platform.simulation.scenarios_service import SimulationScenariosService
 from platform.simulation.schemas import (
     BehavioralPredictionCreateRequest,
     BehavioralPredictionResponse,
@@ -22,6 +23,12 @@ from platform.simulation.schemas import (
     DigitalTwinModifyRequest,
     DigitalTwinResponse,
     DigitalTwinVersionListResponse,
+    ScenarioCreate,
+    ScenarioListResponse,
+    ScenarioRead,
+    ScenarioRunRequest,
+    ScenarioRunSummary,
+    ScenarioUpdate,
     SimulationComparisonCreateRequest,
     SimulationComparisonReportResponse,
     SimulationIsolationPolicyCreateRequest,
@@ -64,6 +71,7 @@ class SimulationService:
         comparison_analyzer: ComparisonAnalyzer,
         events_consumer: SimulationEventsConsumer,
         prediction_worker: PredictionWorker,
+        registry_service: Any | None = None,
     ) -> None:
         self.repository = repository
         self.settings = settings
@@ -74,6 +82,12 @@ class SimulationService:
         self.comparison_analyzer = comparison_analyzer
         self.events_consumer = events_consumer
         self.prediction_worker = prediction_worker
+        self.scenarios = SimulationScenariosService(
+            repository=repository,
+            runner=runner,
+            settings=settings,
+            registry_service=registry_service,
+        )
 
     async def create_simulation_run(
         self,
@@ -116,6 +130,47 @@ class SimulationService:
         else:
             await self.isolation_enforcer.apply_default_strict(run)
         return SimulationRunResponse.model_validate(run)
+
+    async def list_scenarios(
+        self,
+        workspace_id: UUID,
+        *,
+        include_archived: bool,
+        limit: int,
+        cursor: str | None,
+    ) -> ScenarioListResponse:
+        return await self.scenarios.list_scenarios(
+            workspace_id,
+            include_archived=include_archived,
+            limit=limit,
+            cursor=cursor,
+        )
+
+    async def get_scenario(self, scenario_id: UUID, workspace_id: UUID) -> ScenarioRead:
+        return await self.scenarios.get_scenario(scenario_id, workspace_id)
+
+    async def create_scenario(self, payload: ScenarioCreate, actor_id: UUID) -> ScenarioRead:
+        return await self.scenarios.create_scenario(payload, actor_id)
+
+    async def update_scenario(
+        self,
+        scenario_id: UUID,
+        workspace_id: UUID,
+        payload: ScenarioUpdate,
+    ) -> ScenarioRead:
+        return await self.scenarios.update_scenario(scenario_id, workspace_id, payload)
+
+    async def archive_scenario(self, scenario_id: UUID, workspace_id: UUID) -> ScenarioRead:
+        return await self.scenarios.archive_scenario(scenario_id, workspace_id)
+
+    async def launch_scenario(
+        self,
+        scenario_id: UUID,
+        workspace_id: UUID,
+        actor_id: UUID,
+        payload: ScenarioRunRequest,
+    ) -> ScenarioRunSummary:
+        return await self.scenarios.launch_scenario(scenario_id, workspace_id, actor_id, payload)
 
     async def cancel_simulation_run(
         self,

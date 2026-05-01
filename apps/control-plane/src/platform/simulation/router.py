@@ -11,6 +11,12 @@ from platform.simulation.schemas import (
     DigitalTwinModifyRequest,
     DigitalTwinResponse,
     DigitalTwinVersionListResponse,
+    ScenarioCreate,
+    ScenarioListResponse,
+    ScenarioRead,
+    ScenarioRunRequest,
+    ScenarioRunSummary,
+    ScenarioUpdate,
     SimulationComparisonCreateRequest,
     SimulationComparisonReportResponse,
     SimulationIsolationPolicyCreateRequest,
@@ -205,6 +211,91 @@ async def get_comparison_report(
     current_user: dict[str, Any] = Depends(get_current_user),
 ) -> SimulationComparisonReportResponse:
     return await service.get_comparison_report(report_id, _workspace_id(current_user, workspace_id))
+
+
+@router.get("/scenarios", response_model=ScenarioListResponse)
+async def list_simulation_scenarios(
+    service: SimulationServiceDep,
+    workspace_id: UUID | None = Query(default=None),
+    include_archived: bool = Query(default=False),
+    limit: int = Query(default=20, ge=1, le=100),
+    cursor: str | None = Query(default=None),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> ScenarioListResponse:
+    return await service.list_scenarios(
+        _workspace_id(current_user, workspace_id),
+        include_archived=include_archived,
+        limit=limit,
+        cursor=cursor,
+    )
+
+
+@router.post(
+    "/scenarios",
+    response_model=ScenarioRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_simulation_scenario(
+    payload: ScenarioCreate,
+    service: SimulationServiceDep,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> ScenarioRead:
+    return await service.create_scenario(payload, _actor_id(current_user))
+
+
+@router.get("/scenarios/{scenario_id}", response_model=ScenarioRead)
+async def get_simulation_scenario(
+    scenario_id: UUID,
+    service: SimulationServiceDep,
+    workspace_id: UUID | None = Query(default=None),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> ScenarioRead:
+    return await service.get_scenario(scenario_id, _workspace_id(current_user, workspace_id))
+
+
+@router.put("/scenarios/{scenario_id}", response_model=ScenarioRead)
+async def update_simulation_scenario(
+    scenario_id: UUID,
+    payload: ScenarioUpdate,
+    service: SimulationServiceDep,
+    workspace_id: UUID | None = Query(default=None),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> ScenarioRead:
+    return await service.update_scenario(
+        scenario_id,
+        _workspace_id(current_user, workspace_id),
+        payload,
+    )
+
+
+@router.delete("/scenarios/{scenario_id}", response_model=ScenarioRead)
+async def archive_simulation_scenario(
+    scenario_id: UUID,
+    service: SimulationServiceDep,
+    workspace_id: UUID | None = Query(default=None),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> ScenarioRead:
+    return await service.archive_scenario(scenario_id, _workspace_id(current_user, workspace_id))
+
+
+@router.post(
+    "/scenarios/{scenario_id}/run",
+    response_model=ScenarioRunSummary,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def run_simulation_scenario(
+    scenario_id: UUID,
+    payload: ScenarioRunRequest,
+    service: SimulationServiceDep,
+    workspace_id: UUID | None = Query(default=None),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> ScenarioRunSummary:
+    return await service.launch_scenario(
+        scenario_id,
+        _workspace_id(current_user, workspace_id),
+        _actor_id(current_user),
+        payload,
+    )
 
 
 @router.get("/{run_id}", response_model=SimulationRunResponse)

@@ -3861,6 +3861,17 @@
         "title": "AnomalyType",
         "type": "string"
       },
+      "AntiEnumerationResponse": {
+        "properties": {
+          "message": {
+            "default": "If the address is valid, a confirmation link has been sent.",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "title": "AntiEnumerationResponse",
+        "type": "object"
+      },
       "ApprovalDecision": {
         "description": "Represent the approval decision.",
         "enum": [
@@ -8534,6 +8545,54 @@
         "title": "ComplianceTrendPoint",
         "type": "object"
       },
+      "ComponentDetail": {
+        "properties": {
+          "history_30d": {
+            "items": {
+              "$ref": "#/components/schemas/ComponentHistoryPoint"
+            },
+            "title": "History 30D",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_check_at": {
+            "format": "date-time",
+            "title": "Last Check At",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/OverallState",
+            "default": "operational"
+          },
+          "uptime_30d_pct": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uptime 30D Pct"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "last_check_at"
+        ],
+        "title": "ComponentDetail",
+        "type": "object"
+      },
       "ComponentHealth": {
         "properties": {
           "details": {
@@ -8555,6 +8614,65 @@
           "status"
         ],
         "title": "ComponentHealth",
+        "type": "object"
+      },
+      "ComponentHistoryPoint": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/OverallState"
+          }
+        },
+        "required": [
+          "at",
+          "state"
+        ],
+        "title": "ComponentHistoryPoint",
+        "type": "object"
+      },
+      "ComponentStatus": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_check_at": {
+            "format": "date-time",
+            "title": "Last Check At",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/OverallState",
+            "default": "operational"
+          },
+          "uptime_30d_pct": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uptime 30D Pct"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "last_check_at"
+        ],
+        "title": "ComponentStatus",
         "type": "object"
       },
       "CompositionAuditEntryResponse": {
@@ -10863,6 +10981,31 @@
           "roles"
         ],
         "title": "CreateInvitationRequest",
+        "type": "object"
+      },
+      "CreateMyStatusSubscriptionRequest": {
+        "properties": {
+          "channel": {
+            "title": "Channel",
+            "type": "string"
+          },
+          "scope_components": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Scope Components",
+            "type": "array"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "channel",
+          "target"
+        ],
+        "title": "CreateMyStatusSubscriptionRequest",
         "type": "object"
       },
       "CreateWorkspaceRequest": {
@@ -13509,6 +13652,26 @@
           "source_policies"
         ],
         "title": "EffectivePolicyResponse",
+        "type": "object"
+      },
+      "EmailSubscribeRequest": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "scope_components": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Scope Components",
+            "type": "array"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "EmailSubscribeRequest",
         "type": "object"
       },
       "EnforcementActionListResponse": {
@@ -20205,7 +20368,7 @@
             "type": "boolean"
           },
           "severity": {
-            "$ref": "#/components/schemas/IncidentSeverity"
+            "$ref": "#/components/schemas/platform__incident_response__schemas__IncidentSeverity"
           },
           "status": {
             "$ref": "#/components/schemas/IncidentStatus"
@@ -20309,7 +20472,7 @@
             "title": "Runbook Scenario"
           },
           "severity": {
-            "$ref": "#/components/schemas/IncidentSeverity"
+            "$ref": "#/components/schemas/platform__incident_response__schemas__IncidentSeverity"
           },
           "status": {
             "$ref": "#/components/schemas/IncidentStatus"
@@ -20394,16 +20557,6 @@
         "title": "IncidentResolveRequest",
         "type": "object"
       },
-      "IncidentSeverity": {
-        "enum": [
-          "critical",
-          "high",
-          "warning",
-          "info"
-        ],
-        "title": "IncidentSeverity",
-        "type": "string"
-      },
       "IncidentStatus": {
         "enum": [
           "open",
@@ -20413,6 +20566,25 @@
         ],
         "title": "IncidentStatus",
         "type": "string"
+      },
+      "IncidentUpdate": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "text"
+        ],
+        "title": "IncidentUpdate",
+        "type": "object"
       },
       "InjectionFindingResponse": {
         "properties": {
@@ -22894,6 +23066,48 @@
         "title": "MaintenanceWindowStatus",
         "type": "string"
       },
+      "MaintenanceWindowSummary": {
+        "properties": {
+          "blocks_writes": {
+            "default": true,
+            "title": "Blocks Writes",
+            "type": "boolean"
+          },
+          "components_affected": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Components Affected",
+            "type": "array"
+          },
+          "ends_at": {
+            "format": "date-time",
+            "title": "Ends At",
+            "type": "string"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "window_id": {
+            "title": "Window Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "window_id",
+          "title",
+          "starts_at",
+          "ends_at"
+        ],
+        "title": "MaintenanceWindowSummary",
+        "type": "object"
+      },
       "MaintenanceWindowUpdateRequest": {
         "properties": {
           "announcement_text": {
@@ -24616,6 +24830,225 @@
           "content"
         ],
         "title": "ModerationVerdict",
+        "type": "object"
+      },
+      "MyIncidentSummary": {
+        "properties": {
+          "affects_my_features": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Affects My Features",
+            "type": "array"
+          },
+          "components_affected": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Components Affected",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_update_at": {
+            "format": "date-time",
+            "title": "Last Update At",
+            "type": "string"
+          },
+          "last_update_summary": {
+            "default": "",
+            "title": "Last Update Summary",
+            "type": "string"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/platform__status_page__schemas__IncidentSeverity",
+            "default": "info"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updates": {
+            "items": {
+              "$ref": "#/components/schemas/IncidentUpdate"
+            },
+            "title": "Updates",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "started_at",
+          "last_update_at"
+        ],
+        "title": "MyIncidentSummary",
+        "type": "object"
+      },
+      "MyMaintenanceWindowSummary": {
+        "properties": {
+          "affects_my_features": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Affects My Features",
+            "type": "array"
+          },
+          "blocks_writes": {
+            "default": true,
+            "title": "Blocks Writes",
+            "type": "boolean"
+          },
+          "components_affected": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Components Affected",
+            "type": "array"
+          },
+          "ends_at": {
+            "format": "date-time",
+            "title": "Ends At",
+            "type": "string"
+          },
+          "starts_at": {
+            "format": "date-time",
+            "title": "Starts At",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "window_id": {
+            "title": "Window Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "window_id",
+          "title",
+          "starts_at",
+          "ends_at"
+        ],
+        "title": "MyMaintenanceWindowSummary",
+        "type": "object"
+      },
+      "MyPlatformStatus": {
+        "properties": {
+          "active_incidents": {
+            "items": {
+              "$ref": "#/components/schemas/MyIncidentSummary"
+            },
+            "title": "Active Incidents",
+            "type": "array"
+          },
+          "active_maintenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MyMaintenanceWindowSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "overall_state": {
+            "$ref": "#/components/schemas/OverallState"
+          }
+        },
+        "required": [
+          "overall_state"
+        ],
+        "title": "MyPlatformStatus",
+        "type": "object"
+      },
+      "MyStatusSubscription": {
+        "properties": {
+          "channel": {
+            "title": "Channel",
+            "type": "string"
+          },
+          "confirmed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "health": {
+            "title": "Health",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "scope_components": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Scope Components",
+            "type": "array"
+          },
+          "target": {
+            "title": "Target",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "channel",
+          "target",
+          "health",
+          "created_at"
+        ],
+        "title": "MyStatusSubscription",
+        "type": "object"
+      },
+      "MyStatusSubscriptionList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MyStatusSubscription"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "MyStatusSubscriptionList",
         "type": "object"
       },
       "NamedStepsCheckpointPolicy": {
@@ -26417,6 +26850,17 @@
         "title": "OutcomeClassification",
         "type": "string"
       },
+      "OverallState": {
+        "enum": [
+          "operational",
+          "degraded",
+          "partial_outage",
+          "full_outage",
+          "maintenance"
+        ],
+        "title": "OverallState",
+        "type": "string"
+      },
       "OverrideIssueRequest": {
         "properties": {
           "reason": {
@@ -27461,6 +27905,84 @@
           }
         },
         "title": "PlatformSettingsUpdate",
+        "type": "object"
+      },
+      "PlatformStatusSnapshotRead": {
+        "properties": {
+          "active_incidents": {
+            "items": {
+              "$ref": "#/components/schemas/PublicIncident"
+            },
+            "title": "Active Incidents",
+            "type": "array"
+          },
+          "active_maintenance": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MaintenanceWindowSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/ComponentStatus"
+            },
+            "title": "Components",
+            "type": "array"
+          },
+          "generated_at": {
+            "format": "date-time",
+            "title": "Generated At",
+            "type": "string"
+          },
+          "overall_state": {
+            "$ref": "#/components/schemas/OverallState",
+            "default": "operational"
+          },
+          "recently_resolved_incidents": {
+            "items": {
+              "$ref": "#/components/schemas/PublicIncident"
+            },
+            "title": "Recently Resolved Incidents",
+            "type": "array"
+          },
+          "scheduled_maintenance": {
+            "items": {
+              "$ref": "#/components/schemas/MaintenanceWindowSummary"
+            },
+            "title": "Scheduled Maintenance",
+            "type": "array"
+          },
+          "snapshot_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Id"
+          },
+          "source_kind": {
+            "$ref": "#/components/schemas/SourceKind",
+            "default": "fallback"
+          },
+          "uptime_30d": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/UptimeSummary"
+            },
+            "title": "Uptime 30D",
+            "type": "object"
+          }
+        },
+        "required": [
+          "generated_at"
+        ],
+        "title": "PlatformStatusSnapshotRead",
         "type": "object"
       },
       "PolicyAttachRequest": {
@@ -29618,6 +30140,87 @@
           }
         },
         "title": "ProximityWorkspaceSettingsUpdateRequest",
+        "type": "object"
+      },
+      "PublicIncident": {
+        "properties": {
+          "components_affected": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Components Affected",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_update_at": {
+            "format": "date-time",
+            "title": "Last Update At",
+            "type": "string"
+          },
+          "last_update_summary": {
+            "default": "",
+            "title": "Last Update Summary",
+            "type": "string"
+          },
+          "resolved_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved At"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/platform__status_page__schemas__IncidentSeverity",
+            "default": "info"
+          },
+          "started_at": {
+            "format": "date-time",
+            "title": "Started At",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "updates": {
+            "items": {
+              "$ref": "#/components/schemas/IncidentUpdate"
+            },
+            "title": "Updates",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "started_at",
+          "last_update_at"
+        ],
+        "title": "PublicIncident",
+        "type": "object"
+      },
+      "PublicIncidentsResponse": {
+        "properties": {
+          "incidents": {
+            "items": {
+              "$ref": "#/components/schemas/PublicIncident"
+            },
+            "title": "Incidents",
+            "type": "array"
+          }
+        },
+        "required": [
+          "incidents"
+        ],
+        "title": "PublicIncidentsResponse",
         "type": "object"
       },
       "PublicKeyResponse": {
@@ -33706,6 +34309,416 @@
         "title": "ScanStatusResponse",
         "type": "object"
       },
+      "ScenarioCreate": {
+        "properties": {
+          "agents_config": {
+            "additionalProperties": true,
+            "title": "Agents Config",
+            "type": "object"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "input_distribution": {
+            "additionalProperties": true,
+            "title": "Input Distribution",
+            "type": "object"
+          },
+          "mock_set_config": {
+            "additionalProperties": true,
+            "title": "Mock Set Config",
+            "type": "object"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "run_schedule": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Schedule"
+          },
+          "success_criteria": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "minItems": 1,
+            "title": "Success Criteria",
+            "type": "array"
+          },
+          "twin_fidelity": {
+            "additionalProperties": true,
+            "title": "Twin Fidelity",
+            "type": "object"
+          },
+          "workflow_template_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow Template Id"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "workspace_id",
+          "name",
+          "success_criteria"
+        ],
+        "title": "ScenarioCreate",
+        "type": "object"
+      },
+      "ScenarioListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ScenarioRead"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ScenarioListResponse",
+        "type": "object"
+      },
+      "ScenarioRead": {
+        "properties": {
+          "agents_config": {
+            "additionalProperties": true,
+            "title": "Agents Config",
+            "type": "object"
+          },
+          "archived_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Archived At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "format": "uuid",
+            "title": "Created By",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "input_distribution": {
+            "additionalProperties": true,
+            "title": "Input Distribution",
+            "type": "object"
+          },
+          "mock_set_config": {
+            "additionalProperties": true,
+            "title": "Mock Set Config",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "run_schedule": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Schedule"
+          },
+          "success_criteria": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Success Criteria",
+            "type": "array"
+          },
+          "twin_fidelity": {
+            "additionalProperties": true,
+            "title": "Twin Fidelity",
+            "type": "object"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "workflow_template_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow Template Id"
+          },
+          "workspace_id": {
+            "format": "uuid",
+            "title": "Workspace Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "workspace_id",
+          "name",
+          "agents_config",
+          "mock_set_config",
+          "input_distribution",
+          "twin_fidelity",
+          "success_criteria",
+          "created_by",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ScenarioRead",
+        "type": "object"
+      },
+      "ScenarioRunRequest": {
+        "properties": {
+          "confirmation_token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmation Token"
+          },
+          "iterations": {
+            "default": 1,
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Iterations",
+            "type": "integer"
+          },
+          "use_real_llm": {
+            "default": false,
+            "title": "Use Real Llm",
+            "type": "boolean"
+          }
+        },
+        "title": "ScenarioRunRequest",
+        "type": "object"
+      },
+      "ScenarioRunSummary": {
+        "properties": {
+          "iterations": {
+            "title": "Iterations",
+            "type": "integer"
+          },
+          "queued_runs": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "title": "Queued Runs",
+            "type": "array"
+          },
+          "scenario_id": {
+            "format": "uuid",
+            "title": "Scenario Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scenario_id",
+          "queued_runs",
+          "iterations"
+        ],
+        "title": "ScenarioRunSummary",
+        "type": "object"
+      },
+      "ScenarioUpdate": {
+        "properties": {
+          "agents_config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Agents Config"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "input_distribution": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Distribution"
+          },
+          "mock_set_config": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mock Set Config"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 255,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "run_schedule": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run Schedule"
+          },
+          "success_criteria": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Success Criteria"
+          },
+          "twin_fidelity": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Twin Fidelity"
+          },
+          "workflow_template_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Workflow Template Id"
+          }
+        },
+        "title": "ScenarioUpdate",
+        "type": "object"
+      },
       "SchemaEnumsResponse": {
         "properties": {
           "failure_modes": {
@@ -34544,6 +35557,18 @@
             "title": "Scenario Config",
             "type": "object"
           },
+          "scenario_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario Id"
+          },
           "started_at": {
             "anyOf": [
               {
@@ -34585,6 +35610,26 @@
           "created_at"
         ],
         "title": "SimulationRunResponse",
+        "type": "object"
+      },
+      "SlackSubscribeRequest": {
+        "properties": {
+          "scope_components": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Scope Components",
+            "type": "array"
+          },
+          "webhook_url": {
+            "title": "Webhook Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "webhook_url"
+        ],
+        "title": "SlackSubscribeRequest",
         "type": "object"
       },
       "SourceConfig": {
@@ -34657,6 +35702,16 @@
         ],
         "title": "SourceConfig",
         "type": "object"
+      },
+      "SourceKind": {
+        "enum": [
+          "kafka",
+          "poll",
+          "fallback",
+          "manual"
+        ],
+        "title": "SourceKind",
+        "type": "string"
       },
       "StepOutcomeRecord": {
         "properties": {
@@ -35256,6 +36311,24 @@
           }
         },
         "title": "TimelineSourceCoverage",
+        "type": "object"
+      },
+      "TokenActionResponse": {
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "message"
+        ],
+        "title": "TokenActionResponse",
         "type": "object"
       },
       "TokenPair": {
@@ -36554,6 +37627,37 @@
         "title": "UpdateGoalStatusRequest",
         "type": "object"
       },
+      "UpdateMyStatusSubscriptionRequest": {
+        "properties": {
+          "scope_components": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Components"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target"
+          }
+        },
+        "title": "UpdateMyStatusSubscriptionRequest",
+        "type": "object"
+      },
       "UpdateSettingsRequest": {
         "properties": {
           "cost_budget": {
@@ -36751,6 +37855,27 @@
           }
         },
         "title": "UpgradeStatusResponse",
+        "type": "object"
+      },
+      "UptimeSummary": {
+        "properties": {
+          "incidents": {
+            "minimum": 0.0,
+            "title": "Incidents",
+            "type": "integer"
+          },
+          "pct": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Pct",
+            "type": "number"
+          }
+        },
+        "required": [
+          "pct",
+          "incidents"
+        ],
+        "title": "UptimeSummary",
         "type": "object"
       },
       "UsageResponse": {
@@ -38993,6 +40118,66 @@
         "title": "WebhookDeliveryRead",
         "type": "object"
       },
+      "WebhookSubscribeRequest": {
+        "properties": {
+          "contact_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contact Email"
+          },
+          "scope_components": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Scope Components",
+            "type": "array"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url"
+        ],
+        "title": "WebhookSubscribeRequest",
+        "type": "object"
+      },
+      "WebhookSubscribeResponse": {
+        "properties": {
+          "signing_secret_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signing Secret Hint"
+          },
+          "subscription_id": {
+            "title": "Subscription Id",
+            "type": "string"
+          },
+          "verification_state": {
+            "default": "pending",
+            "title": "Verification State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "subscription_id"
+        ],
+        "title": "WebhookSubscribeResponse",
+        "type": "object"
+      },
       "WorkflowCreate": {
         "additionalProperties": false,
         "description": "Represent the workflow create.",
@@ -40440,6 +41625,16 @@
         "title": "DeliveryStatus",
         "type": "string"
       },
+      "platform__incident_response__schemas__IncidentSeverity": {
+        "enum": [
+          "critical",
+          "high",
+          "warning",
+          "info"
+        ],
+        "title": "IncidentSeverity",
+        "type": "string"
+      },
       "platform__interactions__schemas__MessageResponse": {
         "properties": {
           "content": {
@@ -40515,6 +41710,16 @@
           "failed"
         ],
         "title": "EmbeddingStatus",
+        "type": "string"
+      },
+      "platform__status_page__schemas__IncidentSeverity": {
+        "enum": [
+          "info",
+          "warning",
+          "high",
+          "critical"
+        ],
+        "title": "IncidentSeverity",
         "type": "string"
       },
       "platform__testing__schemas__DriftAlertListResponse": {
@@ -80353,6 +81558,58 @@
         ]
       }
     },
+    "/api/v1/internal/status_page/regenerate-fallback": {
+      "post": {
+        "operationId": "regenerate_status_fallback_api_v1_internal_status_page_regenerate_fallback_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Regenerate Status Fallback Api V1 Internal Status Page Regenerate Fallback Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Regenerate Status Fallback",
+        "tags": [
+          "public-status"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/internal/status_page/regenerate-fallback\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/internal/status_page/regenerate-fallback\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/internal/status_page/regenerate-fallback`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/internal/status_page/regenerate-fallback\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
     "/api/v1/labels/expression/validate": {
       "post": {
         "operationId": "validate_label_expression_api_v1_labels_expression_validate_post",
@@ -85022,6 +86279,56 @@
         ]
       }
     },
+    "/api/v1/me/platform-status": {
+      "get": {
+        "operationId": "get_my_platform_status_api_v1_me_platform_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyPlatformStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Get My Platform Status",
+        "tags": [
+          "me-platform-status"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/me/platform-status\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/me/platform-status\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/me/platform-status`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/me/platform-status\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
     "/api/v1/me/preferences": {
       "get": {
         "operationId": "get_my_preferences_api_v1_me_preferences_get",
@@ -85484,6 +86791,276 @@
           {
             "lang": "curl",
             "source": "curl -X DELETE \"http://localhost:8000/api/v1/me/sessions/{session_id}\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/me/status-subscriptions": {
+      "get": {
+        "operationId": "list_my_status_subscriptions_api_v1_me_status_subscriptions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyStatusSubscriptionList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "List My Status Subscriptions",
+        "tags": [
+          "me-platform-status"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/me/status-subscriptions\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/me/status-subscriptions\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/me/status-subscriptions`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/me/status-subscriptions\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      },
+      "post": {
+        "operationId": "create_my_status_subscription_api_v1_me_status_subscriptions_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateMyStatusSubscriptionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyStatusSubscription"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Create My Status Subscription",
+        "tags": [
+          "me-platform-status"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/me/status-subscriptions\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/me/status-subscriptions\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/me/status-subscriptions`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/me/status-subscriptions\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/me/status-subscriptions/{subscription_id}": {
+      "delete": {
+        "operationId": "delete_my_status_subscription_api_v1_me_status_subscriptions__subscription_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "subscription_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Subscription Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Delete My Status Subscription",
+        "tags": [
+          "me-platform-status"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"DELETE\", \"http://localhost:8000/api/v1/me/status-subscriptions/{subscription_id}\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"DELETE\", \"{baseURL}/api/v1/me/status-subscriptions/{subscription_id}\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/me/status-subscriptions/{subscription_id}`, {\n  method: \"DELETE\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X DELETE \"http://localhost:8000/api/v1/me/status-subscriptions/{subscription_id}\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "update_my_status_subscription_api_v1_me_status_subscriptions__subscription_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "subscription_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Subscription Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMyStatusSubscriptionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyStatusSubscription"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Update My Status Subscription",
+        "tags": [
+          "me-platform-status"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"PATCH\", \"http://localhost:8000/api/v1/me/status-subscriptions/{subscription_id}\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"PATCH\", \"{baseURL}/api/v1/me/status-subscriptions/{subscription_id}\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/me/status-subscriptions/{subscription_id}`, {\n  method: \"PATCH\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X PATCH \"http://localhost:8000/api/v1/me/status-subscriptions/{subscription_id}\" -H \"Authorization: Bearer $TOKEN\""
           }
         ]
       }
@@ -93956,6 +95533,685 @@
         ]
       }
     },
+    "/api/v1/public/components/{component_id}": {
+      "get": {
+        "operationId": "get_public_component_api_v1_public_components__component_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "component_id",
+            "required": true,
+            "schema": {
+              "title": "Component Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 90,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ComponentDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Get Public Component",
+        "tags": [
+          "public-status"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/public/components/{component_id}\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/public/components/{component_id}\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/public/components/{component_id}`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/public/components/{component_id}\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/public/incidents": {
+      "get": {
+        "operationId": "list_public_incidents_api_v1_public_incidents_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^(active|resolved)$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Since"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicIncidentsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "List Public Incidents",
+        "tags": [
+          "public-status"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/public/incidents\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/public/incidents\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/public/incidents`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/public/incidents\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/public/status": {
+      "get": {
+        "operationId": "get_public_status_api_v1_public_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformStatusSnapshotRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Get Public Status",
+        "tags": [
+          "public-status"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/public/status\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/public/status\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/public/status`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/public/status\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/public/status/feed.atom": {
+      "get": {
+        "operationId": "get_public_status_atom_api_v1_public_status_feed_atom_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Get Public Status Atom",
+        "tags": [
+          "public-status"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/public/status/feed.atom\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/public/status/feed.atom\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/public/status/feed.atom`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/public/status/feed.atom\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/public/status/feed.rss": {
+      "get": {
+        "operationId": "get_public_status_rss_api_v1_public_status_feed_rss_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Get Public Status Rss",
+        "tags": [
+          "public-status"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/public/status/feed.rss\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/public/status/feed.rss\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/public/status/feed.rss`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/public/status/feed.rss\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/public/subscribe/email": {
+      "post": {
+        "operationId": "subscribe_email_api_v1_public_subscribe_email_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailSubscribeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AntiEnumerationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Subscribe Email",
+        "tags": [
+          "public-status"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/public/subscribe/email\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/public/subscribe/email\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/public/subscribe/email`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/public/subscribe/email\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/public/subscribe/email/confirm": {
+      "get": {
+        "operationId": "confirm_email_subscription_api_v1_public_subscribe_email_confirm_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "minLength": 16,
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Confirm Email Subscription",
+        "tags": [
+          "public-status"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/public/subscribe/email/confirm\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/public/subscribe/email/confirm\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/public/subscribe/email/confirm`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/public/subscribe/email/confirm\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/public/subscribe/email/unsubscribe": {
+      "get": {
+        "operationId": "unsubscribe_email_subscription_api_v1_public_subscribe_email_unsubscribe_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "minLength": 16,
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenActionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Unsubscribe Email Subscription",
+        "tags": [
+          "public-status"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/public/subscribe/email/unsubscribe\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/public/subscribe/email/unsubscribe\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/public/subscribe/email/unsubscribe`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/public/subscribe/email/unsubscribe\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/public/subscribe/slack": {
+      "post": {
+        "operationId": "subscribe_slack_api_v1_public_subscribe_slack_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SlackSubscribeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookSubscribeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Subscribe Slack",
+        "tags": [
+          "public-status"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/public/subscribe/slack\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/public/subscribe/slack\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/public/subscribe/slack`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/public/subscribe/slack\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/public/subscribe/webhook": {
+      "post": {
+        "operationId": "subscribe_webhook_api_v1_public_subscribe_webhook_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookSubscribeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WebhookSubscribeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Subscribe Webhook",
+        "tags": [
+          "public-status"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/public/subscribe/webhook\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/public/subscribe/webhook\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/public/subscribe/webhook`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/public/subscribe/webhook\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
     "/api/v1/regions": {
       "get": {
         "operationId": "list_regions_api_v1_regions_get",
@@ -99697,6 +101953,563 @@
           {
             "lang": "curl",
             "source": "curl -X GET \"http://localhost:8000/api/v1/simulations/predictions/{prediction_id}\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/simulations/scenarios": {
+      "get": {
+        "operationId": "list_simulation_scenarios_api_v1_simulations_scenarios_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "workspace_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "include_archived",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Include Archived",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "List Simulation Scenarios",
+        "tags": [
+          "simulations"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/simulations/scenarios\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/simulations/scenarios\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/simulations/scenarios`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/simulations/scenarios\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      },
+      "post": {
+        "operationId": "create_simulation_scenario_api_v1_simulations_scenarios_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScenarioCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Create Simulation Scenario",
+        "tags": [
+          "simulations"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/simulations/scenarios\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/simulations/scenarios\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/simulations/scenarios`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/simulations/scenarios\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/simulations/scenarios/{scenario_id}": {
+      "delete": {
+        "operationId": "archive_simulation_scenario_api_v1_simulations_scenarios__scenario_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scenario_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Scenario Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "workspace_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Archive Simulation Scenario",
+        "tags": [
+          "simulations"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"DELETE\", \"http://localhost:8000/api/v1/simulations/scenarios/{scenario_id}\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"DELETE\", \"{baseURL}/api/v1/simulations/scenarios/{scenario_id}\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/simulations/scenarios/{scenario_id}`, {\n  method: \"DELETE\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X DELETE \"http://localhost:8000/api/v1/simulations/scenarios/{scenario_id}\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      },
+      "get": {
+        "operationId": "get_simulation_scenario_api_v1_simulations_scenarios__scenario_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scenario_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Scenario Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "workspace_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Get Simulation Scenario",
+        "tags": [
+          "simulations"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/simulations/scenarios/{scenario_id}\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/simulations/scenarios/{scenario_id}\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/simulations/scenarios/{scenario_id}`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/simulations/scenarios/{scenario_id}\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      },
+      "put": {
+        "operationId": "update_simulation_scenario_api_v1_simulations_scenarios__scenario_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scenario_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Scenario Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "workspace_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScenarioUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Update Simulation Scenario",
+        "tags": [
+          "simulations"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"PUT\", \"http://localhost:8000/api/v1/simulations/scenarios/{scenario_id}\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"PUT\", \"{baseURL}/api/v1/simulations/scenarios/{scenario_id}\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/simulations/scenarios/{scenario_id}`, {\n  method: \"PUT\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X PUT \"http://localhost:8000/api/v1/simulations/scenarios/{scenario_id}\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/simulations/scenarios/{scenario_id}/run": {
+      "post": {
+        "operationId": "run_simulation_scenario_api_v1_simulations_scenarios__scenario_id__run_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scenario_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Scenario Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "workspace_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workspace Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScenarioRunRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScenarioRunSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Run Simulation Scenario",
+        "tags": [
+          "simulations"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/simulations/scenarios/{scenario_id}/run\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/simulations/scenarios/{scenario_id}/run\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/simulations/scenarios/{scenario_id}/run`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/simulations/scenarios/{scenario_id}/run\" -H \"Authorization: Bearer $TOKEN\""
           }
         ]
       }

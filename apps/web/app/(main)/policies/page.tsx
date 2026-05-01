@@ -69,7 +69,7 @@ export default function PoliciesPage() {
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button disabledByMaintenance>
               <Plus className="h-4 w-4" />
               New Policy
             </Button>
@@ -99,6 +99,7 @@ export default function PoliciesPage() {
             <DialogFooter>
               <Button
                 disabled={createDisabled}
+                disabledByMaintenance
                 onClick={async () => {
                   if (!workspaceId) {
                     return;

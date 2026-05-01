@@ -16,6 +16,7 @@ NEO4J_NAMESPACE="${NEO4J_NAMESPACE:-${NAMESPACE}}"
 PORT_UI="${PORT_UI:-8080}"
 PORT_API="${PORT_API:-8081}"
 PORT_WS="${PORT_WS:-8082}"
+PORT_STATUS="${PORT_STATUS:-8085}"
 PORT_GOOGLE_OIDC="${PORT_GOOGLE_OIDC:-8083}"
 PORT_GITHUB_OAUTH="${PORT_GITHUB_OAUTH:-8084}"
 PORT_VAULT="${PORT_VAULT:-30085}"
@@ -283,6 +284,44 @@ start_observability_port_forwards() {
   probe_observability_http grafana "http://localhost:3000/api/health"
   probe_observability_http jaeger "http://localhost:14269/"
   probe_observability_http otel "http://localhost:13133/"
+}
+
+start_web_status_port_forward() {
+  local pid_file="/tmp/musematic-e2e-web-status-${CLUSTER_NAME}.pid"
+  local log_file="/tmp/musematic-e2e-web-status-${CLUSTER_NAME}.log"
+  local waited=0
+
+  if ! kubectl get service -n platform-edge "${RELEASE_NAME}-web-status" >/dev/null 2>&1; then
+    return
+  fi
+
+  if [[ -f "$pid_file" ]] && is_kubectl_port_forward_pid "$(cat "$pid_file" 2>/dev/null || true)"; then
+    return
+  fi
+
+  echo "[e2e] starting web-status port-forward on localhost:${PORT_STATUS}"
+  nohup kubectl -n platform-edge port-forward "service/${RELEASE_NAME}-web-status" "${PORT_STATUS}:80" >"$log_file" 2>&1 &
+  echo "$!" > "$pid_file"
+
+  while (( waited < 120 )); do
+    if python3 - "http://localhost:${PORT_STATUS}" <<'PY' >/dev/null 2>&1
+import sys
+import urllib.request
+
+with urllib.request.urlopen(sys.argv[1], timeout=3) as response:
+    if response.status < 200 or response.status >= 300:
+        raise SystemExit(1)
+PY
+    then
+      return
+    fi
+    sleep 2
+    waited=$((waited + 2))
+  done
+
+  echo "[e2e] web-status endpoint failed readiness probe at http://localhost:${PORT_STATUS}" >&2
+  cat "$log_file" >&2 || true
+  exit 1
 }
 
 ensure_observability_helm_repos() {
@@ -968,10 +1007,12 @@ main() {
   wait_for_redis_ready
   restart_platform_deployments
   wait_for_rollouts
+  start_web_status_port_forward
   seed_baseline
   cat <<EOF_SUMMARY
 [e2e] environment ready
   UI:  http://localhost:${PORT_UI}
+  Status: http://localhost:${PORT_STATUS}
   API: http://localhost:${PORT_API}
   WS:  ws://localhost:${PORT_WS}
   Vault: http://localhost:${PORT_VAULT}

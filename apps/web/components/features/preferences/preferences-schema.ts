@@ -3,7 +3,7 @@
 import { z } from "zod";
 
 export const themeValues = ["light", "dark", "system", "high_contrast"] as const;
-export const localeValues = ["en", "es", "fr", "de", "ja", "zh-CN"] as const;
+export const localeValues = ["en", "es", "fr", "de", "it", "ja", "zh-CN"] as const;
 export const dataExportFormats = ["json", "csv", "ndjson"] as const;
 
 export const notificationPreferencesSchema = z.object({

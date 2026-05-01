@@ -7,6 +7,9 @@ from typing import Any
 
 
 class EmailDeliverer:
+    # TODO(UPD-045/T076): Wire the future provider bounce callback here or in a
+    # sibling notifications/email router so hard bounces mark matching
+    # status_subscriptions rows as health='unhealthy'.
     async def send(
         self,
         alert: UserAlert,

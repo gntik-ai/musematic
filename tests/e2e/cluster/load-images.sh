@@ -17,6 +17,7 @@ fi
 images=(
   "ghcr.io/musematic/control-plane:local|apps/control-plane/Dockerfile|apps/control-plane"
   "ghcr.io/musematic/ui:local|apps/web/Dockerfile|."
+  "ghcr.io/musematic/web-status:local|apps/web-status/Dockerfile|."
   "ghcr.io/musematic/runtime-controller:local|services/runtime-controller/Dockerfile|services/runtime-controller"
   "ghcr.io/musematic/reasoning-engine:local|services/reasoning-engine/Dockerfile|services/reasoning-engine"
   "ghcr.io/musematic/sandbox-manager:local|services/sandbox-manager/Dockerfile|services/sandbox-manager"
@@ -26,6 +27,15 @@ images=(
 )
 PRUNE_DOCKER_CACHE="${PRUNE_DOCKER_CACHE:-1}"
 IMAGE_FILTER="${IMAGE_FILTER:-}"
+
+prune_local_docker_cache() {
+  if [[ "${PRUNE_DOCKER_CACHE}" != "1" ]]; then
+    return
+  fi
+
+  docker image prune -af >/dev/null 2>&1 || true
+  docker builder prune -af >/dev/null 2>&1 || true
+}
 
 build_image() {
   local image="$1"
@@ -62,6 +72,11 @@ build_image() {
   DOCKER_BUILDKIT=1 docker build --rm --force-rm -t "${image}" -f "${dockerfile_path}" "${context_path}"
 }
 
+if [[ "${PRUNE_DOCKER_CACHE}" == "1" ]]; then
+  echo "[e2e] pruning local Docker caches before image builds"
+  prune_local_docker_cache
+fi
+
 for spec in "${images[@]}"; do
   IFS='|' read -r image dockerfile context <<<"${spec}"
   if [[ -n "${IMAGE_FILTER}" && "${image}" != *"${IMAGE_FILTER}"* ]]; then
@@ -72,12 +87,10 @@ for spec in "${images[@]}"; do
   echo "[e2e] loading ${image} into kind cluster ${CLUSTER_NAME}"
   kind load docker-image "${image}" --name "${CLUSTER_NAME}"
   docker image rm -f "${image}" >/dev/null 2>&1 || true
+  if [[ "${PRUNE_DOCKER_CACHE}" == "1" ]]; then
+    echo "[e2e] pruning local Docker caches after loading ${image}"
+    prune_local_docker_cache
+  fi
 done
-
-if [[ "${PRUNE_DOCKER_CACHE}" == "1" ]]; then
-  echo "[e2e] pruning local Docker caches after loading all images"
-  docker image prune -af >/dev/null 2>&1 || true
-  docker builder prune -af >/dev/null 2>&1 || true
-fi
 
 docker system df || true

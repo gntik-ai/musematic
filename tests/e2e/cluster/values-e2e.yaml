@@ -430,6 +430,15 @@ ui:
     NEXT_PUBLIC_WS_URL: ws://localhost:8082/ws
     NEXT_PUBLIC_APP_ENV: e2e
 
+webStatus:
+  enabled: true
+  image:
+    repository: ghcr.io/musematic/web-status
+    tag: local
+    pullPolicy: IfNotPresent
+  tls:
+    enabled: false
+
 mockOAuth:
   google:
     enabled: true

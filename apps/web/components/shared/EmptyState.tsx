@@ -1,17 +1,19 @@
 import type { LucideIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, type ButtonProps } from "@/components/ui/button";
 
 export function EmptyState({
   title,
   description,
   ctaLabel,
   onCtaClick,
+  ctaButtonProps,
   icon: Icon,
 }: {
     title: string;
     description: string;
     ctaLabel?: string | undefined;
     onCtaClick?: (() => void) | undefined;
+    ctaButtonProps?: Pick<ButtonProps, "disabled" | "disabledByMaintenance" | "variant"> | undefined;
     icon?: LucideIcon | undefined;
   }) {
   return (
@@ -20,7 +22,7 @@ export function EmptyState({
       <h3 className="text-lg font-semibold">{title}</h3>
       <p className="mt-2 max-w-md text-sm text-muted-foreground">{description}</p>
       {ctaLabel && onCtaClick ? (
-        <Button className="mt-5" onClick={onCtaClick} variant="secondary">
+        <Button className="mt-5" onClick={onCtaClick} variant="secondary" {...ctaButtonProps}>
           {ctaLabel}
         </Button>
       ) : null}
