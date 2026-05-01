@@ -19,7 +19,7 @@ export function HypothesisDetailPanel({
   return (
     <aside className="space-y-4 rounded-lg border border-border bg-card p-4">
       <div>
-        <h2 className="text-lg font-semibold">{hypothesis.title}</h2>
+        <h2 className="text-lg font-semibold">Selected hypothesis</h2>
         <p className="mt-2 text-sm text-muted-foreground">{hypothesis.reasoning}</p>
       </div>
       <div className="space-y-2 text-sm">

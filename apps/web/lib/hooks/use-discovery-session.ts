@@ -75,7 +75,10 @@ export function useDiscoveryHypothesis(hypothesisId: string, workspaceId?: strin
 export function useDiscoveryExperiments(sessionId: string, workspaceId?: string | null) {
   return useAppQuery<{ items: DiscoveryExperiment[] }>(
     discoveryQueryKeys.experiments(sessionId, workspaceId),
-    async () => ({ items: [] }),
+    () =>
+      discoveryApi.get<{ items: DiscoveryExperiment[] }>(
+        `/api/v1/discovery/sessions/${encodeURIComponent(sessionId)}/experiments${workspaceParams(workspaceId)}`,
+      ),
     { enabled: Boolean(sessionId && workspaceId) },
   );
 }
@@ -89,6 +92,17 @@ export function useLaunchDiscoveryExperiment(hypothesisId: string, workspaceId: 
         { workspace_id: payload?.workspace_id ?? workspaceId },
       ),
     onSuccess: (experiment) => {
+      queryClient.setQueryData<{ items: DiscoveryExperiment[] }>(
+        discoveryQueryKeys.experiments(experiment.session_id, workspaceId),
+        (current) => ({
+          items: [
+            experiment,
+            ...(current?.items ?? []).filter(
+              (item) => item.experiment_id !== experiment.experiment_id,
+            ),
+          ],
+        }),
+      );
       void queryClient.invalidateQueries({
         queryKey: discoveryQueryKeys.experiments(experiment.session_id, workspaceId),
       });

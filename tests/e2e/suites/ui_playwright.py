@@ -343,7 +343,36 @@ async def route_discovery_apis(page: Any) -> dict[str, list[dict[str, Any]]]:
             await fulfill_json(route, experiment, status=201)
             return
         if path.endswith("/clusters"):
-            await fulfill_json(route, {"items": [{"cluster_id": "cluster-1"}], "next_cursor": None})
+            await fulfill_json(
+                route,
+                {
+                    "items": [
+                        {
+                            "cluster_id": "cluster-1",
+                            "session_id": DISCOVERY_SESSION_ID,
+                            "cluster_label": "cluster-1",
+                            "centroid_description": "Alpha catalyst evidence",
+                            "hypothesis_count": 1,
+                            "density_metric": 0.81,
+                            "classification": "normal",
+                            "hypothesis_ids": [HYPOTHESIS_ID],
+                            "computed_at": NOW,
+                        },
+                        {
+                            "cluster_id": "cluster-2",
+                            "session_id": DISCOVERY_SESSION_ID,
+                            "cluster_label": "cluster-2",
+                            "centroid_description": "Stable controls",
+                            "hypothesis_count": 1,
+                            "density_metric": 0.64,
+                            "classification": "gap",
+                            "hypothesis_ids": ["hypothesis-2"],
+                            "computed_at": NOW,
+                        },
+                    ],
+                    "landscape_status": "normal",
+                },
+            )
             return
         await fulfill_json(route, {"items": [], "next_cursor": None})
 

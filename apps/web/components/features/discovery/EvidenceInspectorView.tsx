@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useDiscoveryEvidence } from "@/lib/hooks/use-discovery-evidence";
 
 export function EvidenceInspectorView({
@@ -32,12 +31,12 @@ export function EvidenceInspectorView({
             <h2 className="font-semibold">
               {item.is_aggregated ? "Aggregated evidence" : item.reviewer_agent_fqn}
             </h2>
-            <Link
+            <a
               className="text-sm text-brand-primary underline-offset-4 hover:underline"
               href={`/discovery/${encodeURIComponent(item.hypothesis_id)}/hypotheses`}
             >
               Source hypothesis
-            </Link>
+            </a>
           </div>
           <pre className="mt-3 overflow-x-auto rounded-md bg-muted p-3 text-xs">
             {JSON.stringify(item.scores, null, 2)}

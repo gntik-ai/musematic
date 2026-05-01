@@ -28,7 +28,7 @@ type Channel = SubscribeValues["channel"];
 
 const API_BASE = process.env.NEXT_PUBLIC_STATUS_API_URL ?? "";
 const CHANNEL_LABELS: Record<Channel, string> = {
-  email: "Email updates",
+  email: "Inbox updates",
   webhook: "Webhook",
   slack: "Slack",
 };
