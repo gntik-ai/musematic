@@ -40,7 +40,7 @@ from platform.status_page.schemas import (
     WebhookSubscribeResponse,
     snapshot_read_from_payload,
 )
-from typing import Any
+from typing import Any, NoReturn
 from uuid import UUID, uuid4
 
 CURRENT_SNAPSHOT_KEY = "status:snapshot:current"
@@ -451,7 +451,7 @@ class StatusPageService:
         self,
         current_user: dict[str, Any],
         subscription_id: UUID,
-    ) -> None:
+    ) -> NoReturn:
         getter = getattr(self.repository, "get_subscription", None)
         existing = await getter(subscription_id) if callable(getter) else None
         if existing is not None and existing.user_id != _user_id(current_user):

@@ -105,15 +105,13 @@ async def compose_polled_snapshot(
 
 async def compute_30d_uptime_rollup(service: StatusPageService) -> None:
     snapshot = await service.get_public_snapshot()
-    uptime = {
-        component.id: {
+    uptime: dict[str, dict[str, float | int]] = {}
+    for component in snapshot.snapshot.components:
+        uptime_summary = snapshot.snapshot.uptime_30d.get(component.id)
+        uptime[component.id] = {
             "pct": component.uptime_30d_pct if component.uptime_30d_pct is not None else 100,
-            "incidents": snapshot.snapshot.uptime_30d.get(component.id, {}).incidents
-            if component.id in snapshot.snapshot.uptime_30d
-            else 0,
+            "incidents": uptime_summary.incidents if uptime_summary is not None else 0,
         }
-        for component in snapshot.snapshot.components
-    }
     component_health = [
         {
             "id": component.id,

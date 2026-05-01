@@ -17,9 +17,9 @@ from typing import Any
 from xml.etree import ElementTree
 
 try:  # pragma: no cover - exercised when the locked dependency is installed.
-    from feedgen.feed import FeedGenerator
+    from feedgen.feed import FeedGenerator  # type: ignore[import-untyped]
 except ImportError:  # pragma: no cover - local Python envs may not be uv-synced.
-    FeedGenerator = None  # type: ignore[assignment]
+    FeedGenerator = None
 
 
 DEFAULT_STATUS_BASE_URL = "https://status.musematic.ai"
@@ -49,7 +49,7 @@ def build_rss(
         feed_entry.description(entry["summary"])
         for category in entry["categories"]:
             feed_entry.category(term=category)
-    return bytes(fg.rss_str(pretty=False))
+    return _feed_bytes(fg.rss_str(pretty=False))
 
 
 def build_atom(
@@ -73,7 +73,7 @@ def build_atom(
         feed_entry.content(f"<p>{escape(entry['summary'])}</p>", type="html")
         for category in entry["categories"]:
             feed_entry.category(term=category)
-    return bytes(fg.atom_str(pretty=False))
+    return _feed_bytes(fg.atom_str(pretty=False))
 
 
 def _base_feed(
@@ -82,6 +82,8 @@ def _base_feed(
     base_url: str,
     self_path: str,
 ) -> Any:
+    if FeedGenerator is None:  # pragma: no cover - guarded by callers.
+        raise RuntimeError("feedgen is required for feed generation")
     fg = FeedGenerator()
     fg.id(f"{base_url}{self_path}")
     fg.title("Musematic Platform Status")
@@ -160,6 +162,16 @@ def _ensure_aware(value: datetime) -> datetime:
     return value.replace(tzinfo=UTC) if value.tzinfo is None else value
 
 
+def _feed_bytes(value: object) -> bytes:
+    if isinstance(value, bytes):
+        return value
+    if isinstance(value, bytearray):
+        return bytes(value)
+    if isinstance(value, str):
+        return value.encode("utf-8")
+    raise TypeError(f"Unexpected feed output type: {type(value).__name__}")
+
+
 def _build_rss_fallback(
     snapshot: PlatformStatusSnapshotRead,
     incidents: list[PublicIncident],
@@ -189,7 +201,7 @@ def _build_rss_fallback(
         ElementTree.SubElement(item, "description").text = entry["summary"]
         for category in entry["categories"]:
             ElementTree.SubElement(item, "category").text = category
-    return ElementTree.tostring(rss, encoding="utf-8", xml_declaration=True)
+    return _feed_bytes(ElementTree.tostring(rss, encoding="utf-8", xml_declaration=True))
 
 
 def _build_atom_fallback(
@@ -245,4 +257,4 @@ def _build_atom_fallback(
                 "{http://www.w3.org/2005/Atom}category",
                 {"term": category},
             )
-    return ElementTree.tostring(feed, encoding="utf-8", xml_declaration=True)
+    return _feed_bytes(ElementTree.tostring(feed, encoding="utf-8", xml_declaration=True))
