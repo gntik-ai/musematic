@@ -31,8 +31,8 @@ describe("getRequestLocale", () => {
     expect(getRequestLocale({ acceptLanguage: "pt-BR,pt;q=0.8" })).toBe(DEFAULT_LOCALE);
   });
 
-  it("keeps the frontend locale set aligned with the six launch locales", () => {
-    expect(LOCALES).toEqual(["en", "es", "fr", "de", "ja", "zh-CN"]);
+  it("keeps the frontend locale set aligned with the supported launch locales", () => {
+    expect(LOCALES).toEqual(["en", "es", "fr", "de", "it", "ja", "zh-CN"]);
   });
 });
 

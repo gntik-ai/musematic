@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from platform.common.config import PlatformSettings
-from platform.common.exceptions import AuthorizationError
+from platform.common.exceptions import AuthorizationError, NotFoundError
+from platform.incident_response.schemas import IncidentRef, IncidentSeverity
 from platform.testing import router_e2e
 from platform.testing.schemas_e2e import (
     ChaosKillPodItem,
@@ -10,8 +11,11 @@ from platform.testing.schemas_e2e import (
     ChaosKillPodResponse,
     ChaosPartitionRequest,
     ChaosPartitionResponse,
+    E2EUserProvisionRequest,
     KafkaEventRecord,
     KafkaEventsResponse,
+    MockLLMClearRequest,
+    MockLLMRateLimitRequest,
     MockLLMSetRequest,
     ResetRequest,
     ResetResponse,
@@ -19,6 +23,7 @@ from platform.testing.schemas_e2e import (
     SeedResponse,
 )
 from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
 
@@ -29,9 +34,36 @@ class FixedDateTime:
         return datetime(2026, 4, 21, 12, 0, tzinfo=tz)
 
 
-def _request_with_state() -> tuple[SimpleNamespace, PlatformSettings, object]:
+class _RedisRawStub:
+    def __init__(self) -> None:
+        self.values: dict[str, bytes | str | None] = {}
+        self.keys = ["accounts:signup:ip:1", "accounts:signup:email:dev"]
+        self.deleted: tuple[object, ...] = ()
+
+    async def scan_iter(self, *, match: str, count: int):
+        assert match == "accounts:signup:*"
+        assert count == 100
+        for key in self.keys:
+            yield key
+
+    async def delete(self, *keys: object) -> None:
+        self.deleted = keys
+
+    async def get(self, key: str) -> bytes | str | None:
+        return self.values.get(key)
+
+
+class _RedisWrapperStub:
+    def __init__(self) -> None:
+        self.raw = _RedisRawStub()
+
+    async def _get_client(self) -> _RedisRawStub:
+        return self.raw
+
+
+def _request_with_state() -> tuple[SimpleNamespace, PlatformSettings, _RedisWrapperStub]:
     settings = PlatformSettings(feature_e2e_mode=True)
-    redis_client = object()
+    redis_client = _RedisWrapperStub()
     request = SimpleNamespace(
         app=SimpleNamespace(
             state=SimpleNamespace(
@@ -65,6 +97,18 @@ def test_require_admin_or_e2e_scope_rejects_unauthorized_callers() -> None:
         router_e2e.require_admin_or_e2e_scope({"roles": [{"role": "viewer"}], "scopes": []})
 
     assert excinfo.value.code == "PERMISSION_DENIED"
+
+
+def test_require_operator_or_e2e_scope_paths() -> None:
+    operator = {"roles": [{"role": "operator"}], "scopes": []}
+    workspace_admin = {"roles": [{"role": "workspace_admin"}], "scopes": []}
+    scoped = {"roles": [], "scopes": ["e2e"]}
+
+    assert router_e2e.require_operator_or_e2e_scope(operator) is operator
+    assert router_e2e.require_operator_or_e2e_scope(workspace_admin) is workspace_admin
+    assert router_e2e.require_operator_or_e2e_scope(scoped) is scoped
+    with pytest.raises(AuthorizationError):
+        router_e2e.require_operator_or_e2e_scope({"roles": [{"role": "viewer"}]})
 
 
 @pytest.mark.asyncio
@@ -115,6 +159,9 @@ async def test_router_e2e_endpoint_functions_delegate_to_services(monkeypatch) -
             )
 
     class FakeMockLLMService:
+        async def set_rate_limit_error(self, prompt_pattern: str, count: int) -> None:
+            captured["rate_limit"] = (prompt_pattern, count)
+
         async def set_response(
             self,
             prompt_pattern: str,
@@ -123,6 +170,18 @@ async def test_router_e2e_endpoint_functions_delegate_to_services(monkeypatch) -
         ) -> dict[str, int]:
             captured["mock_llm"] = (prompt_pattern, response, streaming_chunks)
             return {"agent_response": 7}
+
+        async def get_calls(
+            self,
+            *,
+            pattern: str | None,
+            since: str | None,
+        ) -> list[dict[str, str]]:
+            captured["mock_calls"] = (pattern, since)
+            return [{"prompt": pattern or "*", "since": since or ""}]
+
+        async def clear_queue(self, prompt_pattern: str | None) -> None:
+            captured["clear_mock"] = prompt_pattern
 
     class FakeKafkaObserver:
         def __init__(self, observed_settings: PlatformSettings) -> None:
@@ -191,6 +250,31 @@ async def test_router_e2e_endpoint_functions_delegate_to_services(monkeypatch) -
         request,
         current_user,
     )
+    rate_response = await router_e2e.set_mock_llm_rate_limit(
+        MockLLMRateLimitRequest(prompt_pattern="slow", count=3),
+        request,
+        current_user,
+    )
+    calls_response = await router_e2e.get_mock_llm_calls(
+        request,
+        pattern="slow",
+        since=since,
+        current_user=current_user,
+    )
+    await router_e2e.clear_mock_llm(
+        MockLLMClearRequest(prompt_pattern="slow"),
+        request,
+        current_user,
+    )
+    failure_response = await router_e2e.inject_failure(
+        router_e2e.SyntheticFailureInjectRequest(
+            correlation_id="corr-1",
+            service="control-plane",
+            error_message="synthetic failure",
+            trace_id="trace-1",
+        ),
+        current_user,
+    )
     kafka_response = await router_e2e.kafka_events(
         request,
         topic="execution.events",
@@ -206,6 +290,10 @@ async def test_router_e2e_endpoint_functions_delegate_to_services(monkeypatch) -
     assert kill_response.killed[0].pod == "pod-1"
     assert partition_response.network_policy_name == "e2e-partition-1"
     assert mock_response.queue_depth == {"agent_response": 7}
+    assert rate_response.remaining == 3
+    assert calls_response.calls == [{"prompt": "slow", "since": since.isoformat()}]
+    assert captured["clear_mock"] == "slow"
+    assert failure_response.service == "control-plane"
     assert kafka_response.count == 1
     assert captured["seed"] == "users"
     assert captured["reset"] == ("workspaces", True)
@@ -213,6 +301,8 @@ async def test_router_e2e_endpoint_functions_delegate_to_services(monkeypatch) -
     assert captured["partition_network"] == ("platform-execution", "platform-data", 30)
     assert captured["redis"] is redis_client
     assert captured["mock_llm"] == ("agent_response", "ok", ["o", "k"])
+    assert captured["rate_limit"] == ("slow", 3)
+    assert captured["mock_calls"] == ("slow", since.isoformat())
     assert captured["observer_settings"] is settings
     assert captured["kafka_events"] == {
         "topic": "execution.events",
@@ -221,3 +311,132 @@ async def test_router_e2e_endpoint_functions_delegate_to_services(monkeypatch) -
         "limit": 5,
         "key": "trace-1",
     }
+
+
+@pytest.mark.asyncio
+async def test_router_e2e_account_and_incident_helpers(monkeypatch) -> None:
+    request, settings, redis_client = _request_with_state()
+    current_user = {"roles": [{"role": "platform_admin"}]}
+    settings.accounts.signup_mode = "open"
+
+    signup = await router_e2e.set_account_signup_mode(
+        router_e2e.E2ESignupModeRequest(signup_mode="invite_only"),
+        request,
+        current_user,
+    )
+    assert signup == {"previous": "open", "current": "invite_only"}
+    assert settings.accounts.signup_mode == "invite_only"
+
+    response = await router_e2e.clear_account_signup_rate_limits(request, current_user)
+    assert response.status_code == 204
+    assert redis_client.raw.deleted == tuple(redis_client.raw.keys)
+
+    redis_client.raw.values["e2e:accounts:verification-token:dev@example.test"] = b"verify-token"
+    assert await router_e2e.get_account_verification_token(
+        request,
+        email="DEV@EXAMPLE.TEST",
+        current_user=current_user,
+    ) == {"email": "dev@example.test", "token": "verify-token"}
+
+    empty_tokens = await router_e2e.get_status_subscription_tokens(
+        request,
+        email=" Dev@Example.TEST ",
+        current_user=current_user,
+    )
+    assert empty_tokens == {
+        "email": "dev@example.test",
+        "confirmation_token": None,
+        "unsubscribe_token": None,
+    }
+    redis_client.raw.values["e2e:status-subscriptions:tokens:dev@example.test"] = (
+        '{"confirmation_token": "confirm", "unsubscribe_token": "unsubscribe"}'
+    )
+    tokens = await router_e2e.get_status_subscription_tokens(
+        request,
+        email="dev@example.test",
+        current_user=current_user,
+    )
+    assert tokens["confirmation_token"] == "confirm"
+    assert tokens["unsubscribe_token"] == "unsubscribe"
+
+    class SessionStub:
+        def __init__(self, user_id: object | None = uuid4()) -> None:
+            self.user_id = user_id
+            self.calls: list[tuple[object, object | None]] = []
+
+        async def execute(self, statement: object, params: object | None = None):
+            self.calls.append((statement, params))
+            return SimpleNamespace(scalar_one_or_none=lambda: self.user_id)
+
+    expired = await router_e2e.create_expired_account_verification_token(
+        router_e2e.E2EExpiredVerificationTokenRequest(email=" Dev@Example.TEST "),
+        current_user,
+        SessionStub(),
+    )
+    assert expired["email"] == "dev@example.test"
+    assert expired["token"]
+    with pytest.raises(NotFoundError):
+        await router_e2e.create_expired_account_verification_token(
+            router_e2e.E2EExpiredVerificationTokenRequest(email="missing@example.test"),
+            current_user,
+            SessionStub(user_id=None),
+        )
+
+    provision_session = SessionStub()
+    user_id = uuid4()
+    provisioned = await router_e2e.provision_user(
+        E2EUserProvisionRequest(
+            id=user_id,
+            email="pending@e2e.test",
+            status="pending_approval",
+            roles=["platform_admin", "operator"],
+        ),
+        provision_session,
+    )
+    assert provisioned.id == user_id
+    assert len(provision_session.calls) == 6
+
+    class IncidentServiceStub:
+        def __init__(self) -> None:
+            self.signals = []
+            self.resolved: tuple[object, object | None, bool] | None = None
+
+        async def create_from_signal(self, signal) -> IncidentRef:
+            self.signals.append(signal)
+            return IncidentRef(incident_id=uuid4())
+
+        async def resolve(self, incident_id, *, resolved_at, auto_resolved):
+            self.resolved = (incident_id, resolved_at, auto_resolved)
+            return SimpleNamespace(id=incident_id)
+
+    incident_service = IncidentServiceStub()
+    seeded = await router_e2e.seed_incident(
+        "status-page",
+        current_user,
+        incident_service,  # type: ignore[arg-type]
+    )
+    triggered = await router_e2e.trigger_incident(
+        router_e2e.E2EIncidentTriggerRequest(
+            scenario="status-page",
+            severity=IncidentSeverity.high,
+            title="Custom title",
+            description="Custom description",
+        ),
+        current_user,
+        incident_service,  # type: ignore[arg-type]
+    )
+    incident_id = uuid4()
+    resolved = await router_e2e.resolve_incident(
+        router_e2e.E2EIncidentResolveRequest(
+            incident_id=incident_id,
+            auto_resolved=True,
+        ),
+        current_user,
+        incident_service,  # type: ignore[arg-type]
+    )
+    assert seeded.incident_id
+    assert triggered.incident_id
+    assert incident_service.signals[0].runbook_scenario == "status_page"
+    assert incident_service.signals[1].title == "Custom title"
+    assert resolved.incident_id == incident_id
+    assert incident_service.resolved == (incident_id, None, True)

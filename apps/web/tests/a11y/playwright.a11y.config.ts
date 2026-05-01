@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 const themes = ["light", "dark", "system", "high_contrast"] as const;
-const locales = ["en", "es", "fr", "de", "ja", "zh-CN"] as const;
+const locales = ["en", "es", "fr", "de", "it", "ja", "zh-CN"] as const;
 
 export default defineConfig({
   testDir: ".",

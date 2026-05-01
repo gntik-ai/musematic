@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from platform.status_page import feed_builders
 from platform.status_page.feed_builders import build_atom, build_rss
 from platform.status_page.schemas import (
     OverallState,
@@ -67,3 +68,35 @@ def test_atom_feed_has_valid_namespace_stable_ids_and_no_subscriber_identifiers(
     assert entry_id.startswith("urn:musematic:incident:incident-123:updated:")
     assert b"subscriber" not in xml.lower()
     assert b"dev@example.com" not in xml
+
+
+def test_feed_fallbacks_include_maintenance_and_handle_text_bytes(monkeypatch) -> None:
+    now = datetime(2026, 4, 28, 13, 45, tzinfo=UTC)
+    snapshot = _snapshot(now)
+    snapshot.scheduled_maintenance.append(
+        feed_builders.MaintenanceWindowSummary(
+            window_id="maint-1",
+            title="Database upgrade",
+            starts_at=now,
+            ends_at=now,
+            blocks_writes=False,
+            components_affected=["control-plane-api"],
+        )
+    )
+    snapshot.active_maintenance = feed_builders.MaintenanceWindowSummary(
+        window_id="maint-2",
+        title="Emergency patch",
+        starts_at=now,
+        ends_at=now,
+        blocks_writes=True,
+        components_affected=[],
+    )
+    monkeypatch.setattr(feed_builders, "FeedGenerator", None)
+
+    rss = build_rss(snapshot, [], base_url="https://status.example.test/")
+    atom = build_atom(snapshot, [], base_url="https://status.example.test/")
+
+    assert b"Database upgrade" in rss
+    assert b"Emergency patch" in atom
+    assert feed_builders._feed_bytes("text") == b"text"
+    assert feed_builders._feed_bytes(bytearray(b"bytes")) == b"bytes"

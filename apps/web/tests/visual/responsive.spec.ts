@@ -69,7 +69,7 @@ const incidents = [
   },
 ];
 
-const localeVersions = ["en", "es", "fr", "de", "ja", "zh-CN"].map((locale, index) => ({
+const localeVersions = ["en", "es", "fr", "de", "it", "ja", "zh-CN"].map((locale, index) => ({
   id: `locale-${locale}`,
   locale_code: locale,
   version: 1,

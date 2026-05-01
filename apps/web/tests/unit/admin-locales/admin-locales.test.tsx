@@ -1,7 +1,8 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DriftStatusBadge, LocaleFilePublishForm } from "@/components/features/admin-locales";
 import { usePublishLocaleFile } from "@/lib/api/locales";
+import { renderWithProviders } from "@/test-utils/render";
 
 const mutateAsync = vi.fn();
 
@@ -20,7 +21,7 @@ describe("admin locale components", () => {
   });
 
   it("previews namespace and key counts before publishing", async () => {
-    render(<LocaleFilePublishForm />);
+    renderWithProviders(<LocaleFilePublishForm />);
 
     fireEvent.change(screen.getByLabelText("Translations JSON"), {
       target: { value: JSON.stringify({ common: { save: "Save" } }) },
@@ -40,7 +41,7 @@ describe("admin locale components", () => {
   });
 
   it("renders drift severity states", () => {
-    render(<DriftStatusBadge status="over_threshold" />);
+    renderWithProviders(<DriftStatusBadge status="over_threshold" />);
     expect(screen.getByText("Over threshold")).toBeInTheDocument();
   });
 });

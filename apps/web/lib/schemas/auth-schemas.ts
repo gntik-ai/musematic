@@ -72,7 +72,7 @@ export const signupSchema = z
 
 export const profileCompletionSchema = z.object({
   displayName: z.string().min(2, "Display name is required").max(100),
-  locale: z.enum(["en", "es", "fr", "de", "ja", "zh-CN"]),
+  locale: z.enum(["en", "es", "fr", "de", "it", "ja", "zh-CN"]),
   timezone: z.string().min(1, "Timezone is required").max(64),
 });
 
