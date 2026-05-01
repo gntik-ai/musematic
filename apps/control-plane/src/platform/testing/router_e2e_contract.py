@@ -2958,6 +2958,31 @@ async def get_me_alert_settings(
     )
 
 
+@router.post("/api/v1/me/notification-preferences/test/{event_type}")
+async def send_me_notification_preference_test(
+    request: Request,
+    event_type: str,
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, Any]:
+    user_id = _user_id(current_user)
+    alert = _add_me_alert(
+        request,
+        user_id=user_id,
+        workspace_id=_workspace_id_from_request(request),
+        title=f"Test notification: {event_type}",
+        alert_type=event_type,
+        source_reference={"type": "notification_test", "event_type": event_type},
+    )
+    return {
+        "alert_id": alert["id"],
+        "id": alert["id"],
+        "event_type": event_type,
+        "alert_type": event_type,
+        "delivery_method": "in_app",
+        "success": True,
+    }
+
+
 @router.get("/api/v1/me/alerts")
 async def list_me_alerts(
     request: Request,
