@@ -554,7 +554,7 @@ def journey_id(request) -> str:
 
 @pytest.fixture(scope="session")
 def observability_stack_ready() -> None:
-    asyncio.run(wait_for_observability_stack_ready())
+    asyncio.run(wait_for_observability_stack_ready(require_grafana=False))
 
 
 @pytest.fixture
@@ -595,6 +595,7 @@ async def jaeger_client(observability_stack_ready: None):
 @pytest_asyncio.fixture
 async def grafana_client(observability_stack_ready: None):
     del observability_stack_ready
+    await wait_for_observability_stack_ready(require_grafana=True)
     async with httpx.AsyncClient(base_url=_grafana_url(), timeout=30.0) as client:
         yield client
 

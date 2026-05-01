@@ -45,16 +45,22 @@ async def _probe(name: str, url: str, path: str) -> tuple[str, bool, str]:
         return name, False, f"{endpoint} -> {type(exc).__name__}: {exc}"
 
 
-async def wait_for_observability_stack_ready(timeout_seconds: int = 180) -> None:
+async def wait_for_observability_stack_ready(
+    timeout_seconds: int = 180,
+    *,
+    require_grafana: bool = True,
+) -> None:
     configured_timeout = int(os.environ.get("MUSEMATIC_E2E_OBS_READY_TIMEOUT", timeout_seconds))
     deadline = time.monotonic() + configured_timeout
     probes = {
         "loki": (_loki_url(), LOKI_READY_PATH),
         "prometheus": (_prom_url(), "/-/ready"),
-        "grafana": (_grafana_url(), "/api/health"),
         "jaeger": (_jaeger_url(), "/"),
         "otel": (_otel_url(), "/"),
     }
+    if require_grafana:
+        probes["grafana"] = (_grafana_url(), "/api/health")
+
     last_seen: dict[str, str] = {}
     while time.monotonic() < deadline:
         results = await asyncio.gather(

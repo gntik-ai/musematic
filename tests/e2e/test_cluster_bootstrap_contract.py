@@ -145,12 +145,17 @@ def test_observability_loki_port_forward_probe_uses_gateway_supported_path() -> 
 
 def test_journey_observability_helpers_use_gateway_supported_loki_probe() -> None:
     readiness_helper = (ROOT / 'tests/e2e/journeys/helpers/observability_readiness.py').read_text()
+    journey_conftest = (ROOT / 'tests/e2e/journeys/conftest.py').read_text()
     log_helper = (ROOT / 'tests/e2e/journeys/helpers/assert_log_entry.py').read_text()
 
     assert 'LOKI_READY_PATH = "/loki/api/v1/status/buildinfo"' in readiness_helper
-    assert 'wait_for_observability_stack_ready(timeout_seconds: int = 180)' in readiness_helper
+    assert 'async def wait_for_observability_stack_ready(' in readiness_helper
+    assert 'timeout_seconds: int = 180' in readiness_helper
     assert 'httpx.AsyncClient(timeout=10.0)' in readiness_helper
     assert '"loki": (_loki_url(), LOKI_READY_PATH)' in readiness_helper
+    assert 'require_grafana: bool = True' in readiness_helper
+    assert 'wait_for_observability_stack_ready(require_grafana=False)' in journey_conftest
+    assert 'wait_for_observability_stack_ready(require_grafana=True)' in journey_conftest
     assert 'loki_client.get(LOKI_READY_PATH)' in log_helper
     assert 'loki_client.get("/ready")' not in log_helper
 
