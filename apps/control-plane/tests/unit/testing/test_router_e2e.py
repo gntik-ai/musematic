@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from platform.common.config import PlatformSettings
 from platform.common.exceptions import AuthorizationError, NotFoundError
 from platform.incident_response.schemas import IncidentRef, IncidentSeverity
+from platform.status_page.schemas import SourceKind
 from platform.testing import router_e2e
 from platform.testing.schemas_e2e import (
     ChaosKillPodItem,
@@ -407,9 +408,27 @@ async def test_router_e2e_account_and_incident_helpers(monkeypatch) -> None:
 
         async def resolve(self, incident_id, *, resolved_at, auto_resolved):
             self.resolved = (incident_id, resolved_at, auto_resolved)
-            return SimpleNamespace(id=incident_id)
+            return SimpleNamespace(
+                id=incident_id,
+                title="Custom title",
+                severity=IncidentSeverity.high,
+                runbook_scenario="status_page",
+            )
+
+    class StatusPageServiceStub:
+        def __init__(self) -> None:
+            self.snapshots: list[SourceKind] = []
+            self.events: list[tuple[str, dict[str, object]]] = []
+
+        async def compose_current_snapshot(self, *, source_kind: SourceKind) -> None:
+            self.snapshots.append(source_kind)
+
+        async def dispatch_event(self, event_kind: str, payload: dict[str, object]) -> int:
+            self.events.append((event_kind, payload))
+            return 1
 
     incident_service = IncidentServiceStub()
+    status_page_service = StatusPageServiceStub()
     seeded = await router_e2e.seed_incident(
         "status-page",
         current_user,
@@ -424,6 +443,7 @@ async def test_router_e2e_account_and_incident_helpers(monkeypatch) -> None:
         ),
         current_user,
         incident_service,  # type: ignore[arg-type]
+        status_page_service,  # type: ignore[arg-type]
     )
     incident_id = uuid4()
     resolved = await router_e2e.resolve_incident(
@@ -433,6 +453,7 @@ async def test_router_e2e_account_and_incident_helpers(monkeypatch) -> None:
         ),
         current_user,
         incident_service,  # type: ignore[arg-type]
+        status_page_service,  # type: ignore[arg-type]
     )
     assert seeded.incident_id
     assert triggered.incident_id
@@ -440,3 +461,24 @@ async def test_router_e2e_account_and_incident_helpers(monkeypatch) -> None:
     assert incident_service.signals[1].title == "Custom title"
     assert resolved.incident_id == incident_id
     assert incident_service.resolved == (incident_id, None, True)
+    assert status_page_service.snapshots == [SourceKind.kafka, SourceKind.kafka]
+    assert status_page_service.events == [
+        (
+            "incident.created",
+            {
+                "incident_id": str(triggered.incident_id),
+                "title": "Custom title",
+                "severity": "high",
+                "components_affected": ["control-plane-api"],
+            },
+        ),
+        (
+            "incident.resolved",
+            {
+                "incident_id": str(incident_id),
+                "title": "Custom title",
+                "severity": "high",
+                "components_affected": ["control-plane-api"],
+            },
+        ),
+    ]

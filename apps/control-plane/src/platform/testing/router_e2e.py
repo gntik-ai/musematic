@@ -13,6 +13,9 @@ from platform.common.logging import get_logger
 from platform.incident_response.dependencies import get_incident_service
 from platform.incident_response.schemas import IncidentRef, IncidentSeverity, IncidentSignal
 from platform.incident_response.services.incident_service import IncidentService
+from platform.status_page.dependencies import get_status_page_service
+from platform.status_page.schemas import SourceKind
+from platform.status_page.service import StatusPageService
 from platform.testing.schemas_e2e import (
     ChaosKillPodRequest,
     ChaosKillPodResponse,
@@ -369,6 +372,7 @@ async def trigger_incident(
     payload: E2EIncidentTriggerRequest,
     current_user: dict[str, Any] = Depends(require_operator_or_e2e_scope),
     incident_service: IncidentService = Depends(get_incident_service),
+    status_page_service: StatusPageService = Depends(get_status_page_service),
 ) -> IncidentRef:
     del current_user
     normalized = payload.scenario.replace("-", "_")
@@ -382,7 +386,18 @@ async def trigger_incident(
         condition_fingerprint=fingerprint,
         runbook_scenario=normalized,
     )
-    return await incident_service.create_from_signal(signal)
+    incident = await incident_service.create_from_signal(signal)
+    await _refresh_status_projection(
+        status_page_service,
+        event_kind="incident.created",
+        payload={
+            "incident_id": str(incident.incident_id),
+            "title": signal.title,
+            "severity": signal.severity.value,
+            "components_affected": _status_components_for_scenario(normalized, signal.title),
+        },
+    )
+    return incident
 
 
 @router.post("/incidents/resolve", response_model=IncidentRef)
@@ -390,6 +405,7 @@ async def resolve_incident(
     payload: E2EIncidentResolveRequest,
     current_user: dict[str, Any] = Depends(require_operator_or_e2e_scope),
     incident_service: IncidentService = Depends(get_incident_service),
+    status_page_service: StatusPageService = Depends(get_status_page_service),
 ) -> IncidentRef:
     del current_user
     incident = await incident_service.resolve(
@@ -397,7 +413,42 @@ async def resolve_incident(
         resolved_at=payload.resolved_at,
         auto_resolved=payload.auto_resolved,
     )
+    await _refresh_status_projection(
+        status_page_service,
+        event_kind="incident.resolved",
+        payload={
+            "incident_id": str(incident.id),
+            "title": incident.title,
+            "severity": incident.severity.value,
+            "components_affected": _status_components_for_scenario(
+                incident.runbook_scenario or "",
+                incident.title,
+            ),
+        },
+    )
     return IncidentRef(incident_id=incident.id)
+
+
+async def _refresh_status_projection(
+    status_page_service: StatusPageService,
+    *,
+    event_kind: str,
+    payload: dict[str, Any],
+) -> None:
+    await status_page_service.compose_current_snapshot(source_kind=SourceKind.kafka)
+    await status_page_service.dispatch_event(event_kind, payload)
+
+
+def _status_components_for_scenario(scenario: str, title: str) -> list[str]:
+    lowered = f"{scenario} {title}".lower()
+    components: list[str] = []
+    if "status" in lowered or "control" in lowered or "api" in lowered:
+        components.append("control-plane-api")
+    if "reasoning" in lowered:
+        components.append("reasoning-engine")
+    if "workflow" in lowered or "execution" in lowered:
+        components.append("workflow-engine")
+    return components
 
 
 @router.post("/chaos/kill-pod", response_model=ChaosKillPodResponse)
