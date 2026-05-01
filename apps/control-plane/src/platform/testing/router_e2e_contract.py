@@ -95,6 +95,7 @@ def _state(request: Request) -> dict[str, Any]:
         "contract_templates": {},
         "context_profiles": {},
         "context_profile_versions": {},
+        "context_profile_assignments": {},
         "policies": {},
         "policy_attachments": {},
         "entity_tags": {},
@@ -3312,6 +3313,58 @@ async def rollback_context_profile(
     )
     versions.append(version)
     return version
+
+
+@router.post(
+    "/api/v1/context-engineering/profiles/{profile_id}/assign",
+    status_code=status.HTTP_201_CREATED,
+)
+async def assign_context_profile(
+    request: Request,
+    profile_id: str,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    state = _state(request)
+    profile = state.setdefault("context_profiles", {}).get(profile_id)
+    if not profile:
+        raise HTTPException(status_code=404)
+    assignment_level = str(payload.get("assignment_level") or "workspace").strip() or "workspace"
+    agent_fqn = str(payload.get("agent_fqn") or "").strip() or None
+    role_type = str(payload.get("role_type") or "").strip() or None
+    if assignment_level == "agent" and not agent_fqn:
+        raise HTTPException(status_code=422, detail="agent_fqn is required")
+    if assignment_level == "role_type" and not role_type:
+        raise HTTPException(status_code=422, detail="role_type is required")
+    if assignment_level == "workspace":
+        agent_fqn = None
+        role_type = None
+    workspace_id = _workspace_id_from_request(request)
+    assignment_key = f"{workspace_id}:{assignment_level}:{agent_fqn or role_type or '*'}"
+    assignments = state.setdefault("context_profile_assignments", {})
+    assignment = assignments.get(assignment_key)
+    now = _now()
+    if assignment is None:
+        assignment = {
+            "id": str(uuid4()),
+            "profile_id": profile_id,
+            "assignment_level": assignment_level,
+            "agent_fqn": agent_fqn,
+            "role_type": role_type,
+            "workspace_id": workspace_id,
+            "created_at": now,
+        }
+        assignments[assignment_key] = assignment
+    else:
+        assignment.update(
+            {
+                "profile_id": profile_id,
+                "assignment_level": assignment_level,
+                "agent_fqn": agent_fqn,
+                "role_type": role_type,
+                "workspace_id": workspace_id,
+            }
+        )
+    return assignment
 
 
 @router.get("/api/v1/trust/contracts/schema")
