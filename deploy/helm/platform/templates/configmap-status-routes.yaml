@@ -1,5 +1,24 @@
 {{- if .Values.webStatus.enabled }}
-{{- /*
-Filled by feature 095 task T041.
-*/ -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-status-route-cache-policy
+  namespace: platform-edge
+  labels:
+    app.kubernetes.io/name: web-status
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: musematic
+data:
+  routes.yaml: |
+    routes:
+      - path: /api/v1/public/status
+        cacheControl: public, max-age=30, must-revalidate
+      - path: /api/v1/public/incidents
+        cacheControl: public, max-age=60, must-revalidate
+      - path: /api/v1/public/status/feed.rss
+        cacheControl: public, max-age=60, must-revalidate
+      - path: /api/v1/public/status/feed.atom
+        cacheControl: public, max-age=60, must-revalidate
+      - path: /
+        cacheControl: public, max-age=30, must-revalidate
 {{- end }}

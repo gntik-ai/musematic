@@ -1,5 +1,37 @@
 {{- if .Values.webStatus.enabled }}
-{{- /*
-Filled by feature 095 task T038.
-*/ -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-web-status
+  namespace: platform-edge
+  labels:
+    app.kubernetes.io/name: web-status
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: musematic
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "1m"
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      add_header Cache-Control "public, max-age=30, must-revalidate" always;
+    {{- if .Values.webStatus.tls.enabled }}
+    cert-manager.io/cluster-issuer: {{ .Values.webStatus.tls.clusterIssuer | quote }}
+    {{- end }}
+spec:
+  ingressClassName: nginx
+  {{- if .Values.webStatus.tls.enabled }}
+  tls:
+    - hosts:
+        - {{ .Values.webStatus.host | quote }}
+      secretName: {{ .Release.Name }}-web-status-tls
+  {{- end }}
+  rules:
+    - host: {{ .Values.webStatus.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Release.Name }}-web-status
+                port:
+                  name: http
 {{- end }}

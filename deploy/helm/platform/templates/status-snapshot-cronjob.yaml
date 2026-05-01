@@ -1,5 +1,60 @@
 {{- if .Values.webStatus.enabled }}
-{{- /*
-Filled by feature 095 task T039.
-*/ -}}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-status-snapshot
+  namespace: platform-edge
+  labels:
+    app.kubernetes.io/name: status-snapshot
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: musematic
+spec:
+  schedule: {{ .Values.webStatus.snapshotCronSchedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: status-snapshot
+            app.kubernetes.io/instance: {{ .Release.Name }}
+            app.kubernetes.io/part-of: musematic
+        spec:
+          restartPolicy: OnFailure
+          automountServiceAccountToken: false
+          containers:
+            - name: refresh
+              image: curlimages/curl:8.11.1
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: STATUS_API_INTERNAL_URL
+                  value: {{ .Values.webStatus.statusApiInternalUrl | quote }}
+                {{- if .Values.webStatus.snapshotAdminTokenSecretRef.name }}
+                - name: STATUS_SNAPSHOT_ADMIN_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.webStatus.snapshotAdminTokenSecretRef.name | quote }}
+                      key: {{ .Values.webStatus.snapshotAdminTokenSecretRef.key | quote }}
+                {{- end }}
+              command:
+                - /bin/sh
+                - -ec
+                - |
+                  if [ -n "${STATUS_SNAPSHOT_ADMIN_TOKEN:-}" ]; then
+                    curl -fsS -X POST \
+                      -H "Authorization: Bearer ${STATUS_SNAPSHOT_ADMIN_TOKEN}" \
+                      "${STATUS_API_INTERNAL_URL}/api/v1/internal/status_page/regenerate-fallback"
+                  else
+                    curl -fsS -X POST \
+                      "${STATUS_API_INTERNAL_URL}/api/v1/internal/status_page/regenerate-fallback"
+                  fi
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
 {{- end }}
