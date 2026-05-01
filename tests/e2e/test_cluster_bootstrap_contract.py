@@ -40,6 +40,13 @@ def test_install_script_bootstraps_cluster_operators_and_platform_chart() -> Non
     assert 'python3 -m seeders.base --all' in install_script
 
 
+def test_kafka_chart_provisions_status_page_ws_topic() -> None:
+    values = _load_yaml('deploy/helm/kafka/values.yaml')
+    topic_names = {topic['name'] for topic in values['topics']}
+
+    assert 'platform.status.derived' in topic_names
+
+
 def test_operator_installs_use_server_side_apply_for_large_crds() -> None:
     install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
     assert 'kubectl apply --server-side=true --force-conflicts -f "${CNPG_MANIFEST_URL}"' in install_script
