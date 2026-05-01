@@ -1684,6 +1684,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/release-notes/v1.4.0/creator-side-uis/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/saas/tenant-architecture/</loc>
+        <lastmod>2026-05-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/saas/tenant-architecture/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/security/</loc>
         <lastmod>2026-05-01</lastmod>
         <changefreq>daily</changefreq>
@@ -3618,6 +3629,17 @@
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/release-notes/v1.4.0/creator-side-uis/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/release-notes/v1.4.0/creator-side-uis/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/release-notes/v1.4.0/creator-side-uis/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/saas/tenant-architecture/</loc>
+        <lastmod>2026-05-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0/es/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/saas/tenant-architecture/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/es/security/</loc>
@@ -5556,6 +5578,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/release-notes/v1.4.0/creator-side-uis/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/saas/tenant-architecture/</loc>
+        <lastmod>2026-05-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0/de/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/saas/tenant-architecture/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/de/security/</loc>
         <lastmod>2026-05-01</lastmod>
         <changefreq>daily</changefreq>
@@ -7490,6 +7523,17 @@
         <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/release-notes/v1.4.0/creator-side-uis/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/release-notes/v1.4.0/creator-side-uis/"/>
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/release-notes/v1.4.0/creator-side-uis/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/saas/tenant-architecture/</loc>
+        <lastmod>2026-05-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0/fr/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/saas/tenant-architecture/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/fr/security/</loc>
@@ -9428,6 +9472,17 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/release-notes/v1.4.0/creator-side-uis/"/>
     </url>
     <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/saas/tenant-architecture/</loc>
+        <lastmod>2026-05-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0/it/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0zh/saas/tenant-architecture/"/>
+    </url>
+    <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/it/security/</loc>
         <lastmod>2026-05-01</lastmod>
         <changefreq>daily</changefreq>
@@ -11362,6 +11417,17 @@
         <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/release-notes/v1.4.0/creator-side-uis/"/>
         <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/release-notes/v1.4.0/creator-side-uis/"/>
         <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/release-notes/v1.4.0/creator-side-uis/"/>
+    </url>
+    <url>
+        <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/saas/tenant-architecture/</loc>
+        <lastmod>2026-05-01</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://gntik-ai.github.io/musematic/v1.3.0/zh/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="de" href="https://gntik-ai.github.io/musematic/v1.3.0de/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://gntik-ai.github.io/musematic/v1.3.0saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="es" href="https://gntik-ai.github.io/musematic/v1.3.0es/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="fr" href="https://gntik-ai.github.io/musematic/v1.3.0fr/saas/tenant-architecture/"/>
+        <xhtml:link rel="alternate" hreflang="it" href="https://gntik-ai.github.io/musematic/v1.3.0it/saas/tenant-architecture/"/>
     </url>
     <url>
         <loc>https://gntik-ai.github.io/musematic/v1.3.0/zh/security/</loc>

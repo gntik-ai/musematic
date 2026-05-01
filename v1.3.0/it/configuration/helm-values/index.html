@@ -6107,7 +6107,7 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>connections</td>
 <td>object</td>
-<td><code>{"authJwtAlgorithm":"HS256","authJwtSecretKey":"change-me","authMfaEncryptionKey":"","clickhouseDatabase":"default","clickhouseHost":"musematic-clickhouse.platform.svc.cluster.local","clickhousePassword":"","clickhousePort":8123,"clickhouseUser":"default","grpcReasoningEngine":"reasoning-engine.platform.svc.cluster.local:50052","grpcRuntimeController":"musematic-runtime-controller.platform.svc.cluster.local:50051","grpcSandboxManager":"sandbox-manager.platform.svc.cluster.local:50053","grpcSimulationController":"musematic-simulation-controller.platform.svc.cluster.local:50055","kafkaBrokers":"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092","neo4jPassword":"neo4j","neo4jUri":"bolt://musematic-neo4j.platform.svc.cluster.local:7687","neo4jUser":"neo4j","opensearchHosts":"http://musematic-opensearch.platform.svc.cluster.local:9200","opensearchPassword":"admin","opensearchUsername":"admin","postgresDsn":"postgresql+asyncpg://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic","qdrantGrpcPort":6334,"qdrantHost":"musematic-qdrant.platform.svc.cluster.local","qdrantPort":6333,"redisTestMode":"cluster","redisUrl":"redis://:change-me@musematic-redis.platform.svc.cluster.local:6379","rotatingSecrets":{},"s3AccessKey":"platform","s3BucketPrefix":"platform","s3EndpointUrl":"http://musematic-minio.platform-data.svc.cluster.local:9000","s3Provider":"generic","s3Region":"us-east-1","s3SecretKey":"change-me","s3UsePathStyle":true}</code></td>
+<td><code>{"authJwtAlgorithm":"HS256","authJwtSecretKey":"change-me","authMfaEncryptionKey":"","clickhouseDatabase":"default","clickhouseHost":"musematic-clickhouse.platform.svc.cluster.local","clickhousePassword":"","clickhousePort":8123,"clickhouseUser":"default","grpcReasoningEngine":"reasoning-engine.platform.svc.cluster.local:50052","grpcRuntimeController":"musematic-runtime-controller.platform.svc.cluster.local:50051","grpcSandboxManager":"sandbox-manager.platform.svc.cluster.local:50053","grpcSimulationController":"musematic-simulation-controller.platform.svc.cluster.local:50055","kafkaBrokers":"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092","neo4jPassword":"neo4j","neo4jUri":"bolt://musematic-neo4j.platform.svc.cluster.local:7687","neo4jUser":"neo4j","opensearchHosts":"http://musematic-opensearch.platform.svc.cluster.local:9200","opensearchPassword":"admin","opensearchUsername":"admin","platformStaffPostgresDsn":"","postgresDsn":"postgresql+asyncpg://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic","qdrantGrpcPort":6334,"qdrantHost":"musematic-qdrant.platform.svc.cluster.local","qdrantPort":6333,"redisTestMode":"cluster","redisUrl":"redis://:change-me@musematic-redis.platform.svc.cluster.local:6379","rotatingSecrets":{},"s3AccessKey":"platform","s3BucketPrefix":"platform","s3EndpointUrl":"http://musematic-minio.platform-data.svc.cluster.local:9000","s3Provider":"generic","s3Region":"us-east-1","s3SecretKey":"change-me","s3UsePathStyle":true}</code></td>
 <td>Configures <code>connections</code> for the control-plane chart.</td>
 </tr>
 <tr>
@@ -6223,6 +6223,12 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>string</td>
 <td><code>"admin"</code></td>
 <td>Configures <code>connections.opensearchUsername</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>connections.platformStaffPostgresDsn</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>connections.platformStaffPostgresDsn</code> for the control-plane chart.</td>
 </tr>
 <tr>
 <td>connections.postgresDsn</td>
@@ -6613,6 +6619,24 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>string</td>
 <td><code>""</code></td>
 <td>Configures <code>serviceAccount.name</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>tenancy</td>
+<td>object</td>
+<td><code>{"cacheTtlSeconds":60,"enforcementLevel":"lenient"}</code></td>
+<td>Configures hostname tenant resolution for the control-plane chart.</td>
+</tr>
+<tr>
+<td>tenancy.cacheTtlSeconds</td>
+<td>int</td>
+<td><code>60</code></td>
+<td>Configures <code>tenancy.cacheTtlSeconds</code> for the control-plane chart.</td>
+</tr>
+<tr>
+<td>tenancy.enforcementLevel</td>
+<td>string</td>
+<td><code>"lenient"</code></td>
+<td>Configures <code>tenancy.enforcementLevel</code> for the control-plane chart.</td>
 </tr>
 <tr>
 <td>vault</td>
@@ -11160,7 +11184,7 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>controlPlane</td>
 <td>object</td>
-<td><code>{"api":{"enabled":true,"replicaCount":1,"service":{"nodePort":null,"port":8000,"type":"ClusterIP"}},"common":{"featureE2EMode":false,"mockLlmEnabled":false,"otelExporterEndpoint":"http://otel-collector.platform-observability.svc.cluster.local:4318","otelResourceAttributes":"deployment.environment=production","otelServiceName":"control-plane","resources":{"limits":{"cpu":"1","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}},"wsClientBufferSize":1000,"wsHeartbeatIntervalSeconds":30,"wsHeartbeatTimeoutSeconds":10,"zeroTrustVisibility":false},"connections":{"authJwtAlgorithm":"HS256","authJwtSecretKey":"change-me","authMfaEncryptionKey":"","clickhouseDatabase":"default","clickhouseHost":"musematic-clickhouse.platform.svc.cluster.local","clickhousePassword":"","clickhousePort":8123,"clickhouseUser":"default","grpcReasoningEngine":"reasoning-engine.platform.svc.cluster.local:50052","grpcRuntimeController":"musematic-runtime-controller.platform.svc.cluster.local:50051","grpcSandboxManager":"sandbox-manager.platform.svc.cluster.local:50053","grpcSimulationController":"musematic-simulation-controller.platform.svc.cluster.local:50055","kafkaBrokers":"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092","neo4jPassword":"neo4j","neo4jUri":"bolt://musematic-neo4j.platform.svc.cluster.local:7687","neo4jUser":"neo4j","opensearchHosts":"http://musematic-opensearch.platform.svc.cluster.local:9200","opensearchPassword":"admin","opensearchUsername":"admin","postgresDsn":"postgresql+asyncpg://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic","qdrantGrpcPort":6334,"qdrantHost":"musematic-qdrant.platform.svc.cluster.local","qdrantPort":6333,"redisTestMode":"cluster","redisUrl":"redis://:change-me@musematic-redis.platform.svc.cluster.local:6379","s3AccessKey":"platform","s3BucketPrefix":"platform","s3EndpointUrl":"http://musematic-minio.platform-data.svc.cluster.local:9000","s3Provider":"generic","s3Region":"us-east-1","s3SecretKey":"change-me","s3UsePathStyle":true},"enabled":true,"image":{"pullPolicy":"IfNotPresent","repository":"ghcr.io/musematic/control-plane","tag":"latest"},"migration":{"backoffLimit":3,"enabled":true},"oauth":{"github":{"allowedOrgs":[],"clientId":"","clientSecretRef":{"key":"client-secret","name":""},"clientSecretVaultPath":"","defaultRole":"member","enabled":false,"forceUpdate":false,"redirectUri":"","requireMfa":false,"teamRoleMappings":{}},"google":{"allowedDomains":[],"clientId":"","clientSecretRef":{"key":"client-secret","name":""},"clientSecretVaultPath":"","defaultRole":"member","enabled":false,"forceUpdate":false,"groupRoleMappings":{},"redirectUri":"","requireMfa":false}},"privacy":{"clickhousePiiTables":["execution_metrics","agent_performance","token_usage"],"dlpEnabled":false,"dsrEnabled":false,"residencyEnforcementEnabled":false},"scheduler":{"enabled":true,"replicaCount":1},"serviceAccount":{"annotations":{},"create":true,"name":"musematic-control-plane"},"vault":{"addr":"http://musematic-vault.platform-security.svc.cluster.local:8200","approle":{"roleId":"","secretIdSecretRef":""},"authMethod":"kubernetes","caCertSecretRef":"","cache":{"maxStalenessSeconds":300,"ttlSeconds":60},"kubernetes":{"role":"musematic-platform","serviceAccountTokenPath":"/var/run/secrets/tokens/vault-token"},"kvMount":"secret","kvPrefix":"musematic/{environment}","leaseRenewalThreshold":0.5,"mode":"vault","namespace":"","retry":{"attempts":3,"timeoutSeconds":10},"token":""},"worker":{"enabled":true,"replicaCount":1},"wsHub":{"enabled":true,"replicaCount":1,"service":{"nodePort":null,"port":8001,"type":"ClusterIP"}}}</code></td>
+<td><code>{"api":{"enabled":true,"replicaCount":1,"service":{"nodePort":null,"port":8000,"type":"ClusterIP"}},"common":{"featureE2EMode":false,"mockLlmEnabled":false,"otelExporterEndpoint":"http://otel-collector.platform-observability.svc.cluster.local:4318","otelResourceAttributes":"deployment.environment=production","otelServiceName":"control-plane","resources":{"limits":{"cpu":"1","memory":"512Mi"},"requests":{"cpu":"250m","memory":"256Mi"}},"wsClientBufferSize":1000,"wsHeartbeatIntervalSeconds":30,"wsHeartbeatTimeoutSeconds":10,"zeroTrustVisibility":false},"connections":{"authJwtAlgorithm":"HS256","authJwtSecretKey":"change-me","authMfaEncryptionKey":"","clickhouseDatabase":"default","clickhouseHost":"musematic-clickhouse.platform.svc.cluster.local","clickhousePassword":"","clickhousePort":8123,"clickhouseUser":"default","grpcReasoningEngine":"reasoning-engine.platform.svc.cluster.local:50052","grpcRuntimeController":"musematic-runtime-controller.platform.svc.cluster.local:50051","grpcSandboxManager":"sandbox-manager.platform.svc.cluster.local:50053","grpcSimulationController":"musematic-simulation-controller.platform.svc.cluster.local:50055","kafkaBrokers":"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092","neo4jPassword":"neo4j","neo4jUri":"bolt://musematic-neo4j.platform.svc.cluster.local:7687","neo4jUser":"neo4j","opensearchHosts":"http://musematic-opensearch.platform.svc.cluster.local:9200","opensearchPassword":"admin","opensearchUsername":"admin","platformStaffPostgresDsn":"","postgresDsn":"postgresql+asyncpg://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic","qdrantGrpcPort":6334,"qdrantHost":"musematic-qdrant.platform.svc.cluster.local","qdrantPort":6333,"redisTestMode":"cluster","redisUrl":"redis://:change-me@musematic-redis.platform.svc.cluster.local:6379","s3AccessKey":"platform","s3BucketPrefix":"platform","s3EndpointUrl":"http://musematic-minio.platform-data.svc.cluster.local:9000","s3Provider":"generic","s3Region":"us-east-1","s3SecretKey":"change-me","s3UsePathStyle":true},"enabled":true,"image":{"pullPolicy":"IfNotPresent","repository":"ghcr.io/musematic/control-plane","tag":"latest"},"migration":{"backoffLimit":3,"enabled":true},"oauth":{"github":{"allowedOrgs":[],"clientId":"","clientSecretRef":{"key":"client-secret","name":""},"clientSecretVaultPath":"","defaultRole":"member","enabled":false,"forceUpdate":false,"redirectUri":"","requireMfa":false,"teamRoleMappings":{}},"google":{"allowedDomains":[],"clientId":"","clientSecretRef":{"key":"client-secret","name":""},"clientSecretVaultPath":"","defaultRole":"member","enabled":false,"forceUpdate":false,"groupRoleMappings":{},"redirectUri":"","requireMfa":false}},"privacy":{"clickhousePiiTables":["execution_metrics","agent_performance","token_usage"],"dlpEnabled":false,"dsrEnabled":false,"residencyEnforcementEnabled":false},"scheduler":{"enabled":true,"replicaCount":1},"serviceAccount":{"annotations":{},"create":true,"name":"musematic-control-plane"},"tenancy":{"cacheTtlSeconds":60,"enforcementLevel":"lenient"},"vault":{"addr":"http://musematic-vault.platform-security.svc.cluster.local:8200","approle":{"roleId":"","secretIdSecretRef":""},"authMethod":"kubernetes","caCertSecretRef":"","cache":{"maxStalenessSeconds":300,"ttlSeconds":60},"kubernetes":{"role":"musematic-platform","serviceAccountTokenPath":"/var/run/secrets/tokens/vault-token"},"kvMount":"secret","kvPrefix":"musematic/{environment}","leaseRenewalThreshold":0.5,"mode":"vault","namespace":"","retry":{"attempts":3,"timeoutSeconds":10},"token":""},"worker":{"enabled":true,"replicaCount":1},"wsHub":{"enabled":true,"replicaCount":1,"service":{"nodePort":null,"port":8001,"type":"ClusterIP"}}}</code></td>
 <td>Configures <code>controlPlane</code> for the platform chart.</td>
 </tr>
 <tr>
@@ -11310,7 +11334,7 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>controlPlane.connections</td>
 <td>object</td>
-<td><code>{"authJwtAlgorithm":"HS256","authJwtSecretKey":"change-me","authMfaEncryptionKey":"","clickhouseDatabase":"default","clickhouseHost":"musematic-clickhouse.platform.svc.cluster.local","clickhousePassword":"","clickhousePort":8123,"clickhouseUser":"default","grpcReasoningEngine":"reasoning-engine.platform.svc.cluster.local:50052","grpcRuntimeController":"musematic-runtime-controller.platform.svc.cluster.local:50051","grpcSandboxManager":"sandbox-manager.platform.svc.cluster.local:50053","grpcSimulationController":"musematic-simulation-controller.platform.svc.cluster.local:50055","kafkaBrokers":"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092","neo4jPassword":"neo4j","neo4jUri":"bolt://musematic-neo4j.platform.svc.cluster.local:7687","neo4jUser":"neo4j","opensearchHosts":"http://musematic-opensearch.platform.svc.cluster.local:9200","opensearchPassword":"admin","opensearchUsername":"admin","postgresDsn":"postgresql+asyncpg://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic","qdrantGrpcPort":6334,"qdrantHost":"musematic-qdrant.platform.svc.cluster.local","qdrantPort":6333,"redisTestMode":"cluster","redisUrl":"redis://:change-me@musematic-redis.platform.svc.cluster.local:6379","s3AccessKey":"platform","s3BucketPrefix":"platform","s3EndpointUrl":"http://musematic-minio.platform-data.svc.cluster.local:9000","s3Provider":"generic","s3Region":"us-east-1","s3SecretKey":"change-me","s3UsePathStyle":true}</code></td>
+<td><code>{"authJwtAlgorithm":"HS256","authJwtSecretKey":"change-me","authMfaEncryptionKey":"","clickhouseDatabase":"default","clickhouseHost":"musematic-clickhouse.platform.svc.cluster.local","clickhousePassword":"","clickhousePort":8123,"clickhouseUser":"default","grpcReasoningEngine":"reasoning-engine.platform.svc.cluster.local:50052","grpcRuntimeController":"musematic-runtime-controller.platform.svc.cluster.local:50051","grpcSandboxManager":"sandbox-manager.platform.svc.cluster.local:50053","grpcSimulationController":"musematic-simulation-controller.platform.svc.cluster.local:50055","kafkaBrokers":"musematic-kafka-kafka-bootstrap.platform-data.svc.cluster.local:9092","neo4jPassword":"neo4j","neo4jUri":"bolt://musematic-neo4j.platform.svc.cluster.local:7687","neo4jUser":"neo4j","opensearchHosts":"http://musematic-opensearch.platform.svc.cluster.local:9200","opensearchPassword":"admin","opensearchUsername":"admin","platformStaffPostgresDsn":"","postgresDsn":"postgresql+asyncpg://musematic:change-me@musematic-postgres-rw.platform-data.svc.cluster.local:5432/musematic","qdrantGrpcPort":6334,"qdrantHost":"musematic-qdrant.platform.svc.cluster.local","qdrantPort":6333,"redisTestMode":"cluster","redisUrl":"redis://:change-me@musematic-redis.platform.svc.cluster.local:6379","s3AccessKey":"platform","s3BucketPrefix":"platform","s3EndpointUrl":"http://musematic-minio.platform-data.svc.cluster.local:9000","s3Provider":"generic","s3Region":"us-east-1","s3SecretKey":"change-me","s3UsePathStyle":true}</code></td>
 <td>Configures <code>controlPlane.connections</code> for the platform chart.</td>
 </tr>
 <tr>
@@ -11426,6 +11450,12 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>string</td>
 <td><code>"admin"</code></td>
 <td>Configures <code>controlPlane.connections.opensearchUsername</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.connections.platformStaffPostgresDsn</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>controlPlane.connections.platformStaffPostgresDsn</code> for the platform chart.</td>
 </tr>
 <tr>
 <td>controlPlane.connections.postgresDsn</td>
@@ -11786,6 +11816,24 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>string</td>
 <td><code>"musematic-control-plane"</code></td>
 <td>Configures <code>controlPlane.serviceAccount.name</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.tenancy</td>
+<td>object</td>
+<td><code>{"cacheTtlSeconds":60,"enforcementLevel":"lenient"}</code></td>
+<td>Configures <code>controlPlane.tenancy</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.tenancy.cacheTtlSeconds</td>
+<td>int</td>
+<td><code>60</code></td>
+<td>Configures <code>controlPlane.tenancy.cacheTtlSeconds</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>controlPlane.tenancy.enforcementLevel</td>
+<td>string</td>
+<td><code>"lenient"</code></td>
+<td>Configures <code>controlPlane.tenancy.enforcementLevel</code> for the platform chart.</td>
 </tr>
 <tr>
 <td>controlPlane.vault</td>
@@ -12660,8 +12708,20 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>postgresql</td>
 <td>object</td>
-<td><code>{"createNamespace":false,"credentials":{"database":"musematic","password":"change-me","username":"musematic"},"enabled":true,"environment":"production"}</code></td>
+<td><code>{"bootstrap":{"postInitSQL":[]},"createNamespace":false,"credentials":{"database":"musematic","password":"change-me","username":"musematic"},"enabled":true,"environment":"production"}</code></td>
 <td>Configures <code>postgresql</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>postgresql.bootstrap</td>
+<td>object</td>
+<td><code>{"postInitSQL":[]}</code></td>
+<td>Configures <code>postgresql.bootstrap</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>postgresql.bootstrap.postInitSQL</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Configures <code>postgresql.bootstrap.postInitSQL</code> for the platform chart.</td>
 </tr>
 <tr>
 <td>postgresql.createNamespace</td>
@@ -13150,6 +13210,42 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>Configures <code>superadmin.username</code> for the platform chart.</td>
 </tr>
 <tr>
+<td>tenancy</td>
+<td>object</td>
+<td><code>{"cacheTtlSeconds":60,"defaultTenantSlug":"default","defaultTenantSubdomain":"app","hostnameMiddlewareEnabled":true,"reservedSlugs":["api","grafana","status","www","admin","platform","webhooks","public","docs","help"]}</code></td>
+<td>Configures tenant hostname resolution and default tenant bootstrap values.</td>
+</tr>
+<tr>
+<td>tenancy.cacheTtlSeconds</td>
+<td>int</td>
+<td><code>60</code></td>
+<td>Configures <code>tenancy.cacheTtlSeconds</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>tenancy.defaultTenantSlug</td>
+<td>string</td>
+<td><code>"default"</code></td>
+<td>Configures <code>tenancy.defaultTenantSlug</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>tenancy.defaultTenantSubdomain</td>
+<td>string</td>
+<td><code>"app"</code></td>
+<td>Configures <code>tenancy.defaultTenantSubdomain</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>tenancy.hostnameMiddlewareEnabled</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Configures <code>tenancy.hostnameMiddlewareEnabled</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>tenancy.reservedSlugs</td>
+<td>list</td>
+<td><code>["api","grafana","status","www","admin","platform","webhooks","public","docs","help"]</code></td>
+<td>Configures <code>tenancy.reservedSlugs</code> for the platform chart.</td>
+</tr>
+<tr>
 <td>tenantMode</td>
 <td>string</td>
 <td><code>"single"</code></td>
@@ -13371,6 +13467,18 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>bootstrap</td>
+<td>object</td>
+<td><code>{"postInitSQL":[]}</code></td>
+<td>Configures optional CloudNativePG initdb bootstrap SQL.</td>
+</tr>
+<tr>
+<td>bootstrap.postInitSQL</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Configures <code>bootstrap.postInitSQL</code> for the postgresql chart.</td>
+</tr>
 <tr>
 <td>createNamespace</td>
 <td>bool</td>

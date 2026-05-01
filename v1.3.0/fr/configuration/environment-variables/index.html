@@ -6820,6 +6820,14 @@
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
+<td><code>POSTGRES_PLATFORM_STAFF_DSN</code></td>
+<td>optional</td>
+<td><code>""</code></td>
+<td>configuration</td>
+<td>Configures <code>platform_staff_dsn</code> for Database.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
 <td><code>POSTGRES_POOL_SIZE</code></td>
 <td>optional</td>
 <td><code>20</code></td>
@@ -9245,6 +9253,14 @@
 </thead>
 <tbody>
 <tr>
+<td><code>AAAA</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/tenants/dns_automation.py</code></td>
+</tr>
+<tr>
 <td><code>AB_EXPERIMENT_NOT_FOUND</code></td>
 <td>optional</td>
 <td>-</td>
@@ -11003,6 +11019,22 @@
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
 <td><code>apps/control-plane/src/platform/admin/read_only_middleware.py</code><br><code>apps/control-plane/src/platform/localization/tooling/drift_check.py</code></td>
+</tr>
+<tr>
+<td><code>HETZNER_DNS_API_TOKEN</code></td>
+<td>optional</td>
+<td>-</td>
+<td>sensitive</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/tenants/dns_automation.py</code></td>
+</tr>
+<tr>
+<td><code>HETZNER_DNS_ZONE_ID</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/tenants/dns_automation.py</code></td>
 </tr>
 <tr>
 <td><code>HIGH</code></td>
@@ -13301,6 +13333,22 @@
 <td><code>apps/control-plane/src/platform/execution/service.py</code></td>
 </tr>
 <tr>
+<td><code>TENANT_DNS_IPV4_ADDRESS</code></td>
+<td>optional</td>
+<td>-</td>
+<td>configuration</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/tenants/dns_automation.py</code></td>
+</tr>
+<tr>
+<td><code>TENANT_DNS_IPV6_ADDRESS</code></td>
+<td>optional</td>
+<td>-</td>
+<td>configuration</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/tenants/dns_automation.py</code></td>
+</tr>
+<tr>
 <td><code>TENANT_MODE_DOWNGRADE_BLOCKED</code></td>
 <td>optional</td>
 <td>-</td>
@@ -13661,6 +13709,22 @@
 <td><code>apps/control-plane/src/platform/trust/exceptions.py</code></td>
 </tr>
 <tr>
+<td><code>TWO_PERSON_APPROVAL_ACTION_MISMATCH</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/tenants/service.py</code></td>
+</tr>
+<tr>
+<td><code>TWO_PERSON_APPROVAL_ACTOR_REQUIRED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/tenants/service.py</code></td>
+</tr>
+<tr>
 <td><code>TWO_PERSON_APPROVAL_EXPIRED</code></td>
 <td>optional</td>
 <td>-</td>
@@ -13715,6 +13779,14 @@
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
 <td><code>apps/control-plane/src/platform/two_person_approval/service.py</code></td>
+</tr>
+<tr>
+<td><code>TWO_PERSON_APPROVAL_TENANT_MISMATCH</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/tenants/service.py</code></td>
 </tr>
 <tr>
 <td><code>TWO_PERSON_APPROVAL_UNAVAILABLE</code></td>
@@ -13882,7 +13954,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/admin/security_scheduler.py</code><br><code>apps/control-plane/src/platform/cost_governance/jobs/anomaly_job.py</code><br><code>apps/control-plane/src/platform/cost_governance/jobs/forecast_job.py</code><br><code>apps/control-plane/src/platform/incident_response/jobs/delivery_retry_scanner.py</code><br><code>apps/control-plane/src/platform/incident_response/jobs/runbook_freshness_scanner.py</code><br>+13 more</td>
+<td><code>apps/control-plane/src/platform/admin/security_scheduler.py</code><br><code>apps/control-plane/src/platform/cost_governance/jobs/anomaly_job.py</code><br><code>apps/control-plane/src/platform/cost_governance/jobs/forecast_job.py</code><br><code>apps/control-plane/src/platform/incident_response/jobs/delivery_retry_scanner.py</code><br><code>apps/control-plane/src/platform/incident_response/jobs/runbook_freshness_scanner.py</code><br>+14 more</td>
 </tr>
 <tr>
 <td><code>VAULT_</code></td>
@@ -14436,6 +14508,14 @@
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
+<td><code>PLATFORM_DOMAIN</code></td>
+<td>optional</td>
+<td><code>musematic.ai</code></td>
+<td>configuration</td>
+<td>Canonical root domain used by hostname tenant resolution.</td>
+<td><code>apps/control-plane/src/platform/auth/router_oauth.py</code><br><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
 <td><code>PLATFORM_FEATURE_COST_HARD_CAPS</code></td>
 <td>optional</td>
 <td><code>false</code></td>
@@ -14506,6 +14586,62 @@
 <td>configuration</td>
 <td>Configures <code>profile</code> for Platform.</td>
 <td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/control-plane/templates/api-deployment.yaml</code><br><code>deploy/helm/control-plane/templates/scheduler-deployment.yaml</code><br><code>deploy/helm/control-plane/templates/worker-deployment.yaml</code><br><code>deploy/helm/control-plane/templates/ws-hub-deployment.yaml</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_TENANT_DELETION_GRACE_HOURS</code></td>
+<td>optional</td>
+<td><code>72</code></td>
+<td>informational</td>
+<td>Grace period in hours before pending-deletion tenants are cascaded.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_TENANT_ENFORCEMENT_LEVEL</code></td>
+<td>optional</td>
+<td><code>lenient</code></td>
+<td>informational</td>
+<td>Tenant rollout enforcement level: lenient keeps compatibility telemetry, strict rejects mismatches without fallbacks.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_TENANT_MIGRATION_ROLLBACK_WINDOW_HOURS</code></td>
+<td>optional</td>
+<td><code>24</code></td>
+<td>informational</td>
+<td>Operator rollback window in hours for tenant migration rollout.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_TENANT_RESOLVER_CACHE_TTL_SECONDS</code></td>
+<td>optional</td>
+<td><code>60</code></td>
+<td>informational</td>
+<td>TTL in seconds for tenant hostname resolver process and Redis caches.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>TENANT_DELETION_GRACE_HOURS</code></td>
+<td>optional</td>
+<td><code>72</code></td>
+<td>informational</td>
+<td>Grace period in hours before pending-deletion tenants are cascaded.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>TENANT_MIGRATION_ROLLBACK_WINDOW_HOURS</code></td>
+<td>optional</td>
+<td><code>24</code></td>
+<td>informational</td>
+<td>Operator rollback window in hours for tenant migration rollout.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>TENANT_RESOLVER_CACHE_TTL_SECONDS</code></td>
+<td>optional</td>
+<td><code>60</code></td>
+<td>informational</td>
+<td>TTL in seconds for tenant hostname resolver process and Redis caches.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 </tbody>
 </table>
