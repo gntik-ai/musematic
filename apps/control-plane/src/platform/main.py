@@ -80,6 +80,7 @@ from platform.common.logging import configure_logging, get_logger
 from platform.common.middleware.api_versioning_middleware import ApiVersioningMiddleware
 from platform.common.middleware.correlation_logging_middleware import CorrelationLoggingMiddleware
 from platform.common.middleware.rate_limit_middleware import RateLimitMiddleware
+from platform.common.middleware.tenant_resolver import TenantResolverMiddleware
 from platform.common.secret_provider import (
     KubernetesSecretProvider,
     MockSecretProvider,
@@ -250,6 +251,9 @@ from platform.testing.dependencies import build_drift_service
 from platform.testing.events import register_testing_event_types
 from platform.testing.router_e2e import router as testing_e2e_router
 from platform.testing.router_e2e_contract import router as e2e_contract_router
+from platform.tenants.events import register_tenant_event_types
+from platform.tenants.router import router as tenants_router
+from platform.tenants.seeder import provision_default_tenant_if_missing
 from platform.trust.contract_monitor import ContractMonitorConsumer
 from platform.trust.dependencies import (
     build_ate_service,
@@ -519,6 +523,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_multi_region_ops_event_types()
     register_localization_event_types()
     register_admin_event_types()
+    register_tenant_event_types()
     register_incident_trigger(AppIncidentTrigger(app))
 
     for name, client in app.state.clients.items():
@@ -532,6 +537,14 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             LOGGER.warning("Failed to connect %s during startup: %s", name, exc)
 
     app.state.startup_errors = startup_errors
+    try:
+        async with database.AsyncSessionLocal() as session:
+            await provision_default_tenant_if_missing(session)
+    except Exception as exc:
+        app.state.degraded = True
+        startup_errors["tenant_default_seed"] = str(exc)
+        LOGGER.warning("Failed to provision default tenant during startup: %s", exc)
+
     if os.getenv("PLATFORM_SUPERADMIN_USERNAME"):
         try:
             await bootstrap_superadmin_from_env(
@@ -1466,6 +1479,9 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         platform_exception_handler,
     )
     app.add_exception_handler(PlatformError, exception_handler)
+    # Starlette executes middleware in reverse registration order. TenantResolverMiddleware
+    # is added last so hostname tenant resolution runs before auth, maintenance, rate limits,
+    # debug capture, API versioning, and correlation middleware.
     app.add_middleware(ApiVersioningMiddleware)
     app.add_middleware(DebugCaptureMiddleware)
     app.add_middleware(RateLimitMiddleware)
@@ -1474,6 +1490,12 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.add_middleware(AuthMiddleware)
     app.add_middleware(CorrelationLoggingMiddleware)
     app.add_middleware(CorrelationMiddleware)
+    app.add_middleware(
+        TenantResolverMiddleware,
+        settings=resolved,
+        session_factory=database.AsyncSessionLocal,
+        redis_client=cast(AsyncRedisClient | None, app.state.clients.get("redis")),
+    )
     app.include_router(health_router)
     consumer_manager = app.state.clients.get("kafka_consumer")
     if isinstance(consumer_manager, EventConsumerManager):
@@ -1665,6 +1687,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(interactions_router)
         app.include_router(notifications_router, prefix="/api/v1")
         app.include_router(me_router, prefix="/api/v1")
+        app.include_router(tenants_router)
         app.include_router(notifications_webhooks_router, prefix="/api/v1")
         app.include_router(notifications_deadletter_router, prefix="/api/v1")
         app.include_router(governance_router, prefix="/api/v1")

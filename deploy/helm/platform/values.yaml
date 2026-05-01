@@ -83,6 +83,30 @@ platformInstanceName: "Musematic Platform"
 # -- Configures `tenantMode` for the platform chart.
 tenantMode: single
 
+# @section -- Tenancy
+# -- Configures tenant hostname resolution and default tenant bootstrap values.
+tenancy:
+  # -- Configures `tenancy.defaultTenantSlug` for the platform chart.
+  defaultTenantSlug: default
+  # -- Configures `tenancy.defaultTenantSubdomain` for the platform chart.
+  defaultTenantSubdomain: app
+  # -- Configures `tenancy.reservedSlugs` for the platform chart.
+  reservedSlugs:
+    - api
+    - grafana
+    - status
+    - www
+    - admin
+    - platform
+    - webhooks
+    - public
+    - docs
+    - help
+  # -- Configures `tenancy.cacheTtlSeconds` for the platform chart.
+  cacheTtlSeconds: 60
+  # -- Configures `tenancy.hostnameMiddlewareEnabled` for the platform chart.
+  hostnameMiddlewareEnabled: true
+
 # @section -- Platformdatanamespace
 # -- Configures `platformDataNamespace` for the platform chart.
 platformDataNamespace:
