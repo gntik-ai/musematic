@@ -8,11 +8,18 @@ ROOT = Path(__file__).resolve().parents[4]
 SRC = ROOT / "apps/control-plane/src/platform"
 CATALOG = SRC / "tenants/table_catalog.py"
 RLS_MIGRATION = ROOT / "apps/control-plane/migrations/versions/100_tenant_rls_policies.py"
+MIGRATION_CATALOG = ROOT / "apps/control-plane/migrations/tenant_table_catalog_snapshot.py"
 
 
 def main() -> int:
     _assert_rls_migration_uses_catalog()
     catalog_tables = _tenant_catalog_tables()
+    migration_tables = _tenant_catalog_tables(MIGRATION_CATALOG)
+    if migration_tables != catalog_tables:
+        print("Tenant migration catalog snapshot diverges from TENANT_SCOPED_TABLES")
+        print(f"  missing from migration: {sorted(catalog_tables - migration_tables)}")
+        print(f"  extra in migration: {sorted(migration_tables - catalog_tables)}")
+        return 1
     model_tables = _tenant_model_tables()
     missing = sorted(model_tables - catalog_tables)
     if missing:
@@ -27,7 +34,7 @@ def main() -> int:
 def _assert_rls_migration_uses_catalog() -> None:
     text = RLS_MIGRATION.read_text(encoding="utf-8")
     required = [
-        "from platform.tenants.table_catalog import TENANT_SCOPED_TABLES",
+        "from migrations.tenant_table_catalog_snapshot import TENANT_SCOPED_TABLES",
         "CREATE POLICY tenant_isolation",
         "ENABLE ROW LEVEL SECURITY",
         "FORCE ROW LEVEL SECURITY",
@@ -39,8 +46,8 @@ def _assert_rls_migration_uses_catalog() -> None:
         )
 
 
-def _tenant_catalog_tables() -> set[str]:
-    module = ast.parse(CATALOG.read_text(encoding="utf-8"), filename=str(CATALOG))
+def _tenant_catalog_tables(path: Path = CATALOG) -> set[str]:
+    module = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     for statement in module.body:
         if isinstance(statement, ast.Assign):
             for target in statement.targets:

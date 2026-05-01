@@ -91,13 +91,13 @@ def configure_database(settings: PlatformSettings | DatabaseSettings) -> None:
 
 
 async def database_health_check() -> bool:
-    async with regular_engine.connect() as connection:
+    async with engine.connect() as connection:
         await connection.execute(text("SELECT 1"))
     return True
 
 
 async def get_session() -> AsyncIterator[AsyncSession]:
-    async with RegularAsyncSessionLocal() as session:
+    async with AsyncSessionLocal() as session:
         yield session
 
 
@@ -107,7 +107,7 @@ async def get_platform_staff_session() -> AsyncIterator[AsyncSession]:
 
 
 async def get_async_session() -> AsyncIterator[AsyncSession]:
-    async with RegularAsyncSessionLocal() as session:
+    async with AsyncSessionLocal() as session:
         yield session
 
 
@@ -123,8 +123,11 @@ def _platform_staff_dsn(dsn: str) -> str:
 
 
 def _install_tenant_binding_listener(target_engine: AsyncEngine) -> None:
+    sync_engine = getattr(target_engine, "sync_engine", None)
+    if sync_engine is None:
+        return
     event.listen(
-        target_engine.sync_engine,
+        sync_engine,
         "before_cursor_execute",
         _bind_tenant_id,
     )

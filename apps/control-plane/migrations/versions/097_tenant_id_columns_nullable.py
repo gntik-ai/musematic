@@ -8,10 +8,10 @@ Create Date: 2026-05-01
 from __future__ import annotations
 
 from collections.abc import Sequence
-from platform.tenants.table_catalog import TENANT_SCOPED_TABLES
 
 import sqlalchemy as sa
 from alembic import op
+from migrations.tenant_table_catalog_snapshot import TENANT_SCOPED_TABLES
 
 revision: str = "097_tenant_id_columns_nullable"
 down_revision: str | None = "096_tenant_table_and_seed"

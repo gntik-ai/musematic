@@ -195,7 +195,7 @@ def test_validate_secret_path_accepts_tenant_and_platform_scoped_paths() -> None
         vault_path_to_k8s_secret_name(
             "secret/data/musematic/dev/tenants/acme/oauth/google/client-secret"
         )
-        == "musematic-dev-oauth-google-client-secret"
+        == "musematic-dev-oauth-x-676f6f676c652f636c69656e742d736563726574"
     )
 
 

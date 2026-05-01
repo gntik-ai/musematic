@@ -63,8 +63,20 @@ def migration_reserved_slugs(expected: set[str]) -> set[str]:
         if slugs:
             return slugs
 
+    module = ast.parse(text, filename=str(migration_source))
+    for statement in module.body:
+        if isinstance(statement, ast.Assign):
+            for target in statement.targets:
+                if isinstance(target, ast.Name) and target.id == "RESERVED_SLUGS":
+                    return literal_strings(statement.value)
+        if isinstance(statement, ast.AnnAssign):
+            target = statement.target
+            if isinstance(target, ast.Name) and target.id == "RESERVED_SLUGS":
+                if statement.value is None:
+                    break
+                return literal_strings(statement.value)
+
     required_snippets = [
-        "from platform.tenants.reserved_slugs import RESERVED_SLUGS",
         "sorted(RESERVED_SLUGS)",
         "tenants_reserved_slug_check",
         "NEW.slug = ANY",

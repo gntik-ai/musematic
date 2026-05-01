@@ -68,6 +68,7 @@ class AuditChainService:
         await self.repository.acquire_append_lock()
         latest = await self.repository.get_latest_entry()
         if await self._should_append_tenant_boundary(latest, event_type):
+            assert latest is not None
             latest = await self._append_tenant_boundary(latest)
         sequence_number = await self.repository.next_sequence_number()
         previous_hash = latest.entry_hash if latest is not None else GENESIS_HASH

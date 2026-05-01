@@ -5208,6 +5208,20 @@
         "title": "Body_upload_agent_api_v1_agents_upload_post",
         "type": "object"
       },
+      "Body_upload_dpa_api_v1_admin_tenants_dpa_upload_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_dpa_api_v1_admin_tenants_dpa_upload_post",
+        "type": "object"
+      },
       "Body_upload_manual_evidence_api_v1_security_compliance_evidence_manual_post": {
         "properties": {
           "control_id": {
@@ -13588,6 +13602,19 @@
         "title": "DismissSuspensionRequest",
         "type": "object"
       },
+      "DpaUploadResponse": {
+        "properties": {
+          "dpa_artifact_id": {
+            "title": "Dpa Artifact Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "dpa_artifact_id"
+        ],
+        "title": "DpaUploadResponse",
+        "type": "object"
+      },
       "EdgeEntry": {
         "properties": {
           "similarity": {
@@ -17718,6 +17745,46 @@
           }
         },
         "title": "FleetUpdate",
+        "type": "object"
+      },
+      "ForceCascadeDeletionRequest": {
+        "properties": {
+          "incident_mode": {
+            "title": "Incident Mode",
+            "type": "boolean"
+          },
+          "two_pa_token": {
+            "minLength": 1,
+            "title": "Two Pa Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "two_pa_token",
+          "incident_mode"
+        ],
+        "title": "ForceCascadeDeletionRequest",
+        "type": "object"
+      },
+      "ForceCascadeDeletionResponse": {
+        "properties": {
+          "row_count_digest": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Row Count Digest",
+            "type": "object"
+          },
+          "tenant_id": {
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "row_count_digest"
+        ],
+        "title": "ForceCascadeDeletionResponse",
         "type": "object"
       },
       "ForecastPoint": {
@@ -27985,6 +28052,37 @@
         "title": "PlatformStatusSnapshotRead",
         "type": "object"
       },
+      "PlatformWorkspaceResponse": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "owner_id": {
+            "format": "uuid",
+            "title": "Owner Id",
+            "type": "string"
+          },
+          "tenant_id": {
+            "format": "uuid",
+            "title": "Tenant Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tenant_id",
+          "name",
+          "owner_id"
+        ],
+        "title": "PlatformWorkspaceResponse",
+        "type": "object"
+      },
       "PolicyAttachRequest": {
         "additionalProperties": false,
         "properties": {
@@ -36081,30 +36179,534 @@
         "title": "TaskPlanRecordResponse",
         "type": "object"
       },
-      "TenantModeResponse": {
+      "TenantAdminView": {
         "properties": {
-          "blocking_tenant_ids": {
-            "default": [],
-            "items": {
-              "type": "string"
-            },
-            "title": "Blocking Tenant Ids",
-            "type": "array"
+          "active_workspace_count": {
+            "default": 0,
+            "title": "Active Workspace Count",
+            "type": "integer"
           },
-          "previous_mode": {
-            "title": "Previous Mode",
+          "branding": {
+            "$ref": "#/components/schemas/TenantBranding"
+          },
+          "contract_metadata": {
+            "additionalProperties": true,
+            "title": "Contract Metadata",
+            "type": "object"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
             "type": "string"
           },
-          "tenant_mode": {
-            "title": "Tenant Mode",
+          "data_isolation_mode": {
+            "default": "pool",
+            "enum": [
+              "pool",
+              "silo"
+            ],
+            "title": "Data Isolation Mode",
+            "type": "string"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "dpa_artifact_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dpa Artifact Sha256"
+          },
+          "dpa_artifact_uri": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dpa Artifact Uri"
+          },
+          "dpa_signed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dpa Signed At"
+          },
+          "dpa_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dpa Version"
+          },
+          "feature_flags": {
+            "additionalProperties": true,
+            "title": "Feature Flags",
+            "type": "object"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "default",
+              "enterprise"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "member_count": {
+            "default": 0,
+            "title": "Member Count",
+            "type": "integer"
+          },
+          "region": {
+            "title": "Region",
+            "type": "string"
+          },
+          "scheduled_deletion_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scheduled Deletion At"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "suspended",
+              "pending_deletion"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "subdomain": {
+            "title": "Subdomain",
+            "type": "string"
+          },
+          "subscription_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subscription Id"
+          },
+          "subscription_summary": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subscription Summary"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "kind",
+          "subdomain",
+          "status",
+          "region",
+          "display_name",
+          "created_at"
+        ],
+        "title": "TenantAdminView",
+        "type": "object"
+      },
+      "TenantBranding": {
+        "additionalProperties": true,
+        "properties": {
+          "accent_color_hex": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accent Color Hex"
+          },
+          "display_name_override": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name Override"
+          },
+          "favicon_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Favicon Url"
+          },
+          "logo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Logo Url"
+          },
+          "support_email": {
+            "anyOf": [
+              {
+                "format": "email",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Support Email"
+          }
+        },
+        "title": "TenantBranding",
+        "type": "object"
+      },
+      "TenantCreate": {
+        "properties": {
+          "branding_config": {
+            "$ref": "#/components/schemas/TenantBranding"
+          },
+          "contract_metadata": {
+            "additionalProperties": true,
+            "title": "Contract Metadata",
+            "type": "object"
+          },
+          "display_name": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Display Name",
+            "type": "string"
+          },
+          "dpa_artifact_id": {
+            "minLength": 1,
+            "title": "Dpa Artifact Id",
+            "type": "string"
+          },
+          "dpa_version": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Dpa Version",
+            "type": "string"
+          },
+          "first_admin_email": {
+            "format": "email",
+            "title": "First Admin Email",
+            "type": "string"
+          },
+          "region": {
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Region",
+            "type": "string"
+          },
+          "slug": {
+            "maxLength": 32,
+            "minLength": 2,
+            "title": "Slug",
             "type": "string"
           }
         },
         "required": [
-          "previous_mode",
-          "tenant_mode"
+          "slug",
+          "display_name",
+          "region",
+          "first_admin_email",
+          "dpa_artifact_id",
+          "dpa_version"
         ],
-        "title": "TenantModeResponse",
+        "title": "TenantCreate",
+        "type": "object"
+      },
+      "TenantListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TenantAdminView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "TenantListResponse",
+        "type": "object"
+      },
+      "TenantProvisionResponse": {
+        "properties": {
+          "dns_records_pending": {
+            "default": true,
+            "title": "Dns Records Pending",
+            "type": "boolean"
+          },
+          "first_admin_invite_sent_to": {
+            "format": "email",
+            "title": "First Admin Invite Sent To",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "default",
+              "enterprise"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "suspended",
+              "pending_deletion"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "subdomain": {
+            "title": "Subdomain",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "subdomain",
+          "kind",
+          "status",
+          "first_admin_invite_sent_to"
+        ],
+        "title": "TenantProvisionResponse",
+        "type": "object"
+      },
+      "TenantPublic": {
+        "properties": {
+          "branding": {
+            "$ref": "#/components/schemas/TenantBranding"
+          },
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "default",
+              "enterprise"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "region": {
+            "title": "Region",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "active",
+              "suspended",
+              "pending_deletion"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "subdomain": {
+            "title": "Subdomain",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "kind",
+          "subdomain",
+          "status",
+          "region",
+          "display_name"
+        ],
+        "title": "TenantPublic",
+        "type": "object"
+      },
+      "TenantScheduleDeletion": {
+        "properties": {
+          "reason": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "two_pa_token": {
+            "minLength": 1,
+            "title": "Two Pa Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason",
+          "two_pa_token"
+        ],
+        "title": "TenantScheduleDeletion",
+        "type": "object"
+      },
+      "TenantSuspend": {
+        "properties": {
+          "reason": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "TenantSuspend",
+        "type": "object"
+      },
+      "TenantUpdate": {
+        "properties": {
+          "branding_config": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TenantBranding"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contract_metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contract Metadata"
+          },
+          "display_name": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Display Name"
+          },
+          "feature_flags": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Feature Flags"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxLength": 32,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          }
+        },
+        "title": "TenantUpdate",
         "type": "object"
       },
       "TestConnectionResponse": {
@@ -56376,177 +56978,89 @@
         ]
       }
     },
-    "/api/v1/admin/tenant-mode/downgrade-to-single": {
-      "post": {
-        "operationId": "downgrade_to_single_api_v1_admin_tenant_mode_downgrade_to_single_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "X-Two-Person-Auth-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Two-Person-Auth-Token"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TenantModeResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "session": []
-          },
-          {
-            "oauth2": []
-          },
-          {
-            "apiKey": []
-          }
-        ],
-        "summary": "Downgrade To Single",
-        "tags": [
-          "admin",
-          "tenant-mode"
-        ],
-        "x-codeSamples": [
-          {
-            "lang": "Python",
-            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/tenant-mode/downgrade-to-single\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
-          },
-          {
-            "lang": "Go",
-            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/tenant-mode/downgrade-to-single\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
-          },
-          {
-            "lang": "TypeScript",
-            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/tenant-mode/downgrade-to-single`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
-          },
-          {
-            "lang": "curl",
-            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/tenant-mode/downgrade-to-single\" -H \"Authorization: Bearer $TOKEN\""
-          }
-        ]
-      }
-    },
-    "/api/v1/admin/tenant-mode/upgrade-to-multi": {
-      "post": {
-        "operationId": "upgrade_to_multi_api_v1_admin_tenant_mode_upgrade_to_multi_post",
-        "parameters": [
-          {
-            "in": "header",
-            "name": "X-Two-Person-Auth-Token",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "X-Two-Person-Auth-Token"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TenantModeResponse"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "security": [
-          {
-            "session": []
-          },
-          {
-            "oauth2": []
-          },
-          {
-            "apiKey": []
-          }
-        ],
-        "summary": "Upgrade To Multi",
-        "tags": [
-          "admin",
-          "tenant-mode"
-        ],
-        "x-codeSamples": [
-          {
-            "lang": "Python",
-            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/tenant-mode/upgrade-to-multi\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
-          },
-          {
-            "lang": "Go",
-            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/tenant-mode/upgrade-to-multi\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
-          },
-          {
-            "lang": "TypeScript",
-            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/tenant-mode/upgrade-to-multi`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
-          },
-          {
-            "lang": "curl",
-            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/tenant-mode/upgrade-to-multi\" -H \"Authorization: Bearer $TOKEN\""
-          }
-        ]
-      }
-    },
     "/api/v1/admin/tenants": {
       "get": {
         "operationId": "list_tenants_api_v1_admin_tenants_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Kind"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminListResponse"
+                  "$ref": "#/components/schemas/TenantListResponse"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "security": [
@@ -56563,7 +57077,7 @@
         "summary": "List Tenants",
         "tags": [
           "admin",
-          "workspaces"
+          "admin.tenants"
         ],
         "x-codeSamples": [
           {
@@ -56585,75 +57099,23 @@
         ]
       },
       "post": {
-        "operationId": "create_tenant_api_v1_admin_tenants_post",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AdminActionResponse"
-                }
+        "operationId": "provision_tenant_api_v1_admin_tenants_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantCreate"
               }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "security": [
-          {
-            "session": []
-          },
-          {
-            "oauth2": []
-          },
-          {
-            "apiKey": []
-          }
-        ],
-        "summary": "Create Tenant",
-        "tags": [
-          "admin",
-          "workspaces"
-        ],
-        "x-codeSamples": [
-          {
-            "lang": "Python",
-            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/tenants\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
-          },
-          {
-            "lang": "Go",
-            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/tenants\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
-          },
-          {
-            "lang": "TypeScript",
-            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/tenants`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
-          },
-          {
-            "lang": "curl",
-            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/tenants\" -H \"Authorization: Bearer $TOKEN\""
-          }
-        ]
-      }
-    },
-    "/api/v1/admin/tenants/{tenant_id}": {
-      "delete": {
-        "operationId": "delete_tenant_api_v1_admin_tenants__tenant_id__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "tenant_id",
-            "required": true,
-            "schema": {
-              "title": "Tenant Id",
-              "type": "string"
             }
-          }
-        ],
+          },
+          "required": true
+        },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminActionResponse"
+                  "$ref": "#/components/schemas/TenantProvisionResponse"
                 }
               }
             },
@@ -56681,30 +57143,103 @@
             "apiKey": []
           }
         ],
-        "summary": "Delete Tenant",
+        "summary": "Provision Tenant",
         "tags": [
           "admin",
-          "workspaces"
+          "admin.tenants"
         ],
         "x-codeSamples": [
           {
             "lang": "Python",
-            "source": "import requests\n\nresponse = requests.request(\"DELETE\", \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/tenants\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
           },
           {
             "lang": "Go",
-            "source": "req, _ := http.NewRequest(\"DELETE\", \"{baseURL}/api/v1/admin/tenants/{tenant_id}\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/tenants\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
           },
           {
             "lang": "TypeScript",
-            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/tenants/{tenant_id}`, {\n  method: \"DELETE\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/tenants`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
           },
           {
             "lang": "curl",
-            "source": "curl -X DELETE \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}\" -H \"Authorization: Bearer $TOKEN\""
+            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/tenants\" -H \"Authorization: Bearer $TOKEN\""
           }
         ]
-      },
+      }
+    },
+    "/api/v1/admin/tenants/dpa-upload": {
+      "post": {
+        "operationId": "upload_dpa_api_v1_admin_tenants_dpa_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_dpa_api_v1_admin_tenants_dpa_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DpaUploadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Upload Dpa",
+        "tags": [
+          "admin",
+          "admin.tenants"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/tenants/dpa-upload\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/tenants/dpa-upload\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/tenants/dpa-upload`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/tenants/dpa-upload\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/tenants/{tenant_id}": {
       "get": {
         "operationId": "get_tenant_api_v1_admin_tenants__tenant_id__get",
         "parameters": [
@@ -56723,7 +57258,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminDetailResponse"
+                  "$ref": "#/components/schemas/TenantAdminView"
                 }
               }
             },
@@ -56754,7 +57289,7 @@
         "summary": "Get Tenant",
         "tags": [
           "admin",
-          "workspaces"
+          "admin.tenants"
         ],
         "x-codeSamples": [
           {
@@ -56774,11 +57309,91 @@
             "source": "curl -X GET \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}\" -H \"Authorization: Bearer $TOKEN\""
           }
         ]
+      },
+      "patch": {
+        "operationId": "update_tenant_api_v1_admin_tenants__tenant_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantAdminView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Update Tenant",
+        "tags": [
+          "admin",
+          "admin.tenants"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"PATCH\", \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"PATCH\", \"{baseURL}/api/v1/admin/tenants/{tenant_id}\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/tenants/{tenant_id}`, {\n  method: \"PATCH\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X PATCH \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
       }
     },
-    "/api/v1/admin/tenants/{tenant_id}/suspend": {
+    "/api/v1/admin/tenants/{tenant_id}/cancel-deletion": {
       "post": {
-        "operationId": "suspend_tenant_api_v1_admin_tenants__tenant_id__suspend_post",
+        "operationId": "cancel_tenant_deletion_api_v1_admin_tenants__tenant_id__cancel_deletion_post",
         "parameters": [
           {
             "in": "path",
@@ -56795,7 +57410,243 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AdminActionResponse"
+                  "$ref": "#/components/schemas/TenantAdminView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Cancel Tenant Deletion",
+        "tags": [
+          "admin",
+          "admin.tenants"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/cancel-deletion\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/tenants/{tenant_id}/cancel-deletion\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/tenants/{tenant_id}/cancel-deletion`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/cancel-deletion\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/tenants/{tenant_id}/reactivate": {
+      "post": {
+        "operationId": "reactivate_tenant_api_v1_admin_tenants__tenant_id__reactivate_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantAdminView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Reactivate Tenant",
+        "tags": [
+          "admin",
+          "admin.tenants"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/reactivate\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/tenants/{tenant_id}/reactivate\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/tenants/{tenant_id}/reactivate`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/reactivate\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/tenants/{tenant_id}/schedule-deletion": {
+      "post": {
+        "operationId": "schedule_tenant_deletion_api_v1_admin_tenants__tenant_id__schedule_deletion_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantScheduleDeletion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantAdminView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Schedule Tenant Deletion",
+        "tags": [
+          "admin",
+          "admin.tenants"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/schedule-deletion\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/tenants/{tenant_id}/schedule-deletion\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/tenants/{tenant_id}/schedule-deletion`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/schedule-deletion\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/tenants/{tenant_id}/suspend": {
+      "post": {
+        "operationId": "suspend_tenant_api_v1_admin_tenants__tenant_id__suspend_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantSuspend"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantAdminView"
                 }
               }
             },
@@ -56826,7 +57677,7 @@
         "summary": "Suspend Tenant",
         "tags": [
           "admin",
-          "workspaces"
+          "admin.tenants"
         ],
         "x-codeSamples": [
           {
@@ -87065,6 +87916,56 @@
         ]
       }
     },
+    "/api/v1/me/tenant": {
+      "get": {
+        "operationId": "get_request_tenant_api_v1_me_tenant_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantPublic"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Get Request Tenant",
+        "tags": [
+          "tenants"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/me/tenant\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/me/tenant\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/me/tenant`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/me/tenant\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
     "/api/v1/memory/conflicts": {
       "get": {
         "operationId": "list_conflicts_api_v1_memory_conflicts_get",
@@ -91420,6 +92321,159 @@
           {
             "lang": "curl",
             "source": "curl -X POST \"http://localhost:8000/api/v1/notifications/webhooks/{webhook_id}/test\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/platform/tenants/{tenant_id}/force-cascade-deletion": {
+      "post": {
+        "operationId": "force_cascade_deletion_api_v1_platform_tenants__tenant_id__force_cascade_deletion_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForceCascadeDeletionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForceCascadeDeletionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Force Cascade Deletion",
+        "tags": [
+          "platform.tenants"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/platform/tenants/{tenant_id}/force-cascade-deletion\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/platform/tenants/{tenant_id}/force-cascade-deletion\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/platform/tenants/{tenant_id}/force-cascade-deletion`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/platform/tenants/{tenant_id}/force-cascade-deletion\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/platform/workspaces/{workspace_id}": {
+      "get": {
+        "operationId": "get_platform_workspace_api_v1_platform_workspaces__workspace_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformWorkspaceResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Get Platform Workspace",
+        "tags": [
+          "platform.workspaces"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/platform/workspaces/{workspace_id}\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/platform/workspaces/{workspace_id}\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/platform/workspaces/{workspace_id}`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/platform/workspaces/{workspace_id}\" -H \"Authorization: Bearer $TOKEN\""
           }
         ]
       }

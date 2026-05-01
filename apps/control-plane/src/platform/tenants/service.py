@@ -38,7 +38,7 @@ from platform.tenants.reserved_slugs import RESERVED_SLUGS
 from platform.tenants.resolver import TENANT_INVALIDATION_CHANNEL
 from platform.tenants.schemas import SLUG_RE, TenantCreate, TenantScheduleDeletion, TenantUpdate
 from platform.two_person_approval.service import TwoPersonApprovalError, TwoPersonApprovalService
-from typing import Any, Protocol
+from typing import Any, Protocol, cast
 from uuid import UUID, uuid4
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -516,7 +516,7 @@ class TenantsService:
             await self.redis_client.initialize()
             client = self.redis_client.client
             if client is not None:
-                await client.publish(TENANT_INVALIDATION_CHANNEL, payload)
+                await cast(Any, client).publish(TENANT_INVALIDATION_CHANNEL, payload)
         except Exception:
             return
 

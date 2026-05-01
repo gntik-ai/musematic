@@ -37,7 +37,7 @@ async def delete_catalogued_rows(session: AsyncSession, tenant_id: UUID) -> int:
             text(f'DELETE FROM "{_quote_identifier(table_name)}" WHERE tenant_id = :tenant_id'),
             {"tenant_id": tenant_id},
         )
-        deleted += int(result.rowcount or 0)
+        deleted += int(getattr(result, "rowcount", 0) or 0)
     return deleted
 
 

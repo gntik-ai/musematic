@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Sequence
-from platform.tenants.table_catalog import TENANT_SCOPED_TABLES
 
 import sqlalchemy as sa
 from alembic import op
+from migrations.tenant_table_catalog_snapshot import TENANT_SCOPED_TABLES
 
 revision: str = "099_tenant_id_nn_indexes"
 down_revision: str | None = "098_tenant_id_backfill_default"

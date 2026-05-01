@@ -40,6 +40,28 @@ class FakeClient:
         return True
 
 
+class PassthroughTenantResolverMiddleware:
+    def __init__(self, app, **_kwargs) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        await self.app(scope, receive, send)
+
+
+class AsyncSessionContextStub:
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        return None
+
+    async def commit(self) -> None:
+        return None
+
+    async def rollback(self) -> None:
+        return None
+
+
 @pytest.mark.asyncio
 async def test_build_clients_returns_expected_keys() -> None:
     clients = _build_clients(PlatformSettings())
@@ -82,6 +104,8 @@ async def test_lifespan_handles_clients_without_close_and_close_failures(monkeyp
         "load_templates",
         _async_load_templates,
     )
+    monkeypatch.setattr(main_module.database, "AsyncSessionLocal", lambda: AsyncSessionContextStub())
+    monkeypatch.setattr(main_module, "provision_default_tenant_if_missing", _async_none_with_arg)
     async with _lifespan(app):
         assert app.state.degraded is False
         assert app.state.clients["redis"].connected is True
@@ -91,6 +115,10 @@ async def test_lifespan_handles_clients_without_close_and_close_failures(monkeyp
 async def test_create_app_non_api_profile_does_not_mount_protected_route(monkeypatch) -> None:
     monkeypatch.setattr("platform.main._build_clients", lambda settings: _fake_clients())
     monkeypatch.setattr("platform.api.health.database_health_check", lambda: _async_true())
+    monkeypatch.setattr(
+        "platform.main.TenantResolverMiddleware",
+        PassthroughTenantResolverMiddleware,
+    )
     app = create_app(profile="worker", settings=PlatformSettings(PLATFORM_PROFILE="api"))
 
     async with app.router.lifespan_context(app):
@@ -127,6 +155,10 @@ async def _async_true() -> bool:
 
 
 async def _async_none() -> None:
+    return None
+
+
+async def _async_none_with_arg(_arg) -> None:
     return None
 
 

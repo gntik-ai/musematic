@@ -260,7 +260,7 @@ async def test_rotatable_secret_provider_reads_cache_provider_and_writes_state()
         secret_provider=VaultStub(),
     ).cache_rotation_state("api-key", {"current": "next"})
 
-    secret_path = "secret/data/musematic/dev/audit-chain/api-key"
+    secret_path = "secret/data/musematic/dev/tenants/default/audit-chain/api-key"
     env_provider = RotatableSecretProvider(
         PlatformSettings(profile="dev"),
         secret_provider=VaultStub(

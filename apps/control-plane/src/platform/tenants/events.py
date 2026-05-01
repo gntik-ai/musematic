@@ -89,7 +89,7 @@ async def publish_tenant_event(
     *,
     producer: EventProducer | None,
     event_type: TenantEventType,
-    payload: BaseModel,
+    payload: TenantEventPayload,
     correlation_ctx: CorrelationContext,
 ) -> None:
     if producer is None:

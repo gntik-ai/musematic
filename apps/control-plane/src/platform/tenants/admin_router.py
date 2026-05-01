@@ -24,7 +24,7 @@ from platform.tenants.schemas import (
 )
 from platform.tenants.service import TENANT_DPA_BUCKET, TenantsService
 from typing import Any
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, Request, UploadFile
 from pydantic import BaseModel
@@ -68,8 +68,8 @@ async def provision_tenant(
         id=tenant.id,
         slug=tenant.slug,
         subdomain=tenant.subdomain,
-        kind=tenant.kind,  # type: ignore[arg-type]
-        status=tenant.status,  # type: ignore[arg-type]
+        kind=tenant.kind,
+        status=tenant.status,
         first_admin_invite_sent_to=payload.first_admin_email,
         dns_records_pending=True,
     )
@@ -226,15 +226,15 @@ def _admin_view(tenant: Tenant) -> TenantAdminView:
     return TenantAdminView(
         id=tenant.id,
         slug=tenant.slug,
-        kind=tenant.kind,  # type: ignore[arg-type]
+        kind=tenant.kind,
         subdomain=tenant.subdomain,
-        status=tenant.status,  # type: ignore[arg-type]
+        status=tenant.status,
         region=tenant.region,
         display_name=tenant.display_name,
         branding=TenantBranding.model_validate(tenant.branding_config_json or {}),
         scheduled_deletion_at=tenant.scheduled_deletion_at,
         created_at=tenant.created_at,
-        data_isolation_mode=tenant.data_isolation_mode,  # type: ignore[arg-type]
+        data_isolation_mode=tenant.data_isolation_mode,
         subscription_id=tenant.subscription_id,
         dpa_signed_at=tenant.dpa_signed_at,
         dpa_version=tenant.dpa_version,
@@ -245,10 +245,8 @@ def _admin_view(tenant: Tenant) -> TenantAdminView:
     )
 
 
-def _coerce_uuid(value: str):
+def _coerce_uuid(value: str) -> UUID:
     try:
-        from uuid import UUID
-
         return UUID(value)
     except ValueError as exc:
         raise ValidationError("bad_tenant_id", "Tenant id must be a UUID.") from exc

@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from platform.auth.services.oauth_bootstrap import bootstrap_oauth_provider_from_env
+import platform.auth.services.oauth_bootstrap as oauth_bootstrap_module
+from platform.admin.bootstrap import BootstrapConfigError
+from platform.auth.services.oauth_bootstrap import (
+    bootstrap_oauth_provider_from_env,
+    bootstrap_oauth_providers_from_env,
+)
 from platform.common.config import PlatformSettings
 from typing import Any
 
@@ -31,6 +36,17 @@ class SecretProviderStub:
 
     async def health_check(self) -> Any:
         return None
+
+
+class SessionContextStub:
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        return None
+
+    def begin(self):
+        return self
 
 
 def _google_env(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -89,9 +105,46 @@ async def test_bootstrap_google_creates_provider_and_writes_secret(
     provider = repository.providers["google"]
     assert result.status == "created"
     assert provider.source == "env_var"
-    assert provider.client_secret_ref == "secret/data/musematic/dev/oauth/google/client-secret"
+    assert (
+        provider.client_secret_ref
+        == "secret/data/musematic/dev/tenants/default/oauth/google/client-secret"
+    )
     assert secrets.values[provider.client_secret_ref] == {"value": "google-secret"}
     assert repository.audit_entries[-1]["action"] == "provider_bootstrapped"
+
+
+@pytest.mark.asyncio
+async def test_bootstrap_providers_from_env_uses_session_factory_and_wraps_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _google_env(monkeypatch)
+    repository = OAuthRepositoryStub(providers={})
+    monkeypatch.setattr(
+        oauth_bootstrap_module,
+        "OAuthRepository",
+        lambda session, audit_chain: repository,
+    )
+
+    results = await bootstrap_oauth_providers_from_env(
+        session_factory=lambda: SessionContextStub(),  # type: ignore[arg-type]
+        settings=PlatformSettings(),
+        secret_provider=SecretProviderStub(),
+        provider_types=("google",),
+    )
+
+    assert [result.provider_type for result in results] == ["google"]
+
+    class ExplodingFactory:
+        def __call__(self):
+            raise RuntimeError("database unavailable")
+
+    with pytest.raises(BootstrapConfigError, match="OAuth provider bootstrap failed"):
+        await bootstrap_oauth_providers_from_env(
+            session_factory=ExplodingFactory(),  # type: ignore[arg-type]
+            settings=PlatformSettings(),
+            secret_provider=SecretProviderStub(),
+            provider_types=("google",),
+        )
 
 
 @pytest.mark.asyncio

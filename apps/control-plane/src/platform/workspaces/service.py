@@ -958,9 +958,12 @@ class WorkspacesService:
         query_text: str,
         observed_violation: str,
     ) -> None:
+        session = getattr(self.repo, "session", None)
+        if session is None:
+            return
         tenant = current_tenant.get(None)
         await record_tenant_enforcement_violation(
-            self.repo.session,
+            session,
             table_name=table_name,
             query_text=query_text,
             expected_tenant_id=tenant.id if tenant is not None else None,

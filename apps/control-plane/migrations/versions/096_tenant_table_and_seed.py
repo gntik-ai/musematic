@@ -8,7 +8,6 @@ Create Date: 2026-05-01
 from __future__ import annotations
 
 from collections.abc import Sequence
-from platform.tenants.reserved_slugs import RESERVED_SLUGS
 
 import sqlalchemy as sa
 from alembic import op
@@ -22,6 +21,20 @@ depends_on: str | Sequence[str] | None = None
 DEFAULT_TENANT_ID = "00000000-0000-0000-0000-000000000001"
 PG_UUID = postgresql.UUID(as_uuid=True)
 JSONB = postgresql.JSONB(astext_type=sa.Text())
+RESERVED_SLUGS = frozenset(
+    {
+        "admin",
+        "api",
+        "docs",
+        "grafana",
+        "help",
+        "platform",
+        "public",
+        "status",
+        "webhooks",
+        "www",
+    }
+)
 
 
 def upgrade() -> None:

@@ -125,7 +125,9 @@ async def test_vault_admin_status_flush_connectivity_and_rotation(monkeypatch) -
     assert connectivity.success
     assert provider.deleted
     assert provider.deleted[0][1] == 3
-    assert next(iter(provider.put_values)).startswith("secret/data/musematic/ci/_internal/")
+    assert next(iter(provider.put_values)).startswith(
+        "secret/data/musematic/ci/_platform/_internal/"
+    )
 
     rotated = await service.rotate_token(TokenRotationRequest(pod="api-0"))
     assert rotated.success

@@ -9,7 +9,7 @@ from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.tenant_context import TenantContext
 from platform.tenants.models import Tenant
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 from sqlalchemy import select
@@ -160,7 +160,7 @@ class TenantResolver:
         client = self.redis_client.client
         if client is None:
             return
-        pubsub = client.pubsub()
+        pubsub = cast(Any, client).pubsub()
         await pubsub.subscribe(TENANT_INVALIDATION_CHANNEL)
         try:
             async for message in pubsub.listen():
@@ -189,7 +189,7 @@ class TenantResolver:
         return None
 
     async def _query_tenant(self, subdomain: str) -> Tenant | None:
-        async with self.session_factory() as session:  # type: ignore[misc]
+        async with self.session_factory() as session:
             result = await session.execute(select(Tenant).where(Tenant.subdomain == subdomain))
             return result.scalar_one_or_none()
 

@@ -129,7 +129,10 @@ async def test_google_bootstrap_writes_secret_and_env_source(
     assert provider.source == "env_var"
     assert provider.domain_restrictions == ["example.com"]
     assert provider.group_role_mapping == {"admins": "admin"}
-    assert provider.client_secret_ref == "secret/data/musematic/dev/oauth/google/client-secret"
+    assert (
+        provider.client_secret_ref
+        == "secret/data/musematic/dev/tenants/default/oauth/google/client-secret"
+    )
     assert secrets.values[provider.client_secret_ref] == {"value": "google-secret"}
 
 

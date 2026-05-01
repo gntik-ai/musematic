@@ -46,8 +46,7 @@ class WorkspaceGovernanceChainRepository:
         return result.scalar_one_or_none()
 
     async def create_version(self, chain: WorkspaceGovernanceChain) -> WorkspaceGovernanceChain:
-        if chain.tenant_id is None:
-            chain.tenant_id = self.workspaces_repo._tenant_id()
+        chain.tenant_id = self.workspaces_repo._tenant_id()
         current = await self.get_current(chain.workspace_id)
         if current is not None:
             current.is_current = False

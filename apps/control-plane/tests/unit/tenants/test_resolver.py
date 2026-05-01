@@ -6,7 +6,7 @@ from platform.common.middleware.tenant_resolver import (
     _build_opaque_404_response,
 )
 from platform.common.tenant_context import TenantContext
-from platform.tenants.resolver import TenantResolver
+from platform.tenants.resolver import TENANT_INVALIDATION_CHANNEL, TenantResolver
 from types import SimpleNamespace
 from uuid import UUID, uuid4
 
@@ -44,6 +44,29 @@ def _tenant(
         branding_config_json={},
         feature_flags_json={},
     )
+
+
+class RedisCacheStub:
+    def __init__(self) -> None:
+        self.values: dict[str, bytes] = {}
+        self.client = None
+        self.initialized = False
+        self.fail_get = False
+        self.fail_set = False
+
+    async def get(self, key: str) -> bytes | None:
+        if self.fail_get:
+            raise RuntimeError("redis get failed")
+        return self.values.get(key)
+
+    async def set(self, key: str, value: bytes, ttl: int | None = None) -> None:
+        del ttl
+        if self.fail_set:
+            raise RuntimeError("redis set failed")
+        self.values[key] = value
+
+    async def initialize(self) -> None:
+        self.initialized = True
 
 
 @pytest.mark.asyncio
@@ -168,3 +191,110 @@ async def test_pending_deletion_tenant_returns_opaque_404_for_non_staff() -> Non
 
     assert response.status_code == 404
     assert response.body == b'{"detail":"Not Found"}'
+
+
+@pytest.mark.asyncio
+async def test_resolver_redis_cache_paths_and_invalid_host_branches() -> None:
+    redis = RedisCacheStub()
+    resolver = StaticTenantResolver({"acme": _tenant(slug="acme", subdomain="acme")})
+    resolver.redis_client = redis  # type: ignore[assignment]
+    redis.values["tenants:resolve:cached.musematic.ai"] = (
+        b'{"tenant":{"id":"00000000-0000-0000-0000-000000000001","slug":"cached",'
+        b'"subdomain":"cached","kind":"enterprise","status":"active","region":"eu-central",'
+        b'"branding":{"accent":"blue"},"feature_flags":{"beta":true}}}'
+    )
+    redis.values["tenants:resolve:missing.musematic.ai"] = b'{"miss":true}'
+
+    assert resolver.normalize_host(None) is None
+    assert resolver.normalize_host("") is None
+    assert resolver.normalize_host("[2001:db8::1]:443") is None
+    assert await resolver.resolve("outside.example.com") is None
+    assert (await resolver.resolve("cached.musematic.ai")).slug == "cached"
+    assert await resolver.resolve("missing.musematic.ai") is None
+
+    redis.fail_get = True
+    assert (await resolver.resolve("acme.musematic.ai")).slug == "acme"
+    redis.fail_get = False
+    redis.fail_set = True
+    assert await resolver.resolve("unknown2.musematic.ai") is None
+
+
+@pytest.mark.asyncio
+async def test_resolver_invalidation_and_pubsub_listener_paths() -> None:
+    resolver = StaticTenantResolver({"acme": _tenant(slug="acme", subdomain="acme")})
+    tenant = await resolver.resolve("acme.musematic.ai")
+    assert tenant is not None
+    assert await resolver.resolve("acme.api.musematic.ai") is not None
+
+    await resolver.handle_invalidation_message(
+        {
+            "tenant_id": str(tenant.id),
+            "hosts": ["acme.api.musematic.ai", 123],
+        }
+    )
+    await resolver.handle_invalidation_message(b"not-json")
+    await resolver.handle_invalidation_message("[]")
+
+    class PubSubStub:
+        def __init__(self) -> None:
+            self.subscribed: list[str] = []
+            self.unsubscribed: list[str] = []
+            self.closed = False
+
+        async def subscribe(self, channel: str) -> None:
+            self.subscribed.append(channel)
+
+        async def listen(self):
+            yield {"type": "subscribe", "data": b"ignored"}
+            yield {
+                "type": "message",
+                "data": b'{"tenant_id":"00000000-0000-0000-0000-000000000001"}',
+            }
+
+        async def unsubscribe(self, channel: str) -> None:
+            self.unsubscribed.append(channel)
+
+        async def close(self) -> None:
+            self.closed = True
+
+    class RedisWithPubSub(RedisCacheStub):
+        def __init__(self) -> None:
+            super().__init__()
+            self._pubsub = PubSubStub()
+            self.client = self
+
+        def pubsub(self) -> PubSubStub:  # type: ignore[no-redef]
+            return self._pubsub
+
+    redis = RedisWithPubSub()
+    listener = StaticTenantResolver({})
+    listener.redis_client = redis  # type: ignore[assignment]
+
+    await listener.listen_for_invalidations()
+
+    assert redis.initialized is True
+    assert redis._pubsub.subscribed == [TENANT_INVALIDATION_CHANNEL]
+    assert redis._pubsub.unsubscribed == [TENANT_INVALIDATION_CHANNEL]
+    assert redis._pubsub.closed is True
+
+
+def test_local_resolver_cache_expiration_and_eviction() -> None:
+    resolver = StaticTenantResolver({})
+    cache = resolver._local_cache
+    tenant = TenantContext(
+        id=uuid4(),
+        slug="acme",
+        subdomain="acme",
+        kind="enterprise",
+        status="active",
+        region="eu-central",
+    )
+
+    cache.set("expired", tenant, ttl_seconds=-1)
+    assert cache.get("expired") is not tenant
+
+    small_cache = type(cache)(maxsize=1, ttl_seconds=60)
+    small_cache.set("a", tenant)
+    small_cache.set("b", None)
+    assert small_cache.get("a") is not tenant
+    assert small_cache.get("b") is None

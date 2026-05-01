@@ -17,7 +17,7 @@ from typing import Any
 from xml.etree import ElementTree
 
 try:  # pragma: no cover - exercised when the locked dependency is installed.
-    from feedgen.feed import FeedGenerator  # type: ignore[import-untyped]
+    from feedgen.feed import FeedGenerator
 except ImportError:  # pragma: no cover - local Python envs may not be uv-synced.
     FeedGenerator = None
 

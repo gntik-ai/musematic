@@ -26,6 +26,14 @@ class FakeClient:
         return True
 
 
+class PassthroughTenantResolverMiddleware:
+    def __init__(self, app, **_kwargs) -> None:
+        self.app = app
+
+    async def __call__(self, scope, receive, send) -> None:
+        await self.app(scope, receive, send)
+
+
 def _fake_clients() -> dict[str, FakeClient]:
     return {
         "redis": FakeClient(),
@@ -46,14 +54,11 @@ def _fake_clients() -> dict[str, FakeClient]:
 def _app(monkeypatch, settings: PlatformSettings):
     if monkeypatch is not None:
         monkeypatch.setattr("platform.main._build_clients", lambda resolved: _fake_clients())
+        monkeypatch.setattr(
+            "platform.main.TenantResolverMiddleware",
+            PassthroughTenantResolverMiddleware,
+        )
         monkeypatch.setattr("platform.api.health.database_health_check", lambda: _async_bool(True))
-    else:
-        import platform.main as main_module
-
-        main_module._build_clients = lambda resolved: _fake_clients()
-        import platform.api.health as health_module
-
-        health_module.database_health_check = lambda: _async_bool(True)
     return create_app(settings=settings)
 
 
@@ -263,10 +268,10 @@ async def test_api_key_and_invitation_paths_in_auth_middleware(monkeypatch) -> N
 
 
 @pytest.mark.asyncio
-async def test_refresh_token_type_is_rejected_by_auth_middleware() -> None:
+async def test_refresh_token_type_is_rejected_by_auth_middleware(monkeypatch) -> None:
     secret = "a" * 32
     settings = PlatformSettings(AUTH_JWT_SECRET_KEY=secret, AUTH_JWT_ALGORITHM="HS256")
-    app = _app(None, settings)
+    app = _app(monkeypatch, settings)
     refresh_token = jwt.encode({"sub": "user-1", "type": "refresh"}, secret, algorithm="HS256")
 
     async with app.router.lifespan_context(app):
