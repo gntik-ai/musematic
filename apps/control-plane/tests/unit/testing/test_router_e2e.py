@@ -360,6 +360,34 @@ async def test_router_e2e_account_and_incident_helpers(monkeypatch) -> None:
     assert tokens["confirmation_token"] == "confirm"
     assert tokens["unsubscribe_token"] == "unsubscribe"
 
+    class DispatchSessionStub:
+        def __init__(self) -> None:
+            self.calls: list[tuple[object, object | None]] = []
+
+        async def execute(self, statement: object, params: object | None = None):
+            self.calls.append((statement, params))
+            return SimpleNamespace(scalar_one=lambda: 2)
+
+    dispatch_session = DispatchSessionStub()
+    dispatches = await router_e2e.get_status_subscription_dispatches(
+        email=" Dev@Example.TEST ",
+        event_kind="incident.created",
+        outcome="sent",
+        current_user=current_user,
+        session=dispatch_session,  # type: ignore[arg-type]
+    )
+    assert dispatches == {
+        "email": "dev@example.test",
+        "event_kind": "incident.created",
+        "outcome": "sent",
+        "count": 2,
+    }
+    assert dispatch_session.calls[0][1] == {
+        "email": "dev@example.test",
+        "event_kind": "incident.created",
+        "outcome": "sent",
+    }
+
     class SessionStub:
         def __init__(self, user_id: object | None = uuid4()) -> None:
             self.user_id = user_id

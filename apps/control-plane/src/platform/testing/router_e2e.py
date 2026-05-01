@@ -197,6 +197,44 @@ async def get_status_subscription_tokens(
     }
 
 
+@router.get("/status-subscriptions/dispatches")
+async def get_status_subscription_dispatches(
+    email: str = Query(...),
+    event_kind: str = Query("incident.created"),
+    outcome: str = Query("sent"),
+    current_user: dict[str, Any] = Depends(require_admin_or_e2e_scope),
+    session: AsyncSession = Depends(get_db),
+) -> dict[str, str | int]:
+    del current_user
+    normalized = email.strip().lower()
+    count = (
+        await session.execute(
+            text(
+                """
+                SELECT count(*)
+                  FROM subscription_dispatches dispatch
+                  JOIN status_subscriptions subscription
+                    ON subscription.id = dispatch.subscription_id
+                 WHERE subscription.target = :email
+                   AND dispatch.event_kind = :event_kind
+                   AND dispatch.outcome = :outcome
+                """
+            ),
+            {
+                "email": normalized,
+                "event_kind": event_kind,
+                "outcome": outcome,
+            },
+        )
+    ).scalar_one()
+    return {
+        "email": normalized,
+        "event_kind": event_kind,
+        "outcome": outcome,
+        "count": int(count or 0),
+    }
+
+
 @router.post("/accounts/expired-verification-token")
 async def create_expired_account_verification_token(
     payload: E2EExpiredVerificationTokenRequest,

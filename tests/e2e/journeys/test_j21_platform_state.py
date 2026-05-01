@@ -53,7 +53,6 @@ def assert_feed_mentions_incident(response: Any) -> None:
 async def test_j21_platform_state_visibility_loop(
     operator_client: AuthenticatedAsyncClient,
     journey_context: JourneyContext,
-    db,
     ui_page,
     platform_ui_url: str,
 ) -> None:
@@ -128,19 +127,17 @@ async def test_j21_platform_state_visibility_loop(
 
     with journey_step("Subscriber email delivery is represented in the dispatch ledger"):
         await assert_eventually(
-            lambda: db.fetchval(
-                """
-                SELECT count(*)
-                  FROM subscription_dispatches dispatch
-                  JOIN status_subscriptions subscription
-                    ON subscription.id = dispatch.subscription_id
-                 WHERE subscription.target = $1
-                   AND dispatch.event_kind = 'incident.created'
-                   AND dispatch.outcome = 'sent'
-                """,
-                email,
+            lambda: _json(
+                operator_client,
+                "GET",
+                "/api/v1/_e2e/status-subscriptions/dispatches",
+                params={
+                    "email": email,
+                    "event_kind": "incident.created",
+                    "outcome": "sent",
+                },
             ),
-            lambda count: int(count or 0) >= 1,
+            lambda payload: int(payload.get("count") or 0) >= 1,
             timeout=120,
             message="status subscriber dispatch was not delivered",
         )

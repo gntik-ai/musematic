@@ -18,6 +18,13 @@ _LOGIN_RETRY_EXCEPTIONS = (
 )
 _LOGIN_RETRY_STATUSES = {502, 503, 504}
 _LOGIN_RETRY_ATTEMPTS = 6
+_REQUEST_RETRY_EXCEPTIONS = _LOGIN_RETRY_EXCEPTIONS
+_REQUEST_RETRY_STATUSES = _LOGIN_RETRY_STATUSES
+_REQUEST_RETRY_ATTEMPTS = 6
+
+
+def _retry_delay(attempt: int) -> int:
+    return min(2**attempt, 10)
 
 
 def _decode_jwt_payload(token: str) -> dict[str, Any]:
@@ -81,7 +88,7 @@ class AuthenticatedAsyncClient(httpx.AsyncClient):
             except _LOGIN_RETRY_EXCEPTIONS as exc:
                 last_error = exc
             if attempt < _LOGIN_RETRY_ATTEMPTS - 1:
-                await asyncio.sleep(min(2**attempt, 10))
+                await asyncio.sleep(_retry_delay(attempt))
         if last_error is not None:
             raise last_error
         assert response is not None
@@ -93,6 +100,36 @@ class AuthenticatedAsyncClient(httpx.AsyncClient):
             key.lower() for key in headers
         }:
             headers["Authorization"] = f"Bearer {self.access_token}"
+        last_error: Exception | None = None
+        response: httpx.Response | None = None
+        for attempt in range(_REQUEST_RETRY_ATTEMPTS):
+            try:
+                response = await self._request_once(
+                    method,
+                    url,
+                    headers=headers,
+                    kwargs=kwargs,
+                )
+                last_error = None
+                if response.status_code not in _REQUEST_RETRY_STATUSES:
+                    return response
+            except _REQUEST_RETRY_EXCEPTIONS as exc:
+                last_error = exc
+            if attempt < _REQUEST_RETRY_ATTEMPTS - 1:
+                await asyncio.sleep(_retry_delay(attempt))
+        if last_error is not None:
+            raise last_error
+        assert response is not None
+        return response
+
+    async def _request_once(
+        self,
+        method: str,
+        url: str,
+        *,
+        headers: dict[str, str],
+        kwargs: dict[str, Any],
+    ) -> httpx.Response:
         response = await super().request(method, url, headers=headers, **kwargs)
         if response.status_code == 401 and self.refresh_token:
             refreshed = await self._refresh_access_token()
