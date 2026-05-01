@@ -186,10 +186,15 @@ class KafkaFanout:
             subscriber_ids = self.subscription_registry.get_subscribers(channel, resource_id)
             if not subscriber_ids:
                 continue
+            payload_envelope = (
+                self._platform_status_envelope(topic, envelope_dict)
+                if channel == ChannelType.PLATFORM_STATUS
+                else envelope_dict
+            )
             event_message = EventMessage(
                 channel=channel.value,
                 resource_id=resource_id,
-                payload=envelope_dict,
+                payload=payload_envelope,
                 gateway_received_at=datetime.now(UTC),
             )
             for subscriber_id in subscriber_ids:
@@ -198,11 +203,11 @@ class KafkaFanout:
                     continue
                 if not await self._wait_for_subscription_confirmation(conn, channel, resource_id):
                     continue
-                if not self.visibility_filter.is_visible(envelope_dict, conn):
+                if not self.visibility_filter.is_visible(payload_envelope, conn):
                     continue
                 dropped = self._enqueue(conn, event_message)
                 self._metrics.delivered()
-                self._metrics.observe_latency(envelope_dict)
+                self._metrics.observe_latency(payload_envelope)
                 if dropped:
                     self._metrics.dropped()
 
@@ -294,8 +299,40 @@ class KafkaFanout:
             target_resource = payload.get("target_id") or payload.get("target_identity")
             if target_id := self._as_resource_id(target_resource):
                 matches.append((ChannelType.ATTENTION, target_id))
+        elif topic in {
+            "multi_region_ops.events",
+            "incident_response.events",
+            "platform.status.derived",
+        }:
+            matches.extend(
+                (ChannelType.PLATFORM_STATUS, resource_id)
+                for resource_id in self.subscription_registry.get_resource_ids(
+                    ChannelType.PLATFORM_STATUS
+                )
+            )
 
         return matches
+
+    def _platform_status_envelope(
+        self,
+        topic: str,
+        envelope: dict[str, Any],
+    ) -> dict[str, Any]:
+        if topic != "multi_region_ops.events":
+            return envelope
+
+        event_type = str(envelope.get("event_type", ""))
+        platform_event_type = {
+            "maintenance.mode.enabled": "platform.maintenance.started",
+            "maintenance.mode.disabled": "platform.maintenance.ended",
+        }.get(event_type)
+        if platform_event_type is None:
+            return envelope
+
+        transformed = dict(envelope)
+        transformed["event_type"] = platform_event_type
+        transformed["source"] = "platform.ws_hub.platform_status"
+        return transformed
 
     async def _wait_for_subscription_confirmation(
         self,

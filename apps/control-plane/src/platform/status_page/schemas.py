@@ -129,11 +129,18 @@ class WebhookSubscribeResponse(BaseModel):
     verification_state: str = "pending"
 
 
+class MyMaintenanceWindowSummary(MaintenanceWindowSummary):
+    affects_my_features: list[str] = Field(default_factory=list)
+
+
+class MyIncidentSummary(PublicIncident):
+    affects_my_features: list[str] = Field(default_factory=list)
+
+
 class MyPlatformStatus(BaseModel):
     overall_state: OverallState
-    active_maintenance: MaintenanceWindowSummary | None = None
-    active_incidents: list[PublicIncident] = Field(default_factory=list)
-    affects_my_features: dict[str, list[str]] = Field(default_factory=dict)
+    active_maintenance: MyMaintenanceWindowSummary | None = None
+    active_incidents: list[MyIncidentSummary] = Field(default_factory=list)
 
 
 class MyStatusSubscription(BaseModel):

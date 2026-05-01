@@ -16,6 +16,9 @@ from platform.status_page.schemas import (
     ComponentHistoryPoint,
     ComponentStatus,
     MaintenanceWindowSummary,
+    MyIncidentSummary,
+    MyMaintenanceWindowSummary,
+    MyPlatformStatus,
     OverallState,
     PlatformStatusSnapshotPayload,
     PlatformStatusSnapshotRead,
@@ -163,6 +166,25 @@ class StatusPageService:
             snapshot = (await self.get_public_snapshot()).snapshot
             incidents = snapshot.active_incidents + snapshot.recently_resolved_incidents
         return PublicIncidentsResponse(incidents=incidents)
+
+    async def get_my_platform_status(self, current_user: dict[str, Any]) -> MyPlatformStatus:
+        del current_user
+        snapshot = (await self.get_public_snapshot()).snapshot
+        active_maintenance = None
+        if snapshot.active_maintenance is not None:
+            active_maintenance = MyMaintenanceWindowSummary(
+                **snapshot.active_maintenance.model_dump(),
+                affects_my_features=[],
+            )
+
+        return MyPlatformStatus(
+            overall_state=snapshot.overall_state,
+            active_maintenance=active_maintenance,
+            active_incidents=[
+                MyIncidentSummary(**incident.model_dump(), affects_my_features=[])
+                for incident in snapshot.active_incidents
+            ],
+        )
 
     def _snapshot_from_row(self, row: PlatformStatusSnapshot) -> PlatformStatusSnapshotRead:
         return snapshot_read_from_payload(

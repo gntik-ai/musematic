@@ -45,7 +45,24 @@
     },
     "subscribeToUpdates": "Subscribe to updates",
     "lastUpdated": "Last updated",
-    "uptime30d": "30-day uptime"
+    "uptime30d": "30-day uptime",
+    "maintenanceScheduled": "Scheduled maintenance",
+    "maintenanceInProgress": "Maintenance in progress",
+    "endsAt": "Ends at {date}",
+    "dismiss": "Dismiss",
+    "viewStatusPage": "View status page",
+    "blockedActionTitle": "Action paused for maintenance",
+    "blockedActionExplanation": "Writes are temporarily paused for maintenance. You can try again after {date}.",
+    "retryAfter": "Retry after",
+    "unknownEnd": "the maintenance window ends",
+    "incidentActive": "Active incident",
+    "incidentSeverity": {
+      "info": "Info",
+      "warning": "Warning",
+      "high": "High",
+      "critical": "Critical"
+    },
+    "viewIncident": "View incident"
   },
   "simulations": {
     "scenarios": {

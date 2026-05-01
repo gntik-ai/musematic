@@ -34,6 +34,7 @@ from platform.ws_hub.schemas import (
     parse_client_message,
 )
 from platform.ws_hub.subscription import (
+    USER_SCOPED_GLOBAL_CHANNELS,
     WORKSPACE_SCOPED_CHANNELS,
     ChannelType,
     Subscription,
@@ -530,9 +531,26 @@ async def _auto_subscribe_user_channels(
     subscription_registry: SubscriptionRegistry,
     fanout: KafkaFanout,
 ) -> list[SubscriptionInfo]:
-    attention = await _auto_subscribe_attention(connection, subscription_registry, fanout)
-    alerts = await _auto_subscribe_alerts(connection, subscription_registry, fanout)
-    return [*attention, *alerts]
+    subscriptions: list[SubscriptionInfo] = []
+    for channel in sorted(USER_SCOPED_GLOBAL_CHANNELS, key=lambda item: item.value):
+        subscription = Subscription(
+            channel=channel,
+            resource_id=str(connection.user_id),
+            auto=True,
+        )
+        key = subscription_key(subscription.channel, subscription.resource_id)
+        connection.subscriptions[key] = subscription
+        topics = subscription_registry.subscribe(connection.connection_id, subscription)
+        await fanout.ensure_consuming(topics)
+        subscriptions.append(
+            SubscriptionInfo(
+                channel=subscription.channel.value,
+                resource_id=subscription.resource_id,
+                subscribed_at=subscription.subscribed_at,
+                auto=subscription.auto,
+            )
+        )
+    return subscriptions
 
 
 async def _handle_validation_error(

@@ -10,6 +10,7 @@ const MESSAGE_LOADERS = {
   es: () => import("@/messages/es.json").then((module) => module.default),
   fr: () => import("@/messages/fr.json").then((module) => module.default),
   de: () => import("@/messages/de.json").then((module) => module.default),
+  it: () => import("@/messages/it.json").then((module) => module.default),
   ja: () => import("@/messages/ja.json").then((module) => module.default),
   "zh-CN": () => import("@/messages/zh-CN.json").then((module) => module.default),
 } satisfies Record<Locale, () => Promise<IntlMessages>>;
@@ -19,6 +20,7 @@ const ADMIN_MESSAGE_LOADERS = {
   es: () => import("@/messages/es/admin.json").then((module) => module.default),
   fr: () => import("@/messages/fr/admin.json").then((module) => module.default),
   de: () => import("@/messages/de/admin.json").then((module) => module.default),
+  it: () => import("@/messages/it/admin.json").then((module) => module.default),
   ja: () => import("@/messages/ja/admin.json").then((module) => module.default),
   "zh-CN": () => import("@/messages/zh/admin.json").then((module) => module.default),
 } satisfies Record<Locale, () => Promise<IntlMessages>>;

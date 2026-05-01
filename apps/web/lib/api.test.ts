@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApiClient } from "@/lib/api";
+import {
+  MAINTENANCE_BLOCKED_EVENT,
+  MaintenanceBlockedError,
+} from "@/lib/maintenance-blocked";
 import type { ApiError } from "@/types/api";
 import { useAuthStore } from "@/store/auth-store";
 
@@ -79,6 +83,66 @@ describe("createApiClient", () => {
       expect.objectContaining<Partial<ApiError>>({
         code: "validation_failed",
         status: 422,
+      }),
+    );
+  });
+
+  it("throws MaintenanceBlockedError for maintenance 503 envelopes", async () => {
+    const listener = vi.fn();
+    window.addEventListener(MAINTENANCE_BLOCKED_EVENT, listener);
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: "platform.maintenance.blocked",
+            message: "Writes are blocked during maintenance.",
+            details: {
+              window_end_at: "2026-05-01T12:30:00.000Z",
+              retry_after_seconds: 120,
+            },
+          },
+        }),
+        { status: 503 },
+      ),
+    );
+
+    const client = createApiClient("https://api.example.com");
+
+    await expect(client.post("/api/v1/workflows/trigger", {})).rejects.toEqual(
+      expect.objectContaining<Partial<MaintenanceBlockedError>>({
+        code: "platform.maintenance.blocked",
+        status: 503,
+        windowEndAt: "2026-05-01T12:30:00.000Z",
+        retryAfterSeconds: 120,
+      }),
+    );
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        detail: expect.any(MaintenanceBlockedError),
+      }),
+    );
+    window.removeEventListener(MAINTENANCE_BLOCKED_EVENT, listener);
+  });
+
+  it("keeps generic 503 responses as ApiError", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: "service_unavailable",
+            message: "Service unavailable",
+          },
+        }),
+        { status: 503 },
+      ),
+    );
+
+    const client = createApiClient("https://api.example.com");
+
+    await expect(client.get("/api/v1/reports")).rejects.toEqual(
+      expect.objectContaining<Partial<ApiError>>({
+        code: "service_unavailable",
+        status: 503,
       }),
     );
   });
