@@ -582,6 +582,24 @@ def _agent_by_id(state: dict[str, Any], agent_id: str) -> dict[str, Any] | None:
     return None
 
 
+def _ensure_agent_revision(agent: dict[str, Any]) -> dict[str, Any]:
+    revision = agent.get("current_revision")
+    if isinstance(revision, dict):
+        return revision
+    fqn = str(agent.get("fqn") or agent.get("id") or uuid4())
+    digest = hashlib.sha256(fqn.encode()).hexdigest()
+    revision = {
+        "id": str(uuid4()),
+        "agent_id": fqn,
+        "status": "active",
+        "version": str(agent.get("version") or "1.0.0"),
+        "sha256_digest": digest,
+        "created_at": _now(),
+    }
+    agent["current_revision"] = revision
+    return revision
+
+
 def _certifications_for_agent(state: dict[str, Any], agent_id: str) -> list[dict[str, Any]]:
     return [
         cert
@@ -1180,6 +1198,8 @@ async def create_agent(request: Request, payload: dict[str, Any]) -> dict[str, A
         "status": payload.get("status", "active"),
     }
     agents[fqn] = agent
+    revision = _ensure_agent_revision(agent)
+    _state(request).setdefault("agent_revisions", {}).setdefault(fqn, []).append(revision)
     return agent
 
 
@@ -1362,9 +1382,11 @@ async def list_agent_revisions(request: Request, agent_id: str) -> dict[str, Any
     agent = _agent_by_id(state, agent_id)
     if not agent:
         raise HTTPException(status_code=404)
-    revisions = state.setdefault("agent_revisions", {}).get(str(agent["id"])) or [
-        agent["current_revision"]
-    ]
+    revision_key = str(agent.get("id") or agent_id)
+    revisions = state.setdefault("agent_revisions", {}).get(revision_key)
+    if not revisions:
+        revisions = [_ensure_agent_revision(agent)]
+        state.setdefault("agent_revisions", {})[revision_key] = revisions
     return _items(revisions)
 
 
