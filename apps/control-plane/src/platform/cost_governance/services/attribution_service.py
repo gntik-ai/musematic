@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from platform.billing.exceptions import NoActiveSubscriptionError
+from platform.billing.subscriptions.resolver import SubscriptionResolver
 from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
@@ -132,6 +134,14 @@ class AttributionService:
             if user_id is None
             else str(payload.get("origin") or "user_trigger")
         )
+        subscription_id: UUID | None = None
+        try:
+            subscription = await SubscriptionResolver(
+                self.repository.session
+            ).resolve_active_subscription(workspace_id)
+            subscription_id = subscription.id
+        except NoActiveSubscriptionError:
+            subscription_id = None
 
         if existing is None:
             attribution = await self.repository.insert_attribution(
@@ -140,6 +150,7 @@ class AttributionService:
                 workspace_id=workspace_id,
                 agent_id=agent_id,
                 user_id=user_id,
+                subscription_id=subscription_id,
                 origin=origin,
                 model_id=model_id,
                 currency=currency,

@@ -1018,6 +1018,14 @@ class PlatformSettings(BaseSettings):
     - TENANT_RESOLVER_CACHE_TTL_SECONDS: hostname resolver tier-1/tier-2 cache TTL.
     - TENANT_DELETION_GRACE_HOURS: lifecycle grace window before cascade deletion.
     - TENANT_MIGRATION_ROLLBACK_WINDOW_HOURS: documented operator rollback window.
+
+    Billing settings:
+    - BILLING_PERIOD_SCHEDULER_INTERVAL_SECONDS: period-rollover cadence for SaaS-22/SaaS-43.
+    - BILLING_METERING_TOLERANCE_SECONDS: metering tolerance window for SaaS-26/AD-29.
+    - BILLING_PAYMENT_PROVIDER: payment abstraction selector for SaaS-8/SaaS-17/AD-28.
+    - BILLING_QUOTA_CACHE_TTL_SECONDS: synchronous quota cache TTL for SaaS-23.
+    - BILLING_QUOTA_IN_FLIGHT_TTL_SECONDS: in-flight execution counter TTL for SaaS-23.
+    - BILLING_DEFAULT_QUOTA_PERIOD_ANCHOR: default plan period anchor for SaaS-22.
     """
 
     model_config = SettingsConfigDict(
@@ -1053,6 +1061,60 @@ class PlatformSettings(BaseSettings):
     MCP_INVOCATION_TIMEOUT_SECONDS: int = 30
     MCP_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE: int = 60
     MCP_PROTOCOL_VERSION: str = "2024-11-05"
+    BILLING_PERIOD_SCHEDULER_INTERVAL_SECONDS: int = Field(
+        default=60,
+        ge=1,
+        description="Interval in seconds for subscription period rollover (SaaS-22/SaaS-43).",
+        validation_alias=AliasChoices(
+            "BILLING_PERIOD_SCHEDULER_INTERVAL_SECONDS",
+            "PLATFORM_BILLING_PERIOD_SCHEDULER_INTERVAL_SECONDS",
+        ),
+    )
+    BILLING_METERING_TOLERANCE_SECONDS: int = Field(
+        default=30,
+        ge=0,
+        description="Allowed metering lag/tolerance window in seconds (SaaS-26/AD-29).",
+        validation_alias=AliasChoices(
+            "BILLING_METERING_TOLERANCE_SECONDS",
+            "PLATFORM_BILLING_METERING_TOLERANCE_SECONDS",
+        ),
+    )
+    BILLING_PAYMENT_PROVIDER: Literal["stub", "stripe"] = Field(
+        default="stub",
+        description="PaymentProvider implementation selector (SaaS-8/SaaS-17/AD-28).",
+        validation_alias=AliasChoices(
+            "BILLING_PAYMENT_PROVIDER",
+            "PLATFORM_BILLING_PAYMENT_PROVIDER",
+        ),
+    )
+    BILLING_QUOTA_CACHE_TTL_SECONDS: int = Field(
+        default=60,
+        ge=1,
+        description="TTL in seconds for quota plan/usage cache entries (SaaS-23).",
+        validation_alias=AliasChoices(
+            "BILLING_QUOTA_CACHE_TTL_SECONDS",
+            "PLATFORM_BILLING_QUOTA_CACHE_TTL_SECONDS",
+        ),
+    )
+    BILLING_QUOTA_IN_FLIGHT_TTL_SECONDS: int = Field(
+        default=300,
+        ge=1,
+        description="TTL in seconds for in-flight execution quota counters (SaaS-23).",
+        validation_alias=AliasChoices(
+            "BILLING_QUOTA_IN_FLIGHT_TTL_SECONDS",
+            "PLATFORM_BILLING_QUOTA_IN_FLIGHT_TTL_SECONDS",
+        ),
+    )
+    BILLING_DEFAULT_QUOTA_PERIOD_ANCHOR: Literal[
+        "calendar_month", "subscription_anniversary"
+    ] = Field(
+        default="calendar_month",
+        description="Default quota-period anchor for new billing plan versions (SaaS-22).",
+        validation_alias=AliasChoices(
+            "BILLING_DEFAULT_QUOTA_PERIOD_ANCHOR",
+            "PLATFORM_BILLING_DEFAULT_QUOTA_PERIOD_ANCHOR",
+        ),
+    )
 
     db: DatabaseSettings = Field(default_factory=DatabaseSettings)
     redis: RedisSettings = Field(default_factory=RedisSettings)
@@ -1299,6 +1361,16 @@ class PlatformSettings(BaseSettings):
             "MCP_INVOCATION_TIMEOUT_SECONDS": ("MCP_INVOCATION_TIMEOUT_SECONDS",),
             "MCP_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE": ("MCP_RATE_LIMIT_PER_PRINCIPAL_PER_MINUTE",),
             "MCP_PROTOCOL_VERSION": ("MCP_PROTOCOL_VERSION",),
+            "BILLING_PERIOD_SCHEDULER_INTERVAL_SECONDS": (
+                "BILLING_PERIOD_SCHEDULER_INTERVAL_SECONDS",
+            ),
+            "BILLING_METERING_TOLERANCE_SECONDS": ("BILLING_METERING_TOLERANCE_SECONDS",),
+            "BILLING_PAYMENT_PROVIDER": ("BILLING_PAYMENT_PROVIDER",),
+            "BILLING_QUOTA_CACHE_TTL_SECONDS": ("BILLING_QUOTA_CACHE_TTL_SECONDS",),
+            "BILLING_QUOTA_IN_FLIGHT_TTL_SECONDS": ("BILLING_QUOTA_IN_FLIGHT_TTL_SECONDS",),
+            "BILLING_DEFAULT_QUOTA_PERIOD_ANCHOR": (
+                "BILLING_DEFAULT_QUOTA_PERIOD_ANCHOR",
+            ),
             "CHECKPOINT_RETENTION_DAYS": ("checkpoint_retention_days",),
             "CHECKPOINT_MAX_SIZE_BYTES": ("checkpoint_max_size_bytes",),
             "ANALYTICS_BUDGET_THRESHOLD_USD": ("analytics", "budget_threshold_usd"),
