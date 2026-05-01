@@ -1,0 +1,187 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-status-page
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.dashboardLabels" . | indent 4 }}
+data:
+  status_page.json: |
+    {
+      "__inputs": [],
+      "__requires": [
+        { "type": "grafana", "id": "grafana", "name": "Grafana", "version": "11.1.0" },
+        { "type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "" },
+        { "type": "datasource", "id": "loki", "name": "Loki", "version": "" },
+        { "type": "panel", "id": "stat", "name": "Stat", "version": "" },
+        { "type": "panel", "id": "timeseries", "name": "Time series", "version": "" }
+      ],
+      "annotations": { "list": [] },
+      "description": "Public status page freshness, dispatch latency, feed health, request rate, and dead-letter pressure.",
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "id": 1,
+          "type": "timeseries",
+          "title": "Snapshot Regeneration Latency p50/p95",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, sum by (le) (rate(status_page_snapshot_regeneration_seconds_bucket{namespace=~\"$namespace\"}[5m])))",
+              "legendFormat": "p50",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(status_page_snapshot_regeneration_seconds_bucket{namespace=~\"$namespace\"}[5m])))",
+              "legendFormat": "p95",
+              "refId": "B"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "Subscription Dispatch Latency p95",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le, channel) (rate(status_page_subscription_dispatch_seconds_bucket{namespace=~\"$namespace\"}[5m])))",
+              "legendFormat": "{{ `{{channel}}` }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+        },
+        {
+          "id": 3,
+          "type": "stat",
+          "title": "RSS / Atom Freshness",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 7, "w": 8, "x": 0, "y": 8 },
+          "targets": [
+            {
+              "expr": "max(status_page_feed_age_seconds{namespace=~\"$namespace\",feed=~\"rss|atom\"})",
+              "legendFormat": "oldest feed",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s", "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "yellow", "value": 60 }, { "color": "red", "value": 120 }] } }, "overrides": [] }
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "Public Status Request Rate",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 7, "w": 8, "x": 8, "y": 8 },
+          "targets": [
+            {
+              "expr": "sum by (route, status_code) (rate(http_requests_total{namespace=~\"$namespace\",route=~\"/api/v1/public/status.*|/api/v1/public/incidents.*\"}[5m]))",
+              "legendFormat": "{{ `{{route}}` }} {{ `{{status_code}}` }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "Public Status 4xx / 5xx",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 7, "w": 8, "x": 16, "y": 8 },
+          "targets": [
+            {
+              "expr": "sum by (status_code) (rate(http_requests_total{namespace=~\"$namespace\",route=~\"/api/v1/public/.*\",status_code=~\"4..|5..\"}[5m]))",
+              "legendFormat": "{{ `{{status_code}}` }}",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+        },
+        {
+          "id": 6,
+          "type": "stat",
+          "title": "CDN Cache Hit Ratio",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 7, "w": 8, "x": 0, "y": 15 },
+          "targets": [
+            {
+              "expr": "sum(rate(status_page_cdn_cache_hits_total{namespace=~\"$namespace\"}[5m])) / clamp_min(sum(rate(status_page_cdn_requests_total{namespace=~\"$namespace\"}[5m])), 1)",
+              "legendFormat": "hit ratio",
+              "refId": "A"
+            }
+          ],
+          "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 }, "overrides": [] }
+        },
+        {
+          "id": 7,
+          "type": "timeseries",
+          "title": "Dead-letter Webhook Depth",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 7, "w": 8, "x": 8, "y": 15 },
+          "targets": [
+            {
+              "expr": "sum(status_page_webhook_dead_letter_depth{namespace=~\"$namespace\"})",
+              "legendFormat": "dead letters",
+              "refId": "A"
+            }
+          ]
+        },
+        {
+          "id": 8,
+          "type": "logs",
+          "title": "Status Page Events",
+          "datasource": { "type": "loki", "uid": "loki" },
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 22 },
+          "targets": [
+            {
+              "expr": "{bounded_context=\"status_page\", namespace=~\"$namespace\"} | json",
+              "refId": "A"
+            }
+          ]
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 39,
+      "style": "dark",
+      "tags": ["status-page", "public-status", "upd-045"],
+      "templating": {
+        "list": [
+          {
+            "current": { "selected": false, "text": "Prometheus", "value": "prometheus" },
+            "hide": 0,
+            "includeAll": false,
+            "label": "Prometheus",
+            "name": "datasource",
+            "options": [],
+            "query": "prometheus",
+            "refresh": 1,
+            "regex": "",
+            "type": "datasource"
+          },
+          {
+            "current": { "selected": false, "text": ".*", "value": ".*" },
+            "hide": 0,
+            "includeAll": false,
+            "label": "Namespace",
+            "name": "namespace",
+            "options": [],
+            "query": "label_values(up, namespace)",
+            "refresh": 2,
+            "regex": "",
+            "type": "query"
+          }
+        ]
+      },
+      "time": { "from": "now-6h", "to": "now" },
+      "timezone": "browser",
+      "title": "Status Page",
+      "uid": "status-page",
+      "version": 1
+    }

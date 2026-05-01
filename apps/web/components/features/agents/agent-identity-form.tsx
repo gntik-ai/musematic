@@ -121,6 +121,7 @@ export function AgentIdentityForm({
             </Button>
             <Button
               disabled={!form.formState.isValid || mutation.isPending}
+              disabledByMaintenance
               type="submit"
             >
               {mutation.isPending

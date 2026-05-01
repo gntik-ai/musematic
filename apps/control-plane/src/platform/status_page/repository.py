@@ -226,6 +226,12 @@ class StatusPageRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_subscription(self, subscription_id: UUID) -> StatusSubscription | None:
+        result = await self.session.execute(
+            select(StatusSubscription).where(StatusSubscription.id == subscription_id)
+        )
+        return result.scalar_one_or_none()
+
     async def confirm_subscription(self, subscription: StatusSubscription) -> StatusSubscription:
         subscription.confirmed_at = datetime.now(UTC)
         subscription.health = "healthy"
@@ -235,6 +241,15 @@ class StatusPageRepository:
 
     async def mark_unsubscribed(self, subscription: StatusSubscription) -> StatusSubscription:
         subscription.health = "unsubscribed"
+        await self.session.flush()
+        return subscription
+
+    async def rotate_unsubscribe_token(
+        self,
+        subscription: StatusSubscription,
+        token_hash: bytes,
+    ) -> StatusSubscription:
+        subscription.unsubscribe_token_hash = token_hash
         await self.session.flush()
         return subscription
 

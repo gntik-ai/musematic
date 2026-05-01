@@ -6,10 +6,13 @@ See specs/095-public-status-banner-workbench-uis/plan.md for the implementation 
 from __future__ import annotations
 
 import hashlib
+import json
+import os
 import secrets
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
+from platform.common.exceptions import AuthorizationError, ValidationError
 from platform.incident_response.models import Incident
 from platform.multi_region_ops.models import MaintenanceWindow
 from platform.notifications.models import DeliveryOutcome
@@ -232,6 +235,11 @@ class StatusPageService:
                 subscription_id=str(subscription.id),
             ),
         )
+        await self._capture_e2e_subscription_tokens(
+            email=email.strip().lower(),
+            confirmation_token=confirmation_token,
+            unsubscribe_token=unsubscribe_token,
+        )
         return AntiEnumerationResponse()
 
     async def confirm_email_subscription(self, token: str) -> TokenActionResponse:
@@ -364,16 +372,42 @@ class StatusPageService:
         target: str,
         scope_components: list[str],
     ) -> MyStatusSubscription:
+        if channel not in {"email", "webhook", "slack"}:
+            raise ValidationError(
+                "status.subscription.invalid_channel",
+                "Status subscriptions support email, webhook, or Slack channels",
+            )
         now = datetime.now(UTC)
+        confirmed_at = now if channel in {"webhook", "slack"} else None
+        health = "healthy" if channel in {"webhook", "slack"} else "pending"
+        webhook_id: UUID | None = None
+        if channel == "webhook":
+            webhook_id = uuid4()
+            if self.webhook_deliverer is not None:
+                outcome, _error, _idempotency = await self.webhook_deliverer.send_signed(
+                    webhook_id=webhook_id,
+                    event_id=uuid4(),
+                    webhook_url=target,
+                    payload={
+                        "event_type": "status.subscription.test",
+                        "test": True,
+                    },
+                    secret="status-page-dev-secret",
+                    platform_version=self.platform_version,
+                )
+                if outcome != DeliveryOutcome.success:
+                    confirmed_at = None
+                    health = "unhealthy"
         subscription = await self.repository.create_subscription(
             channel=channel,
             target=target,
             scope_components=_normalise_scope(scope_components),
             unsubscribe_token_hash=_hash_token(_new_token()),
-            confirmed_at=now if channel in {"webhook", "slack"} else None,
-            health="healthy" if channel in {"webhook", "slack"} else "pending",
+            confirmed_at=confirmed_at,
+            health=health,
             workspace_id=_optional_workspace_id(current_user),
             user_id=_user_id(current_user),
+            webhook_id=webhook_id,
         )
         return _my_subscription(subscription)
 
@@ -396,7 +430,7 @@ class StatusPageService:
             values=values,
         )
         if subscription is None:
-            raise SubscriptionNotFoundError()
+            await self._raise_not_found_or_forbidden(current_user, subscription_id)
         return _my_subscription(subscription)
 
     async def delete_my_subscription(
@@ -409,9 +443,23 @@ class StatusPageService:
             user_id=_user_id(current_user),
         )
         if subscription is None:
-            raise SubscriptionNotFoundError()
+            await self._raise_not_found_or_forbidden(current_user, subscription_id)
         await self.repository.mark_unsubscribed(subscription)
         return TokenActionResponse(status="unsubscribed", message="Subscription removed.")
+
+    async def _raise_not_found_or_forbidden(
+        self,
+        current_user: dict[str, Any],
+        subscription_id: UUID,
+    ) -> None:
+        getter = getattr(self.repository, "get_subscription", None)
+        existing = await getter(subscription_id) if callable(getter) else None
+        if existing is not None and existing.user_id != _user_id(current_user):
+            raise AuthorizationError(
+                "status.subscription.forbidden",
+                "Cannot access another user's status subscription",
+            )
+        raise SubscriptionNotFoundError()
 
     def _snapshot_from_row(self, row: PlatformStatusSnapshot) -> PlatformStatusSnapshotRead:
         return snapshot_read_from_payload(
@@ -585,6 +633,30 @@ class StatusPageService:
         except TypeError:
             await setter(key, value, ex=ttl)
 
+    async def _capture_e2e_subscription_tokens(
+        self,
+        *,
+        email: str,
+        confirmation_token: str,
+        unsubscribe_token: str,
+    ) -> None:
+        if not (
+            os.getenv("FEATURE_E2E_MODE") == "true"
+            or os.getenv("PLATFORM_FEATURE_E2E_MODE") == "true"
+        ):
+            return
+        await self._redis_set(
+            f"e2e:status-subscriptions:tokens:{email}",
+            json.dumps(
+                {
+                    "email": email,
+                    "confirmation_token": confirmation_token,
+                    "unsubscribe_token": unsubscribe_token,
+                },
+            ).encode("utf-8"),
+            ttl=3600,
+        )
+
     async def _send_email(self, *, email: str, subject: str, body: str) -> None:
         if self.email_deliverer is None:
             return
@@ -599,6 +671,12 @@ class StatusPageService:
         payload: dict[str, Any],
     ) -> tuple[str, str | None]:
         if subscription.channel == "email":
+            unsubscribe_token = _new_token()
+            rotate = getattr(self.repository, "rotate_unsubscribe_token", None)
+            if callable(rotate):
+                await rotate(subscription, _hash_token(unsubscribe_token))
+            else:
+                subscription.unsubscribe_token_hash = _hash_token(unsubscribe_token)
             await self._send_email(
                 email=subscription.target,
                 subject=f"Musematic status update: {event_kind}",
@@ -606,6 +684,7 @@ class StatusPageService:
                     f"{event_kind.replace('.', '_')}.txt",
                     event_kind=event_kind,
                     payload=payload,
+                    unsubscribe_url=_unsubscribe_url(unsubscribe_token, payload),
                 ),
             )
             return "sent", None
@@ -670,6 +749,12 @@ def _affected_components(payload: dict[str, Any]) -> list[str]:
         if isinstance(value, list):
             return [str(item) for item in value]
     return []
+
+
+def _unsubscribe_url(token: str, payload: dict[str, Any]) -> str:
+    base_url = payload.get("public_status_base_url") or payload.get("base_url") or ""
+    base = str(base_url).rstrip("/")
+    return f"{base}/api/v1/public/subscribe/email/unsubscribe?token={token}"
 
 
 def _user_id(current_user: dict[str, Any]) -> UUID:

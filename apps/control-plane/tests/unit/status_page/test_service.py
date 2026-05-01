@@ -86,6 +86,48 @@ class _RepoStub:
         return []
 
 
+class _DispatchRepoStub:
+    def __init__(self) -> None:
+        self.subscriptions = [
+            SimpleNamespace(
+                id=uuid4(),
+                channel="email",
+                target="all@example.com",
+                scope_components=[],
+            ),
+            SimpleNamespace(
+                id=uuid4(),
+                channel="email",
+                target="api@example.com",
+                scope_components=["control-plane-api"],
+            ),
+            SimpleNamespace(
+                id=uuid4(),
+                channel="email",
+                target="web@example.com",
+                scope_components=["web-app"],
+            ),
+        ]
+        self.dispatches: list[dict] = []
+
+    async def list_confirmed_subscriptions_for_event(
+        self,
+        *,
+        affected_components: list[str],
+    ) -> list[SimpleNamespace]:
+        affected = set(affected_components)
+        return [
+            subscription
+            for subscription in self.subscriptions
+            if not subscription.scope_components
+            or affected.intersection(subscription.scope_components)
+        ]
+
+    async def insert_dispatch(self, **kwargs) -> SimpleNamespace:
+        self.dispatches.append(kwargs)
+        return SimpleNamespace(id=uuid4(), **kwargs)
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("component_states", "active_maintenance", "expected"),
@@ -124,3 +166,26 @@ async def test_compose_snapshot_overall_state_aggregation(
     assert repo.rows[-1].payload["overall_state"] == expected.value
     assert redis.values[CURRENT_SNAPSHOT_KEY][1] == 90
     assert redis.values[LAST_GOOD_SNAPSHOT_KEY][1] == 24 * 60 * 60
+
+
+@pytest.mark.asyncio
+async def test_dispatch_fanout() -> None:
+    repo = _DispatchRepoStub()
+    service = StatusPageService(repository=repo)
+    incident_id = uuid4()
+
+    sent = await service.dispatch_event(
+        "incident.created",
+        {
+            "incident_id": str(incident_id),
+            "title": "Control-plane incident",
+            "components_affected": ["control-plane-api"],
+        },
+    )
+
+    assert sent == 2
+    assert [item["subscription_id"] for item in repo.dispatches] == [
+        repo.subscriptions[0].id,
+        repo.subscriptions[1].id,
+    ]
+    assert all(item["event_id"] == incident_id for item in repo.dispatches)

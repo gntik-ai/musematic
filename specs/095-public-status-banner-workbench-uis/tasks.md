@@ -38,7 +38,7 @@ description: "Task list for UPD-045 — Public Status Page, Platform State Banne
 ### Database & migration
 
 - [X] T006 Author Alembic migration `apps/control-plane/migrations/versions/095_status_page_and_scenarios.py` per `data-model.md` §"Migration summary": creates `platform_status_snapshots`, `status_subscriptions`, `subscription_dispatches`, `simulation_scenarios` tables; adds nullable `simulation_runs.scenario_id` FK; seeds synthetic `system_status` workspace (per research R7). Include all indexes (`IX_platform_status_snapshots_generated_at_desc`, `IX_status_subscriptions_user_id`, `IX_status_subscriptions_workspace_id`, `UQ_status_subscriptions_channel_target_confirmed` partial, `IX_subscription_dispatches_*`, `IX_simulation_scenarios_workspace_id_archived_at`, `UQ_simulation_scenarios_workspace_name_active` partial, `IX_simulation_runs_scenario_id`).
-- [ ] T007 Run `alembic upgrade head` against the dev cluster and verify all 4 new tables + the new column exist with the exact constraints listed; capture output for the PR description.
+- [X] T007 Run `alembic upgrade head` against the dev cluster and verify all 4 new tables + the new column exist with the exact constraints listed; capture output for the PR description.
 
 ### `status_page/` bounded context scaffold
 
@@ -104,7 +104,7 @@ description: "Task list for UPD-045 — Public Status Page, Platform State Banne
 - [X] T039 [US1] Fill in `deploy/helm/platform/templates/status-snapshot-cronjob.yaml` — runs every 60s; calls an internal endpoint `/api/v1/internal/status_page/regenerate-fallback` (admin-token-gated) which writes the latest snapshot to the shared volume as `last-known-good.json`.
 - [X] T040 [US1] Add internal admin route `POST /api/v1/internal/status_page/regenerate-fallback` to `apps/control-plane/src/platform/status_page/router.py` (admin role gate via `require_superadmin` per Rule 30). Idempotent; writes to S3-compatible bucket OR ConfigMap-volume mount per the deployment topology chosen in T037.
 - [X] T041 [US1] Write CDN/Ingress cache headers config: `Cache-Control: public, max-age=30, must-revalidate` for status; `max-age=60` for incidents; `max-age=60` for feeds. Document in `apps/web-status/README.md`.
-- [ ] T042 [US1] Run axe-core sweep on `apps/web-status/` pages (overall, per-component, history) — fail build on serious/critical violations (Rule 41).
+- [X] T042 [US1] Run axe-core sweep on `apps/web-status/` pages (overall, per-component, history) — fail build on serious/critical violations (Rule 41).
 
 **Checkpoint**: visitor can browse the public status page at `status.{env}.musematic.ai`; page survives main-app outage; axe-core AA passes.
 
@@ -137,7 +137,7 @@ description: "Task list for UPD-045 — Public Status Page, Platform State Banne
 - [X] T056 [US2] Add maintenance-banner i18n keys to all 6 + 1 (ja) locales in `apps/web/messages/*.json`: `platformStatus.maintenanceScheduled`, `platformStatus.maintenanceInProgress`, `platformStatus.endsAt`, `platformStatus.dismiss`, `platformStatus.viewStatusPage`, `platformStatus.blockedActionTitle`, `platformStatus.blockedActionExplanation`.
 - [X] T057 [US2] Disabled-state audit: identify the canonical action button primitives (`apps/web/components/ui/button.tsx` or wrapper components in workbench pages) and add a `disabledByMaintenance` prop sourced from `usePlatformStatus()` + a tooltip citing `platformStatus.endsAt`. Apply on the top three writeable surfaces called out by spec (workflow trigger, agent invocation, scenario launch). Defer broader sweep to Polish phase if time-boxed.
 - [X] T058 [US2] Wire WebSocket fan-out in `apps/control-plane/src/platform/ws_hub/router.py`: upon receipt of `multi_region_ops.events.maintenance_mode_enabled` / `_disabled`, broadcast `platform.maintenance.{started,ended}` envelope on the `platform-status` channel to all connected sessions.
-- [ ] T059 [US2] Run axe-core sweep on `apps/web/app/(main)/home/` with the banner + modal forced on (test fixture); fail build on violations.
+- [X] T059 [US2] Run axe-core sweep on `apps/web/app/(main)/home/` with the banner + modal forced on (test fixture); fail build on violations.
 
 **Checkpoint**: maintenance banner state machine works end-to-end; blocked-action modal replaces silent 503s.
 
@@ -152,7 +152,7 @@ description: "Task list for UPD-045 — Public Status Page, Platform State Banne
 ### Tests for US3
 
 - [X] T060 [P] [US3] Vitest test `apps/web/__tests__/platform-status/PlatformStatusBanner.incident.test.tsx` — incident severity warning|critical drives the variant; deep link points to public host (NOT admin); banner upgrades on severity change.
-- [ ] T061 [P] [US3] Integration test `apps/control-plane/tests/integration/status_page/test_ws_incident_fanout.py` — opening a WS connection, triggering an `incident.triggered` Kafka event, asserts a `platform.incident.created` event is broadcast on the `platform-status` channel within 1s; resolution similarly.
+- [X] T061 [P] [US3] Integration test `apps/control-plane/tests/integration/status_page/test_ws_incident_fanout.py` — opening a WS connection, triggering an `incident.triggered` Kafka event, asserts a `platform.incident.created` event is broadcast on the `platform-status` channel within 1s; resolution similarly.
 
 ### Implementation for US3
 
@@ -172,21 +172,21 @@ description: "Task list for UPD-045 — Public Status Page, Platform State Banne
 
 ### Tests for US4
 
-- [ ] T065 [P] [US4] Integration test `apps/control-plane/tests/integration/status_page/test_subscription_flow.py::test_email_confirm_opt_in` — POST email → 202 anti-enumeration; subscription row in `pending`; click confirmation link → row in `healthy`; trigger incident → `subscription_dispatches` row created.
-- [ ] T066 [P] [US4] Integration test for webhook subscription: POST URL → 202; immediate test ping delivered with correct HMAC signature header (verifies via `notifications/deliverers/webhook_deliverer.py:43-89` reuse); subscription `healthy` only on 2xx test ping. Persistent failures land in `webhook_deliveries.status='dead_letter'`.
-- [ ] T067 [P] [US4] Unit test `apps/control-plane/tests/unit/status_page/test_service.py::test_dispatch_fanout` — given an `incident.triggered` event and N subscriptions with overlapping scope filters, assert exactly the matching subset gets a dispatch row.
-- [ ] T068 [P] [US4] Vitest test `apps/web-status/components/SubscribeForm.test.tsx` — RHF + Zod email validation; submit → 202 → success message (anti-enumeration; never confirms whether email exists).
+- [X] T065 [P] [US4] Integration test `apps/control-plane/tests/integration/status_page/test_subscription_flow.py::test_email_confirm_opt_in` — POST email → 202 anti-enumeration; subscription row in `pending`; click confirmation link → row in `healthy`; trigger incident → `subscription_dispatches` row created.
+- [X] T066 [P] [US4] Integration test for webhook subscription: POST URL → 202; immediate test ping delivered with correct HMAC signature header (verifies via `notifications/deliverers/webhook_deliverer.py:43-89` reuse); subscription `healthy` only on 2xx test ping. Persistent failures land in `webhook_deliveries.status='dead_letter'`.
+- [X] T067 [P] [US4] Unit test `apps/control-plane/tests/unit/status_page/test_service.py::test_dispatch_fanout` — given an `incident.triggered` event and N subscriptions with overlapping scope filters, assert exactly the matching subset gets a dispatch row.
+- [X] T068 [P] [US4] Vitest test `apps/web-status/components/SubscribeForm.test.tsx` — RHF + Zod email validation; submit → 202 → success message (anti-enumeration; never confirms whether email exists).
 
 ### Implementation for US4
 
-- [ ] T069 [US4] Implement remaining `apps/control-plane/src/platform/status_page/service.py` methods (~140 of the ~220 LOC): `submit_email_subscription(email, scope)` (creates `pending` row + sends confirm email), `confirm_email_subscription(token)`, `unsubscribe(token)`, `submit_webhook_subscription(url, scope, contact_email)` (creates `OutboundWebhook` row tied via `webhook_id` to a new `status_subscriptions` row, scope_components → `event_types` mapping), `submit_slack_subscription(webhook_url, scope)`, `dispatch_event(event_kind, payload)` (fans out to all matching `confirmed_at IS NOT NULL && health='healthy'` subscriptions).
+- [X] T069 [US4] Implement remaining `apps/control-plane/src/platform/status_page/service.py` methods (~140 of the ~220 LOC): `submit_email_subscription(email, scope)` (creates `pending` row + sends confirm email), `confirm_email_subscription(token)`, `unsubscribe(token)`, `submit_webhook_subscription(url, scope, contact_email)` (creates `OutboundWebhook` row tied via `webhook_id` to a new `status_subscriptions` row, scope_components → `event_types` mapping), `submit_slack_subscription(webhook_url, scope)`, `dispatch_event(event_kind, payload)` (fans out to all matching `confirmed_at IS NOT NULL && health='healthy'` subscriptions).
 - [X] T070 [US4] Implement confirmation-token generation: `secrets.token_urlsafe(32)` → SHA-256 → store hash; raw token sent in confirmation email/webhook test. Unsubscribe tokens are scoped per-subscription, generated on subscribe, persisted hashed (separate column or reuse same `confirmation_token_hash` for both — prefer two columns: `confirmation_token_hash` and `unsubscribe_token_hash`; update T010 model + T006 migration if needed).
 - [X] T071 [US4] Add Redis rate-limit logic in `apps/control-plane/src/platform/status_page/dependencies.py`: sliding-window counter `status:subscribe:rate:{ip}` (5 req/min default, 10 burst) per `plan.md` Storage table.
 - [X] T072 [US4] Implement `apps/control-plane/src/platform/status_page/router.py` POST/GET endpoints: `POST /api/v1/public/subscribe/email`, `GET /api/v1/public/subscribe/email/confirm`, `GET /api/v1/public/subscribe/email/unsubscribe`, `POST /api/v1/public/subscribe/webhook`, `POST /api/v1/public/subscribe/slack`. Per-IP rate limit dependency wired.
 - [X] T073 [US4] Subscribe `status_page.dispatch_event` to the in-process Kafka consumer that already fires from T024: every consumed `incident.triggered/.updated/.resolved` and `maintenance.{enabled,disabled}` triggers `dispatch_event` with the appropriate `event_kind`. Reuses `notifications/deliverers/webhook_deliverer.send_signed()` for the `webhook` channel.
 - [X] T074 [US4] Extend `apps/control-plane/src/platform/notifications/webhooks_service.py` allowed-event-types to include the status-page kinds: `incident.created`, `incident.updated`, `incident.resolved`, `maintenance.scheduled`, `maintenance.started`, `maintenance.ended`, `component.degraded`, `component.recovered`. Validation should accept these in `OutboundWebhook.event_types` array.
-- [ ] T075 [US4] Implement email transport for confirmation + lifecycle notifications: reuse the existing `notifications/email/` sender (find via repo grep at task time). Email templates live under `apps/control-plane/src/platform/status_page/email_templates/`: `confirm_subscription.txt`/`.html`, `incident_created.{txt,html}`, `incident_updated.{txt,html}`, `incident_resolved.{txt,html}`, `maintenance_scheduled.{txt,html}`, `maintenance_started.{txt,html}`, `maintenance_ended.{txt,html}`, `unsubscribed.{txt,html}`. Every email includes the unsubscribe link (FR-695-24).
-- [ ] T076 [US4] Implement bounce handling: extend `notifications/email/` bounce hook (or — if absent — flag a follow-up TODO) to mark `status_subscriptions.health='unhealthy'` on hard bounce (per spec edge case + FR-695-23 dead-letter pattern). Until bounce hook is wired, document the manual remediation in `quickstart.md`.
+- [X] T075 [US4] Implement email transport for confirmation + lifecycle notifications: reuse the existing `notifications/email/` sender (find via repo grep at task time). Email templates live under `apps/control-plane/src/platform/status_page/email_templates/`: `confirm_subscription.txt`/`.html`, `incident_created.{txt,html}`, `incident_updated.{txt,html}`, `incident_resolved.{txt,html}`, `maintenance_scheduled.{txt,html}`, `maintenance_started.{txt,html}`, `maintenance_ended.{txt,html}`, `unsubscribed.{txt,html}`. Every email includes the unsubscribe link (FR-695-24).
+- [X] T076 [US4] Implement bounce handling: extend `notifications/email/` bounce hook (or — if absent — flag a follow-up TODO) to mark `status_subscriptions.health='unhealthy'` on hard bounce (per spec edge case + FR-695-23 dead-letter pattern). Until bounce hook is wired, document the manual remediation in `quickstart.md`.
 - [X] T077 [US4] Implement `apps/web-status/app/subscribe/page.tsx` — form for email/webhook/Slack subscription with scope-component multiselect; uses `<SubscribeForm>` (T078).
 - [X] T078 [P] [US4] Implement `apps/web-status/components/SubscribeForm.tsx` — RHF + Zod; channel discriminated union; submits to `/api/v1/public/subscribe/{email|webhook|slack}`; renders an anti-enumeration confirmation regardless of whether the email already exists.
 - [X] T079 [US4] Implement `apps/web-status/app/subscribe/confirm/page.tsx` (handles `?token=...` query param via client component, calls `GET /api/v1/public/subscribe/email/confirm`, renders success/expired/invalid states).
@@ -205,16 +205,16 @@ description: "Task list for UPD-045 — Public Status Page, Platform State Banne
 
 ### Tests for US5
 
-- [ ] T082 [P] [US5] Integration test `apps/control-plane/tests/integration/status_page/test_me_subscriptions.py` — `/api/v1/me/status-subscriptions` GET/POST/PATCH/DELETE; cross-user attempts return 403 (Rule 46); creating a webhook subscription delivers a test ping; deletion stops further dispatch.
-- [ ] T083 [P] [US5] Vitest test `apps/web/__tests__/settings/status-subscriptions.test.tsx` — list/add/edit/remove flows; optimistic update; error rollback.
+- [X] T082 [P] [US5] Integration test `apps/control-plane/tests/integration/status_page/test_me_subscriptions.py` — `/api/v1/me/status-subscriptions` GET/POST/PATCH/DELETE; cross-user attempts return 403 (Rule 46); creating a webhook subscription delivers a test ping; deletion stops further dispatch.
+- [X] T083 [P] [US5] Vitest test `apps/web/__tests__/settings/status-subscriptions.test.tsx` — list/add/edit/remove flows; optimistic update; error rollback.
 
 ### Implementation for US5
 
-- [ ] T084 [US5] Implement `apps/control-plane/src/platform/status_page/me_router.py` subscription endpoints per `contracts/authenticated-subscription-api.openapi.yaml`: `GET/POST/PATCH/DELETE /api/v1/me/status-subscriptions[/{id}]`. Self-scoped (Rule 46) — no `user_id` param, always uses authenticated principal. Audit-chain entries on every mutation (Rule 9).
+- [X] T084 [US5] Implement `apps/control-plane/src/platform/status_page/me_router.py` subscription endpoints per `contracts/authenticated-subscription-api.openapi.yaml`: `GET/POST/PATCH/DELETE /api/v1/me/status-subscriptions[/{id}]`. Self-scoped (Rule 46) — no `user_id` param, always uses authenticated principal. Audit-chain entries on every mutation (Rule 9).
 - [X] T085 [US5] Implement `apps/web/app/(main)/settings/status-subscriptions/page.tsx` — page shell + list + add-subscription dialog.
 - [X] T086 [P] [US5] Implement `apps/web/components/features/platform-status/StatusSubscriptionList.tsx` — TanStack Table with channel, scope, health, confirmed-at columns; remove action with confirm dialog.
 - [X] T087 [P] [US5] Implement `apps/web/components/features/platform-status/AddSubscriptionForm.tsx` — RHF + Zod; channel discriminated union; submits to `/api/v1/me/status-subscriptions`; for webhook channel displays the test-ping verification state.
-- [ ] T088 [US5] Add settings-subscriptions i18n keys to all 6+1 locales: `platformStatus.subscriptions.title`, `.add`, `.empty`, `.channelEmail`, `.channelWebhook`, `.channelSlack`, `.scope.allComponents`, `.scope.specificComponents`, `.health.{pending,healthy,unhealthy,unsubscribed}`, `.removeConfirm`.
+- [X] T088 [US5] Add settings-subscriptions i18n keys to all 6+1 locales: `platformStatus.subscriptions.title`, `.add`, `.empty`, `.channelEmail`, `.channelWebhook`, `.channelSlack`, `.scope.allComponents`, `.scope.specificComponents`, `.health.{pending,healthy,unhealthy,unsubscribed}`, `.removeConfirm`.
 
 **Checkpoint**: authenticated subscription mgmt page passes axe-core AA; cross-user attempts blocked by 403.
 
@@ -228,16 +228,16 @@ description: "Task list for UPD-045 — Public Status Page, Platform State Banne
 
 ### Tests for US6
 
-- [ ] T089 [P] [US6] Unit test `apps/control-plane/tests/unit/simulation/test_scenarios_service.py` — validation: plaintext-secret rejection, unknown FQN rejection, forbidden twin combo rejection, success_criteria empty-array rejection. ≥ 14 cases.
-- [ ] T090 [P] [US6] Integration test `apps/control-plane/tests/integration/simulation/test_scenario_endpoints.py` — full CRUD; archive (soft-delete); `/run` queues N `simulation_runs` rows linked via `scenario_id`.
-- [ ] T091 [P] [US6] Vitest test `apps/web/__tests__/simulations/SimulationScenarioEditor.test.tsx` — RHF + Zod validation, mock-LLM default, real-LLM opt-in via `<RealLLMOptInDialog>`.
-- [ ] T092 [P] [US6] Vitest test `apps/web/__tests__/simulations/DigitalTwinPanel.test.tsx` — renders mock vs real lists, divergence highlights; "no reference available" empty state.
+- [X] T089 [P] [US6] Unit test `apps/control-plane/tests/unit/simulation/test_scenarios_service.py` — validation: plaintext-secret rejection, unknown FQN rejection, forbidden twin combo rejection, success_criteria empty-array rejection. ≥ 14 cases.
+- [X] T090 [P] [US6] Integration test `apps/control-plane/tests/integration/simulation/test_scenario_endpoints.py` — full CRUD; archive (soft-delete); `/run` queues N `simulation_runs` rows linked via `scenario_id`.
+- [X] T091 [P] [US6] Vitest test `apps/web/__tests__/simulations/SimulationScenarioEditor.test.tsx` — RHF + Zod validation, mock-LLM default, real-LLM opt-in via `<RealLLMOptInDialog>`.
+- [X] T092 [P] [US6] Vitest test `apps/web/__tests__/simulations/DigitalTwinPanel.test.tsx` — renders mock vs real lists, divergence highlights; "no reference available" empty state.
 
 ### Implementation for US6
 
 - [X] T093 [US6] Extend `apps/control-plane/src/platform/simulation/models.py` — add `SimulationScenario` model + `scenario_id` FK on `SimulationRun` matching migration 095 (T006).
 - [X] T094 [US6] Extend `apps/control-plane/src/platform/simulation/schemas.py` — add `ScenarioCreate`, `ScenarioUpdate`, `ScenarioRead`, `ScenarioRunRequest`, `ScenarioRunSummary` Pydantic schemas matching `contracts/simulation-scenarios-api.openapi.yaml`.
-- [ ] T095 [US6] Implement `apps/control-plane/src/platform/simulation/scenarios_service.py` (~180 LOC) — CRUD; validation per data-model §4 rules (#1 plaintext-secret regex via `security_compliance/` patterns; #2 FQN existence via `registry/` service; #3 workflow approval via `workflows/` service; #4 forbidden twin combos; #5 non-empty `success_criteria`). `launch_scenario(scenario_id, iterations, use_real_llm, confirmation_token)` queues N `simulation_runs` rows via the existing `simulation_controller` gRPC client.
+- [X] T095 [US6] Implement `apps/control-plane/src/platform/simulation/scenarios_service.py` (~180 LOC) — CRUD; validation per data-model §4 rules (#1 plaintext-secret regex via `security_compliance/` patterns; #2 FQN existence via `registry/` service; #3 workflow approval via `workflows/` service; #4 forbidden twin combos; #5 non-empty `success_criteria`). `launch_scenario(scenario_id, iterations, use_real_llm, confirmation_token)` queues N `simulation_runs` rows via the existing `simulation_controller` gRPC client.
 - [X] T096 [US6] Extend `apps/control-plane/src/platform/simulation/router.py` — add 5 new routes per the contract: `GET/POST /scenarios`, `GET/PUT/DELETE /scenarios/{id}`, `POST /scenarios/{id}/run`. Workspace-scoped (Rule 47); 422 on validation failures with detail payload.
 - [X] T097 [US6] Implement `apps/web/lib/hooks/use-simulation-scenarios.ts` — TanStack Query hooks: `useScenarios(workspaceId)`, `useScenario(id)`, `useCreateScenario()`, `useUpdateScenario(id)`, `useArchiveScenario(id)`, `useRunScenario(id)`.
 - [X] T098 [US6] Implement `apps/web/lib/hooks/use-digital-twin.ts` — TanStack Query against `GET /api/v1/simulations/{run_id}` + the existing `GET /api/v1/simulations/comparisons/{report_id}` to compose `DigitalTwinDivergenceReport` per data-model §6.
@@ -249,8 +249,8 @@ description: "Task list for UPD-045 — Public Status Page, Platform State Banne
 - [X] T104 [US6] Implement `apps/web/app/(main)/evaluation-testing/simulations/scenarios/[id]/page.tsx` — wraps `<SimulationScenarioEditor mode="edit" scenarioId={id} />` + recent-runs list; launch button mounts `<ScenarioRunDialog>`.
 - [X] T105 [US6] Implement `apps/web/components/features/simulations/DigitalTwinPanel.tsx` — mock vs real component list, divergence-points list (highlighted), simulated vs wall-clock time, link to ref-prod-execution if `reference_available`; explicit "no reference available" empty state.
 - [X] T106 [US6] Modify `apps/web/app/(main)/evaluation-testing/simulations/[runId]/page.tsx` — embed `<DigitalTwinPanel runId={runId} />` as a new tab/section; existing run detail content unchanged.
-- [ ] T107 [US6] Add simulation-scenarios + digital-twin i18n keys to all 6+1 locales: `simulations.scenarios.title`, `.new`, `.empty`, `.fields.{name,description,agents,workflowTemplate,mockSet,inputDistribution,twinFidelity,successCriteria,runSchedule}`, `.validation.{plaintextSecret,unknownFqn,forbiddenTwinCombo,emptySuccessCriteria}`, `.run.iterations`, `.run.useRealLlm`, `.digitalTwin.title`, `.digitalTwin.mockComponents`, `.digitalTwin.realComponents`, `.digitalTwin.divergencePoints`, `.digitalTwin.simulatedVsWallClock`, `.digitalTwin.referenceProdExecution`, `.digitalTwin.noReferenceAvailable`.
-- [ ] T108 [US6] Run axe-core sweep on the three new scenario pages + the extended run detail page.
+- [X] T107 [US6] Add simulation-scenarios + digital-twin i18n keys to all 6+1 locales: `simulations.scenarios.title`, `.new`, `.empty`, `.fields.{name,description,agents,workflowTemplate,mockSet,inputDistribution,twinFidelity,successCriteria,runSchedule}`, `.validation.{plaintextSecret,unknownFqn,forbiddenTwinCombo,emptySuccessCriteria}`, `.run.iterations`, `.run.useRealLlm`, `.digitalTwin.title`, `.digitalTwin.mockComponents`, `.digitalTwin.realComponents`, `.digitalTwin.divergencePoints`, `.digitalTwin.simulatedVsWallClock`, `.digitalTwin.referenceProdExecution`, `.digitalTwin.noReferenceAvailable`.
+- [X] T108 [US6] Run axe-core sweep on the three new scenario pages + the extended run detail page.
 
 **Checkpoint**: scenario CRUD + launch works; digital-twin panel renders for runs with and without ref-prod-execution.
 
@@ -264,9 +264,9 @@ description: "Task list for UPD-045 — Public Status Page, Platform State Banne
 
 ### Tests for US7
 
-- [ ] T109 [P] [US7] Vitest test `apps/web/__tests__/discovery/HypothesisFilterBar.test.tsx` — filter by state and confidence tier; sort by ranking.
-- [ ] T110 [P] [US7] Vitest test `apps/web/__tests__/discovery/ExperimentLauncherForm.test.tsx` — RHF + Zod against the existing experiment endpoint contract; submit calls `POST /api/v1/discovery/hypotheses/{id}/experiment`.
-- [ ] T111 [P] [US7] Vitest test `apps/web/__tests__/discovery/EvidenceInspectorView.test.tsx` — renders source links; deep-link param routing works.
+- [X] T109 [P] [US7] Vitest test `apps/web/__tests__/discovery/HypothesisFilterBar.test.tsx` — filter by state and confidence tier; sort by ranking.
+- [X] T110 [P] [US7] Vitest test `apps/web/__tests__/discovery/ExperimentLauncherForm.test.tsx` — RHF + Zod against the existing experiment endpoint contract; submit calls `POST /api/v1/discovery/hypotheses/{id}/experiment`.
+- [X] T111 [P] [US7] Vitest test `apps/web/__tests__/discovery/EvidenceInspectorView.test.tsx` — renders source links; deep-link param routing works.
 
 ### Implementation for US7
 
@@ -282,8 +282,8 @@ description: "Task list for UPD-045 — Public Status Page, Platform State Banne
 - [X] T121 [US7] Implement `apps/web/app/(main)/discovery/[session_id]/experiments/page.tsx` — experiments list (queries existing `GET /api/v1/discovery/experiments/{id}` per item OR a new lightweight list endpoint if missing — verify at task time and either add a backend endpoint OR derive from session).
 - [X] T122 [US7] Implement `apps/web/app/(main)/discovery/[session_id]/experiments/new/page.tsx` — wraps `<ExperimentLauncherForm>`.
 - [X] T123 [US7] Implement `apps/web/app/(main)/discovery/[session_id]/evidence/[evidence_id]/page.tsx` — wraps `<EvidenceInspectorView>`.
-- [ ] T124 [US7] Add discovery i18n keys to all 6+1 locales: `discovery.session.{tabs.overview,tabs.hypotheses,tabs.experiments,tabs.evidence,tabs.network}`, `discovery.hypotheses.{title,filter,empty,confidenceTier,state.{proposed,testing,confirmed,refuted}}`, `discovery.experiments.{title,launch,running,completed}`, `discovery.evidence.{title,sources,unavailable}`.
-- [ ] T125 [US7] Run axe-core sweep on the five new discovery pages.
+- [X] T124 [US7] Add discovery i18n keys to all 6+1 locales: `discovery.session.{tabs.overview,tabs.hypotheses,tabs.experiments,tabs.evidence,tabs.network}`, `discovery.hypotheses.{title,filter,empty,confidenceTier,state.{proposed,testing,confirmed,refuted}}`, `discovery.experiments.{title,launch,running,completed}`, `discovery.evidence.{title,sources,unavailable}`.
+- [X] T125 [US7] Run axe-core sweep on the five new discovery pages.
 
 **Checkpoint**: full discovery loop works frontend-only; existing network view unchanged.
 
@@ -302,27 +302,27 @@ description: "Task list for UPD-045 — Public Status Page, Platform State Banne
 
 ### Journey J21 Platform State
 
-- [ ] T128 [P] [US8] Implement `tests/e2e/journeys/test_j21_platform_state.py` — full visibility loop: subscribe (email + RSS) → trigger synthetic incident → assert public status reflects within 60s (poll `GET /api/v1/public/status`) → assert in-shell banner appears (open authenticated browser context, assert banner) → assert subscriber email in dev-MinIO bucket within 2 min → assert RSS feed item present → resolve → assert all surfaces clear within 10s.
-- [ ] T129 [P] [US8] Implement `tests/e2e/suites/platform_state/test_public_status_page.py` — Playwright AA smoke test of `apps/web-status/` (overall, per-component, history pages); axe-core assertions.
-- [ ] T130 [P] [US8] Implement `tests/e2e/suites/platform_state/test_status_banner_rendering.py` — banner state-machine across maintenance scheduled → started → ended (Playwright in authenticated context).
-- [ ] T131 [P] [US8] Implement `tests/e2e/suites/platform_state/test_maintenance_mode_ux.py` — write attempt during maintenance → modal appears (NOT 503 page); read continues to work.
-- [ ] T132 [P] [US8] Implement `tests/e2e/suites/platform_state/test_email_subscription.py` — confirm-opt-in flow; unsubscribe link works.
-- [ ] T133 [P] [US8] Implement `tests/e2e/suites/platform_state/test_rss_feed.py` — feed validity (parsed by `feedparser`); incident lifecycle reflected within 60s.
-- [ ] T134 [P] [US8] Implement `tests/e2e/suites/platform_state/test_webhook_subscription.py` — webhook test ping has correct HMAC signature; persistent failures dead-letter; replay possible.
+- [X] T128 [P] [US8] Implement `tests/e2e/journeys/test_j21_platform_state.py` — full visibility loop: subscribe (email + RSS) → trigger synthetic incident → assert public status reflects within 60s (poll `GET /api/v1/public/status`) → assert in-shell banner appears (open authenticated browser context, assert banner) → assert subscriber email in dev-MinIO bucket within 2 min → assert RSS feed item present → resolve → assert all surfaces clear within 10s.
+- [X] T129 [P] [US8] Implement `tests/e2e/suites/platform_state/test_public_status_page.py` — Playwright AA smoke test of `apps/web-status/` (overall, per-component, history pages); axe-core assertions.
+- [X] T130 [P] [US8] Implement `tests/e2e/suites/platform_state/test_status_banner_rendering.py` — banner state-machine across maintenance scheduled → started → ended (Playwright in authenticated context).
+- [X] T131 [P] [US8] Implement `tests/e2e/suites/platform_state/test_maintenance_mode_ux.py` — write attempt during maintenance → modal appears (NOT 503 page); read continues to work.
+- [X] T132 [P] [US8] Implement `tests/e2e/suites/platform_state/test_email_subscription.py` — confirm-opt-in flow; unsubscribe link works.
+- [X] T133 [P] [US8] Implement `tests/e2e/suites/platform_state/test_rss_feed.py` — feed validity (parsed by `feedparser`); incident lifecycle reflected within 60s.
+- [X] T134 [P] [US8] Implement `tests/e2e/suites/platform_state/test_webhook_subscription.py` — webhook test ping has correct HMAC signature; persistent failures dead-letter; replay possible.
 
 ### Journey J07 Evaluator
 
-- [ ] T135 [P] [US8] Implement `tests/e2e/journeys/test_j07_evaluator.py` — Playwright: log in as evaluator → navigate to scenarios library → create new scenario → save → launch with N=2 iterations → 2 runs queued → open run detail → digital-twin panel asserts mock vs real list and divergence summary.
-- [ ] T136 [P] [US8] Implement `tests/e2e/suites/simulation_ui/test_scenario_editor.py` — validation surfaces inline; plaintext-secret rejection produces a clear error; real-LLM toggle requires the `<RealLLMOptInDialog>` text confirmation.
-- [ ] T137 [P] [US8] Implement `tests/e2e/suites/simulation_ui/test_digital_twin_panel.py` — explicit "no reference available" state when ref-prod-execution missing.
+- [X] T135 [P] [US8] Implement `tests/e2e/journeys/test_j07_evaluator.py` — Playwright: log in as evaluator → navigate to scenarios library → create new scenario → save → launch with N=2 iterations → 2 runs queued → open run detail → digital-twin panel asserts mock vs real list and divergence summary.
+- [X] T136 [P] [US8] Implement `tests/e2e/suites/simulation_ui/test_scenario_editor.py` — validation surfaces inline; plaintext-secret rejection produces a clear error; real-LLM toggle requires the `<RealLLMOptInDialog>` text confirmation.
+- [X] T137 [P] [US8] Implement `tests/e2e/suites/simulation_ui/test_digital_twin_panel.py` — explicit "no reference available" state when ref-prod-execution missing.
 
 ### Journey J09 Scientific Discovery
 
-- [ ] T138 [P] [US8] Implement `tests/e2e/journeys/test_j09_scientific_discovery.py` — Playwright: log in as research scientist → open session → navigate to hypotheses tab → filter → open hypothesis detail → launch experiment → assert experiment runs → open evidence inspector → click source link.
-- [ ] T139 [P] [US8] Implement `tests/e2e/suites/discovery_ui/test_session_detail.py` — tabs render, deep links to each tab work, `/network/` reuses existing graph.
-- [ ] T140 [P] [US8] Implement `tests/e2e/suites/discovery_ui/test_hypothesis_library.py` — filter + sort interactions; pagination/empty states.
-- [ ] T141 [P] [US8] Implement `tests/e2e/suites/discovery_ui/test_experiment_launcher.py` — form submission triggers backend POST; success state displays returned experiment id.
-- [ ] T142 [P] [US8] Implement `tests/e2e/suites/discovery_ui/test_evidence_inspector.py` — source links functional; deleted-source explicit "source unavailable" state.
+- [X] T138 [P] [US8] Implement `tests/e2e/journeys/test_j09_scientific_discovery.py` — Playwright: log in as research scientist → open session → navigate to hypotheses tab → filter → open hypothesis detail → launch experiment → assert experiment runs → open evidence inspector → click source link.
+- [X] T139 [P] [US8] Implement `tests/e2e/suites/discovery_ui/test_session_detail.py` — tabs render, deep links to each tab work, `/network/` reuses existing graph.
+- [X] T140 [P] [US8] Implement `tests/e2e/suites/discovery_ui/test_hypothesis_library.py` — filter + sort interactions; pagination/empty states.
+- [X] T141 [P] [US8] Implement `tests/e2e/suites/discovery_ui/test_experiment_launcher.py` — form submission triggers backend POST; success state displays returned experiment id.
+- [X] T142 [P] [US8] Implement `tests/e2e/suites/discovery_ui/test_evidence_inspector.py` — source links functional; deleted-source explicit "source unavailable" state.
 
 ### Regression sentinels
 
@@ -336,16 +336,16 @@ description: "Task list for UPD-045 — Public Status Page, Platform State Banne
 
 **Purpose**: i18n parity, observability, audit-chain audit, docs, dashboard, perf.
 
-- [ ] T144 [P] Run `apps/web/scripts/i18n-check.*` (or equivalent) — verify all UPD-045 namespaces have parity across en, es, de, fr, it, zh-CN; log Italian + non-English strings still using English fallbacks for the localisation team backlog.
-- [ ] T145 Disabled-state sweep across remaining write surfaces beyond T057's top-three (workflow editor, agent management, marketplace publish, fleet ops, etc.) — apply `disabledByMaintenance` consistently.
-- [ ] T146 [P] Author Grafana dashboard JSON `deploy/helm/observability/templates/dashboards/status_page.json` per Rule 24/27 — panels: snapshot regen latency p50/p95, subscription dispatch latency p95, RSS/Atom freshness, public-status request rate + 4xx/5xx + cache-hit-ratio, dead-letter webhook depth.
-- [ ] T147 [P] Audit-chain entry verification: write `apps/control-plane/tests/integration/status_page/test_audit_chain.py` asserting subscription-confirm, unsubscribe, webhook-rotation, admin manual-snapshot-override emit audit-chain entries via `audit_chain_service.py` (Rule 9).
-- [ ] T148 [P] Verify Rule 31 — no `PLATFORM_SUPERADMIN_PASSWORD`-style log fields in any new logging path. Lint pass + manual code review.
-- [ ] T149 [P] Verify Rule 22 / Rule 40 — no `workspace_id`, `user_id`, `goal_id`, or subscriber `email` in Loki labels. All such fields appear in JSON payload only.
+- [X] T144 [P] Run `apps/web/scripts/i18n-check.*` (or equivalent) — verify all UPD-045 namespaces have parity across en, es, de, fr, it, zh-CN; log Italian + non-English strings still using English fallbacks for the localisation team backlog.
+- [X] T145 Disabled-state sweep across remaining write surfaces beyond T057's top-three (workflow editor, agent management, marketplace publish, fleet ops, etc.) — apply `disabledByMaintenance` consistently.
+- [X] T146 [P] Author Grafana dashboard JSON `deploy/helm/observability/templates/dashboards/status_page.json` per Rule 24/27 — panels: snapshot regen latency p50/p95, subscription dispatch latency p95, RSS/Atom freshness, public-status request rate + 4xx/5xx + cache-hit-ratio, dead-letter webhook depth.
+- [X] T147 [P] Audit-chain entry verification: write `apps/control-plane/tests/integration/status_page/test_audit_chain.py` asserting subscription-confirm, unsubscribe, webhook-rotation, admin manual-snapshot-override emit audit-chain entries via `audit_chain_service.py` (Rule 9).
+- [X] T148 [P] Verify Rule 31 — no `PLATFORM_SUPERADMIN_PASSWORD`-style log fields in any new logging path. Lint pass + manual code review.
+- [X] T149 [P] Verify Rule 22 / Rule 40 — no `workspace_id`, `user_id`, `goal_id`, or subscriber `email` in Loki labels. All such fields appear in JSON payload only.
 - [ ] T150 Run perf checks: SC-001 (p95 ≤ 2s on apps/web-status/ from cold cache), SC-002 (banner ≤ 5s p95 via WS), SC-003 (subscription dispatch ≤ 2 min, RSS/Atom ≤ 60s), SC-013 (10× burst with no origin degradation — use `vegeta` or repo's existing perf harness).
-- [ ] T151 Update `docs/functional-requirements-revised-v6.md` cross-references — link FR-675…FR-682 anchor IDs to feature 095 spec.md (per Rule 36 "every new FR with UX impact must be documented"). Run the docs CI gate (`docs:check`) to validate.
-- [ ] T152 Update `docs/system-architecture.md` §14 (digital twins) to reference the new `<DigitalTwinPanel>` UI surface; cross-link the public-status topology in the relevant operational section.
-- [ ] T153 Run `pnpm build` and `pnpm typecheck` in both `apps/web/` and `apps/web-status/`; resolve any TS strictness regressions.
+- [X] T151 Update `docs/functional-requirements-revised-v6.md` cross-references — link FR-675…FR-682 anchor IDs to feature 095 spec.md (per Rule 36 "every new FR with UX impact must be documented"). Run the docs CI gate (`docs:check`) to validate.
+- [X] T152 Update `docs/system-architecture.md` §14 (digital twins) to reference the new `<DigitalTwinPanel>` UI surface; cross-link the public-status topology in the relevant operational section.
+- [X] T153 Run `pnpm build` and `pnpm typecheck` in both `apps/web/` and `apps/web-status/`; resolve any TS strictness regressions.
 - [ ] T154 Verify Helm chart with `helm lint` + `kubeconform` per Rule 9 release-gate; render with realistic `webStatus.enabled=true` values overlay.
 - [ ] T155 Run the full quickstart.md walkthrough end-to-end on a clean dev cluster; capture any drift from the documented steps and patch quickstart in-place.
 

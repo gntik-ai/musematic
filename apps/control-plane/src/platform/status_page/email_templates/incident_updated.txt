@@ -2,3 +2,5 @@ Musematic incident updated.
 
 Event: {event_kind}
 Payload: {payload}
+
+Unsubscribe: {unsubscribe_url}

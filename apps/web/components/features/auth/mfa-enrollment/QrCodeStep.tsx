@@ -64,7 +64,7 @@ export function QrCodeStep({
       ) : null}
 
       {isError ? (
-        <div className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-foreground">
           Unable to load MFA enrollment details. Please try again.
         </div>
       ) : null}

@@ -5,9 +5,11 @@ See specs/095-public-status-banner-workbench-uis/plan.md for the implementation 
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from platform.common.dependencies import get_current_user
 from platform.common.exceptions import AuthorizationError
+from platform.notifications.channel_router import AuditChainService
+from platform.notifications.dependencies import get_audit_chain_service
 from platform.status_page.dependencies import (
     enforce_subscribe_rate_limit,
     get_status_page_service,
@@ -159,16 +161,34 @@ async def subscribe_email(
 async def confirm_email_subscription(
     token: str = Query(min_length=16),
     service: StatusPageService = Depends(get_status_page_service),
+    audit_chain: AuditChainService = Depends(get_audit_chain_service),
 ) -> TokenActionResponse:
-    return await service.confirm_email_subscription(token)
+    response = await service.confirm_email_subscription(token)
+    await _append_status_audit(
+        audit_chain,
+        event="status.subscription.confirmed",
+        actor="anonymous",
+        subject="email-subscription",
+        details={"status": response.status},
+    )
+    return response
 
 
 @router.get("/api/v1/public/subscribe/email/unsubscribe", response_model=TokenActionResponse)
 async def unsubscribe_email_subscription(
     token: str = Query(min_length=16),
     service: StatusPageService = Depends(get_status_page_service),
+    audit_chain: AuditChainService = Depends(get_audit_chain_service),
 ) -> TokenActionResponse:
-    return await service.unsubscribe(token)
+    response = await service.unsubscribe(token)
+    await _append_status_audit(
+        audit_chain,
+        event="status.subscription.unsubscribed",
+        actor="anonymous",
+        subject="email-subscription",
+        details={"status": response.status},
+    )
+    return response
 
 
 @router.post(
@@ -180,12 +200,21 @@ async def unsubscribe_email_subscription(
 async def subscribe_webhook(
     payload: WebhookSubscribeRequest,
     service: StatusPageService = Depends(get_status_page_service),
+    audit_chain: AuditChainService = Depends(get_audit_chain_service),
 ) -> WebhookSubscribeResponse:
-    return await service.submit_webhook_subscription(
+    response = await service.submit_webhook_subscription(
         url=payload.url,
         scope_components=payload.scope_components,
         contact_email=payload.contact_email,
     )
+    await _append_status_audit(
+        audit_chain,
+        event="status.subscription.webhook.rotated",
+        actor="anonymous",
+        subject=response.subscription_id,
+        details={"verification_state": response.verification_state},
+    )
+    return response
 
 
 @router.post(
@@ -209,6 +238,7 @@ async def regenerate_status_fallback(
     request: Request,
     current_user: dict[str, Any] = Depends(get_current_user),
     service: StatusPageService = Depends(get_status_page_service),
+    audit_chain: AuditChainService = Depends(get_audit_chain_service),
 ) -> dict[str, Any]:
     _require_superadmin(current_user)
     snapshot = await service.compose_current_snapshot()
@@ -217,8 +247,36 @@ async def regenerate_status_fallback(
         path = AsyncPath(target_path)
         await path.parent.mkdir(parents=True, exist_ok=True)
         await path.write_text(snapshot.model_dump_json(), encoding="utf-8")
-    return {
+    payload = {
         "status": "ok",
         "snapshot_id": snapshot.snapshot_id,
         "generated_at": snapshot.generated_at.isoformat(),
     }
+    await _append_status_audit(
+        audit_chain,
+        event="status.snapshot.manual_override",
+        actor=str(current_user.get("sub") or "unknown"),
+        subject=snapshot.snapshot_id or "snapshot",
+        details=payload,
+    )
+    return payload
+
+
+async def _append_status_audit(
+    audit_chain: AuditChainService,
+    *,
+    event: str,
+    actor: str,
+    subject: str,
+    details: dict[str, Any],
+) -> None:
+    await audit_chain.append(
+        {
+            "event": event,
+            "actor": actor,
+            "subject": subject,
+            "scope": {},
+            "diff": {"before": None, "after": details},
+            "occurred_at": datetime.now(UTC).isoformat(),
+        }
+    )

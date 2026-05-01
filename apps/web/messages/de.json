@@ -62,27 +62,97 @@
       "high": "High",
       "critical": "Critical"
     },
-    "viewIncident": "View incident"
+    "viewIncident": "View incident",
+    "subscriptions": {
+      "title": "Status subscriptions",
+      "add": "Add subscription",
+      "empty": "No status subscriptions configured.",
+      "channelEmail": "Email",
+      "channelWebhook": "Webhook",
+      "channelSlack": "Slack",
+      "scope": {
+        "allComponents": "All components",
+        "specificComponents": "Specific components"
+      },
+      "health": {
+        "pending": "Pending",
+        "healthy": "Healthy",
+        "unhealthy": "Unhealthy",
+        "unsubscribed": "Unsubscribed"
+      },
+      "removeConfirm": "Remove this status subscription?"
+    }
   },
   "simulations": {
     "scenarios": {
       "title": "Simulation scenarios",
       "new": "New scenario",
-      "empty": "No scenarios yet"
+      "empty": "No scenarios yet",
+      "fields": {
+        "name": "Name",
+        "description": "Description",
+        "agents": "Agents",
+        "workflowTemplate": "Workflow template",
+        "mockSet": "Mock set",
+        "inputDistribution": "Input distribution",
+        "twinFidelity": "Twin fidelity",
+        "successCriteria": "Success criteria",
+        "runSchedule": "Run schedule"
+      },
+      "validation": {
+        "plaintextSecret": "Plaintext secrets are not allowed in scenario configuration.",
+        "unknownFqn": "Unknown agent FQN.",
+        "forbiddenTwinCombo": "This twin fidelity combination is not allowed.",
+        "emptySuccessCriteria": "Add at least one success criterion."
+      },
+      "run": {
+        "iterations": "Iterations",
+        "useRealLlm": "Use real LLM"
+      },
+      "digitalTwin": {
+        "title": "Digital twin divergence",
+        "mockComponents": "Mock components",
+        "realComponents": "Real components",
+        "divergencePoints": "Divergence points",
+        "simulatedVsWallClock": "Simulated vs wall clock",
+        "referenceProdExecution": "Reference production execution",
+        "noReferenceAvailable": "No reference available."
+      }
     }
   },
   "discovery": {
     "session": {
-      "title": "Discovery session"
+      "title": "Discovery session",
+      "tabs": {
+        "overview": "Overview",
+        "hypotheses": "Hypotheses",
+        "experiments": "Experiments",
+        "evidence": "Evidence",
+        "network": "Network"
+      }
     },
     "hypotheses": {
-      "title": "Hypotheses"
+      "title": "Hypotheses",
+      "filter": "Filter",
+      "empty": "No hypotheses found.",
+      "confidenceTier": "Confidence tier",
+      "state": {
+        "proposed": "Proposed",
+        "testing": "Testing",
+        "confirmed": "Confirmed",
+        "refuted": "Refuted"
+      }
     },
     "experiments": {
-      "title": "Experiments"
+      "title": "Experiments",
+      "launch": "Launch experiment",
+      "running": "Running",
+      "completed": "Completed"
     },
     "evidence": {
-      "title": "Evidence"
+      "title": "Evidence",
+      "sources": "Sources",
+      "unavailable": "Source unavailable"
     }
   },
   "commands": {

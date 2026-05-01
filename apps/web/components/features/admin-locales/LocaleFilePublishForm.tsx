@@ -122,7 +122,11 @@ export function LocaleFilePublishForm() {
             ? `${namespaceCount(parsedTranslations)} namespaces, ${countKeys(parsedTranslations)} keys`
             : "Invalid JSON"}
         </p>
-        <Button disabled={publishLocaleFile.isPending || !parsedTranslations} onClick={() => void submit()}>
+        <Button
+          disabled={publishLocaleFile.isPending || !parsedTranslations}
+          disabledByMaintenance
+          onClick={() => void submit()}
+        >
           <Upload className="h-4 w-4" />
           {publishLocaleFile.isPending ? "Publishing..." : "Publish locale file"}
         </Button>

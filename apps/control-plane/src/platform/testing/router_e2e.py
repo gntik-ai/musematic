@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import secrets
 from datetime import UTC, datetime
 from platform.auth.password import hash_password
@@ -166,6 +167,31 @@ async def get_account_verification_token(
     raw = await client.get(f"e2e:accounts:verification-token:{email.lower()}")
     token = raw.decode("utf-8") if isinstance(raw, bytes) else raw
     return {"email": email.lower(), "token": token}
+
+
+@router.get("/status-subscriptions/tokens")
+async def get_status_subscription_tokens(
+    request: Request,
+    email: str = Query(...),
+    current_user: dict[str, Any] = Depends(require_admin_or_e2e_scope),
+) -> dict[str, str | None]:
+    del current_user
+    normalized = email.strip().lower()
+    client = await _redis(request)._get_client()
+    raw = await client.get(f"e2e:status-subscriptions:tokens:{normalized}")
+    if raw is None:
+        return {
+            "email": normalized,
+            "confirmation_token": None,
+            "unsubscribe_token": None,
+        }
+    value = raw.decode("utf-8") if isinstance(raw, bytes) else str(raw)
+    payload = json.loads(value)
+    return {
+        "email": normalized,
+        "confirmation_token": payload.get("confirmation_token"),
+        "unsubscribe_token": payload.get("unsubscribe_token"),
+    }
 
 
 @router.post("/accounts/expired-verification-token")

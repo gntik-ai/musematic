@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import inspect
+import json
 import re
 from platform.common.config import PlatformSettings
 from platform.common.exceptions import ValidationError
@@ -19,7 +21,8 @@ from typing import Any
 from uuid import UUID
 
 SECRET_PATTERN = re.compile(
-    r"(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*['\"]?[A-Za-z0-9_\-]{16,}"
+    r"(?i)(plaintext[_-]?secret|api[_-]?key|secret|token|password)"
+    r"[\"']?\s*[:=]\s*[\"']?[A-Za-z0-9_./+=\-]{8,}"
 )
 
 
@@ -31,11 +34,13 @@ class SimulationScenariosService:
         runner: SimulationRunner,
         settings: PlatformSettings,
         registry_service: Any | None = None,
+        workflow_service: Any | None = None,
     ) -> None:
         self.repository = repository
         self.runner = runner
         self.settings = settings
         self.registry_service = registry_service
+        self.workflow_service = workflow_service
 
     async def list_scenarios(
         self,
@@ -160,8 +165,16 @@ class SimulationScenariosService:
         return scenario
 
     async def _validate_payload(self, values: dict[str, Any]) -> None:
-        for key in ("mock_set_config", "input_distribution"):
-            if SECRET_PATTERN.search(str(values.get(key, ""))):
+        for key in (
+            "agents_config",
+            "mock_set_config",
+            "input_distribution",
+            "twin_fidelity",
+            "success_criteria",
+            "run_schedule",
+        ):
+            serialized = json.dumps(values.get(key), default=str, sort_keys=True)
+            if SECRET_PATTERN.search(serialized):
                 raise ValidationError("PLAINTEXT_SECRET", "Scenario contains a plaintext secret")
         success_criteria = values.get("success_criteria") or []
         if not isinstance(success_criteria, list) or not success_criteria:
@@ -171,13 +184,14 @@ class SimulationScenariosService:
         combines_prod_data_with_mock_tools = (
             "real:production-data" in serialized_fidelity
             and "mock:tool-gateway" in serialized_fidelity
-        )
+        ) or _structured_forbidden_twin_combo(twin_fidelity)
         if combines_prod_data_with_mock_tools:
             raise ValidationError(
                 "FORBIDDEN_TWIN_COMBO",
                 "twin_fidelity combines production data with mocked tool gateway",
             )
         await self._validate_agent_fqns(values.get("agents_config") or {})
+        await self._validate_workflow_template(values.get("workflow_template_id"))
 
     async def _validate_agent_fqns(self, agents_config: dict[str, Any]) -> None:
         if self.registry_service is None:
@@ -190,9 +204,44 @@ class SimulationScenariosService:
             )
             if not callable(resolver):
                 return
-            result = await resolver(fqn)
+            result = resolver(fqn)
+            if inspect.isawaitable(result):
+                result = await result
             if result is None:
                 raise ValidationError("UNKNOWN_AGENT_FQN", f"Unknown agent FQN: {fqn}")
+
+    async def _validate_workflow_template(self, workflow_template_id: UUID | None) -> None:
+        if workflow_template_id is None or self.workflow_service is None:
+            return
+        resolver = (
+            getattr(self.workflow_service, "get_workflow_template", None)
+            or getattr(self.workflow_service, "get_workflow_definition", None)
+            or getattr(self.workflow_service, "get_workflow", None)
+        )
+        if not callable(resolver):
+            return
+        result = resolver(workflow_template_id)
+        if inspect.isawaitable(result):
+            result = await result
+        if result is None:
+            raise ValidationError(
+                "WORKFLOW_TEMPLATE_NOT_FOUND",
+                "Workflow template was not found",
+            )
+        approval_state = (
+            getattr(result, "approval_status", None)
+            or getattr(result, "status", None)
+            or getattr(result, "state", None)
+        )
+        if approval_state is not None and str(approval_state) not in {
+            "approved",
+            "active",
+            "published",
+        }:
+            raise ValidationError(
+                "WORKFLOW_TEMPLATE_NOT_APPROVED",
+                "Workflow template must be approved before scenario launch",
+            )
 
 
 def _agent_fqns(agents_config: dict[str, Any]) -> list[str]:
@@ -219,3 +268,34 @@ def _digital_twin_ids(twin_fidelity: dict[str, Any]) -> list[UUID]:
         except ValueError:
             continue
     return result
+
+
+def _structured_forbidden_twin_combo(twin_fidelity: dict[str, Any]) -> bool:
+    data_values = _flatten_strings(
+        twin_fidelity.get("data_source")
+        or twin_fidelity.get("data_sources")
+        or twin_fidelity.get("memory")
+        or twin_fidelity.get("state")
+    )
+    tool_values = _flatten_strings(
+        twin_fidelity.get("tool_gateway")
+        or twin_fidelity.get("tool_gateways")
+        or twin_fidelity.get("tools")
+    )
+    has_real_data = any(
+        value in {"production", "real", "real:production-data"} for value in data_values
+    )
+    has_mock_tools = any(value in {"mock", "mocked", "mock:tool-gateway"} for value in tool_values)
+    return has_real_data and has_mock_tools
+
+
+def _flatten_strings(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value.lower()]
+    if isinstance(value, dict):
+        return [item for nested in value.values() for item in _flatten_strings(nested)]
+    if isinstance(value, list):
+        return [item for nested in value for item in _flatten_strings(nested)]
+    return [str(value).lower()]

@@ -37,7 +37,7 @@ export default function StatusSubscriptionsSettingsPage() {
         subscriptions={subscriptionsQuery.data?.items ?? []}
       />
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent aria-label="Add status subscription">
           <DialogHeader>
             <DialogTitle>Add status subscription</DialogTitle>
             <DialogDescription>

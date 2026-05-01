@@ -7,6 +7,12 @@ from uuid import UUID
 
 from journeys.conftest import AuthenticatedAsyncClient, JourneyContext
 from journeys.helpers.narrative import journey_step
+from suites.ui_playwright import (
+    DISCOVERY_SESSION_ID,
+    HYPOTHESIS_ID,
+    route_discovery_apis,
+    ui_page as ui_page,  # noqa: F401
+)
 
 JOURNEY_ID = "j09"
 TIMEOUT_SECONDS = 300
@@ -257,3 +263,49 @@ def test_j09_fr520_fairness_and_cost_attribution_extension_contract() -> None:
 
     assert "demographic_data_triggers_fairness_check" in assertions
     assert "evaluation_results_are_cost_attributed" in assertions
+
+
+@pytest.mark.journey
+@pytest.mark.j09_discovery
+@pytest.mark.j09_scientific_discovery_ui
+@pytest.mark.timeout(TIMEOUT_SECONDS)
+@pytest.mark.asyncio
+async def test_j09_scientific_discovery_workbench_loop(
+    ui_page,
+    platform_ui_url: str,
+) -> None:
+    playwright_api = pytest.importorskip("playwright.async_api")
+    state = await route_discovery_apis(ui_page)
+
+    with journey_step("Research scientist opens the discovery session workbench"):
+        await ui_page.goto(f"{platform_ui_url.rstrip('/')}/discovery/{DISCOVERY_SESSION_ID}")
+        await playwright_api.expect(
+            ui_page.get_by_text("Which catalyst improves hydrogen yield?"),
+        ).to_be_visible()
+
+    with journey_step("Research scientist filters hypotheses and opens detail evidence"):
+        await ui_page.get_by_role("link", name="Hypotheses").click()
+        await ui_page.get_by_label("Confidence").select_option("high")
+        await playwright_api.expect(
+            ui_page.get_by_text("Catalyst alpha improves yield"),
+        ).to_be_visible()
+        await ui_page.get_by_text("Catalyst alpha improves yield").click()
+        await ui_page.wait_for_url(f"**/discovery/{DISCOVERY_SESSION_ID}/evidence/{HYPOTHESIS_ID}")
+
+    with journey_step("Research scientist launches an experiment from the hypothesis"):
+        await ui_page.goto(
+            f"{platform_ui_url.rstrip('/')}/discovery/{DISCOVERY_SESSION_ID}/experiments/new"
+            f"?hypothesis={HYPOTHESIS_ID}",
+        )
+        await ui_page.get_by_label("Experiment notes").fill("Validate the catalyst finding.")
+        await ui_page.get_by_role("button", name="Launch Experiment").click()
+        await playwright_api.expect(ui_page.get_by_text("experiment-1")).to_be_visible()
+        assert state["experiments"][0]["execution_status"] == "running"
+
+    with journey_step("Research scientist opens evidence and follows a source link"):
+        await ui_page.goto(
+            f"{platform_ui_url.rstrip('/')}/discovery/{DISCOVERY_SESSION_ID}/evidence/{HYPOTHESIS_ID}",
+        )
+        await playwright_api.expect(ui_page.get_by_text("Aggregated evidence")).to_be_visible()
+        await ui_page.get_by_role("link", name="Source hypothesis").first.click()
+        assert f"/discovery/{HYPOTHESIS_ID}/hypotheses" in ui_page.url

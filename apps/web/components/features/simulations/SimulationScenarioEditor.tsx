@@ -25,7 +25,8 @@ import {
 } from "@/lib/hooks/use-simulation-scenarios";
 import type { SimulationScenario, SimulationScenarioInput } from "@/types/simulation";
 
-const secretPattern = /(api[_-]?key|secret|token|password)\s*[:=]\s*['"]?[A-Za-z0-9_-]{16,}/i;
+const secretPattern =
+  /(plaintext[_-]?secret|api[_-]?key|secret|token|password)["']?\s*[:=]\s*["']?[A-Za-z0-9_./+=-]{8,}/i;
 
 const scenarioEditorSchema = z.object({
   name: z.string().min(1, "Name is required."),
@@ -298,7 +299,14 @@ function toScenarioPayload(
     ? parseJsonObject(values.run_schedule_json, "Run schedule")
     : null;
 
-  const secretCandidate = JSON.stringify({ mockSet, inputDistribution });
+  const secretCandidate = JSON.stringify({
+    agents,
+    mockSet,
+    inputDistribution,
+    twinFidelity,
+    successCriteria,
+    runSchedule,
+  });
   if (secretPattern.test(secretCandidate)) {
     throw new Error("Plaintext secrets are not allowed in scenario configuration.");
   }

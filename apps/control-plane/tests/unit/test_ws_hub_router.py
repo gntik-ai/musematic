@@ -67,17 +67,26 @@ async def test_websocket_endpoint_sends_welcome_and_cleans_up_last_connection() 
     assert websocket.accepted is True
     assert messages[0]["type"] == "connection_established"
     assert [item["channel"] for item in messages[0]["auto_subscriptions"]] == [
-        "attention",
         "alerts",
+        "attention",
+        "platform-status",
     ]
     assert fanout.ensured[0] == ["auth.events"]
-    assert fanout.ensured[1] == ["interaction.attention"]
-    assert fanout.ensured[2] == ["monitor.alerts", "notifications.alerts"]
+    assert fanout.ensured[1] == ["monitor.alerts", "notifications.alerts"]
+    assert fanout.ensured[2] == ["interaction.attention"]
+    assert fanout.ensured[3] == [
+        "incident_response.events",
+        "multi_region_ops.events",
+        "platform.status.derived",
+    ]
     assert fanout.released[-1] == [
         "auth.events",
+        "incident_response.events",
         "interaction.attention",
         "monitor.alerts",
+        "multi_region_ops.events",
         "notifications.alerts",
+        "platform.status.derived",
     ]
 
 
@@ -133,7 +142,12 @@ async def test_websocket_endpoint_handles_subscribe_list_and_unsubscribe() -> No
         "subscription_error",
         "subscription_removed",
     ]
-    assert messages[2]["subscriptions"][0]["channel"] == "attention"
+    assert [subscription["channel"] for subscription in messages[2]["subscriptions"]] == [
+        "alerts",
+        "attention",
+        "platform-status",
+        "workspace",
+    ]
     assert messages[3]["code"] == "cannot_unsubscribe_auto"
     assert fanout.ensured[-1] == ["workspaces.events"]
 

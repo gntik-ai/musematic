@@ -2,3 +2,5 @@ Musematic maintenance scheduled.
 
 Event: {event_kind}
 Payload: {payload}
+
+Unsubscribe: {unsubscribe_url}

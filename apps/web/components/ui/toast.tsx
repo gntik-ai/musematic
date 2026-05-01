@@ -5,8 +5,14 @@ export type ToastVariant = "default" | "destructive" | "success";
 
 const variantStyles: Record<ToastVariant, string> = {
   default: "border-border bg-card text-card-foreground",
-  destructive: "border-destructive/30 bg-destructive/10 text-foreground",
+  destructive: "border-destructive bg-destructive text-destructive-foreground",
   success: "border-emerald-500/30 bg-emerald-500/10 text-foreground",
+};
+
+const descriptionStyles: Record<ToastVariant, string> = {
+  default: "text-muted-foreground",
+  destructive: "text-destructive-foreground",
+  success: "text-muted-foreground",
 };
 
 const variantIcons = {
@@ -35,7 +41,11 @@ export function Toast({ description, title, variant = "default" }: ToastProps) {
       <Icon className="mt-0.5 h-4 w-4 shrink-0" />
       <div className="min-w-0">
         <p className="text-sm font-semibold">{title}</p>
-        {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
+        {description ? (
+          <p className={cn("mt-1 text-sm", descriptionStyles[variant])}>
+            {description}
+          </p>
+        ) : null}
       </div>
     </div>
   );
