@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertTriangle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { YamlJsonEditor } from "@/components/features/agents/YamlJsonEditor";
 
@@ -23,13 +24,15 @@ export function SchemaValidatedEditor({
   defaultLanguage,
   enableLanguageToggle,
 }: SchemaValidatedEditorProps) {
+  const t = useTranslations("creator.editor");
+
   return (
     <div className="space-y-3">
       {!schema && !isSchemaLoading ? (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Schema unavailable</AlertTitle>
-          <AlertDescription>Inline validation is unavailable for this editor.</AlertDescription>
+          <AlertTitle>{t("schemaUnavailable")}</AlertTitle>
+          <AlertDescription>{t("validationUnavailable")}</AlertDescription>
         </Alert>
       ) : null}
       <YamlJsonEditor

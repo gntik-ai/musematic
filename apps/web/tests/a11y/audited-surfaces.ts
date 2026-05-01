@@ -15,7 +15,8 @@ export type A11ySurfaceGroup =
   | "preferences"
   | "admin-locales"
   | "self-service"
-  | "workspace-owner";
+  | "workspace-owner"
+  | "creator-uis";
 
 export interface AuditedSurface {
   id: string;
@@ -106,6 +107,36 @@ export const auditedSurfaces: AuditedSurface[] = [
   { id: "workspace-quotas", group: "workspace-owner", route: "/workspaces/workspace-1/quotas", ready: bodyReady },
   { id: "workspace-tags", group: "workspace-owner", route: "/workspaces/workspace-1/tags", ready: bodyReady },
   { id: "workspace-visibility", group: "workspace-owner", route: "/workspaces/workspace-1/visibility", ready: bodyReady },
+  {
+    id: "creator-context-profile",
+    group: "creator-uis",
+    route: "/agent-management/creator-ui%3Aagent/context-profile",
+    ready: bodyReady,
+  },
+  {
+    id: "creator-context-profile-history",
+    group: "creator-uis",
+    route: "/agent-management/creator-ui%3Aagent/context-profile/history",
+    ready: bodyReady,
+  },
+  {
+    id: "creator-contract",
+    group: "creator-uis",
+    route: "/agent-management/creator-ui%3Aagent/contract",
+    ready: bodyReady,
+  },
+  {
+    id: "creator-contract-history",
+    group: "creator-uis",
+    route: "/agent-management/creator-ui%3Aagent/contract/history",
+    ready: bodyReady,
+  },
+  {
+    id: "creator-contract-library",
+    group: "creator-uis",
+    route: "/agent-management/contracts/library",
+    ready: bodyReady,
+  },
 ];
 
 export function surfacesForGroup(group: A11ySurfaceGroup): AuditedSurface[] {

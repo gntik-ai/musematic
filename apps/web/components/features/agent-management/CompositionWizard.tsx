@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Check, Sparkles } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { WizardStepCustomize } from "@/components/features/agent-management/WizardStepCustomize";
 import { WizardStepDescribe } from "@/components/features/agent-management/WizardStepDescribe";
 import { WizardStepReviewBlueprint } from "@/components/features/agent-management/WizardStepReviewBlueprint";
@@ -15,21 +16,22 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { Button } from "@/components/ui/button";
 import { useCompositionWizardStore } from "@/lib/stores/use-composition-wizard-store";
 
-const STEP_LABELS = [
-  "Describe",
-  "Review blueprint",
-  "Customize",
-  "Validate",
-  "Context Profile",
-  "Test Profile",
-  "Contract",
-  "Preview Contract",
-  "Attach Both",
+const STEP_LABEL_KEYS = [
+  "describe",
+  "reviewBlueprint",
+  "customize",
+  "validate",
+  "contextProfile",
+  "testProfile",
+  "contract",
+  "previewContract",
+  "attachBoth",
 ] as const;
 
 type WizardStepNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
 export function CompositionWizard() {
+  const t = useTranslations("creator.wizard");
   const router = useRouter();
   const blueprint = useCompositionWizardStore((state) => state.blueprint);
   const reset = useCompositionWizardStore((state) => state.reset);
@@ -41,7 +43,7 @@ export function CompositionWizard() {
       return;
     }
 
-    if (step < STEP_LABELS.length) {
+    if (step < STEP_LABEL_KEYS.length) {
       setStep((step + 1) as WizardStepNumber);
     }
   };
@@ -80,10 +82,10 @@ export function CompositionWizard() {
       )
     ) : (
       <EmptyState
-        ctaLabel="Start over"
-        description="Generate a blueprint first so the remaining wizard steps have content to work from."
+        ctaLabel={t("startOver")}
+        description={t("blueprintRequiredDescription")}
         icon={Sparkles}
-        title="Blueprint required"
+        title={t("blueprintRequiredTitle")}
         onCtaClick={() => setStep(1)}
       />
     );
@@ -95,22 +97,22 @@ export function CompositionWizard() {
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.2em] text-brand-accent">
               <Sparkles className="h-4 w-4" />
-              Composition wizard
+              {t("title")}
             </div>
-            <h1 className="text-3xl font-semibold">Create an agent from intent</h1>
+            <h1 className="text-3xl font-semibold">{t("headline")}</h1>
             <p className="max-w-3xl text-sm text-muted-foreground">
-              Move from a natural-language brief to a validated draft agent in four guided steps.
+              {t("description")}
             </p>
           </div>
           <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-9">
-            {STEP_LABELS.map((label, index) => {
+            {STEP_LABEL_KEYS.map((labelKey, index) => {
               const stepNumber = index + 1;
               const active = step === stepNumber;
               const complete = step > stepNumber;
 
               return (
                 <div
-                  key={label}
+                  key={labelKey}
                   className={`rounded-2xl border px-4 py-3 text-sm ${
                     active
                       ? "border-brand-accent/40 bg-brand-accent/10 text-foreground"
@@ -123,7 +125,7 @@ export function CompositionWizard() {
                     <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-current/20 text-xs">
                       {complete ? <Check className="h-3.5 w-3.5" /> : stepNumber}
                     </span>
-                    {label}
+                    {t(labelKey)}
                   </div>
                 </div>
               );
@@ -136,19 +138,19 @@ export function CompositionWizard() {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Button type="button" variant="ghost" onClick={handleCancel}>
-          Cancel
+          {t("cancel")}
         </Button>
         <div className="flex gap-3">
           <Button disabled={step === 1} type="button" variant="outline" onClick={handleBack}>
-            Back
+            {t("back")}
           </Button>
-          {step < STEP_LABELS.length ? (
+          {step < STEP_LABEL_KEYS.length ? (
             <Button
               disabled={step === 1 && !blueprint}
               type="button"
               onClick={handleNext}
             >
-              Next
+              {t("next")}
             </Button>
           ) : null}
         </div>

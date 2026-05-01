@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Save } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { SchemaValidatedEditor } from "@/components/features/agents/SchemaValidatedEditor";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ const DEFAULT_CONTRACT = {
 };
 
 export function ContractEditor({ fqn }: { fqn: string }) {
+  const t = useTranslations("creator.contract");
   const { toast } = useToast();
   const schemaQuery = useContractSchema();
   const enumsQuery = useSchemaEnums();
@@ -46,11 +48,11 @@ export function ContractEditor({ fqn }: { fqn: string }) {
     try {
       const parsed = JSON.parse(contractText) as unknown;
       if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-        throw new Error("Contract JSON must be an object.");
+        throw new Error(t("invalidObject"));
       }
       payload = parsed as AgentContractPayload;
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Contract JSON is invalid.");
+      setSaveError(error instanceof Error ? error.message : t("invalidJson"));
       return;
     }
 
@@ -58,12 +60,12 @@ export function ContractEditor({ fqn }: { fqn: string }) {
       const saved = await saveMutation.mutateAsync(payload);
       setContractId(saved.id);
       toast({
-        title: contractId ? "Contract updated" : "Contract created",
+        title: contractId ? t("updated") : t("created"),
         description: saved.agent_id,
         variant: "success",
       });
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Unable to save contract.");
+      setSaveError(error instanceof Error ? error.message : t("saveFailure"));
     }
   };
 
@@ -71,9 +73,9 @@ export function ContractEditor({ fqn }: { fqn: string }) {
     <section className="space-y-6">
       <div className="border-b pb-5">
         <p className="text-xs font-semibold uppercase text-brand-accent">{fqn}</p>
-        <h1 className="mt-2 text-3xl font-semibold">Agent Contract</h1>
+        <h1 className="mt-2 text-3xl font-semibold">{t("title")}</h1>
         <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          Author behavioral terms, preview enforcement, and attach contracts to revisions.
+          {t("description")}
         </p>
       </div>
 
@@ -84,13 +86,13 @@ export function ContractEditor({ fqn }: { fqn: string }) {
               className={activeTab === "editor" ? "bg-background" : undefined}
               onClick={() => setActiveTab("editor")}
             >
-              Editor
+              {t("editor")}
             </TabsTrigger>
             <TabsTrigger
               className={activeTab === "preview" ? "bg-background" : undefined}
               onClick={() => setActiveTab("preview")}
             >
-              Preview
+              {t("preview")}
             </TabsTrigger>
           </TabsList>
           {activeTab === "editor" ? (
@@ -99,7 +101,7 @@ export function ContractEditor({ fqn }: { fqn: string }) {
                 defaultLanguage="json"
                 enableLanguageToggle
                 isSchemaLoading={schemaQuery.isLoading}
-                label="Contract"
+                label={t("contract")}
                 schema={schemaQuery.data}
                 value={contractText}
                 onChange={setContractText}
@@ -115,22 +117,22 @@ export function ContractEditor({ fqn }: { fqn: string }) {
 
         <Card>
           <CardHeader>
-            <CardTitle>Contract Controls</CardTitle>
+            <CardTitle>{t("controls")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="contract-id">Contract ID</Label>
+              <Label htmlFor="contract-id">{t("contractId")}</Label>
               <Input
                 id="contract-id"
-                placeholder="Paste existing contract UUID"
+                placeholder={t("contractIdPlaceholder")}
                 value={contractId}
                 onChange={(event) => setContractId(event.target.value)}
               />
             </div>
             <div className="rounded-lg border p-3 text-sm">
-              <p className="font-medium">Schema enums</p>
+              <p className="font-medium">{t("schemaEnums")}</p>
               <p className="mt-1 text-muted-foreground">
-                {(enumsQuery.data?.role_types ?? []).slice(0, 6).join(", ") || "Loading"}
+                {(enumsQuery.data?.role_types ?? []).slice(0, 6).join(", ") || t("loading")}
               </p>
             </div>
             <AttachToRevisionDialog contractId={contractId} />
@@ -148,7 +150,7 @@ export function ContractEditor({ fqn }: { fqn: string }) {
               }}
             >
               <Save className="h-4 w-4" />
-              {saveMutation.isPending ? "Saving" : contractId ? "Update Contract" : "Create Contract"}
+              {saveMutation.isPending ? t("saving") : contractId ? t("update") : t("create")}
             </Button>
           </CardContent>
         </Card>

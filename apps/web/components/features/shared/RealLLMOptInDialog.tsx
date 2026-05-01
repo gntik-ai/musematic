@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +20,7 @@ export function RealLLMOptInDialog({
   disabled?: boolean;
   onConfirm: () => void;
 }) {
+  const t = useTranslations("creator.contract");
   const [confirmation, setConfirmation] = useState("");
   const [open, setOpen] = useState(false);
 
@@ -26,18 +28,18 @@ export function RealLLMOptInDialog({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button disabled={disabled} type="button" variant="outline">
-          Real LLM Preview
+          {t("realLlmPreview")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Confirm Real LLM Preview</DialogTitle>
+          <DialogTitle>{t("confirmRealLlmPreview")}</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          This preview can consume model budget and may call external model providers.
+          {t("realLlmCostWarning")}
         </p>
         <Input
-          placeholder="USE_REAL_LLM"
+          placeholder={t("useRealLlmConfirmation")}
           value={confirmation}
           onChange={(event) => setConfirmation(event.target.value)}
         />
@@ -51,7 +53,7 @@ export function RealLLMOptInDialog({
               setConfirmation("");
             }}
           >
-            Confirm
+            {t("confirm")}
           </Button>
         </DialogFooter>
       </DialogContent>

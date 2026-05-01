@@ -11,6 +11,7 @@ export default defineConfig({
   testDir: ".",
   testMatch: [
     new RegExp(`^${webRootPattern}/e2e/.*\\.spec\\.ts$`),
+    new RegExp(`^${webRootPattern}/tests/e2e/creator-uis-pages\\.spec\\.ts$`),
     new RegExp(`^${webRootPattern}/tests/e2e/self-service-pages\\.spec\\.ts$`),
     new RegExp(`^${webRootPattern}/tests/e2e/workspace-owner-pages\\.spec\\.ts$`),
   ],

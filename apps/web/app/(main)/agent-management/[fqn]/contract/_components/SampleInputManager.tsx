@@ -1,8 +1,11 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 
 export function SampleInputManager({ onLoad }: { onLoad: (value: string) => void }) {
+  const t = useTranslations("creator.contract");
+
   return (
     <div className="flex gap-2">
       <Button
@@ -11,7 +14,7 @@ export function SampleInputManager({ onLoad }: { onLoad: (value: string) => void
         variant="outline"
         onClick={() => onLoad('{"output":{"answer":"ok"},"tokens":120}')}
       >
-        Load Passing Sample
+        {t("loadPassingSample")}
       </Button>
       <Button
         size="sm"
@@ -19,9 +22,8 @@ export function SampleInputManager({ onLoad }: { onLoad: (value: string) => void
         variant="outline"
         onClick={() => onLoad('{"force_violation":true,"tokens":999999}')}
       >
-        Load Violation Sample
+        {t("loadViolationSample")}
       </Button>
     </div>
   );
 }
-

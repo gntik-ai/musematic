@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { GitFork } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -21,21 +22,22 @@ export function ForkDialog({
   templateId: string;
   templateName: string;
 }) {
+  const t = useTranslations("creator.template");
   const fork = useForkContractTemplate();
   const [open, setOpen] = useState(false);
-  const [newName, setNewName] = useState(`${templateName} copy`);
+  const [newName, setNewName] = useState(`${templateName} ${t("forkNameDefaultSuffix")}`);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button type="button" variant="outline">
           <GitFork className="h-4 w-4" />
-          Fork
+          {t("fork")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Fork Template</DialogTitle>
+          <DialogTitle>{t("forkTemplate")}</DialogTitle>
         </DialogHeader>
         <Input value={newName} onChange={(event) => setNewName(event.target.value)} />
         <DialogFooter>
@@ -47,11 +49,10 @@ export function ForkDialog({
               setOpen(false);
             }}
           >
-            Fork
+            {t("fork")}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
-
