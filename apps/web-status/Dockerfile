@@ -16,8 +16,9 @@ RUN pnpm --filter @musematic/web-status build
 
 FROM nginx:1.27-alpine AS runtime
 COPY --from=build /app/apps/web-status/out /usr/share/nginx/html
+COPY apps/web-status/nginx.conf /etc/nginx/nginx.conf
 RUN mkdir -p /status-cache \
   && touch /status-cache/last-known-good.json \
   && ln -sf /status-cache/last-known-good.json /usr/share/nginx/html/last-known-good.json
 VOLUME ["/status-cache"]
-EXPOSE 80
+EXPOSE 8080

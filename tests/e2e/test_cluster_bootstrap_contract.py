@@ -47,6 +47,17 @@ def test_kafka_chart_provisions_status_page_ws_topic() -> None:
     assert 'platform.status.derived' in topic_names
 
 
+def test_web_status_image_uses_non_privileged_http_port() -> None:
+    dockerfile = (ROOT / 'apps/web-status/Dockerfile').read_text()
+    nginx_config = (ROOT / 'apps/web-status/nginx.conf').read_text()
+    deployment = (ROOT / 'deploy/helm/platform/templates/web-status-deployment.yaml').read_text()
+
+    assert 'EXPOSE 8080' in dockerfile
+    assert 'listen 8080;' in nginx_config
+    assert 'containerPort: 8080' in deployment
+    assert 'containerPort: 80' not in deployment
+
+
 def test_operator_installs_use_server_side_apply_for_large_crds() -> None:
     install_script = (ROOT / 'tests/e2e/cluster/install.sh').read_text()
     assert 'kubectl apply --server-side=true --force-conflicts -f "${CNPG_MANIFEST_URL}"' in install_script
