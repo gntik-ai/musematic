@@ -9396,7 +9396,8 @@ Simulation: isolated execution environment for what-if analysis</p>
 <li>coordinate A/B and canary experiments;</li>
 <li>rank hypotheses through tournament-style evaluation;</li>
 <li>enforce clear separation between simulation and production artifacts;</li>
-<li>provide simulation comparison analytics.</li>
+<li>provide simulation comparison analytics;</li>
+<li>expose the simulation run detail <code>&lt;DigitalTwinPanel&gt;</code> UI so operators and creators can compare mock-vs-real subsystems, divergence points, simulated time, and reference production executions without leaving the workbench.</li>
 </ul>
 <h2 id="79-testing-and-quality-plane">7.9 Testing and quality plane<a class="headerlink" href="#79-testing-and-quality-plane" title="Permanent link">&para;</a></h2>
 <p>This plane provides the infrastructure for semantic, behavioral, and adversarial testing of agents <strong>and</strong> end-to-end (E2E) testing of the platform itself on an ephemeral Kubernetes cluster.</p>
@@ -10017,6 +10018,7 @@ Simulation: isolated execution environment for what-if analysis</p>
 <h2 id="111-namespaces">11.1 Namespaces<a class="headerlink" href="#111-namespaces" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>platform-edge</code>: ingress controller, API gateway, WebSocket gateway.</li>
+<li>Public status delivery remains operationally independent from the authenticated shell: <code>apps/web-status</code> is built as a static status surface with its own ingress/edge path and last-known-good fallback, while the control plane only publishes public status APIs and fallback snapshots.</li>
 <li><code>platform-control</code>: control-plane monolith profiles (api, scheduler, worker, projection, trust, context-engineering, reasoning, agentops), BFFs.</li>
 <li><code>platform-execution</code>: runtime controller, sandbox manager, HostOps broker, connector workers, browser workers, broadcast/multicast service, acknowledgment tracker.</li>
 <li><code>platform-simulation</code>: simulation controller, simulation pods, digital twin manager.</li>

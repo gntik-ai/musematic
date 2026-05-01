@@ -7488,6 +7488,14 @@
 <td><code>deploy/helm/ui/templates/deployment.yaml</code></td>
 </tr>
 <tr>
+<td><code>NEXT_PUBLIC_STATUS_API_BASE_URL</code></td>
+<td>optional</td>
+<td>-</td>
+<td>configuration</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/platform/templates/web-status-deployment.yaml</code></td>
+</tr>
+<tr>
 <td><code>NEXT_PUBLIC_WS_URL</code></td>
 <td>optional</td>
 <td>-</td>
@@ -7718,6 +7726,22 @@
 <td>sensitive</td>
 <td>Declared as a Kubernetes container environment variable.</td>
 <td><code>deploy/helm/minio/templates/bucket-init-job.yaml</code></td>
+</tr>
+<tr>
+<td><code>STATUS_API_INTERNAL_URL</code></td>
+<td>optional</td>
+<td>-</td>
+<td>configuration</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/platform/templates/status-snapshot-cronjob.yaml</code></td>
+</tr>
+<tr>
+<td><code>STATUS_SNAPSHOT_ADMIN_TOKEN</code></td>
+<td>optional</td>
+<td>-</td>
+<td>sensitive</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/platform/templates/status-snapshot-cronjob.yaml</code></td>
 </tr>
 </tbody>
 </table>
@@ -10303,6 +10327,14 @@
 <td><code>apps/control-plane/src/platform/accounts/exceptions.py</code></td>
 </tr>
 <tr>
+<td><code>EMPTY_SUCCESS_CRITERIA</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/simulation/scenarios_service.py</code></td>
+</tr>
+<tr>
 <td><code>ENTITY_NOT_FOUND_FOR_TAG</code></td>
 <td>optional</td>
 <td>-</td>
@@ -10869,6 +10901,14 @@
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
 <td><code>apps/control-plane/src/platform/auth/exceptions.py</code></td>
+</tr>
+<tr>
+<td><code>FORBIDDEN_TWIN_COMBO</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/simulation/scenarios_service.py</code></td>
 </tr>
 <tr>
 <td><code>GENERATED_BY</code></td>
@@ -12204,7 +12244,15 @@
 <td>-</td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/accounts/router.py</code><br><code>apps/control-plane/src/platform/accounts/service.py</code><br><code>apps/control-plane/src/platform/audit/router.py</code><br><code>apps/control-plane/src/platform/auth/dependencies.py</code><br><code>apps/control-plane/src/platform/auth/router.py</code><br>+18 more</td>
+<td><code>apps/control-plane/src/platform/accounts/router.py</code><br><code>apps/control-plane/src/platform/accounts/service.py</code><br><code>apps/control-plane/src/platform/audit/router.py</code><br><code>apps/control-plane/src/platform/auth/dependencies.py</code><br><code>apps/control-plane/src/platform/auth/router.py</code><br>+19 more</td>
+</tr>
+<tr>
+<td><code>PLAINTEXT_SECRET</code></td>
+<td>optional</td>
+<td>-</td>
+<td>sensitive</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/simulation/scenarios_service.py</code></td>
 </tr>
 <tr>
 <td><code>PLATFORM_</code></td>
@@ -12820,7 +12868,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/admin/impersonation_models.py</code><br><code>apps/control-plane/src/platform/admin/two_person_auth_models.py</code><br><code>apps/control-plane/src/platform/connectors/models.py</code><br><code>apps/control-plane/src/platform/cost_governance/models.py</code><br><code>apps/control-plane/src/platform/evaluation/models.py</code><br>+2 more</td>
+<td><code>apps/control-plane/src/platform/admin/impersonation_models.py</code><br><code>apps/control-plane/src/platform/admin/two_person_auth_models.py</code><br><code>apps/control-plane/src/platform/connectors/models.py</code><br><code>apps/control-plane/src/platform/cost_governance/models.py</code><br><code>apps/control-plane/src/platform/evaluation/models.py</code><br>+3 more</td>
 </tr>
 <tr>
 <td><code>ROBUSTNESS_RUN_NOT_FOUND</code></td>
@@ -12999,6 +13047,14 @@
 <td><code>apps/control-plane/src/platform/security_compliance/services/sbom_service.py</code></td>
 </tr>
 <tr>
+<td><code>SCENARIO_ARCHIVED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/simulation/scenarios_service.py</code></td>
+</tr>
+<tr>
 <td><code>SECRET_PROVIDER_UNAVAILABLE</code></td>
 <td>optional</td>
 <td>-</td>
@@ -13157,6 +13213,22 @@
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
 <td><code>apps/control-plane/src/platform/notifications/service.py</code></td>
+</tr>
+<tr>
+<td><code>STATUS_LAST_GOOD_PATH</code></td>
+<td>optional</td>
+<td>-</td>
+<td>configuration</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/main.py</code></td>
+</tr>
+<tr>
+<td><code>STATUS_PAGE_HEALTH_TARGETS</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/status_page/projections.py</code></td>
 </tr>
 <tr>
 <td><code>STEP_NOT_COMPLETED</code></td>
@@ -13735,6 +13807,14 @@
 <td><code>apps/control-plane/src/platform/auth/dependencies.py</code><br><code>apps/control-plane/src/platform/auth/exceptions.py</code><br><code>apps/control-plane/src/platform/auth/router_oauth.py</code><br><code>apps/control-plane/src/platform/common/auth_middleware.py</code><br><code>apps/control-plane/src/platform/common/debug_logging/router.py</code><br>+2 more</td>
 </tr>
 <tr>
+<td><code>UNKNOWN_AGENT_FQN</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/simulation/scenarios_service.py</code></td>
+</tr>
+<tr>
 <td><code>UNKNOWN_EVENT_TYPE</code></td>
 <td>optional</td>
 <td>-</td>
@@ -13804,7 +13884,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/admin/security_scheduler.py</code><br><code>apps/control-plane/src/platform/cost_governance/jobs/anomaly_job.py</code><br><code>apps/control-plane/src/platform/cost_governance/jobs/forecast_job.py</code><br><code>apps/control-plane/src/platform/incident_response/jobs/delivery_retry_scanner.py</code><br><code>apps/control-plane/src/platform/incident_response/jobs/runbook_freshness_scanner.py</code><br>+12 more</td>
+<td><code>apps/control-plane/src/platform/admin/security_scheduler.py</code><br><code>apps/control-plane/src/platform/cost_governance/jobs/anomaly_job.py</code><br><code>apps/control-plane/src/platform/cost_governance/jobs/forecast_job.py</code><br><code>apps/control-plane/src/platform/incident_response/jobs/delivery_retry_scanner.py</code><br><code>apps/control-plane/src/platform/incident_response/jobs/runbook_freshness_scanner.py</code><br>+13 more</td>
 </tr>
 <tr>
 <td><code>VAULT_</code></td>
@@ -13957,6 +14037,22 @@
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
 <td><code>apps/control-plane/src/platform/workflows/compiler.py</code></td>
+</tr>
+<tr>
+<td><code>WORKFLOW_TEMPLATE_NOT_APPROVED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/simulation/scenarios_service.py</code></td>
+</tr>
+<tr>
+<td><code>WORKFLOW_TEMPLATE_NOT_FOUND</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/simulation/scenarios_service.py</code></td>
 </tr>
 <tr>
 <td><code>WORKFLOW_VERSION_ID</code></td>
@@ -14219,7 +14315,7 @@
 <td><code>false</code></td>
 <td>informational</td>
 <td>Configures <code>feature_e2e_mode</code> for Platform.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>apps/control-plane/src/platform/common/llm/mock_provider.py</code></td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>apps/control-plane/src/platform/common/llm/mock_provider.py</code><br><code>apps/control-plane/src/platform/status_page/service.py</code></td>
 </tr>
 <tr>
 <td><code>FEATURE_GOAL_AUTO_COMPLETE</code></td>
@@ -14351,11 +14447,11 @@
 </tr>
 <tr>
 <td><code>PLATFORM_FEATURE_E2E_MODE</code></td>
-<td>optional</td>
+<td>required</td>
 <td><code>false</code></td>
 <td>informational</td>
 <td>Configures <code>feature_e2e_mode</code> for Platform.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>apps/control-plane/src/platform/status_page/service.py</code></td>
 </tr>
 <tr>
 <td><code>PLATFORM_FEATURE_GOAL_AUTO_COMPLETE</code></td>
