@@ -446,3 +446,15 @@ def test_e2e_test_target_uses_versioned_test_paths() -> None:
     assert 'E2E_TEST_PATHS ?= suites' in makefile
     assert '$(PYTEST) $(E2E_TEST_PATHS)' in makefile
     assert '$(PYTEST) suites' not in makefile
+
+
+def test_e2e_make_targets_install_playwright_browsers_when_available() -> None:
+    makefile = (ROOT / 'tests/e2e/Makefile').read_text()
+
+    assert 'PLAYWRIGHT_BROWSERS_PATH ?= /tmp/musematic-ms-playwright' in makefile
+    assert 'export PLAYWRIGHT_BROWSERS_PATH' in makefile
+    assert 'ensure-playwright-browsers:' in makefile
+    assert 'importlib.util.find_spec("playwright")' in makefile
+    assert '$(PYTHON) -m playwright install $(PLAYWRIGHT_BROWSER)' in makefile
+    assert 'e2e-test: ensure-playwright-browsers' in makefile
+    assert 'e2e-journeys: ensure-playwright-browsers' in makefile

@@ -8,9 +8,12 @@ PORT_VAULT ?= 30085
 RELEASE_NAME ?= amp
 NAMESPACE ?= platform
 
-PYTEST ?= python3 -m pytest
+PYTHON ?= python3
+PYTEST ?= $(PYTHON) -m pytest
 E2E_TEST_PATHS ?= suites
 E2E_JOURNEY_WORKERS ?= 4
+PLAYWRIGHT_BROWSER ?= chromium
+PLAYWRIGHT_BROWSERS_PATH ?= /tmp/musematic-ms-playwright
 KIND_CONFIG_TEMPLATE := cluster/kind-config.yaml
 KIND_CONFIG_RENDERED := /tmp/kind-config-$(CLUSTER_NAME).yaml
 
@@ -18,8 +21,9 @@ export PLATFORM_API_URL ?= http://localhost:$(PORT_API)
 export PLATFORM_WS_URL ?= ws://localhost:$(PORT_WS)
 export MOCK_GOOGLE_OIDC_URL ?= http://localhost:$(PORT_GOOGLE_OIDC)
 export MOCK_GITHUB_OAUTH_URL ?= http://localhost:$(PORT_GITHUB_OAUTH)
+export PLAYWRIGHT_BROWSERS_PATH
 
-.PHONY: e2e-check render-kind-config load-images e2e-up e2e-down e2e-test e2e-chaos e2e-perf e2e-reset e2e-logs e2e-shell capture-state e2e-journeys e2e-j01 e2e-j02 e2e-j03 e2e-j04 e2e-j05 e2e-j06 e2e-j07 e2e-j08 e2e-j09 e2e-j19
+.PHONY: e2e-check ensure-playwright-browsers render-kind-config load-images e2e-up e2e-down e2e-test e2e-chaos e2e-perf e2e-reset e2e-logs e2e-shell capture-state e2e-journeys e2e-j01 e2e-j02 e2e-j03 e2e-j04 e2e-j05 e2e-j06 e2e-j07 e2e-j08 e2e-j09 e2e-j19
 
 e2e-check:
 	@command -v docker >/dev/null 2>&1 || (echo "docker is required" >&2; exit 1)
@@ -28,6 +32,11 @@ e2e-check:
 	@command -v helm >/dev/null 2>&1 || (echo "helm is required" >&2; exit 1)
 	@command -v python3 >/dev/null 2>&1 || (echo "python3 is required" >&2; exit 1)
 	@command -v envsubst >/dev/null 2>&1 || (echo "envsubst is required" >&2; exit 1)
+
+ensure-playwright-browsers:
+	@if $(PYTHON) -c 'import importlib.util, sys; sys.exit(0 if importlib.util.find_spec("playwright") else 1)'; then \
+		$(PYTHON) -m playwright install $(PLAYWRIGHT_BROWSER); \
+	fi
 
 render-kind-config:
 	@CLUSTER_NAME=$(CLUSTER_NAME) PORT_UI=$(PORT_UI) PORT_API=$(PORT_API) PORT_WS=$(PORT_WS) PORT_GOOGLE_OIDC=$(PORT_GOOGLE_OIDC) PORT_GITHUB_OAUTH=$(PORT_GITHUB_OAUTH) PORT_VAULT=$(PORT_VAULT) envsubst < $(KIND_CONFIG_TEMPLATE) > $(KIND_CONFIG_RENDERED)
@@ -42,11 +51,11 @@ e2e-down:
 	@kind delete cluster --name $(CLUSTER_NAME)
 	@rm -f $(KIND_CONFIG_RENDERED)
 
-e2e-test:
+e2e-test: ensure-playwright-browsers
 	@mkdir -p reports
 	@$(PYTEST) $(E2E_TEST_PATHS) --junitxml=reports/junit.xml --html=reports/report.html --self-contained-html
 
-e2e-journeys:
+e2e-journeys: ensure-playwright-browsers
 	@mkdir -p reports
 	@$(PYTEST) journeys/ -n $(E2E_JOURNEY_WORKERS) --dist=loadfile -v -m journey --junitxml=reports/journeys-junit.xml --html=reports/journeys-report.html
 
