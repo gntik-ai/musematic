@@ -1,6 +1,6 @@
 """Billing plans, subscriptions, usage, and overage.
 
-Revision ID: 103_billing_plans_subscriptions_usage_overage
+Revision ID: 103_billing_plans_subs_usage
 Revises: 102_oauth_provider_tenant_scope
 Create Date: 2026-05-02
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "103_billing_plans_subscriptions_usage_overage"
+revision: str = "103_billing_plans_subs_usage"
 down_revision: str | None = "102_oauth_provider_tenant_scope"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
@@ -643,7 +643,7 @@ def _backfill_default_workspace_subscriptions() -> None:
         DO $$
         BEGIN
             RAISE NOTICE
-                '{{"event":"billing.default_workspace_subscription_backfill","inserted_count":{inserted_count}}}';
+                '{{"event":"billing.default_workspace_subscription_backfill","inserted_count": {inserted_count}}}';
         END;
         $$;
         """

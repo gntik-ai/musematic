@@ -115,7 +115,7 @@ async def list_workspace_attributions(
             end,
         )
         return {"items": rows, "group_by": group_by}
-    raw_rows = await attribution_service.repository.get_workspace_attributions(
+    raw_rows = await attribution_service.get_workspace_attributions(
         workspace_id,
         since,
         until,

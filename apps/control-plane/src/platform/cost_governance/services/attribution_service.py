@@ -134,14 +134,7 @@ class AttributionService:
             if user_id is None
             else str(payload.get("origin") or "user_trigger")
         )
-        subscription_id: UUID | None = None
-        try:
-            subscription = await SubscriptionResolver(
-                self.repository.session
-            ).resolve_active_subscription(workspace_id)
-            subscription_id = subscription.id
-        except NoActiveSubscriptionError:
-            subscription_id = None
+        subscription_id = await self._resolve_active_subscription_id(workspace_id)
 
         if existing is None:
             attribution = await self.repository.insert_attribution(
@@ -210,6 +203,7 @@ class AttributionService:
         rows = await self.repository.list_execution_attributions(execution_id)
         if not rows:
             return None
+        await self._back_tag_missing_subscription_ids(rows)
         original = next((row for row in rows if row.correction_of is None), rows[0])
         totals = {
             "model_cost_cents": sum((row.model_cost_cents for row in rows), DECIMAL_ZERO),
@@ -219,6 +213,57 @@ class AttributionService:
             "total_cost_cents": sum((row.total_cost_cents for row in rows), DECIMAL_ZERO),
         }
         return {"attribution": original, "corrections": rows[1:], "totals": totals}
+
+    async def get_workspace_attributions(
+        self,
+        workspace_id: UUID,
+        since: datetime | None,
+        until: datetime | None,
+        cursor: datetime | None,
+        limit: int,
+        *,
+        agent_id: UUID | None = None,
+        user_id: UUID | None = None,
+    ) -> list[CostAttribution]:
+        rows = await self.repository.get_workspace_attributions(
+            workspace_id,
+            since,
+            until,
+            cursor,
+            limit,
+            agent_id=agent_id,
+            user_id=user_id,
+        )
+        await self._back_tag_missing_subscription_ids(rows)
+        return rows
+
+    async def _resolve_active_subscription_id(self, workspace_id: UUID) -> UUID | None:
+        session = getattr(self.repository, "session", None)
+        if session is None:
+            return None
+        try:
+            subscription = await SubscriptionResolver(session).resolve_active_subscription(
+                workspace_id
+            )
+        except NoActiveSubscriptionError:
+            return None
+        return subscription.id
+
+    async def _back_tag_missing_subscription_ids(self, rows: list[Any]) -> None:
+        session = getattr(self.repository, "session", None)
+        if session is None:
+            return
+        changed = False
+        for row in rows:
+            if getattr(row, "subscription_id", None) is not None:
+                continue
+            subscription_id = await self._resolve_active_subscription_id(row.workspace_id)
+            if subscription_id is None:
+                continue
+            row.subscription_id = subscription_id
+            changed = True
+        if changed:
+            await session.flush()
 
     async def _resolve_pricing(self, model_id: str | None, provider: str | None) -> dict[str, Any]:
         if model_id is None or self.model_catalog_service is None:

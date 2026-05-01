@@ -179,6 +179,8 @@ class SubscriptionService:
             raise SubscriptionNotFoundError(subscription_id)
         if subscription.cancel_at_period_end:
             raise DowngradeAlreadyScheduledError(subscription_id)
+        if subscription.status != "active":
+            raise ConcurrentLifecycleActionError(subscription_id)
         target_plan = await self.plans.get_by_slug(target_plan_slug)
         if target_plan is None:
             raise PlanNotFoundError(target_plan_slug)
@@ -208,6 +210,8 @@ class SubscriptionService:
         subscription = await self.subscriptions.get_by_id(subscription_id)
         if subscription is None:
             raise SubscriptionNotFoundError(subscription_id)
+        if subscription.status != "cancellation_pending" or not subscription.cancel_at_period_end:
+            raise ConcurrentLifecycleActionError(subscription_id)
         scheduled_for = subscription.current_period_end
         updated = await self.subscriptions.set_cancel_at_period_end(subscription_id, False)
         assert updated is not None
@@ -227,9 +231,13 @@ class SubscriptionService:
         return updated
 
     async def suspend(self, subscription_id: UUID, reason: str) -> Subscription:
-        updated = await self.subscriptions.update_status(subscription_id, "suspended")
-        if updated is None:
+        subscription = await self.subscriptions.get_by_id(subscription_id)
+        if subscription is None:
             raise SubscriptionNotFoundError(subscription_id)
+        if subscription.status in {"canceled", "suspended"}:
+            raise ConcurrentLifecycleActionError(subscription_id)
+        updated = await self.subscriptions.update_status(subscription_id, "suspended")
+        assert updated is not None
         await self._publish_event(updated, "billing.subscription.suspended", {"reason": reason})
         await self._append_audit(
             "billing.subscription.suspended",
@@ -242,6 +250,8 @@ class SubscriptionService:
         subscription = await self.subscriptions.get_by_id(subscription_id)
         if subscription is None:
             raise SubscriptionNotFoundError(subscription_id)
+        if subscription.status not in {"past_due", "suspended"}:
+            raise ConcurrentLifecycleActionError(subscription_id)
         previous_status = subscription.status
         updated = await self.subscriptions.update_status(subscription_id, "active")
         assert updated is not None
@@ -258,9 +268,13 @@ class SubscriptionService:
         return updated
 
     async def cancel(self, subscription_id: UUID) -> Subscription:
-        updated = await self.subscriptions.update_status(subscription_id, "canceled")
-        if updated is None:
+        subscription = await self.subscriptions.get_by_id(subscription_id)
+        if subscription is None:
             raise SubscriptionNotFoundError(subscription_id)
+        if subscription.status == "canceled":
+            raise ConcurrentLifecycleActionError(subscription_id)
+        updated = await self.subscriptions.update_status(subscription_id, "canceled")
+        assert updated is not None
         await self._publish_event(
             updated,
             "billing.subscription.canceled",

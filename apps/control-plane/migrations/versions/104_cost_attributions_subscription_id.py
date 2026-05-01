@@ -1,7 +1,7 @@
 """Link cost attributions to billing subscriptions.
 
-Revision ID: 104_cost_attributions_subscription_id
-Revises: 103_billing_plans_subscriptions_usage_overage
+Revision ID: 104_cost_attr_subscription
+Revises: 103_billing_plans_subs_usage
 Create Date: 2026-05-02
 """
 
@@ -13,8 +13,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "104_cost_attributions_subscription_id"
-down_revision: str | None = "103_billing_plans_subscriptions_usage_overage"
+revision: str = "104_cost_attr_subscription"
+down_revision: str | None = "103_billing_plans_subs_usage"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
