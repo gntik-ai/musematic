@@ -92,6 +92,9 @@ def _state(request: Request) -> dict[str, Any]:
         "artifacts": {},
         "certifications": {},
         "contracts": {},
+        "contract_templates": {},
+        "context_profiles": {},
+        "context_profile_versions": {},
         "policies": {},
         "policy_attachments": {},
         "entity_tags": {},
@@ -205,6 +208,110 @@ def _uuid_or_none(value: Any) -> UUID | None:
         return UUID(str(value))
     except (TypeError, ValueError):
         return None
+
+
+def _context_profile_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "required": ["name", "source_config"],
+        "properties": {
+            "name": {"type": "string"},
+            "description": {"type": ["string", "null"]},
+            "source_config": {"type": "array", "items": {"type": "object"}},
+            "budget_config": {"type": "object"},
+            "compaction_strategies": {
+                "type": "array",
+                "items": {"type": "string"},
+            },
+            "quality_weights": {"type": "object"},
+            "privacy_overrides": {"type": "object"},
+            "is_default": {"type": "boolean"},
+        },
+    }
+
+
+def _contract_schema() -> dict[str, Any]:
+    return {
+        "type": "object",
+        "required": ["agent_id", "task_scope", "expected_outputs"],
+        "properties": {
+            "agent_id": {"type": "string"},
+            "task_scope": {"type": "string"},
+            "expected_outputs": {"type": "object"},
+            "quality_thresholds": {"type": "object"},
+            "time_constraint_seconds": {"type": "integer"},
+            "cost_limit_tokens": {"type": "integer"},
+            "escalation_conditions": {"type": "object"},
+            "success_criteria": {"type": "object"},
+            "enforcement_policy": {"type": "string"},
+        },
+    }
+
+
+def _profile_version(
+    profile: dict[str, Any],
+    *,
+    version_number: int,
+    actor_id: str,
+) -> dict[str, Any]:
+    content_snapshot = {
+        key: value
+        for key, value in profile.items()
+        if key
+        not in {
+            "id",
+            "workspace_id",
+            "created_at",
+            "updated_at",
+            "current_version",
+        }
+    }
+    return {
+        "id": str(uuid4()),
+        "profile_id": profile["id"],
+        "workspace_id": profile["workspace_id"],
+        "version_number": version_number,
+        "content_snapshot": content_snapshot,
+        "created_by_user_id": actor_id,
+        "created_at": _now(),
+    }
+
+
+def _contract_templates(state: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    templates = state.setdefault("contract_templates", {})
+    if templates:
+        return templates
+    seeds = [
+        ("code-review", "Code Review Guardrails"),
+        ("retrieval", "Context Retrieval Contract"),
+        ("finance", "Finance Evidence Review"),
+        ("support", "Support Response Quality"),
+        ("governance", "Governance Escalation"),
+    ]
+    for category, name in seeds:
+        template_id = str(uuid4())
+        templates[template_id] = {
+            "id": template_id,
+            "agent_id": f"template:{category}",
+            "name": name,
+            "category": category,
+            "description": f"{name} platform template",
+            "task_scope": f"Apply {category} guardrails to creator workflows.",
+            "expected_outputs": {"required": ["answer", "citations"]},
+            "quality_thresholds": {"minimum_confidence": 0.7},
+            "time_constraint_seconds": 30,
+            "cost_limit_tokens": 500,
+            "escalation_conditions": {"secret_detected": "terminate"},
+            "success_criteria": {"requires_citation": True},
+            "enforcement_policy": "warn",
+            "attached_revision_id": None,
+            "is_archived": False,
+            "is_platform_authored": True,
+            "created_by_user_id": None,
+            "created_at": _now(),
+            "updated_at": _now(),
+        }
+    return templates
 
 
 def _correlation_dict(
@@ -3002,11 +3109,344 @@ async def third_party_certification(payload: dict[str, Any]) -> dict[str, Any]:
     return {"id": str(uuid4()), "status": "active", "certifier": payload.get("certifier")}
 
 
+@router.get("/api/v1/context-engineering/profiles/schema")
+async def get_context_profile_schema() -> dict[str, Any]:
+    return _context_profile_schema()
+
+
+@router.post("/api/v1/context-engineering/profiles", status_code=status.HTTP_201_CREATED)
+async def create_context_profile(
+    request: Request,
+    payload: dict[str, Any],
+    current_user: dict[str, Any] | None = Depends(get_current_user),
+) -> dict[str, Any]:
+    state = _state(request)
+    workspace_id = _workspace_id_from_request(request)
+    actor_id = _user_id(current_user)
+    now = _now()
+    profile = {
+        "id": str(uuid4()),
+        "workspace_id": workspace_id,
+        "name": payload.get("name") or f"profile-{uuid4().hex[:8]}",
+        "description": payload.get("description"),
+        "source_config": list(payload.get("source_config") or []),
+        "budget_config": dict(payload.get("budget_config") or {}),
+        "compaction_strategies": list(payload.get("compaction_strategies") or []),
+        "quality_weights": dict(payload.get("quality_weights") or {}),
+        "privacy_overrides": dict(payload.get("privacy_overrides") or {}),
+        "is_default": bool(payload.get("is_default", False)),
+        "current_version": 1,
+        "created_by_user_id": actor_id,
+        "created_at": now,
+        "updated_at": now,
+    }
+    state.setdefault("context_profiles", {})[profile["id"]] = profile
+    state.setdefault("context_profile_versions", {})[profile["id"]] = [
+        _profile_version(profile, version_number=1, actor_id=actor_id)
+    ]
+    return profile
+
+
+@router.put("/api/v1/context-engineering/profiles/{profile_id}")
+async def update_context_profile(
+    request: Request,
+    profile_id: str,
+    payload: dict[str, Any],
+    current_user: dict[str, Any] | None = Depends(get_current_user),
+) -> dict[str, Any]:
+    profile = _state(request).setdefault("context_profiles", {}).get(profile_id)
+    if not profile:
+        raise HTTPException(status_code=404)
+    for key in (
+        "name",
+        "description",
+        "source_config",
+        "budget_config",
+        "compaction_strategies",
+        "quality_weights",
+        "privacy_overrides",
+        "is_default",
+    ):
+        if key in payload:
+            profile[key] = payload[key]
+    profile["updated_at"] = _now()
+    versions = _state(request).setdefault("context_profile_versions", {}).setdefault(
+        profile_id, []
+    )
+    profile["current_version"] = len(versions) + 1
+    versions.append(
+        _profile_version(
+            profile,
+            version_number=int(profile["current_version"]),
+            actor_id=_user_id(current_user),
+        )
+    )
+    return profile
+
+
+@router.post("/api/v1/context-engineering/profiles/{profile_id}/preview")
+async def preview_context_profile(
+    request: Request,
+    profile_id: str,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    profile = _state(request).setdefault("context_profiles", {}).get(profile_id)
+    if not profile:
+        raise HTTPException(status_code=404)
+    query_text = str(payload.get("query_text") or "")
+    queued = _state(request).setdefault("mock_llm", {}).get(query_text) or []
+    response_text = (
+        str(queued.pop(0).get("response"))
+        if queued
+        else "mock creator profile response"
+    )
+    _record_mock_llm_call(
+        request,
+        {"prompt_pattern": query_text, "prompt": query_text},
+        response_text,
+    )
+    return {
+        "profile_id": profile_id,
+        "query_text": query_text,
+        "assembled_context": "Deterministic E2E context bundle",
+        "mock_response": response_text,
+        "was_fallback": False,
+        "sources": [
+            {
+                "origin": f"workspace:{profile['workspace_id']}",
+                "snippet": "Workspace memory evidence for creator preview.",
+                "score": 0.91,
+                "included": True,
+                "classification": "public",
+            }
+        ],
+    }
+
+
+@router.get("/api/v1/context-engineering/profiles/{profile_id}/versions")
+async def list_context_profile_versions(request: Request, profile_id: str) -> dict[str, Any]:
+    versions = list(
+        _state(request).setdefault("context_profile_versions", {}).get(profile_id, [])
+    )
+    return {"versions": versions, "total": len(versions), "next_cursor": None}
+
+
+@router.get("/api/v1/context-engineering/profiles/{profile_id}/versions/{v1_number}/diff/{v2_number}")
+async def diff_context_profile_versions(
+    request: Request,
+    profile_id: str,
+    v1_number: int,
+    v2_number: int,
+) -> dict[str, Any]:
+    versions = _state(request).setdefault("context_profile_versions", {}).get(profile_id, [])
+    snapshots = {
+        int(item["version_number"]): dict(item.get("content_snapshot") or {})
+        for item in versions
+    }
+    before = snapshots.get(v1_number)
+    after = snapshots.get(v2_number)
+    if before is None or after is None:
+        raise HTTPException(status_code=404)
+    modified = {
+        key: {"from": before.get(key), "to": after.get(key)}
+        for key in sorted(set(before) & set(after))
+        if before.get(key) != after.get(key)
+    }
+    return {
+        "profile_id": profile_id,
+        "from_version": v1_number,
+        "to_version": v2_number,
+        "added": {key: after[key] for key in sorted(set(after) - set(before))},
+        "removed": {key: before[key] for key in sorted(set(before) - set(after))},
+        "modified": modified,
+    }
+
+
+@router.post("/api/v1/context-engineering/profiles/{profile_id}/rollback/{version_number}")
+async def rollback_context_profile(
+    request: Request,
+    profile_id: str,
+    version_number: int,
+    current_user: dict[str, Any] | None = Depends(get_current_user),
+) -> dict[str, Any]:
+    state = _state(request)
+    profile = state.setdefault("context_profiles", {}).get(profile_id)
+    if not profile:
+        raise HTTPException(status_code=404)
+    versions = state.setdefault("context_profile_versions", {}).setdefault(profile_id, [])
+    target = next(
+        (item for item in versions if int(item["version_number"]) == version_number),
+        None,
+    )
+    if target is None:
+        raise HTTPException(status_code=404)
+    profile.update(dict(target.get("content_snapshot") or {}))
+    profile["updated_at"] = _now()
+    profile["current_version"] = len(versions) + 1
+    version = _profile_version(
+        profile,
+        version_number=int(profile["current_version"]),
+        actor_id=_user_id(current_user),
+    )
+    versions.append(version)
+    return version
+
+
+@router.get("/api/v1/trust/contracts/schema")
+async def get_e2e_contract_schema() -> dict[str, Any]:
+    return _contract_schema()
+
+
+@router.get("/api/v1/trust/contracts/schema-enums")
+async def get_e2e_contract_schema_enums() -> dict[str, Any]:
+    return {
+        "resource_types": ["workspace", "agent", "revision", "execution"],
+        "role_types": ["executor", "observer", "judge", "enforcer", "agent_owner"],
+        "workspace_constraints": ["workspace_visibility", "quota", "residency"],
+        "failure_modes": ["warn", "block", "terminate", "escalate"],
+    }
+
+
+@router.get("/api/v1/trust/contracts/templates")
+async def list_e2e_contract_templates(request: Request) -> dict[str, Any]:
+    return _items(_contract_templates(_state(request)).values())
+
+
 @router.post("/api/v1/trust/contracts", status_code=status.HTTP_201_CREATED)
 async def create_contract(request: Request, payload: dict[str, Any]) -> dict[str, Any]:
-    contract = {"id": str(uuid4()), **payload}
+    now = _now()
+    contract = {
+        "id": str(uuid4()),
+        "workspace_id": _workspace_id_from_request(request),
+        "agent_id": payload.get("agent_id") or payload.get("agent_fqn"),
+        "task_scope": payload.get("task_scope", ""),
+        "expected_outputs": dict(payload.get("expected_outputs") or {}),
+        "quality_thresholds": dict(payload.get("quality_thresholds") or {}),
+        "time_constraint_seconds": payload.get("time_constraint_seconds"),
+        "cost_limit_tokens": payload.get("cost_limit_tokens"),
+        "escalation_conditions": dict(payload.get("escalation_conditions") or {}),
+        "success_criteria": dict(payload.get("success_criteria") or {}),
+        "enforcement_policy": payload.get("enforcement_policy", "warn"),
+        "attached_revision_id": None,
+        "is_archived": False,
+        "is_platform_authored": False,
+        "created_at": now,
+        "updated_at": now,
+        **payload,
+    }
     _state(request)["contracts"][contract["id"]] = contract
     return contract
+
+
+@router.get("/api/v1/trust/contracts/{contract_id}")
+async def get_e2e_contract(request: Request, contract_id: str) -> dict[str, Any]:
+    contract = _state(request).setdefault("contracts", {}).get(contract_id)
+    if not contract:
+        raise HTTPException(status_code=404)
+    return contract
+
+
+@router.post("/api/v1/trust/contracts/{contract_id}/preview")
+async def preview_e2e_contract(
+    request: Request,
+    contract_id: str,
+    payload: dict[str, Any],
+) -> Any:
+    contract = _state(request).setdefault("contracts", {}).get(contract_id)
+    if not contract:
+        raise HTTPException(status_code=404)
+    if payload.get("use_mock") is False and not payload.get("cost_acknowledged"):
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": {
+                    "code": "TRUST_REAL_LLM_PREVIEW_REQUIRES_ACK",
+                    "message": "Real LLM preview requires explicit cost acknowledgement",
+                    "details": {},
+                }
+            },
+        )
+    sample_input = dict(payload.get("sample_input") or {})
+    output = dict(sample_input.get("output") or {})
+    violated: list[str] = []
+    required = set((contract.get("expected_outputs") or {}).get("required") or [])
+    if required and not required.issubset(output):
+        violated.append("expected_outputs")
+    cost_limit = contract.get("cost_limit_tokens")
+    if isinstance(cost_limit, int) and int(sample_input.get("tokens") or 0) > cost_limit:
+        violated.append("cost_limit_tokens")
+    if sample_input.get("force_violation"):
+        violated.extend(["expected_outputs", "cost_limit_tokens", "success_criteria"])
+    violated = sorted(set(violated))
+    satisfied = [
+        clause
+        for clause in ("expected_outputs", "cost_limit_tokens", "success_criteria")
+        if clause not in violated
+    ]
+    queued = _state(request).setdefault("mock_llm", {}).get("contract preview") or []
+    response_text = (
+        str(queued.pop(0).get("response"))
+        if queued
+        else "mock contract preview response"
+    )
+    _record_mock_llm_call(
+        request,
+        {"prompt_pattern": "contract preview", "prompt": json.dumps(sample_input)},
+        response_text,
+    )
+    return {
+        "contract_id": contract_id,
+        "clauses_satisfied": satisfied,
+        "clauses_violated": violated,
+        "final_action": contract.get("enforcement_policy", "warn"),
+        "mock_response": response_text,
+        "was_fallback": False,
+    }
+
+
+@router.post("/api/v1/trust/contracts/{template_id}/fork", status_code=status.HTTP_201_CREATED)
+async def fork_e2e_contract_template(
+    request: Request,
+    template_id: str,
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    template = _contract_templates(_state(request)).get(template_id)
+    if not template:
+        raise HTTPException(status_code=404)
+    fork_payload = {
+        key: value
+        for key, value in template.items()
+        if key
+        not in {
+            "id",
+            "created_at",
+            "updated_at",
+            "is_platform_authored",
+            "created_by_user_id",
+        }
+    }
+    fork_payload["name"] = payload.get("new_name") or f"{template['name']} fork"
+    fork_payload["escalation_conditions"] = {
+        **dict(template.get("escalation_conditions") or {}),
+        "_forked_from_template_id": template_id,
+    }
+    contract = await create_contract(request, fork_payload)
+    contract["is_archived"] = False
+    return contract
+
+
+@router.post("/api/v1/trust/contracts/{contract_id}/attach-revision/{revision_id}")
+async def attach_e2e_contract_to_revision(
+    request: Request,
+    contract_id: str,
+    revision_id: str,
+) -> Response:
+    contract = _state(request).setdefault("contracts", {}).get(contract_id)
+    if not contract:
+        raise HTTPException(status_code=404)
+    contract["attached_revision_id"] = revision_id
+    contract["updated_at"] = _now()
+    return Response(status_code=204)
 
 
 @router.post("/api/v1/trust/signals", status_code=status.HTTP_201_CREATED)
