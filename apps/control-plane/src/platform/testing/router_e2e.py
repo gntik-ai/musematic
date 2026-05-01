@@ -10,12 +10,14 @@ from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_current_user, get_db
 from platform.common.exceptions import AuthorizationError, NotFoundError
 from platform.common.logging import get_logger
+from platform.common.tenant_context import current_tenant
 from platform.incident_response.dependencies import get_incident_service
 from platform.incident_response.schemas import IncidentRef, IncidentSeverity, IncidentSignal
 from platform.incident_response.services.incident_service import IncidentService
 from platform.status_page.dependencies import get_status_page_service
 from platform.status_page.schemas import SourceKind
 from platform.status_page.service import StatusPageService
+from platform.tenants.seeder import DEFAULT_TENANT_ID
 from platform.testing.schemas_e2e import (
     ChaosKillPodRequest,
     ChaosKillPodResponse,
@@ -131,6 +133,18 @@ def _redis(request: Request) -> AsyncRedisClient:
     return cast(AsyncRedisClient, request.app.state.clients["redis"])
 
 
+def _current_tenant_id() -> UUID:
+    tenant = current_tenant.get(None)
+    return tenant.id if tenant is not None else DEFAULT_TENANT_ID
+
+
+async def _bind_rls_tenant(session: AsyncSession, tenant_id: UUID) -> None:
+    await session.execute(
+        text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+        {"tenant_id": str(tenant_id)},
+    )
+
+
 @router.put("/accounts/signup-mode")
 async def set_account_signup_mode(
     payload: E2ESignupModeRequest,
@@ -243,6 +257,8 @@ async def create_expired_account_verification_token(
 ) -> dict[str, str]:
     del current_user
     email = payload.email.strip().lower()
+    tenant_id = _current_tenant_id()
+    await _bind_rls_tenant(session, tenant_id)
     user_id = (
         await session.execute(
             text("SELECT id FROM accounts_users WHERE email = :email LIMIT 1"),
@@ -255,13 +271,19 @@ async def create_expired_account_verification_token(
     await session.execute(
         text(
             """
-            INSERT INTO accounts_email_verifications (user_id, token_hash, expires_at)
-            VALUES (:user_id, :token_hash, now() - interval '1 second')
+            INSERT INTO accounts_email_verifications (
+                user_id,
+                token_hash,
+                expires_at,
+                tenant_id
+            )
+            VALUES (:user_id, :token_hash, now() - interval '1 second', :tenant_id)
             """
         ),
         {
             "user_id": str(user_id),
             "token_hash": hashlib.sha256(token.encode("utf-8")).hexdigest(),
+            "tenant_id": str(tenant_id),
         },
     )
     return {"email": email, "token": token}
@@ -296,15 +318,18 @@ async def provision_user(
     session: AsyncSession = Depends(get_db),
 ) -> E2EUserProvisionResponse:
     display_name = payload.display_name or payload.email.split("@", 1)[0]
+    tenant_id = _current_tenant_id()
+    await _bind_rls_tenant(session, tenant_id)
     await session.execute(
         text(
             """
-            INSERT INTO users (id, email, display_name, status)
-            VALUES (:id, :email, :display_name, :status)
+            INSERT INTO users (id, email, display_name, status, tenant_id)
+            VALUES (:id, :email, :display_name, :status, :tenant_id)
             ON CONFLICT (id) DO UPDATE SET
                 email = EXCLUDED.email,
                 display_name = EXCLUDED.display_name,
                 status = EXCLUDED.status,
+                tenant_id = EXCLUDED.tenant_id,
                 updated_at = now()
             """
         ),
@@ -313,16 +338,18 @@ async def provision_user(
             "email": payload.email,
             "display_name": display_name,
             "status": payload.status,
+            "tenant_id": str(tenant_id),
         },
     )
     await session.execute(
         text(
             """
-            INSERT INTO accounts_users (id, email, display_name, status, signup_source)
-            VALUES (:id, :email, :display_name, :status, 'self_registration')
+            INSERT INTO accounts_users (id, email, display_name, status, signup_source, tenant_id)
+            VALUES (:id, :email, :display_name, :status, 'self_registration', :tenant_id)
             ON CONFLICT (email) DO UPDATE SET
                 display_name = EXCLUDED.display_name,
                 status = EXCLUDED.status,
+                tenant_id = EXCLUDED.tenant_id,
                 updated_at = now()
             """
         ),
@@ -331,17 +358,19 @@ async def provision_user(
             "email": payload.email,
             "display_name": display_name,
             "status": payload.status,
+            "tenant_id": str(tenant_id),
         },
     )
     await session.execute(
         text(
             """
-            INSERT INTO user_credentials (user_id, email, password_hash, is_active)
-            VALUES (:id, :email, :password_hash, true)
+            INSERT INTO user_credentials (user_id, email, password_hash, is_active, tenant_id)
+            VALUES (:id, :email, :password_hash, true, :tenant_id)
             ON CONFLICT (user_id) DO UPDATE SET
                 email = EXCLUDED.email,
                 password_hash = EXCLUDED.password_hash,
                 is_active = true,
+                tenant_id = EXCLUDED.tenant_id,
                 updated_at = now()
             """
         ),
@@ -349,25 +378,30 @@ async def provision_user(
             "id": str(payload.id),
             "email": payload.email,
             "password_hash": hash_password(payload.password),
+            "tenant_id": str(tenant_id),
         },
     )
     if payload.status == "pending_approval":
         await session.execute(
             text(
                 """
-                INSERT INTO accounts_approval_requests (user_id, requested_at)
-                VALUES (:id, now())
+                INSERT INTO accounts_approval_requests (user_id, requested_at, tenant_id)
+                VALUES (:id, now(), :tenant_id)
                 ON CONFLICT (user_id) DO NOTHING
                 """
             ),
-            {"id": str(payload.id)},
+            {"id": str(payload.id), "tenant_id": str(tenant_id)},
         )
     for role in payload.roles:
         await session.execute(
             text(
                 """
-                INSERT INTO user_roles (user_id, role, workspace_id)
-                SELECT CAST(:id AS uuid), CAST(:role AS varchar), CAST(NULL AS uuid)
+                INSERT INTO user_roles (user_id, role, workspace_id, tenant_id)
+                SELECT
+                    CAST(:id AS uuid),
+                    CAST(:role AS varchar),
+                    CAST(NULL AS uuid),
+                    CAST(:tenant_id AS uuid)
                 WHERE NOT EXISTS (
                     SELECT 1
                     FROM user_roles
@@ -377,7 +411,7 @@ async def provision_user(
                 )
                 """
             ),
-            {"id": str(payload.id), "role": role},
+            {"id": str(payload.id), "role": role, "tenant_id": str(tenant_id)},
         )
     return E2EUserProvisionResponse(id=payload.id, email=payload.email, status=payload.status)
 

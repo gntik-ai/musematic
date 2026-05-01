@@ -18,6 +18,9 @@ OPAQUE_404_HEADERS = {
     "content-type": "application/json",
     "content-length": str(len(OPAQUE_404_BODY)),
 }
+TENANT_RESOLVER_BYPASS_PATHS: frozenset[str] = frozenset(
+    {"/health", "/healthz", "/api/v1/healthz"}
+)
 
 
 class TenantResolverMiddleware(BaseHTTPMiddleware):
@@ -39,6 +42,9 @@ class TenantResolverMiddleware(BaseHTTPMiddleware):
         )
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        if request.url.path in TENANT_RESOLVER_BYPASS_PATHS:
+            return await call_next(request)
+
         tenant = await self.resolver.resolve(request.headers.get("host", ""))
         if tenant is None:
             await _apply_timing_floor(self.settings)

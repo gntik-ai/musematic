@@ -335,7 +335,7 @@ These tasks add explicit `tenant_id` filtering to every existing repository quer
 - [X] T130 Wire the J22 Tenant Provisioning journey into the journey registry (`tests/e2e/journeys/__init__.py` or equivalent); covers super admin login, provisioning Acme, DNS reachability assertion, first-admin invitation, first sign-in.
 - [X] T131 Wire the J31 Cross-Tenant Isolation journey into the journey registry; covers two-tenant setup, cross-tenant probe matrix.
 - [X] T132 Wire the J36 Default Tenant Constraints journey into the journey registry.
-- [ ] T133 Run the existing journeys J01–J21 against the post-migration database; capture the regression report. Fix any failures introduced by the BC refactor in Phase 5.
+- [X] T133 Run the existing journeys J01–J21 against the post-migration database; capture the regression report. Fix any failures introduced by the BC refactor in Phase 5.
 
 ### Lenient → strict promotion + cleanup
 
@@ -353,7 +353,7 @@ These tasks add explicit `tenant_id` filtering to every existing repository quer
 ### Constitutional checks
 
 - [X] T141 Run `apps/control-plane/scripts/lint/check_rls_coverage.py`, `check_tenant_filter_coverage.py`, `check_platform_staff_role_scope.py`, `check_reserved_slug_parity.sh` locally; resolve any flagged violations before opening the PR.
-- [ ] T142 Validate quickstart.md walkthrough end-to-end on a fresh kind cluster; capture any drift and update the doc.
+- [X] T142 Validate quickstart.md walkthrough end-to-end on a fresh kind cluster; capture any drift and update the doc.
 
 ---
 

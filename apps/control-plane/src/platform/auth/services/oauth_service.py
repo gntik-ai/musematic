@@ -68,12 +68,22 @@ from platform.common.secret_provider import (
 from platform.common.tenant_context import current_tenant
 from platform.connectors.security import compute_hmac_sha256
 from typing import Any, cast
+from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 from fastapi.encoders import jsonable_encoder
 
 _PLAINTEXT_SECRET_PREFIX = "plain:"
 _REDACTED_PLAINTEXT_SECRET_REF = "plain:<redacted>"
+_LOOPBACK_REDIRECT_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+def _is_loopback_redirect_uri(uri: str) -> bool:
+    try:
+        host = urlsplit(uri).hostname
+    except ValueError:
+        return False
+    return host in _LOOPBACK_REDIRECT_HOSTS
 
 
 @dataclass(slots=True)
@@ -1006,6 +1016,8 @@ class OAuthService:
     def _tenant_callback_url(self, provider_type: str, fallback: str) -> str:
         tenant = current_tenant.get(None)
         domain = self.settings.PLATFORM_DOMAIN.strip().lower().rstrip(".")
+        if _is_loopback_redirect_uri(fallback):
+            return fallback
         if tenant is None or not domain:
             return fallback
         return f"https://{tenant.subdomain}.{domain}/auth/oauth/{provider_type}/callback"

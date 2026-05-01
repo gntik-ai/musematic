@@ -63,3 +63,9 @@ credentials:
   database: musematic
   # -- Configures `credentials.existingSecret` for the postgresql chart.
   existingSecret: ""
+
+# @section -- Bootstrap
+# -- Configures optional CloudNativePG initdb bootstrap SQL.
+bootstrap:
+  # -- Configures `bootstrap.postInitSQL` for the postgresql chart.
+  postInitSQL: []

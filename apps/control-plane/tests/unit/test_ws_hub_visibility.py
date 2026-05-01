@@ -70,6 +70,28 @@ async def test_visibility_authorize_subscription_uses_single_workspace_fallback(
 
 
 @pytest.mark.asyncio
+async def test_visibility_allows_unresolved_workspace_resources_in_e2e_mode() -> None:
+    conn = build_connection(user_id=uuid4(), workspace_ids=set())
+    service = StaticWorkspacesService()
+    from platform.ws_hub.visibility import VisibilityFilter
+
+    visibility = VisibilityFilter(
+        lambda: _factory(service),
+        allow_unresolved_e2e_resources=True,
+    )
+
+    assert await visibility.authorize_subscription(
+        conn,
+        ChannelType.CONVERSATION,
+        str(uuid4()),
+    ) is None
+    assert visibility.is_visible(
+        {"correlation_context": {"workspace_id": str(uuid4())}},
+        conn,
+    ) is True
+
+
+@pytest.mark.asyncio
 async def test_visibility_refresh_and_event_visibility() -> None:
     workspace_id = uuid4()
     user_id = uuid4()

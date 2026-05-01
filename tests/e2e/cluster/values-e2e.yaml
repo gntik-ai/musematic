@@ -20,6 +20,10 @@ postgresql:
     password: change-me
     database: musematic
     existingSecret: ""
+  bootstrap:
+    postInitSQL:
+      - "CREATE ROLE musematic_platform_staff LOGIN BYPASSRLS PASSWORD 'change-me'"
+      - "ALTER ROLE musematic_platform_staff SET search_path = public"
 
 redis:
   auth:

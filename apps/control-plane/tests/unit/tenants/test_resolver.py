@@ -89,6 +89,45 @@ def test_opaque_404_is_byte_stable() -> None:
 
 
 @pytest.mark.asyncio
+async def test_health_paths_bypass_tenant_resolution() -> None:
+    class StubResolver:
+        called = False
+
+        async def resolve(self, host: str) -> TenantContext | None:
+            del host
+            self.called = True
+            return None
+
+    resolver = StubResolver()
+    middleware = TenantResolverMiddleware(
+        app=lambda scope, receive, send: None,
+        settings=PlatformSettings(PLATFORM_DOMAIN="musematic.ai"),
+        session_factory=lambda: None,  # type: ignore[arg-type]
+        resolver=resolver,  # type: ignore[arg-type]
+    )
+    request = Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/health",
+            "headers": [(b"host", b"10.244.1.12:8000")],
+            "scheme": "http",
+            "server": ("10.244.1.12", 8000),
+            "client": ("10.244.1.1", 123),
+        }
+    )
+
+    async def call_next(_: Request) -> Response:
+        return Response(b"ok")
+
+    response = await middleware.dispatch(request, call_next)
+
+    assert response.status_code == 200
+    assert response.body == b"ok"
+    assert resolver.called is False
+
+
+@pytest.mark.asyncio
 async def test_pending_deletion_tenant_returns_opaque_404_for_non_staff() -> None:
     pending = TenantContext(
         id=uuid4(),

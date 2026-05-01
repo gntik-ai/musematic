@@ -11,6 +11,7 @@ from platform.common.config import settings as default_settings
 from platform.common.logging import configure_logging
 from platform.common.middleware.correlation_logging_middleware import CorrelationLoggingMiddleware
 from platform.common.telemetry import setup_telemetry
+from platform.tenants.resolver import TenantResolver
 from platform.workspaces.dependencies import build_workspaces_service
 from platform.ws_hub.connection import ConnectionRegistry
 from platform.ws_hub.fanout import KafkaFanout
@@ -105,9 +106,17 @@ def create_ws_app(settings: PlatformSettings | None = None) -> FastAPI:
     app.state.settings = resolved
     app.state.connection_registry = ConnectionRegistry()
     app.state.subscription_registry = SubscriptionRegistry()
+    app.state.tenant_resolver = TenantResolver(
+        settings=resolved,
+        session_factory=database.AsyncSessionLocal,
+        redis_client=None,
+    )
     app.state.auth_service_factory = _create_auth_service_factory(app)
     app.state.workspaces_service_factory = _create_workspaces_service_factory(app)
-    app.state.visibility_filter = VisibilityFilter(app.state.workspaces_service_factory)
+    app.state.visibility_filter = VisibilityFilter(
+        app.state.workspaces_service_factory,
+        allow_unresolved_e2e_resources=resolved.feature_e2e_mode,
+    )
     app.state.fanout = KafkaFanout(
         connection_registry=app.state.connection_registry,
         subscription_registry=app.state.subscription_registry,

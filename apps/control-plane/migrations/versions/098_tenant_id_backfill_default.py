@@ -31,16 +31,10 @@ def upgrade() -> None:
             continue
         if not _table_has_tenant_id(connection, table_name):
             continue
-        if _estimated_rows(connection, table_name) > LARGE_TABLE_THRESHOLD:
-            _backfill_batched(connection, table_name)
+        if table_name == "audit_chain_entries":
+            _backfill_audit_chain_entries(connection)
         else:
-            connection.execute(
-                sa.text(
-                    f"UPDATE {_quote(table_name)} "
-                    "SET tenant_id = :tenant_id WHERE tenant_id IS NULL"
-                ),
-                {"tenant_id": DEFAULT_TENANT_ID},
-            )
+            _backfill_table(connection, table_name)
         connection.execute(
             sa.text(
                 """
@@ -60,6 +54,45 @@ def downgrade() -> None:
         sa.text(
             "DELETE FROM _alembic_tenant_backfill_checkpoint WHERE completed_phase = :phase"
         ).bindparams(phase=PHASE)
+    )
+
+
+def _backfill_table(connection: sa.Connection, table_name: str) -> None:
+    if _estimated_rows(connection, table_name) > LARGE_TABLE_THRESHOLD:
+        _backfill_batched(connection, table_name)
+    else:
+        connection.execute(
+            sa.text(
+                f"UPDATE {_quote(table_name)} "
+                "SET tenant_id = :tenant_id WHERE tenant_id IS NULL"
+            ),
+            {"tenant_id": DEFAULT_TENANT_ID},
+        )
+
+
+def _backfill_audit_chain_entries(connection: sa.Connection) -> None:
+    connection.execute(
+        sa.text(
+            """
+            ALTER TABLE audit_chain_entries
+            DISABLE TRIGGER audit_chain_entries_append_only
+            """
+        )
+    )
+    connection.execute(
+        sa.text("GRANT UPDATE (tenant_id) ON audit_chain_entries TO CURRENT_USER")
+    )
+    _backfill_table(connection, "audit_chain_entries")
+    connection.execute(
+        sa.text("REVOKE UPDATE (tenant_id) ON audit_chain_entries FROM CURRENT_USER")
+    )
+    connection.execute(
+        sa.text(
+            """
+            ALTER TABLE audit_chain_entries
+            ENABLE TRIGGER audit_chain_entries_append_only
+            """
+        )
     )
 
 

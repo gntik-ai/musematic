@@ -26,6 +26,10 @@ spec:
       owner: {{ .Values.credentials.username | quote }}
       secret:
         name: {{ default "postgres-credentials" .Values.credentials.existingSecret | quote }}
+      {{- with .Values.bootstrap.postInitSQL }}
+      postInitSQL:
+{{ toYaml . | indent 8 }}
+      {{- end }}
   replicationSlots:
     highAvailability:
       enabled: {{ eq .Values.environment "production" }}
@@ -37,4 +41,3 @@ spec:
       synchronous_commit: "on"
       synchronous_standby_names: "*"
       {{- end }}
-

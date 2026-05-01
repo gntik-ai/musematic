@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
+import sqlalchemy as sa
 from alembic import op
 
 revision: str = "101_platform_staff_role"
@@ -16,39 +17,81 @@ down_revision: str | None = "100_tenant_rls_policies"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
+ROLE_NAME = "musematic_platform_staff"
+
 
 def upgrade() -> None:
+    connection = op.get_bind()
+    if _can_manage_bypassrls(connection):
+        _create_or_update_role()
+    else:
+        _assert_preprovisioned_role(connection)
+    op.execute(f"GRANT USAGE ON SCHEMA public TO {ROLE_NAME}")
     op.execute(
-        """
+        "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public "
+        f"TO {ROLE_NAME}"
+    )
+    op.execute(
+        "ALTER DEFAULT PRIVILEGES IN SCHEMA public "
+        f"GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO {ROLE_NAME}"
+    )
+
+
+def downgrade() -> None:
+    connection = op.get_bind()
+    op.execute(
+        "ALTER DEFAULT PRIVILEGES IN SCHEMA public "
+        f"REVOKE SELECT, INSERT, UPDATE, DELETE ON TABLES FROM {ROLE_NAME}"
+    )
+    op.execute(
+        "REVOKE SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public "
+        f"FROM {ROLE_NAME}"
+    )
+    op.execute(f"REVOKE USAGE ON SCHEMA public FROM {ROLE_NAME}")
+    if _can_manage_bypassrls(connection):
+        op.execute(f"DROP ROLE IF EXISTS {ROLE_NAME}")
+
+
+def _create_or_update_role() -> None:
+    op.execute(
+        f"""
         DO $$
         BEGIN
-            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'musematic_platform_staff') THEN
-                CREATE ROLE musematic_platform_staff LOGIN BYPASSRLS;
+            IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{ROLE_NAME}') THEN
+                CREATE ROLE {ROLE_NAME} LOGIN BYPASSRLS;
+            ELSE
+                ALTER ROLE {ROLE_NAME} LOGIN BYPASSRLS;
             END IF;
         END
         $$;
         """
     )
-    op.execute("ALTER ROLE musematic_platform_staff SET search_path = public")
-    op.execute("GRANT USAGE ON SCHEMA public TO musematic_platform_staff")
-    op.execute(
-        "GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public "
-        "TO musematic_platform_staff"
-    )
-    op.execute(
-        "ALTER DEFAULT PRIVILEGES IN SCHEMA public "
-        "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO musematic_platform_staff"
+    op.execute(f"ALTER ROLE {ROLE_NAME} SET search_path = public")
+
+
+def _can_manage_bypassrls(connection: sa.Connection) -> bool:
+    return bool(
+        connection.execute(
+            sa.text("SELECT rolsuper FROM pg_roles WHERE rolname = current_user")
+        ).scalar()
     )
 
 
-def downgrade() -> None:
-    op.execute(
-        "ALTER DEFAULT PRIVILEGES IN SCHEMA public "
-        "REVOKE SELECT, INSERT, UPDATE, DELETE ON TABLES FROM musematic_platform_staff"
-    )
-    op.execute(
-        "REVOKE SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public "
-        "FROM musematic_platform_staff"
-    )
-    op.execute("REVOKE USAGE ON SCHEMA public FROM musematic_platform_staff")
-    op.execute("DROP ROLE IF EXISTS musematic_platform_staff")
+def _assert_preprovisioned_role(connection: sa.Connection) -> None:
+    role = connection.execute(
+        sa.text(
+            """
+            SELECT rolcanlogin, rolbypassrls
+            FROM pg_roles
+            WHERE rolname = :role_name
+            """
+        ),
+        {"role_name": ROLE_NAME},
+    ).one_or_none()
+    if role is None:
+        raise RuntimeError(
+            f"{ROLE_NAME} must be pre-provisioned with LOGIN BYPASSRLS, "
+            "or this migration must run as a PostgreSQL superuser."
+        )
+    if not role.rolcanlogin or not role.rolbypassrls:
+        raise RuntimeError(f"{ROLE_NAME} must have LOGIN and BYPASSRLS attributes.")
