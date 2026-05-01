@@ -130,16 +130,16 @@ description: "Task list for UPD-046 — Tenant Architecture (Subdomain + RLS + D
 
 ### Tests for User Story 2
 
-- [ ] T052 [P] [US2] Build a realistic fixture set at `apps/control-plane/tests/fixtures/audit_pass_realistic.sql` containing representative data across all 35 BCs (workspaces, users, agents, executions, audit-chain entries, costs, conversations, fleets, etc.) — at least one row per tenant-scoped table, plus three large tables (executions, audit-chain entries, costs) seeded with 100K rows to exercise the batched backfill path.
-- [ ] T053 [P] [US2] Migration test `apps/control-plane/tests/integration/migrations/test_full_upgrade_from_audit_pass.py`: load the fixture, run migrations 096→101, assert (a) `tenants.id = default UUID` exists, (b) every catalogued table has `tenant_id NOT NULL` and every pre-existing row holds the default UUID, (c) row counts match pre-upgrade per table, (d) RLS policy active on every table.
-- [ ] T054 [P] [US2] Migration test `apps/control-plane/tests/integration/migrations/test_resumable_after_interrupt.py`: simulate interruption mid-098 (kill transaction at random checkpoint); re-run migrations; assert convergence to the same end state and zero double-applied updates.
-- [ ] T055 [P] [US2] Migration test `apps/control-plane/tests/integration/migrations/test_reverse_migration.py`: apply 096→101, then run the reverse path (`alembic downgrade`), assert the database state matches the pre-upgrade snapshot. Run within `TENANT_MIGRATION_ROLLBACK_WINDOW_HOURS`.
+- [X] T052 [P] [US2] Build a realistic fixture set at `apps/control-plane/tests/fixtures/audit_pass_realistic.sql` containing representative data across all 35 BCs (workspaces, users, agents, executions, audit-chain entries, costs, conversations, fleets, etc.) — at least one row per tenant-scoped table, plus three large tables (executions, audit-chain entries, costs) seeded with 100K rows to exercise the batched backfill path.
+- [X] T053 [P] [US2] Migration test `apps/control-plane/tests/integration/migrations/test_full_upgrade_from_audit_pass.py`: load the fixture, run migrations 096→101, assert (a) `tenants.id = default UUID` exists, (b) every catalogued table has `tenant_id NOT NULL` and every pre-existing row holds the default UUID, (c) row counts match pre-upgrade per table, (d) RLS policy active on every table.
+- [X] T054 [P] [US2] Migration test `apps/control-plane/tests/integration/migrations/test_resumable_after_interrupt.py`: simulate interruption mid-098 (kill transaction at random checkpoint); re-run migrations; assert convergence to the same end state and zero double-applied updates.
+- [X] T055 [P] [US2] Migration test `apps/control-plane/tests/integration/migrations/test_reverse_migration.py`: apply 096→101, then run the reverse path (`alembic downgrade`), assert the database state matches the pre-upgrade snapshot. Run within `TENANT_MIGRATION_ROLLBACK_WINDOW_HOURS`.
 
 ### Implementation for User Story 2
 
-- [ ] T056 [US2] Operator runbook `deploy/runbooks/tenant-migration.md`: step-by-step upgrade procedure including pre-migration database snapshot, lenient-mode default for first run, `tenant_enforcement_violations` monitoring guidance, rollback procedure within 24h window, troubleshooting common interruption modes.
-- [ ] T057 [US2] Add `tenant_enforcement_violations` side table via Alembic migration metadata or directly in 096 — schema: `(id BIGSERIAL PK, occurred_at TIMESTAMPTZ DEFAULT now(), table_name TEXT, query_text TEXT, expected_tenant_id UUID, observed_violation TEXT)`. Used by lenient-mode telemetry per research R10.
-- [ ] T058 [US2] Implement lenient-mode logging: when `PLATFORM_TENANT_ENFORCEMENT_LEVEL=lenient` and a query against a tenant-scoped table returns zero rows where the application expected at least one (detected by the service-layer caller), write a row to `tenant_enforcement_violations` and emit a structlog warning. Strict mode skips this side path.
+- [X] T056 [US2] Operator runbook `deploy/runbooks/tenant-migration.md`: step-by-step upgrade procedure including pre-migration database snapshot, lenient-mode default for first run, `tenant_enforcement_violations` monitoring guidance, rollback procedure within 24h window, troubleshooting common interruption modes.
+- [X] T057 [US2] Add `tenant_enforcement_violations` side table via Alembic migration metadata or directly in 096 — schema: `(id BIGSERIAL PK, occurred_at TIMESTAMPTZ DEFAULT now(), table_name TEXT, query_text TEXT, expected_tenant_id UUID, observed_violation TEXT)`. Used by lenient-mode telemetry per research R10.
+- [X] T058 [US2] Implement lenient-mode logging: when `PLATFORM_TENANT_ENFORCEMENT_LEVEL=lenient` and a query against a tenant-scoped table returns zero rows where the application expected at least one (detected by the service-layer caller), write a row to `tenant_enforcement_violations` and emit a structlog warning. Strict mode skips this side path.
 
 **Checkpoint**: User Story 2 fully verified. Operators can upgrade existing platforms; the migration is idempotent, reversible, and produces zero data loss.
 
@@ -161,7 +161,7 @@ description: "Task list for UPD-046 — Tenant Architecture (Subdomain + RLS + D
 
 These tasks add explicit `tenant_id` filtering to every existing repository query path AND `tenant_id` to outgoing Kafka event envelopes. Each BC is one task and can run in parallel with the others (different files). The pattern is: read `current_tenant.get()` in the repository constructor or per-method; add `WHERE tenant_id = :tenant_id` to every read query; populate `tenant_id` on every insert; include `tenant_id` in every Kafka event envelope.
 
-- [ ] T062 [P] [US3] Refactor `apps/control-plane/src/platform/workspaces/` — add tenant_id filtering to `repository.py` queries; add tenant_id to `events.py` envelopes; remove the placeholder `/tenants/{tenant_id}/...` stub handlers from `admin_router.py` and replace with delegation to `tenants_service`.
+- [X] T062 [P] [US3] Refactor `apps/control-plane/src/platform/workspaces/` — add tenant_id filtering to `repository.py` queries; add tenant_id to `events.py` envelopes; remove the placeholder `/tenants/{tenant_id}/...` stub handlers from `admin_router.py` and replace with delegation to `tenants_service`.
 - [ ] T063 [P] [US3] Refactor `apps/control-plane/src/platform/accounts/` — `users`, `user_profiles`, `organizations`, `invitations`, `approval_queue` queries all carry tenant_id filter; events include tenant_id.
 - [ ] T064 [P] [US3] Refactor `apps/control-plane/src/platform/auth/` — `user_credentials`, `mfa_enrollments`, `auth_attempts`, `password_reset_tokens`, `oauth_links`, `oauth_provider_rate_limits`, `ibor_*` queries carry tenant_id. (OAuth providers tenancy refactor is Track E, separate task.)
 - [ ] T065 [P] [US3] Refactor `apps/control-plane/src/platform/audit/` — `audit_chain_entries` queries carry tenant_id; canonical-payload hash includes tenant_id (per T041); chain verification tooling notes appended to runbook.
@@ -179,9 +179,9 @@ These tasks add explicit `tenant_id` filtering to every existing repository quer
 
 ### CI rules for User Story 3
 
-- [ ] T077 [P] [US3] Add CI rule `apps/control-plane/scripts/lint/check_rls_coverage.py`: parse Alembic migrations and SQLAlchemy models; for every model class with a `tenant_id` field, assert that some migration creates a `tenant_isolation` policy on the corresponding table. Wire into `.github/workflows/ci.yml`.
+- [X] T077 [P] [US3] Add CI rule `apps/control-plane/scripts/lint/check_rls_coverage.py`: parse Alembic migrations and SQLAlchemy models; for every model class with a `tenant_id` field, assert that some migration creates a `tenant_isolation` policy on the corresponding table. Wire into `.github/workflows/ci.yml`.
 - [ ] T078 [P] [US3] Add CI rule `apps/control-plane/scripts/lint/check_tenant_filter_coverage.py`: AST-walk repository modules; for every `select(...)` against a tenant-scoped table, assert either an explicit `where(Model.tenant_id == ...)` clause OR documented opt-out comment `# RLS-only: rationale` (allowed only in admin/platform paths). Wire into CI.
-- [ ] T079 [P] [US3] Add CI rule `apps/control-plane/scripts/lint/check_platform_staff_role_scope.py`: AST-walk for `get_platform_staff_session` references; fail if found outside `apps/control-plane/src/platform/tenants/platform_router.py` or any other router file under `/api/v1/platform/*`. Wire into CI.
+- [X] T079 [P] [US3] Add CI rule `apps/control-plane/scripts/lint/check_platform_staff_role_scope.py`: AST-walk for `get_platform_staff_session` references; fail if found outside `apps/control-plane/src/platform/tenants/platform_router.py` or any other router file under `/api/v1/platform/*`. Wire into CI.
 
 **Checkpoint**: User Story 3 fully validated. Cross-tenant access is refused at three layers (application filter, RLS, opaque 404). CI gates protect the invariant going forward.
 

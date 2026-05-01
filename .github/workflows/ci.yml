@@ -234,6 +234,12 @@ jobs:
       - name: Check reserved tenant slug parity
         run: scripts/lint/check_reserved_slug_parity.sh
 
+      - name: Check tenant RLS coverage
+        run: python scripts/lint/check_rls_coverage.py
+
+      - name: Check platform-staff role scope
+        run: python scripts/lint/check_platform_staff_role_scope.py
+
   typecheck-python:
     name: Type-check Python
     needs: changes

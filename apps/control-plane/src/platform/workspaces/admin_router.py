@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from platform.admin.rbac import require_admin, require_superadmin
+from platform.admin.rbac import require_admin
 from platform.admin.responses import (
     AdminActionResponse,
     AdminDetailResponse,
@@ -77,44 +77,6 @@ async def configure_workspace_quotas(
     _current_user: dict[str, Any] = Depends(require_admin),
 ) -> AdminActionResponse:
     return accepted("configure_quotas", f"workspaces/{workspace_id}/quotas", affected_count=1)
-
-
-@router.get("/tenants", response_model=AdminListResponse)
-async def list_tenants(
-    current_user: dict[str, Any] = Depends(require_superadmin),
-) -> AdminListResponse:
-    return empty_list("tenants", current_user)
-
-
-@router.post("/tenants", response_model=AdminActionResponse)
-async def create_tenant(
-    _current_user: dict[str, Any] = Depends(require_superadmin),
-) -> AdminActionResponse:
-    return accepted("create", "tenants", affected_count=1)
-
-
-@router.get("/tenants/{tenant_id}", response_model=AdminDetailResponse)
-async def get_tenant(
-    tenant_id: str,
-    _current_user: dict[str, Any] = Depends(require_superadmin),
-) -> AdminDetailResponse:
-    return empty_detail("tenants", tenant_id)
-
-
-@router.post("/tenants/{tenant_id}/suspend", response_model=AdminActionResponse)
-async def suspend_tenant(
-    tenant_id: str,
-    _current_user: dict[str, Any] = Depends(require_superadmin),
-) -> AdminActionResponse:
-    return accepted("suspend", f"tenants/{tenant_id}", affected_count=1)
-
-
-@router.delete("/tenants/{tenant_id}", response_model=AdminActionResponse)
-async def delete_tenant(
-    tenant_id: str,
-    _current_user: dict[str, Any] = Depends(require_superadmin),
-) -> AdminActionResponse:
-    return accepted("delete", f"tenants/{tenant_id}", affected_count=1)
 
 
 @router.get("/namespaces", response_model=AdminListResponse)

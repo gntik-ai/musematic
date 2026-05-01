@@ -118,9 +118,11 @@ def upgrade() -> None:
     )
     _create_triggers()
     _seed_default_tenant()
+    _create_tenant_enforcement_violations_table()
 
 
 def downgrade() -> None:
+    op.drop_table("tenant_enforcement_violations")
     op.execute("DROP TRIGGER IF EXISTS tenants_default_immutable ON tenants")
     op.execute("DROP FUNCTION IF EXISTS tenants_default_immutable()")
     op.execute("DROP TRIGGER IF EXISTS tenants_reserved_slug_check ON tenants")
@@ -221,4 +223,21 @@ def _seed_default_tenant() -> None:
             ON CONFLICT (id) DO NOTHING
             """
         ).bindparams(id=DEFAULT_TENANT_ID)
+    )
+
+
+def _create_tenant_enforcement_violations_table() -> None:
+    op.create_table(
+        "tenant_enforcement_violations",
+        sa.Column("id", sa.BigInteger(), primary_key=True, autoincrement=True),
+        sa.Column(
+            "occurred_at",
+            sa.DateTime(timezone=True),
+            nullable=False,
+            server_default=sa.text("now()"),
+        ),
+        sa.Column("table_name", sa.Text(), nullable=False),
+        sa.Column("query_text", sa.Text(), nullable=False),
+        sa.Column("expected_tenant_id", PG_UUID, nullable=True),
+        sa.Column("observed_violation", sa.Text(), nullable=False),
     )

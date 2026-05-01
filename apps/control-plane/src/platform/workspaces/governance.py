@@ -33,17 +33,21 @@ class _PipelineConfigValidator(Protocol):
 class WorkspaceGovernanceChainRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+        self.workspaces_repo = WorkspacesRepository(session)
 
     async def get_current(self, workspace_id: UUID) -> WorkspaceGovernanceChain | None:
         result = await self.session.execute(
             select(WorkspaceGovernanceChain).where(
                 WorkspaceGovernanceChain.workspace_id == workspace_id,
+                WorkspaceGovernanceChain.tenant_id == self.workspaces_repo._tenant_id(),
                 WorkspaceGovernanceChain.is_current.is_(True),
             )
         )
         return result.scalar_one_or_none()
 
     async def create_version(self, chain: WorkspaceGovernanceChain) -> WorkspaceGovernanceChain:
+        if chain.tenant_id is None:
+            chain.tenant_id = self.workspaces_repo._tenant_id()
         current = await self.get_current(chain.workspace_id)
         if current is not None:
             current.is_current = False
@@ -55,6 +59,7 @@ class WorkspaceGovernanceChainRepository:
         result = await self.session.execute(
             select(WorkspaceGovernanceChain)
             .where(WorkspaceGovernanceChain.workspace_id == workspace_id)
+            .where(WorkspaceGovernanceChain.tenant_id == self.workspaces_repo._tenant_id())
             .order_by(
                 WorkspaceGovernanceChain.version.desc(),
                 WorkspaceGovernanceChain.created_at.desc(),
