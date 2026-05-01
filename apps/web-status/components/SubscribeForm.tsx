@@ -27,6 +27,11 @@ type SubscribeValues = z.infer<typeof channelSchema>;
 type Channel = SubscribeValues["channel"];
 
 const API_BASE = process.env.NEXT_PUBLIC_STATUS_API_URL ?? "";
+const CHANNEL_LABELS: Record<Channel, string> = {
+  email: "Email updates",
+  webhook: "Webhook",
+  slack: "Slack",
+};
 
 export function SubscribeForm() {
   const [channel, setChannel] = useState<Channel>("email");
@@ -94,7 +99,7 @@ export function SubscribeForm() {
                 checked={channel === item}
                 onChange={() => setChannel(item)}
               />
-              <span className="capitalize">{item}</span>
+              <span>{CHANNEL_LABELS[item]}</span>
             </label>
           ))}
         </div>

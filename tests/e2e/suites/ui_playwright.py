@@ -5,6 +5,7 @@ import os
 from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import pytest
 import pytest_asyncio
@@ -21,27 +22,30 @@ EXPERIMENT_ID = "experiment-1"
 
 
 @pytest_asyncio.fixture
-async def ui_page() -> AsyncIterator[Any]:
+async def ui_page(platform_ui_url: str) -> AsyncIterator[Any]:
     playwright_api = pytest.importorskip("playwright.async_api")
     async with playwright_api.async_playwright() as playwright:
         browser = await playwright.chromium.launch(
             headless=os.environ.get("MUSEMATIC_E2E_UI_HEADLESS", "1") != "0",
         )
-        page = await browser.new_page()
+        context = await browser.new_context(
+            storage_state=authenticated_storage_state(platform_ui_url),
+        )
+        page = await context.new_page()
         await install_authenticated_state(page)
         try:
             yield page
         finally:
+            await context.close()
             await browser.close()
 
 
-async def install_authenticated_state(
-    page: Any,
+def _auth_storage_values(
     *,
     workspace_id: str = WORKSPACE_ID,
     email: str = "e2e-user@musematic.dev",
     roles: list[str] | None = None,
-) -> None:
+) -> tuple[str, str]:
     user = {
         "id": USER_ID,
         "email": email,
@@ -59,28 +63,80 @@ async def install_authenticated_state(
         "memberCount": 3,
         "createdAt": NOW,
     }
+    auth_storage = json.dumps(
+        {
+            "state": {
+                "user": user,
+                "accessToken": "mock-access-token",
+                "refreshToken": "mock-refresh-token",
+                "isAuthenticated": True,
+                "isLoading": False,
+            },
+            "version": 0,
+        },
+    )
+    workspace_storage = json.dumps(
+        {
+            "state": {
+                "currentWorkspace": workspace,
+                "sidebarCollapsed": False,
+            },
+            "version": 0,
+        },
+    )
+    return auth_storage, workspace_storage
+
+
+def _origin(url: str) -> str:
+    parsed = urlsplit(url)
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def authenticated_storage_state(
+    platform_ui_url: str,
+    *,
+    workspace_id: str = WORKSPACE_ID,
+    email: str = "e2e-user@musematic.dev",
+    roles: list[str] | None = None,
+) -> dict[str, Any]:
+    auth_storage, workspace_storage = _auth_storage_values(
+        workspace_id=workspace_id,
+        email=email,
+        roles=roles,
+    )
+    return {
+        "cookies": [],
+        "origins": [
+            {
+                "origin": _origin(platform_ui_url),
+                "localStorage": [
+                    {"name": "auth-storage", "value": auth_storage},
+                    {"name": "workspace-storage", "value": workspace_storage},
+                ],
+            },
+        ],
+    }
+
+
+async def install_authenticated_state(
+    page: Any,
+    *,
+    workspace_id: str = WORKSPACE_ID,
+    email: str = "e2e-user@musematic.dev",
+    roles: list[str] | None = None,
+) -> None:
+    auth_storage, workspace_storage = _auth_storage_values(
+        workspace_id=workspace_id,
+        email=email,
+        roles=roles,
+    )
     script = f"""
     (() => {{
       const style = document.createElement("style");
       style.textContent = ".tsqd-parent-container,[data-nextjs-dev-tools-button]{{display:none!important}}";
       document.documentElement.appendChild(style);
-      window.localStorage.setItem("auth-storage", JSON.stringify({{
-        state: {{
-          user: {json.dumps(user)},
-          accessToken: "mock-access-token",
-          refreshToken: "mock-refresh-token",
-          isAuthenticated: true,
-          isLoading: false
-        }},
-        version: 0
-      }}));
-      window.localStorage.setItem("workspace-storage", JSON.stringify({{
-        state: {{
-          currentWorkspace: {json.dumps(workspace)},
-          sidebarCollapsed: false
-        }},
-        version: 0
-      }}));
+      window.localStorage.setItem("auth-storage", {json.dumps(auth_storage)});
+      window.localStorage.setItem("workspace-storage", {json.dumps(workspace_storage)});
       window.sessionStorage.clear();
     }})();
     """

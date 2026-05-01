@@ -47,7 +47,7 @@ def _allowlisted(
     return False
 
 
-async def _run_axe(page: Any) -> dict[str, Any]:
+async def _run_axe(page: Any) -> Any:
     try:
         from axe_playwright_python.async_playwright import Axe
     except ImportError:
@@ -62,6 +62,28 @@ async def _run_axe(page: Any) -> dict[str, Any]:
     return await axe.run(page)
 
 
+def _mapping_value(value: Any, key: str, default: Any = None) -> Any:
+    if isinstance(value, dict):
+        return value.get(key, default)
+    return getattr(value, key, default)
+
+
+def _mapping_copy(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return dict(value)
+    to_dict = getattr(value, "to_dict", None)
+    if callable(to_dict):
+        mapped = to_dict()
+        if isinstance(mapped, dict):
+            return dict(mapped)
+    return dict(getattr(value, "__dict__", {}))
+
+
+def _axe_violations(result: Any) -> list[Any]:
+    violations = _mapping_value(result, "violations", [])
+    return violations if isinstance(violations, list) else []
+
+
 async def run_axe_scan(
     page: Any,
     allowlist_path: Path,
@@ -74,14 +96,16 @@ async def run_axe_scan(
     minimum = impacts.get(impact, impacts["moderate"])
     remaining: list[dict] = []
 
-    for violation in result.get("violations", []):
-        rule_id = str(violation.get("id") or violation.get("rule_id") or "")
-        violation_impact = str(violation.get("impact") or "minor")
+    for violation in _axe_violations(result):
+        rule_id = str(
+            _mapping_value(violation, "id") or _mapping_value(violation, "rule_id") or "",
+        )
+        violation_impact = str(_mapping_value(violation, "impact") or "minor")
         if impacts.get(violation_impact, 0) < minimum:
             continue
         if _allowlisted(page_url=page_url, rule_id=rule_id, allowlist=allowlist):
             continue
-        normalized = dict(violation)
+        normalized = _mapping_copy(violation)
         normalized["rule_id"] = rule_id
         remaining.append(normalized)
     return remaining

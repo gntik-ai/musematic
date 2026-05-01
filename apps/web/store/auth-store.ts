@@ -27,6 +27,24 @@ const initialState: AuthState = {
   isLoading: false,
 };
 
+export function mergePersistedAuthState(
+  persistedState: unknown,
+  currentState: AuthStore,
+): AuthStore {
+  const hydratedState = {
+    ...currentState,
+    ...(persistedState as Partial<AuthState> | undefined),
+  };
+
+  return {
+    ...hydratedState,
+    hasHydrated: true,
+    isAuthenticated: Boolean(
+      hydratedState.refreshToken ?? hydratedState.accessToken ?? hydratedState.user,
+    ),
+  };
+}
+
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set) => ({
@@ -64,18 +82,7 @@ export const useAuthStore = create<AuthStore>()(
         refreshToken: state.refreshToken,
         user: state.user,
       }),
-      merge: (persistedState, currentState) => {
-        const hydratedState = {
-          ...currentState,
-          ...(persistedState as Partial<AuthState>),
-        };
-
-        return {
-          ...hydratedState,
-          isAuthenticated:
-            hydratedState.refreshToken !== null || hydratedState.user !== null,
-        };
-      },
+      merge: mergePersistedAuthState,
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
       },
