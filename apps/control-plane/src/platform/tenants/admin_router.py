@@ -18,6 +18,8 @@ from platform.tenants.schemas import (
     TenantCreate,
     TenantListResponse,
     TenantProvisionResponse,
+    TenantScheduleDeletion,
+    TenantSuspend,
     TenantUpdate,
 )
 from platform.tenants.service import TENANT_DPA_BUCKET, TenantsService
@@ -89,26 +91,75 @@ async def get_tenant(
 async def update_tenant(
     tenant_id: str,
     payload: TenantUpdate,
-    _current_user: dict[str, Any] = Depends(require_superadmin),
+    request: Request,
+    current_user: dict[str, Any] = Depends(require_superadmin),
     session: AsyncSession = Depends(database.get_session),
 ) -> TenantAdminView:
-    repository = TenantsRepository(session)
-    tenant = await repository.get_by_id(_coerce_uuid(tenant_id))
-    if tenant is None:
-        raise TenantNotFoundError()
-    values: dict[str, object] = {}
-    if payload.display_name is not None:
-        values["display_name"] = payload.display_name
-    if payload.region is not None:
-        values["region"] = payload.region
-    if payload.branding_config is not None:
-        values["branding_config_json"] = payload.branding_config.model_dump(exclude_none=True)
-    if payload.contract_metadata is not None:
-        values["contract_metadata_json"] = dict(payload.contract_metadata)
-    if payload.feature_flags is not None:
-        values["feature_flags_json"] = dict(payload.feature_flags)
-    await repository.update(tenant, **values)
-    await session.commit()
+    tenant = await _service(request, session).update_tenant(
+        current_user,
+        _coerce_uuid(tenant_id),
+        payload,
+    )
+    return _admin_view(tenant)
+
+
+@router.post("/{tenant_id}/suspend", response_model=TenantAdminView)
+async def suspend_tenant(
+    tenant_id: str,
+    payload: TenantSuspend,
+    request: Request,
+    current_user: dict[str, Any] = Depends(require_superadmin),
+    session: AsyncSession = Depends(database.get_session),
+) -> TenantAdminView:
+    tenant = await _service(request, session).suspend_tenant(
+        current_user,
+        _coerce_uuid(tenant_id),
+        payload.reason,
+    )
+    return _admin_view(tenant)
+
+
+@router.post("/{tenant_id}/reactivate", response_model=TenantAdminView)
+async def reactivate_tenant(
+    tenant_id: str,
+    request: Request,
+    current_user: dict[str, Any] = Depends(require_superadmin),
+    session: AsyncSession = Depends(database.get_session),
+) -> TenantAdminView:
+    tenant = await _service(request, session).reactivate_tenant(
+        current_user,
+        _coerce_uuid(tenant_id),
+    )
+    return _admin_view(tenant)
+
+
+@router.post("/{tenant_id}/schedule-deletion", response_model=TenantAdminView)
+async def schedule_tenant_deletion(
+    tenant_id: str,
+    payload: TenantScheduleDeletion,
+    request: Request,
+    current_user: dict[str, Any] = Depends(require_superadmin),
+    session: AsyncSession = Depends(database.get_session),
+) -> TenantAdminView:
+    tenant = await _service(request, session).schedule_deletion(
+        current_user,
+        _coerce_uuid(tenant_id),
+        payload,
+    )
+    return _admin_view(tenant)
+
+
+@router.post("/{tenant_id}/cancel-deletion", response_model=TenantAdminView)
+async def cancel_tenant_deletion(
+    tenant_id: str,
+    request: Request,
+    current_user: dict[str, Any] = Depends(require_superadmin),
+    session: AsyncSession = Depends(database.get_session),
+) -> TenantAdminView:
+    tenant = await _service(request, session).cancel_deletion(
+        current_user,
+        _coerce_uuid(tenant_id),
+    )
     return _admin_view(tenant)
 
 
@@ -155,6 +206,7 @@ def _service(request: Request, session: AsyncSession) -> TenantsService:
         ),
         notifications=notifications,
         object_storage=_object_storage(request),
+        redis_client=clients.get("redis") if isinstance(clients, dict) else None,
     )
 
 

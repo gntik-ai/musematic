@@ -4,6 +4,7 @@ from platform.common.models.base import Base
 from platform.common.models.mixins import (
     EventSourcedMixin,
     SoftDeleteMixin,
+    TenantScopedMixin,
     TimestampMixin,
     UUIDMixin,
 )
@@ -15,7 +16,9 @@ from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 
-class Workspace(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, EventSourcedMixin):
+class Workspace(
+    Base, TenantScopedMixin, UUIDMixin, TimestampMixin, SoftDeleteMixin, EventSourcedMixin
+):
     __tablename__ = "workspaces"
 
     name: Mapped[str] = mapped_column(String(length=255), nullable=False)

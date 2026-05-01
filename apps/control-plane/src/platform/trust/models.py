@@ -6,6 +6,7 @@ from enum import StrEnum
 from platform.common.models.base import Base
 from platform.common.models.mixins import (
     AuditMixin,
+    TenantScopedMixin,
     TimestampMixin,
     UUIDMixin,
     WorkspaceScopedMixin,
@@ -88,7 +89,7 @@ class OJEVerdictType(StrEnum):
     escalate_to_human = "ESCALATE_TO_HUMAN"
 
 
-class TrustCertification(Base, UUIDMixin, TimestampMixin, AuditMixin):
+class TrustCertification(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, AuditMixin):
     __tablename__ = "trust_certifications"
     __table_args__ = (
         Index("ix_trust_certifications_agent_id", "agent_id"),
@@ -160,7 +161,9 @@ class Certifier(Base, UUIDMixin, TimestampMixin, AuditMixin):
     )
 
 
-class AgentContract(Base, UUIDMixin, TimestampMixin, AuditMixin, WorkspaceScopedMixin):
+class AgentContract(
+    Base, TenantScopedMixin, UUIDMixin, TimestampMixin, AuditMixin, WorkspaceScopedMixin
+):
     __tablename__ = "agent_contracts"
     __table_args__ = (
         Index("ix_agent_contracts_agent_id", "agent_id"),
@@ -225,7 +228,7 @@ class ContractTemplate(Base, UUIDMixin, TimestampMixin):
     is_published: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
-class ContractBreachEvent(Base, UUIDMixin, TimestampMixin):
+class ContractBreachEvent(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "contract_breach_events"
     __table_args__ = (
         Index("ix_contract_breach_events_contract_id", "contract_id"),
@@ -253,7 +256,7 @@ class ContractBreachEvent(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class ReassessmentRecord(Base, UUIDMixin, TimestampMixin, AuditMixin):
+class ReassessmentRecord(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, AuditMixin):
     __tablename__ = "reassessment_records"
     __table_args__ = (Index("ix_reassessment_records_certification_id", "certification_id"),)
 
@@ -272,7 +275,7 @@ class ReassessmentRecord(Base, UUIDMixin, TimestampMixin, AuditMixin):
     )
 
 
-class TrustRecertificationRequest(Base, UUIDMixin, TimestampMixin):
+class TrustRecertificationRequest(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "trust_recertification_requests"
     __table_args__ = (
         Index("ix_trust_recertification_requests_certification_id", "certification_id"),
@@ -308,7 +311,7 @@ cast(Any, TrustRecertificationRequest.__table__).append_constraint(
 )
 
 
-class TrustCertificationEvidenceRef(Base, UUIDMixin, TimestampMixin):
+class TrustCertificationEvidenceRef(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "trust_certification_evidence_refs"
     __table_args__ = (
         Index("ix_trust_certification_evidence_refs_certification_id", "certification_id"),
@@ -337,7 +340,7 @@ class TrustCertificationEvidenceRef(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class TrustTier(Base, UUIDMixin, TimestampMixin):
+class TrustTier(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "trust_tiers"
     __table_args__ = (
         Index("uq_trust_tiers_agent_id", "agent_id", unique=True),
@@ -376,7 +379,7 @@ class TrustTier(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class TrustSignal(Base, UUIDMixin, TimestampMixin):
+class TrustSignal(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "trust_signals"
     __table_args__ = (
         Index("ix_trust_signals_agent_id", "agent_id"),
@@ -401,7 +404,7 @@ class TrustSignal(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class TrustProofLink(Base, UUIDMixin, TimestampMixin):
+class TrustProofLink(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "trust_proof_links"
     __table_args__ = (
         Index("ix_trust_proof_links_signal_id", "signal_id"),
@@ -423,7 +426,7 @@ class TrustProofLink(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class TrustRecertificationTrigger(Base, UUIDMixin, TimestampMixin):
+class TrustRecertificationTrigger(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "trust_recertification_triggers"
     __table_args__ = (Index("ix_trust_recertification_triggers_agent_id", "agent_id"),)
 
@@ -465,7 +468,7 @@ cast(Any, TrustRecertificationTrigger.__table__).append_constraint(
 )
 
 
-class TrustBlockedActionRecord(Base, UUIDMixin, TimestampMixin):
+class TrustBlockedActionRecord(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "trust_blocked_action_records"
     __table_args__ = (
         Index("ix_trust_blocked_action_records_agent_id", "agent_id"),
@@ -489,7 +492,7 @@ class TrustBlockedActionRecord(Base, UUIDMixin, TimestampMixin):
     workspace_id: Mapped[str | None] = mapped_column(String(length=255), nullable=True)
 
 
-class TrustATEConfiguration(Base, UUIDMixin, TimestampMixin):
+class TrustATEConfiguration(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "trust_ate_configurations"
     __table_args__ = (
         Index("ix_trust_ate_configurations_workspace_id", "workspace_id"),
@@ -518,7 +521,7 @@ class TrustATEConfiguration(Base, UUIDMixin, TimestampMixin):
     timeout_seconds: Mapped[int] = mapped_column(Integer(), nullable=False, default=3600)
 
 
-class TrustGuardrailPipelineConfig(Base, UUIDMixin, TimestampMixin):
+class TrustGuardrailPipelineConfig(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "trust_guardrail_pipeline_configs"
     __table_args__ = (
         Index("ix_trust_guardrail_pipeline_configs_workspace_id", "workspace_id"),
@@ -541,7 +544,7 @@ class TrustGuardrailPipelineConfig(Base, UUIDMixin, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean(), nullable=False, default=True)
 
 
-class TrustOJEPipelineConfig(Base, UUIDMixin, TimestampMixin):
+class TrustOJEPipelineConfig(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "trust_oje_pipeline_configs"
     __table_args__ = (
         Index("ix_trust_oje_pipeline_configs_workspace_id", "workspace_id"),
@@ -571,7 +574,7 @@ class TrustOJEPipelineConfig(Base, UUIDMixin, TimestampMixin):
     is_active: Mapped[bool] = mapped_column(Boolean(), nullable=False, default=True)
 
 
-class TrustCircuitBreakerConfig(Base, UUIDMixin, TimestampMixin):
+class TrustCircuitBreakerConfig(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "trust_circuit_breaker_configs"
     __table_args__ = (
         Index("ix_trust_circuit_breaker_configs_workspace_id", "workspace_id"),
@@ -588,7 +591,7 @@ class TrustCircuitBreakerConfig(Base, UUIDMixin, TimestampMixin):
     enabled: Mapped[bool] = mapped_column(Boolean(), nullable=False, default=True)
 
 
-class TrustSafetyPreScreenerRuleSet(Base, UUIDMixin, TimestampMixin):
+class TrustSafetyPreScreenerRuleSet(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "trust_prescreener_rule_sets"
     __table_args__ = (
         Index("uq_trust_prescreener_rule_sets_version", "version", unique=True),
@@ -604,7 +607,7 @@ class TrustSafetyPreScreenerRuleSet(Base, UUIDMixin, TimestampMixin):
     activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
-class ContentModerationPolicy(Base, UUIDMixin, TimestampMixin):
+class ContentModerationPolicy(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "content_moderation_policies"
     __table_args__ = (
         CheckConstraint(
@@ -683,7 +686,7 @@ class ContentModerationPolicy(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class ContentModerationEvent(Base, UUIDMixin):
+class ContentModerationEvent(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "content_moderation_events"
     __table_args__ = (
         CheckConstraint(

@@ -7,7 +7,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import UUID as SQLUUID
-from sqlalchemy import DateTime, Integer, event, func
+from sqlalchemy import DateTime, Integer, event, func, text
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column
 
@@ -62,6 +62,23 @@ class AuditMixin:
 
 class WorkspaceScopedMixin:
     workspace_id: Mapped[UUID] = mapped_column(SQLUUID(as_uuid=True), nullable=False, index=True)
+
+
+def _current_tenant_id() -> UUID:
+    from platform.common.tenant_context import current_tenant
+    from platform.tenants.seeder import DEFAULT_TENANT_ID
+
+    tenant = current_tenant.get(None)
+    return tenant.id if tenant is not None else DEFAULT_TENANT_ID
+
+
+class TenantScopedMixin:
+    tenant_id: Mapped[UUID] = mapped_column(
+        SQLUUID(as_uuid=True),
+        nullable=False,
+        default=_current_tenant_id,
+        server_default=text("'00000000-0000-0000-0000-000000000001'::uuid"),
+    )
 
 
 class EventSourcedMixin:

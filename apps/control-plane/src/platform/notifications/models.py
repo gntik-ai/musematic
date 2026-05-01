@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 from platform.common.models.base import Base
-from platform.common.models.mixins import TimestampMixin, UUIDMixin
+from platform.common.models.mixins import TenantScopedMixin, TimestampMixin, UUIDMixin
 from typing import Any
 from uuid import UUID
 
@@ -48,7 +48,7 @@ class WebhookDeliveryStatus(StrEnum):
     dead_letter = "dead_letter"
 
 
-class UserAlertSettings(Base, UUIDMixin, TimestampMixin):
+class UserAlertSettings(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "user_alert_settings"
 
     user_id: Mapped[UUID] = mapped_column(
@@ -92,7 +92,7 @@ class UserAlertSettings(Base, UUIDMixin, TimestampMixin):
     quiet_hours: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
 
-class UserAlert(Base, UUIDMixin, TimestampMixin):
+class UserAlert(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "user_alerts"
     __table_args__ = (
         Index(
@@ -143,7 +143,7 @@ class UserAlert(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class AlertDeliveryOutcome(Base, UUIDMixin, TimestampMixin):
+class AlertDeliveryOutcome(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "alert_delivery_outcomes"
 
     alert_id: Mapped[UUID] = mapped_column(
@@ -177,7 +177,7 @@ class AlertDeliveryOutcome(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class NotificationChannelConfig(Base, UUIDMixin, TimestampMixin):
+class NotificationChannelConfig(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "notification_channel_configs"
     __table_args__ = (
         UniqueConstraint(
@@ -226,7 +226,7 @@ class NotificationChannelConfig(Base, UUIDMixin, TimestampMixin):
     extra: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 
 
-class OutboundWebhook(Base, UUIDMixin, TimestampMixin):
+class OutboundWebhook(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "outbound_webhooks"
     __table_args__ = (
         Index("idx_outbound_webhooks_workspace_active", "workspace_id", "active"),
@@ -274,7 +274,7 @@ class OutboundWebhook(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class WebhookDelivery(Base, UUIDMixin, TimestampMixin):
+class WebhookDelivery(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "webhook_deliveries"
     __table_args__ = (
         Index(

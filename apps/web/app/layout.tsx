@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 import { NextIntlClientProvider } from "next-intl";
 import { ClientErrorLogging } from "@/components/providers/ClientErrorLogging";
+import { TenantBrandingProvider } from "@/components/features/shell/TenantBrandingProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 import { WebSocketProvider } from "@/components/providers/WebSocketProvider";
@@ -43,7 +44,7 @@ export default async function RootLayout({
             <QueryProvider>
               <WebSocketProvider>
                 <ClientErrorLogging />
-                {children}
+                <TenantBrandingProvider>{children}</TenantBrandingProvider>
                 <Toaster />
               </WebSocketProvider>
             </QueryProvider>

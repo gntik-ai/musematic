@@ -10,7 +10,6 @@ from platform.admin.operations_router import router as operations_router
 from platform.admin.rbac import rate_limit_admin
 from platform.admin.routers.vault import router as vault_admin_router
 from platform.admin.settings_router import router as settings_router
-from platform.admin.tenant_mode_router import router as tenant_mode_router
 from platform.admin.two_person_auth_router import router as two_person_auth_router
 from platform.audit.admin_router import router as audit_admin_router
 from platform.auth.admin_router import router as auth_admin_router
@@ -59,7 +58,6 @@ admin_router.include_router(policies_admin_router)
 admin_router.include_router(privacy_compliance_admin_router)
 admin_router.include_router(security_compliance_admin_router)
 admin_router.include_router(settings_router)
-admin_router.include_router(tenant_mode_router)
 admin_router.include_router(tenants_admin_router)
 admin_router.include_router(two_person_auth_router)
 admin_router.include_router(vault_admin_router)

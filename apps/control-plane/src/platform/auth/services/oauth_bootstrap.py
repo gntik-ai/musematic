@@ -21,6 +21,8 @@ from platform.common.config import (
 from platform.common.events.producer import EventProducer
 from platform.common.logging import get_logger
 from platform.common.secret_provider import SecretProvider
+from platform.common.tenant_context import current_tenant
+from platform.tenants.vault_paths import tenant_vault_path
 from typing import Any, Literal
 from uuid import UUID, uuid4
 
@@ -221,15 +223,21 @@ def _resolve_client_secret(config: OAuthGoogleBootstrap | OAuthGithubBootstrap) 
 
 def _secret_path(settings: PlatformSettings, provider_type: ProviderType) -> str:
     environment = (
-        os.getenv("PLATFORM_ENVIRONMENT")
-        or os.getenv("PLATFORM_ENV")
-        or os.getenv("ENVIRONMENT")
-        or os.getenv("ENV")
-        or settings.profile
-    ).strip().lower()
+        (
+            os.getenv("PLATFORM_ENVIRONMENT")
+            or os.getenv("PLATFORM_ENV")
+            or os.getenv("ENVIRONMENT")
+            or os.getenv("ENV")
+            or settings.profile
+        )
+        .strip()
+        .lower()
+    )
     if environment not in _VALID_ENVIRONMENTS:
         environment = "dev"
-    return f"secret/data/musematic/{environment}/oauth/{provider_type}/client-secret"
+    tenant = current_tenant.get(None)
+    tenant_slug = tenant.slug if tenant is not None else "default"
+    return tenant_vault_path(environment, tenant_slug, "oauth", f"{provider_type}/client-secret")
 
 
 def _default_scopes(provider_type: ProviderType) -> list[str]:

@@ -5,6 +5,7 @@ from enum import StrEnum
 from platform.common.models.base import Base
 from platform.common.models.mixins import (
     SoftDeleteMixin,
+    TenantScopedMixin,
     TimestampMixin,
     UUIDMixin,
     WorkspaceScopedMixin,
@@ -47,7 +48,9 @@ class FleetMemberAvailability(StrEnum):
     unavailable = "unavailable"
 
 
-class Fleet(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, WorkspaceScopedMixin):
+class Fleet(
+    Base, TenantScopedMixin, UUIDMixin, TimestampMixin, SoftDeleteMixin, WorkspaceScopedMixin
+):
     __tablename__ = "fleets"
     __table_args__ = (
         Index("ix_fleets_workspace_status", "workspace_id", "status"),
@@ -73,7 +76,7 @@ class Fleet(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, WorkspaceScopedMix
     quorum_min: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
 
-class FleetMember(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class FleetMember(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "fleet_members"
     __table_args__ = (
         Index("ix_fleet_members_fleet_id", "fleet_id"),
@@ -105,7 +108,7 @@ class FleetMember(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     )
 
 
-class FleetTopologyVersion(Base, UUIDMixin, TimestampMixin):
+class FleetTopologyVersion(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "fleet_topology_versions"
     __table_args__ = (
         Index("ix_fleet_topology_versions_fleet_id", "fleet_id"),
@@ -137,7 +140,7 @@ class FleetTopologyVersion(Base, UUIDMixin, TimestampMixin):
     is_current: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
 
-class FleetPolicyBinding(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class FleetPolicyBinding(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "fleet_policy_bindings"
     __table_args__ = (
         Index("ix_fleet_policy_bindings_fleet_id", "fleet_id"),
@@ -153,7 +156,7 @@ class FleetPolicyBinding(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     bound_by: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
 
 
-class ObserverAssignment(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class ObserverAssignment(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "observer_assignments"
     __table_args__ = (
         Index("ix_observer_assignments_fleet_id", "fleet_id"),
@@ -175,7 +178,9 @@ class ObserverAssignment(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
 
-class FleetGovernanceChain(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class FleetGovernanceChain(
+    Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin
+):
     __tablename__ = "fleet_governance_chains"
     __table_args__ = (
         Index("ix_fleet_governance_chains_fleet_id", "fleet_id"),
@@ -228,7 +233,9 @@ class FleetGovernanceChain(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin
     )
 
 
-class FleetOrchestrationRules(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class FleetOrchestrationRules(
+    Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin
+):
     __tablename__ = "fleet_orchestration_rules"
     __table_args__ = (
         Index("ix_fleet_orchestration_rules_fleet_id", "fleet_id"),

@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 from platform.common.models.base import Base
-from platform.common.models.mixins import AuditMixin, TimestampMixin, UUIDMixin
+from platform.common.models.mixins import AuditMixin, TenantScopedMixin, TimestampMixin, UUIDMixin
 from typing import Any
 from uuid import UUID
 
@@ -43,7 +43,7 @@ class EnforcementComponent(StrEnum):
     visibility_filter = "visibility_filter"
 
 
-class PolicyPolicy(Base, UUIDMixin, TimestampMixin, AuditMixin):
+class PolicyPolicy(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, AuditMixin):
     __tablename__ = "policy_policies"
     __table_args__ = (
         Index("ix_policy_policies_name", "name"),
@@ -88,7 +88,7 @@ class PolicyPolicy(Base, UUIDMixin, TimestampMixin, AuditMixin):
     )
 
 
-class PolicyVersion(Base, UUIDMixin, TimestampMixin):
+class PolicyVersion(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "policy_versions"
     __table_args__ = (
         Index("ix_policy_versions_policy_id", "policy_id"),
@@ -118,7 +118,7 @@ class PolicyVersion(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class PolicyAttachment(Base, UUIDMixin, TimestampMixin):
+class PolicyAttachment(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "policy_attachments"
     __table_args__ = (
         Index("ix_policy_attachments_policy_id", "policy_id"),
@@ -156,7 +156,7 @@ class PolicyAttachment(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class PolicyBlockedActionRecord(Base, UUIDMixin, TimestampMixin):
+class PolicyBlockedActionRecord(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "policy_blocked_action_records"
     __table_args__ = (
         Index("ix_policy_blocked_action_records_agent_id", "agent_id"),

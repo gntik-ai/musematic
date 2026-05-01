@@ -39,6 +39,7 @@ except Exception:  # pragma: no cover
 CANONICAL_SECRET_PATH_RE = re.compile(
     r"^secret/data/musematic/"
     r"(production|staging|dev|test|ci)/"
+    r"(?:(?:tenants/(default|[a-z][a-z0-9-]{0,30}[a-z0-9])/)|(?:_platform/))?"
     r"(oauth|model-providers|notifications|ibor|audit-chain|connectors|accounts|_internal)/"
     r"[a-zA-Z0-9_/-]+$"
 )
@@ -177,8 +178,11 @@ def vault_log_processor(
 
 
 def _domain_from_path(path: str) -> str:
-    parts = path.split("/")
-    return parts[4] if len(parts) > 4 else "unknown"
+    try:
+        _environment, domain, _resource = _split_vault_path(path)
+    except InvalidVaultPathError:
+        return "unknown"
+    return domain
 
 
 def _now() -> datetime:
@@ -187,7 +191,7 @@ def _now() -> datetime:
 
 def vault_path_to_k8s_secret_name(path: str) -> str:
     validate_secret_path(path)
-    _, _, _, environment, domain, resource = path.split("/", 5)
+    environment, domain, resource = _split_vault_path(path)
     return f"musematic-{environment}-{domain}-{_resource_to_k8s_suffix(resource)}"
 
 
@@ -221,6 +225,19 @@ def _resource_from_k8s_suffix(resource: str) -> str:
             with contextlib.suppress(ValueError, UnicodeDecodeError):
                 return bytes.fromhex(encoded).decode("utf-8")
     return resource
+
+
+def _split_vault_path(path: str) -> tuple[str, str, str]:
+    validate_secret_path(path)
+    parts = path.split("/")
+    environment = parts[3]
+    if len(parts) >= 8 and parts[4] == "tenants":
+        return environment, parts[6], "/".join(parts[7:])
+    if len(parts) >= 7 and parts[4] == "_platform":
+        return environment, parts[5], "/".join(parts[6:])
+    if len(parts) >= 6:
+        return environment, parts[4], "/".join(parts[5:])
+    raise InvalidVaultPathError(path)
 
 
 class MockSecretProvider:
@@ -338,9 +355,10 @@ class MockSecretProvider:
 
     @staticmethod
     def _env_key(path: str, key: str) -> str:
-        return "CONNECTOR_SECRET_" + "".join(
-            char if char.isalnum() else "_" for char in f"{key}_{path}"
-        ).upper()
+        return (
+            "CONNECTOR_SECRET_"
+            + "".join(char if char.isalnum() else "_" for char in f"{key}_{path}").upper()
+        )
 
 
 class VaultSecretProvider:

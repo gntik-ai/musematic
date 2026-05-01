@@ -13,9 +13,10 @@ from platform.common.config import PlatformSettings
 from platform.common.secret_provider import MockSecretProvider
 from platform.connectors.exceptions import CredentialUnavailableError
 from platform.localization.constants import DEFAULT_LOCALE, LOCALES
+from platform.tenants.vault_paths import platform_vault_path
 from typing import Any
 
-DEFAULT_TOKEN_REF = "secret/data/musematic/ci/connectors/localization/vendor-api-token"
+DEFAULT_TOKEN_REF = platform_vault_path("ci", "connectors", "localization/vendor-api-token")
 LOKALISE_DOWNLOAD_URL = "https://api.lokalise.com/api2/projects/{project_id}/files/download"
 
 

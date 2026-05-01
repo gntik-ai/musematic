@@ -57,7 +57,7 @@ def _tenant_catalog_tables() -> set[str]:
 
 def _tenant_model_tables() -> set[str]:
     tables: set[str] = set()
-    for path in SRC.glob("*/models.py"):
+    for path in SRC.rglob("*.py"):
         module = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for node in module.body:
             if not isinstance(node, ast.ClassDef):
@@ -83,6 +83,8 @@ def _class_table_name(node: ast.ClassDef) -> str | None:
 
 
 def _class_has_tenant_id(node: ast.ClassDef) -> bool:
+    if any(_base_name(base) == "TenantScopedMixin" for base in node.bases):
+        return True
     for statement in node.body:
         if isinstance(statement, ast.AnnAssign):
             if isinstance(statement.target, ast.Name) and statement.target.id == "tenant_id":
@@ -94,6 +96,14 @@ def _class_has_tenant_id(node: ast.ClassDef) -> bool:
             ):
                 return True
     return False
+
+
+def _base_name(node: ast.expr) -> str | None:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        return node.attr
+    return None
 
 
 def _literal_string_set(node: ast.AST) -> set[str]:

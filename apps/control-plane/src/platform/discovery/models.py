@@ -3,7 +3,12 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 from platform.common.models.base import Base
-from platform.common.models.mixins import TimestampMixin, UUIDMixin, WorkspaceScopedMixin
+from platform.common.models.mixins import (
+    TenantScopedMixin,
+    TimestampMixin,
+    UUIDMixin,
+    WorkspaceScopedMixin,
+)
 from typing import Any
 from uuid import UUID
 
@@ -77,7 +82,7 @@ class ClusterClassification(StrEnum):
     gap = "gap"
 
 
-class DiscoverySession(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class DiscoverySession(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     """Top-level container for a scientific discovery workflow."""
 
     __tablename__ = "discovery_sessions"
@@ -120,7 +125,7 @@ class DiscoverySession(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     )
 
 
-class GDECycle(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class GDECycle(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     """State for one generate-debate-evolve iteration."""
 
     __tablename__ = "discovery_gde_cycles"
@@ -156,7 +161,7 @@ class GDECycle(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     )
 
 
-class Hypothesis(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class Hypothesis(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     """Scientific conjecture generated in a discovery session."""
 
     __tablename__ = "discovery_hypotheses"
@@ -216,7 +221,7 @@ class Hypothesis(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     )
 
 
-class HypothesisCritique(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class HypothesisCritique(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     """Structured multi-dimensional evaluation by a reviewer agent."""
 
     __tablename__ = "discovery_critiques"
@@ -244,7 +249,7 @@ class HypothesisCritique(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     is_aggregated: Mapped[bool] = mapped_column(Boolean(), nullable=False, default=False)
 
 
-class TournamentRound(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class TournamentRound(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     """A single pairwise comparison tournament round."""
 
     __tablename__ = "discovery_tournament_rounds"
@@ -281,7 +286,7 @@ class TournamentRound(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     status: Mapped[str] = mapped_column(String(length=16), nullable=False)
 
 
-class EloScore(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class EloScore(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     """Persistent Elo snapshot per hypothesis."""
 
     __tablename__ = "discovery_elo_scores"
@@ -311,7 +316,7 @@ class EloScore(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     )
 
 
-class DiscoveryExperiment(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class DiscoveryExperiment(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     """Experiment plan and sandbox execution result linked to a hypothesis."""
 
     __tablename__ = "discovery_experiments"
@@ -351,7 +356,7 @@ class DiscoveryExperiment(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin)
     designed_by_agent_fqn: Mapped[str] = mapped_column(String(length=255), nullable=False)
 
 
-class HypothesisCluster(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class HypothesisCluster(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     """Proximity clustering result for a discovery scope."""
 
     __tablename__ = "discovery_hypothesis_clusters"
@@ -390,7 +395,7 @@ class HypothesisCluster(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     )
 
 
-class DiscoveryWorkspaceSettings(Base, TimestampMixin):
+class DiscoveryWorkspaceSettings(Base, TenantScopedMixin, TimestampMixin):
     """Workspace-level proximity graph settings and recompute metadata."""
 
     __tablename__ = "discovery_workspace_settings"

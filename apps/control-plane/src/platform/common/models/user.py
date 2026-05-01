@@ -1,14 +1,20 @@
 from __future__ import annotations
 
 from platform.common.models.base import Base
-from platform.common.models.mixins import AuditMixin, SoftDeleteMixin, TimestampMixin, UUIDMixin
+from platform.common.models.mixins import (
+    AuditMixin,
+    SoftDeleteMixin,
+    TenantScopedMixin,
+    TimestampMixin,
+    UUIDMixin,
+)
 
 from sqlalchemy import Boolean, String
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 
-class User(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, AuditMixin):
+class User(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, SoftDeleteMixin, AuditMixin):
     __tablename__ = "users"
 
     username: Mapped[str | None] = mapped_column(String(length=255), nullable=True)

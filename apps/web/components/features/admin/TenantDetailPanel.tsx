@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CalendarClock, Edit3, Loader2, PauseCircle, Save, Trash2 } from "lucide-react";
 import { AdminWriteButton } from "@/components/features/admin/AdminWriteButton";
+import { DeletionGracePeriodCountdown } from "@/components/features/admin/DeletionGracePeriodCountdown";
+import { TenantBrandingPreview } from "@/components/features/admin/TenantBrandingPreview";
 import { TenantStatusBadge } from "@/components/features/admin/TenantStatusBadge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -13,6 +15,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   useAdminTenant,
   useUpdateTenant,
+  useCancelTenantDeletion,
+  useReactivateTenant,
+  useScheduleTenantDeletion,
+  useSuspendTenant,
   type TenantAdminView,
   type TenantRegion,
 } from "@/lib/hooks/use-admin-tenants";
@@ -57,6 +63,10 @@ function errorMessage(error: unknown): string | null {
 export function TenantDetailPanel({ tenantId }: { tenantId: string }) {
   const { data: tenant, error, isLoading } = useAdminTenant(tenantId);
   const updateTenant = useUpdateTenant();
+  const suspendTenant = useSuspendTenant();
+  const reactivateTenant = useReactivateTenant();
+  const scheduleDeletion = useScheduleTenantDeletion();
+  const cancelDeletion = useCancelTenantDeletion();
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [region, setRegion] = useState<TenantRegion>("eu-central");
@@ -86,6 +96,51 @@ export function TenantDetailPanel({ tenantId }: { tenantId: string }) {
     [tenant?.feature_flags],
   );
   const updateError = errorMessage(updateTenant.error);
+  const isDefaultTenant = tenant?.kind === "default";
+
+  async function suspend() {
+    if (!tenant) {
+      return;
+    }
+    const reason = window.prompt("Suspend reason");
+    if (!reason) {
+      return;
+    }
+    await suspendTenant.mutateAsync({ id: tenant.id, payload: { reason } });
+    toast({ title: "Tenant suspended", variant: "success" });
+  }
+
+  async function reactivate() {
+    if (!tenant) {
+      return;
+    }
+    await reactivateTenant.mutateAsync(tenant.id);
+    toast({ title: "Tenant reactivated", variant: "success" });
+  }
+
+  async function scheduleDeletionAction() {
+    if (!tenant) {
+      return;
+    }
+    const reason = window.prompt("Deletion reason");
+    const twoPaToken = window.prompt("2PA token");
+    if (!reason || !twoPaToken) {
+      return;
+    }
+    await scheduleDeletion.mutateAsync({
+      id: tenant.id,
+      payload: { reason, two_pa_token: twoPaToken },
+    });
+    toast({ title: "Tenant deletion scheduled", variant: "success" });
+  }
+
+  async function cancelDeletionAction() {
+    if (!tenant) {
+      return;
+    }
+    await cancelDeletion.mutateAsync(tenant.id);
+    toast({ title: "Tenant deletion cancelled", variant: "success" });
+  }
 
   async function saveChanges() {
     if (!tenant) {
@@ -182,19 +237,29 @@ export function TenantDetailPanel({ tenantId }: { tenantId: string }) {
               Edit
             </AdminWriteButton>
             <AdminWriteButton
-              disabled
+              disabled={isDefaultTenant}
               size="sm"
               variant="outline"
-              title="Lifecycle endpoints are handled by the suspension workflow."
+              title={
+                isDefaultTenant
+                  ? "The default tenant is immutable by SaaS-9."
+                  : "Suspend tenant access"
+              }
+              onClick={tenant.status === "suspended" ? reactivate : suspend}
             >
               <PauseCircle className="h-4 w-4" />
-              Suspend
+              {tenant.status === "suspended" ? "Reactivate" : "Suspend"}
             </AdminWriteButton>
             <AdminWriteButton
-              disabled
+              disabled={isDefaultTenant}
               size="sm"
               variant="destructive"
-              title="Deletion scheduling requires the 2PA workflow."
+              title={
+                isDefaultTenant
+                  ? "The default tenant is immutable by SaaS-9."
+                  : "Schedule deletion"
+              }
+              onClick={scheduleDeletionAction}
             >
               <Trash2 className="h-4 w-4" />
               Schedule deletion
@@ -202,6 +267,14 @@ export function TenantDetailPanel({ tenantId }: { tenantId: string }) {
           </div>
         </div>
       </section>
+
+      {tenant.status === "pending_deletion" ? (
+        <DeletionGracePeriodCountdown
+          disabled={cancelDeletion.isPending}
+          onCancel={cancelDeletionAction}
+          scheduledDeletionAt={tenant.scheduled_deletion_at}
+        />
+      ) : null}
 
       {editing ? (
         <section className="rounded-md border bg-card p-5">
@@ -269,6 +342,7 @@ export function TenantDetailPanel({ tenantId }: { tenantId: string }) {
       ) : null}
 
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+        <TenantBrandingPreview tenant={tenant} />
         <section className="rounded-md border bg-card p-5">
           <h3 className="text-base font-semibold tracking-normal">Tenant metrics</h3>
           <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

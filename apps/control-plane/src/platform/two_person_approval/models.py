@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from enum import StrEnum
 from platform.common.models.base import Base
+from platform.common.models.mixins import TenantScopedMixin
 from typing import Any
 from uuid import UUID
 
@@ -14,6 +15,8 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 class ActionType(StrEnum):
     workspace_transfer_ownership = "workspace_transfer_ownership"
+    tenant_schedule_deletion = "tenant_schedule_deletion"
+    tenant_force_cascade_deletion = "tenant_force_cascade_deletion"
 
 
 class ChallengeStatus(StrEnum):
@@ -27,7 +30,7 @@ def _enum_values(enum_cls: type[StrEnum]) -> list[str]:
     return [item.value for item in enum_cls]
 
 
-class TwoPersonApprovalChallenge(Base):
+class TwoPersonApprovalChallenge(Base, TenantScopedMixin):
     __tablename__ = "two_person_approval_challenges"
 
     id: Mapped[UUID] = mapped_column(

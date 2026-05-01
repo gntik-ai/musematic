@@ -3,7 +3,12 @@ from __future__ import annotations
 from datetime import datetime
 from enum import IntEnum, StrEnum
 from platform.common.models.base import Base
-from platform.common.models.mixins import SoftDeleteMixin, TimestampMixin, UUIDMixin
+from platform.common.models.mixins import (
+    SoftDeleteMixin,
+    TenantScopedMixin,
+    TimestampMixin,
+    UUIDMixin,
+)
 from uuid import UUID
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, text
@@ -51,7 +56,7 @@ class EmbeddingStatus(StrEnum):
     failed = "failed"
 
 
-class AgentNamespace(Base, UUIDMixin, TimestampMixin):
+class AgentNamespace(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "registry_namespaces"
     __table_args__ = (
         Index(
@@ -74,7 +79,7 @@ class AgentNamespace(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class AgentProfile(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
+class AgentProfile(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "registry_agent_profiles"
     __table_args__ = (
         Index(
@@ -182,7 +187,7 @@ class AgentProfile(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     )
 
 
-class AgentRevision(Base, UUIDMixin, TimestampMixin):
+class AgentRevision(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "registry_agent_revisions"
     __table_args__ = (
         Index("ix_registry_revision_profile_id", "agent_profile_id"),
@@ -215,7 +220,7 @@ class AgentRevision(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class AgentMaturityRecord(Base, UUIDMixin, TimestampMixin):
+class AgentMaturityRecord(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "registry_maturity_records"
 
     workspace_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False, index=True)
@@ -240,7 +245,7 @@ class AgentMaturityRecord(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class LifecycleAuditEntry(Base, UUIDMixin, TimestampMixin):
+class LifecycleAuditEntry(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "registry_lifecycle_audit"
     __table_args__ = (Index("ix_registry_lifecycle_audit_profile", "agent_profile_id"),)
 

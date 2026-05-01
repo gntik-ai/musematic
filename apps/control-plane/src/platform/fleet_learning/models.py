@@ -3,7 +3,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from enum import StrEnum
 from platform.common.models.base import Base
-from platform.common.models.mixins import TimestampMixin, UUIDMixin, WorkspaceScopedMixin
+from platform.common.models.mixins import (
+    TenantScopedMixin,
+    TimestampMixin,
+    UUIDMixin,
+    WorkspaceScopedMixin,
+)
 from uuid import UUID
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, text
@@ -49,7 +54,9 @@ class AutonomyLevel(StrEnum):
     fully_autonomous = "fully_autonomous"
 
 
-class FleetPerformanceProfile(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class FleetPerformanceProfile(
+    Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin
+):
     __tablename__ = "fleet_performance_profiles"
     __table_args__ = (
         Index("ix_fleet_performance_profiles_fleet_id", "fleet_id"),
@@ -83,7 +90,7 @@ class FleetPerformanceProfile(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMi
     )
 
 
-class FleetAdaptationRule(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class FleetAdaptationRule(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "fleet_adaptation_rules"
     __table_args__ = (
         Index("ix_fleet_adaptation_rules_fleet_id", "fleet_id"),
@@ -108,7 +115,7 @@ class FleetAdaptationRule(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
 
-class FleetAdaptationLog(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class FleetAdaptationLog(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "fleet_adaptation_log"
     __table_args__ = (
         Index("ix_fleet_adaptation_log_fleet_id", "fleet_id"),
@@ -139,7 +146,9 @@ class FleetAdaptationLog(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     reverted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
-class CrossFleetTransferRequest(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class CrossFleetTransferRequest(
+    Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin
+):
     __tablename__ = "cross_fleet_transfer_requests"
     __table_args__ = (
         Index("ix_cross_fleet_transfer_requests_source_fleet_id", "source_fleet_id"),
@@ -167,7 +176,9 @@ class CrossFleetTransferRequest(Base, UUIDMixin, TimestampMixin, WorkspaceScoped
     reverted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
-class FleetPersonalityProfile(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class FleetPersonalityProfile(
+    Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin
+):
     __tablename__ = "fleet_personality_profiles"
     __table_args__ = (
         Index("ix_fleet_personality_profiles_fleet_id", "fleet_id"),

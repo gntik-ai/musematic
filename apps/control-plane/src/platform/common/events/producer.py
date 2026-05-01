@@ -7,6 +7,7 @@ from platform.common.events.envelope import CorrelationContext, EventEnvelope
 from platform.common.events.registry import event_registry
 from platform.common.exceptions import KafkaProducerError, ValidationError
 from platform.common.kafka_tracing import inject_trace_context
+from platform.common.tenant_context import current_tenant
 from typing import Any
 
 
@@ -49,6 +50,8 @@ class EventProducer:
         correlation_ctx: CorrelationContext,
         source: str,
     ) -> None:
+        payload = _tenant_enriched_payload(payload)
+        correlation_ctx = _tenant_enriched_correlation(correlation_ctx)
         if not event_registry.is_registered(event_type):
             raise ValidationError("UNKNOWN_EVENT_TYPE", f"Unregistered event type: {event_type}")
         event_registry.validate(event_type, payload)
@@ -77,3 +80,27 @@ class EventProducer:
 
 
 AsyncKafkaProducer = EventProducer
+
+
+def _tenant_enriched_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    tenant = current_tenant.get(None)
+    if tenant is None:
+        return payload
+    enriched = dict(payload)
+    enriched.setdefault("tenant_id", str(tenant.id))
+    enriched.setdefault("tenant_slug", tenant.slug)
+    enriched.setdefault("tenant_kind", tenant.kind)
+    return enriched
+
+
+def _tenant_enriched_correlation(correlation_ctx: CorrelationContext) -> CorrelationContext:
+    tenant = current_tenant.get(None)
+    if tenant is None or correlation_ctx.tenant_id is not None:
+        return correlation_ctx
+    return correlation_ctx.model_copy(
+        update={
+            "tenant_id": tenant.id,
+            "tenant_slug": tenant.slug,
+            "tenant_kind": tenant.kind,
+        }
+    )

@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
+
 from tests.helpers import make_async_database_url, run_alembic
 
 
@@ -21,17 +22,21 @@ async def test_tenant_migrations_096_to_101_smoke(postgres_container) -> None:
         try:
             async with engine.connect() as connection:
                 default_row = (
-                    await connection.execute(
-                        text(
-                            """
+                    (
+                        await connection.execute(
+                            text(
+                                """
                             SELECT id, slug, subdomain, kind, status
                             FROM tenants
                             WHERE id = :default_tenant_id
                             """
-                        ),
-                        {"default_tenant_id": DEFAULT_TENANT_ID},
+                            ),
+                            {"default_tenant_id": DEFAULT_TENANT_ID},
+                        )
                     )
-                ).mappings().one()
+                    .mappings()
+                    .one()
+                )
                 assert str(default_row["id"]) == str(DEFAULT_TENANT_ID)
                 assert default_row["slug"] == "default"
                 assert default_row["subdomain"] == "app"

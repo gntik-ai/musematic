@@ -3,7 +3,12 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 from platform.common.models.base import Base
-from platform.common.models.mixins import SoftDeleteMixin, TimestampMixin, UUIDMixin
+from platform.common.models.mixins import (
+    SoftDeleteMixin,
+    TenantScopedMixin,
+    TimestampMixin,
+    UUIDMixin,
+)
 from uuid import UUID
 
 from sqlalchemy import (
@@ -47,7 +52,7 @@ class OAuthProviderSource(StrEnum):
     imported = "imported"
 
 
-class UserCredential(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
+class UserCredential(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "user_credentials"
 
     user_id: Mapped[UUID] = mapped_column(
@@ -62,7 +67,7 @@ class UserCredential(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
 
-class MfaEnrollment(Base, UUIDMixin, TimestampMixin):
+class MfaEnrollment(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "mfa_enrollments"
 
     user_id: Mapped[UUID] = mapped_column(
@@ -79,7 +84,7 @@ class MfaEnrollment(Base, UUIDMixin, TimestampMixin):
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
-class AuthAttempt(Base, UUIDMixin):
+class AuthAttempt(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "auth_attempts"
 
     user_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True, index=True)
@@ -94,7 +99,7 @@ class AuthAttempt(Base, UUIDMixin):
     )
 
 
-class PasswordResetToken(Base, UUIDMixin, TimestampMixin):
+class PasswordResetToken(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "password_reset_tokens"
 
     user_id: Mapped[UUID] = mapped_column(
@@ -108,7 +113,7 @@ class PasswordResetToken(Base, UUIDMixin, TimestampMixin):
     consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
-class ServiceAccountCredential(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
+class ServiceAccountCredential(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "service_account_credentials"
 
     service_account_id: Mapped[UUID] = mapped_column(
@@ -135,7 +140,7 @@ class ServiceAccountCredential(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin)
     )
 
 
-class UserRole(Base, UUIDMixin, TimestampMixin):
+class UserRole(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "user_roles"
     __table_args__ = (
         UniqueConstraint("user_id", "role", "workspace_id", name="uq_user_role_workspace"),
@@ -172,7 +177,7 @@ class RolePermission(Base, UUIDMixin):
     scope: Mapped[str] = mapped_column(String(length=20), nullable=False, default="workspace")
 
 
-class IBORConnector(Base, UUIDMixin, TimestampMixin):
+class IBORConnector(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "ibor_connectors"
 
     name: Mapped[str] = mapped_column(String(length=255), nullable=False, unique=True, index=True)
@@ -197,7 +202,7 @@ class IBORConnector(Base, UUIDMixin, TimestampMixin):
     last_run_status: Mapped[str | None] = mapped_column(String(length=32), nullable=True)
 
 
-class IBORSyncRun(Base, UUIDMixin):
+class IBORSyncRun(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "ibor_sync_runs"
     __table_args__ = (Index("ix_ibor_sync_runs_connector_started", "connector_id", "started_at"),)
 
@@ -231,11 +236,13 @@ class IBORSyncRun(Base, UUIDMixin):
     triggered_by: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
 
 
-
-class OAuthProvider(Base, UUIDMixin, TimestampMixin):
+class OAuthProvider(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "oauth_providers"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "provider_type", name="uq_oauth_providers_tenant_type"),
+    )
 
-    provider_type: Mapped[str] = mapped_column(String(length=32), unique=True, nullable=False)
+    provider_type: Mapped[str] = mapped_column(String(length=32), nullable=False)
     display_name: Mapped[str] = mapped_column(String(length=128), nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     client_id: Mapped[str] = mapped_column(String(length=256), nullable=False)
@@ -284,7 +291,7 @@ class OAuthProvider(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class OAuthProviderRateLimit(Base, UUIDMixin, TimestampMixin):
+class OAuthProviderRateLimit(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "oauth_provider_rate_limits"
     __table_args__ = (
         UniqueConstraint("provider_id", name="uq_oauth_provider_rate_limits_provider"),
@@ -310,7 +317,7 @@ class OAuthProviderRateLimit(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class OAuthLink(Base, UUIDMixin):
+class OAuthLink(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "oauth_links"
     __table_args__ = (
         UniqueConstraint("provider_id", "external_id", name="uq_oauth_links_provider_ext"),
@@ -347,7 +354,7 @@ class OAuthLink(Base, UUIDMixin):
     )
 
 
-class OAuthAuditEntry(Base, UUIDMixin):
+class OAuthAuditEntry(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "oauth_audit_entries"
     __table_args__ = (
         Index("idx_oauth_audit_user", "user_id", "created_at"),

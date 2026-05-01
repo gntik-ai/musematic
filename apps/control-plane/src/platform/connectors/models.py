@@ -3,7 +3,12 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 from platform.common.models.base import Base
-from platform.common.models.mixins import SoftDeleteMixin, TimestampMixin, UUIDMixin
+from platform.common.models.mixins import (
+    SoftDeleteMixin,
+    TenantScopedMixin,
+    TimestampMixin,
+    UUIDMixin,
+)
 from typing import Any
 from uuid import UUID
 
@@ -56,7 +61,7 @@ class DeadLetterResolution(StrEnum):
     discarded = "discarded"
 
 
-class ConnectorType(Base, UUIDMixin, TimestampMixin):
+class ConnectorType(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "connector_types"
 
     slug: Mapped[str] = mapped_column(String(length=64), nullable=False, unique=True, index=True)
@@ -73,7 +78,7 @@ class ConnectorType(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class ConnectorInstance(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
+class ConnectorInstance(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "connector_instances"
     __table_args__ = (
         Index("ix_connector_instances_workspace_type", "workspace_id", "connector_type_id"),
@@ -144,7 +149,7 @@ class ConnectorInstance(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     )
 
 
-class ConnectorCredentialRef(Base, UUIDMixin, TimestampMixin):
+class ConnectorCredentialRef(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "connector_credential_refs"
     __table_args__ = (
         Index(
@@ -174,7 +179,7 @@ class ConnectorCredentialRef(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class ConnectorRoute(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
+class ConnectorRoute(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "connector_routes"
     __table_args__ = (
         Index("ix_connector_routes_instance_priority", "connector_instance_id", "priority"),
@@ -213,7 +218,7 @@ class ConnectorRoute(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     )
 
 
-class OutboundDelivery(Base, UUIDMixin, TimestampMixin):
+class OutboundDelivery(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "outbound_deliveries"
     __table_args__ = (
         Index("ix_outbound_deliveries_status_retry", "status", "next_retry_at"),
@@ -266,7 +271,7 @@ class OutboundDelivery(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class DeadLetterEntry(Base, UUIDMixin, TimestampMixin):
+class DeadLetterEntry(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "dead_letter_entries"
     __table_args__ = (
         Index(

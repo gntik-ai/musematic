@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-tenants
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.dashboardLabels" . | indent 4 }}
+data:
+  tenants.json: |
+    {
+      "annotations": { "list": [] },
+      "description": "Tenant lifecycle, resolver, RLS, and unknown-host protection signals.",
+      "editable": true,
+      "graphTooltip": 1,
+      "id": null,
+      "panels": [
+        { "id": 1, "type": "timeseries", "title": "Tenant Provisioning Rate", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 7, "w": 8, "x": 0, "y": 0 }, "targets": [ { "expr": "sum(rate({bounded_context=\"tenants\"} | json | event_type=\"tenants.created\" [5m]))", "refId": "A" } ] },
+        { "id": 2, "type": "timeseries", "title": "Suspension Rate", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 7, "w": 8, "x": 8, "y": 0 }, "targets": [ { "expr": "sum(rate({bounded_context=\"tenants\"} | json | event_type=\"tenants.suspended\" [5m]))", "refId": "A" } ] },
+        { "id": 3, "type": "timeseries", "title": "Deletion Cascade Rate", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 7, "w": 8, "x": 16, "y": 0 }, "targets": [ { "expr": "sum(rate({bounded_context=\"tenants\"} | json | event_type=\"tenants.deleted\" [5m]))", "refId": "A" } ] },
+        { "id": 4, "type": "timeseries", "title": "Resolver Latency p50/p95/p99", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 8, "w": 12, "x": 0, "y": 7 }, "targets": [ { "expr": "histogram_quantile(0.50, sum by (le) (rate(tenant_resolver_latency_seconds_bucket[5m])))", "refId": "p50" }, { "expr": "histogram_quantile(0.95, sum by (le) (rate(tenant_resolver_latency_seconds_bucket[5m])))", "refId": "p95" }, { "expr": "histogram_quantile(0.99, sum by (le) (rate(tenant_resolver_latency_seconds_bucket[5m])))", "refId": "p99" } ] },
+        { "id": 5, "type": "bargauge", "title": "Cache Hit Ratio per Tier", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 8, "w": 12, "x": 12, "y": 7 }, "targets": [ { "expr": "sum by (tier) (rate(tenant_resolver_cache_hits_total[5m])) / ignoring(tier) group_left sum(rate(tenant_resolver_lookups_total[5m]))", "refId": "A" } ] },
+        { "id": 6, "type": "timeseries", "title": "RLS Enforcement Violations", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 8, "w": 8, "x": 0, "y": 15 }, "targets": [ { "expr": "sum(rate(tenant_enforcement_violations_total[5m]))", "refId": "A" } ] },
+        { "id": 7, "type": "timeseries", "title": "Unknown-Host Probe Rate", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 8, "w": 8, "x": 8, "y": 15 }, "targets": [ { "expr": "sum(rate(tenant_resolver_lookups_total{result=\"miss\"}[5m]))", "refId": "A" } ] },
+        { "id": 8, "type": "logs", "title": "Tenant Lifecycle Logs", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 8, "w": 8, "x": 16, "y": 15 }, "targets": [ { "expr": "{bounded_context=\"tenants\"} | json | tenant_id != \"\"", "refId": "A" } ], "options": { "dedupStrategy": "none", "enableLogDetails": true, "showLabels": true, "showTime": true, "sortOrder": "Descending" } }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "tags": ["musematic", "tenants", "saas"],
+      "templating": { "list": [ { "name": "prometheus", "type": "datasource", "query": "prometheus", "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" } } ] },
+      "time": { "from": "now-6h", "to": "now" },
+      "timezone": "browser",
+      "title": "Tenant Architecture",
+      "uid": "tenant-architecture",
+      "version": 1
+    }

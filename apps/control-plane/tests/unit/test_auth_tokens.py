@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from platform.auth.exceptions import InvalidRefreshTokenError
 from platform.auth.tokens import create_access_token, create_token_pair, decode_token
+from platform.common.tenant_context import TenantContext
 from uuid import uuid4
 
 import jwt
@@ -58,6 +59,35 @@ def test_create_access_token_includes_identity_context(auth_settings) -> None:
 
     assert claims["identity_type"] == "agent"
     assert claims["agent_purpose"] == "retrieval"
+
+
+def test_create_access_token_includes_tenant_claims(auth_settings) -> None:
+    tenant_id = uuid4()
+    token = create_access_token(
+        user_id=uuid4(),
+        email="tenant-user@example.com",
+        session_id=uuid4(),
+        roles=[{"role": "member", "workspace_id": None}],
+        settings=auth_settings.auth,
+        tenant=TenantContext(
+            id=tenant_id,
+            slug="acme",
+            subdomain="acme",
+            kind="enterprise",
+            status="active",
+            region="eu-central",
+        ),
+    )
+
+    claims = jwt.decode(
+        token,
+        auth_settings.auth.verification_key,
+        algorithms=[auth_settings.auth.jwt_algorithm],
+    )
+
+    assert claims["tenant_id"] == str(tenant_id)
+    assert claims["tenant_slug"] == "acme"
+    assert claims["tenant_kind"] == "enterprise"
 
 
 def test_decode_token_rejects_invalid_and_expired_tokens(auth_settings) -> None:

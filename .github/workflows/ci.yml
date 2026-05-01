@@ -237,6 +237,9 @@ jobs:
       - name: Check tenant RLS coverage
         run: python scripts/lint/check_rls_coverage.py
 
+      - name: Check tenant filter coverage
+        run: python scripts/lint/check_tenant_filter_coverage.py
+
       - name: Check platform-staff role scope
         run: python scripts/lint/check_platform_staff_role_scope.py
 

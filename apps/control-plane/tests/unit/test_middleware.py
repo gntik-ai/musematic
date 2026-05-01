@@ -3,14 +3,16 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from platform.common.auth_middleware import AuthMiddleware
 from platform.common.config import PlatformSettings
+from platform.common.tenant_context import TenantContext
 from platform.main import create_app
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import httpx
 import jwt
 import pytest
 from fastapi import FastAPI, Request
+from starlette.middleware.base import BaseHTTPMiddleware
 
 
 class FakeClient:
@@ -278,6 +280,52 @@ async def test_refresh_token_type_is_rejected_by_auth_middleware() -> None:
 
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "UNAUTHORIZED"
+
+
+@pytest.mark.asyncio
+async def test_tenant_mismatch_is_rejected_by_auth_middleware() -> None:
+    secret = "a" * 32
+    settings = PlatformSettings(AUTH_JWT_SECRET_KEY=secret, AUTH_JWT_ALGORITHM="HS256")
+    host_tenant_id = uuid4()
+    token_tenant_id = uuid4()
+
+    class TenantSetterMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request: Request, call_next):
+            request.state.tenant = TenantContext(
+                id=host_tenant_id,
+                slug="acme",
+                subdomain="acme",
+                kind="enterprise",
+                status="active",
+                region="eu-central",
+            )
+            return await call_next(request)
+
+    app = FastAPI()
+    app.state.settings = settings
+    app.add_middleware(AuthMiddleware)
+    app.add_middleware(TenantSetterMiddleware)
+
+    @app.get("/api/v1/protected")
+    async def protected() -> dict[str, bool]:
+        return {"ok": True}
+
+    token = jwt.encode(
+        {"sub": "user-1", "tenant_id": str(token_tenant_id), "type": "access"},
+        secret,
+        algorithm="HS256",
+    )
+
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://testserver",
+    ) as client:
+        response = await client.get(
+            "/api/v1/protected", headers={"Authorization": f"Bearer {token}"}
+        )
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "tenant_mismatch"
 
 
 @pytest.mark.asyncio

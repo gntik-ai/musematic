@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from platform.common.models.base import Base
-from platform.common.models.mixins import TimestampMixin, UUIDMixin
+from platform.common.models.mixins import TenantScopedMixin, TimestampMixin, UUIDMixin
 from platform.multi_region_ops.constants import (
     FAILOVER_PLAN_RUN_KINDS,
     FAILOVER_PLAN_RUN_OUTCOMES,
@@ -37,7 +37,7 @@ def _check_values(column: str, values: tuple[str, ...]) -> str:
     return f"{column} IN ({quoted})"
 
 
-class RegionConfig(Base, UUIDMixin, TimestampMixin):
+class RegionConfig(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "region_configs"
     __table_args__ = (
         UniqueConstraint("region_code", name="uq_region_configs_region_code"),
@@ -62,7 +62,7 @@ class RegionConfig(Base, UUIDMixin, TimestampMixin):
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
 
-class ReplicationStatus(Base, UUIDMixin):
+class ReplicationStatus(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "replication_statuses"
     __table_args__ = (
         CheckConstraint(
@@ -96,7 +96,7 @@ class ReplicationStatus(Base, UUIDMixin):
     )
 
 
-class FailoverPlan(Base, UUIDMixin, TimestampMixin):
+class FailoverPlan(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "failover_plans"
     __table_args__ = (
         UniqueConstraint("name", name="uq_failover_plans_name"),
@@ -124,7 +124,7 @@ class FailoverPlan(Base, UUIDMixin, TimestampMixin):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
 
-class FailoverPlanRun(Base, UUIDMixin):
+class FailoverPlanRun(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "failover_plan_runs"
     __table_args__ = (
         CheckConstraint(
@@ -170,7 +170,7 @@ class FailoverPlanRun(Base, UUIDMixin):
     lock_token: Mapped[str] = mapped_column(String(length=128), nullable=False)
 
 
-class MaintenanceWindow(Base, UUIDMixin):
+class MaintenanceWindow(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "maintenance_windows"
     __table_args__ = (
         CheckConstraint("ends_at > starts_at", name="ck_maintenance_windows_end_after_start"),

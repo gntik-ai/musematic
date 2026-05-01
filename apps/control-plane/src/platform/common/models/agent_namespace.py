@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from platform.common.models.base import Base
-from platform.common.models.mixins import TimestampMixin, UUIDMixin
+from platform.common.models.mixins import TenantScopedMixin, TimestampMixin, UUIDMixin
 from uuid import UUID
 
 from sqlalchemy import ForeignKey, String, Text
@@ -9,7 +9,7 @@ from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 
-class AgentNamespace(Base, UUIDMixin, TimestampMixin):
+class AgentNamespace(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "agent_namespaces"
 
     name: Mapped[str] = mapped_column(String(length=255), unique=True, nullable=False)
@@ -25,4 +25,3 @@ class AgentNamespace(Base, UUIDMixin, TimestampMixin):
         ForeignKey("users.id"),
         nullable=True,
     )
-

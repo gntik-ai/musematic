@@ -3,7 +3,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from enum import StrEnum
 from platform.common.models.base import Base
-from platform.common.models.mixins import SoftDeleteMixin, TimestampMixin, UUIDMixin
+from platform.common.models.mixins import (
+    SoftDeleteMixin,
+    TenantScopedMixin,
+    TimestampMixin,
+    UUIDMixin,
+)
 from typing import Any, cast
 from uuid import UUID
 
@@ -73,7 +78,7 @@ class AttentionStatus(StrEnum):
     dismissed = "dismissed"
 
 
-class Conversation(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
+class Conversation(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "conversations"
     __table_args__ = (Index("ix_conversations_workspace_created", "workspace_id", "created_at"),)
 
@@ -104,7 +109,7 @@ class Conversation(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     )
 
 
-class Interaction(Base, UUIDMixin, TimestampMixin):
+class Interaction(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "interactions"
     __table_args__ = (
         Index("ix_interactions_conversation_state", "conversation_id", "state"),
@@ -172,7 +177,7 @@ cast(Any, Interaction.__table__).append_constraint(
 )
 
 
-class InteractionMessage(Base, UUIDMixin, TimestampMixin):
+class InteractionMessage(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "interaction_messages"
     __table_args__ = (
         Index(
@@ -215,7 +220,7 @@ class InteractionMessage(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class InteractionParticipant(Base, UUIDMixin, TimestampMixin):
+class InteractionParticipant(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "interaction_participants"
     __table_args__ = (
         UniqueConstraint("interaction_id", "identity", name="uq_interaction_participants_identity"),
@@ -244,7 +249,7 @@ class InteractionParticipant(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class WorkspaceGoalMessage(Base, UUIDMixin, TimestampMixin):
+class WorkspaceGoalMessage(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "workspace_goal_messages"
     __table_args__ = (
         Index("ix_workspace_goal_messages_goal_created", "goal_id", "created_at"),
@@ -279,7 +284,7 @@ class WorkspaceGoalMessage(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class WorkspaceGoalDecisionRationale(Base, UUIDMixin):
+class WorkspaceGoalDecisionRationale(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "workspace_goal_decision_rationales"
     __table_args__ = (
         UniqueConstraint("message_id", "agent_fqn", name="uq_wgdr_message_agent"),
@@ -313,7 +318,7 @@ class WorkspaceGoalDecisionRationale(Base, UUIDMixin):
     error: Mapped[str | None] = mapped_column(Text(), nullable=True)
 
 
-class ConversationBranch(Base, UUIDMixin, TimestampMixin):
+class ConversationBranch(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "conversation_branches"
     __table_args__ = (Index("ix_conversation_branches_parent", "parent_interaction_id"),)
 
@@ -347,7 +352,7 @@ class ConversationBranch(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class BranchMergeRecord(Base, UUIDMixin, TimestampMixin):
+class BranchMergeRecord(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "branch_merge_records"
 
     branch_id: Mapped[UUID] = mapped_column(
@@ -361,7 +366,7 @@ class BranchMergeRecord(Base, UUIDMixin, TimestampMixin):
     messages_merged_count: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
-class AttentionRequest(Base, UUIDMixin, TimestampMixin):
+class AttentionRequest(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "attention_requests"
     __table_args__ = (Index("ix_attention_requests_target_status", "target_identity", "status"),)
 

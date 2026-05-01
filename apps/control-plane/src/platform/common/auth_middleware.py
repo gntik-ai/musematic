@@ -151,6 +151,14 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return _unauthorized_response("UNAUTHORIZED", "Invalid authentication token")
         if not isinstance(payload, dict) or payload.get("type") not in {None, "access"}:
             return _unauthorized_response("UNAUTHORIZED", "Invalid authentication token")
+        request_tenant = getattr(request.state, "tenant", None)
+        token_tenant_id = payload.get("tenant_id")
+        if (
+            request_tenant is not None
+            and token_tenant_id is not None
+            and str(token_tenant_id) != str(request_tenant.id)
+        ):
+            return _unauthorized_response("tenant_mismatch", "Token tenant does not match host")
         jti = payload.get("jti")
         if isinstance(jti, str) and jti:
             redis_client = getattr(request.app.state, "clients", {}).get("redis")

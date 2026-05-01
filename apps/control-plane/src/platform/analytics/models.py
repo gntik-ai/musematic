@@ -3,13 +3,13 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 from platform.common.models.base import Base
-from platform.common.models.mixins import AuditMixin, TimestampMixin, UUIDMixin
+from platform.common.models.mixins import AuditMixin, TenantScopedMixin, TimestampMixin, UUIDMixin
 
 from sqlalchemy import Boolean, DateTime, Index, Numeric, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 
-class CostModel(Base, UUIDMixin, TimestampMixin, AuditMixin):
+class CostModel(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, AuditMixin):
     __tablename__ = "analytics_cost_models"
     __table_args__ = (
         Index("ix_analytics_cost_models_model_id_is_active", "model_id", "is_active"),

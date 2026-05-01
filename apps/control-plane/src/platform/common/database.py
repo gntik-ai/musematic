@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from platform.common.config import DatabaseSettings, PlatformSettings
 from platform.common.config import settings as default_settings
+from platform.common.models.mixins import TenantScopedMixin
 from platform.common.tenant_context import current_tenant
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
@@ -14,6 +15,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.orm import Session, with_loader_criteria
 
 
 def create_database_engine(
@@ -32,12 +34,17 @@ def create_database_engine(
     )
 
 
-def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+def create_session_factory(
+    engine: AsyncEngine,
+    *,
+    tenant_filter_enabled: bool = False,
+) -> async_sessionmaker[AsyncSession]:
     return async_sessionmaker(
         bind=engine,
         class_=AsyncSession,
         expire_on_commit=False,
         autoflush=False,
+        info={"tenant_filter_enabled": tenant_filter_enabled},
     )
 
 
@@ -47,6 +54,7 @@ RegularAsyncSessionLocal: async_sessionmaker[AsyncSession]
 PlatformStaffAsyncSessionLocal: async_sessionmaker[AsyncSession]
 engine: AsyncEngine
 AsyncSessionLocal: async_sessionmaker[AsyncSession]
+_tenant_filter_listener_installed = False
 
 
 def configure_database(settings: PlatformSettings | DatabaseSettings) -> None:
@@ -72,7 +80,11 @@ def configure_database(settings: PlatformSettings | DatabaseSettings) -> None:
         db_settings.max_overflow,
     )
     _install_tenant_binding_listener(regular_engine)
-    RegularAsyncSessionLocal = create_session_factory(regular_engine)
+    _install_tenant_filter_listener()
+    RegularAsyncSessionLocal = create_session_factory(
+        regular_engine,
+        tenant_filter_enabled=True,
+    )
     PlatformStaffAsyncSessionLocal = create_session_factory(platform_staff_engine)
     engine = regular_engine
     AsyncSessionLocal = RegularAsyncSessionLocal
@@ -115,6 +127,34 @@ def _install_tenant_binding_listener(target_engine: AsyncEngine) -> None:
         target_engine.sync_engine,
         "before_cursor_execute",
         _bind_tenant_id,
+    )
+
+
+def _install_tenant_filter_listener() -> None:
+    global _tenant_filter_listener_installed
+    if _tenant_filter_listener_installed:
+        return
+    event.listen(Session, "do_orm_execute", _apply_tenant_filter_criteria)
+    _tenant_filter_listener_installed = True
+
+
+def _apply_tenant_filter_criteria(execute_state: Any) -> None:
+    if not execute_state.is_select:
+        return
+    if not execute_state.session.info.get("tenant_filter_enabled", False):
+        return
+    if execute_state.execution_options.get("skip_tenant_criteria", False):
+        return
+    tenant = current_tenant.get(None)
+    if tenant is None:
+        return
+    tenant_id = tenant.id
+    execute_state.statement = execute_state.statement.options(
+        with_loader_criteria(
+            TenantScopedMixin,
+            lambda cls: cls.tenant_id == tenant_id,
+            include_aliases=True,
+        )
     )
 
 

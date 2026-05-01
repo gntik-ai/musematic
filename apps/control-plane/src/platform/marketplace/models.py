@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
 from platform.common.models.base import Base
-from platform.common.models.mixins import TimestampMixin, UUIDMixin
+from platform.common.models.mixins import TenantScopedMixin, TimestampMixin, UUIDMixin
 from uuid import UUID
 
 from sqlalchemy import (
@@ -29,7 +29,7 @@ class RecommendationType(StrEnum):
     popularity_fallback = "popularity_fallback"
 
 
-class MarketplaceAgentRating(Base, UUIDMixin, TimestampMixin):
+class MarketplaceAgentRating(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "marketplace_agent_ratings"
     __table_args__ = (
         UniqueConstraint("user_id", "agent_id", name="uq_marketplace_rating_user_agent"),
@@ -47,7 +47,7 @@ class MarketplaceAgentRating(Base, UUIDMixin, TimestampMixin):
     review_text: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
-class MarketplaceQualityAggregate(Base, UUIDMixin, TimestampMixin):
+class MarketplaceQualityAggregate(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "marketplace_quality_aggregates"
     __table_args__ = (Index("uq_marketplace_quality_aggregates_agent_id", "agent_id", unique=True),)
 
@@ -100,7 +100,7 @@ class MarketplaceQualityAggregate(Base, UUIDMixin, TimestampMixin):
         return float(self.satisfaction_sum or 0) / max(self.satisfaction_count, 1)
 
 
-class MarketplaceRecommendation(Base, UUIDMixin, TimestampMixin):
+class MarketplaceRecommendation(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "marketplace_recommendations"
     __table_args__ = (
         Index("ix_marketplace_recommendations_user_id", "user_id"),
@@ -124,7 +124,7 @@ class MarketplaceRecommendation(Base, UUIDMixin, TimestampMixin):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
-class MarketplaceTrendingSnapshot(Base, UUIDMixin, TimestampMixin):
+class MarketplaceTrendingSnapshot(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "marketplace_trending_snapshots"
     __table_args__ = (
         UniqueConstraint(

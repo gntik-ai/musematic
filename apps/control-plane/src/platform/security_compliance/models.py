@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from platform.common.models import Base, UUIDMixin
+from platform.common.models import Base, TenantScopedMixin, UUIDMixin
 from uuid import UUID
 
 from sqlalchemy import UUID as SQLUUID
@@ -22,7 +22,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 
-class SoftwareBillOfMaterials(Base, UUIDMixin):
+class SoftwareBillOfMaterials(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "software_bills_of_materials"
     __table_args__ = (
         UniqueConstraint("release_version", "format", name="uq_sbom_release_format"),
@@ -40,7 +40,7 @@ class SoftwareBillOfMaterials(Base, UUIDMixin):
     )
 
 
-class VulnerabilityScanResult(Base, UUIDMixin):
+class VulnerabilityScanResult(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "vulnerability_scan_results"
     __table_args__ = (
         CheckConstraint(
@@ -69,7 +69,7 @@ class VulnerabilityScanResult(Base, UUIDMixin):
     gating_result: Mapped[str] = mapped_column(String(length=16), nullable=False)
 
 
-class VulnerabilityException(Base, UUIDMixin):
+class VulnerabilityException(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "vulnerability_exceptions"
     __table_args__ = (
         CheckConstraint("length(justification) >= 20", name="ck_vuln_exception_justification"),
@@ -89,7 +89,7 @@ class VulnerabilityException(Base, UUIDMixin):
     )
 
 
-class PenetrationTest(Base, UUIDMixin):
+class PenetrationTest(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "penetration_tests"
 
     scheduled_for: Mapped[date] = mapped_column(Date, nullable=False)
@@ -104,7 +104,7 @@ class PenetrationTest(Base, UUIDMixin):
     )
 
 
-class PentestFinding(Base, UUIDMixin):
+class PentestFinding(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "pentest_findings"
     __table_args__ = (
         CheckConstraint(
@@ -138,7 +138,7 @@ class PentestFinding(Base, UUIDMixin):
     remediation_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
-class PentestSlaPolicy(Base, UUIDMixin):
+class PentestSlaPolicy(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "pentest_sla_policies"
     __table_args__ = (
         CheckConstraint(
@@ -153,7 +153,7 @@ class PentestSlaPolicy(Base, UUIDMixin):
     ceiling_days: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
-class SecretRotationSchedule(Base, UUIDMixin):
+class SecretRotationSchedule(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "secret_rotation_schedules"
     __table_args__ = (
         UniqueConstraint("secret_name", name="uq_secret_rotation_secret_name"),
@@ -187,7 +187,7 @@ class SecretRotationSchedule(Base, UUIDMixin):
     vault_path: Mapped[str] = mapped_column(String(length=512), nullable=False)
 
 
-class JitCredentialGrant(Base, UUIDMixin):
+class JitCredentialGrant(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "jit_credential_grants"
     __table_args__ = (
         CheckConstraint("length(purpose) >= 20", name="ck_jit_purpose_length"),
@@ -228,7 +228,7 @@ class JitCredentialGrant(Base, UUIDMixin):
     )
 
 
-class JitApproverPolicy(Base, UUIDMixin):
+class JitApproverPolicy(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "jit_approver_policies"
     __table_args__ = (
         UniqueConstraint("operation_pattern", name="uq_jit_policy_operation_pattern"),
@@ -247,7 +247,7 @@ class JitApproverPolicy(Base, UUIDMixin):
     max_expiry_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
-class ComplianceControl(Base, UUIDMixin):
+class ComplianceControl(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "compliance_controls"
     __table_args__ = (
         UniqueConstraint(
@@ -264,7 +264,7 @@ class ComplianceControl(Base, UUIDMixin):
     evidence_requirements: Mapped[list[str] | None] = mapped_column(JSONB, nullable=True)
 
 
-class ComplianceEvidenceMapping(Base, UUIDMixin):
+class ComplianceEvidenceMapping(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "compliance_evidence_mappings"
     __table_args__ = (Index("ix_mapping_by_evidence", "evidence_type"),)
 
@@ -277,7 +277,7 @@ class ComplianceEvidenceMapping(Base, UUIDMixin):
     filter_expression: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
-class ComplianceEvidence(Base, UUIDMixin):
+class ComplianceEvidence(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "compliance_evidence"
     __table_args__ = (Index("ix_evidence_by_control", "control_id", "collected_at"),)
 

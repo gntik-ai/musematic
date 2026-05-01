@@ -3,9 +3,11 @@ from __future__ import annotations
 import base64
 import json
 from platform.auth.dependencies_oauth import get_oauth_service, rate_limit_callback
-from platform.auth.router_oauth import _optional_current_user, oauth_router
+from platform.auth.router_oauth import _optional_current_user, _tenant_cookie_domain, oauth_router
+from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_current_user
 from platform.common.exceptions import PlatformError, platform_exception_handler
+from platform.common.tenant_context import TenantContext
 from types import SimpleNamespace
 from uuid import uuid4
 
@@ -196,6 +198,26 @@ async def test_oauth_router_callback_redirects_with_fragment_and_cookie() -> Non
     fragment = response.headers["location"].split("#oauth_session=", 1)[1]
     payload = json.loads(base64.urlsafe_b64decode(fragment + "==").decode("utf-8"))
     assert payload["token_pair"]["access_token"] == "access-token"
+
+
+def test_tenant_cookie_domain_uses_resolved_subdomain() -> None:
+    request = SimpleNamespace(
+        state=SimpleNamespace(
+            tenant=TenantContext(
+                id=uuid4(),
+                slug="acme",
+                subdomain="acme",
+                kind="enterprise",
+                status="active",
+                region="eu-central",
+            )
+        ),
+        app=SimpleNamespace(
+            state=SimpleNamespace(settings=PlatformSettings(PLATFORM_DOMAIN="musematic.ai."))
+        ),
+    )
+
+    assert _tenant_cookie_domain(request) == "acme.musematic.ai"
 
 
 @pytest.mark.asyncio

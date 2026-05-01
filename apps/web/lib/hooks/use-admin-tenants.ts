@@ -81,6 +81,15 @@ export interface TenantUpdatePayload {
   feature_flags?: Record<string, unknown>;
 }
 
+export interface TenantSuspendPayload {
+  reason: string;
+}
+
+export interface TenantScheduleDeletionPayload {
+  reason: string;
+  two_pa_token: string;
+}
+
 export interface DpaUploadResponse {
   dpa_artifact_id: string;
 }
@@ -157,6 +166,50 @@ async function updateTenant({
   );
 }
 
+async function suspendTenant({
+  id,
+  payload,
+}: {
+  id: string;
+  payload: TenantSuspendPayload;
+}): Promise<TenantAdminView> {
+  return adminTenantsApi.post<TenantAdminView>(
+    `/api/v1/admin/tenants/${id}/suspend`,
+    payload,
+    { skipRetry: true },
+  );
+}
+
+async function reactivateTenant(id: string): Promise<TenantAdminView> {
+  return adminTenantsApi.post<TenantAdminView>(
+    `/api/v1/admin/tenants/${id}/reactivate`,
+    {},
+    { skipRetry: true },
+  );
+}
+
+async function scheduleTenantDeletion({
+  id,
+  payload,
+}: {
+  id: string;
+  payload: TenantScheduleDeletionPayload;
+}): Promise<TenantAdminView> {
+  return adminTenantsApi.post<TenantAdminView>(
+    `/api/v1/admin/tenants/${id}/schedule-deletion`,
+    payload,
+    { skipRetry: true },
+  );
+}
+
+async function cancelTenantDeletion(id: string): Promise<TenantAdminView> {
+  return adminTenantsApi.post<TenantAdminView>(
+    `/api/v1/admin/tenants/${id}/cancel-deletion`,
+    {},
+    { skipRetry: true },
+  );
+}
+
 export function useAdminTenants(params: TenantListParams = {}) {
   const normalizedParams = {
     ...params,
@@ -186,6 +239,30 @@ export function useDpaUpload() {
 
 export function useUpdateTenant() {
   return useAppMutation(updateTenant, {
+    invalidateKeys: [["admin", "tenants"]],
+  });
+}
+
+export function useSuspendTenant() {
+  return useAppMutation(suspendTenant, {
+    invalidateKeys: [["admin", "tenants"]],
+  });
+}
+
+export function useReactivateTenant() {
+  return useAppMutation(reactivateTenant, {
+    invalidateKeys: [["admin", "tenants"]],
+  });
+}
+
+export function useScheduleTenantDeletion() {
+  return useAppMutation(scheduleTenantDeletion, {
+    invalidateKeys: [["admin", "tenants"]],
+  });
+}
+
+export function useCancelTenantDeletion() {
+  return useAppMutation(cancelTenantDeletion, {
     invalidateKeys: [["admin", "tenants"]],
   });
 }

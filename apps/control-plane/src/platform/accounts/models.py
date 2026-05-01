@@ -3,7 +3,12 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 from platform.common.models.base import Base
-from platform.common.models.mixins import SoftDeleteMixin, TimestampMixin, UUIDMixin
+from platform.common.models.mixins import (
+    SoftDeleteMixin,
+    TenantScopedMixin,
+    TimestampMixin,
+    UUIDMixin,
+)
 from uuid import UUID
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, UniqueConstraint
@@ -39,7 +44,7 @@ class ApprovalDecision(StrEnum):
     rejected = "rejected"
 
 
-class User(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
+class User(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "accounts_users"
 
     email: Mapped[str] = mapped_column(String(length=255), nullable=False, unique=True, index=True)
@@ -74,7 +79,7 @@ class User(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     max_workspaces: Mapped[int] = mapped_column(nullable=False, default=0)
 
 
-class EmailVerification(Base, UUIDMixin, TimestampMixin):
+class EmailVerification(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "accounts_email_verifications"
     __table_args__ = (
         UniqueConstraint("token_hash", name="uq_accounts_email_verifications_token_hash"),
@@ -93,7 +98,7 @@ class EmailVerification(Base, UUIDMixin, TimestampMixin):
     consumed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
-class Invitation(Base, UUIDMixin, TimestampMixin):
+class Invitation(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "accounts_invitations"
 
     token_hash: Mapped[str] = mapped_column(
@@ -116,7 +121,7 @@ class Invitation(Base, UUIDMixin, TimestampMixin):
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
-class ApprovalRequest(Base, UUIDMixin, TimestampMixin):
+class ApprovalRequest(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "accounts_approval_requests"
     __table_args__ = (UniqueConstraint("user_id", name="uq_accounts_approval_requests_user_id"),)
 

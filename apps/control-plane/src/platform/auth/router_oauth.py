@@ -138,6 +138,7 @@ async def unlink_oauth_provider(
 
 
 @oauth_router.get("/api/v1/auth/oauth/{provider}/callback")
+@oauth_router.get("/auth/oauth/{provider}/callback", include_in_schema=False)
 async def oauth_callback(
     provider: str,
     request: Request,
@@ -192,8 +193,18 @@ async def oauth_callback(
             httponly=True,
             samesite="lax",
             secure=False,
+            domain=_tenant_cookie_domain(request),
         )
     return response
+
+
+def _tenant_cookie_domain(request: Request) -> str | None:
+    tenant = getattr(request.state, "tenant", None)
+    settings = getattr(request.app.state, "settings", None)
+    platform_domain = getattr(settings, "PLATFORM_DOMAIN", None)
+    if tenant is None or not platform_domain:
+        return None
+    return f"{tenant.subdomain}.{str(platform_domain).strip().lower().rstrip('.')}"
 
 
 @oauth_router.get(

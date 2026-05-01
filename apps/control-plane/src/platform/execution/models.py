@@ -3,7 +3,12 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 from platform.common.models.base import Base
-from platform.common.models.mixins import TimestampMixin, UUIDMixin, WorkspaceScopedMixin
+from platform.common.models.mixins import (
+    TenantScopedMixin,
+    TimestampMixin,
+    UUIDMixin,
+    WorkspaceScopedMixin,
+)
 from platform.workflows.models import TriggerType
 from typing import Any, cast
 from uuid import UUID
@@ -94,7 +99,7 @@ class ApprovalTimeoutAction(StrEnum):
     escalate = "escalate"
 
 
-class Execution(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class Execution(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     """Represent the execution."""
 
     __tablename__ = "executions"
@@ -203,7 +208,7 @@ cast(Any, Execution.__table__).append_constraint(
 )
 
 
-class ExecutionEvent(Base, UUIDMixin):
+class ExecutionEvent(Base, TenantScopedMixin, UUIDMixin):
     """Represent the execution event payload."""
 
     __tablename__ = "execution_events"
@@ -254,7 +259,7 @@ class ExecutionEvent(Base, UUIDMixin):
     )
 
 
-class ExecutionCheckpoint(Base, UUIDMixin, TimestampMixin):
+class ExecutionCheckpoint(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     """Represent the execution checkpoint."""
 
     __tablename__ = "execution_checkpoints"
@@ -321,7 +326,9 @@ class ExecutionCheckpoint(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class ReprioritizationTrigger(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class ReprioritizationTrigger(
+    Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin
+):
     """Represent a reprioritization trigger."""
 
     __tablename__ = "reprioritization_triggers"
@@ -355,7 +362,7 @@ class RollbackActionStatus(StrEnum):
     failed = "failed"
 
 
-class ExecutionRollbackAction(Base, UUIDMixin, TimestampMixin):
+class ExecutionRollbackAction(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     """Represent a rollback action performed against an execution."""
 
     __tablename__ = "execution_rollback_actions"
@@ -391,7 +398,7 @@ class ExecutionRollbackAction(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class ExecutionDispatchLease(Base, UUIDMixin, TimestampMixin):
+class ExecutionDispatchLease(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     """Represent the execution dispatch lease."""
 
     __tablename__ = "execution_dispatch_leases"
@@ -413,13 +420,11 @@ class ExecutionDispatchLease(Base, UUIDMixin, TimestampMixin):
     expired: Mapped[bool] = mapped_column(Boolean(), nullable=False, default=False)
 
 
-class ExecutionReasoningTraceRecord(Base, UUIDMixin, TimestampMixin):
+class ExecutionReasoningTraceRecord(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     """Represent a persisted reasoning trace artifact for an execution step."""
 
     __tablename__ = "execution_reasoning_trace_records"
-    __table_args__ = (
-        Index("ix_execution_reasoning_trace_records_execution_id", "execution_id"),
-    )
+    __table_args__ = (Index("ix_execution_reasoning_trace_records_execution_id", "execution_id"),)
 
     execution_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
@@ -455,7 +460,7 @@ cast(Any, ExecutionReasoningTraceRecord.__table__).append_constraint(
 )
 
 
-class ExecutionTaskPlanRecord(Base, UUIDMixin, TimestampMixin):
+class ExecutionTaskPlanRecord(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     """Represent the execution task plan record."""
 
     __tablename__ = "execution_task_plan_records"
@@ -488,7 +493,7 @@ class ExecutionTaskPlanRecord(Base, UUIDMixin, TimestampMixin):
     storage_size_bytes: Mapped[int | None] = mapped_column(Integer(), nullable=True)
 
 
-class ExecutionApprovalWait(Base, UUIDMixin, TimestampMixin):
+class ExecutionApprovalWait(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     """Represent the execution approval wait."""
 
     __tablename__ = "execution_approval_waits"
@@ -523,7 +528,7 @@ class ExecutionApprovalWait(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class ExecutionCompensationRecord(Base, UUIDMixin, TimestampMixin):
+class ExecutionCompensationRecord(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     """Represent the execution compensation record."""
 
     __tablename__ = "execution_compensation_records"

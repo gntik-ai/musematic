@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 from platform.common.models.base import Base
-from platform.common.models.mixins import UUIDMixin
+from platform.common.models.mixins import TenantScopedMixin, UUIDMixin
 from uuid import UUID
 
 from sqlalchemy import (
@@ -24,7 +24,7 @@ from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 
-class ModelCatalogEntry(Base, UUIDMixin):
+class ModelCatalogEntry(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "model_catalog_entries"
     __table_args__ = (
         UniqueConstraint("provider", "model_id", name="uq_model_catalog_provider_model"),
@@ -77,7 +77,7 @@ class ModelCatalogEntry(Base, UUIDMixin):
     )
 
 
-class ModelCard(Base, UUIDMixin):
+class ModelCard(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "model_cards"
 
     catalog_entry_id: Mapped[UUID] = mapped_column(
@@ -101,7 +101,7 @@ class ModelCard(Base, UUIDMixin):
     )
 
 
-class ModelFallbackPolicy(Base, UUIDMixin):
+class ModelFallbackPolicy(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "model_fallback_policies"
     __table_args__ = (
         CheckConstraint(
@@ -119,8 +119,7 @@ class ModelFallbackPolicy(Base, UUIDMixin):
             name="ck_model_fallback_backoff",
         ),
         CheckConstraint(
-            "acceptable_quality_degradation IN "
-            "('tier_equal', 'tier_plus_one', 'tier_plus_two')",
+            "acceptable_quality_degradation IN ('tier_equal', 'tier_plus_one', 'tier_plus_two')",
             name="ck_model_fallback_quality_degradation",
         ),
         CheckConstraint(
@@ -153,7 +152,7 @@ class ModelFallbackPolicy(Base, UUIDMixin):
     )
 
 
-class ModelProviderCredential(Base, UUIDMixin):
+class ModelProviderCredential(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "model_provider_credentials"
     __table_args__ = (
         UniqueConstraint("workspace_id", "provider", name="uq_model_provider_workspace_provider"),
@@ -177,7 +176,7 @@ class ModelProviderCredential(Base, UUIDMixin):
     )
 
 
-class InjectionDefensePattern(Base, UUIDMixin):
+class InjectionDefensePattern(Base, TenantScopedMixin, UUIDMixin):
     __tablename__ = "injection_defense_patterns"
     __table_args__ = (
         CheckConstraint(

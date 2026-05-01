@@ -153,34 +153,34 @@ description: "Task list for UPD-046 — Tenant Architecture (Subdomain + RLS + D
 
 ### Tests for User Story 3
 
-- [ ] T059 [P] [US3] Integration test `apps/control-plane/tests/integration/tenants/test_rls_isolation.py` — provision two tenants, populate workspaces in each; cross-tenant read attempts return 404; query the `pg_policies` view to assert `tenant_isolation` policy exists on every catalogued table; assert no audit-chain entry was emitted for the probe.
-- [ ] T060 [P] [US3] Integration test `apps/control-plane/tests/integration/tenants/test_platform_staff_bypass.py` — same scenario as above, but using `/api/v1/platform/workspaces/{id}` while authenticated as platform staff; assert the response succeeds and an audit-chain entry IS emitted (`platform.tenants.workspace_read`).
-- [ ] T061 [US3] E2E test `apps/control-plane/tests/e2e/suites/tenant_architecture/test_cross_tenant_isolation.py` — Journey J31: full cross-tenant probe matrix across at least eight resource types; byte-identity assertion across responses.
+- [X] T059 [P] [US3] Integration test `apps/control-plane/tests/integration/tenants/test_rls_isolation.py` — provision two tenants, populate workspaces in each; cross-tenant read attempts return 404; query the `pg_policies` view to assert `tenant_isolation` policy exists on every catalogued table; assert no audit-chain entry was emitted for the probe.
+- [X] T060 [P] [US3] Integration test `apps/control-plane/tests/integration/tenants/test_platform_staff_bypass.py` — same scenario as above, but using `/api/v1/platform/workspaces/{id}` while authenticated as platform staff; assert the response succeeds and an audit-chain entry IS emitted (`platform.tenants.workspace_read`).
+- [X] T061 [US3] E2E test `apps/control-plane/tests/e2e/suites/tenant_architecture/test_cross_tenant_isolation.py` — Journey J31: full cross-tenant probe matrix across at least eight resource types; byte-identity assertion across responses.
 
 ### Implementation for User Story 3 — Bounded-context refactor (parallelizable by BC)
 
 These tasks add explicit `tenant_id` filtering to every existing repository query path AND `tenant_id` to outgoing Kafka event envelopes. Each BC is one task and can run in parallel with the others (different files). The pattern is: read `current_tenant.get()` in the repository constructor or per-method; add `WHERE tenant_id = :tenant_id` to every read query; populate `tenant_id` on every insert; include `tenant_id` in every Kafka event envelope.
 
 - [X] T062 [P] [US3] Refactor `apps/control-plane/src/platform/workspaces/` — add tenant_id filtering to `repository.py` queries; add tenant_id to `events.py` envelopes; remove the placeholder `/tenants/{tenant_id}/...` stub handlers from `admin_router.py` and replace with delegation to `tenants_service`.
-- [ ] T063 [P] [US3] Refactor `apps/control-plane/src/platform/accounts/` — `users`, `user_profiles`, `organizations`, `invitations`, `approval_queue` queries all carry tenant_id filter; events include tenant_id.
-- [ ] T064 [P] [US3] Refactor `apps/control-plane/src/platform/auth/` — `user_credentials`, `mfa_enrollments`, `auth_attempts`, `password_reset_tokens`, `oauth_links`, `oauth_provider_rate_limits`, `ibor_*` queries carry tenant_id. (OAuth providers tenancy refactor is Track E, separate task.)
-- [ ] T065 [P] [US3] Refactor `apps/control-plane/src/platform/audit/` — `audit_chain_entries` queries carry tenant_id; canonical-payload hash includes tenant_id (per T041); chain verification tooling notes appended to runbook.
-- [ ] T066 [P] [US3] Refactor `apps/control-plane/src/platform/registry/` — `agent_namespaces`, `agent_profiles`, `agent_revisions`, `capability_models` queries; events include tenant_id.
-- [ ] T067 [P] [US3] Refactor `apps/control-plane/src/platform/execution/` — `execution_records`, `execution_steps`, `approval_requests`, `compensation_records`, `scheduled_triggers`; events include tenant_id.
-- [ ] T068 [P] [US3] Refactor `apps/control-plane/src/platform/cost_governance/` — all five tables; ClickHouse cost-events insertion includes tenant_id (per constitutional reminder).
-- [ ] T069 [P] [US3] Refactor `apps/control-plane/src/platform/interactions/` — five tables.
-- [ ] T070 [P] [US3] Refactor `apps/control-plane/src/platform/governance/`, `apps/control-plane/src/platform/policies/`, `apps/control-plane/src/platform/composition/` — group of three small BCs touched together.
-- [ ] T071 [P] [US3] Refactor `apps/control-plane/src/platform/connectors/`, `apps/control-plane/src/platform/context_engineering/`, `apps/control-plane/src/platform/discovery/`, `apps/control-plane/src/platform/evaluation/` — group of four medium BCs.
-- [ ] T072 [P] [US3] Refactor `apps/control-plane/src/platform/fleets/`, `apps/control-plane/src/platform/fleet_learning/`, `apps/control-plane/src/platform/incident_response/`, `apps/control-plane/src/platform/marketplace/` — group of four BCs.
-- [ ] T073 [P] [US3] Refactor `apps/control-plane/src/platform/memory/`, `apps/control-plane/src/platform/model_catalog/`, `apps/control-plane/src/platform/multi_region_ops/` — group of three BCs (memory_entries, model_provider_credentials, region/replication tables).
-- [ ] T074 [P] [US3] Refactor `apps/control-plane/src/platform/notifications/`, `apps/control-plane/src/platform/privacy_compliance/`, `apps/control-plane/src/platform/security_compliance/` — group of three BCs.
-- [ ] T075 [P] [US3] Refactor `apps/control-plane/src/platform/simulation/`, `apps/control-plane/src/platform/status_page/`, `apps/control-plane/src/platform/testing/`, `apps/control-plane/src/platform/trust/` — group of four BCs.
-- [ ] T076 [P] [US3] Refactor `apps/control-plane/src/platform/two_person_approval/`, `apps/control-plane/src/platform/workflows/`, `apps/control-plane/src/platform/agentops/`, `apps/control-plane/src/platform/analytics/`, `apps/control-plane/src/platform/localization/`, `apps/control-plane/src/platform/a2a_gateway/` — group of six remaining BCs.
+- [X] T063 [P] [US3] Refactor `apps/control-plane/src/platform/accounts/` — `users`, `user_profiles`, `organizations`, `invitations`, `approval_queue` queries all carry tenant_id filter; events include tenant_id.
+- [X] T064 [P] [US3] Refactor `apps/control-plane/src/platform/auth/` — `user_credentials`, `mfa_enrollments`, `auth_attempts`, `password_reset_tokens`, `oauth_links`, `oauth_provider_rate_limits`, `ibor_*` queries carry tenant_id. (OAuth providers tenancy refactor is Track E, separate task.)
+- [X] T065 [P] [US3] Refactor `apps/control-plane/src/platform/audit/` — `audit_chain_entries` queries carry tenant_id; canonical-payload hash includes tenant_id (per T041); chain verification tooling notes appended to runbook.
+- [X] T066 [P] [US3] Refactor `apps/control-plane/src/platform/registry/` — `agent_namespaces`, `agent_profiles`, `agent_revisions`, `capability_models` queries; events include tenant_id.
+- [X] T067 [P] [US3] Refactor `apps/control-plane/src/platform/execution/` — `execution_records`, `execution_steps`, `approval_requests`, `compensation_records`, `scheduled_triggers`; events include tenant_id.
+- [X] T068 [P] [US3] Refactor `apps/control-plane/src/platform/cost_governance/` — all five tables; ClickHouse cost-events insertion includes tenant_id (per constitutional reminder).
+- [X] T069 [P] [US3] Refactor `apps/control-plane/src/platform/interactions/` — five tables.
+- [X] T070 [P] [US3] Refactor `apps/control-plane/src/platform/governance/`, `apps/control-plane/src/platform/policies/`, `apps/control-plane/src/platform/composition/` — group of three small BCs touched together.
+- [X] T071 [P] [US3] Refactor `apps/control-plane/src/platform/connectors/`, `apps/control-plane/src/platform/context_engineering/`, `apps/control-plane/src/platform/discovery/`, `apps/control-plane/src/platform/evaluation/` — group of four medium BCs.
+- [X] T072 [P] [US3] Refactor `apps/control-plane/src/platform/fleets/`, `apps/control-plane/src/platform/fleet_learning/`, `apps/control-plane/src/platform/incident_response/`, `apps/control-plane/src/platform/marketplace/` — group of four BCs.
+- [X] T073 [P] [US3] Refactor `apps/control-plane/src/platform/memory/`, `apps/control-plane/src/platform/model_catalog/`, `apps/control-plane/src/platform/multi_region_ops/` — group of three BCs (memory_entries, model_provider_credentials, region/replication tables).
+- [X] T074 [P] [US3] Refactor `apps/control-plane/src/platform/notifications/`, `apps/control-plane/src/platform/privacy_compliance/`, `apps/control-plane/src/platform/security_compliance/` — group of three BCs.
+- [X] T075 [P] [US3] Refactor `apps/control-plane/src/platform/simulation/`, `apps/control-plane/src/platform/status_page/`, `apps/control-plane/src/platform/testing/`, `apps/control-plane/src/platform/trust/` — group of four BCs.
+- [X] T076 [P] [US3] Refactor `apps/control-plane/src/platform/two_person_approval/`, `apps/control-plane/src/platform/workflows/`, `apps/control-plane/src/platform/agentops/`, `apps/control-plane/src/platform/analytics/`, `apps/control-plane/src/platform/localization/`, `apps/control-plane/src/platform/a2a_gateway/` — group of six remaining BCs.
 
 ### CI rules for User Story 3
 
 - [X] T077 [P] [US3] Add CI rule `apps/control-plane/scripts/lint/check_rls_coverage.py`: parse Alembic migrations and SQLAlchemy models; for every model class with a `tenant_id` field, assert that some migration creates a `tenant_isolation` policy on the corresponding table. Wire into `.github/workflows/ci.yml`.
-- [ ] T078 [P] [US3] Add CI rule `apps/control-plane/scripts/lint/check_tenant_filter_coverage.py`: AST-walk repository modules; for every `select(...)` against a tenant-scoped table, assert either an explicit `where(Model.tenant_id == ...)` clause OR documented opt-out comment `# RLS-only: rationale` (allowed only in admin/platform paths). Wire into CI.
+- [X] T078 [P] [US3] Add CI rule `apps/control-plane/scripts/lint/check_tenant_filter_coverage.py`: AST-walk repository modules; for every `select(...)` against a tenant-scoped table, assert either an explicit `where(Model.tenant_id == ...)` clause OR documented opt-out comment `# RLS-only: rationale` (allowed only in admin/platform paths). Wire into CI.
 - [X] T079 [P] [US3] Add CI rule `apps/control-plane/scripts/lint/check_platform_staff_role_scope.py`: AST-walk for `get_platform_staff_session` references; fail if found outside `apps/control-plane/src/platform/tenants/platform_router.py` or any other router file under `/api/v1/platform/*`. Wire into CI.
 
 **Checkpoint**: User Story 3 fully validated. Cross-tenant access is refused at three layers (application filter, RLS, opaque 404). CI gates protect the invariant going forward.
@@ -195,15 +195,15 @@ These tasks add explicit `tenant_id` filtering to every existing repository quer
 
 ### Tests for User Story 4
 
-- [ ] T080 [P] [US4] Unit test `apps/control-plane/tests/unit/tenants/test_hostname_normalization.py`: `app.musematic.ai`, `APP.MUSEMATIC.AI`, `app.musematic.ai:443`, `app.musematic.ai:8080` all resolve identically; `<slug>.api.musematic.ai` resolves to slug's tenant API surface; `<slug>.grafana.musematic.ai` resolves to slug's tenant Grafana surface; bare apex `musematic.ai` resolves per the deterministic landing rule.
-- [ ] T081 [P] [US4] Performance test `apps/control-plane/tests/integration/tenants/test_resolver_performance.py`: 10000 requests against the same hostname; p95 latency under 5 ms cache-resident; p95 under 50 ms cache-miss (DB round trip).
-- [ ] T082 [P] [US4] Integration test `apps/control-plane/tests/integration/tenants/test_resolver_invalidation.py`: mutate a tenant's `branding_config_json` via PATCH; subsequent request to that tenant's subdomain reflects the new branding within the cache TTL; pub/sub invalidation triggers immediate eviction across instances.
+- [X] T080 [P] [US4] Unit test `apps/control-plane/tests/unit/tenants/test_hostname_normalization.py`: `app.musematic.ai`, `APP.MUSEMATIC.AI`, `app.musematic.ai:443`, `app.musematic.ai:8080` all resolve identically; `<slug>.api.musematic.ai` resolves to slug's tenant API surface; `<slug>.grafana.musematic.ai` resolves to slug's tenant Grafana surface; bare apex `musematic.ai` resolves per the deterministic landing rule.
+- [X] T081 [P] [US4] Performance test `apps/control-plane/tests/integration/tenants/test_resolver_performance.py`: 10000 requests against the same hostname; p95 latency under 5 ms cache-resident; p95 under 50 ms cache-miss (DB round trip).
+- [X] T082 [P] [US4] Integration test `apps/control-plane/tests/integration/tenants/test_resolver_invalidation.py`: mutate a tenant's `branding_config_json` via PATCH; subsequent request to that tenant's subdomain reflects the new branding within the cache TTL; pub/sub invalidation triggers immediate eviction across instances.
 
 ### Implementation for User Story 4
 
-- [ ] T083 [US4] Wire Redis pub/sub invalidation in `tenants/service.py`: after every successful tenant update, publish to channel `tenants:invalidate` with the updated tenant's ID. Subscribe in `tenants/resolver.py` and evict matching tier-1 LRU entries; tier-2 Redis key is `DEL`-eted in the same publish operation.
-- [ ] T084 [US4] Add resolver health metrics: Prometheus counters `tenant_resolver_lookups_total{result}`, `tenant_resolver_latency_seconds` (histogram), `tenant_resolver_cache_hits_total{tier}`. Exported via existing OpenTelemetry pipeline (UPD-047 observability).
-- [ ] T085 [US4] E2E test `apps/control-plane/tests/e2e/suites/tenant_architecture/test_hostname_routing.py` — validates the full set of hostname patterns against a kind cluster running the platform.
+- [X] T083 [US4] Wire Redis pub/sub invalidation in `tenants/service.py`: after every successful tenant update, publish to channel `tenants:invalidate` with the updated tenant's ID. Subscribe in `tenants/resolver.py` and evict matching tier-1 LRU entries; tier-2 Redis key is `DEL`-eted in the same publish operation.
+- [X] T084 [US4] Add resolver health metrics: Prometheus counters `tenant_resolver_lookups_total{result}`, `tenant_resolver_latency_seconds` (histogram), `tenant_resolver_cache_hits_total{tier}`. Exported via existing OpenTelemetry pipeline (UPD-047 observability).
+- [X] T085 [US4] E2E test `apps/control-plane/tests/e2e/suites/tenant_architecture/test_hostname_routing.py` — validates the full set of hostname patterns against a kind cluster running the platform.
 
 **Checkpoint**: User Story 4 fully validated. Hostname routing meets the latency SLA; cache invalidation propagates across instances within seconds.
 
@@ -217,19 +217,19 @@ These tasks add explicit `tenant_id` filtering to every existing repository quer
 
 ### Tests for User Story 5
 
-- [ ] T086 [P] [US5] Frontend Vitest test `apps/web/components/features/shell/__tests__/TenantBrandingProvider.test.tsx` — provider injects branding context; `useTenantContext()` returns expected shape; missing fields fall back to defaults.
-- [ ] T087 [P] [US5] Playwright test `apps/web/tests/e2e/tenant-branding.spec.ts` — visit `acme.localtest.me/login`, assert custom logo and accent color render; visit `app.localtest.me/login`, assert default branding renders.
+- [X] T086 [P] [US5] Frontend Vitest test `apps/web/components/features/shell/__tests__/TenantBrandingProvider.test.tsx` — provider injects branding context; `useTenantContext()` returns expected shape; missing fields fall back to defaults.
+- [X] T087 [P] [US5] Playwright test `apps/web/tests/e2e/tenant-branding.spec.ts` — visit `acme.localtest.me/login`, assert custom logo and accent color render; visit `app.localtest.me/login`, assert default branding renders.
 
 ### Implementation for User Story 5
 
-- [ ] T088 [US5] Frontend component: `apps/web/components/features/shell/TenantBrandingProvider.tsx` — React context provider reading SSR-injected tenant context; exposes `useTenantContext()` hook returning `{ id, slug, displayName, kind, branding, status }`.
-- [ ] T089 [US5] Frontend hook: `apps/web/lib/hooks/use-tenant-context.ts` — thin wrapper over `useTenantContext()` plus `useTenantBranding()` returning resolved branding (with defaults filled in).
-- [ ] T090 [US5] Update `apps/web/app/(main)/layout.tsx` — server component fetches `/api/v1/me/tenant`, passes the result to `TenantBrandingProvider`. Apply CSS custom properties for the accent color from `branding.accent_color_hex`.
-- [ ] T091 [US5] Update `apps/web/app/(auth)/login/page.tsx` — read tenant context, render branded logo and display name; refuse login for users not bound to the resolved tenant (FR per spec).
-- [ ] T092 [US5] [P] Add `apps/web/components/features/admin/TenantBrandingPreview.tsx` — admin-side preview of how a tenant's branding will render; used in the tenant detail page.
-- [ ] T093 [US5] [P] Frontend hook: `apps/web/lib/hooks/use-tenant-mutations.ts` — TanStack Query mutations for `useUpdateBranding`, `useSuspendTenant`, `useReactivateTenant`, `useScheduleDeletion`, `useCancelDeletion`. Used by detail-panel actions.
-- [ ] T094 [US5] Cookie scoping: update `apps/control-plane/src/platform/auth/jwt_service.py` and any session-cookie issuance path to set `Domain={tenant.subdomain}.{platform_domain}` rather than a global cookie domain. Verify in integration test that cookies issued by `app.musematic.ai` are not accepted by `acme.musematic.ai` and vice versa.
-- [ ] T095 [US5] Add `tenant_id`, `tenant_slug`, `tenant_kind` claims to JWT issuance per `contracts/jwt-claim-additions.md`. Validate the `tenant_id` claim matches the resolved tenant in `auth_middleware.py`; mismatch returns 401 with `code=tenant_mismatch`.
+- [X] T088 [US5] Frontend component: `apps/web/components/features/shell/TenantBrandingProvider.tsx` — React context provider reading SSR-injected tenant context; exposes `useTenantContext()` hook returning `{ id, slug, displayName, kind, branding, status }`.
+- [X] T089 [US5] Frontend hook: `apps/web/lib/hooks/use-tenant-context.ts` — thin wrapper over `useTenantContext()` plus `useTenantBranding()` returning resolved branding (with defaults filled in).
+- [X] T090 [US5] Update `apps/web/app/(main)/layout.tsx` — server component fetches `/api/v1/me/tenant`, passes the result to `TenantBrandingProvider`. Apply CSS custom properties for the accent color from `branding.accent_color_hex`.
+- [X] T091 [US5] Update `apps/web/app/(auth)/login/page.tsx` — read tenant context, render branded logo and display name; refuse login for users not bound to the resolved tenant (FR per spec).
+- [X] T092 [US5] [P] Add `apps/web/components/features/admin/TenantBrandingPreview.tsx` — admin-side preview of how a tenant's branding will render; used in the tenant detail page.
+- [X] T093 [US5] [P] Frontend hook: `apps/web/lib/hooks/use-tenant-mutations.ts` — TanStack Query mutations for `useUpdateBranding`, `useSuspendTenant`, `useReactivateTenant`, `useScheduleDeletion`, `useCancelDeletion`. Used by detail-panel actions.
+- [X] T094 [US5] Cookie scoping: update `apps/control-plane/src/platform/auth/jwt_service.py` and any session-cookie issuance path to set `Domain={tenant.subdomain}.{platform_domain}` rather than a global cookie domain. Verify in integration test that cookies issued by `app.musematic.ai` are not accepted by `acme.musematic.ai` and vice versa.
+- [X] T095 [US5] Add `tenant_id`, `tenant_slug`, `tenant_kind` claims to JWT issuance per `contracts/jwt-claim-additions.md`. Validate the `tenant_id` claim matches the resolved tenant in `auth_middleware.py`; mismatch returns 401 with `code=tenant_mismatch`.
 
 **Checkpoint**: User Story 5 fully validated. Branding renders correctly per tenant; cookie-scoping prevents cross-tenant session reuse; JWT carries tenant context.
 
@@ -243,13 +243,13 @@ These tasks add explicit `tenant_id` filtering to every existing repository quer
 
 ### Tests for User Story 6
 
-- [ ] T096 [P] [US6] Test `apps/control-plane/tests/integration/tenants/test_unknown_subdomain_byte_identity.py` — issue 100 randomly-generated unresolved hostnames; assert SHA-256 of body and headers are constant across all.
-- [ ] T097 [P] [US6] Test `apps/control-plane/tests/integration/tenants/test_unknown_subdomain_timing.py` — measure latency variance across cache-hit, cache-miss-known, unknown-host code paths; assert variance below the documented enumeration-protection threshold (e.g., 95th-percentile spread < 2 ms).
-- [ ] T098 [US6] E2E test `apps/control-plane/tests/e2e/suites/tenant_architecture/test_unknown_subdomain_404.py` — full kind-cluster validation with realistic ingress-induced timing.
+- [X] T096 [P] [US6] Test `apps/control-plane/tests/integration/tenants/test_unknown_subdomain_byte_identity.py` — issue 100 randomly-generated unresolved hostnames; assert SHA-256 of body and headers are constant across all.
+- [X] T097 [P] [US6] Test `apps/control-plane/tests/integration/tenants/test_unknown_subdomain_timing.py` — measure latency variance across cache-hit, cache-miss-known, unknown-host code paths; assert variance below the documented enumeration-protection threshold (e.g., 95th-percentile spread < 2 ms).
+- [X] T098 [US6] E2E test `apps/control-plane/tests/e2e/suites/tenant_architecture/test_unknown_subdomain_404.py` — full kind-cluster validation with realistic ingress-induced timing.
 
 ### Implementation for User Story 6
 
-- [ ] T099 [US6] Refine the `_apply_timing_floor()` helper in the resolver middleware: in lenient mode use `random.uniform(0, 1) ms` jitter to smooth path differences; in strict mode use `await asyncio.sleep(0)` only (zero added latency unless benchmarks show enumeration vector). Default switching gated by `PLATFORM_TENANT_ENFORCEMENT_LEVEL`.
+- [X] T099 [US6] Refine the `_apply_timing_floor()` helper in the resolver middleware: in lenient mode use `random.uniform(0, 1) ms` jitter to smooth path differences; in strict mode use `await asyncio.sleep(0)` only (zero added latency unless benchmarks show enumeration vector). Default switching gated by `PLATFORM_TENANT_ENFORCEMENT_LEVEL`.
 
 **Checkpoint**: User Story 6 fully validated. Unknown subdomains opaque; enumeration vector closed.
 
@@ -263,21 +263,21 @@ These tasks add explicit `tenant_id` filtering to every existing repository quer
 
 ### Tests for User Story 7
 
-- [ ] T100 [P] [US7] Integration test `apps/control-plane/tests/integration/tenants/test_suspension_reactivation.py` — full suspend / reactivate cycle; cookie-bearing requests blocked; non-data API endpoints (e.g., `/api/v1/me/tenant`) return suspension banner; data preserved across the cycle.
-- [ ] T101 [P] [US7] Integration test `apps/control-plane/tests/integration/tenants/test_deletion_two_phase.py` — schedule deletion (with 2PA); during grace period access blocked but data preserved; cancel deletion → tenant reactivates; re-schedule and let grace elapse → cascade runs → tombstone audit-chain entry exists with `cascade_complete: true` and per-BC row count digest.
-- [ ] T102 [US7] E2E test `apps/control-plane/tests/e2e/suites/tenant_architecture/test_tenant_suspension.py`.
-- [ ] T103 [US7] E2E test `apps/control-plane/tests/e2e/suites/tenant_architecture/test_tenant_deletion_two_phase.py`.
+- [X] T100 [P] [US7] Integration test `apps/control-plane/tests/integration/tenants/test_suspension_reactivation.py` — full suspend / reactivate cycle; cookie-bearing requests blocked; non-data API endpoints (e.g., `/api/v1/me/tenant`) return suspension banner; data preserved across the cycle.
+- [X] T101 [P] [US7] Integration test `apps/control-plane/tests/integration/tenants/test_deletion_two_phase.py` — schedule deletion (with 2PA); during grace period access blocked but data preserved; cancel deletion → tenant reactivates; re-schedule and let grace elapse → cascade runs → tombstone audit-chain entry exists with `cascade_complete: true` and per-BC row count digest.
+- [X] T102 [US7] E2E test `apps/control-plane/tests/e2e/suites/tenant_architecture/test_tenant_suspension.py`.
+- [X] T103 [US7] E2E test `apps/control-plane/tests/e2e/suites/tenant_architecture/test_tenant_deletion_two_phase.py`.
 
 ### Implementation for User Story 7
 
-- [ ] T104 [US7] Extend `apps/control-plane/src/platform/tenants/service.py` with: `suspend_tenant(actor, id, reason)`, `reactivate_tenant(actor, id)`, `schedule_deletion(actor, id, reason, two_pa_token)`, `cancel_deletion(actor, id)`, `complete_deletion(tenant_id)` (called by scheduler). Each emits the corresponding Kafka event and audit-chain entry.
-- [ ] T105 [US7] Wire 2PA validation into `schedule_deletion`: integrate with `apps/control-plane/src/platform/two_person_approval/service.py` (UPD-036). Server-side validate the token freshly per audit-pass rule 33.
-- [ ] T106 [US7] Add the deletion-grace scheduler: APScheduler job in the `scheduler` runtime profile that selects `tenants WHERE status='pending_deletion' AND scheduled_deletion_at <= now()` and invokes `complete_deletion` for each. Exactly-once semantics via `FOR UPDATE SKIP LOCKED`.
-- [ ] T107 [US7] Implement cascading deletion: per-BC delete handlers registered in a `tenant_cascade_registry` (each BC owner registers its handler in its `__init__.py` startup hook). The cascade engine in `tenants/service.py:complete_deletion` iterates the registry in dependency order, deleting tenant-scoped rows; each handler returns its row count for the tombstone digest.
-- [ ] T108 [US7] Add the suspension/deletion endpoints to `apps/control-plane/src/platform/tenants/admin_router.py`: `POST /suspend`, `POST /reactivate`, `POST /schedule-deletion`, `POST /cancel-deletion` per `contracts/admin-tenants-rest.md`. Refuse default tenant (FR-002). Audit-chain + Kafka emitted.
-- [ ] T109 [US7] [P] Frontend component: `apps/web/components/features/shell/SuspensionBanner.tsx` — top-of-page banner rendered on `(main)/layout.tsx` whenever `useTenantContext().status === 'suspended'`. Includes localized "Contact support" CTA.
-- [ ] T110 [US7] [P] Frontend component: `apps/web/components/features/admin/DeletionGracePeriodCountdown.tsx` — countdown timer rendered on the tenant detail page when `status === 'pending_deletion'`; counts down to `scheduled_deletion_at`; renders "Cancel deletion" button.
-- [ ] T111 [US7] Add `apps/control-plane/src/platform/tenants/platform_router.py` with `POST /api/v1/platform/tenants/{id}/force-cascade-deletion` per `contracts/platform-tenants-rest.md`. Requires platform-staff role + 2PA + incident-mode flag.
+- [X] T104 [US7] Extend `apps/control-plane/src/platform/tenants/service.py` with: `suspend_tenant(actor, id, reason)`, `reactivate_tenant(actor, id)`, `schedule_deletion(actor, id, reason, two_pa_token)`, `cancel_deletion(actor, id)`, `complete_deletion(tenant_id)` (called by scheduler). Each emits the corresponding Kafka event and audit-chain entry.
+- [X] T105 [US7] Wire 2PA validation into `schedule_deletion`: integrate with `apps/control-plane/src/platform/two_person_approval/service.py` (UPD-036). Server-side validate the token freshly per audit-pass rule 33.
+- [X] T106 [US7] Add the deletion-grace scheduler: APScheduler job in the `scheduler` runtime profile that selects `tenants WHERE status='pending_deletion' AND scheduled_deletion_at <= now()` and invokes `complete_deletion` for each. Exactly-once semantics via `FOR UPDATE SKIP LOCKED`.
+- [X] T107 [US7] Implement cascading deletion: per-BC delete handlers registered in a `tenant_cascade_registry` (each BC owner registers its handler in its `__init__.py` startup hook). The cascade engine in `tenants/service.py:complete_deletion` iterates the registry in dependency order, deleting tenant-scoped rows; each handler returns its row count for the tombstone digest.
+- [X] T108 [US7] Add the suspension/deletion endpoints to `apps/control-plane/src/platform/tenants/admin_router.py`: `POST /suspend`, `POST /reactivate`, `POST /schedule-deletion`, `POST /cancel-deletion` per `contracts/admin-tenants-rest.md`. Refuse default tenant (FR-002). Audit-chain + Kafka emitted.
+- [X] T109 [US7] [P] Frontend component: `apps/web/components/features/shell/SuspensionBanner.tsx` — top-of-page banner rendered on `(main)/layout.tsx` whenever `useTenantContext().status === 'suspended'`. Includes localized "Contact support" CTA.
+- [X] T110 [US7] [P] Frontend component: `apps/web/components/features/admin/DeletionGracePeriodCountdown.tsx` — countdown timer rendered on the tenant detail page when `status === 'pending_deletion'`; counts down to `scheduled_deletion_at`; renders "Cancel deletion" button.
+- [X] T111 [US7] Add `apps/control-plane/src/platform/tenants/platform_router.py` with `POST /api/v1/platform/tenants/{id}/force-cascade-deletion` per `contracts/platform-tenants-rest.md`. Requires platform-staff role + 2PA + incident-mode flag.
 
 **Checkpoint**: User Story 7 fully validated. Lifecycle transitions auditable; 2PA enforced for deletion; cascade is exactly-once with tombstone proof.
 
@@ -291,14 +291,14 @@ These tasks add explicit `tenant_id` filtering to every existing repository quer
 
 ### Tests for User Story 8
 
-- [ ] T112 [P] [US8] Integration test `apps/control-plane/tests/integration/tenants/test_default_tenant_immutable.py` — attempt every mutation (PATCH, suspend, schedule-deletion, force-cascade-deletion) on the default tenant via every endpoint; each returns 409 with `code=default_tenant_immutable`; database state unchanged.
-- [ ] T113 [P] [US8] DB-level test `apps/control-plane/tests/integration/migrations/test_default_tenant_trigger.py` — attempt direct DELETE / UPDATE on the default tenant row using the platform-staff role; trigger refuses with the documented exception message.
-- [ ] T114 [US8] E2E test `apps/control-plane/tests/e2e/suites/tenant_architecture/test_default_tenant_constraints.py` — Journey J36: full UI + API attempt matrix; UI buttons disabled with explanatory tooltip; API returns 409.
+- [X] T112 [P] [US8] Integration test `apps/control-plane/tests/integration/tenants/test_default_tenant_immutable.py` — attempt every mutation (PATCH, suspend, schedule-deletion, force-cascade-deletion) on the default tenant via every endpoint; each returns 409 with `code=default_tenant_immutable`; database state unchanged.
+- [X] T113 [P] [US8] DB-level test `apps/control-plane/tests/integration/migrations/test_default_tenant_trigger.py` — attempt direct DELETE / UPDATE on the default tenant row using the platform-staff role; trigger refuses with the documented exception message.
+- [X] T114 [US8] E2E test `apps/control-plane/tests/e2e/suites/tenant_architecture/test_default_tenant_constraints.py` — Journey J36: full UI + API attempt matrix; UI buttons disabled with explanatory tooltip; API returns 409.
 
 ### Implementation for User Story 8
 
-- [ ] T115 [US8] Add application-layer guard in `tenants/service.py` for every mutation method: short-circuit with `DefaultTenantImmutableError` when the target tenant has `kind='default'`. Required even though the DB trigger catches it; this gives the UI a clean error path.
-- [ ] T116 [US8] Frontend: in `apps/web/app/(admin)/admin/tenants/[id]/page.tsx`, when the rendered tenant has `kind === 'default'`, disable the Suspend / Schedule Deletion buttons and render a tooltip explaining the constitutional constraint (SaaS-9).
+- [X] T115 [US8] Add application-layer guard in `tenants/service.py` for every mutation method: short-circuit with `DefaultTenantImmutableError` when the target tenant has `kind='default'`. Required even though the DB trigger catches it; this gives the UI a clean error path.
+- [X] T116 [US8] Frontend: in `apps/web/app/(admin)/admin/tenants/[id]/page.tsx`, when the rendered tenant has `kind === 'default'`, disable the Suspend / Schedule Deletion buttons and render a tooltip explaining the constitutional constraint (SaaS-9).
 
 **Checkpoint**: User Story 8 fully validated. Default tenant is immutable at every layer.
 
@@ -310,49 +310,49 @@ These tasks add explicit `tenant_id` filtering to every existing repository quer
 
 ### Track D — Vault path scoping
 
-- [ ] T117 [P] Update `apps/control-plane/src/platform/common/secret_provider.py:CANONICAL_SECRET_PATH_RE` to accept BOTH the legacy regex (existing pattern) AND the new tenant-scoped pattern `^secret/data/musematic/(production|staging|dev|test|ci)/tenants/(default|[a-z][a-z0-9-]{0,30}[a-z0-9])/(oauth|model-providers|notifications|ibor|audit-chain|connectors|accounts|_internal)/[a-zA-Z0-9_/-]+$` AND the platform-scoped pattern `^secret/data/musematic/(production|...)/_platform/...`. Add `validate_secret_path` test cases.
-- [ ] T118 [P] Update every caller of `secret_provider.get/put` across the codebase to construct paths via `tenant_vault_path(env, tenant_slug, domain, resource)` from `tenants/vault_paths.py`. Add `tenant_slug` resolution from `current_tenant.get()`.
-- [ ] T119 Author secrets-migration utility `apps/ops-cli/secrets-migrate.py`: walks every legacy path under `secret/data/musematic/{env}/{domain}/...`, copies its current version to `secret/data/musematic/{env}/tenants/default/{domain}/...`, verifies the read at the new path, then logs (does NOT delete legacy until follow-up patch removes the dual-read window).
-- [ ] T120 [P] Update Vault policy templates `deploy/vault/policies/tenant-scoped.hcl.tpl` to grant tenant-scoped read on `secret/data/musematic/{env}/tenants/{slug}/...` and platform-scoped read on `secret/data/musematic/{env}/_platform/...`.
+- [X] T117 [P] Update `apps/control-plane/src/platform/common/secret_provider.py:CANONICAL_SECRET_PATH_RE` to accept BOTH the legacy regex (existing pattern) AND the new tenant-scoped pattern `^secret/data/musematic/(production|staging|dev|test|ci)/tenants/(default|[a-z][a-z0-9-]{0,30}[a-z0-9])/(oauth|model-providers|notifications|ibor|audit-chain|connectors|accounts|_internal)/[a-zA-Z0-9_/-]+$` AND the platform-scoped pattern `^secret/data/musematic/(production|...)/_platform/...`. Add `validate_secret_path` test cases.
+- [X] T118 [P] Update every caller of `secret_provider.get/put` across the codebase to construct paths via `tenant_vault_path(env, tenant_slug, domain, resource)` from `tenants/vault_paths.py`. Add `tenant_slug` resolution from `current_tenant.get()`.
+- [X] T119 Author secrets-migration utility `apps/ops-cli/secrets-migrate.py`: walks every legacy path under `secret/data/musematic/{env}/{domain}/...`, copies its current version to `secret/data/musematic/{env}/tenants/default/{domain}/...`, verifies the read at the new path, then logs (does NOT delete legacy until follow-up patch removes the dual-read window).
+- [X] T120 [P] Update Vault policy templates `deploy/vault/policies/tenant-scoped.hcl.tpl` to grant tenant-scoped read on `secret/data/musematic/{env}/tenants/{slug}/...` and platform-scoped read on `secret/data/musematic/{env}/_platform/...`.
 
 ### Track E — OAuth per-tenant
 
-- [ ] T121 Author Alembic migration `apps/control-plane/migrations/versions/102_oauth_provider_tenant_scope.py`: drop existing UNIQUE on `oauth_providers.provider_type`; add UNIQUE on `(tenant_id, provider_type)`; backfill `tenant_id = default UUID` for existing rows.
-- [ ] T122 Update `apps/control-plane/src/platform/auth/models.py:OAuthProvider` model — `tenant_id` column, composite uniqueness; update `apps/control-plane/src/platform/auth/service.py` OAuth resolution to query by `(current_tenant.id, provider_type)`.
-- [ ] T123 Update `apps/control-plane/src/platform/auth/router.py` OAuth callback endpoint to construct the callback URL `https://{tenant.subdomain}.{platform_domain}/auth/oauth/{provider}/callback` from the resolved tenant; backward-compat redirect from the legacy global callback to the default-tenant scope for one release.
-- [ ] T124 [P] Frontend: extend `apps/web/app/(admin)/admin/oauth/page.tsx` (UPD-041) to expose per-tenant OAuth configuration under a tenant selector; super admin sees all tenants; tenant admins see only their own tenant's OAuth.
-- [ ] T125 Integration test `apps/control-plane/tests/integration/tenants/test_oauth_per_tenant.py` — Acme has its own OAuth client ID; Acme's `/auth/oauth/google/callback` uses Acme's config; default tenant's callback uses default's config.
+- [X] T121 Author Alembic migration `apps/control-plane/migrations/versions/102_oauth_provider_tenant_scope.py`: drop existing UNIQUE on `oauth_providers.provider_type`; add UNIQUE on `(tenant_id, provider_type)`; backfill `tenant_id = default UUID` for existing rows.
+- [X] T122 Update `apps/control-plane/src/platform/auth/models.py:OAuthProvider` model — `tenant_id` column, composite uniqueness; update `apps/control-plane/src/platform/auth/service.py` OAuth resolution to query by `(current_tenant.id, provider_type)`.
+- [X] T123 Update `apps/control-plane/src/platform/auth/router.py` OAuth callback endpoint to construct the callback URL `https://{tenant.subdomain}.{platform_domain}/auth/oauth/{provider}/callback` from the resolved tenant; backward-compat redirect from the legacy global callback to the default-tenant scope for one release.
+- [X] T124 [P] Frontend: extend `apps/web/app/(admin)/admin/oauth/page.tsx` (UPD-041) to expose per-tenant OAuth configuration under a tenant selector; super admin sees all tenants; tenant admins see only their own tenant's OAuth.
+- [X] T125 Integration test `apps/control-plane/tests/integration/tenants/test_oauth_per_tenant.py` — Acme has its own OAuth client ID; Acme's `/auth/oauth/google/callback` uses Acme's config; default tenant's callback uses default's config.
 
 ### Track G — Observability and dashboard
 
-- [ ] T126 [P] Author Grafana dashboard ConfigMap `deploy/helm/observability/templates/dashboards/tenants.yaml` (audit-pass rule 24 — every new BC gets a dashboard). Panels: tenant provisioning rate, suspension rate, deletion-cascade rate, hostname-resolver latency p50/p95/p99, cache hit ratio per tier, RLS-enforcement violation rate from `tenant_enforcement_violations`, unknown-host probe rate.
-- [ ] T127 [P] Add structured-log fields to all tenants-BC log lines: `tenant_id`, `tenant_slug`, `tenant_kind` (audit-pass rule 21 correlation IDs).
+- [X] T126 [P] Author Grafana dashboard ConfigMap `deploy/helm/observability/templates/dashboards/tenants.yaml` (audit-pass rule 24 — every new BC gets a dashboard). Panels: tenant provisioning rate, suspension rate, deletion-cascade rate, hostname-resolver latency p50/p95/p99, cache hit ratio per tier, RLS-enforcement violation rate from `tenant_enforcement_violations`, unknown-host probe rate.
+- [X] T127 [P] Add structured-log fields to all tenants-BC log lines: `tenant_id`, `tenant_slug`, `tenant_kind` (audit-pass rule 21 correlation IDs).
 
 ### Track G — E2E journey suite
 
-- [ ] T128 [P] Author E2E test `apps/control-plane/tests/e2e/suites/tenant_architecture/test_default_tenant_exists.py`: assert that on a freshly-installed kind cluster the default tenant exists with the well-known UUID, slug `default`, subdomain `app`, and the seeder is idempotent.
-- [ ] T129 [P] Add the `tenant_architecture` suite to the E2E runner registry at `tests/e2e/conftest.py`.
-- [ ] T130 Wire the J22 Tenant Provisioning journey into the journey registry (`tests/e2e/journeys/__init__.py` or equivalent); covers super admin login, provisioning Acme, DNS reachability assertion, first-admin invitation, first sign-in.
-- [ ] T131 Wire the J31 Cross-Tenant Isolation journey into the journey registry; covers two-tenant setup, cross-tenant probe matrix.
-- [ ] T132 Wire the J36 Default Tenant Constraints journey into the journey registry.
+- [X] T128 [P] Author E2E test `apps/control-plane/tests/e2e/suites/tenant_architecture/test_default_tenant_exists.py`: assert that on a freshly-installed kind cluster the default tenant exists with the well-known UUID, slug `default`, subdomain `app`, and the seeder is idempotent.
+- [X] T129 [P] Add the `tenant_architecture` suite to the E2E runner registry at `tests/e2e/conftest.py`.
+- [X] T130 Wire the J22 Tenant Provisioning journey into the journey registry (`tests/e2e/journeys/__init__.py` or equivalent); covers super admin login, provisioning Acme, DNS reachability assertion, first-admin invitation, first sign-in.
+- [X] T131 Wire the J31 Cross-Tenant Isolation journey into the journey registry; covers two-tenant setup, cross-tenant probe matrix.
+- [X] T132 Wire the J36 Default Tenant Constraints journey into the journey registry.
 - [ ] T133 Run the existing journeys J01–J21 against the post-migration database; capture the regression report. Fix any failures introduced by the BC refactor in Phase 5.
 
 ### Lenient → strict promotion + cleanup
 
-- [ ] T134 Author the lenient→strict promotion runbook section in `deploy/runbooks/tenant-provisioning.md`: "After seven consecutive days with zero rows in `tenant_enforcement_violations` under production traffic, set `PLATFORM_TENANT_ENFORCEMENT_LEVEL=strict` via `kubectl set env deployment/control-plane`, roll the deployment, and verify metrics."
-- [ ] T135 Delete the obsolete `apps/control-plane/src/platform/admin/tenant_mode_router.py` and its router registration (`PLATFORM_TENANT_MODE` is removed by constitution v2.0.0). Update any references in tests / OpenAPI snapshots.
-- [ ] T136 [P] Update `apps/control-plane/src/platform/admin/responses.py:tenant_id_from_user()` — read from `request.state.tenant.id` first, fall back to JWT claim only for compatibility with pre-migration tokens during the lenient window.
-- [ ] T137 [P] Update `apps/control-plane/src/platform/admin/activity_feed.py` and `config_export_service.py` to filter by `request.state.tenant` consistently.
+- [X] T134 Author the lenient→strict promotion runbook section in `deploy/runbooks/tenant-provisioning.md`: "After seven consecutive days with zero rows in `tenant_enforcement_violations` under production traffic, set `PLATFORM_TENANT_ENFORCEMENT_LEVEL=strict` via `kubectl set env deployment/control-plane`, roll the deployment, and verify metrics."
+- [X] T135 Delete the obsolete `apps/control-plane/src/platform/admin/tenant_mode_router.py` and its router registration (`PLATFORM_TENANT_MODE` is removed by constitution v2.0.0). Update any references in tests / OpenAPI snapshots.
+- [X] T136 [P] Update `apps/control-plane/src/platform/admin/responses.py:tenant_id_from_user()` — read from `request.state.tenant.id` first, fall back to JWT claim only for compatibility with pre-migration tokens during the lenient window.
+- [X] T137 [P] Update `apps/control-plane/src/platform/admin/activity_feed.py` and `config_export_service.py` to filter by `request.state.tenant` consistently.
 
 ### Documentation
 
-- [ ] T138 [P] Update root `README.md` to mention multi-tenant SaaS architecture; reference the tenant-provisioning runbook.
-- [ ] T139 [P] Update `docs/system-architecture.md` and `docs/software-architecture.md` to describe the tenant primitive, hostname resolver, RLS posture, and platform-staff role segregation.
-- [ ] T140 [P] Add `docs/saas/tenant-architecture.md` documentation page (UPD-089 docs site) describing the architecture for operators and developers.
+- [X] T138 [P] Update root `README.md` to mention multi-tenant SaaS architecture; reference the tenant-provisioning runbook.
+- [X] T139 [P] Update `docs/system-architecture.md` and `docs/software-architecture.md` to describe the tenant primitive, hostname resolver, RLS posture, and platform-staff role segregation.
+- [X] T140 [P] Add `docs/saas/tenant-architecture.md` documentation page (UPD-089 docs site) describing the architecture for operators and developers.
 
 ### Constitutional checks
 
-- [ ] T141 Run `apps/control-plane/scripts/lint/check_rls_coverage.py`, `check_tenant_filter_coverage.py`, `check_platform_staff_role_scope.py`, `check_reserved_slug_parity.sh` locally; resolve any flagged violations before opening the PR.
+- [X] T141 Run `apps/control-plane/scripts/lint/check_rls_coverage.py`, `check_tenant_filter_coverage.py`, `check_platform_staff_role_scope.py`, `check_reserved_slug_parity.sh` locally; resolve any flagged violations before opening the PR.
 - [ ] T142 Validate quickstart.md walkthrough end-to-end on a fresh kind cluster; capture any drift and update the doc.
 
 ---

@@ -5,6 +5,7 @@ from enum import StrEnum
 from platform.common.models.base import Base
 from platform.common.models.mixins import (
     AuditMixin,
+    TenantScopedMixin,
     TimestampMixin,
     UUIDMixin,
     WorkspaceScopedMixin,
@@ -68,7 +69,9 @@ class CorrelationClassification(StrEnum):
     inconclusive = "inconclusive"
 
 
-class ContextEngineeringProfile(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin, AuditMixin):
+class ContextEngineeringProfile(
+    Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin, AuditMixin
+):
     __tablename__ = "context_engineering_profiles"
     __table_args__ = (
         UniqueConstraint("workspace_id", "name", name="uq_ce_profile_workspace_name"),
@@ -117,7 +120,7 @@ class ContextEngineeringProfile(Base, UUIDMixin, TimestampMixin, WorkspaceScoped
     )
 
 
-class ContextProfileVersion(Base, UUIDMixin, TimestampMixin):
+class ContextProfileVersion(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "context_engineering_profile_versions"
     __table_args__ = (
         UniqueConstraint(
@@ -150,7 +153,9 @@ class ContextProfileVersion(Base, UUIDMixin, TimestampMixin):
     )
 
 
-class ContextProfileAssignment(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class ContextProfileAssignment(
+    Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin
+):
     __tablename__ = "context_profile_assignments"
     __table_args__ = (
         Index("ix_ce_assignment_agent_fqn", "agent_fqn"),
@@ -174,7 +179,9 @@ class ContextProfileAssignment(Base, UUIDMixin, TimestampMixin, WorkspaceScopedM
     )
 
 
-class ContextAssemblyRecord(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class ContextAssemblyRecord(
+    Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin
+):
     __tablename__ = "context_assembly_records"
     __table_args__ = (
         Index("ix_ce_record_execution_step", "execution_id", "step_id"),
@@ -232,7 +239,9 @@ class ContextAssemblyRecord(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixi
     )
 
 
-class ContextAbTest(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin, AuditMixin):
+class ContextAbTest(
+    Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin, AuditMixin
+):
     __tablename__ = "context_ab_tests"
     __table_args__ = (
         Index("ix_ce_ab_test_workspace_status", "workspace_id", "status"),
@@ -264,7 +273,7 @@ class ContextAbTest(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin, Audit
     variant_token_mean: Mapped[float | None] = mapped_column(Float(), nullable=True)
 
 
-class ContextDriftAlert(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class ContextDriftAlert(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "context_drift_alerts"
     __table_args__ = (
         Index("ix_ce_drift_alert_agent_fqn", "agent_fqn"),
@@ -285,7 +294,7 @@ class ContextDriftAlert(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
-class CorrelationResult(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class CorrelationResult(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "context_engineering_correlation_results"
     __table_args__ = (
         Index("ix_ce_correlation_agent_window", "agent_fqn", "window_start", "window_end"),

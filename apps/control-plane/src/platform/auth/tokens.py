@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from platform.auth.exceptions import InvalidRefreshTokenError
 from platform.common.config import AuthSettings
+from platform.common.tenant_context import TenantContext, current_tenant
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -50,8 +51,10 @@ def create_access_token(
     *,
     identity_type: str = "user",
     agent_purpose: str | None = None,
+    tenant: TenantContext | None = None,
 ) -> str:
     now = datetime.now(UTC)
+    tenant = tenant or current_tenant.get(None)
     payload: dict[str, Any] = {
         "sub": str(user_id),
         "email": email,
@@ -62,6 +65,10 @@ def create_access_token(
         "type": "access",
         "identity_type": identity_type,
     }
+    if tenant is not None:
+        payload["tenant_id"] = str(tenant.id)
+        payload["tenant_slug"] = tenant.slug
+        payload["tenant_kind"] = tenant.kind
     if agent_purpose is not None:
         payload["agent_purpose"] = agent_purpose
     return jwt.encode(payload, _signing_key(settings), algorithm=settings.jwt_algorithm)
@@ -92,8 +99,10 @@ def create_token_pair(
     session_id: UUID,
     roles: list[dict[str, Any]],
     settings: AuthSettings,
+    *,
+    tenant: TenantContext | None = None,
 ) -> tuple[str, str]:
-    access_token = create_access_token(user_id, email, session_id, roles, settings)
+    access_token = create_access_token(user_id, email, session_id, roles, settings, tenant=tenant)
     refresh_token = create_refresh_token(user_id, session_id, settings)
     return access_token, refresh_token
 

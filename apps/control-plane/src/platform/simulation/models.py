@@ -3,7 +3,12 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 from platform.common.models.base import Base
-from platform.common.models.mixins import TimestampMixin, UUIDMixin, WorkspaceScopedMixin
+from platform.common.models.mixins import (
+    TenantScopedMixin,
+    TimestampMixin,
+    UUIDMixin,
+    WorkspaceScopedMixin,
+)
 from typing import Any
 from uuid import UUID
 
@@ -70,7 +75,9 @@ class ComparisonVerdict(StrEnum):
     inconclusive = "inconclusive"
 
 
-class SimulationIsolationPolicy(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class SimulationIsolationPolicy(
+    Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin
+):
     __tablename__ = "simulation_isolation_policies"
     __table_args__ = (
         Index("ix_isolation_policies_workspace_default", "workspace_id", "is_default"),
@@ -97,7 +104,7 @@ class SimulationIsolationPolicy(Base, UUIDMixin, TimestampMixin, WorkspaceScoped
     halt_on_critical_breach: Mapped[bool] = mapped_column(Boolean(), nullable=False, default=True)
 
 
-class SimulationScenario(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class SimulationScenario(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "simulation_scenarios"
     __table_args__ = (
         Index("IX_simulation_scenarios_workspace_id_archived_at", "workspace_id", "archived_at"),
@@ -139,7 +146,7 @@ class SimulationScenario(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     )
 
 
-class SimulationRun(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class SimulationRun(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "simulation_runs"
     __table_args__ = (
         Index("ix_simulation_runs_workspace_status", "workspace_id", "status"),
@@ -186,7 +193,7 @@ class SimulationRun(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     )
 
 
-class DigitalTwin(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
+class DigitalTwin(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     __tablename__ = "simulation_digital_twins"
     __table_args__ = (
         Index("ix_digital_twins_agent_fqn", "source_agent_fqn"),
@@ -225,7 +232,7 @@ class DigitalTwin(Base, UUIDMixin, TimestampMixin, WorkspaceScopedMixin):
     )
 
 
-class BehavioralPrediction(Base, UUIDMixin, TimestampMixin):
+class BehavioralPrediction(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "simulation_behavioral_predictions"
     __table_args__ = (
         Index("ix_behavioral_predictions_twin_id", "digital_twin_id"),
@@ -263,7 +270,7 @@ class BehavioralPrediction(Base, UUIDMixin, TimestampMixin):
     digital_twin: Mapped[DigitalTwin] = relationship("platform.simulation.models.DigitalTwin")
 
 
-class SimulationComparisonReport(Base, UUIDMixin, TimestampMixin):
+class SimulationComparisonReport(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     __tablename__ = "simulation_comparison_reports"
     __table_args__ = (
         Index("ix_comparison_reports_primary_run_id", "primary_run_id"),
