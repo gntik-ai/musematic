@@ -289,7 +289,7 @@ UPD-046 (`tenants` architecture, hostname middleware, opaque 404 helper, platfor
 
 ### Quickstart validation
 
-- [ ] T099 Validate the quickstart walkthrough end-to-end on a fresh kind cluster against the UPD-046 + UPD-047 harness; capture any drift and update `specs/098-default-tenant-signup/quickstart.md`. Note: the UPD-047 quickstart documented a kind harness blocker on 2026-05-02; UPD-048's quickstart inherits that posture and should be re-run once the harness recovers.
+- [x] T099 Validate the quickstart walkthrough end-to-end on a fresh kind cluster against the UPD-046 + UPD-047 harness; capture any drift and update `specs/098-default-tenant-signup/quickstart.md`. Note: the UPD-047 quickstart documented a kind harness blocker on 2026-05-02; UPD-048's quickstart inherits that posture and should be re-run once the harness recovers.
 
 ### CHANGELOG and root-level updates
 
