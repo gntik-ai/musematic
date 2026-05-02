@@ -7,8 +7,15 @@ import json
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from platform.accounts.events import (
+    AccountsEventType,
+    SignupCompletedPayload,
+    publish_accounts_event,
+)
 from platform.accounts.models import SignupSource, UserStatus
 from platform.accounts.repository import AccountsRepository
+from platform.audit.repository import AuditChainRepository
+from platform.audit.service import AuditChainService
 from platform.auth.events import (
     OAuthAccountLinkedPayload,
     OAuthAccountUnlinkedPayload,
@@ -56,10 +63,15 @@ from platform.auth.service import AuthService
 from platform.auth.services.oauth_bootstrap import bootstrap_oauth_provider_from_env
 from platform.auth.services.oauth_providers.github import GitHubOAuthProvider
 from platform.auth.services.oauth_providers.google import GoogleOAuthProvider
+from platform.billing.plans.repository import PlansRepository
+from platform.billing.subscriptions.repository import SubscriptionsRepository
+from platform.billing.subscriptions.service import SubscriptionService
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import _VALID_OAUTH_BOOTSTRAP_ROLES, PlatformSettings
+from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import ValidationError
+from platform.common.logging import get_logger
 from platform.common.secret_provider import (
     CredentialPolicyDeniedError,
     CredentialUnavailableError,
@@ -67,12 +79,16 @@ from platform.common.secret_provider import (
 )
 from platform.common.tenant_context import current_tenant
 from platform.connectors.security import compute_hmac_sha256
+from platform.tenants.seeder import DEFAULT_TENANT_ID
+from platform.workspaces.repository import WorkspacesRepository
+from platform.workspaces.service import WorkspacesService
 from typing import Any, cast
 from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 from fastapi.encoders import jsonable_encoder
 
+LOGGER = get_logger(__name__)
 _PLAINTEXT_SECRET_PREFIX = "plain:"
 _REDACTED_PLAINTEXT_SECRET_REF = "plain:<redacted>"
 _LOOPBACK_REDIRECT_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
@@ -872,7 +888,96 @@ class OAuthService:
         if status == UserStatus.pending_approval:
             await self.accounts_repository.create_approval_request(user.id, now)
         await self.auth_repository.assign_user_role(user.id, role, None)
+        if status in {UserStatus.active, UserStatus.pending_profile_completion}:
+            await self._complete_default_oauth_signup(
+                user.id,
+                user.email,
+                user.display_name,
+                provider.provider_type,
+            )
         return user.id
+
+    async def _complete_default_oauth_signup(
+        self,
+        user_id: UUID,
+        email: str,
+        display_name: str,
+        provider_type: str,
+    ) -> None:
+        tenant = current_tenant.get(None)
+        if tenant is not None and tenant.kind != "default":
+            return
+
+        workspace_id: UUID | None = None
+        subscription_id: UUID | None = None
+        tenant_id = tenant.id if tenant is not None else DEFAULT_TENANT_ID
+        correlation = CorrelationContext(
+            correlation_id=uuid4(),
+            tenant_id=tenant_id,
+            tenant_slug=tenant.slug if tenant is not None else "default",
+            tenant_kind=tenant.kind if tenant is not None else "default",
+        )
+        try:
+            subscription_service = SubscriptionService(
+                session=self.accounts_repository.session,
+                subscriptions=SubscriptionsRepository(self.accounts_repository.session),
+                plans=PlansRepository(self.accounts_repository.session),
+                producer=self.producer,
+            )
+            workspace = await WorkspacesService(
+                repo=WorkspacesRepository(self.accounts_repository.session),
+                settings=self.settings,
+                kafka_producer=self.producer,
+                subscription_service=subscription_service,
+            ).create_default_workspace(
+                user_id,
+                display_name,
+                correlation_ctx=correlation,
+            )
+            workspace_id = workspace.id
+            subscription = await subscription_service.provision_for_default_workspace(
+                workspace.id,
+                created_by_user_id=user_id,
+            )
+            subscription_id = subscription.id
+        except Exception as exc:
+            LOGGER.warning(
+                "Default workspace provisioning deferred after OAuth signup",
+                extra={"user_id": str(user_id), "error": str(exc)},
+            )
+
+        await publish_accounts_event(
+            self.producer,
+            AccountsEventType.signup_completed,
+            SignupCompletedPayload(
+                user_id=user_id,
+                email=email,
+                workspace_id=workspace_id,
+                subscription_id=subscription_id,
+                signup_method=f"oauth-{provider_type}",
+            ),
+            correlation,
+        )
+        payload: dict[str, object] = {
+            "user_id": str(user_id),
+            "email": email,
+            "workspace_id": str(workspace_id) if workspace_id else None,
+            "subscription_id": str(subscription_id) if subscription_id else None,
+            "signup_method": f"oauth-{provider_type}",
+        }
+        await AuditChainService(
+            AuditChainRepository(self.accounts_repository.session),
+            self.settings,
+            producer=self.producer,
+        ).append(
+            uuid4(),
+            "accounts",
+            json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8"),
+            event_type=AccountsEventType.signup_completed.value,
+            actor_role="user",
+            canonical_payload_json=payload,
+            tenant_id=tenant_id,
+        )
 
     async def _resolve_identity(
         self,

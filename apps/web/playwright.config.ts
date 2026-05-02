@@ -14,7 +14,10 @@ export default defineConfig({
     new RegExp(`^${webRootPattern}/tests/e2e/creator-uis-pages\\.spec\\.ts$`),
     new RegExp(`^${webRootPattern}/tests/e2e/self-service-pages\\.spec\\.ts$`),
     new RegExp(`^${webRootPattern}/tests/e2e/tenant-branding\\.spec\\.ts$`),
-    new RegExp(`^${webRootPattern}/tests/e2e/workspace-owner-pages\\.spec\\.ts$`),
+    new RegExp(`^${webRootPattern}/tests/e2e/tenant-switcher\\.spec\\.ts$`),
+    new RegExp(
+      `^${webRootPattern}/tests/e2e/workspace-owner-pages\\.spec\\.ts$`,
+    ),
   ],
   fullyParallel: true,
   retries: 0,

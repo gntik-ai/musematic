@@ -98,11 +98,11 @@ UPD-046 (`tenants` architecture, hostname middleware, opaque 404 helper, platfor
 
 ### Tests for User Story 1
 
-- [ ] T026 [P] [US1] Integration test `apps/control-plane/tests/integration/accounts/test_signup_at_default_succeeds.py`: full happy path — register, verify, default workspace exists with `is_default=true`, Free subscription provisioned, `accounts.signup.completed` Kafka event published, audit-chain entry recorded.
-- [ ] T027 [P] [US1] Integration test `apps/control-plane/tests/integration/accounts/test_free_workspace_auto_created.py`: verify `WorkspacesService.create_default_workspace` is invoked from the verify-email path; the `workspaces_user_default_unique` index makes a second concurrent call return the existing workspace (no duplicates).
-- [ ] T028 [P] [US1] Integration test `apps/control-plane/tests/integration/accounts/test_free_workspace_deferred_retry.py`: simulate transient failure of `create_default_workspace` during verify-email; verify the user is still marked verified; the deferred-retry job picks up the gap within `SIGNUP_AUTO_CREATE_RETRY_SECONDS` and creates the workspace.
-- [ ] T029 [P] [US1] Integration test `apps/control-plane/tests/integration/accounts/test_signup_oauth_default.py`: OAuth signup at default tenant skips the email-verification step (provider attests), still triggers the workspace auto-creation path.
-- [ ] T030 [US1] E2E test `apps/control-plane/tests/e2e/suites/signup_default_only/test_signup_at_default.py`: full browser flow — load `app.localhost:8080/signup`, submit form, verify email via dev SMTP relay, assert redirect to `/onboarding`, assert workspace exists. Extends J19.
+- [x] T026 [P] [US1] Integration test `apps/control-plane/tests/integration/accounts/test_signup_at_default_succeeds.py`: full happy path — register, verify, default workspace exists with `is_default=true`, Free subscription provisioned, `accounts.signup.completed` Kafka event published, audit-chain entry recorded.
+- [x] T027 [P] [US1] Integration test `apps/control-plane/tests/integration/accounts/test_free_workspace_auto_created.py`: verify `WorkspacesService.create_default_workspace` is invoked from the verify-email path; the `workspaces_user_default_unique` index makes a second concurrent call return the existing workspace (no duplicates).
+- [x] T028 [P] [US1] Integration test `apps/control-plane/tests/integration/accounts/test_free_workspace_deferred_retry.py`: simulate transient failure of `create_default_workspace` during verify-email; verify the user is still marked verified; the deferred-retry job picks up the gap within `SIGNUP_AUTO_CREATE_RETRY_SECONDS` and creates the workspace.
+- [x] T029 [P] [US1] Integration test `apps/control-plane/tests/integration/accounts/test_signup_oauth_default.py`: OAuth signup at default tenant skips the email-verification step (provider attests), still triggers the workspace auto-creation path.
+- [x] T030 [US1] E2E test `apps/control-plane/tests/e2e/suites/signup_default_only/test_signup_at_default.py`: full browser flow — load `app.localhost:8080/signup`, submit form, verify email via dev SMTP relay, assert redirect to `/onboarding`, assert workspace exists. Extends J19.
 
 ### Implementation for User Story 1
 
@@ -123,9 +123,9 @@ UPD-046 (`tenants` architecture, hostname middleware, opaque 404 helper, platfor
 
 ### Tests for User Story 2
 
-- [ ] T035 [P] [US2] Integration test `apps/control-plane/tests/integration/accounts/test_signup_at_enterprise_subdomain_404.py`: issue 50 candidate signup-adjacent requests at Enterprise subdomains AND at unknown subdomains; assert 100% return byte-identical 404 (body, headers minus per-request request-id) per SC-002.
-- [ ] T036 [P] [US2] Integration test `apps/control-plane/tests/integration/accounts/test_signup_gate_no_audit_or_special_log.py`: probe `/signup` at an Enterprise subdomain; assert no audit-chain entry; assert structlog has only the standard request line (no special "signup blocked" tag) per FR-009.
-- [ ] T037 [US2] E2E test `apps/control-plane/tests/e2e/suites/signup_default_only/test_signup_at_enterprise_404.py`: browser-level check that `acme.localhost:8080/signup` renders the canonical "Page not found" surface, byte-identical to a navigation to `bogus.localhost:8080/signup`.
+- [x] T035 [P] [US2] Integration test `apps/control-plane/tests/integration/accounts/test_signup_at_enterprise_subdomain_404.py`: issue 50 candidate signup-adjacent requests at Enterprise subdomains AND at unknown subdomains; assert 100% return byte-identical 404 (body, headers minus per-request request-id) per SC-002.
+- [x] T036 [P] [US2] Integration test `apps/control-plane/tests/integration/accounts/test_signup_gate_no_audit_or_special_log.py`: probe `/signup` at an Enterprise subdomain; assert no audit-chain entry; assert structlog has only the standard request line (no special "signup blocked" tag) per FR-009.
+- [x] T037 [US2] E2E test `apps/control-plane/tests/e2e/suites/signup_default_only/test_signup_at_enterprise_404.py`: browser-level check that `acme.localhost:8080/signup` renders the canonical "Page not found" surface, byte-identical to a navigation to `bogus.localhost:8080/signup`.
 
 ### Implementation for User Story 2
 
@@ -145,11 +145,11 @@ UPD-046 (`tenants` architecture, hostname middleware, opaque 404 helper, platfor
 
 ### Tests for User Story 3
 
-- [ ] T041 [P] [US3] Integration test `apps/control-plane/tests/integration/accounts/test_setup_token_lifecycle.py`: happy path validate-token; expired token returns 410; consumed token returns 410; superseded token (post-resend) returns 410 with the same opaque body as expired.
-- [ ] T042 [P] [US3] Integration test `apps/control-plane/tests/integration/accounts/test_setup_flow_mandatory_mfa.py`: automated probe — after completing `step/credentials`, attempt every subsequent step's endpoint without first verifying MFA; all return 403 `mfa_enrollment_required`. Verifies SC-004.
-- [ ] T043 [P] [US3] Integration test `apps/control-plane/tests/integration/accounts/test_setup_resend.py`: super admin resends; prior token immediately invalidated; new token works; both tokens record audit-chain entries.
-- [ ] T044 [P] [US3] Integration test `apps/control-plane/tests/integration/accounts/test_setup_step_persistence.py`: complete steps 1–3, simulate page reload, verify step state persists (`setup_step_state` JSONB) and resume position is correct.
-- [ ] T045 [US3] E2E test `apps/control-plane/tests/e2e/suites/signup_default_only/test_tenant_admin_setup.py`: full kind-cluster walk-through of all 6 setup steps including the `recovery_codes` acknowledgement.
+- [x] T041 [P] [US3] Integration test `apps/control-plane/tests/integration/accounts/test_setup_token_lifecycle.py`: happy path validate-token; expired token returns 410; consumed token returns 410; superseded token (post-resend) returns 410 with the same opaque body as expired.
+- [x] T042 [P] [US3] Integration test `apps/control-plane/tests/integration/accounts/test_setup_flow_mandatory_mfa.py`: automated probe — after completing `step/credentials`, attempt every subsequent step's endpoint without first verifying MFA; all return 403 `mfa_enrollment_required`. Verifies SC-004.
+- [x] T043 [P] [US3] Integration test `apps/control-plane/tests/integration/accounts/test_setup_resend.py`: super admin resends; prior token immediately invalidated; new token works; both tokens record audit-chain entries.
+- [x] T044 [P] [US3] Integration test `apps/control-plane/tests/integration/accounts/test_setup_step_persistence.py`: complete steps 1–3, simulate page reload, verify step state persists (`setup_step_state` JSONB) and resume position is correct.
+- [x] T045 [US3] E2E test `apps/control-plane/tests/e2e/suites/signup_default_only/test_tenant_admin_setup.py`: full kind-cluster walk-through of all 6 setup steps including the `recovery_codes` acknowledgement.
 
 ### Implementation for User Story 3 — Backend
 
@@ -183,10 +183,10 @@ UPD-046 (`tenants` architecture, hostname middleware, opaque 404 helper, platfor
 
 ### Tests for User Story 4
 
-- [ ] T060 [P] [US4] Integration test `apps/control-plane/tests/integration/accounts/test_cross_tenant_invitation.py`: full flow — create user in default; tenant admin in Acme creates invitation; user accepts at `acme.musematic.ai/accept-invite`; assert two `users` rows exist (one per tenant) with the same email but distinct identifiers; assert default-tenant credentials and MFA state untouched (SC-006).
-- [ ] T061 [P] [US4] Integration test `apps/control-plane/tests/integration/accounts/test_cross_tenant_session_isolation.py`: simulate Juan signed in at the default tenant; visit `acme.musematic.ai`; assert the default-tenant cookie is rejected at the Acme subdomain (FR-019).
-- [ ] T062 [P] [US4] Integration test `apps/control-plane/tests/integration/accounts/test_cross_tenant_oauth_per_tenant.py`: default tenant uses email/password; Acme uses OAuth-Google; the same user authenticates at each subdomain via the appropriate provider; both methods produce valid sessions in their respective tenants.
-- [ ] T063 [US4] E2E test `apps/control-plane/tests/e2e/suites/signup_default_only/test_cross_tenant_invitation.py`: full browser flow including session-isolation assertions.
+- [x] T060 [P] [US4] Integration test `apps/control-plane/tests/integration/accounts/test_cross_tenant_invitation.py`: full flow — create user in default; tenant admin in Acme creates invitation; user accepts at `acme.musematic.ai/accept-invite`; assert two `users` rows exist (one per tenant) with the same email but distinct identifiers; assert default-tenant credentials and MFA state untouched (SC-006).
+- [x] T061 [P] [US4] Integration test `apps/control-plane/tests/integration/accounts/test_cross_tenant_session_isolation.py`: simulate Juan signed in at the default tenant; visit `acme.musematic.ai`; assert the default-tenant cookie is rejected at the Acme subdomain (FR-019).
+- [x] T062 [P] [US4] Integration test `apps/control-plane/tests/integration/accounts/test_cross_tenant_oauth_per_tenant.py`: default tenant uses email/password; Acme uses OAuth-Google; the same user authenticates at each subdomain via the appropriate provider; both methods produce valid sessions in their respective tenants.
+- [x] T063 [US4] E2E test `apps/control-plane/tests/e2e/suites/signup_default_only/test_cross_tenant_invitation.py`: full browser flow including session-isolation assertions.
 
 ### Implementation for User Story 4
 
@@ -210,10 +210,10 @@ UPD-046 (`tenants` architecture, hostname middleware, opaque 404 helper, platfor
 
 ### Tests for User Story 5
 
-- [ ] T071 [P] [US5] Integration test `apps/control-plane/tests/integration/accounts/test_onboarding_dismiss_relaunch.py`: dismiss after step 2; reload; state preserved with `dismissed_at != null`; relaunch from `POST /api/v1/onboarding/relaunch`; resume position is at step 3 (first incomplete) per SC-007.
-- [ ] T072 [P] [US5] Integration test `apps/control-plane/tests/integration/accounts/test_onboarding_step_idempotency.py`: re-calling each step's endpoint with same payload does NOT create duplicate state.
-- [ ] T073 [P] [US5] Integration test `apps/control-plane/tests/integration/accounts/test_onboarding_first_agent_hidden_when_upd022_missing.py`: simulate UPD-022 absent (feature flag false); assert `first_agent_step_available=false` in `GET /api/v1/onboarding/state`; the wizard's step 3 is hidden.
-- [ ] T074 [US5] E2E test `apps/control-plane/tests/e2e/suites/signup_default_only/test_onboarding_wizard.py`: full browser walk-through of the 4-step wizard.
+- [x] T071 [P] [US5] Integration test `apps/control-plane/tests/integration/accounts/test_onboarding_dismiss_relaunch.py`: dismiss after step 2; reload; state preserved with `dismissed_at != null`; relaunch from `POST /api/v1/onboarding/relaunch`; resume position is at step 3 (first incomplete) per SC-007.
+- [x] T072 [P] [US5] Integration test `apps/control-plane/tests/integration/accounts/test_onboarding_step_idempotency.py`: re-calling each step's endpoint with same payload does NOT create duplicate state.
+- [x] T073 [P] [US5] Integration test `apps/control-plane/tests/integration/accounts/test_onboarding_first_agent_hidden_when_upd022_missing.py`: simulate UPD-022 absent (feature flag false); assert `first_agent_step_available=false` in `GET /api/v1/onboarding/state`; the wizard's step 3 is hidden.
+- [x] T074 [US5] E2E test `apps/control-plane/tests/e2e/suites/signup_default_only/test_onboarding_wizard.py`: full browser walk-through of the 4-step wizard.
 
 ### Implementation for User Story 5 — Backend
 
@@ -243,9 +243,9 @@ UPD-046 (`tenants` architecture, hostname middleware, opaque 404 helper, platfor
 
 ### Tests for User Story 6
 
-- [ ] T085 [P] [US6] Integration test `apps/control-plane/tests/integration/accounts/test_tenant_switcher_visibility.py`: user with 1 membership sees no switcher (`/api/v1/me/memberships` returns count=1; the frontend hides the component); user with 3 memberships sees all 3.
-- [ ] T086 [P] [US6] Browser test `apps/web/tests/e2e/tenant-switcher.spec.ts` (Playwright): renders the switcher; clicking a non-current tenant redirects to that tenant's login URL (verified via `page.url()`); no cookies cross the subdomain boundary (verified via `page.context().cookies()`).
-- [ ] T087 [US6] E2E test `apps/control-plane/tests/e2e/suites/signup_default_only/test_tenant_switcher.py` for the full kind-cluster validation including SC-005 (under 3 seconds click-to-redirect).
+- [x] T085 [P] [US6] Integration test `apps/control-plane/tests/integration/accounts/test_tenant_switcher_visibility.py`: user with 1 membership sees no switcher (`/api/v1/me/memberships` returns count=1; the frontend hides the component); user with 3 memberships sees all 3.
+- [x] T086 [P] [US6] Browser test `apps/web/tests/e2e/tenant-switcher.spec.ts` (Playwright): renders the switcher; clicking a non-current tenant redirects to that tenant's login URL (verified via `page.url()`); no cookies cross the subdomain boundary (verified via `page.context().cookies()`).
+- [x] T087 [US6] E2E test `apps/control-plane/tests/e2e/suites/signup_default_only/test_tenant_switcher.py` for the full kind-cluster validation including SC-005 (under 3 seconds click-to-redirect).
 
 ### Implementation for User Story 6
 
