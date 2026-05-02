@@ -1,6 +1,6 @@
 """Tenant first-admin setup invitations.
 
-Revision ID: 107_tenant_first_admin_invitations
+Revision ID: 107_tenant_first_admin_invites
 Revises: 106_user_onboarding_states
 Create Date: 2026-05-02
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "107_tenant_first_admin_invitations"
+revision: str = "107_tenant_first_admin_invites"
 down_revision: str | None = "106_user_onboarding_states"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None

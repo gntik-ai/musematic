@@ -28,6 +28,7 @@ def _redis_url(redis_client) -> str:
 def _build_settings(auth_settings, *, database_url: str, redis_client, **auth_updates):
     return auth_settings.model_copy(
         update={
+            "PLATFORM_DOMAIN": "testserver",
             "db": auth_settings.db.model_copy(update={"dsn": database_url}),
             "redis": auth_settings.redis.model_copy(
                 update={"url": _redis_url(redis_client), "test_mode": "standalone"}
@@ -129,8 +130,8 @@ def _patch_provider_factories(
 ) -> tuple[GoogleProviderStub, GitHubProviderStub]:
     google = google_provider or GoogleProviderStub()
     github = github_provider or GitHubProviderStub()
-    monkeypatch.setattr("platform.auth.dependencies_oauth.GoogleOAuthProvider", lambda: google)
-    monkeypatch.setattr("platform.auth.dependencies_oauth.GitHubOAuthProvider", lambda: github)
+    monkeypatch.setattr("platform.auth.dependencies_oauth.GoogleOAuthProvider", lambda **_: google)
+    monkeypatch.setattr("platform.auth.dependencies_oauth.GitHubOAuthProvider", lambda **_: github)
     return google, github
 
 
@@ -185,7 +186,9 @@ async def test_google_new_user_provision_flow(
     payload = decode_fragment_payload(callback.headers["location"])
     assert authorize.status_code == 200
     assert callback.status_code == 302
-    assert callback.headers["location"].startswith("https://app.example.com/login#oauth_session=")
+    assert callback.headers["location"].startswith(
+        "https://app.example.com/auth/oauth/google/callback#oauth_session="
+    )
     assert "session=" in callback.headers.get("set-cookie", "")
     assert payload["user"]["email"] == "testuser@gmail.com"
     assert google_provider.exchanged_codes[-1]["code"] == "google-code"
@@ -421,9 +424,13 @@ async def test_callback_rejects_expired_or_tampered_state(
             )
 
     assert expired.status_code == 302
-    assert expired.headers["location"] == "https://app.example.com/login?error=oauth_state_expired"
+    assert expired.headers["location"] == (
+        "https://app.example.com/auth/oauth/google/callback?error=oauth_state_expired"
+    )
     assert tampered.status_code == 302
-    assert tampered.headers["location"] == "https://app.example.com/login?error=oauth_state_invalid"
+    assert tampered.headers["location"] == (
+        "https://app.example.com/auth/oauth/google/callback?error=oauth_state_invalid"
+    )
 
     async with session_factory() as session:
         failures = (
@@ -507,7 +514,7 @@ async def test_callback_rejects_provider_disabled_mid_flow_and_duplicate_email(
     assert disabled.status_code == 302
     assert (
         disabled.headers["location"]
-        == "https://app.example.com/login?error=oauth_provider_disabled"
+        == "https://app.example.com/auth/oauth/google/callback?error=oauth_provider_disabled"
     )
     assert remaining_state is None
 
@@ -532,7 +539,9 @@ async def test_callback_rejects_provider_disabled_mid_flow_and_duplicate_email(
             )
 
     assert conflict.status_code == 302
-    assert conflict.headers["location"] == "https://app.example.com/login?error=oauth_link_conflict"
+    assert conflict.headers["location"] == (
+        "https://app.example.com/auth/oauth/google/callback?error=oauth_link_conflict"
+    )
 
     async with session_factory() as session:
         link_count = await session.scalar(select(func.count()).select_from(OAuthLink))

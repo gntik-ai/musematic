@@ -30,6 +30,7 @@ def _redis_url(redis_client) -> str:
 def _build_settings(auth_settings, *, database_url: str, redis_client, **auth_updates):
     return auth_settings.model_copy(
         update={
+            "PLATFORM_DOMAIN": "testserver",
             "db": auth_settings.db.model_copy(update={"dsn": database_url}),
             "redis": auth_settings.redis.model_copy(
                 update={"url": _redis_url(redis_client), "test_mode": "standalone"}
@@ -151,8 +152,8 @@ def _patch_provider_factories(
 ) -> tuple[GoogleProviderStub, GitHubProviderStub]:
     google = google_provider or GoogleProviderStub()
     github = github_provider or GitHubProviderStub()
-    monkeypatch.setattr("platform.auth.dependencies_oauth.GoogleOAuthProvider", lambda: google)
-    monkeypatch.setattr("platform.auth.dependencies_oauth.GitHubOAuthProvider", lambda: github)
+    monkeypatch.setattr("platform.auth.dependencies_oauth.GoogleOAuthProvider", lambda **_: google)
+    monkeypatch.setattr("platform.auth.dependencies_oauth.GitHubOAuthProvider", lambda **_: github)
     return google, github
 
 
@@ -253,7 +254,7 @@ async def test_quickstart_account_linking_and_unlink_flow(
     assert local_login.status_code == 200
     assert post_unlink_sign_in.status_code == 302
     assert post_unlink_sign_in.headers["location"] == (
-        "https://app.example.com/login?error=oauth_link_conflict"
+        "https://app.example.com/auth/oauth/google/callback?error=oauth_link_conflict"
     )
 
     async with session_factory() as session:
@@ -333,7 +334,9 @@ async def test_quickstart_google_domain_restriction_rejection(
             )
 
     assert callback.status_code == 302
-    assert callback.headers["location"] == "https://app.example.com/login?error=domain_not_allowed"
+    assert callback.headers["location"] == (
+        "https://app.example.com/auth/oauth/google/callback?error=domain_not_allowed"
+    )
 
     async with session_factory() as session:
         user_count = await session.scalar(
@@ -476,7 +479,9 @@ async def test_quickstart_github_org_restriction_rejection(
             )
 
     assert callback.status_code == 302
-    assert callback.headers["location"] == "https://app.example.com/login?error=org_not_allowed"
+    assert callback.headers["location"] == (
+        "https://app.example.com/auth/oauth/github/callback?error=org_not_allowed"
+    )
 
     async with session_factory() as session:
         user_count = await session.scalar(

@@ -917,34 +917,36 @@ class OAuthService:
             tenant_slug=tenant.slug if tenant is not None else "default",
             tenant_kind=tenant.kind if tenant is not None else "default",
         )
-        try:
-            subscription_service = SubscriptionService(
-                session=self.accounts_repository.session,
-                subscriptions=SubscriptionsRepository(self.accounts_repository.session),
-                plans=PlansRepository(self.accounts_repository.session),
-                producer=self.producer,
-            )
-            workspace = await WorkspacesService(
-                repo=WorkspacesRepository(self.accounts_repository.session),
-                settings=self.settings,
-                kafka_producer=self.producer,
-                subscription_service=subscription_service,
-            ).create_default_workspace(
-                user_id,
-                display_name,
-                correlation_ctx=correlation,
-            )
-            workspace_id = workspace.id
-            subscription = await subscription_service.provision_for_default_workspace(
-                workspace.id,
-                created_by_user_id=user_id,
-            )
-            subscription_id = subscription.id
-        except Exception as exc:
-            LOGGER.warning(
-                "Default workspace provisioning deferred after OAuth signup",
-                extra={"user_id": str(user_id), "error": str(exc)},
-            )
+        session = getattr(self.accounts_repository, "session", None)
+        if session is not None:
+            try:
+                subscription_service = SubscriptionService(
+                    session=session,
+                    subscriptions=SubscriptionsRepository(session),
+                    plans=PlansRepository(session),
+                    producer=self.producer,
+                )
+                workspace = await WorkspacesService(
+                    repo=WorkspacesRepository(session),
+                    settings=self.settings,
+                    kafka_producer=self.producer,
+                    subscription_service=subscription_service,
+                ).create_default_workspace(
+                    user_id,
+                    display_name,
+                    correlation_ctx=correlation,
+                )
+                workspace_id = workspace.id
+                subscription = await subscription_service.provision_for_default_workspace(
+                    workspace.id,
+                    created_by_user_id=user_id,
+                )
+                subscription_id = subscription.id
+            except Exception as exc:
+                LOGGER.warning(
+                    "Default workspace provisioning deferred after OAuth signup",
+                    extra={"user_id": str(user_id), "error": str(exc)},
+                )
 
         await publish_accounts_event(
             self.producer,
@@ -965,19 +967,20 @@ class OAuthService:
             "subscription_id": str(subscription_id) if subscription_id else None,
             "signup_method": f"oauth-{provider_type}",
         }
-        await AuditChainService(
-            AuditChainRepository(self.accounts_repository.session),
-            self.settings,
-            producer=self.producer,
-        ).append(
-            uuid4(),
-            "accounts",
-            json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8"),
-            event_type=AccountsEventType.signup_completed.value,
-            actor_role="user",
-            canonical_payload_json=payload,
-            tenant_id=tenant_id,
-        )
+        if session is not None:
+            await AuditChainService(
+                AuditChainRepository(session),
+                self.settings,
+                producer=self.producer,
+            ).append(
+                uuid4(),
+                "accounts",
+                json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8"),
+                event_type=AccountsEventType.signup_completed.value,
+                actor_role="user",
+                canonical_payload_json=payload,
+                tenant_id=tenant_id,
+            )
 
     async def _resolve_identity(
         self,

@@ -277,7 +277,7 @@ UPD-046 (`tenants` architecture, hostname middleware, opaque 404 helper, platfor
 ### Regression coverage
 
 - [x] T095 Extend the J19 New User Signup journey at `tests/e2e/journeys/j19_new_user_signup.py` (UPD-037 file) with explicit default-tenant assertions: the signup form renders ONLY when `useTenantContext().kind == 'default'`; the workspace auto-creation step exists post-verification; the onboarding wizard launches.
-- [ ] T096 Run the existing UPD-037 test suite against the post-UPD-048 code to confirm no regressions in anti-enumeration neutrality, OAuth signup, or password rules.
+- [x] T096 Run the existing UPD-037 test suite against the post-UPD-048 code to confirm no regressions in anti-enumeration neutrality, OAuth signup, or password rules.
 
 ### Localization
 

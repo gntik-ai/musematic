@@ -316,3 +316,5 @@ ERROR: failed to create cluster: could not find a log line that matches "Reached
 ```
 
 Re-run this quickstart after the kind node bootstrap issue is resolved.
+
+Revalidated on 2026-05-02 during `/speckit.implement` with the same command and the same `kind create cluster` failure, still before any platform charts or UPD-048 quickstart steps could run.
