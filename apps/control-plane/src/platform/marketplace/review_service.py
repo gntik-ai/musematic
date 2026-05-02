@@ -238,6 +238,18 @@ class MarketplaceAdminService:
             (datetime.now(tz=UTC) - row["updated_at"]).total_seconds(),
         )
         marketplace_review_age_seconds.labels(decision="approved").observe(age_seconds)
+        LOGGER.info(
+            "marketplace.review.approved",
+            extra={
+                "agent_id": str(agent_id),
+                "agent_fqn": row["fqn"],
+                "marketplace_scope": row["marketplace_scope"],
+                "review_status": "published",
+                "actor_user_id": str(reviewer_id),
+                "tenant_id": str(row["tenant_id"]),
+                "review_age_seconds": age_seconds,
+            },
+        )
         correlation = CorrelationContext(
             correlation_id=uuid4(),
             tenant_id=row["tenant_id"],
@@ -331,6 +343,18 @@ class MarketplaceAdminService:
             (datetime.now(tz=UTC) - row["updated_at"]).total_seconds(),
         )
         marketplace_review_age_seconds.labels(decision="rejected").observe(age_seconds)
+        LOGGER.info(
+            "marketplace.review.rejected",
+            extra={
+                "agent_id": str(agent_id),
+                "agent_fqn": row["fqn"],
+                "review_status": "rejected",
+                "actor_user_id": str(reviewer_id),
+                "tenant_id": str(row["tenant_id"]),
+                "submitter_user_id": str(row["created_by"]),
+                "review_age_seconds": age_seconds,
+            },
+        )
         correlation = CorrelationContext(
             correlation_id=uuid4(),
             tenant_id=row["tenant_id"],

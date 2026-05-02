@@ -16,6 +16,7 @@ from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import BucketNotFoundError, ObjectStorageError, ValidationError
+from platform.common.logging import get_logger
 from platform.common.tagging.filter_extension import TagLabelFilterParams
 from platform.common.tagging.listing import resolve_filtered_entity_ids
 from platform.common.tenant_context import get_current_tenant
@@ -105,6 +106,7 @@ import httpx
 from sqlalchemy.exc import IntegrityError
 
 _WILDCARD_PATTERN = re.compile(r"^[A-Za-z0-9:_*.-]+$")
+LOGGER = get_logger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -876,6 +878,18 @@ class RegistryService:
             marketplace_submissions_total.labels(
                 category=request.marketing_metadata.category
             ).inc()
+            LOGGER.info(
+                "marketplace.public_submission",
+                extra={
+                    "agent_id": str(profile.id),
+                    "agent_fqn": profile.fqn,
+                    "marketplace_scope": target_scope,
+                    "review_status": "pending_review",
+                    "actor_user_id": str(actor_id),
+                    "tenant_id": str(profile.tenant_id),
+                    "category": request.marketing_metadata.category,
+                },
+            )
             if previous_scope != target_scope:
                 await publish_marketplace_event(
                     self.event_producer,
@@ -1133,6 +1147,19 @@ class RegistryService:
             self._correlation(target_workspace_id, fork.fqn),
         )
         marketplace_forks_total.labels(target_scope=request.target_scope).inc()
+        LOGGER.info(
+            "marketplace.forked",
+            extra={
+                "source_agent_id": str(source.id),
+                "source_fqn": source.fqn,
+                "fork_agent_id": str(fork.id),
+                "fork_fqn": fork.fqn,
+                "target_scope": request.target_scope,
+                "actor_user_id": str(actor_id),
+                "consumer_tenant_id": str(get_current_tenant().id),
+                "tool_dependencies_missing_count": len(tool_dependencies_missing),
+            },
+        )
         return ForkAgentResponse(
             agent_id=fork.id,
             fqn=fork.fqn,
