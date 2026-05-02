@@ -20,6 +20,7 @@ from platform.tenants.events import (
     TenantDeletedPayload,
     TenantDeletionCancelledPayload,
     TenantEventType,
+    TenantFeatureFlagChangedPayload,
     TenantReactivatedPayload,
     TenantScheduledForDeletionPayload,
     TenantSuspendedPayload,
@@ -28,6 +29,8 @@ from platform.tenants.events import (
 from platform.tenants.exceptions import (
     DefaultTenantImmutableError,
     DPAMissingError,
+    FeatureFlagInvalidForTenantKindError,
+    FeatureFlagNotInAllowlistError,
     RegionInvalidError,
     ReservedSlugError,
     SlugInvalidError,
@@ -40,7 +43,7 @@ from platform.tenants.reserved_slugs import RESERVED_SLUGS
 from platform.tenants.resolver import TENANT_INVALIDATION_CHANNEL
 from platform.tenants.schemas import SLUG_RE, TenantCreate, TenantScheduleDeletion, TenantUpdate
 from platform.two_person_approval.service import TwoPersonApprovalError, TwoPersonApprovalService
-from typing import Any, Protocol, cast
+from typing import Any, ClassVar, Protocol, cast
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
@@ -197,9 +200,47 @@ class TenantsService:
         if request.contract_metadata is not None:
             values["contract_metadata_json"] = dict(request.contract_metadata)
             changed_fields.append("contract_metadata")
+        # UPD-049: allowlisted flags route through set_feature_flag for the
+        # full audit + Kafka + cache treatment. Non-allowlisted flags keep
+        # the legacy "set whole dict" semantics for backward compatibility
+        # (existing tenants may carry custom flags that pre-date the
+        # allowlist).
+        flag_changes_to_apply: dict[str, bool] = {}
         if request.feature_flags is not None:
-            values["feature_flags_json"] = dict(request.feature_flags)
-            changed_fields.append("feature_flags")
+            existing_flags = dict(tenant.feature_flags_json or {})
+            merged_flags = dict(existing_flags)
+            for flag_name, new_value in request.feature_flags.items():
+                if flag_name in self._FEATURE_FLAG_ALLOWLIST:
+                    bool_value = bool(new_value)
+                    existing_value = bool(existing_flags.get(flag_name, False))
+                    if bool_value != existing_value:
+                        flag_changes_to_apply[flag_name] = bool_value
+                else:
+                    merged_flags[flag_name] = new_value
+            if merged_flags != existing_flags or flag_changes_to_apply:
+                changed_fields.append("feature_flags")
+            non_allowlisted = {
+                k: v
+                for k, v in merged_flags.items()
+                if k not in self._FEATURE_FLAG_ALLOWLIST
+            }
+            existing_non_allowlisted = {
+                k: v
+                for k, v in existing_flags.items()
+                if k not in self._FEATURE_FLAG_ALLOWLIST
+            }
+            if non_allowlisted != existing_non_allowlisted:
+                # Preserve any allowlisted-flag values from the existing dict
+                # so the bulk write doesn't accidentally clobber them.
+                preserved_allowlisted = {
+                    k: v
+                    for k, v in existing_flags.items()
+                    if k in self._FEATURE_FLAG_ALLOWLIST
+                }
+                values["feature_flags_json"] = {
+                    **preserved_allowlisted,
+                    **non_allowlisted,
+                }
         if values:
             await self.repository.update(tenant, **values)
         await self.session.commit()
@@ -217,6 +258,83 @@ class TenantsService:
                 ),
                 correlation_ctx=CorrelationContext(correlation_id=uuid4()),
             )
+        # UPD-049: apply per-flag changes through set_feature_flag so each
+        # one is fully validated/audited/published. set_feature_flag handles
+        # its own commit + cache invalidation + audit-chain entry per call.
+        for flag_name, flag_value in flag_changes_to_apply.items():
+            await self.set_feature_flag(actor, tenant.id, flag_name, flag_value)
+        return tenant
+
+    # --- UPD-049 per-tenant feature-flag setter ---------------------------
+    # Allowlist of flags this method is permitted to mutate. Each flag's
+    # entry says which tenant kinds the flag may be set on. Adding a flag
+    # here is a deliberate code change so the surface stays auditable.
+    _FEATURE_FLAG_ALLOWLIST: ClassVar[dict[str, frozenset[str]]] = {
+        "consume_public_marketplace": frozenset({"enterprise"}),
+    }
+
+    async def set_feature_flag(
+        self,
+        actor: dict[str, Any],
+        tenant_id: UUID,
+        flag_name: str,
+        value: bool,
+    ) -> Tenant:
+        """UPD-049 — toggle a per-tenant feature flag with full audit + event.
+
+        Validates the flag against the allowlist and the tenant kind, persists
+        the new value, records a hash-linked audit-chain entry, publishes a
+        ``tenants.feature_flag_changed`` Kafka event, and invalidates the
+        tenant resolver cache so the next request re-reads fresh state.
+        """
+        if flag_name not in self._FEATURE_FLAG_ALLOWLIST:
+            raise FeatureFlagNotInAllowlistError(flag_name)
+        tenant = await self.repository.get_by_id(tenant_id)
+        if tenant is None:
+            raise TenantNotFoundError()
+        allowed_kinds = self._FEATURE_FLAG_ALLOWLIST[flag_name]
+        if tenant.kind not in allowed_kinds:
+            raise FeatureFlagInvalidForTenantKindError(flag_name, tenant.kind)
+
+        flags = dict(tenant.feature_flags_json or {})
+        from_value = bool(flags.get(flag_name, False))
+        if from_value == value:
+            # No-op: idempotent return without writing an audit entry or event.
+            return tenant
+        flags[flag_name] = value
+        await self.repository.update(tenant, feature_flags_json=flags)
+        await self._append_lifecycle_audit(
+            actor,
+            tenant,
+            TenantEventType.feature_flag_changed.value,
+            {
+                "flag_name": flag_name,
+                "from_value": from_value,
+                "to_value": value,
+            },
+        )
+        await self.session.commit()
+        await self._publish_cache_invalidation(tenant)
+        actor_id = _actor_id(actor)
+        await publish_tenant_event(
+            producer=self.producer,
+            event_type=TenantEventType.feature_flag_changed,
+            payload=TenantFeatureFlagChangedPayload(
+                tenant_id=tenant.id,
+                flag_name=flag_name,
+                from_value=from_value,
+                to_value=value,
+                super_admin_user_id=cast(UUID, actor_id),
+            ),
+            correlation_ctx=CorrelationContext(correlation_id=uuid4()),
+        )
+        _log_tenant_event(
+            "tenant_feature_flag_changed",
+            tenant,
+            flag_name=flag_name,
+            from_value=from_value,
+            to_value=value,
+        )
         return tenant
 
     async def suspend_tenant(self, actor: dict[str, Any], tenant_id: UUID, reason: str) -> Tenant:

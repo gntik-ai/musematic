@@ -16,6 +16,7 @@ from platform.auth.admin_router import router as auth_admin_router
 from platform.connectors.admin_router import router as connectors_admin_router
 from platform.cost_governance.admin_router import router as cost_governance_admin_router
 from platform.incident_response.admin_router import router as incident_response_admin_router
+from platform.marketplace.admin_router import router as marketplace_review_admin_router
 from platform.model_catalog.admin_router import router as model_catalog_admin_router
 from platform.multi_region_ops.admin_router import router as multi_region_ops_admin_router
 from platform.notifications.admin_router import router as notifications_admin_router
@@ -50,6 +51,7 @@ admin_router.include_router(health_router)
 admin_router.include_router(impersonation_router)
 admin_router.include_router(incident_response_admin_router)
 admin_router.include_router(lifecycle_router)
+admin_router.include_router(marketplace_review_admin_router)
 admin_router.include_router(model_catalog_admin_router)
 admin_router.include_router(multi_region_ops_admin_router)
 admin_router.include_router(notifications_admin_router)

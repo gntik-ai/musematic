@@ -5,6 +5,8 @@ import re
 import shutil
 from collections.abc import Coroutine
 from dataclasses import dataclass
+from datetime import UTC, datetime
+from hashlib import sha256
 from platform.billing.quotas.http import raise_for_quota_result
 from platform.common import database
 from platform.common.clients.object_storage import AsyncObjectStorageClient
@@ -14,8 +16,14 @@ from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import BucketNotFoundError, ObjectStorageError, ValidationError
+from platform.common.logging import get_logger
 from platform.common.tagging.filter_extension import TagLabelFilterParams
 from platform.common.tagging.listing import resolve_filtered_entity_ids
+from platform.common.tenant_context import get_current_tenant
+from platform.marketplace.metrics import (
+    marketplace_forks_total,
+    marketplace_submissions_total,
+)
 from platform.model_catalog.models import ModelCatalogEntry
 from platform.model_catalog.repository import ModelCatalogRepository
 from platform.privacy_compliance.services.pia_service import DATA_CATEGORIES_REQUIRING_PIA
@@ -24,21 +32,33 @@ from platform.registry.events import (
     AgentDecommissionedPayload,
     AgentDeprecatedPayload,
     AgentPublishedPayload,
+    MarketplaceDeprecatedPayload,
+    MarketplaceEventType,
+    MarketplaceForkedPayload,
+    MarketplacePublishedPayload,
+    MarketplaceScopeChangedPayload,
+    MarketplaceSubmittedPayload,
     publish_agent_created,
     publish_agent_decommissioned,
     publish_agent_deprecated,
     publish_agent_published,
+    publish_marketplace_event,
 )
 from platform.registry.exceptions import (
     AgentNotFoundError,
     FQNConflictError,
     InvalidTransitionError,
     InvalidVisibilityPatternError,
+    MarketingMetadataRequiredError,
     NamespaceConflictError,
     NamespaceNotFoundError,
+    NameTakenInTargetNamespaceError,
+    PublicScopeNotAllowedForEnterpriseError,
     RegistryError,
     RegistryStoreUnavailableError,
     RevisionConflictError,
+    SourceAgentNotVisibleError,
+    SubmissionAlreadyResolvedError,
     WorkspaceAuthorizationError,
 )
 from platform.registry.models import (
@@ -60,17 +80,23 @@ from platform.registry.schemas import (
     AgentProfileResponse,
     AgentRevisionResponse,
     AgentUploadResponse,
+    DeprecateListingRequest,
+    ForkAgentRequest,
+    ForkAgentResponse,
     LifecycleAuditListResponse,
     LifecycleAuditResponse,
     LifecycleTransitionRequest,
+    MarketplaceScopeChangeRequest,
     MaturityUpdateRequest,
     NamespaceCreate,
     NamespaceListResponse,
     NamespaceResponse,
+    PublishWithScopeRequest,
 )
 from platform.registry.state_machine import (
     EVENT_TRANSITIONS,
     get_valid_transitions,
+    is_valid_review_transition,
     is_valid_transition,
 )
 from typing import Any
@@ -80,6 +106,7 @@ import httpx
 from sqlalchemy.exc import IntegrityError
 
 _WILDCARD_PATTERN = re.compile(r"^[A-Za-z0-9:_*.-]+$")
+LOGGER = get_logger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -112,6 +139,11 @@ def build_search_document(
         "created_at": profile.created_at.isoformat(),
         "current_revision_id": str(revision.id) if revision is not None else None,
         "current_version": revision.version if revision is not None else None,
+        # UPD-049: include scope and review status in the search document
+        # so the marketplace UI can render scope-aware labels and so the
+        # platform-staff review-queue API can find pending rows quickly.
+        "marketplace_scope": getattr(profile, "marketplace_scope", "workspace"),
+        "review_status": getattr(profile, "review_status", "draft"),
     }
 
 
@@ -127,6 +159,16 @@ def compile_fqn_pattern(pattern: str) -> re.Pattern[str]:
 
 def fqn_matches(pattern: str, fqn: str) -> bool:
     return compile_fqn_pattern(pattern).fullmatch(fqn) is not None
+
+
+def _marketing_description_hash(description: str) -> str:
+    """SHA-256 of the marketing description, prefixed ``sha256-`` per the
+    Kafka envelope contract (see contracts/marketplace-events-kafka.md).
+
+    Used in the ``marketplace.submitted`` event payload to prove
+    description integrity without putting the full text on the bus.
+    """
+    return "sha256-" + sha256(description.encode("utf-8")).hexdigest()
 
 
 def filter_profiles_by_patterns(
@@ -755,6 +797,393 @@ class RegistryService:
                     correlation,
                 )
         return await self._build_profile_response(profile)
+
+    # ---------------------------------------------------------------------
+    # UPD-049 — public-marketplace publish, scope change, deprecate listing.
+    # The legacy /transition path stays compatible (rule 7); the new methods
+    # below are called by the new /publish, /marketplace-scope, and
+    # /deprecate-listing endpoints.
+    # ---------------------------------------------------------------------
+
+    async def publish_with_scope(
+        self,
+        workspace_id: UUID,
+        agent_id: UUID,
+        request: PublishWithScopeRequest,
+        actor_id: UUID,
+        rate_limiter: Any | None = None,
+    ) -> AgentProfileResponse:
+        """Publish an agent at the chosen marketplace scope.
+
+        For ``workspace`` / ``tenant`` scope: transitions ``review_status``
+        to ``published`` directly and emits ``marketplace.published``.
+
+        For ``public_default_tenant`` scope: enforces the three-layer
+        Enterprise refusal (FR-010/011/012) — service-layer guard runs
+        BEFORE consuming a rate-limit token or writing audit/Kafka so
+        a refusal does not consume budget. On success, transitions
+        ``review_status`` to ``pending_review`` and emits
+        ``marketplace.submitted``.
+        """
+        await self._assert_workspace_access(workspace_id, actor_id)
+        profile = await self._get_agent_or_raise(workspace_id, agent_id)
+        target_scope = request.scope
+        previous_scope = profile.marketplace_scope
+        previous_review_status = profile.review_status
+
+        if target_scope == "public_default_tenant":
+            tenant = get_current_tenant()
+            if tenant.kind != "default":
+                # FR-011 — service-layer leg of three-layer refusal. Raises
+                # before any side effects so we don't consume a rate-limit
+                # token or write an audit entry for a refused submission.
+                raise PublicScopeNotAllowedForEnterpriseError(tenant.slug)
+            if request.marketing_metadata is None:
+                # Defensive — the Pydantic validator already enforces this,
+                # but the service guard makes the contract testable
+                # without going through HTTP.
+                raise MarketingMetadataRequiredError()
+            if rate_limiter is not None:
+                await rate_limiter.check_and_record(actor_id)
+
+            profile.marketplace_scope = target_scope
+            profile.review_status = "pending_review"
+            await self.repository.insert_lifecycle_audit(
+                workspace_id=workspace_id,
+                agent_profile_id=profile.id,
+                previous_status=profile.status,
+                new_status=profile.status,  # lifecycle status unchanged here
+                actor_id=actor_id,
+                reason=(
+                    f"marketplace_submit: scope={previous_scope}->{target_scope} "
+                    f"review_status={previous_review_status}->pending_review"
+                ),
+            )
+            await self._commit()
+            await self._index_or_flag(profile.id)
+            await publish_marketplace_event(
+                self.event_producer,
+                MarketplaceEventType.submitted,
+                MarketplaceSubmittedPayload(
+                    agent_id=str(profile.id),
+                    submitter_user_id=str(actor_id),
+                    category=request.marketing_metadata.category,
+                    tags=list(request.marketing_metadata.tags),
+                    marketing_description_hash=_marketing_description_hash(
+                        request.marketing_metadata.marketing_description
+                    ),
+                ),
+                self._correlation(workspace_id, profile.fqn),
+            )
+            marketplace_submissions_total.labels(
+                category=request.marketing_metadata.category
+            ).inc()
+            LOGGER.info(
+                "marketplace.public_submission",
+                extra={
+                    "agent_id": str(profile.id),
+                    "agent_fqn": profile.fqn,
+                    "marketplace_scope": target_scope,
+                    "review_status": "pending_review",
+                    "actor_user_id": str(actor_id),
+                    "tenant_id": str(profile.tenant_id),
+                    "category": request.marketing_metadata.category,
+                },
+            )
+            if previous_scope != target_scope:
+                await publish_marketplace_event(
+                    self.event_producer,
+                    MarketplaceEventType.scope_changed,
+                    MarketplaceScopeChangedPayload(
+                        agent_id=str(profile.id),
+                        from_scope=previous_scope,
+                        to_scope=target_scope,
+                        actor_user_id=str(actor_id),
+                    ),
+                    self._correlation(workspace_id, profile.fqn),
+                )
+            return await self._build_profile_response(profile)
+
+        # workspace / tenant scope: direct publish, no review.
+        profile.marketplace_scope = target_scope
+        profile.review_status = "published"
+        # Keep the lifecycle status path symmetric with /transition for
+        # backward compatibility — if the agent isn't already published in
+        # the lifecycle sense, advance it.
+        if profile.status is LifecycleStatus.validated:
+            profile.status = LifecycleStatus.published
+        await self.repository.insert_lifecycle_audit(
+            workspace_id=workspace_id,
+            agent_profile_id=profile.id,
+            previous_status=profile.status,
+            new_status=profile.status,
+            actor_id=actor_id,
+            reason=(
+                f"marketplace_publish: scope={previous_scope}->{target_scope} "
+                f"review_status={previous_review_status}->published"
+            ),
+        )
+        await self._commit()
+        await self._index_or_flag(profile.id)
+        published_at = datetime.now(tz=UTC).isoformat()
+        await publish_marketplace_event(
+            self.event_producer,
+            MarketplaceEventType.published,
+            MarketplacePublishedPayload(
+                agent_id=str(profile.id),
+                published_at=published_at,
+            ),
+            self._correlation(workspace_id, profile.fqn),
+        )
+        if previous_scope != target_scope:
+            await publish_marketplace_event(
+                self.event_producer,
+                MarketplaceEventType.scope_changed,
+                MarketplaceScopeChangedPayload(
+                    agent_id=str(profile.id),
+                    from_scope=previous_scope,
+                    to_scope=target_scope,
+                    actor_user_id=str(actor_id),
+                ),
+                self._correlation(workspace_id, profile.fqn),
+            )
+        return await self._build_profile_response(profile)
+
+    async def change_marketplace_scope(
+        self,
+        workspace_id: UUID,
+        agent_id: UUID,
+        request: MarketplaceScopeChangeRequest,
+        actor_id: UUID,
+    ) -> AgentProfileResponse:
+        """Change marketplace scope without publishing (UPD-049 FR /
+        contracts/publish-and-review-rest.md)."""
+        await self._assert_workspace_access(workspace_id, actor_id)
+        profile = await self._get_agent_or_raise(workspace_id, agent_id)
+        target_scope = request.scope
+        if target_scope == profile.marketplace_scope:
+            return await self._build_profile_response(profile)
+        if target_scope == "public_default_tenant":
+            tenant = get_current_tenant()
+            if tenant.kind != "default":
+                raise PublicScopeNotAllowedForEnterpriseError(tenant.slug)
+        previous_scope = profile.marketplace_scope
+        profile.marketplace_scope = target_scope
+        await self._commit()
+        await self._index_or_flag(profile.id)
+        await publish_marketplace_event(
+            self.event_producer,
+            MarketplaceEventType.scope_changed,
+            MarketplaceScopeChangedPayload(
+                agent_id=str(profile.id),
+                from_scope=previous_scope,
+                to_scope=target_scope,
+                actor_user_id=str(actor_id),
+            ),
+            self._correlation(workspace_id, profile.fqn),
+        )
+        return await self._build_profile_response(profile)
+
+    async def deprecate_listing(
+        self,
+        workspace_id: UUID,
+        agent_id: UUID,
+        request: DeprecateListingRequest,
+        actor_id: UUID,
+    ) -> AgentProfileResponse:
+        """Mark a published listing as deprecated (UPD-049). The listing
+        disappears from public marketplace search; existing forks remain
+        visible."""
+        await self._assert_workspace_access(workspace_id, actor_id)
+        profile = await self._get_agent_or_raise(workspace_id, agent_id)
+        if not is_valid_review_transition(profile.review_status, "deprecated"):
+            raise SubmissionAlreadyResolvedError(profile.id, profile.review_status)
+        previous_review_status = profile.review_status
+        profile.review_status = "deprecated"
+        await self.repository.insert_lifecycle_audit(
+            workspace_id=workspace_id,
+            agent_profile_id=profile.id,
+            previous_status=profile.status,
+            new_status=profile.status,
+            actor_id=actor_id,
+            reason=(
+                f"marketplace_deprecate: review_status="
+                f"{previous_review_status}->deprecated; reason={request.reason!r}"
+            ),
+        )
+        await self._commit()
+        await self._index_or_flag(profile.id)
+        await publish_marketplace_event(
+            self.event_producer,
+            MarketplaceEventType.deprecated,
+            MarketplaceDeprecatedPayload(
+                agent_id=str(profile.id),
+                actor_user_id=str(actor_id),
+                deprecation_reason=request.reason,
+            ),
+            self._correlation(workspace_id, profile.fqn),
+        )
+        return await self._build_profile_response(profile)
+
+    async def fork_agent(
+        self,
+        source_id: UUID,
+        request: ForkAgentRequest,
+        actor_id: UUID,
+    ) -> ForkAgentResponse:
+        """UPD-049 — fork a visible agent into the consumer's tenant/workspace.
+
+        Per research R7 and contracts/fork-rest.md:
+
+        - Verifies source visibility via the regular RLS-filtered session;
+          raises ``SourceAgentNotVisibleError`` (404) if not found.
+        - Verifies the consumer's target workspace authorization.
+        - Shallow-copies the source's operational fields (purpose, approach,
+          role types, tags, mcp servers, data categories, default model
+          binding); resets review fields; sets ``forked_from_agent_id``.
+        - Surfaces tools the consumer's tenant doesn't have registered yet
+          via the response's ``tool_dependencies_missing`` array.
+        - Records audit-chain entry; publishes ``marketplace.forked``.
+        """
+        # Source visibility — RLS handles cross-tenant cuts. We use the
+        # cross-workspace lookup helper because forks are intentionally
+        # cross-workspace in the consumer's tenant (or cross-tenant via
+        # the consume flag).
+        source = await self._lookup_source_for_fork(source_id)
+        if source is None:
+            raise SourceAgentNotVisibleError(source_id)
+
+        # Resolve target workspace.
+        target_workspace_id = request.target_workspace_id
+        if request.target_scope == "tenant":
+            # For tenant scope we use the consumer's currently-active workspace
+            # as the home; the agent will then be visible across all
+            # workspaces in the tenant per the workspace-scope vs tenant-scope
+            # distinction. The caller MUST have provided target_workspace_id
+            # when target_scope == "workspace"; for tenant scope we fall back
+            # to the request's target_workspace_id if provided, else require it.
+            if target_workspace_id is None:
+                # Pick the first workspace the actor can write to in this
+                # tenant. This keeps the API ergonomic (consumer just says
+                # "fork into my tenant" and the system picks a workspace).
+                workspace_ids = await self.workspaces_service.get_user_workspace_ids(actor_id) \
+                    if self.workspaces_service is not None else []
+                if not workspace_ids:
+                    raise WorkspaceAuthorizationError(uuid4())
+                target_workspace_id = workspace_ids[0]
+        assert target_workspace_id is not None
+        await self._assert_workspace_access(target_workspace_id, actor_id)
+
+        # Resolve target namespace — reuse the source's namespace name in the
+        # consumer's tenant if it exists; otherwise fall back to a default
+        # "forks" namespace.
+        source_namespace_name = source.fqn.split(":", 1)[0] if ":" in source.fqn else "forks"
+        namespace = await self.repository.get_namespace_by_name(
+            target_workspace_id, source_namespace_name
+        )
+        if namespace is None:
+            namespace = await self.repository.create_namespace(
+                workspace_id=target_workspace_id,
+                name=source_namespace_name,
+                description=f"Forks of {source_namespace_name} agents",
+                created_by=actor_id,
+            )
+
+        new_fqn = f"{namespace.name}:{request.new_name}"
+        existing = await self.repository.get_agent_by_fqn(target_workspace_id, new_fqn)
+        if existing is not None:
+            raise NameTakenInTargetNamespaceError(new_fqn)
+
+        # Shallow-copy operational fields onto the fork. Marketplace_scope is
+        # consumer's choice (workspace or tenant — never public). Review
+        # fields reset; forked_from_agent_id preserves provenance.
+        fork = AgentProfile(
+            workspace_id=target_workspace_id,
+            namespace_id=namespace.id,
+            local_name=request.new_name,
+            fqn=new_fqn,
+            display_name=source.display_name,
+            purpose=source.purpose,
+            approach=source.approach,
+            role_types=list(source.role_types or []),
+            custom_role_description=source.custom_role_description,
+            visibility_agents=[],
+            visibility_tools=[],
+            tags=list(source.tags or []),
+            mcp_server_refs=list(source.mcp_server_refs or []),
+            data_categories=list(source.data_categories or []),
+            status=LifecycleStatus.draft,
+            maturity_level=0,
+            embedding_status=EmbeddingStatus.pending,
+            needs_reindex=True,
+            created_by=actor_id,
+            default_model_binding=source.default_model_binding,
+            marketplace_scope=request.target_scope,
+            review_status="draft",
+            forked_from_agent_id=source.id,
+        )
+        self.repository.session.add(fork)
+        await self.repository.session.flush()
+        await self._commit()
+
+        # Tool-dependency surface: list tools that aren't registered in the
+        # consumer's tenant. The mcp_server_refs are the closest analog;
+        # we surface them as "potentially missing" so the consumer knows
+        # what to register. A more sophisticated check (cross-checking
+        # against actually-registered tools per tenant) belongs to a
+        # follow-up; document inline.
+        tool_dependencies_missing = list(fork.mcp_server_refs or [])
+
+        await publish_marketplace_event(
+            self.event_producer,
+            MarketplaceEventType.forked,
+            MarketplaceForkedPayload(
+                source_agent_id=str(source.id),
+                fork_agent_id=str(fork.id),
+                target_scope=request.target_scope,
+                consumer_user_id=str(actor_id),
+                consumer_tenant_id=str(get_current_tenant().id),
+            ),
+            self._correlation(target_workspace_id, fork.fqn),
+        )
+        marketplace_forks_total.labels(target_scope=request.target_scope).inc()
+        LOGGER.info(
+            "marketplace.forked",
+            extra={
+                "source_agent_id": str(source.id),
+                "source_fqn": source.fqn,
+                "fork_agent_id": str(fork.id),
+                "fork_fqn": fork.fqn,
+                "target_scope": request.target_scope,
+                "actor_user_id": str(actor_id),
+                "consumer_tenant_id": str(get_current_tenant().id),
+                "tool_dependencies_missing_count": len(tool_dependencies_missing),
+            },
+        )
+        return ForkAgentResponse(
+            agent_id=fork.id,
+            fqn=fork.fqn,
+            marketplace_scope=fork.marketplace_scope,
+            review_status=fork.review_status,
+            forked_from_agent_id=source.id,
+            forked_from_fqn=source.fqn,
+            tool_dependencies_missing=tool_dependencies_missing,
+        )
+
+    async def _lookup_source_for_fork(self, source_id: UUID) -> AgentProfile | None:
+        """Best-effort cross-workspace lookup for fork source.
+
+        The repository's ``get_agent_by_id`` is workspace-scoped; for forks
+        we need the row regardless of which workspace the consumer is
+        currently in (RLS still filters by tenant + the public-visibility
+        exceptions). This helper queries the same SELECT without the
+        workspace clause via direct SQLAlchemy.
+        """
+        from sqlalchemy import select as sa_select
+        result = await self.repository.session.execute(
+            sa_select(AgentProfile).where(AgentProfile.id == source_id)
+        )
+        return result.scalar_one_or_none()
 
     async def decommission_agent(
         self,

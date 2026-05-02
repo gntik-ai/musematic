@@ -21,6 +21,11 @@ class TenantContext:
     region: str
     branding: Mapping[str, Any] = field(default_factory=dict)
     feature_flags: Mapping[str, Any] = field(default_factory=dict)
+    # UPD-049: explicit denormalized field for the consume_public_marketplace
+    # flag. Reading via .feature_flags.get(...) also works, but the explicit
+    # field keeps the RLS GUC-bind path on the hot DB connection-checkout
+    # cheap and unambiguous (no key-miss → False fallback ambiguity).
+    consume_public_marketplace: bool = False
 
 
 current_tenant: ContextVar[TenantContext | None] = ContextVar(

@@ -129,3 +129,150 @@ class DecommissionImmutableError(RegistryError):
             "Decommission metadata is immutable once set",
             {"fields": field_names},
         )
+
+
+# --- UPD-049 marketplace scope + public-review exceptions ------------------
+# See specs/099-marketplace-scope/contracts/.
+
+
+class PublicScopeNotAllowedForEnterpriseError(RegistryError):
+    """Raised when a non-default tenant attempts public-marketplace publish.
+
+    The application-service leg of the three-layer Enterprise refusal
+    (UI scope-picker disable + service guard + DB CHECK constraint).
+    """
+
+    status_code = 403
+
+    def __init__(self, tenant_slug: str) -> None:
+        super().__init__(
+            "REGISTRY_PUBLIC_SCOPE_NOT_ALLOWED_FOR_ENTERPRISE",
+            "Public marketplace publishing is reserved to the default tenant",
+            {"tenant_slug": tenant_slug},
+        )
+
+
+class MarketingMetadataRequiredError(RegistryError):
+    status_code = 422
+
+    def __init__(self) -> None:
+        super().__init__(
+            "REGISTRY_MARKETING_METADATA_REQUIRED",
+            "marketing_metadata is required when publishing with public scope",
+            {},
+        )
+
+
+class MarketingCategoryInvalidError(RegistryError):
+    status_code = 422
+
+    def __init__(self, category: str, allowed: tuple[str, ...]) -> None:
+        super().__init__(
+            "REGISTRY_MARKETING_CATEGORY_INVALID",
+            "Marketing category is not in the platform-curated list",
+            {"category": category, "allowed": list(allowed)},
+        )
+
+
+class SubmissionRateLimitExceededError(RegistryError):
+    """Raised when a submitter exceeds 5 public-scope submissions in 24h.
+
+    The router translates this into HTTP 429 with a `Retry-After` header.
+    """
+
+    status_code = 429
+
+    def __init__(self, retry_after_seconds: int) -> None:
+        super().__init__(
+            "REGISTRY_SUBMISSION_RATE_LIMIT_EXCEEDED",
+            "Public-marketplace submission rate limit exceeded",
+            {"retry_after_seconds": retry_after_seconds},
+        )
+        self.retry_after_seconds = retry_after_seconds
+
+
+class ReviewAlreadyClaimedError(RegistryError):
+    status_code = 409
+
+    def __init__(self, agent_id: UUID, claimed_by: UUID) -> None:
+        super().__init__(
+            "REGISTRY_REVIEW_ALREADY_CLAIMED",
+            "This submission is already claimed by a different reviewer",
+            {"agent_id": str(agent_id), "claimed_by": str(claimed_by)},
+        )
+
+
+class SubmissionAlreadyResolvedError(RegistryError):
+    status_code = 409
+
+    def __init__(self, agent_id: UUID, current_status: str) -> None:
+        super().__init__(
+            "REGISTRY_SUBMISSION_ALREADY_RESOLVED",
+            "This submission has already been approved or rejected",
+            {"agent_id": str(agent_id), "current_status": current_status},
+        )
+
+
+class SubmissionNotFoundError(RegistryError):
+    status_code = 404
+
+    def __init__(self, agent_id: UUID) -> None:
+        super().__init__(
+            "REGISTRY_SUBMISSION_NOT_FOUND",
+            "Marketplace submission not found",
+            {"agent_id": str(agent_id)},
+        )
+
+
+class NotAgentOwnerError(RegistryError):
+    status_code = 403
+
+    def __init__(self, agent_id: UUID) -> None:
+        super().__init__(
+            "REGISTRY_NOT_AGENT_OWNER",
+            "Caller is not the owner of this agent",
+            {"agent_id": str(agent_id)},
+        )
+
+
+class SourceAgentNotVisibleError(RegistryError):
+    """Raised when a fork target is not readable under the consumer's RLS.
+
+    Distinct from `AgentNotFoundError` because the row may exist but be
+    invisible cross-tenant; the API surfaces it as 404 to avoid leaking
+    existence.
+    """
+
+    status_code = 404
+
+    def __init__(self, source_id: UUID) -> None:
+        super().__init__(
+            "REGISTRY_SOURCE_AGENT_NOT_VISIBLE",
+            "Source agent is not visible to the requester",
+            {"source_id": str(source_id)},
+        )
+
+
+class ConsumePublicMarketplaceDisabledError(RegistryError):
+    """Raised when an Enterprise tenant tries to fork a public agent without
+    the `consume_public_marketplace` feature flag enabled."""
+
+    status_code = 403
+
+    def __init__(self, tenant_slug: str) -> None:
+        super().__init__(
+            "REGISTRY_CONSUME_PUBLIC_MARKETPLACE_DISABLED",
+            "Public-marketplace consumption is disabled for this tenant",
+            {"tenant_slug": tenant_slug},
+        )
+
+
+class NameTakenInTargetNamespaceError(RegistryError):
+    status_code = 409
+
+    def __init__(self, fqn: str) -> None:
+        super().__init__(
+            "REGISTRY_NAME_TAKEN_IN_TARGET_NAMESPACE",
+            "Chosen name is already taken in the target namespace",
+            {"fqn": fqn},
+        )

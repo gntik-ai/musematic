@@ -19,6 +19,7 @@ class TenantEventType(StrEnum):
     deletion_cancelled = "tenants.deletion_cancelled"
     deleted = "tenants.deleted"
     branding_updated = "tenants.branding_updated"
+    feature_flag_changed = "tenants.feature_flag_changed"
 
 
 class TenantEventPayload(BaseModel):
@@ -69,6 +70,20 @@ class TenantBrandingUpdatedPayload(TenantEventPayload):
     new_hash: str
 
 
+class TenantFeatureFlagChangedPayload(TenantEventPayload):
+    """UPD-049 — emitted when a super admin toggles a per-tenant feature flag.
+
+    Currently the only flag with a Kafka surface is
+    `consume_public_marketplace`, but the schema is general so future
+    flags ride the same envelope.
+    """
+
+    flag_name: str
+    from_value: bool
+    to_value: bool
+    super_admin_user_id: UUID
+
+
 TENANT_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     TenantEventType.created.value: TenantCreatedPayload,
     TenantEventType.suspended.value: TenantSuspendedPayload,
@@ -77,6 +92,7 @@ TENANT_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     TenantEventType.deletion_cancelled.value: TenantDeletionCancelledPayload,
     TenantEventType.deleted.value: TenantDeletedPayload,
     TenantEventType.branding_updated.value: TenantBrandingUpdatedPayload,
+    TenantEventType.feature_flag_changed.value: TenantFeatureFlagChangedPayload,
 }
 
 

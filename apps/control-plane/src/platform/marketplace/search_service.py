@@ -513,6 +513,11 @@ class MarketplaceSearchService:
             quality_profile=quality_profile,
             aggregate_rating=aggregate_rating,
             relevance_score=_as_float(document.get("_relevance_score")),
+            # UPD-049: surface scope so the UI can label public-source rows.
+            # RLS handles the visibility cut at the DB layer; we just pass
+            # the value through. Default to "workspace" if the document
+            # predates the migration.
+            marketplace_scope=str(document.get("marketplace_scope") or "workspace"),
         )
 
     async def _search_with_registry_fallback(
