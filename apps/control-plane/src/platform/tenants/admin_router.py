@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from platform.accounts.first_admin_invite import TenantFirstAdminInviteService
 from platform.admin.rbac import require_superadmin
 from platform.audit.repository import AuditChainRepository
 from platform.audit.service import AuditChainService
@@ -38,6 +39,11 @@ router = APIRouter(prefix="/tenants", tags=["admin.tenants"])
 
 class DpaUploadResponse(BaseModel):
     dpa_artifact_id: str
+
+
+class FirstAdminInvitationResendResponse(BaseModel):
+    invitation_id: UUID
+    target_email: str
 
 
 @router.get("", response_model=TenantListResponse)
@@ -88,6 +94,39 @@ async def get_tenant(
     if tenant is None:
         raise TenantNotFoundError()
     return _admin_view(tenant)
+
+
+@router.post(
+    "/{tenant_id}/resend-first-admin-invitation",
+    response_model=FirstAdminInvitationResendResponse,
+)
+async def resend_first_admin_invitation(
+    tenant_id: str,
+    request: Request,
+    current_user: dict[str, Any] = Depends(require_superadmin),
+    session: AsyncSession = Depends(database.get_session),
+) -> FirstAdminInvitationResendResponse:
+    settings = _settings(request)
+    clients = getattr(request.app.state, "clients", {})
+    producer = clients.get("kafka") if isinstance(clients, dict) else None
+    invitation, _token = await TenantFirstAdminInviteService(
+        session=session,
+        settings=settings,
+        producer=producer if isinstance(producer, EventProducer) else None,
+        audit_chain=AuditChainService(
+            AuditChainRepository(session),
+            settings,
+            producer=producer if isinstance(producer, EventProducer) else None,
+        ),
+        notification_client=getattr(request.app.state, "notifications_service", None),
+    ).resend_for_tenant(
+        _coerce_uuid(tenant_id),
+        UUID(str(current_user["sub"])),
+    )
+    return FirstAdminInvitationResendResponse(
+        invitation_id=invitation.id,
+        target_email=invitation.target_email,
+    )
 
 
 @router.patch("/{tenant_id}", response_model=TenantAdminView)

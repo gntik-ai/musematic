@@ -5,6 +5,7 @@ from datetime import datetime
 from platform.accounts.models import InvitationStatus, UserStatus
 from platform.auth.schemas import RoleType
 from platform.localization.constants import LOCALES
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -249,3 +250,122 @@ class ResetPasswordResponse(BaseModel):
 class UnlockResponse(BaseModel):
     user_id: UUID
     unlocked: bool
+
+
+class OnboardingStateView(BaseModel):
+    user_id: UUID
+    tenant_id: UUID
+    step_workspace_named: bool = False
+    step_invitations_sent_or_skipped: bool = False
+    step_first_agent_created_or_skipped: bool = False
+    step_tour_started_or_skipped: bool = False
+    last_step_attempted: Literal[
+        "workspace_named",
+        "invitations",
+        "first_agent",
+        "tour",
+        "done",
+    ] = "workspace_named"
+    dismissed_at: datetime | None = None
+    first_agent_step_available: bool = True
+    default_workspace_id: UUID | None = None
+    default_workspace_name: str | None = None
+
+
+class OnboardingStepWorkspaceName(BaseModel):
+    workspace_name: str = Field(min_length=1, max_length=100)
+
+
+class OnboardingInvitationEntry(BaseModel):
+    email: str
+    role: str = Field(default="workspace_member", max_length=64)
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: str) -> str:
+        return _normalize_email(value)
+
+
+class OnboardingStepInvitations(BaseModel):
+    invitations: list[OnboardingInvitationEntry] = Field(default_factory=list)
+
+
+class OnboardingStepFirstAgent(BaseModel):
+    skipped: bool = True
+    agent_fqn: str | None = Field(default=None, max_length=255)
+
+
+class OnboardingStepTour(BaseModel):
+    started: bool = False
+
+
+class TenantFirstAdminInviteCreate(BaseModel):
+    tenant_id: UUID
+    target_email: str
+    super_admin_id: UUID
+
+    @field_validator("target_email")
+    @classmethod
+    def normalize_target_email(cls, value: str) -> str:
+        return _normalize_email(value)
+
+
+class TenantFirstAdminInviteValidationResponse(BaseModel):
+    valid: bool = True
+    tenant_id: UUID
+    tenant_slug: str
+    tenant_display_name: str
+    target_email: str
+    expires_at: datetime
+    current_step: str = "tos"
+    completed_steps: list[str] = Field(default_factory=list)
+
+
+class SetupStepTos(BaseModel):
+    tos_version: str = Field(min_length=1, max_length=64)
+    accepted_at_ts: datetime
+
+
+class SetupStepCredentials(BaseModel):
+    method: Literal["password", "oauth"]
+    password: str | None = Field(default=None, min_length=12)
+    provider: str | None = Field(default=None, max_length=32)
+    oauth_token: str | None = Field(default=None, min_length=1)
+
+    @model_validator(mode="after")
+    def validate_method_payload(self) -> SetupStepCredentials:
+        if self.method == "password":
+            if self.password is None:
+                raise ValueError("password is required for password setup")
+            self.password = _validate_password_strength(self.password)
+        if self.method == "oauth" and (not self.provider or not self.oauth_token):
+            raise ValueError("provider and oauth_token are required for OAuth setup")
+        return self
+
+
+class SetupStepWorkspace(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+
+
+class SetupStepInvitations(BaseModel):
+    invitations: list[OnboardingInvitationEntry] = Field(default_factory=list)
+
+
+class SetupStepMfaVerify(BaseModel):
+    totp_code: str = Field(min_length=6, max_length=12)
+
+
+class MembershipEntry(BaseModel):
+    tenant_id: UUID
+    tenant_slug: str
+    tenant_kind: str
+    tenant_display_name: str
+    user_id_within_tenant: UUID
+    role: str | None = None
+    is_current_tenant: bool
+    login_url: str
+
+
+class MembershipsListResponse(BaseModel):
+    memberships: list[MembershipEntry]
+    count: int

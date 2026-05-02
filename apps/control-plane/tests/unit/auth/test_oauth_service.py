@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from platform.auth.exceptions import (
-    OAuthBootstrapEnvironmentError,
     InactiveUserError,
+    OAuthBootstrapEnvironmentError,
     OAuthLinkConflictError,
     OAuthProviderDisabledError,
     OAuthProviderNotFoundError,
@@ -167,7 +167,7 @@ async def test_imported_provider_reseed_and_tenant_callback_edges(
             )
         }
     )
-    service, repository, _, _, _, producer, _ = build_oauth_service_fixture(
+    service, _, _, _, _, producer, _ = build_oauth_service_fixture(
         auth_settings,
         provider=provider,
         auth_repository=auth_repository,
@@ -361,7 +361,11 @@ async def test_oauth_private_edge_paths(auth_settings) -> None:
     assert "activated_at" in accounts_repo.updated_users[-1][2]
 
     approval_settings = auth_settings.model_copy(
-        update={"accounts": auth_settings.accounts.model_copy(update={"signup_mode": "admin_approval"})}
+        update={
+            "accounts": auth_settings.accounts.model_copy(
+                update={"signup_mode": "admin_approval"}
+            )
+        }
     )
     approval_service, _, _, approval_accounts, *_ = build_oauth_service_fixture(
         approval_settings,
@@ -460,9 +464,16 @@ async def test_handle_callback_auto_provisions_google_user_and_creates_session(
     assert repository.audit_entries[-1]["action"] == "sign_in_succeeded"
     assert auth_service.session_calls
     assert {event["event_type"] for event in producer.events} == {
+        "accounts.signup.completed",
         "auth.oauth.user_provisioned",
         "auth.oauth.sign_in_succeeded",
     }
+    signup_event = next(
+        event for event in producer.events if event["event_type"] == "accounts.signup.completed"
+    )
+    assert signup_event["payload"]["user_id"] == str(user_id)
+    assert signup_event["payload"]["email"] == "alex@example.com"
+    assert signup_event["payload"]["signup_method"] == "oauth-google"
 
 
 @pytest.mark.asyncio

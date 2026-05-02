@@ -35,9 +35,9 @@ async def test_send_verification_email_uses_notification_client_when_available()
 
 @pytest.mark.asyncio
 async def test_send_email_helpers_log_when_no_notification_client(caplog) -> None:
-    caplog.set_level("INFO")
     invitation_id = uuid4()
 
+    caplog.set_level("INFO", logger="platform.accounts.email")
     await email_module.send_verification_email(
         user_id=uuid4(),
         email="user@example.com",
@@ -52,5 +52,6 @@ async def test_send_email_helpers_log_when_no_notification_client(caplog) -> Non
         message="Welcome aboard",
     )
 
-    assert "Verification email queued" in caplog.text
-    assert "Invitation email queued" in caplog.text
+    output = caplog.text
+    assert "Verification email queued" in output
+    assert "Invitation email queued" in output

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from platform.accounts.memberships_router import router as memberships_router
 from platform.audit.dependencies import get_audit_chain_service
 from platform.audit.service import AuditChainService
 from platform.auth.dependencies import get_auth_service
@@ -36,6 +37,7 @@ from .schemas import (
 from .service import MeService
 
 router = APIRouter(prefix="/me", tags=["me"])
+router.include_router(memberships_router)
 
 
 async def get_me_service(

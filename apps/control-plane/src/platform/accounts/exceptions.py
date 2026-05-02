@@ -84,3 +84,56 @@ class EmailAlreadyRegisteredError(AccountsError):
 
     def __init__(self) -> None:
         super().__init__("EMAIL_ALREADY_REGISTERED", "Email is already registered")
+
+
+class TenantSignupNotAllowedError(AccountsError):
+    status_code = 404
+
+    def __init__(self) -> None:
+        super().__init__("tenant_signup_not_allowed", "Not Found")
+
+
+class SetupTokenInvalidError(AccountsError):
+    status_code = 410
+
+    def __init__(self) -> None:
+        super().__init__("setup_token_invalid", "Setup invitation is invalid or expired")
+
+
+class MfaEnrollmentRequiredError(AccountsError):
+    status_code = 403
+
+    def __init__(self) -> None:
+        super().__init__("mfa_enrollment_required", "MFA enrollment is required")
+
+
+class OnboardingWizardAlreadyDismissedError(AccountsError):
+    status_code = 409
+
+    def __init__(self) -> None:
+        super().__init__(
+            "wizard_already_dismissed_at_this_step",
+            "Onboarding wizard is already dismissed at this step",
+        )
+
+
+class CrossTenantInviteAcceptanceError(AccountsError):
+    status_code = 409
+
+    def __init__(self, other_tenant: str | None = None) -> None:
+        details = {"other_tenant": other_tenant} if other_tenant else None
+        super().__init__(
+            "cross_tenant_invite_acceptance_blocked",
+            "Sign out of the other tenant before accepting this invitation",
+            details,
+        )
+
+
+class DefaultWorkspaceNotProvisionedError(AccountsError):
+    status_code = 404
+
+    def __init__(self) -> None:
+        super().__init__(
+            "default_workspace_not_yet_provisioned",
+            "Default workspace has not been provisioned yet",
+        )

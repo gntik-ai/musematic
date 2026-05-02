@@ -18,6 +18,7 @@ def _redis_url(redis_client) -> str:
 def _build_settings(auth_settings, *, database_url: str, redis_client, **auth_updates):
     return auth_settings.model_copy(
         update={
+            "PLATFORM_DOMAIN": "testserver",
             "db": auth_settings.db.model_copy(update={"dsn": database_url}),
             "redis": auth_settings.redis.model_copy(
                 update={"url": _redis_url(redis_client), "test_mode": "standalone"}
@@ -61,7 +62,7 @@ async def test_callback_rate_limit_429_with_retry_after(
     google_provider = GoogleProviderStub()
     monkeypatch.setattr(
         "platform.auth.dependencies_oauth.GoogleOAuthProvider",
-        lambda: google_provider,
+        lambda **_: google_provider,
     )
     monkeypatch.setattr(
         "platform.main._build_clients",
@@ -106,7 +107,7 @@ async def test_rate_limit_does_not_consume_state(
     google_provider = GoogleProviderStub()
     monkeypatch.setattr(
         "platform.auth.dependencies_oauth.GoogleOAuthProvider",
-        lambda: google_provider,
+        lambda **_: google_provider,
     )
     monkeypatch.setattr(
         "platform.main._build_clients",

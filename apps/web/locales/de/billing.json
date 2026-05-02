@@ -6,5 +6,6 @@
   "billingDashboard": "Abrechnung",
   "statusActive": "Aktiv",
   "statusSuspended": "Gesperrt",
-  "cleanupBanner": "Free-Limits ueberschritten"
+  "cleanupBanner": "Free-Limits ueberschritten",
+  "tenantSwitcher": "Switch tenant"
 }

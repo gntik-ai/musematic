@@ -62,10 +62,28 @@ from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import AuthSettings, PlatformSettings
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import AuthorizationError, NotFoundError, ValidationError
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from uuid import UUID, uuid4
 
 import jwt
+
+if TYPE_CHECKING:
+    from platform.accounts.models import User
+
+
+async def assert_role_mfa_requirement(
+    role: str,
+    user: User,
+    repository: AuthRepository,
+) -> None:
+    if role != "tenant_admin":
+        return
+    enrollment = await repository.get_mfa_enrollment(user.id)
+    if enrollment is not None and enrollment.status == MfaStatus.ACTIVE.value:
+        return
+    from platform.accounts.exceptions import MfaEnrollmentRequiredError
+
+    raise MfaEnrollmentRequiredError()
 
 
 class AuthService:

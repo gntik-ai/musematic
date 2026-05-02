@@ -1,12 +1,20 @@
+"use client";
+
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { OAuthProviderButtons } from "@/components/features/auth/OAuthProviderButtons";
 import { SignupForm } from "@/components/features/auth/SignupForm";
 import { Button } from "@/components/ui/button";
+import { useTenantContext } from "@/lib/hooks/use-tenant-context";
 
 export default function SignupPage() {
+  const tenant = useTenantContext();
+
   if (process.env.NEXT_PUBLIC_FEATURE_SIGNUP_ENABLED === "false") {
     redirect("/signup/disabled");
+  }
+  if (tenant.kind !== "default") {
+    notFound();
   }
 
   return (

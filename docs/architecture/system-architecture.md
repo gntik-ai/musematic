@@ -19,6 +19,12 @@ Simulation: isolated execution environment for what-if analysis
 
 ---
 
+## UPD-048 Tenant-Aware Signup And Onboarding
+
+Public self-service signup is only available on the default tenant host. The tenant resolver populates tenant context before account routes run; signup-adjacent handlers return the canonical opaque 404 for Enterprise tenant subdomains so tenant existence is not enumerable. Successful default-tenant verification creates a default workspace and Free subscription inline when possible, with a scheduler retry job filling any provisioning gap.
+
+Enterprise tenant provisioning issues a first-admin setup invitation after the tenant row is committed. The `/setup` flow is tenant-scoped, token-bound, resumable, and requires MFA verification before workspace creation, invitations, or completion. Users who accept invitations across tenants receive independent tenant-local identities; `/api/v1/me/memberships` uses the platform-staff read path to list those identities for tenant switching without sharing sessions across subdomains.
+
 ## 1. Purpose of this document
 
 This document defines the **system architecture** of the product as a complete production platform for multi-tenant, policy-governed, workflow-driven, multi-agent execution with advanced context engineering, reasoning orchestration, self-correction, resource-aware optimization, scientific discovery, privacy-preserving collaboration, marketplace intelligence, fleet-level learning, agent simulation, AgentOps lifecycle management, and semantic/behavioral testing.

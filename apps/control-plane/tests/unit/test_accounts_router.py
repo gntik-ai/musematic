@@ -148,8 +148,13 @@ class RouterServiceStub:
             expires_at=__import__("datetime").datetime.now(__import__("datetime").UTC),
         )
 
-    async def accept_invitation(self, payload: AcceptInvitationRequest) -> AcceptInvitationResponse:
-        self.calls.append(("accept_invitation", (payload,)))
+    async def accept_invitation(
+        self,
+        payload: AcceptInvitationRequest,
+        *,
+        current_user: dict[str, object] | None = None,
+    ) -> AcceptInvitationResponse:
+        self.calls.append(("accept_invitation", (payload, current_user)))
         return AcceptInvitationResponse(
             user_id=self.user_id,
             email="invitee@example.com",
@@ -245,12 +250,17 @@ async def test_public_routes_delegate_to_service() -> None:
     )
 
     register_response = await register(register_payload, request, accounts_service=service)
-    verify_response = await verify_email(verify_payload, accounts_service=service)
-    resend_response = await resend_verification(resend_payload, accounts_service=service)
+    verify_response = await verify_email(verify_payload, request, accounts_service=service)
+    resend_response = await resend_verification(
+        resend_payload,
+        request,
+        accounts_service=service,
+    )
     details_response = await get_invitation_details("invite-token", accounts_service=service)
     accept_response = await accept_invitation(
         "invite-token",
         accept_payload,
+        request,
         accounts_service=service,
     )
 
@@ -265,6 +275,7 @@ async def test_public_routes_delegate_to_service() -> None:
         await accept_invitation(
             "path-token",
             accept_payload.model_copy(update={"token": "body-token"}),
+            request,
             accounts_service=service,
         )
 

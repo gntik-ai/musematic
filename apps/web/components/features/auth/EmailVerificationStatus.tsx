@@ -31,7 +31,7 @@ export function EmailVerificationStatus({ email }: EmailVerificationStatusProps)
 
   useEffect(() => {
     if (status === "active") {
-      router.push("/login?message=email_verified");
+      router.push("/onboarding");
     }
     if (status === "pending_approval") {
       router.push("/waiting-approval");

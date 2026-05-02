@@ -123,6 +123,18 @@ billing:
   # -- Default period anchor for new quota-bearing plan versions.
   defaultQuotaPeriodAnchor: calendar_month
 
+# @section -- Signup
+# -- Configures default-tenant signup and Enterprise first-admin onboarding.
+signup:
+  # -- Retry cadence for deferred default-workspace creation after email verification.
+  autoCreateRetrySeconds: 30
+  # -- Lifetime for Enterprise first-admin setup invitations.
+  firstAdminInviteTtlDays: 7
+  # -- Enables the post-signup onboarding wizard for default-tenant users.
+  onboardingWizardEnabled: true
+  # -- Default workspace-name template. Review translated wording before changing.
+  defaultWorkspaceNameTemplate: "{display_name}'s workspace"
+
 # @section -- Platformdatanamespace
 # -- Configures `platformDataNamespace` for the platform chart.
 platformDataNamespace:

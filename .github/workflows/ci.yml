@@ -252,6 +252,12 @@ jobs:
       - name: Check billing plan-version immutability
         run: python scripts/lint/check_plan_version_immutable.py
 
+      - name: Check signup tenant gate
+        run: python scripts/lint/check_signup_tenant_gate.py
+
+      - name: Check signup audit coverage
+        run: python scripts/lint/check_signup_audit_coverage.py
+
   typecheck-python:
     name: Type-check Python
     needs: changes

@@ -9,16 +9,19 @@ from platform.common.models.mixins import (
     UUIDMixin,
 )
 
-from sqlalchemy import Boolean, String
+from sqlalchemy import Boolean, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 
 class User(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, SoftDeleteMixin, AuditMixin):
     __tablename__ = "users"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "email", name="uq_users_tenant_email"),
+    )
 
     username: Mapped[str | None] = mapped_column(String(length=255), nullable=True)
-    email: Mapped[str] = mapped_column(String(length=255), nullable=False, unique=True)
+    email: Mapped[str] = mapped_column(String(length=255), nullable=False)
     display_name: Mapped[str | None] = mapped_column(String(length=255), nullable=True)
     status: Mapped[str] = mapped_column(
         String(length=50),

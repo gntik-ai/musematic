@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from platform.common.models.base import Base
 from platform.common.models.mixins import (
@@ -11,10 +11,27 @@ from platform.common.models.mixins import (
 )
 from uuid import UUID
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, UniqueConstraint
-from sqlalchemy import Enum as SAEnum
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
+    text,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
+)
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
+
+
+def _utcnow() -> datetime:
+    return datetime.now(UTC)
 
 
 class UserStatus(StrEnum):
@@ -46,8 +63,11 @@ class ApprovalDecision(StrEnum):
 
 class User(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "accounts_users"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "email", name="uq_accounts_users_tenant_email"),
+    )
 
-    email: Mapped[str] = mapped_column(String(length=255), nullable=False, unique=True, index=True)
+    email: Mapped[str] = mapped_column(String(length=255), nullable=False, index=True)
     display_name: Mapped[str] = mapped_column(String(length=100), nullable=False)
     status: Mapped[UserStatus] = mapped_column(
         SAEnum(UserStatus, name="accounts_user_status"),
@@ -140,3 +160,96 @@ class ApprovalRequest(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
     )
     decision_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+
+class UserOnboardingState(Base, TenantScopedMixin, UUIDMixin, TimestampMixin):
+    __tablename__ = "user_onboarding_states"
+    __table_args__ = (
+        UniqueConstraint("user_id", name="user_onboarding_states_user_unique"),
+        Index("user_onboarding_states_tenant_idx", "tenant_id"),
+        CheckConstraint(
+            "last_step_attempted IN "
+            "('workspace_named','invitations','first_agent','tour','done')",
+            name="ck_user_onboarding_states_last_step",
+        ),
+    )
+
+    user_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("accounts_users.id"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    step_workspace_named: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    step_invitations_sent_or_skipped: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+    step_first_agent_created_or_skipped: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+    step_tour_started_or_skipped: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+    last_step_attempted: Mapped[str] = mapped_column(
+        String(length=32),
+        nullable=False,
+        default="workspace_named",
+    )
+    dismissed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class TenantFirstAdminInvitation(Base, TenantScopedMixin, UUIDMixin):
+    __tablename__ = "tenant_first_admin_invitations"
+    __table_args__ = (
+        UniqueConstraint("token_hash", name="tenant_first_admin_invitations_token_unique"),
+        Index(
+            "tenant_first_admin_invitations_tenant_active_idx",
+            "tenant_id",
+            "expires_at",
+            postgresql_where=text(
+                "consumed_at IS NULL AND prior_token_invalidated_at IS NULL"
+            ),
+        ),
+        Index(
+            "tenant_first_admin_invitations_target_email_idx",
+            "target_email",
+            "expires_at",
+        ),
+    )
+
+    token_hash: Mapped[str] = mapped_column(String(length=128), nullable=False, unique=True)
+    target_email: Mapped[str] = mapped_column(String(length=320), nullable=False, index=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    prior_token_invalidated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    setup_step_state: Mapped[dict[str, object]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=dict,
+    )
+    mfa_required: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_by_super_admin_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id"),
+        nullable=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=_utcnow,
+    )
+    consumed_by_user_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id"),
+        nullable=True,
+    )

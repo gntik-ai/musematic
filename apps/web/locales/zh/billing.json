@@ -6,5 +6,6 @@
   "billingDashboard": "账单",
   "statusActive": "有效",
   "statusSuspended": "已暂停",
-  "cleanupBanner": "已超出 Free 限制"
+  "cleanupBanner": "已超出 Free 限制",
+  "tenantSwitcher": "Switch tenant"
 }
