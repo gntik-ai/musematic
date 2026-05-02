@@ -15,12 +15,15 @@ from platform.registry.schemas import (
     AgentProfileResponse,
     AgentRevisionListResponse,
     AgentUploadResponse,
+    DeprecateListingRequest,
     LifecycleAuditListResponse,
     LifecycleTransitionRequest,
+    MarketplaceScopeChangeRequest,
     MaturityUpdateRequest,
     NamespaceCreate,
     NamespaceListResponse,
     NamespaceResponse,
+    PublishWithScopeRequest,
 )
 from platform.registry.service import RegistryService
 from typing import Any
@@ -222,6 +225,92 @@ async def transition_lifecycle(
     if actor_id is None:
         raise ValidationError("USER_ID_REQUIRED", "Lifecycle transition requires a human user")
     return await registry_service.transition_lifecycle(
+        _workspace_id(request),
+        agent_id,
+        payload,
+        actor_id,
+    )
+
+
+# --------------------------------------------------------------------------
+# UPD-049 — publish-with-scope, marketplace-scope-change, deprecate-listing.
+# These run alongside the legacy /transition endpoint (rule 7 backward-compat).
+# --------------------------------------------------------------------------
+
+
+def _rate_limiter(request: Request) -> Any:
+    """Resolve the marketplace submission rate limiter from app state.
+
+    The limiter is wired in the FastAPI lifespan; if not present, the
+    publish-with-public-scope path skips rate limiting (the unit tests
+    cover the limiter independently).
+    """
+    return getattr(request.app.state, "marketplace_rate_limiter", None)
+
+
+@router.post("/agents/{agent_id}/publish", response_model=AgentProfileResponse)
+async def publish_with_scope(
+    agent_id: UUID,
+    payload: PublishWithScopeRequest,
+    request: Request,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    registry_service: RegistryService = Depends(get_registry_service),
+) -> AgentProfileResponse:
+    """Publish an agent at the chosen marketplace scope (UPD-049 FR-004/005).
+
+    For ``workspace`` / ``tenant`` scope: transitions to ``published``
+    immediately. For ``public_default_tenant``: enforces three-layer
+    Enterprise refusal and routes through the platform-staff review queue.
+    """
+    actor_id = _actor_id(current_user)
+    if actor_id is None:
+        raise ValidationError(
+            "USER_ID_REQUIRED", "Marketplace publish requires a human user"
+        )
+    return await registry_service.publish_with_scope(
+        _workspace_id(request),
+        agent_id,
+        payload,
+        actor_id,
+        rate_limiter=_rate_limiter(request),
+    )
+
+
+@router.post("/agents/{agent_id}/marketplace-scope", response_model=AgentProfileResponse)
+async def change_marketplace_scope(
+    agent_id: UUID,
+    payload: MarketplaceScopeChangeRequest,
+    request: Request,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    registry_service: RegistryService = Depends(get_registry_service),
+) -> AgentProfileResponse:
+    actor_id = _actor_id(current_user)
+    if actor_id is None:
+        raise ValidationError(
+            "USER_ID_REQUIRED", "Marketplace-scope change requires a human user"
+        )
+    return await registry_service.change_marketplace_scope(
+        _workspace_id(request),
+        agent_id,
+        payload,
+        actor_id,
+    )
+
+
+@router.post("/agents/{agent_id}/deprecate-listing", response_model=AgentProfileResponse)
+async def deprecate_listing(
+    agent_id: UUID,
+    payload: DeprecateListingRequest,
+    request: Request,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    registry_service: RegistryService = Depends(get_registry_service),
+) -> AgentProfileResponse:
+    actor_id = _actor_id(current_user)
+    if actor_id is None:
+        raise ValidationError(
+            "USER_ID_REQUIRED", "Deprecate-listing requires a human user"
+        )
+    return await registry_service.deprecate_listing(
         _workspace_id(request),
         agent_id,
         payload,

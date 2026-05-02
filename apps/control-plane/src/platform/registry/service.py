@@ -24,21 +24,32 @@ from platform.registry.events import (
     AgentDecommissionedPayload,
     AgentDeprecatedPayload,
     AgentPublishedPayload,
+    MarketplaceDeprecatedPayload,
+    MarketplaceEventType,
+    MarketplacePublishedPayload,
+    MarketplaceScopeChangedPayload,
+    MarketplaceSourceUpdatedPayload,
+    MarketplaceSubmittedPayload,
     publish_agent_created,
     publish_agent_decommissioned,
     publish_agent_deprecated,
     publish_agent_published,
+    publish_marketplace_event,
 )
 from platform.registry.exceptions import (
     AgentNotFoundError,
     FQNConflictError,
     InvalidTransitionError,
     InvalidVisibilityPatternError,
+    MarketingMetadataRequiredError,
     NamespaceConflictError,
     NamespaceNotFoundError,
+    NotAgentOwnerError,
+    PublicScopeNotAllowedForEnterpriseError,
     RegistryError,
     RegistryStoreUnavailableError,
     RevisionConflictError,
+    SubmissionAlreadyResolvedError,
     WorkspaceAuthorizationError,
 )
 from platform.registry.models import (
@@ -60,19 +71,28 @@ from platform.registry.schemas import (
     AgentProfileResponse,
     AgentRevisionResponse,
     AgentUploadResponse,
+    DeprecateListingRequest,
     LifecycleAuditListResponse,
     LifecycleAuditResponse,
     LifecycleTransitionRequest,
+    MarketingMetadata,
+    MarketplaceScopeChangeRequest,
     MaturityUpdateRequest,
     NamespaceCreate,
     NamespaceListResponse,
     NamespaceResponse,
+    PublishWithScopeRequest,
 )
 from platform.registry.state_machine import (
     EVENT_TRANSITIONS,
+    get_valid_review_transitions,
     get_valid_transitions,
+    is_valid_review_transition,
     is_valid_transition,
 )
+from datetime import UTC, datetime
+from hashlib import sha256
+from platform.common.tenant_context import TenantContext, get_current_tenant
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -127,6 +147,16 @@ def compile_fqn_pattern(pattern: str) -> re.Pattern[str]:
 
 def fqn_matches(pattern: str, fqn: str) -> bool:
     return compile_fqn_pattern(pattern).fullmatch(fqn) is not None
+
+
+def _marketing_description_hash(description: str) -> str:
+    """SHA-256 of the marketing description, prefixed ``sha256-`` per the
+    Kafka envelope contract (see contracts/marketplace-events-kafka.md).
+
+    Used in the ``marketplace.submitted`` event payload to prove
+    description integrity without putting the full text on the bus.
+    """
+    return "sha256-" + sha256(description.encode("utf-8")).hexdigest()
 
 
 def filter_profiles_by_patterns(
@@ -754,6 +784,218 @@ class RegistryService:
                     ),
                     correlation,
                 )
+        return await self._build_profile_response(profile)
+
+    # ---------------------------------------------------------------------
+    # UPD-049 — public-marketplace publish, scope change, deprecate listing.
+    # The legacy /transition path stays compatible (rule 7); the new methods
+    # below are called by the new /publish, /marketplace-scope, and
+    # /deprecate-listing endpoints.
+    # ---------------------------------------------------------------------
+
+    async def publish_with_scope(
+        self,
+        workspace_id: UUID,
+        agent_id: UUID,
+        request: PublishWithScopeRequest,
+        actor_id: UUID,
+        rate_limiter: Any | None = None,
+    ) -> AgentProfileResponse:
+        """Publish an agent at the chosen marketplace scope.
+
+        For ``workspace`` / ``tenant`` scope: transitions ``review_status``
+        to ``published`` directly and emits ``marketplace.published``.
+
+        For ``public_default_tenant`` scope: enforces the three-layer
+        Enterprise refusal (FR-010/011/012) — service-layer guard runs
+        BEFORE consuming a rate-limit token or writing audit/Kafka so
+        a refusal does not consume budget. On success, transitions
+        ``review_status`` to ``pending_review`` and emits
+        ``marketplace.submitted``.
+        """
+        await self._assert_workspace_access(workspace_id, actor_id)
+        profile = await self._get_agent_or_raise(workspace_id, agent_id)
+        target_scope = request.scope
+        previous_scope = profile.marketplace_scope
+        previous_review_status = profile.review_status
+
+        if target_scope == "public_default_tenant":
+            tenant = get_current_tenant()
+            if tenant.kind != "default":
+                # FR-011 — service-layer leg of three-layer refusal. Raises
+                # before any side effects so we don't consume a rate-limit
+                # token or write an audit entry for a refused submission.
+                raise PublicScopeNotAllowedForEnterpriseError(tenant.slug)
+            if request.marketing_metadata is None:
+                # Defensive — the Pydantic validator already enforces this,
+                # but the service guard makes the contract testable
+                # without going through HTTP.
+                raise MarketingMetadataRequiredError()
+            if rate_limiter is not None:
+                await rate_limiter.check_and_record(actor_id)
+
+            profile.marketplace_scope = target_scope
+            profile.review_status = "pending_review"
+            await self.repository.insert_lifecycle_audit(
+                workspace_id=workspace_id,
+                agent_profile_id=profile.id,
+                previous_status=profile.status,
+                new_status=profile.status,  # lifecycle status unchanged here
+                actor_id=actor_id,
+                reason=(
+                    f"marketplace_submit: scope={previous_scope}->{target_scope} "
+                    f"review_status={previous_review_status}->pending_review"
+                ),
+            )
+            await self._commit()
+            await self._index_or_flag(profile.id)
+            await publish_marketplace_event(
+                self.event_producer,
+                MarketplaceEventType.submitted,
+                MarketplaceSubmittedPayload(
+                    agent_id=str(profile.id),
+                    submitter_user_id=str(actor_id),
+                    category=request.marketing_metadata.category,
+                    tags=list(request.marketing_metadata.tags),
+                    marketing_description_hash=_marketing_description_hash(
+                        request.marketing_metadata.marketing_description
+                    ),
+                ),
+                self._correlation(workspace_id, profile.fqn),
+            )
+            if previous_scope != target_scope:
+                await publish_marketplace_event(
+                    self.event_producer,
+                    MarketplaceEventType.scope_changed,
+                    MarketplaceScopeChangedPayload(
+                        agent_id=str(profile.id),
+                        from_scope=previous_scope,
+                        to_scope=target_scope,
+                        actor_user_id=str(actor_id),
+                    ),
+                    self._correlation(workspace_id, profile.fqn),
+                )
+            return await self._build_profile_response(profile)
+
+        # workspace / tenant scope: direct publish, no review.
+        profile.marketplace_scope = target_scope
+        profile.review_status = "published"
+        # Keep the lifecycle status path symmetric with /transition for
+        # backward compatibility — if the agent isn't already published in
+        # the lifecycle sense, advance it.
+        if profile.status is LifecycleStatus.validated:
+            profile.status = LifecycleStatus.published
+        await self.repository.insert_lifecycle_audit(
+            workspace_id=workspace_id,
+            agent_profile_id=profile.id,
+            previous_status=profile.status,
+            new_status=profile.status,
+            actor_id=actor_id,
+            reason=(
+                f"marketplace_publish: scope={previous_scope}->{target_scope} "
+                f"review_status={previous_review_status}->published"
+            ),
+        )
+        await self._commit()
+        await self._index_or_flag(profile.id)
+        published_at = datetime.now(tz=UTC).isoformat()
+        await publish_marketplace_event(
+            self.event_producer,
+            MarketplaceEventType.published,
+            MarketplacePublishedPayload(
+                agent_id=str(profile.id),
+                published_at=published_at,
+            ),
+            self._correlation(workspace_id, profile.fqn),
+        )
+        if previous_scope != target_scope:
+            await publish_marketplace_event(
+                self.event_producer,
+                MarketplaceEventType.scope_changed,
+                MarketplaceScopeChangedPayload(
+                    agent_id=str(profile.id),
+                    from_scope=previous_scope,
+                    to_scope=target_scope,
+                    actor_user_id=str(actor_id),
+                ),
+                self._correlation(workspace_id, profile.fqn),
+            )
+        return await self._build_profile_response(profile)
+
+    async def change_marketplace_scope(
+        self,
+        workspace_id: UUID,
+        agent_id: UUID,
+        request: MarketplaceScopeChangeRequest,
+        actor_id: UUID,
+    ) -> AgentProfileResponse:
+        """Change marketplace scope without publishing (UPD-049 FR /
+        contracts/publish-and-review-rest.md)."""
+        await self._assert_workspace_access(workspace_id, actor_id)
+        profile = await self._get_agent_or_raise(workspace_id, agent_id)
+        target_scope = request.scope
+        if target_scope == profile.marketplace_scope:
+            return await self._build_profile_response(profile)
+        if target_scope == "public_default_tenant":
+            tenant = get_current_tenant()
+            if tenant.kind != "default":
+                raise PublicScopeNotAllowedForEnterpriseError(tenant.slug)
+        previous_scope = profile.marketplace_scope
+        profile.marketplace_scope = target_scope
+        await self._commit()
+        await self._index_or_flag(profile.id)
+        await publish_marketplace_event(
+            self.event_producer,
+            MarketplaceEventType.scope_changed,
+            MarketplaceScopeChangedPayload(
+                agent_id=str(profile.id),
+                from_scope=previous_scope,
+                to_scope=target_scope,
+                actor_user_id=str(actor_id),
+            ),
+            self._correlation(workspace_id, profile.fqn),
+        )
+        return await self._build_profile_response(profile)
+
+    async def deprecate_listing(
+        self,
+        workspace_id: UUID,
+        agent_id: UUID,
+        request: DeprecateListingRequest,
+        actor_id: UUID,
+    ) -> AgentProfileResponse:
+        """Mark a published listing as deprecated (UPD-049). The listing
+        disappears from public marketplace search; existing forks remain
+        visible."""
+        await self._assert_workspace_access(workspace_id, actor_id)
+        profile = await self._get_agent_or_raise(workspace_id, agent_id)
+        if not is_valid_review_transition(profile.review_status, "deprecated"):
+            raise SubmissionAlreadyResolvedError(profile.id, profile.review_status)
+        previous_review_status = profile.review_status
+        profile.review_status = "deprecated"
+        await self.repository.insert_lifecycle_audit(
+            workspace_id=workspace_id,
+            agent_profile_id=profile.id,
+            previous_status=profile.status,
+            new_status=profile.status,
+            actor_id=actor_id,
+            reason=(
+                f"marketplace_deprecate: review_status="
+                f"{previous_review_status}->deprecated; reason={request.reason!r}"
+            ),
+        )
+        await self._commit()
+        await self._index_or_flag(profile.id)
+        await publish_marketplace_event(
+            self.event_producer,
+            MarketplaceEventType.deprecated,
+            MarketplaceDeprecatedPayload(
+                agent_id=str(profile.id),
+                actor_user_id=str(actor_id),
+                deprecation_reason=request.reason,
+            ),
+            self._correlation(workspace_id, profile.fqn),
+        )
         return await self._build_profile_response(profile)
 
     async def decommission_agent(
