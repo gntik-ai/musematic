@@ -11164,6 +11164,48 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 </thead>
 <tbody>
 <tr>
+<td>billing</td>
+<td>object</td>
+<td><code>{"defaultQuotaPeriodAnchor":"calendar_month","meteringToleranceSeconds":30,"paymentProvider":"stub","periodSchedulerIntervalSeconds":60,"quotaCacheTtlSeconds":60,"quotaInFlightTtlSeconds":300}</code></td>
+<td>Configures plan, subscription, quota, and payment-provider runtime defaults.</td>
+</tr>
+<tr>
+<td>billing.defaultQuotaPeriodAnchor</td>
+<td>string</td>
+<td><code>"calendar_month"</code></td>
+<td>Default period anchor for new quota-bearing plan versions.</td>
+</tr>
+<tr>
+<td>billing.meteringToleranceSeconds</td>
+<td>int</td>
+<td><code>30</code></td>
+<td>Accepted metering delay/tolerance window in seconds.</td>
+</tr>
+<tr>
+<td>billing.paymentProvider</td>
+<td>string</td>
+<td><code>"stub"</code></td>
+<td>Payment provider implementation selector. Stripe lands in UPD-052.</td>
+</tr>
+<tr>
+<td>billing.periodSchedulerIntervalSeconds</td>
+<td>int</td>
+<td><code>60</code></td>
+<td>Subscription period-rollover scheduler interval in seconds.</td>
+</tr>
+<tr>
+<td>billing.quotaCacheTtlSeconds</td>
+<td>int</td>
+<td><code>60</code></td>
+<td>TTL in seconds for quota plan/usage cache entries.</td>
+</tr>
+<tr>
+<td>billing.quotaInFlightTtlSeconds</td>
+<td>int</td>
+<td><code>300</code></td>
+<td>TTL in seconds for in-flight execution quota counters.</td>
+</tr>
+<tr>
 <td>clickhouse</td>
 <td>object</td>
 <td><code>{"createNamespace":false,"enabled":true}</code></td>

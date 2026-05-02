@@ -9130,6 +9130,7 @@ Simulation: isolated execution environment for what-if analysis</p>
 <li>Identity and access module</li>
 <li>Workspace and membership module</li>
 <li>Registration, subscription, and approval module</li>
+<li>Billing module for plans, subscriptions, quota enforcement, overage authorization, and payment-provider orchestration</li>
 <li>Agent ingest and catalog module with maturity classification</li>
 <li>Workflow definition, compilation, and versioning module</li>
 <li>Workflow execution state and scheduler module with priority engine</li>
@@ -10582,6 +10583,9 @@ The observability bundle installs independently from the platform proper. This s
 - <strong>Chargeback and showback engine</strong>: aggregates by workspace, agent, fleet, model, user, workflow with exportable periodic reports
 - <strong>Budget enforcement engine</strong>: per-workspace cost budgets with soft alerts (50%, 80%, 100%), hard caps (admin-overridable), end-of-period forecasting
 - <strong>Cost intelligence dashboard</strong>: real-time spend, historical trends, anomaly detection, cost-effectiveness metrics (quality per dollar), drill-down to individual executions</p>
+<p>UPD-047 adds a billing bounded context beside cost governance. Billing owns commercial plan versions, workspace- or tenant-scoped subscriptions, synchronous quota checks, overage authorization, subscription lifecycle transitions, and provider-facing usage reporting. Cost governance remains the finance analytics and chargeback plane; it links new cost-attribution rows to the active subscription when one exists, and it retro-tags legacy rows on read for continuity.</p>
+<p>The quota-enforcement hot path runs inside the control-plane API before chargeable state is created. Execution creation, workspace creation, agent publication, invitation acceptance, and model routing call the billing <code>QuotaEnforcer</code>; the enforcer resolves the active subscription, reads the pinned immutable plan version, consults the local/Redis quota cache, and returns a structured allow/block/pause decision. Enterprise plans with zero caps short-circuit without overage or hard-cap work.</p>
+<p>External payment systems are isolated behind a <code>PaymentProvider</code> abstraction. The control plane calls the provider for customer creation, subscription create/update/cancel, proration preview, invoice retrieval, and metered-usage reporting; development and CI use the deterministic stub provider, while Stripe-compatible production integration lands behind the same contract.</p>
 <h2 id="19-user-experience-architecture">19. User experience architecture<a class="headerlink" href="#19-user-experience-architecture" title="Permanent link">&para;</a></h2>
 <h3 id="191-accessibility-wcag-21-aa">19.1 Accessibility (WCAG 2.1 AA)<a class="headerlink" href="#191-accessibility-wcag-21-aa" title="Permanent link">&para;</a></h3>
 <p>The web UI conforms to WCAG 2.1 Level AA:
