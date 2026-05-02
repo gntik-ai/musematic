@@ -192,6 +192,10 @@ Composite Musematic platform chart used by production and E2E deployments.
 | kafka.minInsyncReplicas | int | `2` | Configures `kafka.minInsyncReplicas` for the platform chart. |
 | kafka.namespace | string | `"platform-data"` | Configures `kafka.namespace` for the platform chart. |
 | kafka.replicationFactor | int | `3` | Configures `kafka.replicationFactor` for the platform chart. |
+| marketplace | object | `{"deprecationRetentionDays":30,"forkNotifySourceOwners":true,"submissionRateLimitPerDay":5}` | Configures the public-marketplace scope dimension and platform-staff review queue (UPD-049). |
+| marketplace.deprecationRetentionDays | int | `30` | Days a deprecated public listing remains queryable for fork resolution. |
+| marketplace.forkNotifySourceOwners | bool | `true` | Whether the marketplace.source_updated fan-out delivers notifications to fork owners (FR-027). |
+| marketplace.submissionRateLimitPerDay | int | `5` | Per-submitter rolling-24h cap on public-scope submissions (FR-009). |
 | minio | object | `{"clusterName":"musematic-minio","createNamespace":false,"enabled":true,"minio":{"enabled":true},"namespace":"platform-data","s3":{"accessKey":"platform","bucketPrefix":"platform","endpointUrl":"","region":"us-east-1","secretKey":"change-me"},"standalone":false}` | Configures `minio` for the platform chart. |
 | minio.clusterName | string | `"musematic-minio"` | Configures `minio.clusterName` for the platform chart. |
 | minio.createNamespace | bool | `false` | Configures `minio.createNamespace` for the platform chart. |
