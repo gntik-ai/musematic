@@ -1,4 +1,4 @@
-"""Platform-staff marketplace-review service (UPD-049 FR-013–FR-017).
+"""Platform-staff marketplace-review service (UPD-049 FR-013 to FR-017).
 
 Owns the cross-tenant review queue, the optimistic claim semantics
 (research R6), the approve/reject transitions, and the audit + Kafka +
@@ -15,6 +15,10 @@ from datetime import UTC, datetime
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.logging import get_logger
+from platform.marketplace.metrics import (
+    marketplace_review_age_seconds,
+    marketplace_review_decisions_total,
+)
 from platform.registry.events import (
     MarketplaceApprovedPayload,
     MarketplaceEventType,
@@ -29,7 +33,7 @@ from platform.registry.exceptions import (
     SubmissionNotFoundError,
 )
 from platform.registry.schemas import ReviewQueueResponse, ReviewSubmissionView
-from typing import Any, Protocol
+from typing import Protocol
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
@@ -212,7 +216,7 @@ class MarketplaceAdminService:
                        review_notes = :notes
                  WHERE id = :agent_id
                    AND review_status = 'pending_review'
-                RETURNING tenant_id, fqn, marketplace_scope
+                RETURNING tenant_id, fqn, marketplace_scope, updated_at
                 """
             ),
             {
@@ -225,6 +229,15 @@ class MarketplaceAdminService:
         if row is None:
             await self._raise_for_failed_state_change(agent_id)
         await self._session.commit()
+        marketplace_review_decisions_total.labels(decision="approved").inc()
+        # Approximate review age = now - the row's updated_at at the
+        # moment of approval (the submission updated_at advances on
+        # publish_with_scope, so it's a reasonable lower bound).
+        age_seconds = max(
+            0.0,
+            (datetime.now(tz=UTC) - row["updated_at"]).total_seconds(),
+        )
+        marketplace_review_age_seconds.labels(decision="approved").observe(age_seconds)
         correlation = CorrelationContext(
             correlation_id=uuid4(),
             tenant_id=row["tenant_id"],
@@ -299,7 +312,7 @@ class MarketplaceAdminService:
                        review_notes = :reason
                  WHERE id = :agent_id
                    AND review_status = 'pending_review'
-                RETURNING tenant_id, fqn, created_by
+                RETURNING tenant_id, fqn, created_by, updated_at
                 """
             ),
             {
@@ -312,6 +325,12 @@ class MarketplaceAdminService:
         if row is None:
             await self._raise_for_failed_state_change(agent_id)
         await self._session.commit()
+        marketplace_review_decisions_total.labels(decision="rejected").inc()
+        age_seconds = max(
+            0.0,
+            (datetime.now(tz=UTC) - row["updated_at"]).total_seconds(),
+        )
+        marketplace_review_age_seconds.labels(decision="rejected").observe(age_seconds)
         correlation = CorrelationContext(
             correlation_id=uuid4(),
             tenant_id=row["tenant_id"],

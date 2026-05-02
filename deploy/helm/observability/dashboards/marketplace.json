@@ -1,0 +1,137 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "description": "Public-marketplace submission, review, fork, and rate-limit telemetry for UPD-049.",
+  "editable": true,
+  "id": null,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "$prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Public submissions per minute (by category)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (category) (rate(marketplace_submissions_total[1m]))",
+          "legendFormat": "{{category}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "title": "Review decisions (approve / reject)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (decision) (rate(marketplace_review_decisions_total[5m]))",
+          "legendFormat": "{{decision}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 3,
+      "title": "Fork operations (by target scope)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (target_scope) (rate(marketplace_forks_total[5m]))",
+          "legendFormat": "{{target_scope}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "short" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "id": 4,
+      "title": "Rate-limit refusals (FR-009)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "rate(marketplace_rate_limit_refusals_total[5m])",
+          "legendFormat": "refusals/s",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$prometheus" },
+      "fieldConfig": {
+        "defaults": { "unit": "s" },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "id": 5,
+      "title": "Review age — submission to decision (p50/p90/p99)",
+      "description": "How long submissions wait before approve/reject. Operational SLA per UPD-049 SC-007 is 5 business days at p95.",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le, decision) (rate(marketplace_review_age_seconds_bucket[1h])))",
+          "legendFormat": "p50 {{decision}}",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.90, sum by (le, decision) (rate(marketplace_review_age_seconds_bucket[1h])))",
+          "legendFormat": "p90 {{decision}}",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le, decision) (rate(marketplace_review_age_seconds_bucket[1h])))",
+          "legendFormat": "p99 {{decision}}",
+          "refId": "C"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 38,
+  "tags": ["marketplace", "upd-049"],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "multi": false,
+        "name": "prometheus",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      }
+    ]
+  },
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Marketplace (UPD-049)",
+  "uid": "upd049-marketplace",
+  "version": 1
+}

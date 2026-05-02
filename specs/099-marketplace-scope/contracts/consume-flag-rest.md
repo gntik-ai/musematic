@@ -19,10 +19,15 @@ Existing PATCH endpoint gains an optional `feature_flags` field that routes thro
 
 Behaviour:
 
-- The endpoint validates each flag name against the documented allowlist (currently
-  just `consume_public_marketplace`). Unknown flags → `422 feature_flag_not_in_allowlist`.
-- The flag is allowed only on Enterprise tenants (the default tenant is a publisher,
-  not a consumer). Setting it on the default tenant → `422 feature_flag_invalid_for_tenant_kind`.
+- Flags in the documented allowlist (currently just `consume_public_marketplace`)
+  route through `TenantsService.set_feature_flag` for full validation, audit, and
+  Kafka. Flags **not** in the allowlist preserve the legacy "set the whole dict"
+  semantics for backward compatibility — pre-existing custom flags continue to
+  work without code changes (this is the brownfield-compat note: see
+  `specs/099-marketplace-scope/NOTES.md`).
+- The `consume_public_marketplace` flag is allowed only on Enterprise tenants
+  (the default tenant is a publisher, not a consumer). Setting it on the default
+  tenant → `422 feature_flag_invalid_for_tenant_kind`.
 - A successful set:
   - Updates `tenants.feature_flags` JSONB.
   - Records a hash-linked audit-chain entry (payload includes from/to values).
@@ -42,7 +47,7 @@ Updated `TenantView` mirroring the existing PATCH response shape with the new
 | 401 | `unauthenticated` |
 | 403 | `not_super_admin` |
 | 404 | `tenant_not_found` |
-| 422 | `feature_flag_not_in_allowlist`, `feature_flag_invalid_for_tenant_kind` |
+| 422 | `feature_flag_invalid_for_tenant_kind` (and `feature_flag_not_in_allowlist` is reserved for future strict-mode operation) |
 
 ## Test contract
 

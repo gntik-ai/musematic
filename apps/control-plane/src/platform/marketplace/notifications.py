@@ -23,7 +23,6 @@ from __future__ import annotations
 
 from platform.common.logging import get_logger
 from platform.notifications.service import AlertService
-from typing import Any
 from uuid import UUID
 
 LOGGER = get_logger(__name__)

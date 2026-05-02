@@ -43,7 +43,7 @@ from platform.tenants.reserved_slugs import RESERVED_SLUGS
 from platform.tenants.resolver import TENANT_INVALIDATION_CHANNEL
 from platform.tenants.schemas import SLUG_RE, TenantCreate, TenantScheduleDeletion, TenantUpdate
 from platform.two_person_approval.service import TwoPersonApprovalError, TwoPersonApprovalService
-from typing import Any, Protocol, cast
+from typing import Any, ClassVar, Protocol, cast
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
@@ -200,14 +200,15 @@ class TenantsService:
         if request.contract_metadata is not None:
             values["contract_metadata_json"] = dict(request.contract_metadata)
             changed_fields.append("contract_metadata")
-        # UPD-049: feature_flags changes go through set_feature_flag so each
-        # flag is allowlist-validated, kind-validated, audited, and emits a
-        # tenants.feature_flag_changed Kafka event. The legacy "set the whole
-        # dict" semantics is only used for flags NOT in the allowlist (which
-        # currently is none — the empty dict path is a defensive no-op).
+        # UPD-049: allowlisted flags route through set_feature_flag for the
+        # full audit + Kafka + cache treatment. Non-allowlisted flags keep
+        # the legacy "set whole dict" semantics for backward compatibility
+        # (existing tenants may carry custom flags that pre-date the
+        # allowlist).
         flag_changes_to_apply: dict[str, bool] = {}
         if request.feature_flags is not None:
             existing_flags = dict(tenant.feature_flags_json or {})
+            merged_flags = dict(existing_flags)
             for flag_name, new_value in request.feature_flags.items():
                 if flag_name in self._FEATURE_FLAG_ALLOWLIST:
                     bool_value = bool(new_value)
@@ -215,9 +216,31 @@ class TenantsService:
                     if bool_value != existing_value:
                         flag_changes_to_apply[flag_name] = bool_value
                 else:
-                    raise FeatureFlagNotInAllowlistError(flag_name)
-            if flag_changes_to_apply:
+                    merged_flags[flag_name] = new_value
+            if merged_flags != existing_flags or flag_changes_to_apply:
                 changed_fields.append("feature_flags")
+            non_allowlisted = {
+                k: v
+                for k, v in merged_flags.items()
+                if k not in self._FEATURE_FLAG_ALLOWLIST
+            }
+            existing_non_allowlisted = {
+                k: v
+                for k, v in existing_flags.items()
+                if k not in self._FEATURE_FLAG_ALLOWLIST
+            }
+            if non_allowlisted != existing_non_allowlisted:
+                # Preserve any allowlisted-flag values from the existing dict
+                # so the bulk write doesn't accidentally clobber them.
+                preserved_allowlisted = {
+                    k: v
+                    for k, v in existing_flags.items()
+                    if k in self._FEATURE_FLAG_ALLOWLIST
+                }
+                values["feature_flags_json"] = {
+                    **preserved_allowlisted,
+                    **non_allowlisted,
+                }
         if values:
             await self.repository.update(tenant, **values)
         await self.session.commit()
@@ -246,7 +269,7 @@ class TenantsService:
     # Allowlist of flags this method is permitted to mutate. Each flag's
     # entry says which tenant kinds the flag may be set on. Adding a flag
     # here is a deliberate code change so the surface stays auditable.
-    _FEATURE_FLAG_ALLOWLIST: dict[str, frozenset[str]] = {
+    _FEATURE_FLAG_ALLOWLIST: ClassVar[dict[str, frozenset[str]]] = {
         "consume_public_marketplace": frozenset({"enterprise"}),
     }
 

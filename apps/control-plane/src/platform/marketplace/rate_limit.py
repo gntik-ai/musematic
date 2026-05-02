@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import time
 from platform.common.clients.redis import AsyncRedisClient
+from platform.marketplace.metrics import marketplace_rate_limit_refusals_total
 from platform.registry.exceptions import SubmissionRateLimitExceededError
 from uuid import UUID, uuid4
 
@@ -65,6 +66,7 @@ class MarketplaceSubmissionRateLimiter:
         count = int(await client.zcard(key) or 0)
         if count >= self._cap:
             retry_seconds = await self._retry_after_seconds(key, now_ms)
+            marketplace_rate_limit_refusals_total.inc()
             raise SubmissionRateLimitExceededError(retry_after_seconds=retry_seconds)
 
         await client.zadd(key, {str(uuid4()): now_ms})

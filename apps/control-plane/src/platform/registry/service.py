@@ -5,6 +5,8 @@ import re
 import shutil
 from collections.abc import Coroutine
 from dataclasses import dataclass
+from datetime import UTC, datetime
+from hashlib import sha256
 from platform.billing.quotas.http import raise_for_quota_result
 from platform.common import database
 from platform.common.clients.object_storage import AsyncObjectStorageClient
@@ -16,6 +18,11 @@ from platform.common.events.producer import EventProducer
 from platform.common.exceptions import BucketNotFoundError, ObjectStorageError, ValidationError
 from platform.common.tagging.filter_extension import TagLabelFilterParams
 from platform.common.tagging.listing import resolve_filtered_entity_ids
+from platform.common.tenant_context import get_current_tenant
+from platform.marketplace.metrics import (
+    marketplace_forks_total,
+    marketplace_submissions_total,
+)
 from platform.model_catalog.models import ModelCatalogEntry
 from platform.model_catalog.repository import ModelCatalogRepository
 from platform.privacy_compliance.services.pia_service import DATA_CATEGORIES_REQUIRING_PIA
@@ -29,7 +36,6 @@ from platform.registry.events import (
     MarketplaceForkedPayload,
     MarketplacePublishedPayload,
     MarketplaceScopeChangedPayload,
-    MarketplaceSourceUpdatedPayload,
     MarketplaceSubmittedPayload,
     publish_agent_created,
     publish_agent_decommissioned,
@@ -43,10 +49,9 @@ from platform.registry.exceptions import (
     InvalidTransitionError,
     InvalidVisibilityPatternError,
     MarketingMetadataRequiredError,
-    NameTakenInTargetNamespaceError,
     NamespaceConflictError,
     NamespaceNotFoundError,
-    NotAgentOwnerError,
+    NameTakenInTargetNamespaceError,
     PublicScopeNotAllowedForEnterpriseError,
     RegistryError,
     RegistryStoreUnavailableError,
@@ -80,7 +85,6 @@ from platform.registry.schemas import (
     LifecycleAuditListResponse,
     LifecycleAuditResponse,
     LifecycleTransitionRequest,
-    MarketingMetadata,
     MarketplaceScopeChangeRequest,
     MaturityUpdateRequest,
     NamespaceCreate,
@@ -90,14 +94,10 @@ from platform.registry.schemas import (
 )
 from platform.registry.state_machine import (
     EVENT_TRANSITIONS,
-    get_valid_review_transitions,
     get_valid_transitions,
     is_valid_review_transition,
     is_valid_transition,
 )
-from datetime import UTC, datetime
-from hashlib import sha256
-from platform.common.tenant_context import TenantContext, get_current_tenant
 from typing import Any
 from uuid import UUID, uuid4
 
@@ -873,6 +873,9 @@ class RegistryService:
                 ),
                 self._correlation(workspace_id, profile.fqn),
             )
+            marketplace_submissions_total.labels(
+                category=request.marketing_metadata.category
+            ).inc()
             if previous_scope != target_scope:
                 await publish_marketplace_event(
                     self.event_producer,
@@ -1028,20 +1031,17 @@ class RegistryService:
           via the response's ``tool_dependencies_missing`` array.
         - Records audit-chain entry; publishes ``marketplace.forked``.
         """
-        # Source visibility — RLS handles cross-tenant cuts. We attempt to
-        # read the source row directly (no workspace filter) because forks
-        # are cross-workspace in the consumer's tenant or cross-tenant via
-        # the consume flag.
-        source = await self.repository.get_agent_by_id_any_workspace(source_id) \
-            if hasattr(self.repository, "get_agent_by_id_any_workspace") \
-            else await self._lookup_source_for_fork(source_id)
+        # Source visibility — RLS handles cross-tenant cuts. We use the
+        # cross-workspace lookup helper because forks are intentionally
+        # cross-workspace in the consumer's tenant (or cross-tenant via
+        # the consume flag).
+        source = await self._lookup_source_for_fork(source_id)
         if source is None:
             raise SourceAgentNotVisibleError(source_id)
 
         # Resolve target workspace.
         target_workspace_id = request.target_workspace_id
         if request.target_scope == "tenant":
-            tenant = get_current_tenant()
             # For tenant scope we use the consumer's currently-active workspace
             # as the home; the agent will then be visible across all
             # workspaces in the tenant per the workspace-scope vs tenant-scope
@@ -1132,6 +1132,7 @@ class RegistryService:
             ),
             self._correlation(target_workspace_id, fork.fqn),
         )
+        marketplace_forks_total.labels(target_scope=request.target_scope).inc()
         return ForkAgentResponse(
             agent_id=fork.id,
             fqn=fork.fqn,
