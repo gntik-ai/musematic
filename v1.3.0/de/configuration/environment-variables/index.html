@@ -4566,6 +4566,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#signup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Signup
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#simulation" class="md-nav__link">
     <span class="md-ellipsis">
       Simulation
@@ -5499,6 +5508,15 @@
   <a href="#securitycompliance" class="md-nav__link">
     <span class="md-ellipsis">
       SecurityCompliance
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#signup" class="md-nav__link">
+    <span class="md-ellipsis">
+      Signup
     </span>
   </a>
   
@@ -10819,6 +10837,14 @@
 <td><code>apps/control-plane/src/platform/model_catalog/services/fallback_service.py</code></td>
 </tr>
 <tr>
+<td><code>FEATURE_FIRST_AGENT_ONBOARDING</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/accounts/onboarding.py</code></td>
+</tr>
+<tr>
 <td><code>FEATURE_FLAG_OVERRIDE_NOT_FOUND</code></td>
 <td>optional</td>
 <td>-</td>
@@ -12323,6 +12349,22 @@
 <td><code>apps/control-plane/src/platform/auth/exceptions.py</code></td>
 </tr>
 <tr>
+<td><code>OPAQUE_404_BODY</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/common/middleware/tenant_resolver.py</code></td>
+</tr>
+<tr>
+<td><code>OPAQUE_404_HEADERS</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/common/middleware/tenant_resolver.py</code></td>
+</tr>
+<tr>
 <td><code>OPENSEARCH_</code></td>
 <td>optional</td>
 <td>-</td>
@@ -13347,6 +13389,14 @@
 <td><code>apps/control-plane/src/platform/common/clients/reasoning_engine.py</code><br><code>apps/control-plane/src/platform/common/clients/runtime_controller.py</code><br><code>apps/control-plane/src/platform/common/clients/sandbox_manager.py</code><br><code>apps/control-plane/src/platform/common/clients/simulation_controller.py</code></td>
 </tr>
 <tr>
+<td><code>SIGNUP_</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
 <td><code>SIMILAR_TO</code></td>
 <td>optional</td>
 <td>-</td>
@@ -13553,6 +13603,14 @@
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
 <td><code>apps/control-plane/src/platform/admin/tenant_mode_service.py</code></td>
+</tr>
+<tr>
+<td><code>TENANT_RESOLVER_BYPASS_PATHS</code></td>
+<td>optional</td>
+<td>-</td>
+<td>configuration</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/common/middleware/tenant_resolver.py</code></td>
 </tr>
 <tr>
 <td><code>TEST_SUITE_NOT_FOUND</code></td>
@@ -14152,7 +14210,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/admin/security_scheduler.py</code><br><code>apps/control-plane/src/platform/billing/quotas/reconciliation.py</code><br><code>apps/control-plane/src/platform/billing/subscriptions/period_scheduler.py</code><br><code>apps/control-plane/src/platform/cost_governance/jobs/anomaly_job.py</code><br><code>apps/control-plane/src/platform/cost_governance/jobs/forecast_job.py</code><br>+16 more</td>
+<td><code>apps/control-plane/src/platform/accounts/jobs/workspace_auto_create.py</code><br><code>apps/control-plane/src/platform/admin/security_scheduler.py</code><br><code>apps/control-plane/src/platform/billing/quotas/reconciliation.py</code><br><code>apps/control-plane/src/platform/billing/subscriptions/period_scheduler.py</code><br><code>apps/control-plane/src/platform/cost_governance/jobs/anomaly_job.py</code><br>+17 more</td>
 </tr>
 <tr>
 <td><code>VAULT_</code></td>
@@ -15329,6 +15387,53 @@
 <td><code>true</code></td>
 <td>configuration</td>
 <td>Enable release blocking when vulnerability scan policy fails.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="signup">Signup<a class="headerlink" href="#signup" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Required</th>
+<th>Default</th>
+<th>Sensitivity</th>
+<th>Description</th>
+<th>Sources</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SIGNUP_AUTO_CREATE_RETRY_SECONDS</code></td>
+<td>optional</td>
+<td><code>30</code></td>
+<td>informational</td>
+<td>Configures <code>auto_create_retry_seconds</code> for Signup.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>SIGNUP_DEFAULT_WORKSPACE_NAME_TEMPLATE</code></td>
+<td>optional</td>
+<td><code>{display_name}'s workspace</code></td>
+<td>informational</td>
+<td>Configures <code>default_workspace_name_template</code> for Signup.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>SIGNUP_FIRST_ADMIN_INVITE_TTL_DAYS</code></td>
+<td>optional</td>
+<td><code>7</code></td>
+<td>informational</td>
+<td>Configures <code>first_admin_invite_ttl_days</code> for Signup.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>SIGNUP_ONBOARDING_WIZARD_ENABLED</code></td>
+<td>optional</td>
+<td><code>true</code></td>
+<td>informational</td>
+<td>Configures <code>onboarding_wizard_enabled</code> for Signup.</td>
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 </tbody>

@@ -3001,6 +3001,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#upd-048-tenant-aware-signup-and-onboarding" class="md-nav__link">
+    <span class="md-ellipsis">
+      UPD-048 Tenant-Aware Signup And Onboarding
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#1-purpose-of-this-document" class="md-nav__link">
     <span class="md-ellipsis">
       1. Purpose of this document
@@ -6711,6 +6720,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#upd-048-tenant-aware-signup-and-onboarding" class="md-nav__link">
+    <span class="md-ellipsis">
+      UPD-048 Tenant-Aware Signup And Onboarding
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#1-purpose-of-this-document" class="md-nav__link">
     <span class="md-ellipsis">
       1. Purpose of this document
@@ -8796,6 +8814,9 @@ Reasoning orchestration: budgetable, auditable, adaptive
 Self-correction: native runtime capability with convergence detection
 Simulation: isolated execution environment for what-if analysis</p>
 <hr />
+<h2 id="upd-048-tenant-aware-signup-and-onboarding">UPD-048 Tenant-Aware Signup And Onboarding<a class="headerlink" href="#upd-048-tenant-aware-signup-and-onboarding" title="Permanent link">&para;</a></h2>
+<p>Public self-service signup is only available on the default tenant host. The tenant resolver populates tenant context before account routes run; signup-adjacent handlers return the canonical opaque 404 for Enterprise tenant subdomains so tenant existence is not enumerable. Successful default-tenant verification creates a default workspace and Free subscription inline when possible, with a scheduler retry job filling any provisioning gap.</p>
+<p>Enterprise tenant provisioning issues a first-admin setup invitation after the tenant row is committed. The <code>/setup</code> flow is tenant-scoped, token-bound, resumable, and requires MFA verification before workspace creation, invitations, or completion. Users who accept invitations across tenants receive independent tenant-local identities; <code>/api/v1/me/memberships</code> uses the platform-staff read path to list those identities for tenant switching without sharing sessions across subdomains.</p>
 <h2 id="1-purpose-of-this-document">1. Purpose of this document<a class="headerlink" href="#1-purpose-of-this-document" title="Permanent link">&para;</a></h2>
 <p>This document defines the <strong>system architecture</strong> of the product as a complete production platform for multi-tenant, policy-governed, workflow-driven, multi-agent execution with advanced context engineering, reasoning orchestration, self-correction, resource-aware optimization, scientific discovery, privacy-preserving collaboration, marketplace intelligence, fleet-level learning, agent simulation, AgentOps lifecycle management, and semantic/behavioral testing.</p>
 <p>It is intentionally broader than a typical application architecture because the product is not only a web application. It is a full platform that includes:

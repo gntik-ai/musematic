@@ -3014,6 +3014,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#upd-048-accounts-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      UPD-048 Accounts Boundary
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#1-purpose-of-this-document" class="md-nav__link">
     <span class="md-ellipsis">
       1. Purpose of this document
@@ -7666,6 +7675,15 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#upd-048-accounts-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      UPD-048 Accounts Boundary
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#1-purpose-of-this-document" class="md-nav__link">
     <span class="md-ellipsis">
       1. Purpose of this document
@@ -10708,6 +10726,9 @@ Internal service protocol: gRPC
 Event backbone: Kafka
 Interoperability baseline: MCP + A2A first-class</p>
 <hr />
+<h2 id="upd-048-accounts-boundary">UPD-048 Accounts Boundary<a class="headerlink" href="#upd-048-accounts-boundary" title="Permanent link">&para;</a></h2>
+<p>The accounts boundary now owns tenant-aware public signup, Enterprise first-admin setup, onboarding state, and membership introspection. New tables <code>user_onboarding_states</code> and <code>tenant_first_admin_invitations</code> store wizard and setup state under tenant RLS. Account, platform user, and credential email uniqueness is scoped by <code>(tenant_id, email)</code> so the same mailbox can have independent identities in multiple tenants.</p>
+<p>The frontend adds a <code>/setup</code> wizard, <code>/onboarding</code>, <code>/me/memberships</code>, and a shell tenant switcher. Backend guardrail scripts enforce that signup handlers call the tenant-kind gate before business logic and that UPD-048 state-changing account services append audit-chain entries.</p>
 <h2 id="1-purpose-of-this-document">1. Purpose of this document<a class="headerlink" href="#1-purpose-of-this-document" title="Permanent link">&para;</a></h2>
 <p>This document defines the <strong>software architecture</strong> of the platform.</p>
 <p>Where <code>system-architecture.md</code> describes system planes, deployment topology, trust boundaries, and platform-wide flows, this document answers the software-design questions:</p>
