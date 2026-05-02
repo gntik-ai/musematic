@@ -89,7 +89,8 @@ class OnboardingWizardService:
             to_step = "invitations"
         elif step == "invitations":
             state.step_invitations_sent_or_skipped = True
-            to_step = "first_agent" if self.is_first_agent_step_available() else "tour"
+            first_agent_available = await self.is_first_agent_step_available()
+            to_step = "first_agent" if first_agent_available else "tour"
         elif step == "first-agent":
             state.step_first_agent_created_or_skipped = True
             to_step = "tour"
@@ -156,7 +157,7 @@ class OnboardingWizardService:
         )
         return await self._view(state)
 
-    def is_first_agent_step_available(self) -> bool:
+    async def is_first_agent_step_available(self) -> bool:
         feature_flags = getattr(self.settings, "feature_flags", None)
         if isinstance(feature_flags, dict):
             return bool(feature_flags.get("FEATURE_FIRST_AGENT_ONBOARDING", True))
@@ -188,7 +189,7 @@ class OnboardingWizardService:
             step_tour_started_or_skipped=state.step_tour_started_or_skipped,
             last_step_attempted=state.last_step_attempted,
             dismissed_at=state.dismissed_at,
-            first_agent_step_available=self.is_first_agent_step_available(),
+            first_agent_step_available=await self.is_first_agent_step_available(),
             default_workspace_id=workspace.id if workspace else None,
             default_workspace_name=workspace.name if workspace else None,
         )

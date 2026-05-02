@@ -445,9 +445,11 @@ class AccountsService:
         self._ensure_invitation_pending(invitation)
         if current_user is not None:
             current_tenant_id = current_user.get("tenant_id")
+            invitation_tenant_id = invitation.tenant_id
             if (
                 current_tenant_id is not None
-                and str(current_tenant_id) != str(invitation.tenant_id)
+                and invitation_tenant_id is not None
+                and str(current_tenant_id) != str(invitation_tenant_id)
             ):
                 raise CrossTenantInviteAcceptanceError()
         if await self.repo.get_user_by_email(invitation.invitee_email) is not None:
@@ -484,13 +486,17 @@ class AccountsService:
             ),
             correlation,
         )
-        if invitation.tenant_id != DEFAULT_TENANT_ID:
+        invitation_tenant_id = invitation.tenant_id
+        if (
+            invitation_tenant_id is not None
+            and str(invitation_tenant_id) != str(DEFAULT_TENANT_ID)
+        ):
             await publish_accounts_event(
                 self.kafka_producer,
                 AccountsEventType.cross_tenant_invitation_accepted,
                 CrossTenantInvitationAcceptedPayload(
                     default_tenant_user_id=None,
-                    enterprise_tenant_id=invitation.tenant_id,
+                    enterprise_tenant_id=invitation_tenant_id,
                     enterprise_user_id=user.id,
                     email=user.email,
                 ),
@@ -729,36 +735,36 @@ class AccountsService:
     ) -> None:
         workspace_id: UUID | None = None
         subscription_id: UUID | None = None
-        try:
-            if self.platform_settings is None:
-                return
-            subscription_service = SubscriptionService(
-                session=self.repo.session,
-                subscriptions=SubscriptionsRepository(self.repo.session),
-                plans=PlansRepository(self.repo.session),
-                producer=self.kafka_producer,
-            )
-            workspace = await WorkspacesService(
-                repo=WorkspacesRepository(self.repo.session),
-                settings=self.platform_settings,
-                kafka_producer=self.kafka_producer,
-                subscription_service=subscription_service,
-            ).create_default_workspace(
-                user.id,
-                user.display_name,
-                correlation_ctx=correlation,
-            )
-            workspace_id = workspace.id
-            subscription = await subscription_service.provision_for_default_workspace(
-                workspace.id,
-                created_by_user_id=user.id,
-            )
-            subscription_id = subscription.id
-        except Exception as exc:
-            LOGGER.warning(
-                "Default workspace provisioning deferred after signup verification",
-                extra={"user_id": str(user.id), "error": str(exc)},
-            )
+        session = getattr(self.repo, "session", None)
+        if self.platform_settings is not None and session is not None:
+            try:
+                subscription_service = SubscriptionService(
+                    session=session,
+                    subscriptions=SubscriptionsRepository(session),
+                    plans=PlansRepository(session),
+                    producer=self.kafka_producer,
+                )
+                workspace = await WorkspacesService(
+                    repo=WorkspacesRepository(session),
+                    settings=self.platform_settings,
+                    kafka_producer=self.kafka_producer,
+                    subscription_service=subscription_service,
+                ).create_default_workspace(
+                    user.id,
+                    user.display_name,
+                    correlation_ctx=correlation,
+                )
+                workspace_id = workspace.id
+                subscription = await subscription_service.provision_for_default_workspace(
+                    workspace.id,
+                    created_by_user_id=user.id,
+                )
+                subscription_id = subscription.id
+            except Exception as exc:
+                LOGGER.warning(
+                    "Default workspace provisioning deferred after signup verification",
+                    extra={"user_id": str(user.id), "error": str(exc)},
+                )
         await publish_accounts_event(
             self.kafka_producer,
             AccountsEventType.signup_completed,
@@ -771,7 +777,7 @@ class AccountsService:
             ),
             correlation,
         )
-        if self.platform_settings is not None:
+        if self.platform_settings is not None and session is not None:
             payload: dict[str, object] = {
                 "user_id": str(user.id),
                 "email": user.email,
@@ -779,7 +785,7 @@ class AccountsService:
                 "subscription_id": str(subscription_id) if subscription_id else None,
             }
             await AuditChainService(
-                AuditChainRepository(self.repo.session),
+                AuditChainRepository(session),
                 self.platform_settings,
                 producer=self.kafka_producer,
             ).append(

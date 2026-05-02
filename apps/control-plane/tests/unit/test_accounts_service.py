@@ -432,9 +432,10 @@ async def test_verify_email_activates_open_signup_and_creates_approval_for_admin
     assert open_result.status == UserStatus.active
     assert open_user.email_verified_at is not None
     assert open_user.activated_at is not None
-    assert [event["event_type"] for event in open_producer.events[-2:]] == [
+    assert [event["event_type"] for event in open_producer.events[-3:]] == [
         "accounts.user.email_verified",
         "accounts.user.activated",
+        "accounts.signup.completed",
     ]
 
     approval_service, approval_repo, _, approval_producer, _ = _build_service(

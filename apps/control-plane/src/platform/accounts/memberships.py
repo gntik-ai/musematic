@@ -1,4 +1,8 @@
-"""Cross-tenant membership listing for UPD-048 FR-020 through FR-023."""
+"""Cross-tenant membership listing for UPD-048 FR-020 through FR-023.
+
+The router injects `platform.common.database.get_platform_staff_session`; this service keeps
+the BYPASSRLS session explicit so cross-tenant fanout remains scoped to this use case.
+"""
 
 from __future__ import annotations
 

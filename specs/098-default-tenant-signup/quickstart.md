@@ -303,4 +303,16 @@ If every step above succeeds, your local-dev cluster has a working tenant-aware 
 
 ## Validation status
 
-On 2026-05-02, this walkthrough was updated to match the implemented request contracts. The full fresh kind-cluster validation was not executed here because UPD-048 inherits the UPD-047 kind harness blocker documented for the same date.
+On 2026-05-02, this walkthrough was updated to match the implemented request contracts. A fresh kind-cluster validation attempt was made with:
+
+```bash
+PRUNE_DOCKER_CACHE=0 DOCKER_BUILD_CACHE_DIR=/tmp/musematic-docker-cache make dev-up
+```
+
+The run failed while creating the `amp-e2e` kind cluster, before any platform charts or UPD-048 steps could execute:
+
+```text
+ERROR: failed to create cluster: could not find a log line that matches "Reached target .*Multi-User System.*|detected cgroup v1"
+```
+
+Re-run this quickstart after the kind node bootstrap issue is resolved.

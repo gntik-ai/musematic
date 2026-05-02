@@ -21,8 +21,8 @@ def test_first_agent_step_availability_is_controlled_by_feature_flag_and_echoed_
     ).read_text(encoding="utf-8")
 
     assert "FEATURE_FIRST_AGENT_ONBOARDING" in service
-    assert "first_agent_step_available=self.is_first_agent_step_available()" in service
-    assert 'to_step = "first_agent" if self.is_first_agent_step_available() else "tour"' in service
+    assert "first_agent_step_available=await self.is_first_agent_step_available()" in service
+    assert 'to_step = "first_agent" if first_agent_available else "tour"' in service
     assert "state.first_agent_step_available" in frontend
     assert (
         'const BASE_STEPS: OnboardingStep[] = ["workspace_named", "invitations", "tour"]'
