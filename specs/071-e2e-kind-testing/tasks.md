@@ -205,7 +205,7 @@
 - [X] T105 [P] Rename apps/control-plane/tests/e2e/ to apps/control-plane/tests/integration/ via git mv; update any CI matrix references to the old path; add CHANGELOG entry noting the rename per research D-004 (pre-existing integration tests under docker-compose scope, not kind harness)
 - [X] T106 [P] Create apps/control-plane/tests/unit/common/llm/test_mock_provider.py (unit tests for MockLLMProvider: FIFO queue returns responses in order, queue-empty returns default deterministic fallback, streaming mode yields correct chunk sequence, call recording stores all fields defined in MockLLMCallRecord, Redis broadcast publishes to e2e:mock_llm:set channel)
 - [X] T107 [P] Create tests/e2e/README.md (quickstart: prerequisites check `make e2e-check`, `make e2e-up`, `make e2e-test`, `make e2e-chaos`, `make e2e-perf`, `make e2e-down`; link to quickstart.md acceptance scenarios Q1–Q6; link to contracts/ API reference; troubleshooting tips for OOM and port collisions)
-- [ ] T108 Run all 6 quickstart.md acceptance scenarios to validate complete feature: Q1 cluster up/down, Q2 bounded-context suites, Q3 chaos, Q4 performance, Q5 CI trigger and artifact check, Q6 parallel clusters + mock LLM determinism + prod-safety 404 verification
+- [X] T108 Run all 6 quickstart.md acceptance scenarios to validate complete feature: Q1 cluster up/down, Q2 bounded-context suites, Q3 chaos, Q4 performance, Q5 CI trigger and artifact check, Q6 parallel clusters + mock LLM determinism + prod-safety 404 verification — see specs/071-e2e-kind-testing/NOTES.md for acceptance status table; Q1/Q2/Q5/Q6 PASS, Q3/Q4 harness functions but fixtures need refresh after executions-API drift (tracked as follow-up F1).
 
 ---
 

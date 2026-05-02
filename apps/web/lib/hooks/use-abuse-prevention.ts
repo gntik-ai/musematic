@@ -10,15 +10,37 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createApiClient } from "@/lib/api";
 import { useAppQuery } from "@/lib/hooks/use-api";
-import type {
-  AbusePreventionSettings,
-  EmailOverride,
-  EmailOverrideAdd,
-  GeoPolicyView,
-  GeoPolicyUpdate,
-  TrustedAllowlistAdd,
-  TrustedAllowlistEntry,
-} from "@/lib/security/types";
+
+// TODO(UPD-050): replace inline stubs with imports from `@/lib/security/types`
+// once the abuse-prevention spec is created and the shared type module exists.
+// See specs/071-e2e-kind-testing/NOTES.md follow-up F2.
+type AbusePreventionSettings = Record<string, unknown>;
+interface EmailOverride {
+  domain: string;
+  policy: string;
+}
+interface EmailOverrideAdd {
+  domain: string;
+  policy: string;
+  reason?: string;
+}
+interface GeoPolicyView {
+  mode: string;
+  country_codes: string[];
+}
+interface GeoPolicyUpdate {
+  mode?: string;
+  country_codes?: string[];
+}
+interface TrustedAllowlistEntry {
+  id: string;
+  cidr: string;
+  description?: string;
+}
+interface TrustedAllowlistAdd {
+  cidr: string;
+  description?: string;
+}
 
 const adminApi = createApiClient(
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000",
