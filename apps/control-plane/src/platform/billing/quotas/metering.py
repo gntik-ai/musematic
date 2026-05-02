@@ -172,6 +172,8 @@ class MeteringJob:
                 raise
 
     async def _mark_processed(self, event_id: UUID) -> bool:
+        if self.session is None:
+            raise RuntimeError("metering session is required to mark processed events")
         statement = (
             insert(ProcessedEventID)
             .values(event_id=event_id, consumer_name=CONSUMER_NAME)
@@ -183,6 +185,8 @@ class MeteringJob:
         return result.scalar_one_or_none() is not None
 
     async def _plan_context(self, subscription: Subscription) -> tuple[Plan, PlanVersion]:
+        if self.session is None:
+            raise RuntimeError("metering session is required to resolve plan context")
         result = await self.session.execute(
             select(Plan, PlanVersion)
             .join(PlanVersion, PlanVersion.plan_id == Plan.id)
@@ -192,7 +196,8 @@ class MeteringJob:
                 PlanVersion.version == subscription.plan_version,
             )
         )
-        return result.one()
+        row = result.one()
+        return row[0], row[1]
 
 
 def _event_id(envelope: EventEnvelope) -> UUID:

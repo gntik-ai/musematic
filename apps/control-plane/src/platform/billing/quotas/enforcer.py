@@ -8,7 +8,7 @@ from decimal import Decimal
 from platform.billing.exceptions import NoActiveSubscriptionError
 from platform.billing.metrics import metrics
 from platform.billing.plans.models import Plan, PlanVersion
-from platform.billing.quotas.schemas import QuotaCheckResult
+from platform.billing.quotas.schemas import QuotaCheckResult, QuotaDecision
 from platform.billing.quotas.usage_repository import UsageRepository
 from platform.billing.subscriptions.models import Subscription
 from platform.billing.subscriptions.resolver import SubscriptionResolver
@@ -503,7 +503,7 @@ def _model_allowed(allowed_model_tier: str, quality_tier: str) -> bool:
 
 
 def _result(
-    decision: str,
+    decision: QuotaDecision,
     *,
     quota_name: str | None = None,
     current: Decimal | int | None = None,
@@ -518,7 +518,7 @@ def _result(
         subscription.scope_id if subscription and subscription.scope_type == "workspace" else None
     )
     return QuotaCheckResult(
-        decision=decision,  # type: ignore[arg-type]
+        decision=decision,
         quota_name=quota_name,
         current=current,
         limit=limit,

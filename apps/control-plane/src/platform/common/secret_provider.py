@@ -8,12 +8,13 @@ import os
 import re
 import signal
 from collections import OrderedDict, deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from platform.connectors.exceptions import CredentialUnavailableError
-from typing import Any, Literal, Protocol
+from typing import Any, Literal, Protocol, cast
 
 try:  # pragma: no cover - exercised when the optional Vault dependency is installed
     import hvac  # type: ignore[import-untyped]
@@ -844,8 +845,9 @@ class KubernetesSecretProvider:
             raise RuntimeError(
                 "kubernetes-asyncio is required for KubernetesSecretProvider"
             ) from exc
+        load_incluster_config = cast(Callable[[], None], config.load_incluster_config)
         with contextlib.suppress(Exception):
-            config.load_incluster_config()  # type: ignore[no-untyped-call]
+            load_incluster_config()
             self._api = client.CoreV1Api()
             return self._api
         await config.load_kube_config()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date
 from decimal import Decimal
 from platform.audit.service import AuditChainService
 from platform.billing.exceptions import PlanNotFoundError, PlanVersionImmutableError
@@ -168,6 +169,6 @@ class PlansService:
 def _jsonable(value: object) -> object:
     if isinstance(value, Decimal):
         return str(value)
-    if hasattr(value, "isoformat"):
-        return value.isoformat()  # type: ignore[no-any-return]
+    if isinstance(value, date):
+        return value.isoformat()
     return value
