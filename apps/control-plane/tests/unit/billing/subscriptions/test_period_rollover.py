@@ -29,6 +29,7 @@ def _subscription(*, cancel_at_period_end: bool = False) -> Subscription:
 class _Session:
     def __init__(self) -> None:
         self.committed = False
+        self.free_plan_id = uuid4()
 
     async def __aenter__(self) -> _Session:
         return self
@@ -38,6 +39,33 @@ class _Session:
 
     async def commit(self) -> None:
         self.committed = True
+
+    async def flush(self) -> None:
+        return None
+
+    async def scalar(self, *args: object, **kwargs: object) -> object:
+        del args, kwargs
+        return "pro"
+
+    async def execute(self, *args: object, **kwargs: object) -> object:
+        del args, kwargs
+
+        class _Result:
+            def __init__(self, plan_id: object) -> None:
+                self.plan_id = plan_id
+
+            def one_or_none(self) -> tuple[object, int]:
+                return self.plan_id, 1
+
+        return _Result(self.free_plan_id)
+
+
+class _Audit:
+    def __init__(self) -> None:
+        self.events: list[dict[str, object]] = []
+
+    async def append(self, *args: object, **kwargs: object) -> None:
+        self.events.append({"args": args, "kwargs": kwargs})
 
 
 class _Repository:
@@ -91,8 +119,18 @@ class _Producer:
 @pytest.fixture(autouse=True)
 def _patch_scheduler_dependencies(monkeypatch: pytest.MonkeyPatch) -> None:
     _Repository.subscriptions = []
-    monkeypatch.setattr(period_scheduler.database, "AsyncSessionLocal", _Session)
+    monkeypatch.setattr(period_scheduler.database, "PlatformStaffAsyncSessionLocal", _Session)
     monkeypatch.setattr(period_scheduler, "SubscriptionsRepository", _Repository)
+    monkeypatch.setattr(period_scheduler, "build_audit_chain_service", lambda *args: _Audit())
+    monkeypatch.setattr(
+        period_scheduler,
+        "_data_exceeding_free_limits",
+        lambda *args: _async_value({"workspaces": 0, "agents": 0, "users": 0}),
+    )
+
+
+async def _async_value(value: object) -> object:
+    return value
 
 
 @pytest.mark.asyncio
@@ -117,12 +155,16 @@ async def test_period_rollover_advances_once_per_boundary() -> None:
 @pytest.mark.asyncio
 async def test_period_rollover_cancels_scheduled_downgrade_and_emits_event() -> None:
     subscription = _subscription(cancel_at_period_end=True)
+    original_plan_id = subscription.plan_id
     _Repository.subscriptions = [subscription]
     producer = _Producer()
     app = SimpleNamespace(state=SimpleNamespace(clients={"kafka": producer}))
 
     await period_scheduler.run_period_rollover(app)
 
-    assert subscription.status == "canceled"
+    assert subscription.status == "active"
     assert subscription.cancel_at_period_end is False
+    assert subscription.plan_id != original_plan_id
     assert producer.events[0]["event_type"] == "billing.subscription.downgrade_effective"
+    assert producer.events[0]["payload"]["from_plan_slug"] == "pro"
+    assert producer.events[0]["payload"]["to_plan_slug"] == "free"

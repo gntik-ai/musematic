@@ -143,6 +143,17 @@ class _Session:
             return self.tenants.get(identifier)
         if model is Workspace:
             return self.workspaces.get(identifier)
+        if model is Plan:
+            return Plan(
+                id=identifier,
+                slug="pro",
+                display_name="Pro",
+                tier="pro",
+                description=None,
+                is_public=True,
+                is_active=True,
+                allowed_model_tier="standard",
+            )
         return None
 
 
