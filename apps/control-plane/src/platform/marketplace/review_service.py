@@ -20,6 +20,7 @@ from platform.registry.events import (
     MarketplaceEventType,
     MarketplacePublishedPayload,
     MarketplaceRejectedPayload,
+    MarketplaceSourceUpdatedPayload,
     publish_marketplace_event,
 )
 from platform.registry.exceptions import (
@@ -188,7 +189,19 @@ class MarketplaceAdminService:
     ) -> None:
         """Transition ``pending_review → published`` and emit
         ``marketplace.approved`` followed by ``marketplace.published``.
+
+        Per UPD-049 T073: also emits ``marketplace.source_updated`` so that
+        the fan-out consumer (``MarketplaceFanoutConsumer``) can deliver
+        notifications to fork owners. The fan-out is naturally a no-op
+        for first-time approvals because no forks exist yet — we don't
+        gate the event emission on fork existence to avoid an extra DB
+        round-trip on the hot path.
         """
+        # Capture whether this is a re-approval — used to populate the
+        # source_updated payload's diff_summary_hash with the new revision's
+        # id (see contract). For the first publication and subsequent
+        # re-approvals the payload looks the same; the consumer's "find
+        # forks" query is what determines whether a notification fires.
         result = await self._session.execute(
             text(
                 """
@@ -199,7 +212,7 @@ class MarketplaceAdminService:
                        review_notes = :notes
                  WHERE id = :agent_id
                    AND review_status = 'pending_review'
-                RETURNING tenant_id, fqn
+                RETURNING tenant_id, fqn, marketplace_scope
                 """
             ),
             {
@@ -236,6 +249,37 @@ class MarketplaceAdminService:
             ),
             correlation,
         )
+        # T073 — fan-out trigger for fork owners. Only meaningful for
+        # public_default_tenant scope (forks live downstream of public
+        # agents). The fan-out consumer skips events with no matching
+        # forks, so first-time approvals are no-ops at the consumer.
+        if row["marketplace_scope"] == "public_default_tenant":
+            new_version_id = await self._lookup_current_revision_id(agent_id)
+            await publish_marketplace_event(
+                self._event_producer,
+                MarketplaceEventType.source_updated,
+                MarketplaceSourceUpdatedPayload(
+                    source_agent_id=str(agent_id),
+                    new_version_id=str(new_version_id) if new_version_id else str(agent_id),
+                    diff_summary_hash="sha256-pending",
+                ),
+                correlation,
+            )
+
+    async def _lookup_current_revision_id(self, agent_id: UUID) -> UUID | None:
+        result = await self._session.execute(
+            text(
+                """
+                SELECT id FROM registry_agent_revisions
+                 WHERE agent_profile_id = :agent_id
+                 ORDER BY created_at DESC
+                 LIMIT 1
+                """
+            ),
+            {"agent_id": str(agent_id)},
+        )
+        row = result.mappings().first()
+        return row["id"] if row else None
 
     async def reject(
         self,

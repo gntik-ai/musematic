@@ -16,6 +16,8 @@ from platform.registry.schemas import (
     AgentRevisionListResponse,
     AgentUploadResponse,
     DeprecateListingRequest,
+    ForkAgentRequest,
+    ForkAgentResponse,
     LifecycleAuditListResponse,
     LifecycleTransitionRequest,
     MarketplaceScopeChangeRequest,
@@ -316,6 +318,29 @@ async def deprecate_listing(
         payload,
         actor_id,
     )
+
+
+@router.post(
+    "/agents/{source_id}/fork",
+    response_model=ForkAgentResponse,
+    status_code=201,
+)
+async def fork_agent(
+    source_id: UUID,
+    payload: ForkAgentRequest,
+    request: Request,
+    current_user: dict[str, Any] = Depends(get_current_user),
+    registry_service: RegistryService = Depends(get_registry_service),
+) -> ForkAgentResponse:
+    """UPD-049 — fork a public-marketplace agent into the consumer's tenant.
+
+    See `specs/099-marketplace-scope/contracts/fork-rest.md`.
+    """
+    del request  # workspace_id comes from the request body, not the header
+    actor_id = _actor_id(current_user)
+    if actor_id is None:
+        raise ValidationError("USER_ID_REQUIRED", "Fork requires a human user")
+    return await registry_service.fork_agent(source_id, payload, actor_id)
 
 
 @router.post("/agents/{agent_id}/maturity", response_model=AgentProfileResponse)

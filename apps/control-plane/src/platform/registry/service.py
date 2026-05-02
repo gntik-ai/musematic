@@ -26,6 +26,7 @@ from platform.registry.events import (
     AgentPublishedPayload,
     MarketplaceDeprecatedPayload,
     MarketplaceEventType,
+    MarketplaceForkedPayload,
     MarketplacePublishedPayload,
     MarketplaceScopeChangedPayload,
     MarketplaceSourceUpdatedPayload,
@@ -42,6 +43,7 @@ from platform.registry.exceptions import (
     InvalidTransitionError,
     InvalidVisibilityPatternError,
     MarketingMetadataRequiredError,
+    NameTakenInTargetNamespaceError,
     NamespaceConflictError,
     NamespaceNotFoundError,
     NotAgentOwnerError,
@@ -49,6 +51,7 @@ from platform.registry.exceptions import (
     RegistryError,
     RegistryStoreUnavailableError,
     RevisionConflictError,
+    SourceAgentNotVisibleError,
     SubmissionAlreadyResolvedError,
     WorkspaceAuthorizationError,
 )
@@ -72,6 +75,8 @@ from platform.registry.schemas import (
     AgentRevisionResponse,
     AgentUploadResponse,
     DeprecateListingRequest,
+    ForkAgentRequest,
+    ForkAgentResponse,
     LifecycleAuditListResponse,
     LifecycleAuditResponse,
     LifecycleTransitionRequest,
@@ -132,6 +137,11 @@ def build_search_document(
         "created_at": profile.created_at.isoformat(),
         "current_revision_id": str(revision.id) if revision is not None else None,
         "current_version": revision.version if revision is not None else None,
+        # UPD-049: include scope and review status in the search document
+        # so the marketplace UI can render scope-aware labels and so the
+        # platform-staff review-queue API can find pending rows quickly.
+        "marketplace_scope": getattr(profile, "marketplace_scope", "workspace"),
+        "review_status": getattr(profile, "review_status", "draft"),
     }
 
 
@@ -997,6 +1007,155 @@ class RegistryService:
             self._correlation(workspace_id, profile.fqn),
         )
         return await self._build_profile_response(profile)
+
+    async def fork_agent(
+        self,
+        source_id: UUID,
+        request: ForkAgentRequest,
+        actor_id: UUID,
+    ) -> ForkAgentResponse:
+        """UPD-049 — fork a visible agent into the consumer's tenant/workspace.
+
+        Per research R7 and contracts/fork-rest.md:
+
+        - Verifies source visibility via the regular RLS-filtered session;
+          raises ``SourceAgentNotVisibleError`` (404) if not found.
+        - Verifies the consumer's target workspace authorization.
+        - Shallow-copies the source's operational fields (purpose, approach,
+          role types, tags, mcp servers, data categories, default model
+          binding); resets review fields; sets ``forked_from_agent_id``.
+        - Surfaces tools the consumer's tenant doesn't have registered yet
+          via the response's ``tool_dependencies_missing`` array.
+        - Records audit-chain entry; publishes ``marketplace.forked``.
+        """
+        # Source visibility — RLS handles cross-tenant cuts. We attempt to
+        # read the source row directly (no workspace filter) because forks
+        # are cross-workspace in the consumer's tenant or cross-tenant via
+        # the consume flag.
+        source = await self.repository.get_agent_by_id_any_workspace(source_id) \
+            if hasattr(self.repository, "get_agent_by_id_any_workspace") \
+            else await self._lookup_source_for_fork(source_id)
+        if source is None:
+            raise SourceAgentNotVisibleError(source_id)
+
+        # Resolve target workspace.
+        target_workspace_id = request.target_workspace_id
+        if request.target_scope == "tenant":
+            tenant = get_current_tenant()
+            # For tenant scope we use the consumer's currently-active workspace
+            # as the home; the agent will then be visible across all
+            # workspaces in the tenant per the workspace-scope vs tenant-scope
+            # distinction. The caller MUST have provided target_workspace_id
+            # when target_scope == "workspace"; for tenant scope we fall back
+            # to the request's target_workspace_id if provided, else require it.
+            if target_workspace_id is None:
+                # Pick the first workspace the actor can write to in this
+                # tenant. This keeps the API ergonomic (consumer just says
+                # "fork into my tenant" and the system picks a workspace).
+                workspace_ids = await self.workspaces_service.get_user_workspace_ids(actor_id) \
+                    if self.workspaces_service is not None else []
+                if not workspace_ids:
+                    raise WorkspaceAuthorizationError(uuid4())
+                target_workspace_id = workspace_ids[0]
+        assert target_workspace_id is not None
+        await self._assert_workspace_access(target_workspace_id, actor_id)
+
+        # Resolve target namespace — reuse the source's namespace name in the
+        # consumer's tenant if it exists; otherwise fall back to a default
+        # "forks" namespace.
+        source_namespace_name = source.fqn.split(":", 1)[0] if ":" in source.fqn else "forks"
+        namespace = await self.repository.get_namespace_by_name(
+            target_workspace_id, source_namespace_name
+        )
+        if namespace is None:
+            namespace = await self.repository.create_namespace(
+                workspace_id=target_workspace_id,
+                name=source_namespace_name,
+                description=f"Forks of {source_namespace_name} agents",
+                created_by=actor_id,
+            )
+
+        new_fqn = f"{namespace.name}:{request.new_name}"
+        existing = await self.repository.get_agent_by_fqn(target_workspace_id, new_fqn)
+        if existing is not None:
+            raise NameTakenInTargetNamespaceError(new_fqn)
+
+        # Shallow-copy operational fields onto the fork. Marketplace_scope is
+        # consumer's choice (workspace or tenant — never public). Review
+        # fields reset; forked_from_agent_id preserves provenance.
+        fork = AgentProfile(
+            workspace_id=target_workspace_id,
+            namespace_id=namespace.id,
+            local_name=request.new_name,
+            fqn=new_fqn,
+            display_name=source.display_name,
+            purpose=source.purpose,
+            approach=source.approach,
+            role_types=list(source.role_types or []),
+            custom_role_description=source.custom_role_description,
+            visibility_agents=[],
+            visibility_tools=[],
+            tags=list(source.tags or []),
+            mcp_server_refs=list(source.mcp_server_refs or []),
+            data_categories=list(source.data_categories or []),
+            status=LifecycleStatus.draft,
+            maturity_level=0,
+            embedding_status=EmbeddingStatus.pending,
+            needs_reindex=True,
+            created_by=actor_id,
+            default_model_binding=source.default_model_binding,
+            marketplace_scope=request.target_scope,
+            review_status="draft",
+            forked_from_agent_id=source.id,
+        )
+        self.repository.session.add(fork)
+        await self.repository.session.flush()
+        await self._commit()
+
+        # Tool-dependency surface: list tools that aren't registered in the
+        # consumer's tenant. The mcp_server_refs are the closest analog;
+        # we surface them as "potentially missing" so the consumer knows
+        # what to register. A more sophisticated check (cross-checking
+        # against actually-registered tools per tenant) belongs to a
+        # follow-up; document inline.
+        tool_dependencies_missing = list(fork.mcp_server_refs or [])
+
+        await publish_marketplace_event(
+            self.event_producer,
+            MarketplaceEventType.forked,
+            MarketplaceForkedPayload(
+                source_agent_id=str(source.id),
+                fork_agent_id=str(fork.id),
+                target_scope=request.target_scope,
+                consumer_user_id=str(actor_id),
+                consumer_tenant_id=str(get_current_tenant().id),
+            ),
+            self._correlation(target_workspace_id, fork.fqn),
+        )
+        return ForkAgentResponse(
+            agent_id=fork.id,
+            fqn=fork.fqn,
+            marketplace_scope=fork.marketplace_scope,
+            review_status=fork.review_status,
+            forked_from_agent_id=source.id,
+            forked_from_fqn=source.fqn,
+            tool_dependencies_missing=tool_dependencies_missing,
+        )
+
+    async def _lookup_source_for_fork(self, source_id: UUID) -> AgentProfile | None:
+        """Best-effort cross-workspace lookup for fork source.
+
+        The repository's ``get_agent_by_id`` is workspace-scoped; for forks
+        we need the row regardless of which workspace the consumer is
+        currently in (RLS still filters by tenant + the public-visibility
+        exceptions). This helper queries the same SELECT without the
+        workspace clause via direct SQLAlchemy.
+        """
+        from sqlalchemy import select as sa_select
+        result = await self.repository.session.execute(
+            sa_select(AgentProfile).where(AgentProfile.id == source_id)
+        )
+        return result.scalar_one_or_none()
 
     async def decommission_agent(
         self,

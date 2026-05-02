@@ -45,6 +45,12 @@ class AgentListingProjection(_StrictModel):
     quality_profile: QualityProfileSchema | None = None
     aggregate_rating: AggregateRatingSchema | None = None
     relevance_score: float | None = None
+    # UPD-049: marketplace scope dimension. The frontend uses this to render
+    # the "From public marketplace" label on cross-tenant public rows when
+    # the consuming tenant has the `consume_public_marketplace` feature flag
+    # set. RLS performs the visibility cut at the database layer; this field
+    # is purely informational for the UI.
+    marketplace_scope: str = "workspace"
 
 
 class MarketplaceSearchRequest(_StrictModel):
