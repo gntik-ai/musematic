@@ -6,7 +6,8 @@ public marketplace. This page covers the three scopes, the platform-staff
 review queue, the fork operation, and the operator surface for the
 `consume_public_marketplace` flag.
 
-> Spec: [`specs/099-marketplace-scope/spec.md`](../../specs/099-marketplace-scope/spec.md)
+> Spec: `specs/099-marketplace-scope/spec.md` (in the repository root, not
+> shipped with the docs site).
 >
 > Architecture decision record: see also
 > [`docs/saas/tenant-architecture.md`](./tenant-architecture.md) for the
@@ -104,8 +105,8 @@ workspace. The fork is a shallow copy:
   fork owners receive a `marketplace.source_updated` notification
   instead.
 
-Endpoint: `POST /api/v1/registry/agents/{source_id}/fork`. See
-[`contracts/fork-rest.md`](../../specs/099-marketplace-scope/contracts/fork-rest.md).
+Endpoint: `POST /api/v1/registry/agents/{source_id}/fork`. See the
+contract at `specs/099-marketplace-scope/contracts/fork-rest.md`.
 
 ## Operator surface — `consume_public_marketplace`
 
@@ -123,9 +124,9 @@ not a consumer.
 
 Each toggle records a hash-linked audit-chain entry, publishes a
 `tenants.feature_flag_changed` event on `tenants.lifecycle`, and
-invalidates the resolver cache for the affected tenant. See
-[`deploy/runbooks/marketplace-consume-flag.md`](../../deploy/runbooks/marketplace-consume-flag.md)
-for the full operator runbook.
+invalidates the resolver cache for the affected tenant. The full
+operator runbook lives at
+`deploy/runbooks/marketplace-consume-flag.md` in the repository.
 
 ## Telemetry
 
@@ -139,8 +140,8 @@ Prometheus metrics (UPD-049 T079) exposed by the control plane:
 | `marketplace_rate_limit_refusals_total` | Counter | – |
 | `marketplace_review_age_seconds` | Histogram | `decision` |
 
-Grafana dashboard JSON:
-[`deploy/helm/observability/dashboards/marketplace.json`](../../deploy/helm/observability/dashboards/marketplace.json).
+Grafana dashboard JSON lives at
+`deploy/helm/observability/dashboards/marketplace.json` in the repository.
 
 ## Kafka events
 
@@ -159,6 +160,5 @@ Plus one new event on `tenants.lifecycle`:
 
 - `tenants.feature_flag_changed`
 
-See
-[`contracts/marketplace-events-kafka.md`](../../specs/099-marketplace-scope/contracts/marketplace-events-kafka.md)
+See `specs/099-marketplace-scope/contracts/marketplace-events-kafka.md`
 for envelope schemas.
