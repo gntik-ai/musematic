@@ -1380,6 +1380,11 @@ Composite Musematic platform chart used by production and E2E deployments.
 | sandboxManager.image.pullPolicy | string | `"IfNotPresent"` | Configures `sandboxManager.image.pullPolicy` for the platform chart. |
 | sandboxManager.image.repository | string | `"ghcr.io/musematic/sandbox-manager"` | Configures `sandboxManager.image.repository` for the platform chart. |
 | sandboxManager.image.tag | string | `"latest"` | Configures `sandboxManager.image.tag` for the platform chart. |
+| signup | object | `{"autoCreateRetrySeconds":30,"defaultWorkspaceNameTemplate":"{display_name}'s workspace","firstAdminInviteTtlDays":7,"onboardingWizardEnabled":true}` | Configures default-tenant signup and Enterprise first-admin onboarding. |
+| signup.autoCreateRetrySeconds | int | `30` | Retry cadence for deferred default-workspace creation after email verification. |
+| signup.defaultWorkspaceNameTemplate | string | `"{display_name}'s workspace"` | Default workspace-name template. Review translated wording before changing. |
+| signup.firstAdminInviteTtlDays | int | `7` | Lifetime for Enterprise first-admin setup invitations. |
+| signup.onboardingWizardEnabled | bool | `true` | Enables the post-signup onboarding wizard for default-tenant users. |
 | simulationController | object | `{"enabled":true,"fullnameOverride":"musematic-simulation-controller","image":{"repository":"ghcr.io/musematic/simulation-controller","tag":"latest"}}` | Configures `simulationController` for the platform chart. |
 | simulationController.enabled | bool | `true` | Configures `simulationController.enabled` for the platform chart. |
 | simulationController.fullnameOverride | string | `"musematic-simulation-controller"` | Configures `simulationController.fullnameOverride` for the platform chart. |
