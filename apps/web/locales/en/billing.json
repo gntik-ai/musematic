@@ -1,0 +1,10 @@
+{
+  "quotaExceeded": "Quota exceeded",
+  "upgrade": "Upgrade",
+  "downgrade": "Downgrade",
+  "overageAuthorization": "Overage authorization",
+  "billingDashboard": "Billing",
+  "statusActive": "Active",
+  "statusSuspended": "Suspended",
+  "cleanupBanner": "Free limits exceeded"
+}

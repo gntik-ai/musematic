@@ -106,6 +106,7 @@ async def test_lifespan_handles_clients_without_close_and_close_failures(monkeyp
     )
     monkeypatch.setattr(main_module.database, "AsyncSessionLocal", lambda: AsyncSessionContextStub())
     monkeypatch.setattr(main_module, "provision_default_tenant_if_missing", _async_none_with_arg)
+    monkeypatch.setattr(main_module, "provision_default_plans_if_missing", _async_none_with_arg)
     async with _lifespan(app):
         assert app.state.degraded is False
         assert app.state.clients["redis"].connected is True

@@ -7,6 +7,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from importlib import import_module
+from platform.billing.quotas.http import raise_for_quota_result
 from platform.common.clients import model_provider_http
 from platform.common.clients.injection_defense.input_sanitizer import sanitize_messages
 from platform.common.clients.injection_defense.output_validator import validate_output
@@ -144,6 +145,7 @@ class ModelRouter:
         event_producer: EventProducer | None = None,
         provider_call: ProviderCall = model_provider_http.call,
         agent_resolver: AgentResolver | None = None,
+        quota_enforcer: Any | None = None,
         cache_ttl_seconds: int = 60,
     ) -> None:
         self.repository = repository
@@ -153,6 +155,7 @@ class ModelRouter:
         self.event_producer = event_producer
         self.provider_call = provider_call
         self.agent_resolver = agent_resolver
+        self.quota_enforcer = quota_enforcer
         self.cache_ttl_seconds = cache_ttl_seconds
         self._catalog_cache: dict[str, _CacheEntry] = {}
         self._policy_cache: dict[str, _CacheEntry] = {}
@@ -172,6 +175,13 @@ class ModelRouter:
         primary_binding = await self._resolve_binding(agent_id, step_binding)
         primary = await self._catalog_entry_for_binding(primary_binding)
         self._validate_entry(primary, primary_binding)
+        if self.quota_enforcer is not None:
+            quota_result = await self.quota_enforcer.check_model_tier(
+                workspace_id,
+                primary.model_id,
+                primary.quality_tier,
+            )
+            raise_for_quota_result(quota_result, workspace_id=workspace_id)
         policy = await self._resolve_policy(workspace_id, agent_id, primary)
         sticky_key = self._sticky_key(workspace_id, primary.id)
         messages_to_send = await self._prepare_messages(

@@ -39,6 +39,7 @@ class CostGovernanceRepository:
         storage_cost_cents: Decimal,
         overhead_cost_cents: Decimal,
         token_counts: dict[str, Any],
+        subscription_id: UUID | None = None,
         metadata: dict[str, Any] | None = None,
     ) -> CostAttribution:
         attribution = CostAttribution(
@@ -47,6 +48,7 @@ class CostGovernanceRepository:
             workspace_id=workspace_id,
             agent_id=agent_id,
             user_id=user_id,
+            subscription_id=subscription_id,
             origin=origin,
             model_id=model_id,
             currency=currency,
@@ -80,6 +82,7 @@ class CostGovernanceRepository:
             workspace_id=original.workspace_id,
             agent_id=original.agent_id,
             user_id=original.user_id,
+            subscription_id=original.subscription_id,
             origin=original.origin,
             model_id=original.model_id,
             currency=original.currency,
@@ -484,4 +487,3 @@ def _group_columns(group_by: Sequence[str]) -> list[Any]:
     }
     columns = [mapping[item] for item in group_by if item in mapping]
     return columns or [CostAttribution.workspace_id.label("workspace_id")]
-

@@ -22,6 +22,7 @@ class AttributionRow:
     storage_cost_cents: Decimal
     overhead_cost_cents: Decimal
     token_counts: dict[str, Any]
+    subscription_id: UUID | None = None
     attribution_metadata: dict[str, Any] = field(default_factory=dict)
     correction_of: UUID | None = None
     id: UUID = field(default_factory=uuid4)
@@ -77,6 +78,7 @@ class AttributionRepository:
             storage_cost_cents=kwargs.get("storage_cost_cents", Decimal("0")),
             overhead_cost_cents=kwargs.get("overhead_cost_cents", Decimal("0")),
             token_counts={},
+            subscription_id=original.subscription_id,
             attribution_metadata=kwargs.get("metadata") or {},
             correction_of=original.id,
         )

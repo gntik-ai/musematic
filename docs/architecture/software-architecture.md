@@ -141,6 +141,7 @@ repo/
         promptops/
         memory/
         analytics/
+        billing/                   # NEW (UPD-047): plans, subscriptions, quotas, overage, payment providers
         evaluation/
         audit/
         search/
@@ -578,6 +579,23 @@ Usage metering, cost estimation, KPI projection, dashboard rollups, billing-supp
 
 ### Owns
 `UsageEvent`, `UsageRollup`, `CostEstimate`, `KpiSeries`, `QuotaConsumption`, `CostIntelligenceReport`, `ResourcePrediction`
+
+## 7.15a `billing` bounded context (UPD-047)
+
+### Responsibilities
+Commercial plan catalog and immutable plan-version publication, workspace- and tenant-scoped subscriptions, lifecycle transitions, quota enforcement, overage authorization, billing-period rollover, active-compute metering, provider usage reporting, and platform-staff subscription administration.
+
+### Owns
+`Plan`, `PlanVersion`, `Subscription`, `UsageRecord`, `OverageAuthorization`, `ProcessedEventId`; PostgreSQL migrations 103 and 104 seed the default Free/Pro/Enterprise plans, backfill default-tenant workspace subscriptions, and link `cost_attributions.subscription_id` for billing-aware analytics.
+
+### Publishes events
+`billing.plan.published`, `billing.subscription.upgraded`, `billing.subscription.downgrade_scheduled`, `billing.subscription.downgrade_cancelled`, `billing.subscription.downgrade_effective`, `billing.subscription.cancelled`, `billing.subscription.period_renewed`, `billing.overage.required`, `billing.overage.authorized`, `billing.overage.revoked`.
+
+### Payment providers
+Provider integration is expressed as a `PaymentProvider` Protocol, with methods for customer creation, subscription create/update/cancel, proration preview, invoice retrieval, and metered-usage reporting. The deterministic stub provider is used in local, test, and CI flows. Stripe remains an implementation detail behind the same interface, so subscription service code does not branch on provider-specific SDK objects.
+
+### Quota-enforcement hot path
+Chargeable operations call the `QuotaEnforcer` synchronously before durable side effects: execution creation, workspace creation, agent publication, invitation acceptance, and model selection. The enforcer resolves the active subscription, reads the pinned plan version, uses process-local and Redis quota caches, then returns `OK`, hard-cap, overage-required, overage-cap, model-tier, no-subscription, or suspended decisions. Hard caps return HTTP 402 without partial state; Pro overage can create a paused execution until authorization; Enterprise zero-cap plans short-circuit.
 
 ## 7.16 `evaluation` bounded context
 
@@ -1648,4 +1666,3 @@ This software architecture covers the full target platform shape including all 1
 - factory-style delivery and governance.
 
 The design is therefore suitable as the software architecture baseline for the current revised requirement set of **391 functional requirements + 375 technical requirements = 766 total requirements**.
-

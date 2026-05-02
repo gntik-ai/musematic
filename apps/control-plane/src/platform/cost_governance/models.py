@@ -32,6 +32,7 @@ class CostAttribution(Base, TenantScopedMixin, UUIDMixin):
     __table_args__ = (
         Index("ix_cost_attributions_workspace_created", "workspace_id", "created_at"),
         Index("ix_cost_attributions_execution", "execution_id"),
+        Index("cost_attributions_subscription_idx", "subscription_id"),
         Index(
             "ix_cost_attributions_workspace_agent_created",
             "workspace_id",
@@ -81,6 +82,11 @@ class CostAttribution(Base, TenantScopedMixin, UUIDMixin):
     user_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    subscription_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("subscriptions.id", ondelete="SET NULL"),
         nullable=True,
     )
     origin: Mapped[str] = mapped_column(String(length=64), nullable=False, default="user_trigger")

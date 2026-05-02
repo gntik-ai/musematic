@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from platform.audit.dependencies import build_audit_chain_service
+from platform.billing.quotas.dependencies import build_quota_enforcer
 from platform.common.clients.object_storage import AsyncObjectStorageClient
 from platform.common.clients.opensearch import AsyncOpenSearchClient
 from platform.common.clients.qdrant import AsyncQdrantClient
@@ -14,7 +15,7 @@ from platform.registry.repository import RegistryRepository
 from platform.registry.service import RegistryService
 from platform.workspaces.dependencies import get_workspaces_service
 from platform.workspaces.service import WorkspacesService
-from typing import cast
+from typing import Any, cast
 
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,6 +53,7 @@ def build_registry_service(
     tag_service: object | None = None,
     label_service: object | None = None,
     tagging_service: object | None = None,
+    redis_client: object | None = None,
 ) -> RegistryService:
     return RegistryService(
         repository=RegistryRepository(
@@ -71,6 +73,11 @@ def build_registry_service(
         tag_service=tag_service,
         label_service=label_service,
         tagging_service=tagging_service,
+        quota_enforcer=build_quota_enforcer(
+            session=session,
+            settings=settings,
+            redis_client=cast(Any, redis_client),
+        ),
     )
 
 
@@ -96,4 +103,5 @@ async def get_registry_service(
         tag_service=await get_tag_service(request, session),
         label_service=await get_label_service(request, session),
         tagging_service=await get_tagging_service(request, session),
+        redis_client=request.app.state.clients.get("redis"),
     )

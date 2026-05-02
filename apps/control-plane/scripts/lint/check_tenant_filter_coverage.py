@@ -68,7 +68,10 @@ def _tenant_catalog_tables() -> set[str]:
             ):
                 return _literal_string_set(statement.value)
         if isinstance(statement, ast.AnnAssign):
-            if isinstance(statement.target, ast.Name) and statement.target.id == "TENANT_SCOPED_TABLES":
+            if (
+                isinstance(statement.target, ast.Name)
+                and statement.target.id == "TENANT_SCOPED_TABLES"
+            ):
                 if statement.value is None:
                     break
                 return _literal_string_set(statement.value)

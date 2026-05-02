@@ -1,0 +1,10 @@
+{
+  "quotaExceeded": "Cuota superada",
+  "upgrade": "Mejorar plan",
+  "downgrade": "Bajar plan",
+  "overageAuthorization": "Autorizacion de exceso",
+  "billingDashboard": "Facturacion",
+  "statusActive": "Activo",
+  "statusSuspended": "Suspendido",
+  "cleanupBanner": "Limites de Free superados"
+}

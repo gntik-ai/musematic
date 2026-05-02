@@ -1044,6 +1044,13 @@ Composite Musematic platform chart used by production and E2E deployments.
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
+| billing | object | `{"defaultQuotaPeriodAnchor":"calendar_month","meteringToleranceSeconds":30,"paymentProvider":"stub","periodSchedulerIntervalSeconds":60,"quotaCacheTtlSeconds":60,"quotaInFlightTtlSeconds":300}` | Configures plan, subscription, quota, and payment-provider runtime defaults. |
+| billing.defaultQuotaPeriodAnchor | string | `"calendar_month"` | Default period anchor for new quota-bearing plan versions. |
+| billing.meteringToleranceSeconds | int | `30` | Accepted metering delay/tolerance window in seconds. |
+| billing.paymentProvider | string | `"stub"` | Payment provider implementation selector. Stripe lands in UPD-052. |
+| billing.periodSchedulerIntervalSeconds | int | `60` | Subscription period-rollover scheduler interval in seconds. |
+| billing.quotaCacheTtlSeconds | int | `60` | TTL in seconds for quota plan/usage cache entries. |
+| billing.quotaInFlightTtlSeconds | int | `300` | TTL in seconds for in-flight execution quota counters. |
 | clickhouse | object | `{"createNamespace":false,"enabled":true}` | Configures `clickhouse` for the platform chart. |
 | clickhouse.createNamespace | bool | `false` | Configures `clickhouse.createNamespace` for the platform chart. |
 | clickhouse.enabled | bool | `true` | Configures `clickhouse.enabled` for the platform chart. |

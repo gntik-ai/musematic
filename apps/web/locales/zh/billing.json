@@ -1,0 +1,10 @@
+{
+  "quotaExceeded": "配额已超出",
+  "upgrade": "升级",
+  "downgrade": "降级",
+  "overageAuthorization": "超额授权",
+  "billingDashboard": "账单",
+  "statusActive": "有效",
+  "statusSuspended": "已暂停",
+  "cleanupBanner": "已超出 Free 限制"
+}

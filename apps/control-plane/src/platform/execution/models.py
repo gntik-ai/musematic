@@ -42,6 +42,7 @@ class ExecutionStatus(StrEnum):
     canceled = "canceled"
     compensating = "compensating"
     paused = "paused"
+    paused_quota_exceeded = "paused_quota_exceeded"
     rolled_back = "rolled_back"
     rollback_failed = "rollback_failed"
 

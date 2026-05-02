@@ -88,11 +88,18 @@ def _require_execution_rollback(current_user: dict[str, Any]) -> None:
 @router.post("", response_model=ExecutionResponse, status_code=status.HTTP_201_CREATED)
 async def create_execution(
     payload: ExecutionCreate,
+    response: Response,
     current_user: dict[str, Any] = Depends(get_current_user),
     execution_service: ExecutionService = Depends(get_execution_service),
 ) -> ExecutionResponse:
     """Create execution."""
-    return await execution_service.create_execution(payload, created_by=_actor_id(current_user))
+    execution = await execution_service.create_execution(
+        payload,
+        created_by=_actor_id(current_user),
+    )
+    if execution.status == ExecutionStatus.paused_quota_exceeded:
+        response.status_code = status.HTTP_202_ACCEPTED
+    return execution
 
 
 @router.get("", response_model=ExecutionListResponse)

@@ -107,6 +107,22 @@ tenancy:
   # -- Configures `tenancy.hostnameMiddlewareEnabled` for the platform chart.
   hostnameMiddlewareEnabled: true
 
+# @section -- Billing
+# -- Configures plan, subscription, quota, and payment-provider runtime defaults.
+billing:
+  # -- Subscription period-rollover scheduler interval in seconds.
+  periodSchedulerIntervalSeconds: 60
+  # -- Accepted metering delay/tolerance window in seconds.
+  meteringToleranceSeconds: 30
+  # -- Payment provider implementation selector. Stripe lands in UPD-052.
+  paymentProvider: stub
+  # -- TTL in seconds for quota plan/usage cache entries.
+  quotaCacheTtlSeconds: 60
+  # -- TTL in seconds for in-flight execution quota counters.
+  quotaInFlightTtlSeconds: 300
+  # -- Default period anchor for new quota-bearing plan versions.
+  defaultQuotaPeriodAnchor: calendar_month
+
 # @section -- Platformdatanamespace
 # -- Configures `platformDataNamespace` for the platform chart.
 platformDataNamespace:

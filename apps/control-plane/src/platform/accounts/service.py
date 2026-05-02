@@ -59,6 +59,7 @@ from platform.accounts.schemas import (
 )
 from platform.accounts.state_machine import validate_transition
 from platform.auth.service import AuthService
+from platform.billing.quotas.http import raise_for_quota_result
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import AccountsSettings, PlatformSettings
 from platform.common.events.envelope import CorrelationContext
@@ -78,6 +79,7 @@ class AccountsService:
         settings: PlatformSettings | AccountsSettings,
         *,
         notification_client: Any | None = None,
+        quota_enforcer: Any | None = None,
     ) -> None:
         self.repo = repo
         self.redis = redis
@@ -86,6 +88,7 @@ class AccountsService:
         self.platform_settings = settings if isinstance(settings, PlatformSettings) else None
         self.settings = settings.accounts if hasattr(settings, "accounts") else settings
         self.notification_client = notification_client
+        self.quota_enforcer = quota_enforcer
 
     async def register(
         self,
@@ -426,6 +429,10 @@ class AccountsService:
         self._ensure_invitation_pending(invitation)
         if await self.repo.get_user_by_email(invitation.invitee_email) is not None:
             raise EmailAlreadyRegisteredError()
+        if self.quota_enforcer is not None:
+            for workspace_id in self.repo.deserialize_workspace_ids(invitation) or []:
+                quota_result = await self.quota_enforcer.check_user_invite(workspace_id)
+                raise_for_quota_result(quota_result, workspace_id=workspace_id)
 
         user = await self.repo.create_user(
             email=invitation.invitee_email,

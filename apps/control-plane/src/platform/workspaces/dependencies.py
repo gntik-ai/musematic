@@ -3,6 +3,10 @@ from __future__ import annotations
 from platform.accounts.dependencies import get_accounts_service
 from platform.accounts.service import AccountsService
 from platform.audit.dependencies import build_audit_chain_service
+from platform.billing.plans.repository import PlansRepository
+from platform.billing.quotas.dependencies import build_quota_enforcer
+from platform.billing.subscriptions.repository import SubscriptionsRepository
+from platform.billing.subscriptions.service import SubscriptionService
 from platform.common.clients.object_storage import AsyncObjectStorageClient
 from platform.common.clients.opensearch import AsyncOpenSearchClient
 from platform.common.clients.qdrant import AsyncQdrantClient
@@ -52,6 +56,17 @@ def build_workspaces_service(
         saved_view_service=saved_view_service,
         tagging_service=tagging_service,
         redis_client=redis_client,
+        quota_enforcer=build_quota_enforcer(
+            session=session,
+            settings=settings,
+            redis_client=redis_client,
+        ),
+        subscription_service=SubscriptionService(
+            session=session,
+            subscriptions=SubscriptionsRepository(session),
+            plans=PlansRepository(session),
+            producer=producer,
+        ),
     )
 
 

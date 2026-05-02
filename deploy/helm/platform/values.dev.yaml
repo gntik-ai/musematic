@@ -15,3 +15,11 @@ tenancy:
     - help
   cacheTtlSeconds: 60
   hostnameMiddlewareEnabled: true
+
+billing:
+  periodSchedulerIntervalSeconds: 60
+  meteringToleranceSeconds: 30
+  paymentProvider: stub
+  quotaCacheTtlSeconds: 60
+  quotaInFlightTtlSeconds: 300
+  defaultQuotaPeriodAnchor: calendar_month

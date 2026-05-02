@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from platform.audit.repository import AuditChainRepository
 from platform.audit.service import AuditChainService
+from platform.billing.plans.repository import PlansRepository
+from platform.billing.subscriptions.repository import SubscriptionsRepository
+from platform.billing.subscriptions.service import SubscriptionService
 from platform.common.config import PlatformSettings
 from platform.tenants.dns_automation import MockDnsAutomationClient
 from platform.tenants.repository import TenantsRepository
@@ -89,6 +92,11 @@ async def test_provision_enterprise_happy_path(integration_session) -> None:
         dns_automation=dns,
         notifications=notifications,
         object_storage=storage,  # type: ignore[arg-type]
+        subscription_service=SubscriptionService(
+            session=integration_session,
+            subscriptions=SubscriptionsRepository(integration_session),
+            plans=PlansRepository(integration_session),
+        ),
     )
 
     tenant = await service.provision_enterprise_tenant(
@@ -114,6 +122,20 @@ async def test_provision_enterprise_happy_path(integration_session) -> None:
     assert notifications.invites == [("acme", "cto@acme.com")]
     assert producer.messages[0]["topic"] == "tenants.lifecycle"
     assert producer.messages[0]["event_type"] == "tenants.created"
+    subscription_count = await integration_session.scalar(
+        text(
+            """
+            SELECT count(*)
+              FROM subscriptions
+             WHERE tenant_id = :tenant_id
+               AND scope_type = 'tenant'
+               AND scope_id = :tenant_id
+               AND status = 'active'
+            """
+        ),
+        {"tenant_id": tenant.id},
+    )
+    assert subscription_count == 1
 
     audit_count = await integration_session.scalar(
         text(

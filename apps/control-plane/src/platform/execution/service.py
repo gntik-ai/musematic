@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
+from platform.billing.quotas.http import raise_for_quota_result
 from platform.common.clients.object_storage import AsyncObjectStorageClient
 from platform.common.clients.reasoning_engine import ReasoningEngineClient
 from platform.common.clients.redis import AsyncRedisClient
@@ -58,6 +59,7 @@ from platform.execution.schemas import (
     TracePaginationResponse,
     TraceStepResponse,
 )
+from platform.notifications.templates.billing import BillingOverageRequiredAlert
 from platform.workflows.compiler import WorkflowCompiler
 from platform.workflows.exceptions import WorkflowNotFoundError
 from platform.workflows.ir import WorkflowIR
@@ -107,6 +109,7 @@ class ExecutionService:
         compiler: WorkflowCompiler | None = None,
         checkpoint_service: CheckpointService | None = None,
         attribution_service: Any | None = None,
+        quota_enforcer: Any | None = None,
     ) -> None:
         self.repository = repository
         self.settings = settings
@@ -120,6 +123,7 @@ class ExecutionService:
         self.compiler = compiler or WorkflowCompiler()
         self.checkpoint_service = checkpoint_service
         self.attribution_service = attribution_service
+        self.quota_enforcer = quota_enforcer
         self.workflow_repository = WorkflowRepository(repository.session)
         self.task_plan_bucket = "execution-task-plans"
         self.reasoning_trace_bucket = "reasoning-traces"
@@ -155,13 +159,22 @@ class ExecutionService:
                         "Trigger concurrency limit reached",
                     )
 
+        initial_status = ExecutionStatus.queued
+        quota_result = None
+        if self.quota_enforcer is not None:
+            quota_result = await self.quota_enforcer.check_execution(data.workspace_id)
+            if quota_result.decision == "OVERAGE_REQUIRED":
+                initial_status = ExecutionStatus.paused_quota_exceeded
+            else:
+                raise_for_quota_result(quota_result, workspace_id=data.workspace_id)
+
         execution = await self.repository.create_execution(
             Execution(
                 workflow_version_id=version.id,
                 workflow_definition_id=definition.id,
                 trigger_id=data.trigger_id,
                 trigger_type=data.trigger_type,
-                status=ExecutionStatus.queued,
+                status=initial_status,
                 input_parameters=dict(data.input_parameters),
                 workspace_id=data.workspace_id,
                 correlation_workspace_id=data.workspace_id,
@@ -209,6 +222,8 @@ class ExecutionService:
             ),
             self._correlation(execution),
         )
+        if initial_status == ExecutionStatus.paused_quota_exceeded and quota_result is not None:
+            await self._publish_billing_overage_required(execution, quota_result)
         return ExecutionResponse.model_validate(execution)
 
     async def get_execution(self, execution_id: UUID) -> ExecutionResponse:
@@ -368,6 +383,32 @@ class ExecutionService:
             payload={"parent_execution_id": str(execution.id)},
         )
         return resumed
+
+    async def resume_paused_quota_exceeded(
+        self,
+        workspace_id: UUID,
+        period_start: datetime,
+    ) -> int:
+        """Resume quota-paused executions after an overage authorization."""
+        del period_start
+        executions, _ = await self.repository.list_executions(
+            workspace_id=workspace_id,
+            workflow_id=None,
+            status=ExecutionStatus.paused_quota_exceeded,
+            trigger_type=None,
+            goal_id=None,
+            since=None,
+            offset=0,
+            limit=500,
+        )
+        for execution in executions:
+            await self.repository.update_execution_status(execution, ExecutionStatus.queued)
+            await self._append_domain_event(
+                execution,
+                ExecutionEventType.resumed,
+                payload={"reason": "billing_overage_authorized"},
+            )
+        return len(executions)
 
     async def rerun_execution(
         self,
@@ -790,6 +831,38 @@ class ExecutionService:
                 step_id=step_id,
             ),
             self._correlation(execution),
+        )
+
+    async def _publish_billing_overage_required(
+        self,
+        execution: Execution,
+        quota_result: Any,
+    ) -> None:
+        if self.producer is None:
+            return
+        alert = BillingOverageRequiredAlert(
+            workspace_id=execution.workspace_id,
+            quota_name=str(quota_result.quota_name or "quota"),
+            current=quota_result.current,
+            limit=quota_result.limit,
+        )
+        await self.producer.publish(
+            "billing.lifecycle",
+            str(execution.workspace_id),
+            "billing.overage.required",
+            {
+                "workspace_id": str(execution.workspace_id),
+                "execution_id": str(execution.id),
+                "quota_name": quota_result.quota_name,
+                "current": str(quota_result.current),
+                "limit": str(quota_result.limit),
+                "plan_slug": quota_result.plan_slug,
+                "deep_link": alert.deep_link,
+                "title": alert.title,
+                "body": alert.body,
+            },
+            self._correlation(execution),
+            "execution.service",
         )
 
     async def publish_reprioritization(

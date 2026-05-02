@@ -32,6 +32,7 @@ from typing import Any
 from uuid import uuid4
 
 import pytest
+from fastapi import Response
 
 from tests.unit.execution.test_service import _build_services
 
@@ -75,6 +76,7 @@ steps:
             workspace_id=workspace_id,
             input_parameters={"invoice_id": "INV-1"},
         ),
+        Response(),
         current_user,
         execution_service,
     )

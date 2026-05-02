@@ -108,6 +108,7 @@ const sections = [
     icon: CreditCard,
     items: [
       ["/admin/costs/overview", "Overview"],
+      ["/admin/subscriptions", "Subscriptions"],
       ["/admin/costs/budgets", "Budgets"],
       ["/admin/costs/chargeback", "Chargeback"],
       ["/admin/costs/anomalies", "Anomalies"],

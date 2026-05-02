@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createApiClient } from "@/lib/api";
+import type { QuotaError } from "@/lib/api";
 import {
   MAINTENANCE_BLOCKED_EVENT,
   MaintenanceBlockedError,
@@ -83,6 +84,89 @@ describe("createApiClient", () => {
       expect.objectContaining<Partial<ApiError>>({
         code: "validation_failed",
         status: 422,
+      }),
+    );
+  });
+
+  it("normalizes top-level API error payloads into ApiError", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          code: "rate_limited",
+          message: "Too many requests",
+          details: [{ message: "Retry later" }],
+        }),
+        { status: 429 },
+      ),
+    );
+
+    const client = createApiClient("https://api.example.com");
+
+    await expect(client.get("/api/v1/rate-limited")).rejects.toEqual(
+      expect.objectContaining<Partial<ApiError>>({
+        code: "rate_limited",
+        status: 429,
+      }),
+    );
+  });
+
+  it("normalizes billing quota responses into QuotaError", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: "quota_exceeded",
+            message: "Execution quota exceeded",
+            details: {
+              quota_name: "executions_per_month",
+              current: "101",
+              limit: "100",
+              reset_at: "2026-05-31T23:59:59.000Z",
+              plan_slug: "free",
+              upgrade_url: "/workspaces/ws-1/billing/upgrade",
+              overage_available: true,
+            },
+          },
+        }),
+        { status: 402 },
+      ),
+    );
+
+    const client = createApiClient("https://api.example.com");
+
+    await expect(client.post("/api/v1/executions", { workflow_id: "wf-1" })).rejects.toEqual(
+      expect.objectContaining<Partial<QuotaError>>({
+        name: "QuotaError",
+        code: "quota_exceeded",
+        status: 402,
+        quota: expect.objectContaining({
+          quota_name: "executions_per_month",
+          overage_available: true,
+        }),
+      }),
+    );
+  });
+
+  it("falls back to empty quota details for malformed quota payloads", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: "overage_cap_exceeded",
+            message: "Overage cap exceeded",
+            details: [{ message: "cap reached" }],
+          },
+        }),
+        { status: 402 },
+      ),
+    );
+
+    const client = createApiClient("https://api.example.com");
+
+    await expect(client.post("/api/v1/executions", { workflow_id: "wf-1" })).rejects.toEqual(
+      expect.objectContaining<Partial<QuotaError>>({
+        name: "QuotaError",
+        quota: {},
       }),
     );
   });
@@ -207,6 +291,42 @@ describe("createApiClient", () => {
         method: "POST",
       }),
     );
+  });
+
+  it("passes FormData bodies without JSON encoding or content type injection", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    );
+    const body = new FormData();
+    body.append("file", new Blob(["payload"]), "payload.txt");
+
+    const client = createApiClient("https://api.example.com");
+    await client.post("/upload", body);
+
+    const options = fetchSpy.mock.calls[0]?.[1];
+    const headers = options?.headers as Headers;
+    expect(options?.body).toBe(body);
+    expect(headers.get("Content-Type")).toBeNull();
+  });
+
+  it("preserves caller-provided content type headers", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    );
+
+    const client = createApiClient("https://api.example.com");
+    await client.post(
+      "/custom",
+      "raw",
+      {
+        headers: {
+          "Content-Type": "text/plain",
+        },
+      },
+    );
+
+    const headers = fetchSpy.mock.calls[0]?.[1]?.headers as Headers;
+    expect(headers.get("Content-Type")).toBe("text/plain");
   });
 
   it("clears auth when a refreshed request is still unauthorized", async () => {
