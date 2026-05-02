@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createApiClient, QuotaError } from "@/lib/api";
+import { createApiClient } from "@/lib/api";
+import type { QuotaError } from "@/lib/api";
 import {
   MAINTENANCE_BLOCKED_EVENT,
   MaintenanceBlockedError,
