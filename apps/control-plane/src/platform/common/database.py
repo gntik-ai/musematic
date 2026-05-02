@@ -174,6 +174,16 @@ def _bind_tenant_id(
     if tenant is None:
         return
     cursor.execute(f"SET LOCAL app.tenant_id = '{tenant.id}'")
+    # UPD-049: also bind tenant_kind and consume_public_marketplace so the
+    # `agents_visibility` RLS policy on registry_agent_profiles can permit
+    # cross-tenant reads of public-published listings. Both values are
+    # constrained inputs (Literal kind, bool flag) so direct interpolation
+    # is safe — PostgreSQL's SET LOCAL does not support parameter binding.
+    cursor.execute(f"SET LOCAL app.tenant_kind = '{tenant.kind}'")
+    cursor.execute(
+        "SET LOCAL app.consume_public_marketplace = '"
+        f"{'true' if tenant.consume_public_marketplace else 'false'}'"
+    )
 
 
 configure_database(default_settings)

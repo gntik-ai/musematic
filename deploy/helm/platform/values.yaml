@@ -135,6 +135,16 @@ signup:
   # -- Default workspace-name template. Review translated wording before changing.
   defaultWorkspaceNameTemplate: "{display_name}'s workspace"
 
+# @section -- Marketplace
+# -- Configures the public-marketplace scope dimension and platform-staff review queue (UPD-049).
+marketplace:
+  # -- Days a deprecated public listing remains queryable for fork resolution.
+  deprecationRetentionDays: 30
+  # -- Per-submitter rolling-24h cap on public-scope submissions (FR-009).
+  submissionRateLimitPerDay: 5
+  # -- Whether the marketplace.source_updated fan-out delivers notifications to fork owners (FR-027).
+  forkNotifySourceOwners: true
+
 # @section -- Platformdatanamespace
 # -- Configures `platformDataNamespace` for the platform chart.
 platformDataNamespace:

@@ -72,3 +72,24 @@ class DnsAutomationFailedError(PlatformError):
 
     def __init__(self, reason: str) -> None:
         super().__init__("dns_automation_failed", "DNS automation failed.", {"reason": reason})
+
+
+# --- UPD-049 per-tenant feature-flag setter exceptions ---------------------
+
+
+class FeatureFlagNotInAllowlistError(ValidationError):
+    def __init__(self, flag_name: str) -> None:
+        super().__init__(
+            "feature_flag_not_in_allowlist",
+            "Feature flag is not in the documented allowlist.",
+            {"flag_name": flag_name},
+        )
+
+
+class FeatureFlagInvalidForTenantKindError(ValidationError):
+    def __init__(self, flag_name: str, tenant_kind: str) -> None:
+        super().__init__(
+            "feature_flag_invalid_for_tenant_kind",
+            "Feature flag is not allowed on tenants of this kind.",
+            {"flag_name": flag_name, "tenant_kind": tenant_kind},
+        )

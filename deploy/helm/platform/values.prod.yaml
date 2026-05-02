@@ -29,3 +29,8 @@ signup:
   firstAdminInviteTtlDays: 7
   onboardingWizardEnabled: true
   defaultWorkspaceNameTemplate: "{display_name}'s workspace"
+
+marketplace:
+  deprecationRetentionDays: 30
+  submissionRateLimitPerDay: 5
+  forkNotifySourceOwners: true

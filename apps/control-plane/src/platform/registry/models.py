@@ -165,6 +165,37 @@ class AgentProfile(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, SoftDelet
     decommissioned_by: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), nullable=True)
     default_model_binding: Mapped[str | None] = mapped_column(String(length=128), nullable=True)
 
+    # --- UPD-049 marketplace scope + public-review lifecycle ----------------
+    # Mirrors migration 108_marketplace_scope_and_review. The CHECK constraints
+    # and partial indexes live in the migration; the SQLAlchemy model carries
+    # only the column declarations needed by ORM-using services.
+    marketplace_scope: Mapped[str] = mapped_column(
+        String(length=32),
+        nullable=False,
+        default="workspace",
+        server_default=text("'workspace'"),
+    )
+    review_status: Mapped[str] = mapped_column(
+        String(length=32),
+        nullable=False,
+        default="draft",
+        server_default=text("'draft'"),
+    )
+    reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    reviewed_by_user_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    review_notes: Mapped[str | None] = mapped_column(Text(), nullable=True)
+    forked_from_agent_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("registry_agent_profiles.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     namespace: Mapped[AgentNamespace] = relationship(
         "platform.registry.models.AgentNamespace",
         back_populates="profiles",

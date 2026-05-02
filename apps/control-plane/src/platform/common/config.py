@@ -1036,6 +1036,11 @@ class PlatformSettings(BaseSettings):
     - BILLING_QUOTA_IN_FLIGHT_TTL_SECONDS: in-flight execution counter TTL for SaaS-23.
     - BILLING_DEFAULT_QUOTA_PERIOD_ANCHOR: default plan period anchor for SaaS-22.
 
+    Marketplace settings (UPD-049):
+    - MARKETPLACE_DEPRECATION_RETENTION_DAYS: deprecated-listing retention window.
+    - MARKETPLACE_SUBMISSION_RATE_LIMIT_PER_DAY: per-submitter rolling-24h cap (FR-009).
+    - MARKETPLACE_FORK_NOTIFY_SOURCE_OWNERS: source-updated fan-out kill switch (FR-027).
+
     Signup settings:
     - SIGNUP_AUTO_CREATE_RETRY_SECONDS: deferred Free-workspace retry cadence for SaaS-3.
     - SIGNUP_FIRST_ADMIN_INVITE_TTL_DAYS: Enterprise setup-token lifetime for SaaS-3.
@@ -1129,6 +1134,43 @@ class PlatformSettings(BaseSettings):
         validation_alias=AliasChoices(
             "BILLING_DEFAULT_QUOTA_PERIOD_ANCHOR",
             "PLATFORM_BILLING_DEFAULT_QUOTA_PERIOD_ANCHOR",
+        ),
+    )
+
+    # UPD-049 marketplace scope settings (FR-009 / FR-027 / spec Assumptions).
+    MARKETPLACE_DEPRECATION_RETENTION_DAYS: int = Field(
+        default=30,
+        ge=1,
+        description=(
+            "Days a deprecated public-marketplace listing remains queryable so existing "
+            "forks can resolve a known-good source pointer (UPD-049 spec Assumptions)."
+        ),
+        validation_alias=AliasChoices(
+            "MARKETPLACE_DEPRECATION_RETENTION_DAYS",
+            "PLATFORM_MARKETPLACE_DEPRECATION_RETENTION_DAYS",
+        ),
+    )
+    MARKETPLACE_SUBMISSION_RATE_LIMIT_PER_DAY: int = Field(
+        default=5,
+        ge=1,
+        description=(
+            "Max public-marketplace submissions per submitter per rolling 24h "
+            "(UPD-049 FR-009 — sliding window via Redis sorted set, see research R5)."
+        ),
+        validation_alias=AliasChoices(
+            "MARKETPLACE_SUBMISSION_RATE_LIMIT_PER_DAY",
+            "PLATFORM_MARKETPLACE_SUBMISSION_RATE_LIMIT_PER_DAY",
+        ),
+    )
+    MARKETPLACE_FORK_NOTIFY_SOURCE_OWNERS: bool = Field(
+        default=True,
+        description=(
+            "Whether the source-updated notification fan-out is enabled "
+            "(UPD-049 FR-027). Disable to suppress fork-owner notifications."
+        ),
+        validation_alias=AliasChoices(
+            "MARKETPLACE_FORK_NOTIFY_SOURCE_OWNERS",
+            "PLATFORM_MARKETPLACE_FORK_NOTIFY_SOURCE_OWNERS",
         ),
     )
 

@@ -282,3 +282,196 @@ class PackageValidationError(BaseModel):
     error_type: str
     detail: str
     field: str | None = None
+
+
+# --- UPD-049 marketplace scope + public-review schemas ---------------------
+# See specs/099-marketplace-scope/contracts/. Mirrored UI types live at
+# apps/web/lib/marketplace/types.ts (T039).
+
+from platform.marketplace.categories import MARKETING_CATEGORIES  # noqa: E402
+
+MARKETPLACE_SCOPES: tuple[str, ...] = (
+    "workspace",
+    "tenant",
+    "public_default_tenant",
+)
+REVIEW_STATUSES: tuple[str, ...] = (
+    "draft",
+    "pending_review",
+    "approved",
+    "rejected",
+    "published",
+    "deprecated",
+)
+
+
+class MarketingMetadata(BaseModel):
+    """Metadata required when publishing with `public_default_tenant` scope.
+
+    The marketplace listing card surfaces these fields. `category` MUST be
+    one of `MARKETING_CATEGORIES` (platform-curated, see
+    `marketplace/categories.py`).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    category: str
+    marketing_description: str = Field(min_length=20, max_length=500)
+    tags: list[str] = Field(min_length=1, max_length=10)
+
+    @field_validator("category")
+    @classmethod
+    def _category_in_curated_list(cls, value: str) -> str:
+        if value not in MARKETING_CATEGORIES:
+            raise ValueError(
+                f"category must be one of {MARKETING_CATEGORIES!r}"
+            )
+        return value
+
+    @field_validator("tags")
+    @classmethod
+    def _tags_normalized(cls, value: list[str]) -> list[str]:
+        normalized = [tag.strip().lower() for tag in value if tag.strip()]
+        if not normalized:
+            raise ValueError("at least one non-empty tag is required")
+        return normalized
+
+
+class PublishWithScopeRequest(BaseModel):
+    """Body of `POST /api/v1/registry/agents/{id}/publish` (extended).
+
+    `marketing_metadata` is REQUIRED when scope == "public_default_tenant"
+    and otherwise ignored.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    scope: str
+    marketing_metadata: MarketingMetadata | None = None
+
+    @field_validator("scope")
+    @classmethod
+    def _scope_in_enum(cls, value: str) -> str:
+        if value not in MARKETPLACE_SCOPES:
+            raise ValueError(f"scope must be one of {MARKETPLACE_SCOPES!r}")
+        return value
+
+    @model_validator(mode="after")
+    def _public_requires_marketing(self) -> "PublishWithScopeRequest":
+        if self.scope == "public_default_tenant" and self.marketing_metadata is None:
+            raise ValueError(
+                "marketing_metadata is required when scope == 'public_default_tenant'"
+            )
+        return self
+
+
+class MarketplaceScopeChangeRequest(BaseModel):
+    """Body of `POST /api/v1/registry/agents/{id}/marketplace-scope`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    scope: str
+
+    @field_validator("scope")
+    @classmethod
+    def _scope_in_enum(cls, value: str) -> str:
+        if value not in MARKETPLACE_SCOPES:
+            raise ValueError(f"scope must be one of {MARKETPLACE_SCOPES!r}")
+        return value
+
+
+class DeprecateListingRequest(BaseModel):
+    """Body of `POST /api/v1/registry/agents/{id}/deprecate-listing`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str = Field(min_length=1, max_length=500)
+
+
+class ReviewSubmissionView(BaseModel):
+    """One row in the platform-staff review queue.
+
+    Cross-tenant: `tenant_slug` and `submitter_email` are returned via the
+    BYPASSRLS platform-staff session per UPD-046.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    agent_id: UUID
+    agent_fqn: str
+    tenant_slug: str
+    submitter_user_id: UUID
+    submitter_email: str
+    category: str
+    marketing_description: str
+    tags: list[str]
+    submitted_at: datetime
+    claimed_by_user_id: UUID | None = None
+    age_minutes: int
+
+
+class ReviewQueueResponse(BaseModel):
+    items: list[ReviewSubmissionView]
+    next_cursor: str | None = None
+
+
+class ReviewApprovalRequest(BaseModel):
+    """Body of `POST /api/v1/admin/marketplace-review/{id}/approve`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    notes: str | None = None
+
+    @field_validator("notes")
+    @classmethod
+    def _normalize(cls, value: str | None) -> str | None:
+        return _normalize_optional_text(value)
+
+
+class ReviewRejectionRequest(BaseModel):
+    """Body of `POST /api/v1/admin/marketplace-review/{id}/reject`.
+
+    `reason` is REQUIRED — it is shown to the submitter via UPD-042
+    notifications.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str = Field(min_length=1, max_length=2000)
+
+
+class ForkAgentRequest(BaseModel):
+    """Body of `POST /api/v1/registry/agents/{source_id}/fork`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    target_scope: str
+    target_workspace_id: UUID | None = None
+    new_name: str = Field(pattern=SLUG_PATTERN)
+
+    @field_validator("target_scope")
+    @classmethod
+    def _scope_not_public(cls, value: str) -> str:
+        if value not in ("workspace", "tenant"):
+            raise ValueError("target_scope must be 'workspace' or 'tenant'")
+        return value
+
+    @model_validator(mode="after")
+    def _workspace_required_for_workspace_scope(self) -> "ForkAgentRequest":
+        if self.target_scope == "workspace" and self.target_workspace_id is None:
+            raise ValueError(
+                "target_workspace_id is required when target_scope == 'workspace'"
+            )
+        return self
+
+
+class ForkAgentResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    agent_id: UUID
+    fqn: str
+    marketplace_scope: str
+    review_status: str
+    forked_from_agent_id: UUID
+    forked_from_fqn: str
+    tool_dependencies_missing: list[str] = Field(default_factory=list)

@@ -241,6 +241,7 @@ class TenantResolver:
             return
 
     def _to_context(self, tenant: Tenant) -> TenantContext:
+        flags = dict(tenant.feature_flags_json or {})
         return TenantContext(
             id=tenant.id,
             slug=tenant.slug,
@@ -249,7 +250,8 @@ class TenantResolver:
             status=tenant.status,  # type: ignore[arg-type]
             region=tenant.region,
             branding=dict(tenant.branding_config_json or {}),
-            feature_flags=dict(tenant.feature_flags_json or {}),
+            feature_flags=flags,
+            consume_public_marketplace=bool(flags.get("consume_public_marketplace", False)),
         )
 
     def _context_to_payload(self, tenant: TenantContext) -> dict[str, Any]:
@@ -262,9 +264,11 @@ class TenantResolver:
             "region": tenant.region,
             "branding": dict(tenant.branding),
             "feature_flags": dict(tenant.feature_flags),
+            "consume_public_marketplace": tenant.consume_public_marketplace,
         }
 
     def _context_from_payload(self, payload: dict[str, Any]) -> TenantContext:
+        flags = dict(payload.get("feature_flags") or {})
         return TenantContext(
             id=UUID(str(payload["id"])),
             slug=payload["slug"],
@@ -273,7 +277,13 @@ class TenantResolver:
             status=payload["status"],
             region=payload["region"],
             branding=dict(payload.get("branding") or {}),
-            feature_flags=dict(payload.get("feature_flags") or {}),
+            feature_flags=flags,
+            consume_public_marketplace=bool(
+                payload.get(
+                    "consume_public_marketplace",
+                    flags.get("consume_public_marketplace", False),
+                )
+            ),
         )
 
     def _cache_key(self, host: str) -> str:
