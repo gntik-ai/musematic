@@ -6,5 +6,6 @@
   "billingDashboard": "Facturacion",
   "statusActive": "Activo",
   "statusSuspended": "Suspendido",
-  "cleanupBanner": "Limites de Free superados"
+  "cleanupBanner": "Limites de Free superados",
+  "tenantSwitcher": "Switch tenant"
 }

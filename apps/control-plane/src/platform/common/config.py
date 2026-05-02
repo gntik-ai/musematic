@@ -389,6 +389,15 @@ class AccountsSettings(BaseSettings):
     resend_rate_limit: int = 3
 
 
+class SignupSettings(BaseSettings):
+    model_config = SettingsConfigDict(env_prefix="SIGNUP_", extra="ignore")
+
+    auto_create_retry_seconds: int = 30
+    first_admin_invite_ttl_days: int = 7
+    onboarding_wizard_enabled: bool = True
+    default_workspace_name_template: str = "{display_name}'s workspace"
+
+
 class WorkspacesSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="WORKSPACES_", extra="ignore")
 
@@ -1026,6 +1035,13 @@ class PlatformSettings(BaseSettings):
     - BILLING_QUOTA_CACHE_TTL_SECONDS: synchronous quota cache TTL for SaaS-23.
     - BILLING_QUOTA_IN_FLIGHT_TTL_SECONDS: in-flight execution counter TTL for SaaS-23.
     - BILLING_DEFAULT_QUOTA_PERIOD_ANCHOR: default plan period anchor for SaaS-22.
+
+    Signup settings:
+    - SIGNUP_AUTO_CREATE_RETRY_SECONDS: deferred Free-workspace retry cadence for SaaS-3.
+    - SIGNUP_FIRST_ADMIN_INVITE_TTL_DAYS: Enterprise setup-token lifetime for SaaS-3.
+    - SIGNUP_ONBOARDING_WIZARD_ENABLED: default-tenant onboarding surface toggle.
+    - SIGNUP_DEFAULT_WORKSPACE_NAME_TEMPLATE: operator-controlled default workspace name;
+      review locale wording under audit-pass rule 38 before changing it.
     """
 
     model_config = SettingsConfigDict(
@@ -1129,6 +1145,7 @@ class PlatformSettings(BaseSettings):
     oauth_bootstrap: OAuthBootstrapSettings = Field(default_factory=OAuthBootstrapSettings)
     otel: OTelSettings = Field(default_factory=OTelSettings)
     accounts: AccountsSettings = Field(default_factory=AccountsSettings)
+    signup: SignupSettings = Field(default_factory=SignupSettings)
     workspaces: WorkspacesSettings = Field(default_factory=WorkspacesSettings)
     ws_hub: WsHubSettings = Field(default_factory=WsHubSettings)
     analytics: AnalyticsSettings = Field(default_factory=AnalyticsSettings)
@@ -1347,6 +1364,13 @@ class PlatformSettings(BaseSettings):
             "ACCOUNTS_EMAIL_VERIFY_TTL_HOURS": ("accounts", "email_verify_ttl_hours"),
             "ACCOUNTS_INVITE_TTL_DAYS": ("accounts", "invite_ttl_days"),
             "ACCOUNTS_RESEND_RATE_LIMIT": ("accounts", "resend_rate_limit"),
+            "SIGNUP_AUTO_CREATE_RETRY_SECONDS": ("signup", "auto_create_retry_seconds"),
+            "SIGNUP_FIRST_ADMIN_INVITE_TTL_DAYS": ("signup", "first_admin_invite_ttl_days"),
+            "SIGNUP_ONBOARDING_WIZARD_ENABLED": ("signup", "onboarding_wizard_enabled"),
+            "SIGNUP_DEFAULT_WORKSPACE_NAME_TEMPLATE": (
+                "signup",
+                "default_workspace_name_template",
+            ),
             "WORKSPACES_DEFAULT_NAME_TEMPLATE": ("workspaces", "default_name_template"),
             "WORKSPACES_DEFAULT_LIMIT": ("workspaces", "default_limit"),
             "FEATURE_GOAL_AUTO_COMPLETE": ("FEATURE_GOAL_AUTO_COMPLETE",),
@@ -2465,6 +2489,22 @@ class PlatformSettings(BaseSettings):
     @property
     def ACCOUNTS_RESEND_RATE_LIMIT(self) -> int:
         return self.accounts.resend_rate_limit
+
+    @property
+    def SIGNUP_AUTO_CREATE_RETRY_SECONDS(self) -> int:
+        return self.signup.auto_create_retry_seconds
+
+    @property
+    def SIGNUP_FIRST_ADMIN_INVITE_TTL_DAYS(self) -> int:
+        return self.signup.first_admin_invite_ttl_days
+
+    @property
+    def SIGNUP_ONBOARDING_WIZARD_ENABLED(self) -> bool:
+        return self.signup.onboarding_wizard_enabled
+
+    @property
+    def SIGNUP_DEFAULT_WORKSPACE_NAME_TEMPLATE(self) -> str:
+        return self.signup.default_workspace_name_template
 
     @property
     def WORKSPACES_DEFAULT_NAME_TEMPLATE(self) -> str:

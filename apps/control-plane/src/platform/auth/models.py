@@ -54,6 +54,9 @@ class OAuthProviderSource(StrEnum):
 
 class UserCredential(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     __tablename__ = "user_credentials"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "email", name="uq_user_credentials_tenant_email"),
+    )
 
     user_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
@@ -62,7 +65,7 @@ class UserCredential(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, SoftDel
         nullable=False,
         index=True,
     )
-    email: Mapped[str] = mapped_column(String(length=255), unique=True, nullable=False, index=True)
+    email: Mapped[str] = mapped_column(String(length=255), nullable=False, index=True)
     password_hash: Mapped[str] = mapped_column(String(length=512), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 

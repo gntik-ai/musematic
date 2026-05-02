@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 from datetime import UTC, datetime, timedelta
+from platform.accounts.first_admin_invite import TenantFirstAdminInviteService
 from platform.audit.service import AuditChainService
 from platform.billing.subscriptions.service import SubscriptionService
 from platform.common.clients.redis import AsyncRedisClient
@@ -133,13 +134,22 @@ class TenantsService:
                 created_by_user_id=_actor_id(actor),
             )
         await self.dns_automation.ensure_records(tenant.subdomain)
-        if self.notifications is not None:
-            await self.notifications.send_first_admin_invitation(
-                tenant,
-                str(request.first_admin_email),
-            )
         await self._append_created_audit(actor, tenant, request)
         await self.session.commit()
+        actor_id = _actor_id(actor)
+        if actor_id is not None:
+            await self.session.execute(
+                text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+                {"tenant_id": str(tenant.id)},
+            )
+            await TenantFirstAdminInviteService(
+                session=self.session,
+                settings=self.settings,
+                producer=self.producer,
+                audit_chain=self.audit_chain,
+                notification_client=self.notifications,
+            ).issue(tenant.id, str(request.first_admin_email), actor_id)
+            await self.session.commit()
         await publish_tenant_event(
             producer=self.producer,
             event_type=TenantEventType.created,

@@ -34,11 +34,11 @@ UPD-046 (`tenants` architecture, hostname middleware, opaque 404 helper, platfor
 
 **Purpose**: Configuration plumbing, settings additions, Helm value scaffolding, BC module skeletons.
 
-- [ ] T001 Confirm working branch is `098-default-tenant-signup` (`git status` shows clean tree, branch matches) and migrations 096–105 (UPD-046 + UPD-047) are present at `apps/control-plane/migrations/versions/`.
-- [ ] T002 [P] Add new Pydantic settings to `apps/control-plane/src/platform/common/config.py`: `SIGNUP_AUTO_CREATE_RETRY_SECONDS: int = 30`, `SIGNUP_FIRST_ADMIN_INVITE_TTL_DAYS: int = 7`, `SIGNUP_ONBOARDING_WIZARD_ENABLED: bool = True`, `SIGNUP_DEFAULT_WORKSPACE_NAME_TEMPLATE: str = "{display_name}'s workspace"`. Document each in the docstring with constitutional rule references (SaaS-3, audit-pass rule 38 for the i18n implications of the template).
-- [ ] T003 [P] Add the `signup:` Helm value block to `deploy/helm/platform/values.yaml` mirroring the new settings. Mirror to `deploy/helm/platform/values.dev.yaml` and `values.prod.yaml`.
-- [ ] T004 [P] Create empty `apps/control-plane/src/platform/accounts/onboarding.py`, `apps/control-plane/src/platform/accounts/first_admin_invite.py`, `apps/control-plane/src/platform/accounts/memberships.py` so subsequent tasks can target the modules. Each starts with a module docstring referencing the relevant FRs from `specs/098-default-tenant-signup/spec.md`.
-- [ ] T005 [P] Create empty `apps/control-plane/src/platform/accounts/setup_router.py`, `accounts/onboarding_router.py`, `accounts/memberships_router.py`. Each starts with `router = APIRouter()` and a module docstring.
+- [x] T001 Confirm working branch is `098-default-tenant-signup` (`git status` shows clean tree, branch matches) and migrations 096–105 (UPD-046 + UPD-047) are present at `apps/control-plane/migrations/versions/`.
+- [x] T002 [P] Add new Pydantic settings to `apps/control-plane/src/platform/common/config.py`: `SIGNUP_AUTO_CREATE_RETRY_SECONDS: int = 30`, `SIGNUP_FIRST_ADMIN_INVITE_TTL_DAYS: int = 7`, `SIGNUP_ONBOARDING_WIZARD_ENABLED: bool = True`, `SIGNUP_DEFAULT_WORKSPACE_NAME_TEMPLATE: str = "{display_name}'s workspace"`. Document each in the docstring with constitutional rule references (SaaS-3, audit-pass rule 38 for the i18n implications of the template).
+- [x] T003 [P] Add the `signup:` Helm value block to `deploy/helm/platform/values.yaml` mirroring the new settings. Mirror to `deploy/helm/platform/values.dev.yaml` and `values.prod.yaml`.
+- [x] T004 [P] Create empty `apps/control-plane/src/platform/accounts/onboarding.py`, `apps/control-plane/src/platform/accounts/first_admin_invite.py`, `apps/control-plane/src/platform/accounts/memberships.py` so subsequent tasks can target the modules. Each starts with a module docstring referencing the relevant FRs from `specs/098-default-tenant-signup/spec.md`.
+- [x] T005 [P] Create empty `apps/control-plane/src/platform/accounts/setup_router.py`, `accounts/onboarding_router.py`, `accounts/memberships_router.py`. Each starts with `router = APIRouter()` and a module docstring.
 
 ---
 
@@ -50,41 +50,41 @@ UPD-046 (`tenants` architecture, hostname middleware, opaque 404 helper, platfor
 
 ### Schema migrations
 
-- [ ] T006 Author Alembic migration `apps/control-plane/migrations/versions/106_user_onboarding_states.py`: create `user_onboarding_states` table per `data-model.md` Entity 1 (all columns, UNIQUE on `user_id`, `tenant_id` index, RLS policy `tenant_isolation`); also add the partial unique index `workspaces_user_default_unique ON workspaces (created_by_user_id) WHERE is_default = true` (per `data-model.md` "Modification — Workspace.is_default partial unique index"). Include reverse migration.
-- [ ] T007 Author Alembic migration `apps/control-plane/migrations/versions/107_tenant_first_admin_invitations.py`: create `tenant_first_admin_invitations` table per `data-model.md` Entity 2 (all columns, UNIQUE on `token_hash`, partial active-invitation index, target_email index, RLS policy). Include reverse migration.
+- [x] T006 Author Alembic migration `apps/control-plane/migrations/versions/106_user_onboarding_states.py`: create `user_onboarding_states` table per `data-model.md` Entity 1 (all columns, UNIQUE on `user_id`, `tenant_id` index, RLS policy `tenant_isolation`); also add the partial unique index `workspaces_user_default_unique ON workspaces (created_by_user_id) WHERE is_default = true` (per `data-model.md` "Modification — Workspace.is_default partial unique index"). Include reverse migration.
+- [x] T007 Author Alembic migration `apps/control-plane/migrations/versions/107_tenant_first_admin_invitations.py`: create `tenant_first_admin_invitations` table per `data-model.md` Entity 2 (all columns, UNIQUE on `token_hash`, partial active-invitation index, target_email index, RLS policy). Include reverse migration.
 
 ### Service skeletons
 
-- [ ] T008 [P] Author the SQLAlchemy `UserOnboardingState` model at `apps/control-plane/src/platform/accounts/models.py` matching the `user_onboarding_states` table per `data-model.md`. Use existing `Base`, `UUIDMixin`, `TimestampMixin` patterns. Add the model alongside existing accounts models (extend the file; do not move existing models).
-- [ ] T009 [P] Author the SQLAlchemy `TenantFirstAdminInvitation` model at `apps/control-plane/src/platform/accounts/models.py` matching the `tenant_first_admin_invitations` table per `data-model.md`.
-- [ ] T010 [P] Author Pydantic schemas in `apps/control-plane/src/platform/accounts/schemas.py` (extending the existing file): `OnboardingStateView`, `OnboardingStepWorkspaceName`, `OnboardingStepInvitations`, `OnboardingStepFirstAgent`, `OnboardingStepTour`, `TenantFirstAdminInviteCreate`, `TenantFirstAdminInviteValidationResponse`, `SetupStepTos`, `SetupStepCredentials`, `SetupStepWorkspace`, `MembershipsListResponse`, `MembershipEntry`. Each maps to the contracts under `specs/098-default-tenant-signup/contracts/`.
-- [ ] T011 [P] Extend `apps/control-plane/src/platform/accounts/exceptions.py` with: `TenantSignupNotAllowedError`, `SetupTokenInvalidError`, `MfaEnrollmentRequiredError`, `OnboardingWizardAlreadyDismissedError`, `CrossTenantInviteAcceptanceError`, `DefaultWorkspaceNotProvisionedError`. Each subclasses `PlatformError` with a stable error code matching `contracts/*-rest.md`.
-- [ ] T012 [P] Implement `OnboardingWizardService` in `apps/control-plane/src/platform/accounts/onboarding.py` with methods: `get_or_create_state(user_id)`, `advance_step(user_id, step, payload)`, `dismiss(user_id)`, `relaunch(user_id)`, `is_first_agent_step_available()` (reads UPD-022 feature flag from `/api/v1/me/feature-flags`). Each lifecycle action emits the corresponding Kafka event per `contracts/signup-events-kafka.md` and an audit-chain entry.
-- [ ] T013 [P] Implement `TenantFirstAdminInviteService` in `apps/control-plane/src/platform/accounts/first_admin_invite.py` with methods: `issue(tenant_id, target_email, super_admin_id)` (creates row, sends invitation email via UPD-042 channels, records audit-chain entry, publishes `accounts.first_admin_invitation.issued` Kafka event), `validate(token)` (returns `TenantFirstAdminInviteValidationResponse` or raises `SetupTokenInvalidError`), `consume(token, user_id)`, `resend(invitation_id, super_admin_id)` (sets `prior_token_invalidated_at` on the existing row, calls `issue` for a fresh token, publishes `accounts.first_admin_invitation.resent`).
-- [ ] T014 Implement `MembershipsService` in `apps/control-plane/src/platform/accounts/memberships.py` with method `list_for_user(authenticated_user) -> list[MembershipEntry]`. Uses `get_platform_staff_session()` per UPD-046 conventions; runs `SELECT users.tenant_id, tenants.slug, tenants.display_name, tenants.kind, memberships.role FROM users JOIN tenants ON users.tenant_id = tenants.id LEFT JOIN memberships ON memberships.user_id = users.id WHERE users.email = :email AND users.status = 'active'`. Filters server-side per research R2.
+- [x] T008 [P] Author the SQLAlchemy `UserOnboardingState` model at `apps/control-plane/src/platform/accounts/models.py` matching the `user_onboarding_states` table per `data-model.md`. Use existing `Base`, `UUIDMixin`, `TimestampMixin` patterns. Add the model alongside existing accounts models (extend the file; do not move existing models).
+- [x] T009 [P] Author the SQLAlchemy `TenantFirstAdminInvitation` model at `apps/control-plane/src/platform/accounts/models.py` matching the `tenant_first_admin_invitations` table per `data-model.md`.
+- [x] T010 [P] Author Pydantic schemas in `apps/control-plane/src/platform/accounts/schemas.py` (extending the existing file): `OnboardingStateView`, `OnboardingStepWorkspaceName`, `OnboardingStepInvitations`, `OnboardingStepFirstAgent`, `OnboardingStepTour`, `TenantFirstAdminInviteCreate`, `TenantFirstAdminInviteValidationResponse`, `SetupStepTos`, `SetupStepCredentials`, `SetupStepWorkspace`, `MembershipsListResponse`, `MembershipEntry`. Each maps to the contracts under `specs/098-default-tenant-signup/contracts/`.
+- [x] T011 [P] Extend `apps/control-plane/src/platform/accounts/exceptions.py` with: `TenantSignupNotAllowedError`, `SetupTokenInvalidError`, `MfaEnrollmentRequiredError`, `OnboardingWizardAlreadyDismissedError`, `CrossTenantInviteAcceptanceError`, `DefaultWorkspaceNotProvisionedError`. Each subclasses `PlatformError` with a stable error code matching `contracts/*-rest.md`.
+- [x] T012 [P] Implement `OnboardingWizardService` in `apps/control-plane/src/platform/accounts/onboarding.py` with methods: `get_or_create_state(user_id)`, `advance_step(user_id, step, payload)`, `dismiss(user_id)`, `relaunch(user_id)`, `is_first_agent_step_available()` (reads UPD-022 feature flag from `/api/v1/me/feature-flags`). Each lifecycle action emits the corresponding Kafka event per `contracts/signup-events-kafka.md` and an audit-chain entry.
+- [x] T013 [P] Implement `TenantFirstAdminInviteService` in `apps/control-plane/src/platform/accounts/first_admin_invite.py` with methods: `issue(tenant_id, target_email, super_admin_id)` (creates row, sends invitation email via UPD-042 channels, records audit-chain entry, publishes `accounts.first_admin_invitation.issued` Kafka event), `validate(token)` (returns `TenantFirstAdminInviteValidationResponse` or raises `SetupTokenInvalidError`), `consume(token, user_id)`, `resend(invitation_id, super_admin_id)` (sets `prior_token_invalidated_at` on the existing row, calls `issue` for a fresh token, publishes `accounts.first_admin_invitation.resent`).
+- [x] T014 Implement `MembershipsService` in `apps/control-plane/src/platform/accounts/memberships.py` with method `list_for_user(authenticated_user) -> list[MembershipEntry]`. Uses `get_platform_staff_session()` per UPD-046 conventions; runs `SELECT users.tenant_id, tenants.slug, tenants.display_name, tenants.kind, memberships.role FROM users JOIN tenants ON users.tenant_id = tenants.id LEFT JOIN memberships ON memberships.user_id = users.id WHERE users.email = :email AND users.status = 'active'`. Filters server-side per research R2.
 
 ### MFA-mandatory guard
 
-- [ ] T015 [P] Add `assert_role_mfa_requirement(role: str, user: User) -> None` helper to `apps/control-plane/src/platform/auth/service.py`. Raises `MfaEnrollmentRequiredError` (mapped to HTTP 403) if `role == 'tenant_admin'` and the user has no verified `MfaEnrollment` row. Public function used by every `/api/v1/setup/step/*` endpoint past `step/mfa/verify`.
+- [x] T015 [P] Add `assert_role_mfa_requirement(role: str, user: User) -> None` helper to `apps/control-plane/src/platform/auth/service.py`. Raises `MfaEnrollmentRequiredError` (mapped to HTTP 403) if `role == 'tenant_admin'` and the user has no verified `MfaEnrollment` row. Public function used by every `/api/v1/setup/step/*` endpoint past `step/mfa/verify`.
 
 ### Workspace auto-creation hook
 
-- [ ] T016 Modify `apps/control-plane/src/platform/accounts/service.py:AccountsService.verify_email()` to call `WorkspacesService.create_default_workspace(user_id)` (the method already exists at `workspaces/service.py:153–185`) and then `SubscriptionService.provision_for_default_workspace(workspace_id)` (UPD-047). On exception, the verification still rolls forward (the user is verified) and a deferred-retry job (T017) picks up the gap. Emit `accounts.signup.completed` Kafka event with `workspace_id` and `subscription_id`. Audit-chain entry `accounts.signup.completed`.
-- [ ] T017 Add APScheduler job `build_workspace_auto_create_retry(app)` in `apps/control-plane/src/platform/accounts/jobs/workspace_auto_create.py` (clones the pattern from `cost_governance/jobs/anomaly_job.py`). Runs every `SIGNUP_AUTO_CREATE_RETRY_SECONDS` (default 30s). Selects users whose state is `active` and who have no default workspace; creates one. Idempotent via the partial unique index added in T006.
-- [ ] T018 Wire `build_workspace_auto_create_retry` into the `scheduler` runtime profile at `apps/control-plane/src/platform/main.py:create_app()` next to existing scheduler builders.
+- [x] T016 Modify `apps/control-plane/src/platform/accounts/service.py:AccountsService.verify_email()` to call `WorkspacesService.create_default_workspace(user_id)` (the method already exists at `workspaces/service.py:153–185`) and then `SubscriptionService.provision_for_default_workspace(workspace_id)` (UPD-047). On exception, the verification still rolls forward (the user is verified) and a deferred-retry job (T017) picks up the gap. Emit `accounts.signup.completed` Kafka event with `workspace_id` and `subscription_id`. Audit-chain entry `accounts.signup.completed`.
+- [x] T017 Add APScheduler job `build_workspace_auto_create_retry(app)` in `apps/control-plane/src/platform/accounts/jobs/workspace_auto_create.py` (clones the pattern from `cost_governance/jobs/anomaly_job.py`). Runs every `SIGNUP_AUTO_CREATE_RETRY_SECONDS` (default 30s). Selects users whose state is `active` and who have no default workspace; creates one. Idempotent via the partial unique index added in T006.
+- [x] T018 Wire `build_workspace_auto_create_retry` into the `scheduler` runtime profile at `apps/control-plane/src/platform/main.py:create_app()` next to existing scheduler builders.
 
 ### Tenants service hook
 
-- [ ] T019 Modify `apps/control-plane/src/platform/tenants/service.py:TenantsService.provision_enterprise_tenant()` to call `TenantFirstAdminInviteService.issue(tenant_id, first_admin_email, super_admin_id)` after the tenant row is committed. The first-admin invitation is part of the provisioning workflow, not a separate operator step.
-- [ ] T020 Add `POST /api/v1/admin/tenants/{id}/resend-first-admin-invitation` endpoint to `apps/control-plane/src/platform/tenants/admin_router.py`. Calls `TenantFirstAdminInviteService.resend(invitation_id, super_admin_id)`. Gated by `require_superadmin`. Records audit-chain entry.
+- [x] T019 Modify `apps/control-plane/src/platform/tenants/service.py:TenantsService.provision_enterprise_tenant()` to call `TenantFirstAdminInviteService.issue(tenant_id, first_admin_email, super_admin_id)` after the tenant row is committed. The first-admin invitation is part of the provisioning workflow, not a separate operator step.
+- [x] T020 Add `POST /api/v1/admin/tenants/{id}/resend-first-admin-invitation` endpoint to `apps/control-plane/src/platform/tenants/admin_router.py`. Calls `TenantFirstAdminInviteService.resend(invitation_id, super_admin_id)`. Gated by `require_superadmin`. Records audit-chain entry.
 
 ### Foundational tests
 
-- [ ] T021 [P] Migration smoke test at `apps/control-plane/tests/integration/migrations/test_106_user_onboarding_states.py`: load fixtures, run migration 106, assert `user_onboarding_states` table exists with RLS policy active and the `workspaces_user_default_unique` partial index created.
-- [ ] T022 [P] Migration smoke test at `apps/control-plane/tests/integration/migrations/test_107_tenant_first_admin_invitations.py`: run migration 107, assert table + indexes + RLS.
-- [ ] T023 [P] Unit test `apps/control-plane/tests/unit/accounts/test_onboarding_state.py`: idempotent state creation; step advances are idempotent; dismiss preserves state; relaunch clears `dismissed_at`.
-- [ ] T024 [P] Unit test `apps/control-plane/tests/unit/accounts/test_first_admin_invite.py`: issue creates row + email; validate happy / expired / consumed paths; resend invalidates prior and creates fresh token; resend records audit-chain entry naming both token IDs.
-- [ ] T025 [P] Unit test `apps/control-plane/tests/unit/accounts/test_memberships_resolver.py`: 0 / 1 / 3 / 5 membership scenarios; users with the same email but different tenants both see all matching tenants; an isolated user's call returns only their own tenants.
+- [x] T021 [P] Migration smoke test at `apps/control-plane/tests/integration/migrations/test_106_user_onboarding_states.py`: load fixtures, run migration 106, assert `user_onboarding_states` table exists with RLS policy active and the `workspaces_user_default_unique` partial index created.
+- [x] T022 [P] Migration smoke test at `apps/control-plane/tests/integration/migrations/test_107_tenant_first_admin_invitations.py`: run migration 107, assert table + indexes + RLS.
+- [x] T023 [P] Unit test `apps/control-plane/tests/unit/accounts/test_onboarding_state.py`: idempotent state creation; step advances are idempotent; dismiss preserves state; relaunch clears `dismissed_at`.
+- [x] T024 [P] Unit test `apps/control-plane/tests/unit/accounts/test_first_admin_invite.py`: issue creates row + email; validate happy / expired / consumed paths; resend invalidates prior and creates fresh token; resend records audit-chain entry naming both token IDs.
+- [x] T025 [P] Unit test `apps/control-plane/tests/unit/accounts/test_memberships_resolver.py`: 0 / 1 / 3 / 5 membership scenarios; users with the same email but different tenants both see all matching tenants; an isolated user's call returns only their own tenants.
 
 **Checkpoint**: Foundation ready. The two new tables exist; the four service modules are skeletoned; the verify-email path now provisions the default workspace and Free subscription; super admin's `provision_enterprise_tenant` issues the first-admin invitation. User-story phases can now begin.
 
@@ -106,10 +106,10 @@ UPD-046 (`tenants` architecture, hostname middleware, opaque 404 helper, platfor
 
 ### Implementation for User Story 1
 
-- [ ] T031 [US1] Modify `apps/control-plane/src/platform/accounts/router.py` to read `request.state.tenant.kind` at the top of `register`, `verify_email`, and `resend_verification` handlers. If `kind != 'default'`, return UPD-046's `_build_opaque_404_response()`. Otherwise proceed with the existing UPD-037 logic.
-- [ ] T032 [US1] Frontend: modify `apps/web/app/(auth)/signup/page.tsx` to read `useTenantContext().kind` during SSR; if not `'default'`, call Next.js `notFound()`.
-- [ ] T033 [US1] Frontend: modify `apps/web/app/(auth)/verify-email/page.tsx` to redirect to `/onboarding` (instead of `/dashboard`) on successful verification when the user has no completed onboarding state.
-- [ ] T034 [US1] [P] Update Helm `signup.*` block to expose `autoCreateRetrySeconds` and the default workspace name template; document defaults in `deploy/runbooks/tenant-first-admin-onboarding.md` (created later in Polish).
+- [x] T031 [US1] Modify `apps/control-plane/src/platform/accounts/router.py` to read `request.state.tenant.kind` at the top of `register`, `verify_email`, and `resend_verification` handlers. If `kind != 'default'`, return UPD-046's `_build_opaque_404_response()`. Otherwise proceed with the existing UPD-037 logic.
+- [x] T032 [US1] Frontend: modify `apps/web/app/(auth)/signup/page.tsx` to read `useTenantContext().kind` during SSR; if not `'default'`, call Next.js `notFound()`.
+- [x] T033 [US1] Frontend: modify `apps/web/app/(auth)/verify-email/page.tsx` to redirect to `/onboarding` (instead of `/dashboard`) on successful verification when the user has no completed onboarding state.
+- [x] T034 [US1] [P] Update Helm `signup.*` block to expose `autoCreateRetrySeconds` and the default workspace name template; document defaults in `deploy/runbooks/tenant-first-admin-onboarding.md` (created later in Polish).
 
 **Checkpoint**: User Story 1 fully functional. Default-tenant signup → verification → workspace auto-create works end-to-end. The MVP can be demonstrated.
 
@@ -129,9 +129,9 @@ UPD-046 (`tenants` architecture, hostname middleware, opaque 404 helper, platfor
 
 ### Implementation for User Story 2
 
-- [ ] T038 [US2] CI rule `apps/control-plane/scripts/lint/check_signup_tenant_gate.py`: AST-walk `accounts/router.py` and assert that every signup-adjacent endpoint handler invokes the tenant-kind gate before any business logic per `contracts/signup-gate.md`. Wire into `.github/workflows/ci.yml`.
-- [ ] T039 [US2] Verify the existing UPD-046 `_build_opaque_404_response()` helper is exported from `apps/control-plane/src/platform/common/middleware/tenant_resolver.py` for reuse by the signup router. If not exported, expose it via the module's `__all__`.
-- [ ] T040 [US2] [P] Frontend: ensure `apps/web/app/(auth)/signup/not-found.tsx` (Next.js convention) renders the canonical 404 surface — no tenant-specific copy, no "signup disabled" wording per FR-008.
+- [x] T038 [US2] CI rule `apps/control-plane/scripts/lint/check_signup_tenant_gate.py`: AST-walk `accounts/router.py` and assert that every signup-adjacent endpoint handler invokes the tenant-kind gate before any business logic per `contracts/signup-gate.md`. Wire into `.github/workflows/ci.yml`.
+- [x] T039 [US2] Verify the existing UPD-046 `_build_opaque_404_response()` helper is exported from `apps/control-plane/src/platform/common/middleware/tenant_resolver.py` for reuse by the signup router. If not exported, expose it via the module's `__all__`.
+- [x] T040 [US2] [P] Frontend: ensure `apps/web/app/(auth)/signup/not-found.tsx` (Next.js convention) renders the canonical 404 surface — no tenant-specific copy, no "signup disabled" wording per FR-008.
 
 **Checkpoint**: User Story 2 fully validated. Enumeration vector closed; no special log entries; CI rule prevents regressions.
 
@@ -153,23 +153,23 @@ UPD-046 (`tenants` architecture, hostname middleware, opaque 404 helper, platfor
 
 ### Implementation for User Story 3 — Backend
 
-- [ ] T046 [US3] Author `POST /api/v1/setup/validate-token` endpoint in `apps/control-plane/src/platform/accounts/setup_router.py` per `contracts/enterprise-setup-rest.md`. Sets the setup-session cookie scoped to the tenant subdomain. Returns the resume position from `setup_step_state`.
-- [ ] T047 [US3] Author `POST /api/v1/setup/step/tos` endpoint. Records TOS acceptance into `setup_step_state`. Records audit-chain entry. Emits `accounts.setup.step_completed` Kafka event with `step=tos`.
-- [ ] T048 [US3] Author `POST /api/v1/setup/step/credentials` endpoint. Supports both `method=password` (creates credential row in the Acme tenant — the user record is created here) and `method=oauth` (links the user to the tenant's existing OAuth provider per UPD-046 migration 102). Records audit-chain entry.
-- [ ] T049 [US3] Author `POST /api/v1/setup/step/mfa/start` endpoint. Calls `mfa.generate_totp_secret()` + `mfa.create_provisioning_uri()`. Returns the secret + URI for the frontend QR code render.
-- [ ] T050 [US3] Author `POST /api/v1/setup/step/mfa/verify` endpoint. Calls `mfa.verify_totp_code()`, persists the `MfaEnrollment` row with status `enrolled`, generates 10 recovery codes via `mfa.generate_recovery_codes()`, stores the bcrypt hashes, returns the plaintext codes ONCE in the response. Records audit-chain entry.
-- [ ] T051 [US3] Author `POST /api/v1/setup/step/workspace` endpoint. Invokes `assert_role_mfa_requirement('tenant_admin', user)` first. Creates a workspace via `WorkspacesService.create_workspace(name, owner_id)`. Records audit-chain entry.
-- [ ] T052 [US3] Author `POST /api/v1/setup/step/invitations` endpoint. Invokes `assert_role_mfa_requirement('tenant_admin', user)`. Sends invitations via UPD-042's `AccountsService.create_invitation()` for each entry; empty array skips.
-- [ ] T053 [US3] Author `POST /api/v1/setup/complete` endpoint. Invokes `assert_role_mfa_requirement('tenant_admin', user)`. Sets `consumed_at` on the invitation row; consumes the setup-session cookie; establishes the standard tenant-admin login session for the user. Emits `accounts.setup.completed` Kafka event. Records audit-chain entry.
-- [ ] T054 [US3] Wire the new `setup_router` into `apps/control-plane/src/platform/main.py:create_app()` router-registration. Place it AFTER UPD-046's hostname middleware so `request.state.tenant` is populated.
+- [x] T046 [US3] Author `POST /api/v1/setup/validate-token` endpoint in `apps/control-plane/src/platform/accounts/setup_router.py` per `contracts/enterprise-setup-rest.md`. Sets the setup-session cookie scoped to the tenant subdomain. Returns the resume position from `setup_step_state`.
+- [x] T047 [US3] Author `POST /api/v1/setup/step/tos` endpoint. Records TOS acceptance into `setup_step_state`. Records audit-chain entry. Emits `accounts.setup.step_completed` Kafka event with `step=tos`.
+- [x] T048 [US3] Author `POST /api/v1/setup/step/credentials` endpoint. Supports both `method=password` (creates credential row in the Acme tenant — the user record is created here) and `method=oauth` (links the user to the tenant's existing OAuth provider per UPD-046 migration 102). Records audit-chain entry.
+- [x] T049 [US3] Author `POST /api/v1/setup/step/mfa/start` endpoint. Calls `mfa.generate_totp_secret()` + `mfa.create_provisioning_uri()`. Returns the secret + URI for the frontend QR code render.
+- [x] T050 [US3] Author `POST /api/v1/setup/step/mfa/verify` endpoint. Calls `mfa.verify_totp_code()`, persists the `MfaEnrollment` row with status `enrolled`, generates 10 recovery codes via `mfa.generate_recovery_codes()`, stores the bcrypt hashes, returns the plaintext codes ONCE in the response. Records audit-chain entry.
+- [x] T051 [US3] Author `POST /api/v1/setup/step/workspace` endpoint. Invokes `assert_role_mfa_requirement('tenant_admin', user)` first. Creates a workspace via `WorkspacesService.create_workspace(name, owner_id)`. Records audit-chain entry.
+- [x] T052 [US3] Author `POST /api/v1/setup/step/invitations` endpoint. Invokes `assert_role_mfa_requirement('tenant_admin', user)`. Sends invitations via UPD-042's `AccountsService.create_invitation()` for each entry; empty array skips.
+- [x] T053 [US3] Author `POST /api/v1/setup/complete` endpoint. Invokes `assert_role_mfa_requirement('tenant_admin', user)`. Sets `consumed_at` on the invitation row; consumes the setup-session cookie; establishes the standard tenant-admin login session for the user. Emits `accounts.setup.completed` Kafka event. Records audit-chain entry.
+- [x] T054 [US3] Wire the new `setup_router` into `apps/control-plane/src/platform/main.py:create_app()` router-registration. Place it AFTER UPD-046's hostname middleware so `request.state.tenant` is populated.
 
 ### Implementation for User Story 3 — Frontend
 
-- [ ] T055 [US3] [P] Frontend hook `apps/web/lib/hooks/use-tenant-setup.ts`: TanStack Query for `/api/v1/setup/validate-token`; mutations for each `step/*` endpoint plus `setup/complete`. State is preserved server-side; the hook just routes UI events to the backend.
-- [ ] T056 [US3] [P] Frontend component `apps/web/components/features/auth/TenantSetupWizard.tsx` — orchestrates the 6-step flow. Reads server-returned `current_step` to decide what to render. Refuses to render later steps without server confirmation that prior steps completed (matches the server-side state machine).
-- [ ] T057 [US3] [P] Frontend component `apps/web/components/features/auth/MandatoryMfaStep.tsx` — refuses to advance without local TOTP verification. Renders QR code via existing `qrcode.react` package. Renders the 10 recovery codes ONCE with a mandatory "I have saved these" acknowledgement checkbox before advancing.
-- [ ] T058 [US3] Frontend page `apps/web/app/(auth)/setup/page.tsx` — reads `?token=` query param, calls `/api/v1/setup/validate-token`, on success renders `<TenantSetupWizard />`. On 410 renders the canonical "Request a new invitation" surface (no detail about which mailbox). The page lives in the `(auth)` route group so `TenantBrandingProvider` already wraps it.
-- [ ] T059 [US3] Frontend `(auth)/setup/[token]/error/page.tsx` — error page with "Request a new invitation" CTA. Linked from the validate-token 410 path.
+- [x] T055 [US3] [P] Frontend hook `apps/web/lib/hooks/use-tenant-setup.ts`: TanStack Query for `/api/v1/setup/validate-token`; mutations for each `step/*` endpoint plus `setup/complete`. State is preserved server-side; the hook just routes UI events to the backend.
+- [x] T056 [US3] [P] Frontend component `apps/web/components/features/auth/TenantSetupWizard.tsx` — orchestrates the 6-step flow. Reads server-returned `current_step` to decide what to render. Refuses to render later steps without server confirmation that prior steps completed (matches the server-side state machine).
+- [x] T057 [US3] [P] Frontend component `apps/web/components/features/auth/MandatoryMfaStep.tsx` — refuses to advance without local TOTP verification. Renders QR code via existing `qrcode.react` package. Renders the 10 recovery codes ONCE with a mandatory "I have saved these" acknowledgement checkbox before advancing.
+- [x] T058 [US3] Frontend page `apps/web/app/(auth)/setup/page.tsx` — reads `?token=` query param, calls `/api/v1/setup/validate-token`, on success renders `<TenantSetupWizard />`. On 410 renders the canonical "Request a new invitation" surface (no detail about which mailbox). The page lives in the `(auth)` route group so `TenantBrandingProvider` already wraps it.
+- [x] T059 [US3] Frontend `(auth)/setup/[token]/error/page.tsx` — error page with "Request a new invitation" CTA. Linked from the validate-token 410 path.
 
 **Checkpoint**: User Story 3 fully validated. The full Enterprise tenant first-admin flow works end-to-end with mandatory MFA, audit-chain entries per step, and proper resume-on-reload behaviour.
 
@@ -190,13 +190,13 @@ UPD-046 (`tenants` architecture, hostname middleware, opaque 404 helper, platfor
 
 ### Implementation for User Story 4
 
-- [ ] T064 [US4] Modify `apps/control-plane/src/platform/accounts/service.py:AccountsService.accept_invitation()` to handle the cross-tenant case: when the invitation's `tenant_id` differs from any user record matching the email, create a NEW user record in the invitation's tenant (rather than re-using an existing record). The new user gets its own credential row, MFA state, and role assignments per FR-017.
-- [ ] T065 [US4] Add `CrossTenantInviteAcceptanceError` handling: if the user is currently signed in to a different tenant when accepting, the flow refuses with a clear "Sign out of <other tenant> first" message per spec edge case.
-- [ ] T066 [US4] Author the `MembershipsService.list_for_user()` method (already skeletoned in T014); wire it into `apps/control-plane/src/platform/accounts/memberships_router.py` as `GET /api/v1/me/memberships` per `contracts/memberships-rest.md`.
-- [ ] T067 [US4] Mount `memberships_router` under the existing `/api/v1/me/*` prefix in `apps/control-plane/src/platform/me/router.py`.
-- [ ] T068 [US4] [P] Frontend hook `apps/web/lib/hooks/use-memberships.ts`: TanStack Query for `/api/v1/me/memberships`. Returns the list and a derived `currentMembership` value.
-- [ ] T069 [US4] [P] Frontend page `apps/web/app/(main)/me/memberships/page.tsx` — list view of the user's tenants with role + login URL per tenant. Each row clickable as a tenant-switcher entry (same redirect mechanic as US6's switcher).
-- [ ] T070 [US4] [P] Frontend component `apps/web/components/features/auth/CrossTenantInvitationAccept.tsx` — handles the invite acceptance for already-existing-in-default-tenant users. Shows clearly that a new identity will be created in the inviting tenant; refuses to proceed if signed in to a different tenant.
+- [x] T064 [US4] Modify `apps/control-plane/src/platform/accounts/service.py:AccountsService.accept_invitation()` to handle the cross-tenant case: when the invitation's `tenant_id` differs from any user record matching the email, create a NEW user record in the invitation's tenant (rather than re-using an existing record). The new user gets its own credential row, MFA state, and role assignments per FR-017.
+- [x] T065 [US4] Add `CrossTenantInviteAcceptanceError` handling: if the user is currently signed in to a different tenant when accepting, the flow refuses with a clear "Sign out of <other tenant> first" message per spec edge case.
+- [x] T066 [US4] Author the `MembershipsService.list_for_user()` method (already skeletoned in T014); wire it into `apps/control-plane/src/platform/accounts/memberships_router.py` as `GET /api/v1/me/memberships` per `contracts/memberships-rest.md`.
+- [x] T067 [US4] Mount `memberships_router` under the existing `/api/v1/me/*` prefix in `apps/control-plane/src/platform/me/router.py`.
+- [x] T068 [US4] [P] Frontend hook `apps/web/lib/hooks/use-memberships.ts`: TanStack Query for `/api/v1/me/memberships`. Returns the list and a derived `currentMembership` value.
+- [x] T069 [US4] [P] Frontend page `apps/web/app/(main)/me/memberships/page.tsx` — list view of the user's tenants with role + login URL per tenant. Each row clickable as a tenant-switcher entry (same redirect mechanic as US6's switcher).
+- [x] T070 [US4] [P] Frontend component `apps/web/components/features/auth/CrossTenantInvitationAccept.tsx` — handles the invite acceptance for already-existing-in-default-tenant users. Shows clearly that a new identity will be created in the inviting tenant; refuses to proceed if signed in to a different tenant.
 
 **Checkpoint**: User Story 4 fully validated. Cross-tenant identities are independent; sessions never cross subdomains; `/me/memberships` returns accurate cross-tenant listing.
 
@@ -217,19 +217,19 @@ UPD-046 (`tenants` architecture, hostname middleware, opaque 404 helper, platfor
 
 ### Implementation for User Story 5 — Backend
 
-- [ ] T075 [US5] Author the onboarding endpoints in `apps/control-plane/src/platform/accounts/onboarding_router.py` per `contracts/onboarding-wizard-rest.md`: `GET /api/v1/onboarding/state`, `POST /api/v1/onboarding/step/workspace-name`, `POST /api/v1/onboarding/step/invitations`, `POST /api/v1/onboarding/step/first-agent`, `POST /api/v1/onboarding/step/tour`, `POST /api/v1/onboarding/dismiss`, `POST /api/v1/onboarding/relaunch`.
-- [ ] T076 [US5] Wire `onboarding_router` registration in `apps/control-plane/src/platform/main.py:create_app()`.
+- [x] T075 [US5] Author the onboarding endpoints in `apps/control-plane/src/platform/accounts/onboarding_router.py` per `contracts/onboarding-wizard-rest.md`: `GET /api/v1/onboarding/state`, `POST /api/v1/onboarding/step/workspace-name`, `POST /api/v1/onboarding/step/invitations`, `POST /api/v1/onboarding/step/first-agent`, `POST /api/v1/onboarding/step/tour`, `POST /api/v1/onboarding/dismiss`, `POST /api/v1/onboarding/relaunch`.
+- [x] T076 [US5] Wire `onboarding_router` registration in `apps/control-plane/src/platform/main.py:create_app()`.
 
 ### Implementation for User Story 5 — Frontend
 
-- [ ] T077 [US5] [P] Frontend hook `apps/web/lib/hooks/use-onboarding.ts`: TanStack Query for `/api/v1/onboarding/state` (query) + mutations for each step + dismiss + relaunch. Auto-invalidates on every mutation.
-- [ ] T078 [US5] [P] Frontend component `apps/web/components/features/onboarding/OnboardingWizard.tsx` — orchestrates 4 steps. Reads `last_step_attempted` from server to decide initial step. Handles the UPD-022-absent case by skipping step 3.
-- [ ] T079 [US5] [P] Frontend step component `apps/web/components/features/onboarding/OnboardingStepWorkspaceName.tsx` — pre-populated default workspace name; user may edit; advance with `POST /step/workspace-name`.
-- [ ] T080 [US5] [P] Frontend step component `apps/web/components/features/onboarding/OnboardingStepInvitations.tsx` — embeds the existing UPD-042 invitation form; "Send" sends and advances; "Skip" advances with empty array.
-- [ ] T081 [US5] [P] Frontend step component `apps/web/components/features/onboarding/OnboardingStepFirstAgent.tsx` — embeds the existing UPD-022 agent-creation wizard. Hidden when the feature flag indicates UPD-022 is absent.
-- [ ] T082 [US5] [P] Frontend step component `apps/web/components/features/onboarding/OnboardingStepTour.tsx` — interactive product tour or "Skip and finish".
-- [ ] T083 [US5] Frontend page `apps/web/app/(main)/onboarding/page.tsx` — renders `<OnboardingWizard />`. Auto-redirects from this page to `/dashboard` when state is `done` or `dismissed_at != null`.
-- [ ] T084 [US5] Frontend page `apps/web/app/(main)/settings/onboarding/page.tsx` — surfaces the "Re-launch wizard" action per FR-030.
+- [x] T077 [US5] [P] Frontend hook `apps/web/lib/hooks/use-onboarding.ts`: TanStack Query for `/api/v1/onboarding/state` (query) + mutations for each step + dismiss + relaunch. Auto-invalidates on every mutation.
+- [x] T078 [US5] [P] Frontend component `apps/web/components/features/onboarding/OnboardingWizard.tsx` — orchestrates 4 steps. Reads `last_step_attempted` from server to decide initial step. Handles the UPD-022-absent case by skipping step 3.
+- [x] T079 [US5] [P] Frontend step component `apps/web/components/features/onboarding/OnboardingStepWorkspaceName.tsx` — pre-populated default workspace name; user may edit; advance with `POST /step/workspace-name`.
+- [x] T080 [US5] [P] Frontend step component `apps/web/components/features/onboarding/OnboardingStepInvitations.tsx` — embeds the existing UPD-042 invitation form; "Send" sends and advances; "Skip" advances with empty array.
+- [x] T081 [US5] [P] Frontend step component `apps/web/components/features/onboarding/OnboardingStepFirstAgent.tsx` — embeds the existing UPD-022 agent-creation wizard. Hidden when the feature flag indicates UPD-022 is absent.
+- [x] T082 [US5] [P] Frontend step component `apps/web/components/features/onboarding/OnboardingStepTour.tsx` — interactive product tour or "Skip and finish".
+- [x] T083 [US5] Frontend page `apps/web/app/(main)/onboarding/page.tsx` — renders `<OnboardingWizard />`. Auto-redirects from this page to `/dashboard` when state is `done` or `dismissed_at != null`.
+- [x] T084 [US5] Frontend page `apps/web/app/(main)/settings/onboarding/page.tsx` — surfaces the "Re-launch wizard" action per FR-030.
 
 **Checkpoint**: User Story 5 fully validated. Wizard renders, persists state, dismisses cleanly, re-launches from settings.
 
@@ -249,9 +249,9 @@ UPD-046 (`tenants` architecture, hostname middleware, opaque 404 helper, platfor
 
 ### Implementation for User Story 6
 
-- [ ] T088 [US6] Frontend component `apps/web/components/features/shell/TenantSwitcher.tsx` — shadcn/ui `DropdownMenu` listing each tenant's display name + role + current-tenant indicator. Renders `null` when memberships.length < 2 per FR-023. Uses `useMemberships` hook from T068.
-- [ ] T089 [US6] Modify `apps/web/app/(main)/layout.tsx` to render `<TenantSwitcher />` in the header, placed immediately to the right of the platform logo per research R7.
-- [ ] T090 [US6] [P] Localization for switcher strings — add to `apps/web/locales/{en,es,de,fr,it,zh}/billing.json` (extend existing accounts namespace rather than creating a new locale file).
+- [x] T088 [US6] Frontend component `apps/web/components/features/shell/TenantSwitcher.tsx` — shadcn/ui `DropdownMenu` listing each tenant's display name + role + current-tenant indicator. Renders `null` when memberships.length < 2 per FR-023. Uses `useMemberships` hook from T068.
+- [x] T089 [US6] Modify `apps/web/app/(main)/layout.tsx` to render `<TenantSwitcher />` in the header, placed immediately to the right of the platform logo per research R7.
+- [x] T090 [US6] [P] Localization for switcher strings — add to `apps/web/locales/{en,es,de,fr,it,zh}/billing.json` (extend existing accounts namespace rather than creating a new locale file).
 
 **Checkpoint**: User Story 6 fully validated. Multi-tenant switcher renders, redirects correctly, hides for single-tenant users.
 
@@ -263,29 +263,29 @@ UPD-046 (`tenants` architecture, hostname middleware, opaque 404 helper, platfor
 
 ### Audit chain wiring completeness
 
-- [ ] T091 Audit completeness check at `apps/control-plane/scripts/lint/check_signup_audit_coverage.py` (CI rule): grep for every method in `accounts/service.py`, `accounts/onboarding.py`, `accounts/first_admin_invite.py`, `accounts/memberships.py` that mutates state; assert each calls `audit_chain_service.append`. Wire into `.github/workflows/ci.yml`.
+- [x] T091 Audit completeness check at `apps/control-plane/scripts/lint/check_signup_audit_coverage.py` (CI rule): grep for every method in `accounts/service.py`, `accounts/onboarding.py`, `accounts/first_admin_invite.py`, `accounts/memberships.py` that mutates state; assert each calls `audit_chain_service.append`. Wire into `.github/workflows/ci.yml`.
 
 ### Observability
 
-- [ ] T092 [P] Extend the existing accounts Grafana dashboard `deploy/helm/observability/templates/dashboards/accounts.yaml` with new panels: signups-per-day at default tenant, first-admin-invitation issuance rate, MFA-enrolment-skip-attempt rate (the SC-004 probe count), cross-tenant invitation acceptance rate, onboarding-wizard completion-vs-dismissed rate. (No new dashboard; this BC was not new.)
-- [ ] T093 [P] Add Prometheus metrics in `accounts/onboarding.py` and `accounts/first_admin_invite.py`: `accounts_onboarding_step_advanced_total{from_step,to_step}`, `accounts_onboarding_dismissed_total{at_step}`, `accounts_first_admin_invitation_issued_total`, `accounts_first_admin_invitation_resent_total`, `accounts_first_admin_invitation_consumed_seconds` (histogram of issue→consume latency), `accounts_setup_mfa_skip_attempt_total` (the SC-004 metric).
+- [x] T092 [P] Extend the existing accounts Grafana dashboard `deploy/helm/observability/templates/dashboards/accounts.yaml` with new panels: signups-per-day at default tenant, first-admin-invitation issuance rate, MFA-enrolment-skip-attempt rate (the SC-004 probe count), cross-tenant invitation acceptance rate, onboarding-wizard completion-vs-dismissed rate. (No new dashboard; this BC was not new.)
+- [x] T093 [P] Add Prometheus metrics in `accounts/onboarding.py` and `accounts/first_admin_invite.py`: `accounts_onboarding_step_advanced_total{from_step,to_step}`, `accounts_onboarding_dismissed_total{at_step}`, `accounts_first_admin_invitation_issued_total`, `accounts_first_admin_invitation_resent_total`, `accounts_first_admin_invitation_consumed_seconds` (histogram of issue→consume latency), `accounts_setup_mfa_skip_attempt_total` (the SC-004 metric).
 
 ### Runbook
 
-- [ ] T094 Author operator runbook `deploy/runbooks/tenant-first-admin-onboarding.md`: provisioning the first Enterprise tenant; resending a first-admin invitation; troubleshooting MFA enrolment (recovery code reset path); diagnosing missing default workspace (deferred-retry job inspection); cross-tenant invitation acceptance for users with existing default-tenant identities.
+- [x] T094 Author operator runbook `deploy/runbooks/tenant-first-admin-onboarding.md`: provisioning the first Enterprise tenant; resending a first-admin invitation; troubleshooting MFA enrolment (recovery code reset path); diagnosing missing default workspace (deferred-retry job inspection); cross-tenant invitation acceptance for users with existing default-tenant identities.
 
 ### Regression coverage
 
-- [ ] T095 Extend the J19 New User Signup journey at `tests/e2e/journeys/j19_new_user_signup.py` (UPD-037 file) with explicit default-tenant assertions: the signup form renders ONLY when `useTenantContext().kind == 'default'`; the workspace auto-creation step exists post-verification; the onboarding wizard launches.
+- [x] T095 Extend the J19 New User Signup journey at `tests/e2e/journeys/j19_new_user_signup.py` (UPD-037 file) with explicit default-tenant assertions: the signup form renders ONLY when `useTenantContext().kind == 'default'`; the workspace auto-creation step exists post-verification; the onboarding wizard launches.
 - [ ] T096 Run the existing UPD-037 test suite against the post-UPD-048 code to confirm no regressions in anti-enumeration neutrality, OAuth signup, or password rules.
 
 ### Localization
 
-- [ ] T097 [P] Add localization strings for all new UPD-048 frontend surfaces in `apps/web/locales/{en,es,de,fr,it,zh}/accounts.json`: signup-page (extends UPD-037 strings), `/setup` wizard, onboarding wizard, `/me/memberships` page, tenant switcher, error page for expired setup token. Audit-pass rule 38 — UPD-083 locale parity.
+- [x] T097 [P] Add localization strings for all new UPD-048 frontend surfaces in `apps/web/locales/{en,es,de,fr,it,zh}/accounts.json`: signup-page (extends UPD-037 strings), `/setup` wizard, onboarding wizard, `/me/memberships` page, tenant switcher, error page for expired setup token. Audit-pass rule 38 — UPD-083 locale parity.
 
 ### CI rules summary
 
-- [ ] T098 Verify all four CI rules added during this feature are wired in `.github/workflows/ci.yml`: `check_signup_tenant_gate.py` (T038), `check_signup_audit_coverage.py` (T091), and the existing UPD-046 + UPD-047 rules continue to pass.
+- [x] T098 Verify all four CI rules added during this feature are wired in `.github/workflows/ci.yml`: `check_signup_tenant_gate.py` (T038), `check_signup_audit_coverage.py` (T091), and the existing UPD-046 + UPD-047 rules continue to pass.
 
 ### Quickstart validation
 
@@ -293,8 +293,8 @@ UPD-046 (`tenants` architecture, hostname middleware, opaque 404 helper, platfor
 
 ### CHANGELOG and root-level updates
 
-- [ ] T100 [P] Update root `CHANGELOG.md` to mention UPD-048 — Public Signup at Default Tenant Only.
-- [ ] T101 [P] Update `docs/system-architecture.md` and `docs/software-architecture.md` to describe the tenant-aware signup, the Enterprise `/setup` flow, the cross-tenant identity model, and `/me/memberships` introspection.
+- [x] T100 [P] Update root `CHANGELOG.md` to mention UPD-048 — Public Signup at Default Tenant Only.
+- [x] T101 [P] Update `docs/system-architecture.md` and `docs/software-architecture.md` to describe the tenant-aware signup, the Enterprise `/setup` flow, the cross-tenant identity model, and `/me/memberships` introspection.
 
 ---
 

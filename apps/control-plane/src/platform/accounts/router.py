@@ -35,10 +35,12 @@ from platform.accounts.schemas import (
 from platform.accounts.service import AccountsService
 from platform.common.dependencies import get_current_user
 from platform.common.exceptions import AuthorizationError, ValidationError
+from platform.common.middleware.tenant_resolver import _build_opaque_404_response
 from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
+from fastapi.responses import Response
 
 router = APIRouter(prefix="/api/v1/accounts", tags=["accounts"])
 
@@ -60,12 +62,22 @@ def _require_superadmin(current_user: dict[str, Any]) -> None:
         raise AuthorizationError("PERMISSION_DENIED", "Superadmin role required")
 
 
+def _signup_tenant_gate(request: Request) -> Response | None:
+    tenant = getattr(request.state, "tenant", None)
+    if getattr(tenant, "kind", "default") == "default":
+        return None
+    return _build_opaque_404_response()
+
+
 @router.post("/register", response_model=RegisterResponse, status_code=202)
 async def register(
     payload: RegisterRequest,
     request: Request,
     accounts_service: AccountsService = Depends(get_accounts_service),
-) -> RegisterResponse:
+) -> RegisterResponse | Response:
+    gated = _signup_tenant_gate(request)
+    if gated is not None:
+        return gated
     source_ip = request.client.host if request.client is not None else "0.0.0.0"
     return await accounts_service.register(payload, source_ip=source_ip)
 
@@ -73,16 +85,24 @@ async def register(
 @router.post("/verify-email", response_model=VerifyEmailResponse)
 async def verify_email(
     payload: VerifyEmailRequest,
+    request: Request,
     accounts_service: AccountsService = Depends(get_accounts_service),
-) -> VerifyEmailResponse:
+) -> VerifyEmailResponse | Response:
+    gated = _signup_tenant_gate(request)
+    if gated is not None:
+        return gated
     return await accounts_service.verify_email(payload)
 
 
 @router.post("/resend-verification", response_model=ResendVerificationResponse, status_code=202)
 async def resend_verification(
     payload: ResendVerificationRequest,
+    request: Request,
     accounts_service: AccountsService = Depends(get_accounts_service),
-) -> ResendVerificationResponse:
+) -> ResendVerificationResponse | Response:
+    gated = _signup_tenant_gate(request)
+    if gated is not None:
+        return gated
     return await accounts_service.resend_verification(payload)
 
 
@@ -206,11 +226,16 @@ async def get_invitation_details(
 async def accept_invitation(
     token: str,
     payload: AcceptInvitationRequest,
+    request: Request,
     accounts_service: AccountsService = Depends(get_accounts_service),
 ) -> AcceptInvitationResponse:
     if payload.token != token:
         raise ValidationError("TOKEN_MISMATCH", "Invitation token mismatch")
-    return await accounts_service.accept_invitation(payload)
+    current_user = getattr(request.state, "user", None)
+    return await accounts_service.accept_invitation(
+        payload,
+        current_user=current_user if isinstance(current_user, dict) else None,
+    )
 
 
 @router.post("/{user_id}/suspend", response_model=UserLifecycleResponse)

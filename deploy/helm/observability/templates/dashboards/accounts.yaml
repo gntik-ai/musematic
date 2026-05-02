@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-accounts
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.dashboardLabels" . | indent 4 }}
+data:
+  accounts.json: |
+    {
+      "annotations": { "list": [] },
+      "description": "Signup, first-admin setup, cross-tenant identity, and onboarding signals.",
+      "editable": true,
+      "graphTooltip": 1,
+      "id": null,
+      "panels": [
+        { "id": 1, "type": "timeseries", "title": "Default Tenant Signups per Day", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 7, "w": 8, "x": 0, "y": 0 }, "targets": [ { "expr": "sum(rate({bounded_context=\"accounts\"} | json | event_type=\"accounts.signup.completed\" [1d]))", "refId": "A" } ] },
+        { "id": 2, "type": "timeseries", "title": "First Admin Invitation Issue Rate", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 7, "w": 8, "x": 8, "y": 0 }, "targets": [ { "expr": "sum(rate(accounts_first_admin_invitation_issued_total[5m]))", "refId": "A" } ] },
+        { "id": 3, "type": "timeseries", "title": "MFA Enrollment Skip Attempts", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 7, "w": 8, "x": 16, "y": 0 }, "targets": [ { "expr": "sum(rate(accounts_setup_mfa_skip_attempt_total[5m]))", "refId": "A" } ] },
+        { "id": 4, "type": "timeseries", "title": "Cross-Tenant Invitation Acceptances", "datasource": { "type": "loki", "uid": "loki" }, "gridPos": { "h": 7, "w": 12, "x": 0, "y": 7 }, "targets": [ { "expr": "sum(rate({bounded_context=\"accounts\"} | json | event_type=\"accounts.cross_tenant_invitation.accepted\" [5m]))", "refId": "A" } ] },
+        { "id": 5, "type": "timeseries", "title": "Onboarding Completion vs Dismissal", "datasource": { "type": "prometheus", "uid": "$prometheus" }, "gridPos": { "h": 7, "w": 12, "x": 12, "y": 7 }, "targets": [ { "expr": "sum(rate(accounts_onboarding_step_advanced_total{to_step=\"done\"}[5m]))", "legendFormat": "completed", "refId": "A" }, { "expr": "sum(rate(accounts_onboarding_dismissed_total[5m]))", "legendFormat": "dismissed", "refId": "B" } ] }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "tags": ["musematic", "accounts", "signup"],
+      "templating": { "list": [ { "name": "prometheus", "type": "datasource", "query": "prometheus", "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" } } ] },
+      "time": { "from": "now-24h", "to": "now" },
+      "timezone": "browser",
+      "title": "Accounts",
+      "uid": "accounts",
+      "version": 1
+    }

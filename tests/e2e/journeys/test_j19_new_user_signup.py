@@ -115,6 +115,28 @@ async def test_j19_new_user_signup_with_bootstrapped_oauth(
         me.raise_for_status()
         assert me.json()
 
+    with journey_step("Alice has default-tenant onboarding state after signup"):
+        assert alice_client is not None
+        onboarding = await alice_client.get("/api/v1/onboarding/state")
+        onboarding.raise_for_status()
+        onboarding_payload = onboarding.json()
+        assert onboarding_payload["default_workspace_id"]
+        assert onboarding_payload["last_step_attempted"] in {
+            "workspace_named",
+            "invitations",
+            "first_agent",
+            "tour",
+            "done",
+        }
+
+    with journey_step("Alice can introspect tenant memberships for the switcher"):
+        assert alice_client is not None
+        memberships = await alice_client.get("/api/v1/me/memberships")
+        memberships.raise_for_status()
+        membership_payload = memberships.json()
+        assert membership_payload["count"] >= 1
+        assert any(item["is_current_tenant"] for item in membership_payload["memberships"])
+
     with journey_step("Alice performs a first platform action"):
         assert alice_client is not None
         action = await alice_client.get("/api/v1/auth/oauth/links")

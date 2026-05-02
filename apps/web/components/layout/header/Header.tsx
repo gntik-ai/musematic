@@ -6,6 +6,7 @@ import { useCommandPalette } from "@/components/layout/command-palette/CommandPa
 import { ThemeToggle } from "@/components/layout/theme-toggle/ThemeToggle";
 import { ConnectionIndicator } from "@/components/layout/header/ConnectionIndicator";
 import { NotificationBell } from "@/components/features/alerts/notification-bell";
+import { TenantSwitcher } from "@/components/features/shell/TenantSwitcher";
 import { UserMenu } from "@/components/layout/header/UserMenu";
 import { WorkspaceSelector } from "@/components/layout/header/WorkspaceSelector";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,9 @@ export function Header({ onOpenMobileNav }: HeaderProps) {
         <div className="min-w-0 flex-1">
           <WorkspaceSelector />
         </div>
+        <div className="hidden min-w-0 xl:block">
+          <TenantSwitcher />
+        </div>
       </div>
       <div className="hidden min-w-0 flex-[1.5] justify-center lg:flex">
         <Breadcrumb />
@@ -51,6 +55,9 @@ export function Header({ onOpenMobileNav }: HeaderProps) {
       </div>
       <div className="w-full lg:hidden">
         <Breadcrumb />
+      </div>
+      <div className="w-full xl:hidden">
+        <TenantSwitcher />
       </div>
     </header>
   );

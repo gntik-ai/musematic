@@ -23,3 +23,9 @@ billing:
   quotaCacheTtlSeconds: 60
   quotaInFlightTtlSeconds: 300
   defaultQuotaPeriodAnchor: calendar_month
+
+signup:
+  autoCreateRetrySeconds: 30
+  firstAdminInviteTtlDays: 7
+  onboardingWizardEnabled: true
+  defaultWorkspaceNameTemplate: "{display_name}'s workspace"

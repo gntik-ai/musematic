@@ -18,6 +18,13 @@ OPAQUE_404_HEADERS = {
     "content-type": "application/json",
     "content-length": str(len(OPAQUE_404_BODY)),
 }
+__all__ = [
+    "OPAQUE_404_BODY",
+    "OPAQUE_404_HEADERS",
+    "TENANT_RESOLVER_BYPASS_PATHS",
+    "TenantResolverMiddleware",
+    "_build_opaque_404_response",
+]
 TENANT_RESOLVER_BYPASS_PATHS: frozenset[str] = frozenset(
     {"/health", "/healthz", "/api/v1/healthz"}
 )

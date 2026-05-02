@@ -1,0 +1,22 @@
+{
+  "setup": {
+    "title": "Finish admin setup",
+    "tokenExpired": "Request a new invitation",
+    "mfaRequired": "Set up authenticator"
+  },
+  "onboarding": {
+    "title": "Name your workspace",
+    "invitations": "Invite teammates",
+    "firstAgent": "Create your first agent",
+    "tour": "Review the main shell",
+    "relaunch": "Re-launch wizard"
+  },
+  "memberships": {
+    "title": "Tenant memberships",
+    "switch": "Switch"
+  },
+  "tenantSwitcher": {
+    "label": "Switch tenant",
+    "current": "Current"
+  }
+}

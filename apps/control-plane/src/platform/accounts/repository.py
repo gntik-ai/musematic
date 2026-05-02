@@ -49,7 +49,7 @@ class AccountsRepository:
                     signup_source=signup_source,
                     invitation_id=invitation_id,
                 )
-                .on_conflict_do_nothing(index_elements=[User.email])
+                .on_conflict_do_nothing(index_elements=[User.tenant_id, User.email])
                 .returning(User.id)
             )
         ).scalar_one_or_none()
@@ -73,7 +73,7 @@ class AccountsRepository:
                 display_name=resolved_display_name,
                 status=status.value,
             )
-            .on_conflict_do_nothing(index_elements=[PlatformUser.email])
+            .on_conflict_do_nothing(index_elements=[PlatformUser.tenant_id, PlatformUser.email])
         )
         return account_user
 

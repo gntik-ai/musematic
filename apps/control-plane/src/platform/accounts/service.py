@@ -7,7 +7,9 @@ from datetime import UTC, datetime, timedelta
 from platform.accounts import email as email_helpers
 from platform.accounts.events import (
     AccountsEventType,
+    CrossTenantInvitationAcceptedPayload,
     InvitationPayload,
+    SignupCompletedPayload,
     UserActivatedPayload,
     UserEmailVerifiedPayload,
     UserLifecyclePayload,
@@ -16,6 +18,7 @@ from platform.accounts.events import (
     publish_accounts_event,
 )
 from platform.accounts.exceptions import (
+    CrossTenantInviteAcceptanceError,
     EmailAlreadyRegisteredError,
     InvalidOrExpiredTokenError,
     InvitationAlreadyConsumedError,
@@ -58,15 +61,26 @@ from platform.accounts.schemas import (
     VerifyEmailResponse,
 )
 from platform.accounts.state_machine import validate_transition
+from platform.audit.repository import AuditChainRepository
+from platform.audit.service import AuditChainService
 from platform.auth.service import AuthService
+from platform.billing.plans.repository import PlansRepository
 from platform.billing.quotas.http import raise_for_quota_result
+from platform.billing.subscriptions.repository import SubscriptionsRepository
+from platform.billing.subscriptions.service import SubscriptionService
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import AccountsSettings, PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
 from platform.common.exceptions import AuthorizationError, NotFoundError
+from platform.common.logging import get_logger
+from platform.tenants.seeder import DEFAULT_TENANT_ID
+from platform.workspaces.repository import WorkspacesRepository
+from platform.workspaces.service import WorkspacesService
 from typing import Any
 from uuid import UUID, uuid4
+
+LOGGER = get_logger(__name__)
 
 
 class AccountsService:
@@ -181,6 +195,7 @@ class AccountsService:
         )
         if first_activation:
             await self._publish_activation(updated_user, correlation)
+            await self._complete_default_signup(updated_user, correlation)
         return VerifyEmailResponse(user_id=updated_user.id, status=updated_user.status)
 
     async def resend_verification(
@@ -422,11 +437,19 @@ class AccountsService:
         request: AcceptInvitationRequest,
         *,
         correlation_id: UUID | None = None,
+        current_user: dict[str, Any] | None = None,
     ) -> AcceptInvitationResponse:
         invitation = await self.repo.get_invitation_by_token_hash(self._hash_token(request.token))
         if invitation is None:
             raise InvitationNotFoundError()
         self._ensure_invitation_pending(invitation)
+        if current_user is not None:
+            current_tenant_id = current_user.get("tenant_id")
+            if (
+                current_tenant_id is not None
+                and str(current_tenant_id) != str(invitation.tenant_id)
+            ):
+                raise CrossTenantInviteAcceptanceError()
         if await self.repo.get_user_by_email(invitation.invitee_email) is not None:
             raise EmailAlreadyRegisteredError()
         if self.quota_enforcer is not None:
@@ -461,6 +484,18 @@ class AccountsService:
             ),
             correlation,
         )
+        if invitation.tenant_id != DEFAULT_TENANT_ID:
+            await publish_accounts_event(
+                self.kafka_producer,
+                AccountsEventType.cross_tenant_invitation_accepted,
+                CrossTenantInvitationAcceptedPayload(
+                    default_tenant_user_id=None,
+                    enterprise_tenant_id=invitation.tenant_id,
+                    enterprise_user_id=user.id,
+                    email=user.email,
+                ),
+                correlation,
+            )
         await self._publish_activation(user, correlation)
         return AcceptInvitationResponse(
             user_id=user.id,
@@ -686,6 +721,76 @@ class AccountsService:
             ),
             correlation,
         )
+
+    async def _complete_default_signup(
+        self,
+        user: User,
+        correlation: CorrelationContext,
+    ) -> None:
+        workspace_id: UUID | None = None
+        subscription_id: UUID | None = None
+        try:
+            if self.platform_settings is None:
+                return
+            subscription_service = SubscriptionService(
+                session=self.repo.session,
+                subscriptions=SubscriptionsRepository(self.repo.session),
+                plans=PlansRepository(self.repo.session),
+                producer=self.kafka_producer,
+            )
+            workspace = await WorkspacesService(
+                repo=WorkspacesRepository(self.repo.session),
+                settings=self.platform_settings,
+                kafka_producer=self.kafka_producer,
+                subscription_service=subscription_service,
+            ).create_default_workspace(
+                user.id,
+                user.display_name,
+                correlation_ctx=correlation,
+            )
+            workspace_id = workspace.id
+            subscription = await subscription_service.provision_for_default_workspace(
+                workspace.id,
+                created_by_user_id=user.id,
+            )
+            subscription_id = subscription.id
+        except Exception as exc:
+            LOGGER.warning(
+                "Default workspace provisioning deferred after signup verification",
+                extra={"user_id": str(user.id), "error": str(exc)},
+            )
+        await publish_accounts_event(
+            self.kafka_producer,
+            AccountsEventType.signup_completed,
+            SignupCompletedPayload(
+                user_id=user.id,
+                email=user.email,
+                workspace_id=workspace_id,
+                subscription_id=subscription_id,
+                signup_method="email",
+            ),
+            correlation,
+        )
+        if self.platform_settings is not None:
+            payload: dict[str, object] = {
+                "user_id": str(user.id),
+                "email": user.email,
+                "workspace_id": str(workspace_id) if workspace_id else None,
+                "subscription_id": str(subscription_id) if subscription_id else None,
+            }
+            await AuditChainService(
+                AuditChainRepository(self.repo.session),
+                self.platform_settings,
+                producer=self.kafka_producer,
+            ).append(
+                uuid4(),
+                "accounts",
+                json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8"),
+                event_type=AccountsEventType.signup_completed.value,
+                actor_role="user",
+                canonical_payload_json=payload,
+                tenant_id=user.tenant_id,
+            )
 
     def _ensure_invitation_pending(
         self,

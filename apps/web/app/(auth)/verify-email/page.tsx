@@ -33,7 +33,7 @@ function VerifyEmailContent() {
         setState("success");
         window.setTimeout(() => {
           router.replace(
-            response.status === "pending_approval" ? "/waiting-approval" : "/login",
+            response.status === "pending_approval" ? "/waiting-approval" : "/onboarding",
           );
         }, 3000);
       })

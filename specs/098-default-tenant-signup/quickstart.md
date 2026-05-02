@@ -40,8 +40,8 @@ curl -isS -X POST -H "Host: $DEFAULT_TENANT_HOST" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "alice@example.test",
-    "password": "Test1234!Strong",
-    "tos_accepted": true
+    "display_name": "Alice Example",
+    "password": "Test1234!Strong"
   }' \
   "$PLATFORM_API_URL/api/v1/accounts/register"
 # Expect: HTTP/1.1 202 with anti-enumeration neutral body
@@ -123,7 +123,7 @@ for slug in acme bogus xyz123; do
   curl -isS -o /tmp/$slug-signup.body -D /tmp/$slug-signup.headers \
     -X POST -H "Host: $slug.localhost" \
     -H "Content-Type: application/json" \
-    -d '{"email":"x@x.test","password":"x","tos_accepted":true}' \
+    -d '{"email":"x@x.test","display_name":"Probe","password":"x"}' \
     "$PLATFORM_API_URL/api/v1/accounts/register"
 done
 
@@ -156,7 +156,7 @@ curl -sS -H "Host: $ACME_TENANT_HOST" \
 curl -sS -X POST -H "Host: $ACME_TENANT_HOST" \
   -b /tmp/cookies.txt -c /tmp/cookies.txt \
   -H "Content-Type: application/json" \
-  -d '{"tos_version":"2026-05-01","accepted_at_ts":"2026-05-02T10:30:00Z"}' \
+  -d '{"tos_version":"2026-05-02","accepted_at_ts":"2026-05-02T10:30:00Z"}' \
   "$PLATFORM_API_URL/api/v1/setup/step/tos"
 
 curl -sS -X POST -H "Host: $ACME_TENANT_HOST" \
@@ -242,7 +242,7 @@ ACME_ADMIN_TOKEN=<token issued by the /setup completion above>
 curl -sS -X POST -H "Host: $ACME_TENANT_HOST" \
   -H "Authorization: Bearer $ACME_ADMIN_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"email":"juan@example.test","role":"workspace_member"}' \
+  -d '{"email":"juan@example.test","roles":["viewer"]}' \
   "$PLATFORM_API_URL/api/v1/accounts/invitations"
 
 # Juan receives invite; opens accept page
@@ -252,7 +252,7 @@ JUAN_INVITE_TOKEN=$(python tests/e2e/scripts/dev_email.py latest \
 
 curl -sS -X POST -H "Host: $ACME_TENANT_HOST" \
   -H "Content-Type: application/json" \
-  -d "{\"token\":\"$JUAN_INVITE_TOKEN\",\"password\":\"AcmeJuan2026!\"}" \
+  -d "{\"token\":\"$JUAN_INVITE_TOKEN\",\"display_name\":\"Juan Example\",\"password\":\"AcmeJuan2026!\"}" \
   "$PLATFORM_API_URL/api/v1/accounts/invitations/$JUAN_INVITE_TOKEN/accept" | jq
 
 # Verify two independent records exist
@@ -300,3 +300,7 @@ Expected: J19 (UPD-037 regression with default-tenant assertions), the new tenan
 ## Done
 
 If every step above succeeds, your local-dev cluster has a working tenant-aware signup, an Enterprise first-admin onboarding flow, cross-tenant identity, and the tenant switcher. You are ready to build Phases A–C and the E2E phase.
+
+## Validation status
+
+On 2026-05-02, this walkthrough was updated to match the implemented request contracts. The full fresh kind-cluster validation was not executed here because UPD-048 inherits the UPD-047 kind harness blocker documented for the same date.

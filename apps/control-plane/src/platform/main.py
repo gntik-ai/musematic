@@ -18,8 +18,11 @@ from platform.a2a_gateway.models import A2AAuditRecord, A2ATaskState
 from platform.a2a_gateway.repository import A2AGatewayRepository
 from platform.a2a_gateway.router import router as a2a_gateway_router
 from platform.accounts.events import register_accounts_event_types
+from platform.accounts.jobs.workspace_auto_create import build_workspace_auto_create_retry
+from platform.accounts.onboarding_router import router as onboarding_router
 from platform.accounts.repository import AccountsRepository
 from platform.accounts.router import router as accounts_router
+from platform.accounts.setup_router import router as setup_router
 from platform.admin.bootstrap import BootstrapConfigError, bootstrap_superadmin_from_env
 from platform.admin.events import register_admin_event_types
 from platform.admin.read_only_middleware import AdminReadOnlyMiddleware
@@ -324,6 +327,7 @@ OPENAPI_PUBLIC_PATHS: frozenset[str] = frozenset(
         "/api/v1/accounts/resend-verification",
         "/api/v1/accounts/invitations/{token}",
         "/api/v1/accounts/invitations/{token}/accept",
+        "/api/v1/setup/validate-token",
         "/api/v1/auth/login",
         "/api/v1/auth/refresh",
         "/api/v1/auth/mfa/verify",
@@ -875,6 +879,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         "billing_reconciliation_scheduler",
         None,
     )
+    accounts_workspace_auto_create_scheduler = getattr(
+        app.state,
+        "accounts_workspace_auto_create_scheduler",
+        None,
+    )
     multi_region_replication_probe_scheduler = getattr(
         app.state,
         "multi_region_replication_probe_scheduler",
@@ -1097,6 +1106,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["billing_reconciliation_scheduler"] = str(exc)
             LOGGER.warning("Failed to start billing reconciliation scheduler: %s", exc)
+    if accounts_workspace_auto_create_scheduler is not None:
+        try:
+            accounts_workspace_auto_create_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["accounts_workspace_auto_create_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start accounts workspace auto-create scheduler: %s", exc)
     if incident_response_delivery_retry_scheduler is not None:
         try:
             incident_response_delivery_retry_scheduler.start()
@@ -1167,6 +1183,14 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             except Exception as exc:
                 LOGGER.warning(
                     "Failed to stop billing reconciliation scheduler cleanly: %s",
+                    exc,
+                )
+        if accounts_workspace_auto_create_scheduler is not None:
+            try:
+                accounts_workspace_auto_create_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning(
+                    "Failed to stop accounts workspace auto-create scheduler cleanly: %s",
                     exc,
                 )
         reset_incident_trigger()
@@ -1494,6 +1518,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.tenant_deletion_scheduler = None
     app.state.billing_period_rollover_scheduler = None
     app.state.billing_reconciliation_scheduler = None
+    app.state.accounts_workspace_auto_create_scheduler = None
     app.state.multi_region_replication_probe_scheduler = None
     app.state.multi_region_maintenance_window_scheduler = None
     app.state.multi_region_capacity_projection_scheduler = None
@@ -1578,6 +1603,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.cost_anomaly_scheduler = build_anomaly_scheduler(app)
         app.state.billing_period_rollover_scheduler = build_period_rollover_scheduler(app)
         app.state.billing_reconciliation_scheduler = build_billing_reconciliation_scheduler(app)
+        app.state.accounts_workspace_auto_create_scheduler = build_workspace_auto_create_retry(app)
         app.state.incident_response_delivery_retry_scheduler = build_delivery_retry_scheduler(app)
         app.state.incident_response_runbook_freshness_scheduler = build_runbook_freshness_scheduler(
             app
@@ -1818,6 +1844,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(model_catalog_router)
         app.include_router(debug_logging_router)
         app.include_router(accounts_router)
+        app.include_router(setup_router)
+        app.include_router(onboarding_router)
         app.include_router(workspaces_router)
         app.include_router(admin_router)
         app.include_router(billing_admin_plans_router)

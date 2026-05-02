@@ -24,6 +24,7 @@ EXEMPT_PATHS: frozenset[str] = frozenset(
         "/api/v1/accounts/register",
         "/api/v1/accounts/verify-email",
         "/api/v1/accounts/resend-verification",
+        "/api/v1/setup/validate-token",
         "/api/v1/auth/login",
         "/api/v1/auth/refresh",
         "/api/v1/auth/mfa/verify",
@@ -116,6 +117,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
             external_a2a_identity = _resolve_external_a2a_identity(request)
             if external_a2a_identity is not None:
                 request.state.user = external_a2a_identity
+        if public_invitation_endpoint:
+            _try_attach_public_bearer_user(request, settings)
         if (
             path in EXEMPT_PATHS
             or any(path.startswith(prefix) for prefix in EXEMPT_PREFIXES)
@@ -172,3 +175,20 @@ class AuthMiddleware(BaseHTTPMiddleware):
             request.state.origin_region = str(payload["region_hint"])
         request.state.user = _with_principal_type(payload, "user")
         return await call_next(request)
+
+
+def _try_attach_public_bearer_user(request: Request, settings: Any) -> None:
+    header = request.headers.get("Authorization", "")
+    if not header.startswith("Bearer "):
+        return
+    token = header.removeprefix("Bearer ").strip()
+    try:
+        payload = jwt.decode(
+            token,
+            settings.auth.verification_key,
+            algorithms=[settings.auth.jwt_algorithm],
+        )
+    except jwt.PyJWTError:
+        return
+    if isinstance(payload, dict) and payload.get("type") in {None, "access"}:
+        request.state.user = _with_principal_type(payload, "user")

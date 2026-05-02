@@ -28,6 +28,15 @@ class AccountsEventType(StrEnum):
     invitation_created = "accounts.invitation.created"
     invitation_accepted = "accounts.invitation.accepted"
     invitation_revoked = "accounts.invitation.revoked"
+    signup_completed = "accounts.signup.completed"
+    first_admin_invitation_issued = "accounts.first_admin_invitation.issued"
+    first_admin_invitation_resent = "accounts.first_admin_invitation.resent"
+    setup_step_completed = "accounts.setup.step_completed"
+    setup_completed = "accounts.setup.completed"
+    cross_tenant_invitation_accepted = "accounts.cross_tenant_invitation.accepted"
+    onboarding_step_advanced = "accounts.onboarding.step_advanced"
+    onboarding_dismissed = "accounts.onboarding.dismissed"
+    onboarding_relaunched = "accounts.onboarding.relaunched"
 
 
 class UserRegisteredPayload(BaseModel):
@@ -69,6 +78,61 @@ class InvitationPayload(BaseModel):
     user_id: UUID | None = None
 
 
+class SignupCompletedPayload(BaseModel):
+    user_id: UUID
+    email: str
+    workspace_id: UUID | None = None
+    subscription_id: UUID | None = None
+    signup_method: str = "email"
+
+
+class FirstAdminInvitationPayload(BaseModel):
+    tenant_id: UUID
+    target_email: str
+    super_admin_id: UUID
+    invitation_id: UUID | None = None
+    expires_at: str | None = None
+    prior_invitation_id: UUID | None = None
+    new_invitation_id: UUID | None = None
+    prior_token_invalidated_at: str | None = None
+
+
+class SetupStepCompletedPayload(BaseModel):
+    tenant_id: UUID
+    step: str
+    user_id: UUID | None = None
+
+
+class SetupCompletedPayload(BaseModel):
+    tenant_id: UUID
+    user_id: UUID
+    first_workspace_id: UUID | None = None
+    invitations_sent_count: int = 0
+
+
+class CrossTenantInvitationAcceptedPayload(BaseModel):
+    default_tenant_user_id: UUID | None = None
+    enterprise_tenant_id: UUID
+    enterprise_user_id: UUID
+    email: str
+
+
+class OnboardingStepAdvancedPayload(BaseModel):
+    user_id: UUID
+    from_step: str
+    to_step: str
+
+
+class OnboardingDismissedPayload(BaseModel):
+    user_id: UUID
+    dismissed_at_step: str
+
+
+class OnboardingRelaunchedPayload(BaseModel):
+    user_id: UUID
+    from_step: str
+
+
 ACCOUNTS_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     AccountsEventType.user_registered.value: UserRegisteredPayload,
     AccountsEventType.user_email_verified.value: UserEmailVerifiedPayload,
@@ -86,6 +150,15 @@ ACCOUNTS_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     AccountsEventType.invitation_created.value: InvitationPayload,
     AccountsEventType.invitation_accepted.value: InvitationPayload,
     AccountsEventType.invitation_revoked.value: InvitationPayload,
+    AccountsEventType.signup_completed.value: SignupCompletedPayload,
+    AccountsEventType.first_admin_invitation_issued.value: FirstAdminInvitationPayload,
+    AccountsEventType.first_admin_invitation_resent.value: FirstAdminInvitationPayload,
+    AccountsEventType.setup_step_completed.value: SetupStepCompletedPayload,
+    AccountsEventType.setup_completed.value: SetupCompletedPayload,
+    AccountsEventType.cross_tenant_invitation_accepted.value: CrossTenantInvitationAcceptedPayload,
+    AccountsEventType.onboarding_step_advanced.value: OnboardingStepAdvancedPayload,
+    AccountsEventType.onboarding_dismissed.value: OnboardingDismissedPayload,
+    AccountsEventType.onboarding_relaunched.value: OnboardingRelaunchedPayload,
 }
 
 

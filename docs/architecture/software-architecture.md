@@ -11,6 +11,12 @@ Interoperability baseline: MCP + A2A first-class
 
 ---
 
+## UPD-048 Accounts Boundary
+
+The accounts boundary now owns tenant-aware public signup, Enterprise first-admin setup, onboarding state, and membership introspection. New tables `user_onboarding_states` and `tenant_first_admin_invitations` store wizard and setup state under tenant RLS. Account, platform user, and credential email uniqueness is scoped by `(tenant_id, email)` so the same mailbox can have independent identities in multiple tenants.
+
+The frontend adds a `/setup` wizard, `/onboarding`, `/me/memberships`, and a shell tenant switcher. Backend guardrail scripts enforce that signup handlers call the tenant-kind gate before business logic and that UPD-048 state-changing account services append audit-chain entries.
+
 ## 1. Purpose of this document
 
 This document defines the **software architecture** of the platform.

@@ -161,7 +161,12 @@ class WorkspacesService:
         if existing is not None:
             return self._workspace_response(existing)
 
-        name = self.settings.default_name_template.format(display_name=display_name)
+        template = getattr(
+            getattr(self.platform_settings, "signup", None),
+            "default_workspace_name_template",
+            self.settings.default_name_template,
+        )
+        name = template.format(display_name=display_name)
         workspace = await self.repo.create_workspace(
             name=name,
             description=None,
