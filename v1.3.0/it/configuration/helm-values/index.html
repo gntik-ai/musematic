@@ -12160,6 +12160,30 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>Configures <code>kafka.replicationFactor</code> for the platform chart.</td>
 </tr>
 <tr>
+<td>marketplace</td>
+<td>object</td>
+<td><code>{"deprecationRetentionDays":30,"forkNotifySourceOwners":true,"submissionRateLimitPerDay":5}</code></td>
+<td>Configures the public-marketplace scope dimension and platform-staff review queue (UPD-049).</td>
+</tr>
+<tr>
+<td>marketplace.deprecationRetentionDays</td>
+<td>int</td>
+<td><code>30</code></td>
+<td>Days a deprecated public listing remains queryable for fork resolution.</td>
+</tr>
+<tr>
+<td>marketplace.forkNotifySourceOwners</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>Whether the marketplace.source_updated fan-out delivers notifications to fork owners (FR-027).</td>
+</tr>
+<tr>
+<td>marketplace.submissionRateLimitPerDay</td>
+<td>int</td>
+<td><code>5</code></td>
+<td>Per-submitter rolling-24h cap on public-scope submissions (FR-009).</td>
+</tr>
+<tr>
 <td>minio</td>
 <td>object</td>
 <td><code>{"clusterName":"musematic-minio","createNamespace":false,"enabled":true,"minio":{"enabled":true},"namespace":"platform-data","s3":{"accessKey":"platform","bucketPrefix":"platform","endpointUrl":"","region":"us-east-1","secretKey":"change-me"},"standalone":false}</code></td>

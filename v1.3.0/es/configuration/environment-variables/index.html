@@ -12955,6 +12955,14 @@
 <td><code>apps/control-plane/src/platform/agentops/proficiency/service.py</code><br><code>apps/control-plane/src/platform/registry/exceptions.py</code></td>
 </tr>
 <tr>
+<td><code>REGISTRY_CONSUME_PUBLIC_MARKETPLACE_DISABLED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/registry/exceptions.py</code></td>
+</tr>
+<tr>
 <td><code>REGISTRY_DECOMMISSION_IMMUTABLE</code></td>
 <td>optional</td>
 <td>-</td>
@@ -12995,6 +13003,22 @@
 <td><code>apps/control-plane/src/platform/registry/exceptions.py</code></td>
 </tr>
 <tr>
+<td><code>REGISTRY_MARKETING_CATEGORY_INVALID</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/registry/exceptions.py</code></td>
+</tr>
+<tr>
+<td><code>REGISTRY_MARKETING_METADATA_REQUIRED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/registry/exceptions.py</code></td>
+</tr>
+<tr>
 <td><code>REGISTRY_NAMESPACE_CONFLICT</code></td>
 <td>optional</td>
 <td>-</td>
@@ -13019,7 +13043,39 @@
 <td><code>apps/control-plane/src/platform/registry/exceptions.py</code></td>
 </tr>
 <tr>
+<td><code>REGISTRY_NAME_TAKEN_IN_TARGET_NAMESPACE</code></td>
+<td>optional</td>
+<td>-</td>
+<td>configuration</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/registry/exceptions.py</code></td>
+</tr>
+<tr>
+<td><code>REGISTRY_NOT_AGENT_OWNER</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/registry/exceptions.py</code></td>
+</tr>
+<tr>
 <td><code>REGISTRY_PACKAGE_INVALID</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/registry/exceptions.py</code></td>
+</tr>
+<tr>
+<td><code>REGISTRY_PUBLIC_SCOPE_NOT_ALLOWED_FOR_ENTERPRISE</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/registry/exceptions.py</code></td>
+</tr>
+<tr>
+<td><code>REGISTRY_REVIEW_ALREADY_CLAIMED</code></td>
 <td>optional</td>
 <td>-</td>
 <td>informational</td>
@@ -13043,7 +13099,39 @@
 <td><code>apps/control-plane/src/platform/trust/contract_service.py</code></td>
 </tr>
 <tr>
+<td><code>REGISTRY_SOURCE_AGENT_NOT_VISIBLE</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/registry/exceptions.py</code></td>
+</tr>
+<tr>
 <td><code>REGISTRY_STORE_UNAVAILABLE</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/registry/exceptions.py</code></td>
+</tr>
+<tr>
+<td><code>REGISTRY_SUBMISSION_ALREADY_RESOLVED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/registry/exceptions.py</code></td>
+</tr>
+<tr>
+<td><code>REGISTRY_SUBMISSION_NOT_FOUND</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/registry/exceptions.py</code></td>
+</tr>
+<tr>
+<td><code>REGISTRY_SUBMISSION_RATE_LIMIT_EXCEEDED</code></td>
 <td>optional</td>
 <td>-</td>
 <td>informational</td>
@@ -14714,6 +14802,30 @@
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
+<td><code>MARKETPLACE_DEPRECATION_RETENTION_DAYS</code></td>
+<td>optional</td>
+<td><code>30</code></td>
+<td>informational</td>
+<td>Days a deprecated public-marketplace listing remains queryable so existing forks can resolve a known-good source pointer (UPD-049 spec Assumptions).</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>MARKETPLACE_FORK_NOTIFY_SOURCE_OWNERS</code></td>
+<td>optional</td>
+<td><code>true</code></td>
+<td>informational</td>
+<td>Whether the source-updated notification fan-out is enabled (UPD-049 FR-027). Disable to suppress fork-owner notifications.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>MARKETPLACE_SUBMISSION_RATE_LIMIT_PER_DAY</code></td>
+<td>optional</td>
+<td><code>5</code></td>
+<td>informational</td>
+<td>Max public-marketplace submissions per submitter per rolling 24h (UPD-049 FR-009 — sliding window via Redis sorted set, see research R5).</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
 <td><code>MCP_CATALOG_TTL_SECONDS</code></td>
 <td>optional</td>
 <td>-</td>
@@ -14887,6 +14999,30 @@
 <td><code>false</code></td>
 <td>informational</td>
 <td>Configures <code>FEATURE_GOAL_AUTO_COMPLETE</code> for Platform.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_MARKETPLACE_DEPRECATION_RETENTION_DAYS</code></td>
+<td>optional</td>
+<td><code>30</code></td>
+<td>informational</td>
+<td>Days a deprecated public-marketplace listing remains queryable so existing forks can resolve a known-good source pointer (UPD-049 spec Assumptions).</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_MARKETPLACE_FORK_NOTIFY_SOURCE_OWNERS</code></td>
+<td>optional</td>
+<td><code>true</code></td>
+<td>informational</td>
+<td>Whether the source-updated notification fan-out is enabled (UPD-049 FR-027). Disable to suppress fork-owner notifications.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_MARKETPLACE_SUBMISSION_RATE_LIMIT_PER_DAY</code></td>
+<td>optional</td>
+<td><code>5</code></td>
+<td>informational</td>
+<td>Max public-marketplace submissions per submitter per rolling 24h (UPD-049 FR-009 — sliding window via Redis sorted set, see research R5).</td>
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>

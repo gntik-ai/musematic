@@ -3199,6 +3199,11 @@
             "title": "Invocable",
             "type": "boolean"
           },
+          "marketplace_scope": {
+            "default": "workspace",
+            "title": "Marketplace Scope",
+            "type": "string"
+          },
           "maturity_level": {
             "default": 0,
             "title": "Maturity Level",
@@ -12998,6 +13003,23 @@
         "title": "DependencyHealth",
         "type": "object"
       },
+      "DeprecateListingRequest": {
+        "additionalProperties": false,
+        "description": "Body of `POST /api/v1/registry/agents/{id}/deprecate-listing`.",
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "DeprecateListingRequest",
+        "type": "object"
+      },
       "DeprecateRequest": {
         "properties": {
           "justification": {
@@ -17834,6 +17856,87 @@
           "projected_cost_usd_high"
         ],
         "title": "ForecastPoint",
+        "type": "object"
+      },
+      "ForkAgentRequest": {
+        "additionalProperties": false,
+        "description": "Body of `POST /api/v1/registry/agents/{source_id}/fork`.",
+        "properties": {
+          "new_name": {
+            "pattern": "^[a-z][a-z0-9-]{1,62}$",
+            "title": "New Name",
+            "type": "string"
+          },
+          "target_scope": {
+            "title": "Target Scope",
+            "type": "string"
+          },
+          "target_workspace_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Workspace Id"
+          }
+        },
+        "required": [
+          "target_scope",
+          "new_name"
+        ],
+        "title": "ForkAgentRequest",
+        "type": "object"
+      },
+      "ForkAgentResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "agent_id": {
+            "format": "uuid",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "forked_from_agent_id": {
+            "format": "uuid",
+            "title": "Forked From Agent Id",
+            "type": "string"
+          },
+          "forked_from_fqn": {
+            "title": "Forked From Fqn",
+            "type": "string"
+          },
+          "fqn": {
+            "title": "Fqn",
+            "type": "string"
+          },
+          "marketplace_scope": {
+            "title": "Marketplace Scope",
+            "type": "string"
+          },
+          "review_status": {
+            "title": "Review Status",
+            "type": "string"
+          },
+          "tool_dependencies_missing": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tool Dependencies Missing",
+            "type": "array"
+          }
+        },
+        "required": [
+          "agent_id",
+          "fqn",
+          "marketplace_scope",
+          "review_status",
+          "forked_from_agent_id",
+          "forked_from_fqn"
+        ],
+        "title": "ForkAgentResponse",
         "type": "object"
       },
       "ForkRequest": {
@@ -23335,6 +23438,53 @@
           "updated"
         ],
         "title": "MarkAllReadResponse",
+        "type": "object"
+      },
+      "MarketingMetadata": {
+        "additionalProperties": false,
+        "description": "Metadata required when publishing with `public_default_tenant` scope.\n\nThe marketplace listing card surfaces these fields. `category` MUST be\none of `MARKETING_CATEGORIES` (platform-curated, see\n`marketplace/categories.py`).",
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "marketing_description": {
+            "maxLength": 500,
+            "minLength": 20,
+            "title": "Marketing Description",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 10,
+            "minItems": 1,
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "category",
+          "marketing_description",
+          "tags"
+        ],
+        "title": "MarketingMetadata",
+        "type": "object"
+      },
+      "MarketplaceScopeChangeRequest": {
+        "additionalProperties": false,
+        "description": "Body of `POST /api/v1/registry/agents/{id}/marketplace-scope`.",
+        "properties": {
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope"
+        ],
+        "title": "MarketplaceScopeChangeRequest",
         "type": "object"
       },
       "MarketplaceSearchRequest": {
@@ -30865,6 +31015,31 @@
         "title": "PublicKeyResponse",
         "type": "object"
       },
+      "PublishWithScopeRequest": {
+        "additionalProperties": false,
+        "description": "Body of `POST /api/v1/registry/agents/{id}/publish` (extended).\n\n`marketing_metadata` is REQUIRED when scope == \"public_default_tenant\"\nand otherwise ignored.",
+        "properties": {
+          "marketing_metadata": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MarketingMetadata"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scope": {
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope"
+        ],
+        "title": "PublishWithScopeRequest",
+        "type": "object"
+      },
       "PurposeScopeSchema": {
         "additionalProperties": false,
         "properties": {
@@ -33185,6 +33360,25 @@
         "title": "RetryRules",
         "type": "object"
       },
+      "ReviewApprovalRequest": {
+        "additionalProperties": false,
+        "description": "Body of `POST /api/v1/admin/marketplace-review/{id}/approve`.",
+        "properties": {
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "title": "ReviewApprovalRequest",
+        "type": "object"
+      },
       "ReviewDecision": {
         "enum": [
           "confirmed",
@@ -33219,6 +33413,128 @@
           "overridden"
         ],
         "title": "ReviewProgressResponse",
+        "type": "object"
+      },
+      "ReviewQueueResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewSubmissionView"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ReviewQueueResponse",
+        "type": "object"
+      },
+      "ReviewRejectionRequest": {
+        "additionalProperties": false,
+        "description": "Body of `POST /api/v1/admin/marketplace-review/{id}/reject`.\n\n`reason` is REQUIRED \u2014 it is shown to the submitter via UPD-042\nnotifications.",
+        "properties": {
+          "reason": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "ReviewRejectionRequest",
+        "type": "object"
+      },
+      "ReviewSubmissionView": {
+        "additionalProperties": false,
+        "description": "One row in the platform-staff review queue.\n\nCross-tenant: `tenant_slug` and `submitter_email` are returned via the\nBYPASSRLS platform-staff session per UPD-046.",
+        "properties": {
+          "age_minutes": {
+            "title": "Age Minutes",
+            "type": "integer"
+          },
+          "agent_fqn": {
+            "title": "Agent Fqn",
+            "type": "string"
+          },
+          "agent_id": {
+            "format": "uuid",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "claimed_by_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claimed By User Id"
+          },
+          "marketing_description": {
+            "title": "Marketing Description",
+            "type": "string"
+          },
+          "submitted_at": {
+            "format": "date-time",
+            "title": "Submitted At",
+            "type": "string"
+          },
+          "submitter_email": {
+            "title": "Submitter Email",
+            "type": "string"
+          },
+          "submitter_user_id": {
+            "format": "uuid",
+            "title": "Submitter User Id",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "tenant_slug": {
+            "title": "Tenant Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_id",
+          "agent_fqn",
+          "tenant_slug",
+          "submitter_user_id",
+          "submitter_email",
+          "category",
+          "marketing_description",
+          "tags",
+          "submitted_at",
+          "age_minutes"
+        ],
+        "title": "ReviewSubmissionView",
         "type": "object"
       },
       "RevokeInvitationResponse": {
@@ -52016,6 +52332,454 @@
         ]
       }
     },
+    "/api/v1/admin/marketplace-review/queue": {
+      "get": {
+        "description": "List ``pending_review`` submissions cross-tenant.\n\nCursor pagination: pass the response's ``next_cursor`` back as\n``cursor`` for the next page; ``None`` means no more pages.",
+        "operationId": "list_review_queue_api_v1_admin_marketplace_review_queue_get",
+        "parameters": [
+          {
+            "description": "Filter by reviewer user id.",
+            "in": "query",
+            "name": "claimed_by",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by reviewer user id.",
+              "title": "Claimed By"
+            }
+          },
+          {
+            "in": "query",
+            "name": "unclaimed",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Unclaimed",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cursor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewQueueResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "List Review Queue",
+        "tags": [
+          "admin",
+          "admin.marketplace_review"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/admin/marketplace-review/queue\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/admin/marketplace-review/queue\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/marketplace-review/queue`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/admin/marketplace-review/queue\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace-review/{agent_id}/approve": {
+      "post": {
+        "operationId": "approve_submission_api_v1_admin_marketplace_review__agent_id__approve_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewApprovalRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Approve Submission Api V1 Admin Marketplace Review  Agent Id  Approve Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Approve Submission",
+        "tags": [
+          "admin",
+          "admin.marketplace_review"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/marketplace-review/{agent_id}/approve\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/marketplace-review/{agent_id}/approve\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/marketplace-review/{agent_id}/approve`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/marketplace-review/{agent_id}/approve\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace-review/{agent_id}/claim": {
+      "post": {
+        "operationId": "claim_submission_api_v1_admin_marketplace_review__agent_id__claim_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Claim Submission Api V1 Admin Marketplace Review  Agent Id  Claim Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Claim Submission",
+        "tags": [
+          "admin",
+          "admin.marketplace_review"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/marketplace-review/{agent_id}/claim\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/marketplace-review/{agent_id}/claim\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/marketplace-review/{agent_id}/claim`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/marketplace-review/{agent_id}/claim\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace-review/{agent_id}/reject": {
+      "post": {
+        "operationId": "reject_submission_api_v1_admin_marketplace_review__agent_id__reject_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewRejectionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Reject Submission Api V1 Admin Marketplace Review  Agent Id  Reject Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Reject Submission",
+        "tags": [
+          "admin",
+          "admin.marketplace_review"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/marketplace-review/{agent_id}/reject\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/marketplace-review/{agent_id}/reject\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/marketplace-review/{agent_id}/reject`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/marketplace-review/{agent_id}/reject\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace-review/{agent_id}/release": {
+      "post": {
+        "operationId": "release_submission_api_v1_admin_marketplace_review__agent_id__release_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Release Submission Api V1 Admin Marketplace Review  Agent Id  Release Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Release Submission",
+        "tags": [
+          "admin",
+          "admin.marketplace_review"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/marketplace-review/{agent_id}/release\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/marketplace-review/{agent_id}/release\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/marketplace-review/{agent_id}/release`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/marketplace-review/{agent_id}/release\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
     "/api/v1/admin/model-catalog": {
       "get": {
         "operationId": "list_model_catalog_entries_api_v1_admin_model_catalog_get",
@@ -64311,6 +65075,88 @@
         ]
       }
     },
+    "/api/v1/agents/{agent_id}/deprecate-listing": {
+      "post": {
+        "operationId": "deprecate_listing_api_v1_agents__agent_id__deprecate_listing_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeprecateListingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentProfileResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Deprecate Listing",
+        "tags": [
+          "registry"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/agents/{agent_id}/deprecate-listing\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/agents/{agent_id}/deprecate-listing\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/agents/{agent_id}/deprecate-listing`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/agents/{agent_id}/deprecate-listing\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
     "/api/v1/agents/{agent_id}/lifecycle-audit": {
       "get": {
         "operationId": "list_lifecycle_audit_api_v1_agents__agent_id__lifecycle_audit_get",
@@ -64379,6 +65225,88 @@
           {
             "lang": "curl",
             "source": "curl -X GET \"http://localhost:8000/api/v1/agents/{agent_id}/lifecycle-audit\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/agents/{agent_id}/marketplace-scope": {
+      "post": {
+        "operationId": "change_marketplace_scope_api_v1_agents__agent_id__marketplace_scope_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarketplaceScopeChangeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentProfileResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Change Marketplace Scope",
+        "tags": [
+          "registry"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/agents/{agent_id}/marketplace-scope\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/agents/{agent_id}/marketplace-scope\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/agents/{agent_id}/marketplace-scope`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/agents/{agent_id}/marketplace-scope\" -H \"Authorization: Bearer $TOKEN\""
           }
         ]
       }
@@ -64461,6 +65389,89 @@
           {
             "lang": "curl",
             "source": "curl -X POST \"http://localhost:8000/api/v1/agents/{agent_id}/maturity\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/agents/{agent_id}/publish": {
+      "post": {
+        "description": "Publish an agent at the chosen marketplace scope (UPD-049 FR-004/005).\n\nFor ``workspace`` / ``tenant`` scope: transitions to ``published``\nimmediately. For ``public_default_tenant``: enforces three-layer\nEnterprise refusal and routes through the platform-staff review queue.",
+        "operationId": "publish_with_scope_api_v1_agents__agent_id__publish_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishWithScopeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentProfileResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Publish With Scope",
+        "tags": [
+          "registry"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/agents/{agent_id}/publish\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/agents/{agent_id}/publish\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/agents/{agent_id}/publish`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/agents/{agent_id}/publish\" -H \"Authorization: Bearer $TOKEN\""
           }
         ]
       }
@@ -64615,6 +65626,89 @@
           {
             "lang": "curl",
             "source": "curl -X POST \"http://localhost:8000/api/v1/agents/{agent_id}/transition\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/agents/{source_id}/fork": {
+      "post": {
+        "description": "UPD-049 \u2014 fork a public-marketplace agent into the consumer's tenant.\n\nSee `specs/099-marketplace-scope/contracts/fork-rest.md`.",
+        "operationId": "fork_agent_api_v1_agents__source_id__fork_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "source_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Source Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForkAgentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ForkAgentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Fork Agent",
+        "tags": [
+          "registry"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/agents/{source_id}/fork\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/agents/{source_id}/fork\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/agents/{source_id}/fork`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/agents/{source_id}/fork\" -H \"Authorization: Bearer $TOKEN\""
           }
         ]
       }
