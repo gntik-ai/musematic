@@ -346,7 +346,7 @@ async def provision_user(
             """
             INSERT INTO accounts_users (id, email, display_name, status, signup_source, tenant_id)
             VALUES (:id, :email, :display_name, :status, 'self_registration', :tenant_id)
-            ON CONFLICT (email) DO UPDATE SET
+            ON CONFLICT (tenant_id, email) DO UPDATE SET
                 display_name = EXCLUDED.display_name,
                 status = EXCLUDED.status,
                 tenant_id = EXCLUDED.tenant_id,
@@ -408,6 +408,7 @@ async def provision_user(
                     WHERE user_id = CAST(:id AS uuid)
                       AND role = CAST(:role AS varchar)
                       AND workspace_id IS NULL
+                      AND tenant_id = CAST(:tenant_id AS uuid)
                 )
                 """
             ),

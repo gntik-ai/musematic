@@ -119,7 +119,7 @@ class OnboardingWizardService:
             result["invitations_sent"] = len(payload.invitations)
         return result
 
-    async def dismiss(self, user_id: UUID) -> dict[str, datetime]:
+    async def dismiss(self, user_id: UUID) -> dict[str, object]:
         state = await self._ensure_state(user_id)
         state.dismissed_at = datetime.now(UTC)
         await self.session.flush()

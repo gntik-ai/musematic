@@ -99,6 +99,10 @@ USER_IDENTITY_COLUMNS: dict[str, list[str]] = {
     "simulation_scenarios": ["created_by"],
     "status_subscriptions": ["user_id"],
     "tenants": ["created_by_super_admin_id"],
+    "tenant_first_admin_invitations": [
+        "created_by_super_admin_id",
+        "consumed_by_user_id",
+    ],
 }
 
 
