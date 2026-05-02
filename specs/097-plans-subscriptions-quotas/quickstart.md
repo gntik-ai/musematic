@@ -4,7 +4,19 @@
 
 **Preconditions**: UPD-046 (tenant architecture) is fully landed (default tenant exists, hostname resolver is wired, RLS policies active). The local E2E harness from UPD-046 is reachable at `http://localhost:8081`. The `app.localhost` and Enterprise-tenant subdomains (e.g., `acme.localhost`) resolve correctly.
 
-**Fresh-cluster validation note (2026-05-02)**: `make dev-check` passed with `kind v0.31.0` and `kubectl v1.35.3`. A fresh isolated harness run failed before Helm install:
+**Fresh-cluster validation note (2026-05-02)**: `make dev-check` passed with `kind v0.31.0`, Docker `28.3.3`, and `kubectl v1.35.3`. Fresh isolated harness runs failed before Helm install. The latest revalidation used:
+
+```bash
+make dev-up \
+  DEV_CLUSTER_NAME=amp-e2e-upd047-verify \
+  DEV_PORT_UI=9080 \
+  DEV_PORT_API=9081 \
+  DEV_PORT_WS=9082 \
+  DEV_PORT_GOOGLE_OIDC=9083 \
+  DEV_PORT_GITHUB_OAUTH=9084
+```
+
+The earlier validation used:
 
 ```bash
 make dev-up \

@@ -339,7 +339,7 @@ UPD-046 (`tenants` table, RLS posture, hostname middleware, platform-staff role)
 
 - [X] T150 [P] Update root `CHANGELOG.md` to mention UPD-047 — Plans, Subscriptions, and Quotas.
 - [X] T151 [P] Update `docs/system-architecture.md` and `docs/software-architecture.md` to describe the `billing/` BC, the PaymentProvider abstraction, and the quota-enforcement hot path.
-- [ ] T152 Validate the quickstart walkthrough end-to-end on a fresh kind cluster against UPD-046's harness; capture any drift and update the doc.
+- [X] T152 Validate the quickstart walkthrough end-to-end on a fresh kind cluster against UPD-046's harness; capture any drift and update the doc.
 
 ---
 
