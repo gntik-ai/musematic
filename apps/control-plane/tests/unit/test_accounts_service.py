@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import platform.accounts.service as service_module
 from datetime import UTC, datetime, timedelta
 from platform.accounts.exceptions import (
     EmailAlreadyRegisteredError,
@@ -8,6 +9,7 @@ from platform.accounts.exceptions import (
     InvitationAlreadyConsumedError,
     InvitationExpiredError,
     InvitationNotFoundError,
+    ProfileCompletionNotAllowedError,
     RateLimitError,
     SelfRegistrationDisabledError,
 )
@@ -24,6 +26,7 @@ from platform.accounts.models import (
 from platform.accounts.schemas import (
     AcceptInvitationRequest,
     CreateInvitationRequest,
+    ProfileUpdateRequest,
     RegisterRequest,
     ResendVerificationRequest,
     ResetPasswordRequest,
@@ -113,6 +116,8 @@ class AccountsRepoStub:
         self.approvals: dict[UUID, ApprovalRequest] = {}
         self.invitations_by_id: dict[UUID, Invitation] = {}
         self.invitations_by_hash: dict[str, Invitation] = {}
+        self.preferences: dict[UUID, SimpleNamespace] = {}
+        self.workspace_limit: int | None = None
 
     async def create_user(
         self,
@@ -142,8 +147,30 @@ class AccountsRepoStub:
     async def get_user_by_id(self, user_id: UUID) -> User | None:
         return self.users_by_id.get(user_id)
 
+    async def get_user_preferences(self, user_id: UUID) -> SimpleNamespace | None:
+        return self.preferences.get(user_id)
+
     async def get_user_for_update(self, user_id: UUID) -> User | None:
         return self.users_by_id.get(user_id)
+
+    async def update_user_profile(self, user_id: UUID, *, display_name: str) -> User:
+        user = self.users_by_id[user_id]
+        user.display_name = display_name
+        return user
+
+    async def upsert_user_preferences(
+        self,
+        user_id: UUID,
+        *,
+        locale: str | None,
+        timezone: str | None,
+    ) -> SimpleNamespace:
+        preferences = SimpleNamespace(language=locale, timezone=timezone)
+        self.preferences[user_id] = preferences
+        return preferences
+
+    async def get_user_workspace_limit(self, _user_id: UUID) -> int | None:
+        return self.workspace_limit
 
     async def update_user_status(
         self, user_id: UUID, new_status: UserStatus, **kwargs: object
@@ -460,6 +487,97 @@ async def test_verify_email_activates_open_signup_and_creates_approval_for_admin
 
 
 @pytest.mark.asyncio
+async def test_default_signup_completion_provisions_workspace_subscription_and_audit(
+    auth_settings,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    service, repo, _, producer, _ = _build_service(auth_settings, signup_mode="open")
+    repo.session = object()
+    workspace_id = uuid4()
+    subscription_id = uuid4()
+    audit_entries: list[dict[str, object]] = []
+
+    class WorkspacesServiceStub:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        async def create_default_workspace(
+            self,
+            user_id: UUID,
+            display_name: str,
+            *,
+            correlation_ctx: object,
+        ) -> object:
+            assert user_id == user.id
+            assert display_name == "Default User"
+            assert correlation_ctx is correlation
+            return SimpleNamespace(id=workspace_id)
+
+    class SubscriptionServiceStub:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
+
+        async def provision_for_default_workspace(
+            self,
+            received_workspace_id: UUID,
+            *,
+            created_by_user_id: UUID,
+        ) -> object:
+            assert received_workspace_id == workspace_id
+            assert created_by_user_id == user.id
+            return SimpleNamespace(id=subscription_id)
+
+    class AuditChainServiceStub:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
+            pass
+
+        async def append(self, *_args: object, **kwargs: object) -> None:
+            audit_entries.append(kwargs)
+
+    monkeypatch.setattr(service_module, "WorkspacesService", WorkspacesServiceStub)
+    monkeypatch.setattr(service_module, "WorkspacesRepository", lambda _session: object())
+    monkeypatch.setattr(service_module, "SubscriptionService", SubscriptionServiceStub)
+    monkeypatch.setattr(service_module, "SubscriptionsRepository", lambda _session: object())
+    monkeypatch.setattr(service_module, "PlansRepository", lambda _session: object())
+    monkeypatch.setattr(service_module, "AuditChainService", AuditChainServiceStub)
+    monkeypatch.setattr(service_module, "AuditChainRepository", lambda _session: object())
+    user = await repo.create_user(
+        email="default@example.com",
+        display_name="Default User",
+        status=UserStatus.active,
+        signup_source=SignupSource.self_registration,
+    )
+    user.tenant_id = uuid4()
+    correlation = AccountsService._correlation(uuid4())
+
+    await service._complete_default_signup(user, correlation)
+
+    assert producer.events[-1]["event_type"] == "accounts.signup.completed"
+    assert producer.events[-1]["payload"]["workspace_id"] == str(workspace_id)
+    assert producer.events[-1]["payload"]["subscription_id"] == str(subscription_id)
+    assert audit_entries[-1]["event_type"] == "accounts.signup.completed"
+    assert audit_entries[-1]["tenant_id"] == user.tenant_id
+
+    class FailingWorkspacesServiceStub(WorkspacesServiceStub):
+        async def create_default_workspace(
+            self,
+            user_id: UUID,
+            display_name: str,
+            *,
+            correlation_ctx: object,
+        ) -> object:
+            raise RuntimeError("defer")
+
+    monkeypatch.setattr(service_module, "WorkspacesService", FailingWorkspacesServiceStub)
+
+    await service._complete_default_signup(user, correlation)
+
+    assert producer.events[-1]["event_type"] == "accounts.signup.completed"
+    assert producer.events[-1]["payload"]["workspace_id"] is None
+    assert producer.events[-1]["payload"]["subscription_id"] is None
+
+
+@pytest.mark.asyncio
 async def test_verify_email_rejects_expired_or_consumed_token(auth_settings) -> None:
     service, repo, _, _, _ = _build_service(auth_settings)
     token = await _register_pending_user(service, repo)
@@ -498,6 +616,90 @@ async def test_resend_verification_is_silent_for_unknown_accounts_and_rate_limit
     assert silent.message.startswith("If a pending verification account exists")
     assert exc_info.value.details["retry_after"] == 3600
     assert len(notifications.verification_calls) == 4
+
+
+@pytest.mark.asyncio
+async def test_profile_completion_and_workspace_limit_paths(auth_settings) -> None:
+    service, repo, _, producer, _ = _build_service(auth_settings)
+    user = await repo.create_user(
+        email="profile@example.com",
+        display_name="Profile User",
+        status=UserStatus.pending_profile_completion,
+        signup_source=SignupSource.self_registration,
+    )
+    active_user = await repo.create_user(
+        email="active-profile@example.com",
+        display_name="Already Active",
+        status=UserStatus.active,
+        signup_source=SignupSource.self_registration,
+    )
+
+    with pytest.raises(NotFoundError):
+        await service.get_profile(uuid4())
+    initial = await service.get_profile(user.id)
+    with pytest.raises(ProfileCompletionNotAllowedError):
+        await service.update_profile(
+            active_user.id,
+            ProfileUpdateRequest(
+                display_name="Still Active",
+                locale="en",
+                timezone="UTC",
+            ),
+        )
+    completed = await service.update_profile(
+        user.id,
+        ProfileUpdateRequest(
+            display_name="Completed User",
+            locale="en",
+            timezone="Europe/Madrid",
+        ),
+    )
+    repo.workspace_limit = 7
+
+    assert initial.display_name == "Profile User"
+    assert completed.status == UserStatus.active
+    assert completed.display_name == "Completed User"
+    assert completed.locale == "en"
+    assert completed.timezone == "Europe/Madrid"
+    assert repo.preferences[user.id].language == "en"
+    assert await service.get_user_workspace_limit(user.id) == 7
+    repo.workspace_limit = None
+    assert await service.get_user_workspace_limit(user.id) == int(
+        service.platform_settings.workspaces.default_limit
+    )
+    assert [event["event_type"] for event in producer.events[-2:]] == [
+        "accounts.user.profile_completed",
+        "accounts.user.activated",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_signup_rate_limit_and_e2e_token_recording_edges(auth_settings) -> None:
+    redis = FakeAsyncRedisClient()
+    service, _, _, _, _ = _build_service(auth_settings, redis_client=redis)
+
+    for index in range(5):
+        await service._enforce_signup_rate_limit(f"user{index}@example.com", "192.0.2.10")
+
+    with pytest.raises(RateLimitError):
+        await service._enforce_signup_rate_limit("user5@example.com", "192.0.2.10")
+
+    email_redis = FakeAsyncRedisClient()
+    email_service, _, _, _, _ = _build_service(auth_settings, redis_client=email_redis)
+    for index in range(3):
+        await email_service._enforce_signup_rate_limit(
+            "same@example.com",
+            f"192.0.2.{index}",
+        )
+
+    with pytest.raises(RateLimitError):
+        await email_service._enforce_signup_rate_limit("same@example.com", "192.0.2.99")
+
+    service.platform_settings = SimpleNamespace(feature_e2e_mode=True)
+    await service._record_e2e_verification_token("USER@Example.com", "verify-token")
+    client = await redis._get_client()
+
+    assert await client.get("e2e:accounts:verification-token:user@example.com") == "verify-token"
 
 
 @pytest.mark.asyncio

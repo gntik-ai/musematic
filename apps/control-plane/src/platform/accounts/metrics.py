@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 
-class _NoopMetric:
+class _NoopMetric:  # pragma: no cover - used only when prometheus_client is unavailable
     def __init__(self, *_args: Any, **_kwargs: Any) -> None:
         pass
 

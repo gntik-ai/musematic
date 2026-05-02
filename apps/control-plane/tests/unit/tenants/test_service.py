@@ -1,12 +1,7 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
-from types import SimpleNamespace
-from uuid import UUID, uuid4
-
-import pytest
-
 import platform.tenants.service as service_module
+from datetime import UTC, datetime
 from platform.common.config import PlatformSettings
 from platform.tenants.exceptions import (
     DPAMissingError,
@@ -23,6 +18,10 @@ from platform.tenants.schemas import (
     TenantUpdate,
 )
 from platform.tenants.service import TENANT_DPA_BUCKET, TenantsService
+from types import SimpleNamespace
+from uuid import UUID, uuid4
+
+import pytest
 from tests.auth_support import RecordingProducer
 
 
@@ -30,12 +29,25 @@ class SessionStub:
     def __init__(self) -> None:
         self.commits = 0
         self.flushes = 0
+        self.added: list[object] = []
+        self.executed: list[tuple[object, dict[str, object] | None]] = []
+
+    def add(self, instance: object) -> None:
+        self.added.append(instance)
 
     async def commit(self) -> None:
         self.commits += 1
 
     async def flush(self) -> None:
         self.flushes += 1
+
+    async def execute(
+        self,
+        statement: object,
+        params: dict[str, object] | None = None,
+    ) -> None:
+        self.executed.append((statement, params))
+        return None
 
 
 class RepositoryStub:
@@ -199,7 +211,14 @@ def _service(
     producer: RecordingProducer | None = None,
     audit: AuditChainStub | None = None,
     redis: RedisStub | None = None,
-) -> tuple[TenantsService, RepositoryStub, SessionStub, RecordingProducer, AuditChainStub, RedisStub]:
+) -> tuple[
+    TenantsService,
+    RepositoryStub,
+    SessionStub,
+    RecordingProducer,
+    AuditChainStub,
+    RedisStub,
+]:
     resolved_repo = repo or RepositoryStub()
     resolved_session = session or SessionStub()
     resolved_producer = producer or RecordingProducer()
@@ -238,7 +257,9 @@ async def test_provision_enterprise_tenant_finalizes_dpa_and_emits_audit() -> No
     assert tenant.slug == "acme"
     assert tenant.dpa_artifact_uri == "s3://tenant-dpas/acme/v-1-signed-signed-dpa.pdf"
     assert repo.created == [tenant]
-    assert session.commits == 1
+    assert session.commits == 2
+    assert session.added
+    assert session.executed
     assert audit.entries[0]["event_type"] == "tenants.created"
     assert producer.events[-1]["event_type"] == "tenants.created"
 
@@ -251,9 +272,9 @@ async def test_provision_enterprise_tenant_rejects_invalid_inputs() -> None:
 
     with pytest.raises(ReservedSlugError):
         await service.provision_enterprise_tenant({"sub": str(uuid4())}, _create_request("admin"))
+    request = _create_request("newco")
+    request.region = "antarctica"
     with pytest.raises(RegionInvalidError):
-        request = _create_request("newco")
-        request.region = "antarctica"
         await service.provision_enterprise_tenant({"sub": str(uuid4())}, request)
     with pytest.raises(SlugTakenError):
         await service.provision_enterprise_tenant({"sub": str(uuid4())}, _create_request("taken"))
