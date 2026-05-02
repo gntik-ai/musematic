@@ -439,6 +439,7 @@ The control plane is the policy- and state-owning brain of the platform.
 - Identity and access module
 - Workspace and membership module
 - Registration, subscription, and approval module
+- Billing module for plans, subscriptions, quota enforcement, overage authorization, and payment-provider orchestration
 - Agent ingest and catalog module with maturity classification
 - Workflow definition, compilation, and versioning module
 - Workflow execution state and scheduler module with priority engine
@@ -2055,6 +2056,12 @@ The cost governance plane provides end-to-end cost tracking and control:
 - **Chargeback and showback engine**: aggregates by workspace, agent, fleet, model, user, workflow with exportable periodic reports
 - **Budget enforcement engine**: per-workspace cost budgets with soft alerts (50%, 80%, 100%), hard caps (admin-overridable), end-of-period forecasting
 - **Cost intelligence dashboard**: real-time spend, historical trends, anomaly detection, cost-effectiveness metrics (quality per dollar), drill-down to individual executions
+
+UPD-047 adds a billing bounded context beside cost governance. Billing owns commercial plan versions, workspace- or tenant-scoped subscriptions, synchronous quota checks, overage authorization, subscription lifecycle transitions, and provider-facing usage reporting. Cost governance remains the finance analytics and chargeback plane; it links new cost-attribution rows to the active subscription when one exists, and it retro-tags legacy rows on read for continuity.
+
+The quota-enforcement hot path runs inside the control-plane API before chargeable state is created. Execution creation, workspace creation, agent publication, invitation acceptance, and model routing call the billing `QuotaEnforcer`; the enforcer resolves the active subscription, reads the pinned immutable plan version, consults the local/Redis quota cache, and returns a structured allow/block/pause decision. Enterprise plans with zero caps short-circuit without overage or hard-cap work.
+
+External payment systems are isolated behind a `PaymentProvider` abstraction. The control plane calls the provider for customer creation, subscription create/update/cancel, proration preview, invoice retrieval, and metered-usage reporting; development and CI use the deterministic stub provider, while Stripe-compatible production integration lands behind the same contract.
 
 ## 19. User experience architecture
 

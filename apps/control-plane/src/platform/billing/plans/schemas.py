@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 PlanTier = Literal["free", "pro", "enterprise"]
 AllowedModelTier = Literal["cheap_only", "standard", "all"]
@@ -13,6 +13,8 @@ QuotaPeriodAnchor = Literal["calendar_month", "subscription_anniversary"]
 
 
 class PlanVersionParameters(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     price_monthly: Decimal = Field(default=Decimal("0.00"), ge=0)
     executions_per_day: int = Field(default=0, ge=0)
     executions_per_month: int = Field(default=0, ge=0)
@@ -24,7 +26,11 @@ class PlanVersionParameters(BaseModel):
     overage_price_per_minute: Decimal = Field(default=Decimal("0.0000"), ge=0)
     trial_days: int = Field(default=0, ge=0)
     quota_period_anchor: QuotaPeriodAnchor = "calendar_month"
-    extras_json: dict[str, object] = Field(default_factory=dict)
+    extras_json: dict[str, object] = Field(
+        default_factory=dict,
+        validation_alias=AliasChoices("extras_json", "extras"),
+        serialization_alias="extras",
+    )
 
 
 class PlanCreate(BaseModel):

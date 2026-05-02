@@ -51,11 +51,21 @@ from platform.auth.services.oauth_bootstrap import (
     bootstrap_oauth_providers_from_env,
     oauth_bootstrap_enabled,
 )
+from platform.billing.exceptions import (
+    ModelTierNotAllowedError,
+    NoActiveSubscriptionError,
+    OverageCapExceededError,
+    OverageRequiredError,
+    QuotaExceededError,
+    SubscriptionSuspendedError,
+)
 from platform.billing.plans.admin_router import router as billing_admin_plans_router
 from platform.billing.plans.public_router import router as billing_public_plans_router
 from platform.billing.plans.seeder import provision_default_plans_if_missing
 from platform.billing.providers.protocol import PaymentProvider
 from platform.billing.providers.stub_provider import StubPaymentProvider
+from platform.billing.quotas.metering import MeteringJob
+from platform.billing.quotas.reconciliation import build_billing_reconciliation_scheduler
 from platform.billing.subscriptions.admin_router import router as billing_admin_subscriptions_router
 from platform.billing.subscriptions.events import register_billing_event_types
 from platform.billing.subscriptions.period_scheduler import build_period_rollover_scheduler
@@ -292,7 +302,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, FastAPI
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from fastapi.routing import APIRoute
 from starlette.requests import Request
 
@@ -353,6 +363,37 @@ def _platform_release_version() -> str:
 
 def _service_name_for_profile(profile: str) -> str:
     return PROFILE_SERVICE_NAMES.get(profile, profile)
+
+
+async def billing_quota_exception_handler(
+    request: Request,
+    exc: PlatformError,
+) -> JSONResponse:
+    del request
+    code_by_type = {
+        QuotaExceededError: "quota_exceeded",
+        OverageCapExceededError: "overage_cap_exceeded",
+        ModelTierNotAllowedError: "model_tier_not_allowed",
+        NoActiveSubscriptionError: "no_active_subscription",
+        SubscriptionSuspendedError: "subscription_suspended",
+    }
+    if isinstance(exc, OverageRequiredError):
+        return JSONResponse(
+            status_code=202,
+            content={
+                "status": "paused_quota_exceeded",
+                "quota_name": exc.details.get("quota_name"),
+                "workspace_id": exc.details.get("workspace_id"),
+            },
+        )
+    code = next(
+        (value for error_type, value in code_by_type.items() if isinstance(exc, error_type)),
+        exc.code.lower(),
+    )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"code": code, "message": exc.message, "details": exc.details},
+    )
 
 
 def _dedupe_tags(tags: list[str]) -> list[str]:
@@ -828,6 +869,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         "billing_period_rollover_scheduler",
         None,
     )
+    billing_reconciliation_scheduler = getattr(
+        app.state,
+        "billing_reconciliation_scheduler",
+        None,
+    )
     multi_region_replication_probe_scheduler = getattr(
         app.state,
         "multi_region_replication_probe_scheduler",
@@ -1043,6 +1089,13 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             app.state.degraded = True
             startup_errors["billing_period_rollover_scheduler"] = str(exc)
             LOGGER.warning("Failed to start billing period rollover scheduler: %s", exc)
+    if billing_reconciliation_scheduler is not None:
+        try:
+            billing_reconciliation_scheduler.start()
+        except Exception as exc:
+            app.state.degraded = True
+            startup_errors["billing_reconciliation_scheduler"] = str(exc)
+            LOGGER.warning("Failed to start billing reconciliation scheduler: %s", exc)
     if incident_response_delivery_retry_scheduler is not None:
         try:
             incident_response_delivery_retry_scheduler.start()
@@ -1105,6 +1158,14 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             except Exception as exc:
                 LOGGER.warning(
                     "Failed to stop billing period rollover scheduler cleanly: %s",
+                    exc,
+                )
+        if billing_reconciliation_scheduler is not None:
+            try:
+                billing_reconciliation_scheduler.shutdown(wait=False)
+            except Exception as exc:
+                LOGGER.warning(
+                    "Failed to stop billing reconciliation scheduler cleanly: %s",
                     exc,
                 )
         reset_incident_trigger()
@@ -1431,6 +1492,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.incident_response_runbook_freshness_scheduler = None
     app.state.tenant_deletion_scheduler = None
     app.state.billing_period_rollover_scheduler = None
+    app.state.billing_reconciliation_scheduler = None
     app.state.multi_region_replication_probe_scheduler = None
     app.state.multi_region_maintenance_window_scheduler = None
     app.state.multi_region_capacity_projection_scheduler = None
@@ -1514,6 +1576,7 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.state.cost_forecast_scheduler = build_forecast_scheduler(app)
         app.state.cost_anomaly_scheduler = build_anomaly_scheduler(app)
         app.state.billing_period_rollover_scheduler = build_period_rollover_scheduler(app)
+        app.state.billing_reconciliation_scheduler = build_billing_reconciliation_scheduler(app)
         app.state.incident_response_delivery_retry_scheduler = build_delivery_retry_scheduler(app)
         app.state.incident_response_runbook_freshness_scheduler = build_runbook_freshness_scheduler(
             app
@@ -1538,6 +1601,19 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         Callable[[Request, Exception], Response | Awaitable[Response]],
         platform_exception_handler,
     )
+    billing_exception_handler = cast(
+        Callable[[Request, Exception], Response | Awaitable[Response]],
+        billing_quota_exception_handler,
+    )
+    for error_type in (
+        QuotaExceededError,
+        ModelTierNotAllowedError,
+        OverageCapExceededError,
+        NoActiveSubscriptionError,
+        SubscriptionSuspendedError,
+        OverageRequiredError,
+    ):
+        app.add_exception_handler(error_type, billing_exception_handler)
     app.add_exception_handler(PlatformError, exception_handler)
     # Starlette executes middleware in reverse registration order. TenantResolverMiddleware
     # is added last so hostname tenant resolution runs before auth, maintenance, rate limits,
@@ -1631,6 +1707,13 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
             ).register(consumer_manager)
         if resolved.profile == "worker":
+            MeteringJob(
+                settings=resolved,
+                payment_provider=cast(
+                    PaymentProvider | None,
+                    getattr(app.state, "payment_provider", None),
+                ),
+            ).register(consumer_manager)
             ContractMonitorConsumer(
                 settings=resolved,
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),

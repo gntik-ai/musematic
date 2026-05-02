@@ -12,6 +12,8 @@ from platform.billing.exceptions import (
     SubscriptionScopeError,
     UpgradeFailedError,
 )
+from platform.billing.metrics import metrics
+from platform.billing.plans.models import Plan
 from platform.billing.plans.repository import PlansRepository
 from platform.billing.providers.protocol import PaymentProvider
 from platform.billing.subscriptions.models import Subscription
@@ -35,6 +37,7 @@ class SubscriptionService:
         payment_provider: PaymentProvider | None = None,
         audit_chain: AuditChainService | None = None,
         producer: EventProducer | None = None,
+        quota_enforcer: object | None = None,
     ) -> None:
         self.session = session
         self.subscriptions = subscriptions
@@ -42,6 +45,7 @@ class SubscriptionService:
         self.payment_provider = payment_provider
         self.audit_chain = audit_chain
         self.producer = producer
+        self.quota_enforcer = quota_enforcer
 
     async def provision_for_default_workspace(
         self,
@@ -104,12 +108,23 @@ class SubscriptionService:
         target_plan = await self.plans.get_by_slug(target_plan_slug)
         if target_plan is None:
             raise PlanNotFoundError(target_plan_slug)
+        if not target_plan.is_public or not target_plan.is_active:
+            raise PlanNotFoundError(target_plan_slug)
+        current_plan = await self.session.get(Plan, current.plan_id)
+        if current_plan is None:
+            raise PlanNotFoundError(str(current.plan_id))
+        if _tier_rank(target_plan.tier) <= _tier_rank(current_plan.tier):
+            raise UpgradeFailedError(workspace_id, "target plan is not a higher tier")
         target_version = await self.plans.get_published_version(target_plan.id)
         if target_version is None:
             raise PlanNotFoundError(target_plan_slug)
+        from_plan_slug = current_plan.slug
+        from_plan_version = current.plan_version
+        from_status = current.status
         try:
             provider_sub = None
             payment_method_id = current.payment_method_id
+            customer_id = current.stripe_customer_id
             if self.payment_provider is not None:
                 customer_id = (
                     current.stripe_customer_id
@@ -142,6 +157,11 @@ class SubscriptionService:
                     provider_sub.current_period_end if provider_sub is not None else None
                 ),
                 payment_method_id=payment_method_id,
+                status="active",
+                stripe_customer_id=customer_id,
+                stripe_subscription_id=(
+                    provider_sub.provider_subscription_id if provider_sub is not None else None
+                ),
             )
             assert updated is not None
             await self._append_audit(
@@ -157,40 +177,56 @@ class SubscriptionService:
                 updated,
                 "billing.subscription.upgraded",
                 {
-                    "from_plan_slug": "unknown",
-                    "from_plan_version": current.plan_version,
+                    "from_plan_slug": from_plan_slug,
+                    "from_plan_version": from_plan_version,
                     "to_plan_slug": target_plan.slug,
                     "to_plan_version": target_version.version,
                     "effective_at": datetime.now(UTC).isoformat(),
                     "prorated_charge_eur": Decimal("0.00"),
                 },
             )
+            invalidate = getattr(self.quota_enforcer, "invalidate_workspace", None)
+            if callable(invalidate):
+                await invalidate(workspace_id)
+            metrics.record_subscription_transition(from_status, updated.status)
             return updated
         except Exception as exc:
             raise UpgradeFailedError(workspace_id, str(exc)) from exc
 
     async def downgrade_at_period_end(
         self,
-        subscription_id: UUID,
+        workspace_or_subscription_id: UUID,
         target_plan_slug: str,
     ) -> Subscription:
-        subscription = await self.subscriptions.get_by_id(subscription_id)
+        subscription = await self._workspace_or_subscription(workspace_or_subscription_id)
         if subscription is None:
-            raise SubscriptionNotFoundError(subscription_id)
+            raise SubscriptionNotFoundError(workspace_or_subscription_id)
         if subscription.cancel_at_period_end:
-            raise DowngradeAlreadyScheduledError(subscription_id)
+            raise DowngradeAlreadyScheduledError(subscription.id)
         if subscription.status != "active":
-            raise ConcurrentLifecycleActionError(subscription_id)
+            raise ConcurrentLifecycleActionError(subscription.id)
         target_plan = await self.plans.get_by_slug(target_plan_slug)
         if target_plan is None:
             raise PlanNotFoundError(target_plan_slug)
-        updated = await self.subscriptions.set_cancel_at_period_end(subscription_id, True)
+        current_plan = await self.session.get(Plan, subscription.plan_id)
+        if current_plan is None:
+            raise PlanNotFoundError(str(subscription.plan_id))
+        if _tier_rank(target_plan.tier) >= _tier_rank(current_plan.tier):
+            raise ConcurrentLifecycleActionError(subscription.id)
+        if self.payment_provider is not None:
+            await self.payment_provider.cancel_subscription(
+                subscription.stripe_subscription_id or f"stub_sub_{subscription.id.hex[:24]}",
+                at_period_end=True,
+            )
+        previous_status = subscription.status
+        updated = await self.subscriptions.set_cancel_at_period_end(subscription.id, True)
         assert updated is not None
+        metrics.record_subscription_transition(previous_status, updated.status)
         await self._publish_event(
             updated,
             "billing.subscription.downgrade_scheduled",
             {
-                "from_plan_slug": "unknown",
+                "from_plan_slug": current_plan.slug,
                 "to_plan_slug": target_plan.slug,
                 "scheduled_for": updated.current_period_end.isoformat(),
             },
@@ -206,15 +242,26 @@ class SubscriptionService:
         )
         return updated
 
-    async def cancel_scheduled_downgrade(self, subscription_id: UUID) -> Subscription:
-        subscription = await self.subscriptions.get_by_id(subscription_id)
+    async def cancel_scheduled_downgrade(self, workspace_or_subscription_id: UUID) -> Subscription:
+        subscription = await self._workspace_or_subscription(workspace_or_subscription_id)
         if subscription is None:
-            raise SubscriptionNotFoundError(subscription_id)
+            raise SubscriptionNotFoundError(workspace_or_subscription_id)
         if subscription.status != "cancellation_pending" or not subscription.cancel_at_period_end:
-            raise ConcurrentLifecycleActionError(subscription_id)
+            raise ConcurrentLifecycleActionError(subscription.id)
         scheduled_for = subscription.current_period_end
-        updated = await self.subscriptions.set_cancel_at_period_end(subscription_id, False)
+        if self.payment_provider is not None:
+            current_plan = await self.session.get(Plan, subscription.plan_id)
+            await self.payment_provider.update_subscription(
+                subscription.stripe_subscription_id or f"stub_sub_{subscription.id.hex[:24]}",
+                f"{current_plan.slug if current_plan is not None else 'unknown'}:v"
+                f"{subscription.plan_version}",
+                False,
+                str(uuid4()),
+            )
+        previous_status = subscription.status
+        updated = await self.subscriptions.set_cancel_at_period_end(subscription.id, False)
         assert updated is not None
+        metrics.record_subscription_transition(previous_status, updated.status)
         await self._publish_event(
             updated,
             "billing.subscription.downgrade_cancelled",
@@ -236,8 +283,10 @@ class SubscriptionService:
             raise SubscriptionNotFoundError(subscription_id)
         if subscription.status in {"canceled", "suspended"}:
             raise ConcurrentLifecycleActionError(subscription_id)
+        previous_status = subscription.status
         updated = await self.subscriptions.update_status(subscription_id, "suspended")
         assert updated is not None
+        metrics.record_subscription_transition(previous_status, updated.status)
         await self._publish_event(updated, "billing.subscription.suspended", {"reason": reason})
         await self._append_audit(
             "billing.subscription.suspended",
@@ -255,6 +304,7 @@ class SubscriptionService:
         previous_status = subscription.status
         updated = await self.subscriptions.update_status(subscription_id, "active")
         assert updated is not None
+        metrics.record_subscription_transition(previous_status, updated.status)
         await self._publish_event(
             updated,
             "billing.subscription.reactivated",
@@ -273,8 +323,15 @@ class SubscriptionService:
             raise SubscriptionNotFoundError(subscription_id)
         if subscription.status == "canceled":
             raise ConcurrentLifecycleActionError(subscription_id)
+        if self.payment_provider is not None:
+            await self.payment_provider.cancel_subscription(
+                subscription.stripe_subscription_id or f"stub_sub_{subscription.id.hex[:24]}",
+                at_period_end=False,
+            )
+        previous_status = subscription.status
         updated = await self.subscriptions.update_status(subscription_id, "canceled")
         assert updated is not None
+        metrics.record_subscription_transition(previous_status, updated.status)
         await self._publish_event(
             updated,
             "billing.subscription.canceled",
@@ -377,6 +434,12 @@ class SubscriptionService:
         )
         return subscription
 
+    async def _workspace_or_subscription(self, identifier: UUID) -> Subscription | None:
+        workspace_subscription = await self.subscriptions.get_by_scope("workspace", identifier)
+        if workspace_subscription is not None:
+            return workspace_subscription
+        return await self.subscriptions.get_by_id(identifier)
+
     async def _append_audit(
         self,
         event_type: str,
@@ -436,3 +499,7 @@ def _add_month(value: datetime) -> datetime:
 
 def _provider_id_to_uuid(provider_id: str) -> UUID:
     return UUID(hex=provider_id.encode("utf-8").hex().ljust(32, "0")[:32])
+
+
+def _tier_rank(tier: str) -> int:
+    return {"free": 0, "pro": 1, "enterprise": 2}.get(tier, -1)

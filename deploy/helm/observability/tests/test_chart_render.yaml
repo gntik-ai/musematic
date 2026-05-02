@@ -1,6 +1,7 @@
 suite: observability chart render contracts
 templates:
   - templates/dashboards/audit-event-stream.yaml
+  - templates/dashboards/billing.yaml
   - templates/dashboards/control-plane-logs.yaml
   - templates/dashboards/cost-governance.yaml
   - templates/dashboards/cost-intelligence.yaml
@@ -46,6 +47,10 @@ tests:
           path: metadata.labels.grafana_dashboard
           value: "1"
         template: templates/dashboards/audit-event-stream.yaml
+      - equal:
+          path: metadata.labels.grafana_dashboard
+          value: "1"
+        template: templates/dashboards/billing.yaml
       - equal:
           path: metadata.labels.grafana_dashboard
           value: "1"

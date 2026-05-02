@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime
 from platform.common.exceptions import NotFoundError, PlatformError, ValidationError
 from uuid import UUID
 
@@ -68,14 +69,44 @@ class NoActiveSubscriptionError(BillingError):
         )
 
 
+class SubscriptionSuspendedError(BillingError):
+    status_code = 403
+
+    def __init__(self, workspace_id: UUID | str) -> None:
+        super().__init__(
+            "BILLING_SUBSCRIPTION_SUSPENDED",
+            "The active subscription is suspended",
+            {"workspace_id": str(workspace_id)},
+        )
+
+
 class QuotaExceededError(BillingError):
     status_code = 402
 
-    def __init__(self, quota_name: str, current: int | float, limit: int | float) -> None:
+    def __init__(
+        self,
+        quota_name: str,
+        current: int | float,
+        limit: int | float,
+        *,
+        reset_at: datetime | str | None = None,
+        plan_slug: str | None = None,
+        upgrade_url: str | None = None,
+        overage_available: bool = False,
+    ) -> None:
+        details = {
+            "quota_name": quota_name,
+            "current": current,
+            "limit": limit,
+            "reset_at": reset_at.isoformat() if isinstance(reset_at, datetime) else reset_at,
+            "plan_slug": plan_slug,
+            "upgrade_url": upgrade_url,
+            "overage_available": overage_available,
+        }
         super().__init__(
             "BILLING_QUOTA_EXCEEDED",
             "Quota has been exceeded",
-            {"quota_name": quota_name, "current": current, "limit": limit},
+            details,
         )
 
 
@@ -93,18 +124,44 @@ class OverageRequiredError(BillingError):
 class OverageCapExceededError(BillingError):
     status_code = 402
 
-    def __init__(self, workspace_id: UUID | str, cap_eur: str) -> None:
+    def __init__(
+        self,
+        workspace_id: UUID | str,
+        cap_eur: str,
+        *,
+        quota_name: str | None = None,
+        reset_at: datetime | str | None = None,
+        plan_slug: str | None = None,
+        upgrade_url: str | None = None,
+    ) -> None:
         super().__init__(
             "BILLING_OVERAGE_CAP_EXCEEDED",
             "Authorized overage cap has been exceeded",
-            {"workspace_id": str(workspace_id), "cap_eur": cap_eur},
+            {
+                "workspace_id": str(workspace_id),
+                "cap_eur": cap_eur,
+                "quota_name": quota_name,
+                "reset_at": reset_at.isoformat() if isinstance(reset_at, datetime) else reset_at,
+                "plan_slug": plan_slug,
+                "upgrade_url": upgrade_url,
+            },
         )
 
 
 class ModelTierNotAllowedError(BillingError):
     status_code = 402
 
-    def __init__(self, workspace_id: UUID | str, model_id: str, allowed_model_tier: str) -> None:
+    def __init__(
+        self,
+        workspace_id: UUID | str,
+        model_id: str,
+        allowed_model_tier: str,
+        *,
+        quota_name: str = "allowed_model_tier",
+        reset_at: datetime | str | None = None,
+        plan_slug: str | None = None,
+        upgrade_url: str | None = None,
+    ) -> None:
         super().__init__(
             "BILLING_MODEL_TIER_NOT_ALLOWED",
             "Requested model tier is not allowed by the active subscription",
@@ -112,6 +169,10 @@ class ModelTierNotAllowedError(BillingError):
                 "workspace_id": str(workspace_id),
                 "model_id": model_id,
                 "allowed_model_tier": allowed_model_tier,
+                "quota_name": quota_name,
+                "reset_at": reset_at.isoformat() if isinstance(reset_at, datetime) else reset_at,
+                "plan_slug": plan_slug,
+                "upgrade_url": upgrade_url,
             },
         )
 

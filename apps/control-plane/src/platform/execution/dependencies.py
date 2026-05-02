@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from platform.billing.quotas.dependencies import build_quota_enforcer
 from platform.common.clients.object_storage import AsyncObjectStorageClient
 from platform.common.clients.reasoning_engine import ReasoningEngineClient
 from platform.common.clients.redis import AsyncRedisClient
@@ -77,6 +78,11 @@ def build_execution_service(
         context_engineering_service=context_engineering_service,
         projector=ExecutionProjector(),
         checkpoint_service=checkpoint_service,
+        quota_enforcer=build_quota_enforcer(
+            session=session,
+            settings=settings,
+            redis_client=redis_client,
+        ),
     )
 
 
@@ -136,6 +142,11 @@ def build_scheduler_service(
         context_engineering_service=context_engineering_service,
         projector=ExecutionProjector(),
         checkpoint_service=checkpoint_service,
+        quota_enforcer=build_quota_enforcer(
+            session=session,
+            settings=settings,
+            redis_client=redis_client,
+        ),
     )
     return SchedulerService(
         repository=repository,

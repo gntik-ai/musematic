@@ -1,0 +1,10 @@
+{
+  "quotaExceeded": "Kontingent ueberschritten",
+  "upgrade": "Upgrade",
+  "downgrade": "Downgrade",
+  "overageAuthorization": "Mehrverbrauch autorisieren",
+  "billingDashboard": "Abrechnung",
+  "statusActive": "Aktiv",
+  "statusSuspended": "Gesperrt",
+  "cleanupBanner": "Free-Limits ueberschritten"
+}

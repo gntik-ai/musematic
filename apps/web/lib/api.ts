@@ -18,6 +18,31 @@ interface ApiClient {
 }
 
 const BACKOFF_MS = [1000, 2000, 4000] as const;
+const QUOTA_ERROR_CODES = new Set([
+  "quota_exceeded",
+  "overage_cap_exceeded",
+  "model_tier_not_allowed",
+]);
+
+export interface QuotaErrorDetails {
+  quota_name?: string | null;
+  current?: number | string | null;
+  limit?: number | string | null;
+  reset_at?: string | null;
+  plan_slug?: string | null;
+  upgrade_url?: string | null;
+  overage_available?: boolean | null;
+}
+
+export class QuotaError extends ApiError {
+  public readonly quota: QuotaErrorDetails;
+
+  constructor(payload: ApiErrorPayload, status: number) {
+    super(payload.code, payload.message, status, undefined, payload);
+    this.name = "QuotaError";
+    this.quota = quotaDetails(payload.details);
+  }
+}
 
 function isApiErrorPayload(value: unknown): value is { error: ApiErrorPayload } {
   if (typeof value !== "object" || value === null || !("error" in value)) {
@@ -73,6 +98,10 @@ async function normalizeError(response: Response): Promise<never> {
       throw error;
     }
 
+    if (response.status === 402 && QUOTA_ERROR_CODES.has(errorPayload.code)) {
+      throw new QuotaError(errorPayload, response.status);
+    }
+
     throw new ApiError(
       errorPayload.code,
       errorPayload.message,
@@ -83,6 +112,13 @@ async function normalizeError(response: Response): Promise<never> {
   }
 
   throw new ApiError("unknown_error", response.statusText || "Request failed", response.status);
+}
+
+function quotaDetails(value: unknown): QuotaErrorDetails {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return {};
+  }
+  return value as QuotaErrorDetails;
 }
 
 async function wait(delayMs: number): Promise<void> {

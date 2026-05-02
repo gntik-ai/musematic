@@ -34,7 +34,7 @@ interface AlertListItem {
   body: string | null;
   read: boolean;
   interaction_id?: string | null;
-  source_reference: { id?: string; kind?: string; url?: string } | null;
+  source_reference: { id?: string; kind?: string; url?: string; deep_link?: string } | null;
   created_at: string;
 }
 
@@ -125,20 +125,23 @@ export function NotificationBell() {
         ) : (
           visibleItems.map((alert) => {
             const href = alert.source_reference?.url;
+            const deepLink = href ?? alert.source_reference?.deep_link;
             const isTemplateUpdate = alert.alert_type === CONTRACT_TEMPLATE_UPSTREAM_UPDATED;
+            const isBillingOverage = alert.alert_type === "billing.overage.required";
             return (
               <DropdownMenuItem
                 className="block text-left"
                 key={alert.id}
                 onClick={() => {
-                  if (href) {
-                    window.location.assign(href);
+                  if (deepLink) {
+                    window.location.assign(deepLink);
                   }
                 }}
               >
                 <div className="space-y-1">
                   <div className="flex items-center justify-between gap-3">
                     <span className="font-medium">{alert.title}</span>
+                    {isBillingOverage ? <Badge variant="destructive">Overage</Badge> : null}
                     {!alert.read ? <Badge variant="outline">New</Badge> : null}
                   </div>
                   {alert.body ? (
@@ -146,7 +149,12 @@ export function NotificationBell() {
                   ) : null}
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-[11px] text-muted-foreground">{formatTimestamp(alert.created_at)}</p>
-                    {href && isTemplateUpdate ? (
+                    {deepLink && isBillingOverage ? (
+                      <span className="text-[11px] font-medium text-destructive">
+                        Authorise now
+                      </span>
+                    ) : null}
+                    {deepLink && isTemplateUpdate ? (
                       <span className="text-[11px] font-medium text-brand-accent">
                         {templateT("viewDiff")}
                       </span>

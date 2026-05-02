@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
+from platform.billing.exceptions import PlanVersionInProgressError
 from platform.billing.plans.models import Plan, PlanVersion
 from platform.billing.subscriptions.models import Subscription
 from typing import Any
@@ -36,6 +37,23 @@ class PlansRepository:
 
     async def list_all(self) -> list[Plan]:
         result = await self.session.execute(select(Plan).order_by(Plan.tier.asc(), Plan.slug.asc()))
+        return list(result.scalars().all())
+
+    async def list_filtered(
+        self,
+        *,
+        tier: str | None = None,
+        is_active: bool | None = None,
+        is_public: bool | None = None,
+    ) -> list[Plan]:
+        statement = select(Plan)
+        if tier is not None:
+            statement = statement.where(Plan.tier == tier)
+        if is_active is not None:
+            statement = statement.where(Plan.is_active.is_(is_active))
+        if is_public is not None:
+            statement = statement.where(Plan.is_public.is_(is_public))
+        result = await self.session.execute(statement.order_by(Plan.tier.asc(), Plan.slug.asc()))
         return list(result.scalars().all())
 
     async def list_public(self) -> list[Plan]:
@@ -121,10 +139,12 @@ class PlansRepository:
         *,
         created_by: UUID | None = None,
     ) -> tuple[PlanVersion | None, PlanVersion]:
-        await self.session.execute(
-            text("SELECT pg_advisory_xact_lock(hashtext(:plan_id)::bigint)"),
+        lock_result = await self.session.execute(
+            text("SELECT pg_try_advisory_xact_lock(hashtext(:plan_id)::bigint)"),
             {"plan_id": str(plan.id)},
         )
+        if not bool(lock_result.scalar_one()):
+            raise PlanVersionInProgressError(plan.id)
         current = await self.get_published_version(plan.id)
         next_version = (current.version if current is not None else 0) + 1
         now = datetime.now(UTC)
@@ -170,6 +190,12 @@ class PlansRepository:
             select(func.count())
             .select_from(Subscription)
             .where(Subscription.plan_id == plan_id, Subscription.plan_version == version)
+        )
+        return int(result.scalar_one() or 0)
+
+    async def count_subscriptions_for_plan(self, plan_id: UUID) -> int:
+        result = await self.session.execute(
+            select(func.count()).select_from(Subscription).where(Subscription.plan_id == plan_id)
         )
         return int(result.scalar_one() or 0)
 

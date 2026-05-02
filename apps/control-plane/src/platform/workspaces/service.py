@@ -7,6 +7,7 @@ from platform.auth.events import (
     WorkspaceTransferPayload,
     publish_auth_event,
 )
+from platform.billing.quotas.http import raise_for_quota_result
 from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.common.events.producer import EventProducer
@@ -96,6 +97,8 @@ class WorkspacesService:
         saved_view_service: Any | None = None,
         tagging_service: Any | None = None,
         redis_client: Any | None = None,
+        quota_enforcer: Any | None = None,
+        subscription_service: Any | None = None,
     ) -> None:
         self.repo = repo
         self.platform_settings = settings
@@ -107,6 +110,8 @@ class WorkspacesService:
         self.saved_view_service = saved_view_service
         self.tagging_service = tagging_service
         self.redis_client = redis_client
+        self.quota_enforcer = quota_enforcer
+        self.subscription_service = subscription_service
         self.two_person_approval_service: Any | None = None
 
     async def create_workspace(
@@ -124,12 +129,18 @@ class WorkspacesService:
         if await self.repo.get_workspace_by_name_for_owner(user_id, request.name) is not None:
             raise WorkspaceNameConflictError(request.name)
 
+        if self.quota_enforcer is not None:
+            quota_result = await self.quota_enforcer.check_workspace_create(user_id)
+            raise_for_quota_result(quota_result)
+
         workspace = await self.repo.create_workspace(
             name=request.name,
             description=request.description,
             owner_id=user_id,
             is_default=False,
         )
+        if self.subscription_service is not None:
+            await self.subscription_service.provision_for_default_workspace(workspace.id)
         await self.repo.add_member(workspace.id, user_id, WorkspaceRole.owner)
         await self.repo.update_settings(workspace.id)
         await publish_workspace_created(
@@ -157,6 +168,8 @@ class WorkspacesService:
             owner_id=user_id,
             is_default=True,
         )
+        if self.subscription_service is not None:
+            await self.subscription_service.provision_for_default_workspace(workspace.id)
         await self.repo.add_member(workspace.id, user_id, WorkspaceRole.owner)
         await self.repo.update_settings(workspace.id)
         correlation = (

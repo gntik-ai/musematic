@@ -3,6 +3,9 @@ from __future__ import annotations
 from platform.admin.rbac import require_superadmin
 from platform.audit.repository import AuditChainRepository
 from platform.audit.service import AuditChainService
+from platform.billing.plans.repository import PlansRepository
+from platform.billing.subscriptions.repository import SubscriptionsRepository
+from platform.billing.subscriptions.service import SubscriptionService
 from platform.common import database
 from platform.common.config import PlatformSettings
 from platform.common.config import settings as default_settings
@@ -207,6 +210,12 @@ def _service(request: Request, session: AsyncSession) -> TenantsService:
         notifications=notifications,
         object_storage=_object_storage(request),
         redis_client=clients.get("redis") if isinstance(clients, dict) else None,
+        subscription_service=SubscriptionService(
+            session=session,
+            subscriptions=SubscriptionsRepository(session),
+            plans=PlansRepository(session),
+            producer=producer if isinstance(producer, EventProducer) else None,
+        ),
     )
 
 

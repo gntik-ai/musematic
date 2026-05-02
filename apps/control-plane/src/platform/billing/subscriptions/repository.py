@@ -92,6 +92,9 @@ class SubscriptionsRepository:
         current_period_start: datetime | None = None,
         current_period_end: datetime | None = None,
         payment_method_id: UUID | None = None,
+        status: str | None = None,
+        stripe_customer_id: str | None = None,
+        stripe_subscription_id: str | None = None,
     ) -> Subscription | None:
         values: dict[str, object] = {"plan_id": plan_id, "plan_version": plan_version}
         if current_period_start is not None:
@@ -100,6 +103,12 @@ class SubscriptionsRepository:
             values["current_period_end"] = current_period_end
         if payment_method_id is not None:
             values["payment_method_id"] = payment_method_id
+        if status is not None:
+            values["status"] = status
+        if stripe_customer_id is not None:
+            values["stripe_customer_id"] = stripe_customer_id
+        if stripe_subscription_id is not None:
+            values["stripe_subscription_id"] = stripe_subscription_id
         result = await self.session.execute(
             update(Subscription)
             .where(Subscription.id == subscription_id)

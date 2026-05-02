@@ -5,6 +5,7 @@ import re
 import shutil
 from collections.abc import Coroutine
 from dataclasses import dataclass
+from platform.billing.quotas.http import raise_for_quota_result
 from platform.common import database
 from platform.common.clients.object_storage import AsyncObjectStorageClient
 from platform.common.clients.opensearch import AsyncOpenSearchClient
@@ -159,6 +160,7 @@ class RegistryService:
         tag_service: Any | None = None,
         label_service: Any | None = None,
         tagging_service: Any | None = None,
+        quota_enforcer: Any | None = None,
     ) -> None:
         self.repository = repository
         self.object_storage = object_storage
@@ -173,6 +175,7 @@ class RegistryService:
         self.tag_service = tag_service
         self.label_service = label_service
         self.tagging_service = tagging_service
+        self.quota_enforcer = quota_enforcer
         self._background_tasks: set[asyncio.Task[None]] = set()
 
     async def create_namespace(
@@ -706,6 +709,13 @@ class RegistryService:
                 request.target_status.value,
                 sorted(status.value for status in get_valid_transitions(profile.status)),
             )
+        if (
+            self.quota_enforcer is not None
+            and request.target_status is LifecycleStatus.published
+            and profile.status is not LifecycleStatus.published
+        ):
+            quota_result = await self.quota_enforcer.check_agent_publish(workspace_id)
+            raise_for_quota_result(quota_result, workspace_id=workspace_id)
         previous_status = profile.status
         profile.status = request.target_status
         await self.repository.insert_lifecycle_audit(

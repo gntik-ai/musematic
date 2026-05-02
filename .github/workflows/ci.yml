@@ -243,6 +243,15 @@ jobs:
       - name: Check platform-staff role scope
         run: python scripts/lint/check_platform_staff_role_scope.py
 
+      - name: Check billing quota enforcer coverage
+        run: python scripts/lint/check_quota_enforcer_coverage.py
+
+      - name: Check billing subscription scope writes
+        run: python scripts/lint/check_subscription_scope_constraint.py
+
+      - name: Check billing plan-version immutability
+        run: python scripts/lint/check_plan_version_immutable.py
+
   typecheck-python:
     name: Type-check Python
     needs: changes

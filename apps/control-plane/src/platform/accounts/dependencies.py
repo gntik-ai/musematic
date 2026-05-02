@@ -4,6 +4,7 @@ from platform.accounts.repository import AccountsRepository
 from platform.accounts.service import AccountsService
 from platform.auth.dependencies import get_auth_service
 from platform.auth.service import AuthService
+from platform.billing.quotas.dependencies import build_quota_enforcer
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.dependencies import get_db
@@ -44,4 +45,9 @@ async def get_accounts_service(
         kafka_producer=_get_producer(request),
         auth_service=auth_service,
         settings=_get_settings(request),
+        quota_enforcer=build_quota_enforcer(
+            session=repository.session,
+            settings=_get_settings(request),
+            redis_client=_get_redis(request),
+        ),
     )

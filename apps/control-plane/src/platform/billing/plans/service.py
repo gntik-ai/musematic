@@ -4,6 +4,7 @@ import json
 from decimal import Decimal
 from platform.audit.service import AuditChainService
 from platform.billing.exceptions import PlanNotFoundError, PlanVersionImmutableError
+from platform.billing.metrics import metrics
 from platform.billing.plans.models import Plan, PlanVersion
 from platform.billing.plans.repository import PLAN_VERSION_FIELDS, PlansRepository
 from platform.billing.plans.schemas import PlanUpdate, PlanVersionPublish
@@ -69,6 +70,7 @@ class PlansService:
             },
             tenant_id=tenant_id,
         )
+        metrics.record_plan_publish()
         return new_version
 
     async def deprecate_version(
@@ -138,6 +140,7 @@ class PlansService:
             "billing.plans",
             canonical,
             event_type=event_type,
+            actor_role="super_admin",
             canonical_payload_json=dict(payload),
             tenant_id=tenant_id,
         )

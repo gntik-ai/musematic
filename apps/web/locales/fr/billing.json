@@ -1,0 +1,10 @@
+{
+  "quotaExceeded": "Quota depasse",
+  "upgrade": "Mettre a niveau",
+  "downgrade": "Retrograder",
+  "overageAuthorization": "Autorisation de depassement",
+  "billingDashboard": "Facturation",
+  "statusActive": "Actif",
+  "statusSuspended": "Suspendu",
+  "cleanupBanner": "Limites Free depassees"
+}

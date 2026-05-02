@@ -4,6 +4,26 @@
 
 **Preconditions**: UPD-046 (tenant architecture) is fully landed (default tenant exists, hostname resolver is wired, RLS policies active). The local E2E harness from UPD-046 is reachable at `http://localhost:8081`. The `app.localhost` and Enterprise-tenant subdomains (e.g., `acme.localhost`) resolve correctly.
 
+**Fresh-cluster validation note (2026-05-02)**: `make dev-check` passed with `kind v0.31.0` and `kubectl v1.35.3`. A fresh isolated harness run failed before Helm install:
+
+```bash
+make dev-up \
+  DEV_CLUSTER_NAME=amp-e2e-upd047 \
+  DEV_PORT_UI=9080 \
+  DEV_PORT_API=9081 \
+  DEV_PORT_WS=9082 \
+  DEV_PORT_GOOGLE_OIDC=9083 \
+  DEV_PORT_GITHUB_OAUTH=9084
+```
+
+The failure was during kind node preparation:
+
+```text
+ERROR: failed to create cluster: could not find a log line that matches "Reached target .*Multi-User System.*|detected cgroup v1"
+```
+
+A one-node control test with `kindest/node:v1.34.0` failed at the same node-preparation step. This is an infrastructure/harness blocker, not a completed UPD-047 application walkthrough. Re-run this quickstart from step 0 after kind can create a fresh cluster on the workstation or CI runner.
+
 This walkthrough takes the freshly-deployed UPD-047 schema (migrations 103 + 104) and exercises the end-to-end flows: super admin publishes a Pro version, a Free workspace is hard-capped, a Pro workspace authorises overage, an Enterprise workspace runs unlimited.
 
 ## 0. Preconditions and seeded plans

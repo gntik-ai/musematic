@@ -5,6 +5,7 @@ import json
 import re
 from datetime import UTC, datetime, timedelta
 from platform.audit.service import AuditChainService
+from platform.billing.subscriptions.service import SubscriptionService
 from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.events.envelope import CorrelationContext
@@ -41,6 +42,7 @@ from platform.two_person_approval.service import TwoPersonApprovalError, TwoPers
 from typing import Any, Protocol, cast
 from uuid import UUID, uuid4
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 TENANT_DPA_BUCKET = "tenant-dpas"
@@ -82,6 +84,7 @@ class TenantsService:
         notifications: FirstAdminInvitationService | None,
         object_storage: ObjectStorageClient | None,
         redis_client: AsyncRedisClient | None = None,
+        subscription_service: SubscriptionService | None = None,
     ) -> None:
         self.session = session
         self.repository = repository
@@ -92,6 +95,7 @@ class TenantsService:
         self.notifications = notifications
         self.object_storage = object_storage
         self.redis_client = redis_client
+        self.subscription_service = subscription_service
 
     async def provision_enterprise_tenant(
         self,
@@ -119,6 +123,15 @@ class TenantsService:
             feature_flags_json={},
         )
         await self.repository.create(tenant)
+        if self.subscription_service is not None:
+            await self.session.execute(
+                text("SELECT set_config('app.tenant_id', :tenant_id, true)"),
+                {"tenant_id": str(tenant.id)},
+            )
+            await self.subscription_service.provision_for_enterprise_tenant(
+                tenant.id,
+                created_by_user_id=_actor_id(actor),
+            )
         await self.dns_automation.ensure_records(tenant.subdomain)
         if self.notifications is not None:
             await self.notifications.send_first_admin_invitation(

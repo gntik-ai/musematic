@@ -1,0 +1,98 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-billing
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.dashboardLabels" . | indent 4 }}
+data:
+  billing.json: |
+    {
+      "__inputs": [],
+      "__requires": [],
+      "annotations": { "list": [] },
+      "description": "Plans, subscriptions, quota enforcement, overage, and billing metering.",
+      "editable": true,
+      "graphTooltip": 1,
+      "id": null,
+      "panels": [
+        {
+          "id": 1,
+          "type": "barchart",
+          "title": "Subscriptions by Plan Tier",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 7, "w": 8, "x": 0, "y": 0 },
+          "targets": [{ "expr": "sum by (plan_tier) (billing_subscriptions_current)", "legendFormat": "{{ `{{plan_tier}}` }}", "refId": "A" }]
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "Plan Publish Rate",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 7, "w": 8, "x": 8, "y": 0 },
+          "targets": [{ "expr": "sum(rate(billing_plan_publish_total[5m]))", "legendFormat": "publishes", "refId": "A" }]
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "Quota Rejections by Result",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 7, "w": 8, "x": 16, "y": 0 },
+          "targets": [{ "expr": "sum by (result) (rate(billing_quota_check_total{result!=\"OK\"}[5m]))", "legendFormat": "{{ `{{result}}` }}", "refId": "A" }]
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "Overage Authorizations",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 7, "w": 8, "x": 0, "y": 7 },
+          "targets": [{ "expr": "sum by (outcome) (rate(billing_overage_authorize_total[5m]))", "legendFormat": "{{ `{{outcome}}` }}", "refId": "A" }]
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "Metering Pipeline Lag p95",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 7, "w": 8, "x": 8, "y": 7 },
+          "targets": [{ "expr": "histogram_quantile(0.95, sum by (le) (rate(billing_metering_lag_seconds_bucket[5m])))", "legendFormat": "p95", "refId": "A" }]
+        },
+        {
+          "id": 6,
+          "type": "stat",
+          "title": "Period Rollover Heartbeat",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 7, "w": 8, "x": 16, "y": 7 },
+          "targets": [{ "expr": "max(up{job=~\".*scheduler.*\"})", "legendFormat": "scheduler up", "refId": "A" }]
+        },
+        {
+          "id": 7,
+          "type": "timeseries",
+          "title": "Reconciliation Mismatch Rate",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 7, "w": 12, "x": 0, "y": 14 },
+          "targets": [{ "expr": "max(billing_reconciliation_mismatch_rate)", "legendFormat": "mismatch", "refId": "A" }]
+        },
+        {
+          "id": 8,
+          "type": "timeseries",
+          "title": "Payment Provider Errors",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 7, "w": 12, "x": 12, "y": 14 },
+          "targets": [{ "expr": "sum by (provider) (rate(billing_payment_provider_errors_total[5m]))", "legendFormat": "{{ `{{provider}}` }}", "refId": "A" }]
+        }
+      ],
+      "refresh": "30s",
+      "schemaVersion": 38,
+      "tags": ["musematic", "billing"],
+      "templating": {
+        "list": [
+          { "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" }, "hide": 0, "includeAll": false, "label": "Datasource", "multi": false, "name": "datasource", "options": [], "query": "prometheus", "refresh": 1, "regex": "", "type": "datasource" }
+        ]
+      },
+      "time": { "from": "now-6h", "to": "now" },
+      "timepicker": {},
+      "timezone": "browser",
+      "title": "Billing",
+      "uid": "billing",
+      "version": 1
+    }

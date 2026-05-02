@@ -42,8 +42,14 @@ export function NotificationListItem({
 }: NotificationListItemProps) {
   const t = useTranslations("notifications.inbox.item");
   const templateT = useTranslations("creator.template");
-  const href = typeof alert.source_reference?.url === "string" ? alert.source_reference.url : null;
+  const href =
+    typeof alert.source_reference?.url === "string"
+      ? alert.source_reference.url
+      : typeof alert.source_reference?.deep_link === "string"
+        ? alert.source_reference.deep_link
+        : null;
   const isTemplateUpdate = alert.alert_type === "creator.contract_template.upstream_updated";
+  const isBillingOverage = alert.alert_type === "billing.overage.required";
 
   return (
     <article className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 sm:grid-cols-[auto_1fr_auto]">
@@ -65,7 +71,9 @@ export function NotificationListItem({
           ) : (
             <Badge variant="outline">{t("unread")}</Badge>
           )}
-          <Badge variant="secondary">{t(`severity.${alert.urgency}`)}</Badge>
+          <Badge variant={isBillingOverage ? "destructive" : "secondary"}>
+            {t(`severity.${alert.urgency}`)}
+          </Badge>
         </div>
         {alert.body ? (
           <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{alert.body}</p>
@@ -84,7 +92,7 @@ export function NotificationListItem({
           }}
         >
           <ExternalLink className="h-4 w-4" />
-          {isTemplateUpdate ? templateT("viewDiff") : t("open")}
+          {isBillingOverage ? "Authorise now" : isTemplateUpdate ? templateT("viewDiff") : t("open")}
         </Button>
       ) : null}
     </article>
