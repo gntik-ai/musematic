@@ -332,6 +332,7 @@ OPENAPI_PUBLIC_PATHS: frozenset[str] = frozenset(
         "/api/v1/auth/oauth/{provider}/authorize",
         "/api/v1/auth/oauth/{provider}/callback",
         "/api/v1/public/plans",
+        "/api/v1/security/audit-chain/public-key",
         "/.well-known/agent.json",
     }
 )

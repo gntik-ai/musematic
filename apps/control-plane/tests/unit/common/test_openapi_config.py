@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import platform.main as main_module
 import re
+from pathlib import Path
 from platform.common.config import PlatformSettings
 from platform.main import create_app
 from typing import Any
@@ -72,6 +73,13 @@ def _iter_openapi_operations(spec: dict[str, Any]):
             yield path, method, operation
 
 
+def _repo_root() -> Path:
+    for parent in Path(__file__).resolve().parents:
+        if (parent / ".spectral.yaml").exists():
+            return parent
+    raise AssertionError("Could not locate repository root")
+
+
 def test_openapi_info_and_security_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
     app = _build_app(monkeypatch)
 
@@ -91,6 +99,21 @@ def test_openapi_info_and_security_metadata(monkeypatch: pytest.MonkeyPatch) -> 
             assert "admin" in operation["tags"], f"{path} is missing the admin tag"
         if path not in PUBLIC_OPENAPI_PATHS:
             assert operation.get("security"), f"{path} is missing security requirements"
+
+
+def test_public_openapi_paths_are_spectral_exemptions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = _build_app(monkeypatch)
+    spec = app.openapi()
+    spectral_ruleset = (_repo_root() / ".spectral.yaml").read_text(encoding="utf-8")
+
+    for path, _method, operation in _iter_openapi_operations(spec):
+        if operation.get("security"):
+            continue
+        assert f'@property != "{path}"' in spectral_ruleset, (
+            f"{path} is public in OpenAPI but not exempted from Spectral security checks"
+        )
 
 
 def test_openapi_path_templates_are_unique(monkeypatch: pytest.MonkeyPatch) -> None:
