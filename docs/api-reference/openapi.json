@@ -101176,17 +101176,6 @@
             "description": "Successful Response"
           }
         },
-        "security": [
-          {
-            "session": []
-          },
-          {
-            "oauth2": []
-          },
-          {
-            "apiKey": []
-          }
-        ],
         "summary": "Get Public Key",
         "tags": [
           "admin",
