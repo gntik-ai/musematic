@@ -15,6 +15,7 @@ Gated by ``MARKETPLACE_FORK_NOTIFY_SOURCE_OWNERS`` (default ``True``).
 from __future__ import annotations
 
 from platform.common import database
+from platform.common.clients.redis import AsyncRedisClient
 from platform.common.config import PlatformSettings
 from platform.common.events.consumer import EventConsumerManager
 from platform.common.events.envelope import EventEnvelope
@@ -36,8 +37,14 @@ LOGGER = get_logger(__name__)
 class MarketplaceFanoutConsumer:
     """Cross-tenant fan-out for ``marketplace.source_updated`` events."""
 
-    def __init__(self, *, settings: PlatformSettings) -> None:
+    def __init__(
+        self,
+        *,
+        settings: PlatformSettings,
+        redis_client: AsyncRedisClient,
+    ) -> None:
         self.settings = settings
+        self.redis_client = redis_client
 
     def register(self, manager: EventConsumerManager) -> None:
         manager.subscribe(
@@ -66,7 +73,7 @@ class MarketplaceFanoutConsumer:
             alert_service = build_notifications_service(
                 session=session,
                 settings=self.settings,
-                redis_client=None,  # alerts don't require Redis for the in-app delivery path
+                redis_client=self.redis_client,
                 producer=None,
                 workspaces_service=None,
             )

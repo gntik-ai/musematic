@@ -33,7 +33,7 @@ from platform.registry.exceptions import (
     SubmissionNotFoundError,
 )
 from platform.registry.schemas import ReviewQueueResponse, ReviewSubmissionView
-from typing import Protocol
+from typing import NoReturn, Protocol
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
@@ -164,7 +164,9 @@ class MarketplaceAdminService:
             ),
             {"agent_id": str(agent_id), "reviewer": str(reviewer_id)},
         )
-        if result.rowcount == 0:
+        # Use first() to detect "no row updated" — async Result.rowcount is
+        # not reliable across drivers, but RETURNING + first() is.
+        if result.first() is None:
             await self._raise_for_failed_claim(agent_id, reviewer_id)
         await self._session.commit()
 
@@ -377,7 +379,9 @@ class MarketplaceAdminService:
                 rejection_reason=reason,
             )
 
-    async def _raise_for_failed_claim(self, agent_id: UUID, reviewer_id: UUID) -> None:
+    async def _raise_for_failed_claim(
+        self, agent_id: UUID, reviewer_id: UUID
+    ) -> NoReturn:
         row = await self._session.execute(
             text(
                 """
@@ -400,7 +404,7 @@ class MarketplaceAdminService:
         # to avoid leaking a confusing partial state.
         raise SubmissionNotFoundError(agent_id)
 
-    async def _raise_for_failed_state_change(self, agent_id: UUID) -> None:
+    async def _raise_for_failed_state_change(self, agent_id: UUID) -> NoReturn:
         row = await self._session.execute(
             text(
                 "SELECT review_status FROM registry_agent_profiles WHERE id = :agent_id"

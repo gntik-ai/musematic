@@ -357,7 +357,7 @@ class PublishWithScopeRequest(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def _public_requires_marketing(self) -> "PublishWithScopeRequest":
+    def _public_requires_marketing(self) -> PublishWithScopeRequest:
         if self.scope == "public_default_tenant" and self.marketing_metadata is None:
             raise ValueError(
                 "marketing_metadata is required when scope == 'public_default_tenant'"
@@ -457,7 +457,7 @@ class ForkAgentRequest(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def _workspace_required_for_workspace_scope(self) -> "ForkAgentRequest":
+    def _workspace_required_for_workspace_scope(self) -> ForkAgentRequest:
         if self.target_scope == "workspace" and self.target_workspace_id is None:
             raise ValueError(
                 "target_workspace_id is required when target_scope == 'workspace'"

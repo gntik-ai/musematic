@@ -18,6 +18,7 @@ import time
 from platform.common.clients.redis import AsyncRedisClient
 from platform.marketplace.metrics import marketplace_rate_limit_refusals_total
 from platform.registry.exceptions import SubmissionRateLimitExceededError
+from typing import Any
 from uuid import UUID, uuid4
 
 WINDOW_SECONDS: int = 24 * 60 * 60
@@ -96,7 +97,7 @@ class MarketplaceSubmissionRateLimiter:
         seconds_until_eviction = WINDOW_SECONDS - int((now_ms - int(oldest_score)) / 1000)
         return max(1, seconds_until_eviction)
 
-    def _client(self) -> object:
+    def _client(self) -> Any:
         client = self._redis.client
         if client is None:
             # Fail-closed: if Redis is unreachable, surface the error rather
