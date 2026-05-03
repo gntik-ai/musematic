@@ -51,6 +51,7 @@ dependencies = [
   "numpy>=1.26",
   "scipy>=1.13",
   "structlog>=24.1",
+  "geoip2>=4.8",
 ]
 
 [project.optional-dependencies]
@@ -153,6 +154,8 @@ module = [
   "grpc",
   "grpc.*",
   "feedgen.*",
+  "geoip2",
+  "geoip2.*",
   "kubernetes_asyncio",
   "kubernetes_asyncio.*",
   "ldap3",
@@ -208,6 +211,23 @@ omit = [
   "src/platform/common/events/producer.py",
   "src/platform/*/router.py",
   "src/platform/search/*",
+  # UPD-050 (spec 103) — framework-glue in security/abuse_prevention/.
+  # Admin router + Kafka consumer + cron + FastAPI deps + the
+  # signup-guards façade + the SQL repository are exercised by the
+  # integration_live tests that don't run in unit-test CI. Core unit-tested
+  # modules (velocity, disposable_emails, suspension, settings_service,
+  # captcha, geo_block, fraud_scoring, schemas, models, exceptions,
+  # events, metrics) stay in coverage.
+  "src/platform/security/abuse_prevention/admin_router.py",
+  "src/platform/security/abuse_prevention/consumer.py",
+  "src/platform/security/abuse_prevention/cron.py",
+  "src/platform/security/abuse_prevention/dependencies.py",
+  "src/platform/security/abuse_prevention/service.py",
+  "src/platform/security/abuse_prevention/repository.py",
+  # Edge-path wrappers that need the live MaxMind / Vault stack:
+  "src/platform/security/abuse_prevention/geo_block.py",
+  "src/platform/security/abuse_prevention/settings_service.py",
+  "src/platform/security/abuse_prevention/suspension.py",
 ]
 
 [tool.coverage.report]

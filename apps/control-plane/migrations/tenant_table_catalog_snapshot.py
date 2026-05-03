@@ -233,4 +233,5 @@ TENANT_SCOPED_TABLES: tuple[str, ...] = (
     "workspaces_settings",
     "workspaces_visibility_grants",
     "workspaces_workspaces",
+    "account_suspensions",
 )

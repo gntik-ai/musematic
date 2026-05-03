@@ -62,6 +62,11 @@ class FakeAuthRepository:
     async def get_account_user(self, user_id):
         return self.account_user if user_id == self.user_id else None
 
+    async def get_active_suspension_id(self, user_id):
+        # UPD-050 — abuse-prevention suspension lookup. Tests run under
+        # the assumption that no suspension is active.
+        return None
+
     async def get_account_user_by_email(self, email: str):
         return self.account_user if email.lower() == self.email else None
 

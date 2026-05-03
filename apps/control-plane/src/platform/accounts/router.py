@@ -79,6 +79,13 @@ async def register(
     if gated is not None:
         return gated
     source_ip = request.client.host if request.client is not None else "0.0.0.0"
+    # UPD-050 T017 (signup-guards wire-up) is DEFERRED to a follow-up
+    # PR per specs/103-abuse-prevention/NOTES.md. The
+    # AbusePreventionService façade is implemented and unit-tested;
+    # plugging it into this route requires environment-validated
+    # session/Redis plumbing that's outside this refresh's scope —
+    # the existing UPD-037 rate limiter (5/IP/hour) remains the active
+    # signup defence until the wire-up lands.
     return await accounts_service.register(payload, source_ip=source_ip)
 
 

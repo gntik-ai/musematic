@@ -103,6 +103,15 @@ USER_IDENTITY_COLUMNS: dict[str, list[str]] = {
         "created_by_super_admin_id",
         "consumed_by_user_id",
     ],
+    # UPD-050 (spec 103) — abuse-prevention BC user-FK columns.
+    "account_suspensions": [
+        "user_id",
+        "suspended_by_user_id",
+        "lifted_by_user_id",
+    ],
+    "disposable_email_overrides": ["created_by_user_id"],
+    "trusted_source_allowlist": ["created_by_user_id"],
+    "abuse_prevention_settings": ["updated_by_user_id"],
 }
 
 

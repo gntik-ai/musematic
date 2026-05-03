@@ -1,0 +1,18 @@
+{{- if .Values.geolite2 -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ default "geolite2-db" .Values.geolite2.pvcName }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: geolite2-db
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: musematic
+    app.kubernetes.io/component: abuse-prevention
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ default "5Gi" .Values.geolite2.pvcSize }}
+{{- end }}

@@ -41,6 +41,11 @@ export const auditedSurfaces: AuditedSurface[] = [
   // UPD-049 refresh (102) T064 — assignment + publish surfaces.
   { id: "marketplace-review", group: "admin-settings", route: "/admin/marketplace-review", ready: bodyReady },
   { id: "agent-publish-flow", group: "agent-detail", route: "/agent-management/finance-ops%3Akyc-verifier/publish", ready: bodyReady },
+  // UPD-050 refresh (103) T087 — abuse-prevention admin surfaces.
+  { id: "abuse-prevention", group: "admin-settings", route: "/admin/security/abuse-prevention", ready: bodyReady },
+  { id: "abuse-suspensions", group: "admin-settings", route: "/admin/security/suspensions", ready: bodyReady },
+  { id: "abuse-email-overrides", group: "admin-settings", route: "/admin/security/email-overrides", ready: bodyReady },
+  { id: "abuse-geo-policy", group: "admin-settings", route: "/admin/security/geo-policy", ready: bodyReady },
   { id: "workflow-editor", group: "workflow-editor", route: "/workflow-editor-monitor/new", ready: bodyReady },
   { id: "workflow-monitor", group: "workflow-editor", route: "/workflow-editor-monitor", ready: bodyReady },
   { id: "fleet-view", group: "fleet-view", route: "/fleet", ready: bodyReady },
