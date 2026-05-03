@@ -2,7 +2,7 @@
 
 The Data Lifecycle bounded context owns workspace- and tenant-scoped data export, two-phase deletion with grace, DPA management, the public sub-processors page, GDPR Article 28 evidence packages, and 30-day backup-purge separation for deleted tenants.
 
-The implementation follows the spec at [`specs/104-data-lifecycle/spec.md`](../../specs/104-data-lifecycle/spec.md). This page covers the user-facing capability set and the operator surface.
+The implementation follows the spec at `specs/104-data-lifecycle/spec.md`. This page covers the user-facing capability set and the operator surface.
 
 ## Capability map
 
@@ -86,11 +86,11 @@ After phase_2 cascade completion, the platform schedules a key-destruction opera
 
 ## Operator runbooks
 
-- [`tenant-deletion-failed-cascade.md`](../../deploy/runbooks/data-lifecycle/tenant-deletion-failed-cascade.md)
-- [`export-job-stuck.md`](../../deploy/runbooks/data-lifecycle/export-job-stuck.md)
-- [`dpa-virus-scan-unavailable.md`](../../deploy/runbooks/data-lifecycle/dpa-virus-scan-unavailable.md)
-- [`dns-teardown-manual.md`](../../deploy/runbooks/data-lifecycle/dns-teardown-manual.md)
-- [`cold-storage-retention-restore.md`](../../deploy/runbooks/data-lifecycle/cold-storage-retention-restore.md)
+- `deploy/runbooks/data-lifecycle/tenant-deletion-failed-cascade.md`
+- `deploy/runbooks/data-lifecycle/export-job-stuck.md`
+- `deploy/runbooks/data-lifecycle/dpa-virus-scan-unavailable.md`
+- `deploy/runbooks/data-lifecycle/dns-teardown-manual.md`
+- `deploy/runbooks/data-lifecycle/cold-storage-retention-restore.md`
 
 ## Constitution mapping
 
