@@ -112,6 +112,10 @@ USER_IDENTITY_COLUMNS: dict[str, list[str]] = {
     "disposable_email_overrides": ["created_by_user_id"],
     "trusted_source_allowlist": ["created_by_user_id"],
     "abuse_prevention_settings": ["updated_by_user_id"],
+    # UPD-051 (spec 104) — data_lifecycle BC user-FK columns.
+    "data_export_jobs": ["requested_by_user_id"],
+    "deletion_jobs": ["requested_by_user_id"],
+    "sub_processors": ["updated_by_user_id"],
 }
 
 
@@ -230,3 +234,148 @@ class PostgreSQLCascadeAdapter(CascadeAdapter):
 def _rowcount(result: object) -> int:
     value = getattr(result, "rowcount", 0)
     return int(value or 0)
+
+
+# ---------------------------------------------------------------------------
+# UPD-051 scope-level extension
+# ---------------------------------------------------------------------------
+#
+# The user-DSR cascade above operates on user-FK columns. The workspace and
+# tenant cascades are simpler: every tenant-scoped table has either a
+# ``tenant_id`` or ``workspace_id`` column and we DELETE matching rows.
+#
+# For tenant deletion, the source-of-truth list of tables to scan is
+# ``platform.tenants.table_catalog.TENANT_SCOPED_TABLES``. For workspace
+# deletion, we use the subset of tenant-scoped tables that ALSO have a
+# ``workspace_id`` column (introspected at runtime via information_schema).
+
+
+async def _table_has_column(
+    session: AsyncSession, table: str, column: str
+) -> bool:
+    result = await session.execute(
+        text(
+            """
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = current_schema()
+              AND table_name = :table
+              AND column_name = :column
+            LIMIT 1
+            """
+        ),
+        {"table": table, "column": column},
+    )
+    return result.scalar_one_or_none() is not None
+
+
+async def _scope_dry_run(
+    adapter: PostgreSQLCascadeAdapter,
+    *,
+    column: str,
+    value: UUID,
+    tables: tuple[str, ...],
+) -> CascadePlan:
+    estimates: dict[str, int] = {}
+    for table in tables:
+        if not await _table_has_column(adapter.session, table, column):
+            continue
+        result = await adapter.session.execute(
+            text(f"SELECT count(*) FROM {table} WHERE {column} = :v"),
+            {"v": str(value)},
+        )
+        count = int(result.scalar_one())
+        if count:
+            estimates[table] = count
+    return CascadePlan(
+        store_name=adapter.store_name,
+        estimated_count=sum(estimates.values()),
+        per_target_estimates=estimates,
+    )
+
+
+async def _scope_execute(
+    adapter: PostgreSQLCascadeAdapter,
+    *,
+    column: str,
+    value: UUID,
+    tables: tuple[str, ...],
+) -> CascadeResult:
+    started = datetime.now(UTC)
+    counts: dict[str, int] = {}
+    errors: list[str] = []
+    # Iterate in REVERSE catalog order so dependent rows are removed before
+    # their parents. The TENANT_SCOPED_TABLES catalog is ordered such that
+    # later entries reference earlier ones (the audit-pass and SaaS-pass
+    # additions appended new tables at the bottom).
+    for table in reversed(tables):
+        try:
+            if not await _table_has_column(adapter.session, table, column):
+                continue
+            result = await adapter.session.execute(
+                text(f"DELETE FROM {table} WHERE {column} = :v"),
+                {"v": str(value)},
+            )
+            counts[table] = _rowcount(result)
+        except Exception as exc:
+            errors.append(f"{table}: {exc}")
+            counts[table] = 0
+    await adapter.session.flush()
+    return CascadeResult(
+        store_name=adapter.store_name,
+        started_at=started,
+        completed_at=datetime.now(UTC),
+        affected_count=sum(counts.values()),
+        per_target_counts=counts,
+        errors=errors,
+    )
+
+
+async def _postgres_dry_run_for_workspace(
+    self: PostgreSQLCascadeAdapter, workspace_id: UUID
+) -> CascadePlan:
+    from platform.tenants.table_catalog import TENANT_SCOPED_TABLES
+
+    return await _scope_dry_run(
+        self, column="workspace_id", value=workspace_id, tables=TENANT_SCOPED_TABLES
+    )
+
+
+async def _postgres_execute_for_workspace(
+    self: PostgreSQLCascadeAdapter, workspace_id: UUID
+) -> CascadeResult:
+    from platform.tenants.table_catalog import TENANT_SCOPED_TABLES
+
+    return await _scope_execute(
+        self, column="workspace_id", value=workspace_id, tables=TENANT_SCOPED_TABLES
+    )
+
+
+async def _postgres_dry_run_for_tenant(
+    self: PostgreSQLCascadeAdapter, tenant_id: UUID
+) -> CascadePlan:
+    from platform.tenants.table_catalog import TENANT_SCOPED_TABLES
+
+    return await _scope_dry_run(
+        self, column="tenant_id", value=tenant_id, tables=TENANT_SCOPED_TABLES
+    )
+
+
+async def _postgres_execute_for_tenant(
+    self: PostgreSQLCascadeAdapter, tenant_id: UUID
+) -> CascadeResult:
+    from platform.tenants.table_catalog import TENANT_SCOPED_TABLES
+
+    return await _scope_execute(
+        self, column="tenant_id", value=tenant_id, tables=TENANT_SCOPED_TABLES
+    )
+
+
+# Bind the scope-level methods onto the adapter class. This pattern keeps
+# the per-scope helpers as module-level functions (testable in isolation)
+# while exposing them through the standard CascadeAdapter interface that
+# the orchestrator uses.
+PostgreSQLCascadeAdapter.dry_run_for_workspace = _postgres_dry_run_for_workspace  # type: ignore[assignment,method-assign]
+PostgreSQLCascadeAdapter.execute_for_workspace = _postgres_execute_for_workspace  # type: ignore[assignment,method-assign]
+PostgreSQLCascadeAdapter.dry_run_for_tenant = _postgres_dry_run_for_tenant  # type: ignore[assignment,method-assign]
+PostgreSQLCascadeAdapter.execute_for_tenant = _postgres_execute_for_tenant  # type: ignore[assignment,method-assign]

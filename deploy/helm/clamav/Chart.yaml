@@ -1,0 +1,6 @@
+apiVersion: v2
+name: musematic-clamav
+description: In-cluster ClamAV daemon for DPA virus scanning (UPD-051 / R3).
+type: application
+version: 0.1.0
+appVersion: "1.4"

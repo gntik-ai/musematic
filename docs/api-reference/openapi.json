@@ -643,6 +643,21 @@
         "title": "AbTestStatus",
         "type": "string"
       },
+      "AbortRequest": {
+        "properties": {
+          "abort_reason": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Abort Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "abort_reason"
+        ],
+        "title": "AbortRequest",
+        "type": "object"
+      },
       "AbusePreventionSettingValue": {
         "additionalProperties": false,
         "description": "Body of `PATCH /admin/security/abuse-prevention/settings/{key}`.",
@@ -5243,6 +5258,31 @@
         "title": "Body_upload_agent_api_v1_agents_upload_post",
         "type": "object"
       },
+      "Body_upload_dpa_api_v1_admin_tenants__tenant_id__dpa_post": {
+        "properties": {
+          "effective_date": {
+            "format": "date",
+            "title": "Effective Date",
+            "type": "string"
+          },
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "version",
+          "effective_date"
+        ],
+        "title": "Body_upload_dpa_api_v1_admin_tenants__tenant_id__dpa_post",
+        "type": "object"
+      },
       "Body_upload_dpa_api_v1_admin_tenants_dpa_upload_post": {
         "properties": {
           "file": {
@@ -6130,6 +6170,18 @@
         ],
         "title": "CanaryDeploymentStatus",
         "type": "string"
+      },
+      "CancelDeletionResponse": {
+        "description": "Anti-enumeration response \u2014 identical for any token outcome (R10).",
+        "properties": {
+          "message": {
+            "default": "If the link was valid, deletion has been cancelled. Check your email for confirmation.",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "title": "CancelDeletionResponse",
+        "type": "object"
       },
       "CapacityConfidence": {
         "enum": [
@@ -11824,6 +11876,41 @@
         "title": "DLPRuleUpdateRequest",
         "type": "object"
       },
+      "DPAUploadResponse": {
+        "properties": {
+          "effective_date": {
+            "format": "date",
+            "title": "Effective Date",
+            "type": "string"
+          },
+          "sha256": {
+            "title": "Sha256",
+            "type": "string"
+          },
+          "tenant_id": {
+            "format": "uuid",
+            "title": "Tenant Id",
+            "type": "string"
+          },
+          "vault_path": {
+            "title": "Vault Path",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tenant_id",
+          "version",
+          "effective_date",
+          "sha256",
+          "vault_path"
+        ],
+        "title": "DPAUploadResponse",
+        "type": "object"
+      },
       "DSRCancelRequest": {
         "properties": {
           "approver_ids": {
@@ -12992,6 +13079,134 @@
         ],
         "title": "DelegationRules",
         "type": "object"
+      },
+      "DeletionJobDetail": {
+        "properties": {
+          "abort_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Abort Reason"
+          },
+          "cascade_completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cascade Completed At"
+          },
+          "cascade_started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cascade Started At"
+          },
+          "final_export_job_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Export Job Id"
+          },
+          "grace_ends_at": {
+            "format": "date-time",
+            "title": "Grace Ends At",
+            "type": "string"
+          },
+          "grace_period_days": {
+            "title": "Grace Period Days",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "phase": {
+            "$ref": "#/components/schemas/DeletionPhase"
+          },
+          "scope_id": {
+            "format": "uuid",
+            "title": "Scope Id",
+            "type": "string"
+          },
+          "scope_type": {
+            "$ref": "#/components/schemas/ScopeType"
+          },
+          "store_progress": {
+            "items": {
+              "$ref": "#/components/schemas/StoreCascadeProgress"
+            },
+            "title": "Store Progress",
+            "type": "array"
+          },
+          "tombstone_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tombstone Id"
+          },
+          "two_pa_token_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Two Pa Token Id"
+          }
+        },
+        "required": [
+          "id",
+          "scope_type",
+          "scope_id",
+          "phase",
+          "grace_period_days",
+          "grace_ends_at"
+        ],
+        "title": "DeletionJobDetail",
+        "type": "object"
+      },
+      "DeletionPhase": {
+        "description": "Phase of a two-phase deletion job.",
+        "enum": [
+          "phase_1",
+          "phase_2",
+          "completed",
+          "aborted"
+        ],
+        "title": "DeletionPhase",
+        "type": "string"
       },
       "DeliveryMethod": {
         "enum": [
@@ -15274,6 +15489,251 @@
           "failed"
         ],
         "title": "ExperimentStatus",
+        "type": "string"
+      },
+      "ExportJobDetail": {
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "estimated_completion": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Completion"
+          },
+          "estimated_size_bytes_lower_bound": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Size Bytes Lower Bound"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "output_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Expires At"
+          },
+          "output_size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Size Bytes"
+          },
+          "output_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Url"
+          },
+          "scope_id": {
+            "format": "uuid",
+            "title": "Scope Id",
+            "type": "string"
+          },
+          "scope_type": {
+            "$ref": "#/components/schemas/ScopeType"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExportStatus"
+          }
+        },
+        "required": [
+          "id",
+          "scope_type",
+          "scope_id",
+          "status",
+          "created_at"
+        ],
+        "title": "ExportJobDetail",
+        "type": "object"
+      },
+      "ExportJobList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ExportJobSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Cursor"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ExportJobList",
+        "type": "object"
+      },
+      "ExportJobSummary": {
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "output_expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Expires At"
+          },
+          "output_size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Size Bytes"
+          },
+          "scope_id": {
+            "format": "uuid",
+            "title": "Scope Id",
+            "type": "string"
+          },
+          "scope_type": {
+            "$ref": "#/components/schemas/ScopeType"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ExportStatus"
+          }
+        },
+        "required": [
+          "id",
+          "scope_type",
+          "scope_id",
+          "status",
+          "created_at"
+        ],
+        "title": "ExportJobSummary",
+        "type": "object"
+      },
+      "ExportStatus": {
+        "description": "Lifecycle of a data export job.",
+        "enum": [
+          "pending",
+          "processing",
+          "completed",
+          "failed"
+        ],
+        "title": "ExportStatus",
         "type": "string"
       },
       "ExternalAlertResponse": {
@@ -19110,6 +19570,28 @@
           "created_at"
         ],
         "title": "GovernanceVerdictRead",
+        "type": "object"
+      },
+      "GraceExtensionRequest": {
+        "properties": {
+          "additional_days": {
+            "maximum": 90.0,
+            "minimum": 1.0,
+            "title": "Additional Days",
+            "type": "integer"
+          },
+          "reason": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "additional_days",
+          "reason"
+        ],
+        "title": "GraceExtensionRequest",
         "type": "object"
       },
       "Granularity": {
@@ -35925,6 +36407,15 @@
         "title": "SchemaEnumsResponse",
         "type": "object"
       },
+      "ScopeType": {
+        "description": "Scope of a data-lifecycle job.",
+        "enum": [
+          "workspace",
+          "tenant"
+        ],
+        "title": "ScopeType",
+        "type": "string"
+      },
       "ScorerTypeListResponse": {
         "properties": {
           "items": {
@@ -37072,6 +37563,456 @@
         "title": "StepResult",
         "type": "object"
       },
+      "StoreCascadeProgress": {
+        "properties": {
+          "rows_affected": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rows Affected"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "in_progress",
+              "completed",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "store": {
+            "enum": [
+              "postgresql",
+              "qdrant",
+              "neo4j",
+              "clickhouse",
+              "opensearch",
+              "s3"
+            ],
+            "title": "Store",
+            "type": "string"
+          }
+        },
+        "required": [
+          "store",
+          "status"
+        ],
+        "title": "StoreCascadeProgress",
+        "type": "object"
+      },
+      "SubProcessorAdmin": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "data_categories": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Data Categories",
+            "type": "array"
+          },
+          "dpa_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dpa Url"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "location": {
+            "title": "Location",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "privacy_policy_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Privacy Policy Url"
+          },
+          "started_using_at": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started Using At"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "updated_by_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated By User Id"
+          }
+        },
+        "required": [
+          "name",
+          "category",
+          "location",
+          "data_categories",
+          "id",
+          "is_active",
+          "updated_at"
+        ],
+        "title": "SubProcessorAdmin",
+        "type": "object"
+      },
+      "SubProcessorCreate": {
+        "properties": {
+          "category": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Category",
+            "type": "string"
+          },
+          "data_categories": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Data Categories",
+            "type": "array"
+          },
+          "dpa_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dpa Url"
+          },
+          "location": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Location",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "privacy_policy_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Privacy Policy Url"
+          },
+          "started_using_at": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started Using At"
+          }
+        },
+        "required": [
+          "name",
+          "category",
+          "location"
+        ],
+        "title": "SubProcessorCreate",
+        "type": "object"
+      },
+      "SubProcessorPublic": {
+        "description": "Subset of fields exposed by the public endpoint.\n\n``notes`` is intentionally absent \u2014 operator-only.",
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "data_categories": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Data Categories",
+            "type": "array"
+          },
+          "dpa_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dpa Url"
+          },
+          "location": {
+            "title": "Location",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "privacy_policy_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Privacy Policy Url"
+          },
+          "started_using_at": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started Using At"
+          }
+        },
+        "required": [
+          "name",
+          "category",
+          "location",
+          "data_categories"
+        ],
+        "title": "SubProcessorPublic",
+        "type": "object"
+      },
+      "SubProcessorSubscribeRequest": {
+        "properties": {
+          "email": {
+            "maxLength": 320,
+            "minLength": 3,
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "SubProcessorSubscribeRequest",
+        "type": "object"
+      },
+      "SubProcessorSubscribeResponse": {
+        "description": "Anti-enumeration response \u2014 identical for any email.",
+        "properties": {
+          "message": {
+            "default": "If the email is valid, a verification link has been sent.",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "title": "SubProcessorSubscribeResponse",
+        "type": "object"
+      },
+      "SubProcessorUpdate": {
+        "description": "All fields optional \u2014 PATCH semantics.",
+        "properties": {
+          "category": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "data_categories": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Categories"
+          },
+          "dpa_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dpa Url"
+          },
+          "is_active": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Active"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 128,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "privacy_policy_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Privacy Policy Url"
+          }
+        },
+        "title": "SubProcessorUpdate",
+        "type": "object"
+      },
+      "SubProcessorsPublicResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SubProcessorPublic"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "last_updated_at": {
+            "format": "date-time",
+            "title": "Last Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "last_updated_at",
+          "items"
+        ],
+        "title": "SubProcessorsPublicResponse",
+        "type": "object"
+      },
       "SubscriptionDowngrade": {
         "properties": {
           "effective": {
@@ -37959,6 +38900,89 @@
           "dpa_version"
         ],
         "title": "TenantCreate",
+        "type": "object"
+      },
+      "TenantDeletionRequest": {
+        "properties": {
+          "grace_period_days": {
+            "default": 30,
+            "maximum": 90.0,
+            "minimum": 7.0,
+            "title": "Grace Period Days",
+            "type": "integer"
+          },
+          "include_final_export": {
+            "default": true,
+            "title": "Include Final Export",
+            "type": "boolean"
+          },
+          "reason": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "typed_confirmation": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Typed Confirmation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "typed_confirmation",
+          "reason"
+        ],
+        "title": "TenantDeletionRequest",
+        "type": "object"
+      },
+      "TenantExportDelivery": {
+        "properties": {
+          "encrypt_with_password": {
+            "default": true,
+            "title": "Encrypt With Password",
+            "type": "boolean"
+          },
+          "method": {
+            "default": "email_with_otp",
+            "enum": [
+              "email_with_otp",
+              "email_and_sms"
+            ],
+            "title": "Method",
+            "type": "string"
+          }
+        },
+        "title": "TenantExportDelivery",
+        "type": "object"
+      },
+      "TenantExportRequest": {
+        "properties": {
+          "delivery": {
+            "$ref": "#/components/schemas/TenantExportDelivery"
+          },
+          "include_audit_chain": {
+            "default": true,
+            "title": "Include Audit Chain",
+            "type": "boolean"
+          },
+          "include_cost_history": {
+            "default": true,
+            "title": "Include Cost History",
+            "type": "boolean"
+          },
+          "include_users": {
+            "default": true,
+            "title": "Include Users",
+            "type": "boolean"
+          },
+          "include_workspaces": {
+            "default": true,
+            "title": "Include Workspaces",
+            "type": "boolean"
+          }
+        },
+        "title": "TenantExportRequest",
         "type": "object"
       },
       "TenantFirstAdminInviteValidationResponse": {
@@ -42812,6 +43836,33 @@
         "title": "WorkspaceDeletedResponse",
         "type": "object"
       },
+      "WorkspaceDeletionRequest": {
+        "properties": {
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 2048,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "typed_confirmation": {
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Typed Confirmation",
+            "type": "string"
+          }
+        },
+        "required": [
+          "typed_confirmation"
+        ],
+        "title": "WorkspaceDeletionRequest",
+        "type": "object"
+      },
       "WorkspaceGoalState": {
         "enum": [
           "ready",
@@ -43085,6 +44136,7 @@
         "enum": [
           "active",
           "archived",
+          "pending_deletion",
           "deleted"
         ],
         "title": "WorkspaceStatus",
@@ -43248,6 +44300,196 @@
           "rate_limit_remaining_hour"
         ],
         "title": "WriteGateResult",
+        "type": "object"
+      },
+      "_DeletionRequestResponse": {
+        "properties": {
+          "cancel_link_emailed_to": {
+            "default": "owner",
+            "description": "Display-only \u2014 the actual email address is NOT echoed to avoid leaking it through the API response.",
+            "title": "Cancel Link Emailed To",
+            "type": "string"
+          },
+          "grace_ends_at": {
+            "format": "date-time",
+            "title": "Grace Ends At",
+            "type": "string"
+          },
+          "grace_period_days": {
+            "title": "Grace Period Days",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "phase": {
+            "title": "Phase",
+            "type": "string"
+          },
+          "scope_id": {
+            "format": "uuid",
+            "title": "Scope Id",
+            "type": "string"
+          },
+          "scope_type": {
+            "title": "Scope Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "scope_type",
+          "scope_id",
+          "phase",
+          "grace_period_days",
+          "grace_ends_at"
+        ],
+        "title": "_DeletionRequestResponse",
+        "type": "object"
+      },
+      "_RequestExportResponse": {
+        "properties": {
+          "estimated_completion": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Completion"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "requested_at": {
+            "format": "date-time",
+            "title": "Requested At",
+            "type": "string"
+          },
+          "scope_id": {
+            "format": "uuid",
+            "title": "Scope Id",
+            "type": "string"
+          },
+          "scope_type": {
+            "title": "Scope Type",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "scope_type",
+          "scope_id",
+          "status",
+          "requested_at"
+        ],
+        "title": "_RequestExportResponse",
+        "type": "object"
+      },
+      "_TenantDeletionResponse": {
+        "properties": {
+          "final_export_job_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Final Export Job Id"
+          },
+          "grace_ends_at": {
+            "format": "date-time",
+            "title": "Grace Ends At",
+            "type": "string"
+          },
+          "grace_period_days": {
+            "title": "Grace Period Days",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "phase": {
+            "title": "Phase",
+            "type": "string"
+          },
+          "scope_id": {
+            "format": "uuid",
+            "title": "Scope Id",
+            "type": "string"
+          },
+          "scope_type": {
+            "title": "Scope Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "scope_type",
+          "scope_id",
+          "phase",
+          "grace_period_days",
+          "grace_ends_at"
+        ],
+        "title": "_TenantDeletionResponse",
+        "type": "object"
+      },
+      "_TenantExportResponse": {
+        "properties": {
+          "estimated_completion": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Completion"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "scope_id": {
+            "format": "uuid",
+            "title": "Scope Id",
+            "type": "string"
+          },
+          "scope_type": {
+            "title": "Scope Type",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "scope_type",
+          "scope_id",
+          "status"
+        ],
+        "title": "_TenantExportResponse",
         "type": "object"
       },
       "platform__auth__schemas__MessageResponse": {
@@ -49087,6 +50329,105 @@
           {
             "lang": "curl",
             "source": "curl -X PUT \"http://localhost:8000/api/v1/admin/costs/rates/{rate_id}\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/data-lifecycle/deletion-jobs/{job_id}/abort": {
+      "post": {
+        "operationId": "abort_deletion_job_api_v1_admin_data_lifecycle_deletion_jobs__job_id__abort_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-2PA-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-2Pa-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AbortRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionJobDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Abort Deletion Job",
+        "tags": [
+          "admin",
+          "data_lifecycle:admin:tenant"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/data-lifecycle/deletion-jobs/{job_id}/abort\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/data-lifecycle/deletion-jobs/{job_id}/abort\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/data-lifecycle/deletion-jobs/{job_id}/abort`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/data-lifecycle/deletion-jobs/{job_id}/abort\" -H \"Authorization: Bearer $TOKEN\""
           }
         ]
       }
@@ -60878,6 +62219,284 @@
         ]
       }
     },
+    "/api/v1/admin/sub-processors": {
+      "get": {
+        "operationId": "list_sub_processors_admin_api_v1_admin_sub_processors_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SubProcessorAdmin"
+                  },
+                  "title": "Response List Sub Processors Admin Api V1 Admin Sub Processors Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "List Sub Processors Admin",
+        "tags": [
+          "admin",
+          "data_lifecycle:admin"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/admin/sub-processors\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/admin/sub-processors\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/sub-processors`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/admin/sub-processors\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      },
+      "post": {
+        "operationId": "add_sub_processor_api_v1_admin_sub_processors_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubProcessorCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubProcessorAdmin"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Add Sub Processor",
+        "tags": [
+          "admin",
+          "data_lifecycle:admin"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/sub-processors\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/sub-processors\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/sub-processors`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/sub-processors\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/sub-processors/{sub_processor_id}": {
+      "delete": {
+        "operationId": "delete_sub_processor_api_v1_admin_sub_processors__sub_processor_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sub_processor_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sub Processor Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubProcessorAdmin"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Delete Sub Processor",
+        "tags": [
+          "admin",
+          "data_lifecycle:admin"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"DELETE\", \"http://localhost:8000/api/v1/admin/sub-processors/{sub_processor_id}\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"DELETE\", \"{baseURL}/api/v1/admin/sub-processors/{sub_processor_id}\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/sub-processors/{sub_processor_id}`, {\n  method: \"DELETE\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X DELETE \"http://localhost:8000/api/v1/admin/sub-processors/{sub_processor_id}\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "update_sub_processor_api_v1_admin_sub_processors__sub_processor_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sub_processor_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Sub Processor Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubProcessorUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubProcessorAdmin"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Update Sub Processor",
+        "tags": [
+          "admin",
+          "data_lifecycle:admin"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"PATCH\", \"http://localhost:8000/api/v1/admin/sub-processors/{sub_processor_id}\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"PATCH\", \"{baseURL}/api/v1/admin/sub-processors/{sub_processor_id}\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/sub-processors/{sub_processor_id}`, {\n  method: \"PATCH\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X PATCH \"http://localhost:8000/api/v1/admin/sub-processors/{sub_processor_id}\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
     "/api/v1/admin/subscriptions": {
       "get": {
         "operationId": "list_subscriptions_api_v1_admin_subscriptions_get",
@@ -61809,6 +63428,82 @@
         ]
       }
     },
+    "/api/v1/admin/tenants/{tenant_id}/article28-evidence": {
+      "post": {
+        "description": "Generate the GDPR Article 28 evidence package on demand.\n\nReuses the export-job machinery for delivery: returns a job id +\n202 status. The worker materializes the ZIP via\n``Article28Service.build_evidence_zip`` and uploads to the export\nbucket with a 30-day signed-URL TTL (matching tenant-export TTL).",
+        "operationId": "generate_article28_evidence_api_v1_admin_tenants__tenant_id__article28_evidence_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Generate Article28 Evidence Api V1 Admin Tenants  Tenant Id  Article28 Evidence Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Generate Article28 Evidence",
+        "tags": [
+          "admin",
+          "data_lifecycle:admin:tenant"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/article28-evidence\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/tenants/{tenant_id}/article28-evidence\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/tenants/{tenant_id}/article28-evidence`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/article28-evidence\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
     "/api/v1/admin/tenants/{tenant_id}/cancel-deletion": {
       "post": {
         "operationId": "cancel_tenant_deletion_api_v1_admin_tenants__tenant_id__cancel_deletion_post",
@@ -61877,6 +63572,800 @@
           {
             "lang": "curl",
             "source": "curl -X POST \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/cancel-deletion\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/tenants/{tenant_id}/data-export": {
+      "post": {
+        "operationId": "request_tenant_export_api_v1_admin_tenants__tenant_id__data_export_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantExportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/_TenantExportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Request Tenant Export",
+        "tags": [
+          "admin",
+          "data_lifecycle:admin:tenant"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/data-export\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/tenants/{tenant_id}/data-export\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/tenants/{tenant_id}/data-export`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/data-export\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/tenants/{tenant_id}/data-export/jobs": {
+      "get": {
+        "operationId": "list_tenant_export_jobs_api_v1_admin_tenants__tenant_id__data_export_jobs_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportJobList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "List Tenant Export Jobs",
+        "tags": [
+          "admin",
+          "data_lifecycle:admin:tenant"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/data-export/jobs\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/admin/tenants/{tenant_id}/data-export/jobs\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/tenants/{tenant_id}/data-export/jobs`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/data-export/jobs\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/tenants/{tenant_id}/data-export/jobs/{job_id}": {
+      "get": {
+        "operationId": "get_tenant_export_job_api_v1_admin_tenants__tenant_id__data_export_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportJobDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Get Tenant Export Job",
+        "tags": [
+          "admin",
+          "data_lifecycle:admin:tenant"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/data-export/jobs/{job_id}\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/admin/tenants/{tenant_id}/data-export/jobs/{job_id}\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/tenants/{tenant_id}/data-export/jobs/{job_id}`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/data-export/jobs/{job_id}\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/tenants/{tenant_id}/deletion-jobs": {
+      "post": {
+        "operationId": "request_tenant_deletion_api_v1_admin_tenants__tenant_id__deletion_jobs_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-2PA-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-2Pa-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantDeletionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/_TenantDeletionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Request Tenant Deletion",
+        "tags": [
+          "admin",
+          "data_lifecycle:admin:tenant"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/deletion-jobs\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/tenants/{tenant_id}/deletion-jobs\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/tenants/{tenant_id}/deletion-jobs`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/deletion-jobs\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/tenants/{tenant_id}/deletion-jobs/{job_id}": {
+      "get": {
+        "operationId": "get_tenant_deletion_job_api_v1_admin_tenants__tenant_id__deletion_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionJobDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Get Tenant Deletion Job",
+        "tags": [
+          "admin",
+          "data_lifecycle:admin:tenant"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/deletion-jobs/{job_id}\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/admin/tenants/{tenant_id}/deletion-jobs/{job_id}\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/tenants/{tenant_id}/deletion-jobs/{job_id}`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/deletion-jobs/{job_id}\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/tenants/{tenant_id}/deletion-jobs/{job_id}/extend-grace": {
+      "post": {
+        "operationId": "extend_tenant_grace_api_v1_admin_tenants__tenant_id__deletion_jobs__job_id__extend_grace_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Job Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-2PA-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-2Pa-Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GraceExtensionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionJobDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Extend Tenant Grace",
+        "tags": [
+          "admin",
+          "data_lifecycle:admin:tenant"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/deletion-jobs/{job_id}/extend-grace\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/tenants/{tenant_id}/deletion-jobs/{job_id}/extend-grace\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/tenants/{tenant_id}/deletion-jobs/{job_id}/extend-grace`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/deletion-jobs/{job_id}/extend-grace\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/tenants/{tenant_id}/dpa": {
+      "get": {
+        "operationId": "get_dpa_metadata_api_v1_admin_tenants__tenant_id__dpa_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Dpa Metadata Api V1 Admin Tenants  Tenant Id  Dpa Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Get Dpa Metadata",
+        "tags": [
+          "admin",
+          "data_lifecycle:admin:dpa"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/dpa\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/admin/tenants/{tenant_id}/dpa\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/tenants/{tenant_id}/dpa`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/dpa\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      },
+      "post": {
+        "operationId": "upload_dpa_api_v1_admin_tenants__tenant_id__dpa_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_dpa_api_v1_admin_tenants__tenant_id__dpa_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DPAUploadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Upload Dpa",
+        "tags": [
+          "admin",
+          "data_lifecycle:admin:dpa"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/dpa\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/tenants/{tenant_id}/dpa\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/tenants/{tenant_id}/dpa`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/dpa\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/tenants/{tenant_id}/dpa/{version}/download": {
+      "get": {
+        "operationId": "download_dpa_api_v1_admin_tenants__tenant_id__dpa__version__download_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "tenant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Tenant Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Download Dpa",
+        "tags": [
+          "admin",
+          "data_lifecycle:admin:dpa"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/dpa/{version}/download\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/admin/tenants/{tenant_id}/dpa/{version}/download\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/tenants/{tenant_id}/dpa/{version}/download`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/admin/tenants/{tenant_id}/dpa/{version}/download\" -H \"Authorization: Bearer $TOKEN\""
           }
         ]
       }
@@ -92837,6 +95326,59 @@
         ]
       }
     },
+    "/api/v1/me/tenant/dpa": {
+      "get": {
+        "description": "Return the active DPA metadata for the caller's tenant.\n\nOperates on ``current_user.tenant_id`` only \u2014 the route accepts no\ntenant_id parameter (rule 46). The Vault path is NOT included.",
+        "operationId": "get_my_tenant_dpa_api_v1_me_tenant_dpa_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get My Tenant Dpa Api V1 Me Tenant Dpa Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Get My Tenant Dpa",
+        "tags": [
+          "data_lifecycle:me:dpa"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/me/tenant/dpa\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/me/tenant/dpa\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/me/tenant/dpa`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/me/tenant/dpa\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
     "/api/v1/memory/conflicts": {
       "get": {
         "operationId": "list_conflicts_api_v1_memory_conflicts_get",
@@ -102267,6 +104809,177 @@
           {
             "lang": "curl",
             "source": "curl -X GET \"http://localhost:8000/api/v1/public/status/feed.rss\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/public/sub-processors": {
+      "get": {
+        "operationId": "list_sub_processors_public_api_v1_public_sub_processors_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubProcessorsPublicResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "List Sub Processors Public",
+        "tags": [
+          "data_lifecycle:public"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/public/sub-processors\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/public/sub-processors\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/public/sub-processors`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/public/sub-processors\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/public/sub-processors.rss": {
+      "get": {
+        "operationId": "rss_feed_api_v1_public_sub_processors_rss_get",
+        "responses": {
+          "200": {
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Rss Feed",
+        "tags": [
+          "data_lifecycle:public"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/public/sub-processors.rss\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/public/sub-processors.rss\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/public/sub-processors.rss`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/public/sub-processors.rss\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/public/sub-processors/subscribe": {
+      "post": {
+        "description": "Anti-enumeration subscribe endpoint.\n\nAlways returns 202 with the same body. Real subscription\npersistence + verification email lands with the\n``sub_processor_email_subscriptions`` table in a follow-up;\naccepting the request shape now keeps the public contract stable.",
+        "operationId": "subscribe_api_v1_public_sub_processors_subscribe_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubProcessorSubscribeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubProcessorSubscribeResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Subscribe",
+        "tags": [
+          "data_lifecycle:public"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/public/sub-processors/subscribe\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/public/sub-processors/subscribe\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/public/sub-processors/subscribe`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/public/sub-processors/subscribe\" -H \"Authorization: Bearer $TOKEN\""
           }
         ]
       }
@@ -118199,6 +120912,77 @@
         ]
       }
     },
+    "/api/v1/workspaces/cancel-deletion/{token}": {
+      "post": {
+        "operationId": "cancel_workspace_deletion_api_v1_workspaces_cancel_deletion__token__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "token",
+            "required": true,
+            "schema": {
+              "title": "Token",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CancelDeletionResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Cancel Workspace Deletion",
+        "tags": [
+          "data_lifecycle:workspace"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/workspaces/cancel-deletion/{token}\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/workspaces/cancel-deletion/{token}\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/workspaces/cancel-deletion/{token}`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/workspaces/cancel-deletion/{token}\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
     "/api/v1/workspaces/{workspace_id}": {
       "delete": {
         "operationId": "delete_workspace_api_v1_workspaces__workspace_id__delete",
@@ -120101,6 +122885,260 @@
         ]
       }
     },
+    "/api/v1/workspaces/{workspace_id}/data-export": {
+      "post": {
+        "operationId": "request_workspace_export_api_v1_workspaces__workspace_id__data_export_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/_RequestExportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Request Workspace Export",
+        "tags": [
+          "data_lifecycle:workspace"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/workspaces/{workspace_id}/data-export\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/workspaces/{workspace_id}/data-export\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/workspaces/{workspace_id}/data-export`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/workspaces/{workspace_id}/data-export\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/data-export/jobs": {
+      "get": {
+        "operationId": "list_workspace_export_jobs_api_v1_workspaces__workspace_id__data_export_jobs_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportJobList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "List Workspace Export Jobs",
+        "tags": [
+          "data_lifecycle:workspace"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/workspaces/{workspace_id}/data-export/jobs\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/workspaces/{workspace_id}/data-export/jobs\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/workspaces/{workspace_id}/data-export/jobs`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/workspaces/{workspace_id}/data-export/jobs\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/data-export/jobs/{job_id}": {
+      "get": {
+        "operationId": "get_workspace_export_job_api_v1_workspaces__workspace_id__data_export_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportJobDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Get Workspace Export Job",
+        "tags": [
+          "data_lifecycle:workspace"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/workspaces/{workspace_id}/data-export/jobs/{job_id}\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/workspaces/{workspace_id}/data-export/jobs/{job_id}\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/workspaces/{workspace_id}/data-export/jobs/{job_id}`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/workspaces/{workspace_id}/data-export/jobs/{job_id}\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
     "/api/v1/workspaces/{workspace_id}/dead-letter": {
       "get": {
         "operationId": "list_dead_letter_entries_api_v1_workspaces__workspace_id__dead_letter_get",
@@ -120468,6 +123506,170 @@
           {
             "lang": "curl",
             "source": "curl -X POST \"http://localhost:8000/api/v1/workspaces/{workspace_id}/dead-letter/{entry_id}/redeliver\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/deletion-jobs": {
+      "post": {
+        "operationId": "request_workspace_deletion_api_v1_workspaces__workspace_id__deletion_jobs_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceDeletionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/_DeletionRequestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Request Workspace Deletion",
+        "tags": [
+          "data_lifecycle:workspace"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/workspaces/{workspace_id}/deletion-jobs\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/workspaces/{workspace_id}/deletion-jobs\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/workspaces/{workspace_id}/deletion-jobs`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/workspaces/{workspace_id}/deletion-jobs\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/workspaces/{workspace_id}/deletion-jobs/{job_id}": {
+      "get": {
+        "operationId": "get_workspace_deletion_job_api_v1_workspaces__workspace_id__deletion_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "workspace_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Workspace Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletionJobDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Get Workspace Deletion Job",
+        "tags": [
+          "data_lifecycle:workspace"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/workspaces/{workspace_id}/deletion-jobs/{job_id}\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/workspaces/{workspace_id}/deletion-jobs/{job_id}\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/workspaces/{workspace_id}/deletion-jobs/{job_id}`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/workspaces/{workspace_id}/deletion-jobs/{job_id}\" -H \"Authorization: Bearer $TOKEN\""
           }
         ]
       }

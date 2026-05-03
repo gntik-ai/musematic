@@ -10,6 +10,10 @@ ENTITY_TYPES = (
     "policy",
     "certification",
     "evaluation_run",
+    # UPD-051 (spec 104) — data_lifecycle entity types.
+    "data_export_job",
+    "deletion_job",
+    "sub_processor",
 )
 
 RESERVED_LABEL_PREFIXES = ("system.", "platform.")

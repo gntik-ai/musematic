@@ -1,0 +1,65 @@
+# @section -- Namespace
+# -- Configures `namespace` for the public-pages chart.
+namespace: platform-public
+# @section -- Image
+# -- Container image. Same Next.js bundle as the main `apps/web`
+# release; uses a route-group filter to serve only `(public)/*`.
+image:
+  # -- Image registry/name.
+  repository: ghcr.io/gntik-ai/musematic-web
+  # -- Image tag (matches the main web release).
+  tag: "main"
+  # -- Image pull policy.
+  pullPolicy: IfNotPresent
+# @section -- Replicas
+# -- Replica count. Two for HA — this Deployment must NOT depend on
+# the main control-plane being healthy (rule 49).
+replicas: 2
+# @section -- Resources
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+# @section -- Service
+service:
+  type: ClusterIP
+  port: 3000
+# @section -- Ingress
+# -- Public Ingress for `/legal/*` paths. Routes only the operationally-
+# independent surfaces; the main app's Ingress handles everything else.
+ingress:
+  enabled: true
+  className: nginx
+  annotations: {}
+  host: musematic.ai
+  paths:
+    - path: /legal/sub-processors
+      pathType: Exact
+    - path: /legal/sub-processors.rss
+      pathType: Exact
+  tls:
+    enabled: true
+    secretName: musematic-public-pages-tls
+# @section -- Snapshot
+# -- ConfigMap-backed snapshot fallback. The regenerator cron writes
+# the latest sub-processors JSON here; the public Deployment reads
+# from it when the PostgreSQL replica is unreachable.
+snapshot:
+  configmapName: public-pages-sub-processors-snapshot
+# @section -- Postgres
+# -- Read-only replica DSN env var. Operators set this to a replica
+# pointing at the public-readable subset (sub_processors only).
+postgres:
+  replicaDsnSecretRef:
+    name: public-pages-postgres-replica-dsn
+    key: dsn
+# @section -- Securitycontext
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  seccompProfile:
+    type: RuntimeDefault

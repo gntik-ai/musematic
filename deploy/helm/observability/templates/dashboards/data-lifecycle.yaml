@@ -1,0 +1,143 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-data-lifecycle
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.dashboardLabels" . | indent 4 }}
+data:
+  data-lifecycle.json: |
+    {
+      "__inputs": [],
+      "__requires": [],
+      "annotations": { "list": [] },
+      "description": "UPD-051 Data Lifecycle - export job duration/throughput, deletion grace queue depth, cascade duration, DPA virus-scan posture, backup-purge SLO.",
+      "editable": true,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "id": 1,
+          "type": "stat",
+          "title": "Export jobs in flight",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+          "targets": [
+            { "expr": "sum(rate(data_lifecycle_export_duration_seconds_count[5m]))", "legendFormat": "rate/s" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "ops" } }
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "Export duration p50/p95/p99 (workspace + tenant)",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 9, "w": 18, "x": 6, "y": 0 },
+          "targets": [
+            { "expr": "histogram_quantile(0.5, sum(rate(data_lifecycle_export_duration_seconds_bucket[5m])) by (le, scope_type))", "legendFormat": "p50 {{ `{{scope_type}}` }}" },
+            { "expr": "histogram_quantile(0.95, sum(rate(data_lifecycle_export_duration_seconds_bucket[5m])) by (le, scope_type))", "legendFormat": "p95 {{ `{{scope_type}}` }}" },
+            { "expr": "histogram_quantile(0.99, sum(rate(data_lifecycle_export_duration_seconds_bucket[5m])) by (le, scope_type))", "legendFormat": "p99 {{ `{{scope_type}}` }}" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 3,
+          "type": "stat",
+          "title": "Export bytes - last 24h",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 6, "w": 6, "x": 0, "y": 6 },
+          "targets": [
+            { "expr": "sum(increase(data_lifecycle_export_bytes_total[24h]))", "legendFormat": "bytes" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "bytes" } }
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "Export failures by reason",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 9, "w": 12, "x": 0, "y": 12 },
+          "targets": [
+            { "expr": "sum(rate(data_lifecycle_export_failures_total[5m])) by (scope_type, reason)", "legendFormat": "{{ `{{scope_type}}` }}/{{ `{{reason}}` }}" }
+          ]
+        },
+        {
+          "id": 5,
+          "type": "timeseries",
+          "title": "Deletion grace queue depth",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 9, "w": 12, "x": 12, "y": 12 },
+          "targets": [
+            { "expr": "sum(data_lifecycle_deletion_grace_queue_depth)", "legendFormat": "queued" }
+          ]
+        },
+        {
+          "id": 6,
+          "type": "timeseries",
+          "title": "Deletion phase advances",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 9, "w": 12, "x": 0, "y": 21 },
+          "targets": [
+            { "expr": "sum(rate(data_lifecycle_deletion_phase_advance_total[5m])) by (from_phase, to_phase)", "legendFormat": "{{ `{{from_phase}}` }}->{{ `{{to_phase}}` }}" }
+          ]
+        },
+        {
+          "id": 7,
+          "type": "timeseries",
+          "title": "Cascade duration p95 by scope",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 9, "w": 12, "x": 12, "y": 21 },
+          "targets": [
+            { "expr": "histogram_quantile(0.95, sum(rate(data_lifecycle_cascade_duration_seconds_bucket[10m])) by (le, scope_type))", "legendFormat": "p95 {{ `{{scope_type}}` }}" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 8,
+          "type": "timeseries",
+          "title": "DPA scan duration p95",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 9, "w": 12, "x": 0, "y": 30 },
+          "targets": [
+            { "expr": "histogram_quantile(0.95, sum(rate(data_lifecycle_dpa_scan_duration_seconds_bucket[5m])) by (le, outcome))", "legendFormat": "p95 {{ `{{outcome}}` }}" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 9,
+          "type": "timeseries",
+          "title": "DPA virus detections + scanner unavailability",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 9, "w": 12, "x": 12, "y": 30 },
+          "targets": [
+            { "expr": "sum(rate(data_lifecycle_dpa_virus_detected_total[5m])) by (signature)", "legendFormat": "virus {{ `{{signature}}` }}" },
+            { "expr": "sum(rate(data_lifecycle_dpa_scan_unavailable_total[5m]))", "legendFormat": "unavailable" }
+          ]
+        },
+        {
+          "id": 10,
+          "type": "logs",
+          "title": "Recent data_lifecycle log lines",
+          "datasource": { "type": "loki", "uid": "$logs" },
+          "gridPos": { "h": 12, "w": 24, "x": 0, "y": 39 },
+          "targets": [
+            { "expr": "{service=\"control-plane\", bounded_context=\"data_lifecycle\"} |~ \"\"", "legendFormat": "" }
+          ]
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["upd-051", "data-lifecycle"],
+      "templating": {
+        "list": [
+          { "name": "datasource", "type": "datasource", "query": "prometheus", "current": { "text": "Prometheus", "value": "Prometheus" } },
+          { "name": "logs", "type": "datasource", "query": "loki", "current": { "text": "Loki", "value": "Loki" } }
+        ]
+      },
+      "time": { "from": "now-6h", "to": "now" },
+      "timepicker": {},
+      "timezone": "",
+      "title": "Data Lifecycle - UPD-051",
+      "uid": "data-lifecycle-upd051",
+      "version": 1
+    }

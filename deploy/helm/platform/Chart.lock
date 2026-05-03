@@ -44,5 +44,11 @@ dependencies:
 - name: musematic-ui
   repository: file://../ui
   version: 0.1.0
-digest: sha256:d9c52a36252f8256137e2551c620241fd556b7b69f869f09a3aa99e740ad4fcd
-generated: "2026-04-30T04:16:57.922503079+02:00"
+- name: musematic-clamav
+  repository: file://../clamav
+  version: 0.1.0
+- name: musematic-public-pages
+  repository: file://../public-pages
+  version: 0.1.0
+digest: sha256:12bfea29d289eb84b65af34b9f01d90ce79e752afcc81c93e28cd80983c7dfcc
+generated: "2026-05-03T23:16:59.710328182+02:00"

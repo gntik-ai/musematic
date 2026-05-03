@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: clamav
+  namespace: {{ .Values.namespace }}
+  labels:
+{{ include "musematic-clamav.labels" . | indent 4 }}
+spec:
+  serviceName: clamav
+  replicas: 1
+  selector:
+    matchLabels:
+{{ include "musematic-clamav.selectorLabels" . | indent 6 }}
+  template:
+    metadata:
+      labels:
+{{ include "musematic-clamav.selectorLabels" . | indent 8 }}
+    spec:
+      securityContext:
+{{ toYaml .Values.securityContext | indent 8 }}
+      containers:
+        - name: clamd
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: clamd
+              containerPort: 3310
+              protocol: TCP
+          resources:
+{{ toYaml .Values.resources | indent 12 }}
+          volumeMounts:
+            - name: clamav-data
+              mountPath: /var/lib/clamav
+          livenessProbe:
+            tcpSocket:
+              port: 3310
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            tcpSocket:
+              port: 3310
+            initialDelaySeconds: 30
+            periodSeconds: 10
+        - name: freshclam
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              while true; do
+                /opt/bitnami/clamav/bin/freshclam --quiet || true
+                sleep 86400
+              done
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - name: clamav-data
+              mountPath: /var/lib/clamav
+  volumeClaimTemplates:
+    - metadata:
+        name: clamav-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: {{ .Values.storage.className }}
+        resources:
+          requests:
+            storage: {{ .Values.storage.size }}

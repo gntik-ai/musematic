@@ -1017,6 +1017,113 @@ class SecurityComplianceSettings(BaseSettings):
     )
 
 
+class DataLifecycleSettings(BaseSettings):
+    """UPD-051 — Data Lifecycle bounded context settings.
+
+    Owns workspace + tenant export, two-phase deletion, DPA management,
+    public sub-processors page, and 30-day backup-purge separation.
+    """
+
+    model_config = SettingsConfigDict(env_prefix="DATA_LIFECYCLE_", extra="ignore")
+
+    export_bucket: str = Field(
+        default="data-lifecycle-exports",
+        description="S3 bucket for workspace and tenant export archives.",
+    )
+    audit_cold_bucket: str = Field(
+        default="platform-audit-cold-storage",
+        description=(
+            "S3 bucket for audit-chain tombstones from deleted tenants. "
+            "Object Lock COMPLIANCE mode with multi-year retention."
+        ),
+    )
+    cold_storage_retention_years: int = Field(
+        default=7,
+        ge=1,
+        le=10,
+        description="Object-lock retention years for the audit cold-storage bucket.",
+    )
+    dpa_vault_path_template: str = Field(
+        default="secret/data/musematic/{env}/tenants/{slug}/dpa/dpa-{version}.pdf",
+        description="Vault KV v2 path template for tenant DPA storage.",
+    )
+    grace_default_days: int = Field(
+        default=7,
+        ge=1,
+        le=90,
+        description="Default workspace deletion grace period (days).",
+    )
+    tenant_grace_default_days: int = Field(
+        default=30,
+        ge=7,
+        le=90,
+        description="Default tenant deletion grace period (days).",
+    )
+    grace_max_days: int = Field(
+        default=90,
+        ge=7,
+        le=365,
+        description="Upper bound on cumulative deletion grace period (days).",
+    )
+    workspace_export_url_ttl_days: int = Field(
+        default=7,
+        ge=1,
+        le=30,
+        description="Signed-URL TTL for workspace exports (days).",
+    )
+    tenant_export_url_ttl_days: int = Field(
+        default=30,
+        ge=1,
+        le=90,
+        description="Signed-URL TTL for tenant exports (days).",
+    )
+    export_rate_limit_per_workspace_per_24h: int = Field(
+        default=5,
+        ge=1,
+        description="Maximum workspace exports per workspace per 24 hours.",
+    )
+    export_lease_ttl_seconds: int = Field(
+        default=3900,
+        description=(
+            "Redis lease TTL for the export worker (seconds). Default 65 minutes "
+            "covers the SC-002 60-minute tenant-export budget plus 5 minutes grace."
+        ),
+    )
+    backup_purge_offset_days: int = Field(
+        default=30,
+        ge=1,
+        le=365,
+        description=(
+            "Days after cascade completion before tenant backup data is purged "
+            "via key destruction (FR-759 / SC-009)."
+        ),
+    )
+    audit_tombstone_retention_days: int = Field(
+        default=90,
+        ge=1,
+        description=(
+            "Workspace deletion audit tombstone retention (days) before reduction "
+            "to a hash-anchor entry (FR-752.5)."
+        ),
+    )
+    clamav_host: str = Field(
+        default="clamav.platform-data",
+        description="ClamAV daemon hostname for DPA virus scanning.",
+    )
+    clamav_port: int = Field(
+        default=3310,
+        description="ClamAV daemon TCP port.",
+    )
+    clamav_timeout_seconds: float = Field(
+        default=25.0,
+        description="ClamAV scan timeout in seconds (must be < FR-756 30s budget).",
+    )
+    sub_processors_regenerate_interval_seconds: int = Field(
+        default=300,
+        description="Sub-processors public page regeneration cadence (FR-757.5: 5 min).",
+    )
+
+
 class PlatformSettings(BaseSettings):
     """Top-level platform settings.
 
@@ -1078,6 +1185,29 @@ class PlatformSettings(BaseSettings):
     feature_multi_region: bool = Field(
         default=False,
         validation_alias=AliasChoices("FEATURE_MULTI_REGION", "feature_multi_region"),
+    )
+    feature_upd053_dns_teardown: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "FEATURE_UPD053_DNS_TEARDOWN",
+            "feature_upd053_dns_teardown",
+        ),
+        description=(
+            "When true, tenant deletion phase-2 calls UPD-053 to remove DNS + TLS. "
+            "When false, the cascade logs `dns_teardown_skipped` and proceeds with "
+            "the data-store legs only (R8)."
+        ),
+    )
+    feature_upd077_dpa_sms_password: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "FEATURE_UPD077_DPA_SMS_PASSWORD",
+            "feature_upd077_dpa_sms_password",
+        ),
+        description=(
+            "When true, tenant-export ZIP password is delivered out-of-band via "
+            "SMS in addition to email (R9). When false, an OTP fallback is used."
+        ),
     )
     A2A_PROTOCOL_VERSION: str = "1.0"
     A2A_MAX_PAYLOAD_BYTES: int = 10_485_760
@@ -1283,6 +1413,7 @@ class PlatformSettings(BaseSettings):
     discovery: DiscoverySettings = Field(default_factory=DiscoverySettings)
     simulation: SimulationSettings = Field(default_factory=SimulationSettings)
     content_moderation: ContentModerationSettings = Field(default_factory=ContentModerationSettings)
+    data_lifecycle: DataLifecycleSettings = Field(default_factory=DataLifecycleSettings)
     audit: AuditSettings = Field(default_factory=AuditSettings)
     security_compliance: SecurityComplianceSettings = Field(
         default_factory=SecurityComplianceSettings

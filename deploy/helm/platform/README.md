@@ -9,6 +9,7 @@ Composite Musematic platform chart used by production and E2E deployments.
 | Repository | Name | Version |
 |------------|------|---------|
 | file://../../../services/sandbox-manager/deploy/helm/sandbox-manager | sandboxManager(sandbox-manager) | 0.1.0 |
+| file://../clamav | clamav(musematic-clamav) | 0.1.0 |
 | file://../clickhouse | clickhouse(musematic-clickhouse) | 0.1.0 |
 | file://../control-plane | controlPlane(musematic-control-plane) | 0.1.0 |
 | file://../kafka | kafka(musematic-kafka) | 0.1.0 |
@@ -16,6 +17,7 @@ Composite Musematic platform chart used by production and E2E deployments.
 | file://../neo4j | neo4j(musematic-neo4j) | 0.1.0 |
 | file://../opensearch | opensearch(musematic-opensearch) | 0.1.0 |
 | file://../postgresql | postgresql(musematic-postgresql) | 0.1.0 |
+| file://../public-pages | publicPages(musematic-public-pages) | 0.1.0 |
 | file://../qdrant | qdrant(musematic-qdrant) | 0.1.0 |
 | file://../reasoning-engine | reasoningEngine(reasoning-engine) | 0.1.0 |
 | file://../redis | redis(musematic-redis) | 0.1.0 |
@@ -35,6 +37,8 @@ Composite Musematic platform chart used by production and E2E deployments.
 | billing.periodSchedulerIntervalSeconds | int | `60` | Subscription period-rollover scheduler interval in seconds. |
 | billing.quotaCacheTtlSeconds | int | `60` | TTL in seconds for quota plan/usage cache entries. |
 | billing.quotaInFlightTtlSeconds | int | `300` | TTL in seconds for in-flight execution quota counters. |
+| clamav | object | `{"enabled":false}` | Configures `clamav` for the platform chart (UPD-051 — DPA virus scan). |
+| clamav.enabled | bool | `false` | Configures `clamav.enabled` for the platform chart. Off by default; operators turn this on alongside DPA upload (UPD-051 / US5). |
 | clickhouse | object | `{"createNamespace":false,"enabled":true}` | Configures `clickhouse` for the platform chart. |
 | clickhouse.createNamespace | bool | `false` | Configures `clickhouse.createNamespace` for the platform chart. |
 | clickhouse.enabled | bool | `true` | Configures `clickhouse.enabled` for the platform chart. |
@@ -306,6 +310,8 @@ Composite Musematic platform chart used by production and E2E deployments.
 | postgresql.credentials.username | string | `"musematic"` | Configures `postgresql.credentials.username` for the platform chart. |
 | postgresql.enabled | bool | `true` | Configures `postgresql.enabled` for the platform chart. |
 | postgresql.environment | string | `"production"` | Configures `postgresql.environment` for the platform chart. |
+| publicPages | object | `{"enabled":false}` | Configures `publicPages` for the platform chart (UPD-051 sub-processors, UPD-049 status page — rule 49 outage independence). |
+| publicPages.enabled | bool | `false` | Configures `publicPages.enabled` for the platform chart. Off by default in dev/test; on in production where the operationally-independent surface is contractually required. |
 | qdrant | object | `{"createNamespace":false,"enabled":true,"qdrant":{"fullnameOverride":"musematic-qdrant"}}` | Configures `qdrant` for the platform chart. |
 | qdrant.createNamespace | bool | `false` | Configures `qdrant.createNamespace` for the platform chart. |
 | qdrant.enabled | bool | `true` | Configures `qdrant.enabled` for the platform chart. |

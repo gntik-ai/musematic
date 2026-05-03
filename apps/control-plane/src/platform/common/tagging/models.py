@@ -22,7 +22,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 _ENTITY_TYPE_CHECK = (
     "entity_type IN ('workspace','agent','fleet','workflow','policy','certification',"
-    "'evaluation_run')"
+    "'evaluation_run','data_export_job','deletion_job','sub_processor')"
 )
 
 

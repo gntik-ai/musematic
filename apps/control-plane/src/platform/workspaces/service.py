@@ -44,6 +44,7 @@ from platform.workspaces.exceptions import (
     WorkspaceLimitError,
     WorkspaceNameConflictError,
     WorkspaceNotFoundError,
+    WorkspacePendingDeletionError,
     WorkspaceStateConflictError,
 )
 from platform.workspaces.models import (
@@ -894,6 +895,11 @@ class WorkspacesService:
             raise WorkspaceNotFoundError()
         if not self._role_allows(membership.role, minimum_role):
             raise WorkspaceAuthorizationError()
+        if (
+            minimum_role != WorkspaceRole.viewer
+            and workspace.status == WorkspaceStatus.pending_deletion
+        ):
+            raise WorkspacePendingDeletionError()
         return workspace, membership
 
     @staticmethod

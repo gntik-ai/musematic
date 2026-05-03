@@ -136,6 +136,28 @@ from platform.cost_governance.events import register_cost_governance_event_types
 from platform.cost_governance.jobs.anomaly_job import build_anomaly_scheduler
 from platform.cost_governance.jobs.forecast_job import build_forecast_scheduler
 from platform.cost_governance.router import router as cost_governance_router
+from platform.data_lifecycle.events import register_data_lifecycle_event_types
+from platform.data_lifecycle.routers.dpa_router import (
+    admin_router as data_lifecycle_dpa_admin_router,
+)
+from platform.data_lifecycle.routers.dpa_router import (
+    me_router as data_lifecycle_dpa_me_router,
+)
+from platform.data_lifecycle.routers.sub_processors_router import (
+    admin_router as data_lifecycle_sub_processors_admin_router,
+)
+from platform.data_lifecycle.routers.sub_processors_router import (
+    public_router as data_lifecycle_sub_processors_public_router,
+)
+from platform.data_lifecycle.routers.tenant_admin_router import (
+    router as data_lifecycle_tenant_admin_router,
+)
+from platform.data_lifecycle.routers.workspace_router import (
+    cancel_router as data_lifecycle_cancel_router,
+)
+from platform.data_lifecycle.routers.workspace_router import (
+    router as data_lifecycle_workspace_router,
+)
 from platform.discovery.dependencies import build_discovery_service
 from platform.discovery.events import register_discovery_event_types
 from platform.discovery.router import router as discovery_router
@@ -588,6 +610,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_privacy_event_types()
     register_model_catalog_event_types()
     register_incident_response_event_types()
+    register_data_lifecycle_event_types()
     register_multi_region_ops_event_types()
     register_localization_event_types()
     register_admin_event_types()
@@ -698,6 +721,16 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             "evaluation-ate-evidence",
             "evaluation-generated-suites",
             app.state.settings.incident_response.postmortem_minio_bucket,
+            # UPD-051 — data lifecycle export ZIPs + cold-storage audit
+            # tombstones. The cold-storage bucket SHOULD be configured
+            # with S3 Object Lock COMPLIANCE mode in production (see
+            # deploy/runbooks/data-lifecycle/cold-storage-retention-restore.md);
+            # create_bucket_if_not_exists is a no-op when the bucket
+            # already exists, so the operator is free to pre-create
+            # the cold-storage bucket with Object Lock enabled before
+            # platform install.
+            app.state.settings.data_lifecycle.export_bucket,
+            app.state.settings.data_lifecycle.audit_cold_bucket,
         ):
             try:
                 await object_storage_client.create_bucket_if_not_exists(bucket_name)
@@ -1857,6 +1890,13 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(setup_router)
         app.include_router(onboarding_router)
         app.include_router(workspaces_router)
+        app.include_router(data_lifecycle_workspace_router)
+        app.include_router(data_lifecycle_cancel_router)
+        app.include_router(data_lifecycle_sub_processors_public_router)
+        app.include_router(data_lifecycle_sub_processors_admin_router)
+        app.include_router(data_lifecycle_tenant_admin_router)
+        app.include_router(data_lifecycle_dpa_admin_router)
+        app.include_router(data_lifecycle_dpa_me_router)
         app.include_router(admin_router)
         app.include_router(billing_admin_plans_router)
         app.include_router(billing_admin_subscriptions_router)

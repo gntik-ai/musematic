@@ -1,0 +1,44 @@
+{{- if .Values.networkPolicy.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: clamav
+  namespace: {{ .Values.namespace }}
+  labels:
+{{ include "musematic-clamav.labels" . | indent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+{{ include "musematic-clamav.selectorLabels" . | indent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Only the control-plane and runtime namespaces may reach clamd.
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: platform
+      ports:
+        - port: 3310
+          protocol: TCP
+  egress:
+    # DNS for the database mirror lookup.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # HTTPS to the upstream signature mirror (database.clamav.net).
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - port: 443
+          protocol: TCP
+        - port: 80
+          protocol: TCP
+{{- end -}}

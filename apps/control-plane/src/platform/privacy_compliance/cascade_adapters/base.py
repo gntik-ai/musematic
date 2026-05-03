@@ -56,3 +56,41 @@ class CascadeAdapter(ABC):
     async def execute(self, subject_user_id: UUID) -> CascadeResult:
         """Perform idempotent deletion for one backing store."""
 
+    # ----- UPD-051 scope-level extensions ----------------------------------
+    #
+    # These methods support workspace- and tenant-scoped cascade deletion.
+    # They are NOT abstract: the default implementation raises
+    # ``NotImplementedError`` so adapters opt in by overriding. The
+    # orchestrator surfaces the per-adapter NotImplementedError as a
+    # structured cascade error rather than silently no-op'ing — a silent
+    # no-op would risk leaving deleted-tenant data in a backing store and
+    # is a privacy bug.
+
+    async def dry_run_for_workspace(self, workspace_id: UUID) -> CascadePlan:
+        """Estimate what would be deleted for a workspace-scoped cascade."""
+
+        raise NotImplementedError(
+            f"{self.store_name} does not implement workspace-scoped cascade"
+        )
+
+    async def execute_for_workspace(self, workspace_id: UUID) -> CascadeResult:
+        """Idempotent deletion of all data for a workspace."""
+
+        raise NotImplementedError(
+            f"{self.store_name} does not implement workspace-scoped cascade"
+        )
+
+    async def dry_run_for_tenant(self, tenant_id: UUID) -> CascadePlan:
+        """Estimate what would be deleted for a tenant-scoped cascade."""
+
+        raise NotImplementedError(
+            f"{self.store_name} does not implement tenant-scoped cascade"
+        )
+
+    async def execute_for_tenant(self, tenant_id: UUID) -> CascadeResult:
+        """Idempotent deletion of all data for a tenant."""
+
+        raise NotImplementedError(
+            f"{self.store_name} does not implement tenant-scoped cascade"
+        )
+
