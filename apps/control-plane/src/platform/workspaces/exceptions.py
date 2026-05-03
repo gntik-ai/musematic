@@ -115,5 +115,8 @@ class WorkspacePendingDeletionError(WorkspacesError):
     def __init__(self) -> None:
         super().__init__(
             "WORKSPACE_PENDING_DELETION",
-            "Workspace is pending deletion; writes are blocked until the grace period ends or deletion is cancelled.",
+            (
+                "Workspace is pending deletion; writes are blocked until the "
+                "grace period ends or deletion is cancelled."
+            ),
         )
