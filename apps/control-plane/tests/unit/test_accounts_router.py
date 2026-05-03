@@ -249,7 +249,20 @@ async def test_public_routes_delegate_to_service() -> None:
         password="StrongP@ssw0rd!",
     )
 
-    register_response = await register(register_payload, request, accounts_service=service)
+    # UPD-050 — provide an abuse-prevention façade stub that no-ops on
+    # check_signup_guards so the route's new pre-guard step is exercised
+    # without spinning up Redis / settings DB.
+    class _AbusePreventionStub:
+        async def check_signup_guards(self, ctx):  # noqa: ANN001
+            return None
+
+    abuse_stub = _AbusePreventionStub()
+    register_response = await register(
+        register_payload,
+        request,
+        accounts_service=service,
+        abuse_prevention=abuse_stub,
+    )
     verify_response = await verify_email(verify_payload, request, accounts_service=service)
     resend_response = await resend_verification(
         resend_payload,

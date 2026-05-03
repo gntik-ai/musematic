@@ -154,6 +154,8 @@ module = [
   "grpc",
   "grpc.*",
   "feedgen.*",
+  "geoip2",
+  "geoip2.*",
   "kubernetes_asyncio",
   "kubernetes_asyncio.*",
   "ldap3",

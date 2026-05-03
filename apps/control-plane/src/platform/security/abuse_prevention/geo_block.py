@@ -17,12 +17,9 @@ from pathlib import Path
 from platform.common.logging import get_logger
 from typing import Any
 
-LOGGER = get_logger(__name__)
+import geoip2.database
 
-try:
-    import geoip2.database  # type: ignore[import-not-found]
-except Exception:  # pragma: no cover — geoip2 is a runtime dep
-    geoip2 = None
+LOGGER = get_logger(__name__)
 
 
 class GeoLite2Reader:
@@ -37,9 +34,6 @@ class GeoLite2Reader:
                 "abuse.geo_block.db_missing",
                 extra={"path": db_path},
             )
-            return
-        if geoip2 is None:
-            LOGGER.warning("abuse.geo_block.geoip2_not_installed")
             return
         try:
             self._reader = geoip2.database.Reader(db_path)
