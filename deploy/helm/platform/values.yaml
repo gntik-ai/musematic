@@ -881,3 +881,17 @@ mockOAuth:
     resources: {}
     # -- Configures `mockOAuth.github.seedUsers` for the platform chart.
     seedUsers: []
+# @section -- Clamav
+# -- Configures `clamav` for the platform chart (UPD-051 — DPA virus scan).
+clamav:
+  # -- Configures `clamav.enabled` for the platform chart. Off by default;
+  # operators turn this on alongside DPA upload (UPD-051 / US5).
+  enabled: false
+# @section -- Publicpages
+# -- Configures `publicPages` for the platform chart (UPD-051 sub-processors,
+# UPD-049 status page — rule 49 outage independence).
+publicPages:
+  # -- Configures `publicPages.enabled` for the platform chart. Off by default
+  # in dev/test; on in production where the operationally-independent surface
+  # is contractually required.
+  enabled: false

@@ -1,0 +1,63 @@
+# @section -- Namespace
+# -- Configures `namespace` for the clamav chart.
+namespace: platform-data
+# @section -- Image
+# -- Container image for the ClamAV daemon. Bitnami's image bundles
+# clamd + freshclam.
+image:
+  # -- Image registry/name.
+  repository: bitnami/clamav
+  # -- Image tag (clamd version).
+  tag: "1.4.4-debian-12-r0"
+  # -- Image pull policy.
+  pullPolicy: IfNotPresent
+# @section -- Service
+# -- Service exposing the clamd TCP socket on port 3310 cluster-internally.
+service:
+  # -- Service type. ClusterIP only — never exposed externally.
+  type: ClusterIP
+  # -- TCP port.
+  port: 3310
+# @section -- Resources
+# -- Pod resource requests + limits. clamd RSS scales with the loaded
+# signature database; 1 GiB is the documented default for v1.4+.
+resources:
+  requests:
+    cpu: 100m
+    memory: 1Gi
+  limits:
+    cpu: 1
+    memory: 2Gi
+# @section -- Storage
+# -- PersistentVolumeClaim for the signature database. The freshclam
+# sidecar refreshes signatures daily; 2 GiB is generous for the
+# main + daily + bytecode signature files.
+storage:
+  size: 2Gi
+  className: standard
+# @section -- Freshclam
+# -- Daily signature refresh schedule (UTC). Runs as an initContainer
+# at pod startup AND a sidecar via a CronJob; both write to the shared
+# PVC.
+freshclam:
+  # -- Cron schedule for signature DB refresh.
+  schedule: "0 3 * * *"
+  # -- ClamAV signature mirror.
+  database_mirror: database.clamav.net
+# @section -- Securitycontext
+# -- Pod security context. clamd runs as the bitnami clamav user
+# (uid 1001) under a read-only-rootfs except for /var/lib/clamav.
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1001
+  runAsGroup: 1001
+  fsGroup: 1001
+  seccompProfile:
+    type: RuntimeDefault
+# @section -- Networkpolicy
+# -- Egress-only NetworkPolicy. Allows DNS + HTTPS to the upstream
+# signature mirror; denies all other traffic.
+networkPolicy:
+  enabled: true
+  egressMirrorHosts:
+    - database.clamav.net

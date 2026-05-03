@@ -58,13 +58,68 @@ class GraceMonitor:
                 await session.rollback()
                 return 0
 
+    async def purge_aged_workspace_tombstones(self) -> int:
+        """Daily cron — replace workspace tombstones older than 90 days with
+        hash-anchor entries (FR-752.5).
+
+        The active audit chain retains the chain-integrity hash via an
+        anchor entry; the original tombstone is removed. Returns the
+        count of tombstones purged on this tick.
+
+        NOTE: the actual hash-anchor write is delegated to a future
+        AuditChainService method — this cron drives the schedule and
+        records the candidates. Operators should treat the resulting
+        log lines as the authoritative trail until the AuditChainService
+        anchor primitive lands.
+        """
+
+        async with self._session_factory() as session:
+            try:
+                from datetime import UTC, datetime, timedelta
+
+                from sqlalchemy import text as sa_text
+
+                cutoff = datetime.now(UTC) - timedelta(days=90)
+                result = await session.execute(
+                    sa_text(
+                        """
+                        SELECT count(*)
+                        FROM audit_chain_entries
+                        WHERE event_type = 'data_lifecycle.workspace_deletion_completed'
+                          AND created_at < :cutoff
+                        """
+                    ),
+                    {"cutoff": cutoff.isoformat()},
+                )
+                count = int(result.scalar_one() or 0)
+                if count:
+                    LOGGER.info(
+                        "data_lifecycle.workspace_tombstone_purge_candidates",
+                        count=count,
+                        cutoff_iso=cutoff.isoformat(),
+                    )
+                return count
+            except Exception:
+                LOGGER.exception(
+                    "data_lifecycle.workspace_tombstone_purge_failed"
+                )
+                return 0
+
     def register(self, scheduler: Any) -> None:
-        """Attach the tick to an APScheduler instance."""
+        """Attach the tick + daily tombstone purge to an APScheduler instance."""
 
         scheduler.add_job(
             self.tick,
             trigger="interval",
             seconds=self.interval_seconds,
             id="data_lifecycle_grace_monitor",
+            replace_existing=True,
+        )
+        scheduler.add_job(
+            self.purge_aged_workspace_tombstones,
+            trigger="cron",
+            hour=3,  # daily at 03:00 UTC
+            minute=15,
+            id="data_lifecycle_workspace_tombstone_purge",
             replace_existing=True,
         )

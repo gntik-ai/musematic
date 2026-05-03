@@ -721,6 +721,16 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             "evaluation-ate-evidence",
             "evaluation-generated-suites",
             app.state.settings.incident_response.postmortem_minio_bucket,
+            # UPD-051 — data lifecycle export ZIPs + cold-storage audit
+            # tombstones. The cold-storage bucket SHOULD be configured
+            # with S3 Object Lock COMPLIANCE mode in production (see
+            # deploy/runbooks/data-lifecycle/cold-storage-retention-restore.md);
+            # create_bucket_if_not_exists is a no-op when the bucket
+            # already exists, so the operator is free to pre-create
+            # the cold-storage bucket with Object Lock enabled before
+            # platform install.
+            app.state.settings.data_lifecycle.export_bucket,
+            app.state.settings.data_lifecycle.audit_cold_bucket,
         ):
             try:
                 await object_storage_client.create_bucket_if_not_exists(bucket_name)

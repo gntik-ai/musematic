@@ -31,9 +31,9 @@ Web app per plan.md: `apps/control-plane/src/platform/data_lifecycle/` for the n
 - [X] T002 [P] Add `clamd>=1.0` to `apps/control-plane/requirements.txt` and `requirements-dev.txt` (NEW dependency per plan R3).
 - [X] T003 [P] Add new env-var stubs to `apps/control-plane/src/platform/common/settings.py` PlatformSettings: `data_lifecycle_export_bucket`, `data_lifecycle_audit_cold_bucket`, `data_lifecycle_dpa_vault_path_template`, `data_lifecycle_grace_default_days` (default 7), `data_lifecycle_tenant_grace_default_days` (default 30), `data_lifecycle_clamav_host`, `data_lifecycle_clamav_port` (default 3310), `data_lifecycle_clamav_timeout_seconds` (default 25), `feature_upd053_dns_teardown` (default False), `feature_upd077_dpa_sms_password` (default False).
 - [ ] T004 [P] Annotate the new env vars inline (rule 37) so `tools/generate-env-docs.py` picks them up; regenerate `docs/reference/env-vars.md`.
-- [ ] T005 [P] Create `deploy/helm/clamav/Chart.yaml`, `values.yaml`, `templates/deployment.yaml`, `templates/service.yaml` for in-cluster ClamAV (R3); use Bitnami ClamAV image, single-replica StatefulSet with 2 GiB PVC for signature DB, daily `freshclam` sidecar.
-- [ ] T006 [P] Create `deploy/helm/public-pages/Chart.yaml`, `values.yaml`, `templates/deployment.yaml`, `templates/service.yaml`, `templates/ingress.yaml`, `templates/configmap-public-pages.yaml` for the operationally-independent public sub-processors release (R5, rule 49).
-- [ ] T007 Wire the two new sub-charts into `deploy/helm/platform/Chart.yaml` as conditional dependencies (`condition: clamav.enabled` and `condition: publicPages.enabled`); enable both in `values.dev.yaml` and `values.prod.yaml`.
+- [X] T005 [P] Create `deploy/helm/clamav/Chart.yaml`, `values.yaml`, `templates/deployment.yaml`, `templates/service.yaml` for in-cluster ClamAV (R3); use Bitnami ClamAV image, single-replica StatefulSet with 2 GiB PVC for signature DB, daily `freshclam` sidecar.
+- [X] T006 [P] Create `deploy/helm/public-pages/Chart.yaml`, `values.yaml`, `templates/deployment.yaml`, `templates/service.yaml`, `templates/ingress.yaml`, `templates/configmap-public-pages.yaml` for the operationally-independent public sub-processors release (R5, rule 49).
+- [X] T007 Wire the two new sub-charts into `deploy/helm/platform/Chart.yaml` as conditional dependencies (`condition: clamav.enabled` and `condition: publicPages.enabled`); enable both in `values.dev.yaml` and `values.prod.yaml`.
 - [ ] T008 Create `apps/control-plane/migrations/versions/111_data_lifecycle.py` skeleton (revision id `111_data_lifecycle`, down_revision = current head as queried via `alembic heads`, `transactional_ddl = False`); leave upgrade/downgrade bodies empty for T010.
 - [X] T009 Create `tests/e2e/suites/data_lifecycle/__init__.py` and `tests/integration/data_lifecycle/__init__.py` and `tests/unit/data_lifecycle/__init__.py` so pytest discovers the tree.
 
@@ -121,7 +121,7 @@ Web app per plan.md: `apps/control-plane/src/platform/data_lifecycle/` for the n
 - [ ] T049 [P] [US2] Frontend: implement `apps/web/app/(main)/workspaces/[id]/settings/delete/page.tsx` — typed-confirmation input matching workspace slug, danger-coloured Delete button, `DeletionGraceBanner` rendered when `status='pending_deletion'`.
 - [ ] T050 [P] [US2] Frontend: implement `apps/web/app/(main)/cancel-deletion/[token]/page.tsx` — calls cancel endpoint, shows the rule-35 anti-enumeration message regardless of outcome.
 - [ ] T051 [P] [US2] Frontend: `apps/web/components/features/data-lifecycle/{DeletionGraceBanner,ConfirmDeleteDialog}.tsx` + `apps/web/lib/data-lifecycle/use-deletion-job.ts`.
-- [ ] T052 [US2] Add 90-day audit-tombstone purge cron in `apps/control-plane/src/platform/data_lifecycle/workers/grace_monitor.py:_purge_workspace_tombstones()`: daily, find tombstones older than 90 d for workspace scopes, replace with hash-anchor entry (FR-752.5), retain chain integrity.
+- [X] T052 [US2] Add 90-day audit-tombstone purge cron in `apps/control-plane/src/platform/data_lifecycle/workers/grace_monitor.py:_purge_workspace_tombstones()`: daily, find tombstones older than 90 d for workspace scopes, replace with hash-anchor entry (FR-752.5), retain chain integrity.
 - [X] T053 [US2] Add Prometheus metrics: `data_lifecycle_deletion_grace_queue_depth` gauge, `data_lifecycle_deletion_phase_advance_total{from_phase,to_phase}` counter, `data_lifecycle_cascade_duration_seconds` histogram.
 
 **Checkpoint**: A workspace owner can delete with grace + cancel; cascade runs at grace expiry; tombstone preserved 90 days; SC-003 + SC-008 measurable.
@@ -154,7 +154,7 @@ Web app per plan.md: `apps/control-plane/src/platform/data_lifecycle/` for the n
 - [ ] T066 [P] [US3] Frontend: implement `apps/web/app/(admin)/admin/tenants/[id]/data-export/page.tsx` and `apps/web/app/(admin)/admin/tenants/[id]/delete/page.tsx` per UI plan; integrate the existing 2PA tray pattern from feature 086.
 - [ ] T067 [P] [US3] Frontend: extend `apps/web/components/features/data-lifecycle/` with `TenantExportPasswordDialog.tsx` (shows out-of-band delivery status), `TenantCascadeProgressTable.tsx` (renders `store_progress` from the job-detail endpoint), `TenantRecoveryDialog.tsx`.
 - [X] T068 [US3] Implement `apps/control-plane/src/platform/data_lifecycle/services/backup_purge_service.py:schedule_purge_for_tenant(tenant_id, cascade_completed_at)`: schedule a job at `cascade_completed_at + 30d`; on tick, call existing UPD-040 `SecretRotationService` to destroy the tenant-specific KMS data key; emit `data_lifecycle.backup.purge_completed` event + tombstone audit (FR-759 + R4).
-- [ ] T069 [US3] Add the cold-storage S3 bucket `platform-audit-cold-storage` configuration to `deploy/helm/platform/templates/s3-buckets.yaml` (Helm-managed bucket creation): SSE-S3, Object Lock COMPLIANCE mode, retention years `dataLifecycle.coldStorage.retentionYears` (default 7).
+- [X] T069 [US3] Add the cold-storage S3 bucket `platform-audit-cold-storage` configuration to `deploy/helm/platform/templates/s3-buckets.yaml` (Helm-managed bucket creation): SSE-S3, Object Lock COMPLIANCE mode, retention years `dataLifecycle.coldStorage.retentionYears` (default 7).
 
 **Checkpoint**: SC-002, SC-004, SC-005, SC-008, SC-009 measurable; tenant deletion end-to-end with regulatory cold-storage retention.
 
@@ -175,13 +175,13 @@ Web app per plan.md: `apps/control-plane/src/platform/data_lifecycle/` for the n
 
 - [X] T072 [US4] Implement `apps/control-plane/src/platform/data_lifecycle/services/sub_processors_service.py`: CRUD (add/modify/soft-delete) + audit emission + Kafka event production; `list_active_for_public()` excludes `is_active=false` and `notes`.
 - [X] T073 [P] [US4] Implement `apps/control-plane/src/platform/data_lifecycle/routers/sub_processors_router.py`: admin endpoints under `/api/v1/admin/sub-processors/*` (require_superadmin), public endpoints under `/api/v1/public/sub-processors{,.rss}` (NO auth), `POST /api/v1/public/sub-processors/subscribe` (anti-enumeration).
-- [ ] T074 [US4] Implement `apps/control-plane/src/platform/data_lifecycle/workers/sub_processors_regenerator.py` APScheduler cron: consumes `data_lifecycle.sub_processor.{added,modified,removed}`, regenerates the public-page snapshot ConfigMap (`public-pages-sub-processors-snapshot`), regenerates the change-log + RSS feed (stored in DB-projected feed table), triggers UPD-077 outbound webhook fanout.
+- [X] T074 [US4] Implement `apps/control-plane/src/platform/data_lifecycle/workers/sub_processors_regenerator.py` APScheduler cron: consumes `data_lifecycle.sub_processor.{added,modified,removed}`, regenerates the public-page snapshot ConfigMap (`public-pages-sub-processors-snapshot`), regenerates the change-log + RSS feed (stored in DB-projected feed table), triggers UPD-077 outbound webhook fanout.
 - [X] T075 [US4] Implement RSS feed rendering helper in `sub_processors_service.py:render_rss(items)` producing valid RSS 2.0 XML per `contracts/sub-processors-rest.md`.
 - [ ] T076 [P] [US4] Frontend: implement `apps/web/app/(public)/legal/sub-processors/page.tsx` (Next.js Server Component, SSR with ETag) — renders the active list + last-updated + change-log; reads from public REST or falls back to snapshot ConfigMap when control plane unreachable.
 - [ ] T077 [P] [US4] Frontend: implement `apps/web/app/(admin)/admin/legal/sub-processors/page.tsx` (admin CRUD UI with shadcn DataTable + Add/Edit dialogs).
 - [ ] T078 [P] [US4] Frontend: implement `apps/web/components/features/data-lifecycle/SubProcessorRow.tsx` (used by both public and admin pages with prop-driven `mode='public'|'admin'`).
 - [ ] T079 [US4] Wire `public-pages` Helm release to mount the snapshot ConfigMap and route `/legal/sub-processors{,.rss}` to its Deployment via Ingress; the Deployment uses `POSTGRES_REPLICA_DSN` for live data and falls back to ConfigMap on read failure.
-- [ ] T080 [US4] Email-subscription verification: store pending subscriptions in a new lightweight table `sub_processor_email_subscriptions` (email, verification_token_hash, verified_at, created_at); verification email via UPD-077; only verified subscribers receive change notifications.
+- [X] T080 [US4] Email-subscription verification: store pending subscriptions in a new lightweight table `sub_processor_email_subscriptions` (email, verification_token_hash, verified_at, created_at); verification email via UPD-077; only verified subscribers receive change notifications.
 
 **Checkpoint**: SC-006 measurable; public page operationally independent (rule 49); RSS + email subscription flowing.
 
@@ -236,7 +236,7 @@ This is a single endpoint that COMPOSES outputs of US1–US5 + UPD-024 + UPD-025
 - [ ] T098 [P] Add J27 to `tests/e2e/journeys/__init__.py` registry and CI matrix.
 - [ ] T099 [P] Accessibility: ensure all 7 new pages are covered by axe in J15 (rule 28); add page paths to `apps/web/playwright/a11y.spec.ts`.
 - [ ] T100 [P] i18n: add new translation keys for the 7 new pages + email templates to `apps/web/locales/en/data-lifecycle.json`; mark for translator pickup. Confirm rule-13 ESLint rule passes (no hardcoded JSX strings).
-- [ ] T101 [P] Tag/label substrate (rule 14): register `data_export_job`, `deletion_job`, `sub_processor` entity types with `entity_tags`/`entity_labels` substrate (UPD-082). Add filter wiring to admin UIs.
+- [X] T101 [P] Tag/label substrate (rule 14): register `data_export_job`, `deletion_job`, `sub_processor` entity types with `entity_tags`/`entity_labels` substrate (UPD-082). Add filter wiring to admin UIs.
 - [X] T102 [P] Coverage: ensure `tests/unit/data_lifecycle/` has ≥95% coverage; if framework-glue files (router, repository, dependencies) drop below threshold, add them to the per-BC coverage omit list in `pyproject.toml` matching the UPD-050 pattern.
 - [X] T103 Verify `make check-rls` passes (T011 satisfied) and `tools/check_admin_role_gates.py` passes (T065 satisfied); fix any drift.
 - [ ] T104 Verify `tools/verify_audit_chain.py` runs as a CI gate (SC-008) — adds the cold-storage chain to its scan list when `platform-audit-cold-storage` bucket is reachable.

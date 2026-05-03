@@ -1,0 +1,26 @@
+{{/*
+ConfigMap snapshot fallback for the public sub-processors page.
+
+The control-plane sub_processors_regenerator cron writes the latest
+snapshot here on every change (FR-757.5: 5-minute SLO). The public
+Deployment reads from this ConfigMap when the PostgreSQL replica is
+unreachable — keeping the page available during a control-plane outage
+(rule 49).
+
+The cron PATCHes this ConfigMap. The chart bootstraps it empty so the
+public Deployment doesn't fail on first install before the cron runs.
+*/}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.snapshot.configmapName }}
+  namespace: {{ .Values.namespace }}
+  labels:
+{{ include "musematic-public-pages.labels" . | indent 4 }}
+data:
+  sub-processors.json: |-
+    {
+      "last_updated_at": null,
+      "items": [],
+      "note": "Snapshot pending first regenerator-cron tick. Live data is served from the replica."
+    }

@@ -243,6 +243,56 @@ class DeletionJob(Base, UUIDMixin, TenantScopedMixin):
     )
 
 
+class SubProcessorEmailSubscription(Base, UUIDMixin):
+    """Public-page change-notification subscriptions.
+
+    Created via ``POST /api/v1/public/sub-processors/subscribe`` with
+    anti-enumeration semantics: every request returns 202 with the same
+    body. The server SHA-256-hashes a one-time verification token and
+    sends the plaintext via UPD-077 email. The subscriber clicks the
+    link to set ``verified_at``; only verified rows receive change
+    fanouts.
+
+    Platform-level (no tenant_id) because the public page is a public
+    artifact — subscribers don't belong to any tenant.
+    """
+
+    __tablename__ = "sub_processor_email_subscriptions"
+    __table_args__ = (
+        Index(
+            "uq_sub_processor_email_subscriptions_token_hash",
+            "verification_token_hash",
+            unique=True,
+        ),
+        Index(
+            "ix_sub_processor_email_subscriptions_email_active",
+            "email",
+            postgresql_where=text(
+                "verified_at IS NOT NULL AND unsubscribed_at IS NULL"
+            ),
+        ),
+    )
+
+    email: Mapped[str] = mapped_column(String(length=320), nullable=False)
+    verification_token_hash: Mapped[bytes] = mapped_column(
+        LargeBinary(), nullable=False
+    )
+    verification_token_expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    unsubscribed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("now()"),
+    )
+
+
 class SubProcessor(Base, UUIDMixin, TimestampMixin):
     """Platform-level public sub-processor registry.
 

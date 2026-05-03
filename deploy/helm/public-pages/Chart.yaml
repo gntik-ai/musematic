@@ -1,0 +1,6 @@
+apiVersion: v2
+name: musematic-public-pages
+description: Operationally-independent public pages release (UPD-051 sub-processors page, UPD-049 status page) — rule 49 outage independence.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

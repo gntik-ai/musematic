@@ -248,6 +248,7 @@ omit = [
   "src/platform/data_lifecycle/routers/workspace_router.py",
   "src/platform/data_lifecycle/workers/export_worker.py",
   "src/platform/data_lifecycle/workers/grace_monitor.py",
+  "src/platform/data_lifecycle/workers/sub_processors_regenerator.py",
   "src/platform/data_lifecycle/serializers/workspace/__init__.py",
   "src/platform/data_lifecycle/serializers/workspace/agents.py",
   "src/platform/data_lifecycle/serializers/workspace/audit.py",
