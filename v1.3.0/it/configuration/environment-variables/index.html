@@ -4300,6 +4300,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#datalifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      DataLifecycle
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#discovery" class="md-nav__link">
     <span class="md-ellipsis">
       Discovery
@@ -5242,6 +5251,15 @@
   <a href="#database" class="md-nav__link">
     <span class="md-ellipsis">
       Database
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#datalifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      DataLifecycle
     </span>
   </a>
   
@@ -6857,6 +6875,157 @@
 </tr>
 </tbody>
 </table>
+<h2 id="datalifecycle">DataLifecycle<a class="headerlink" href="#datalifecycle" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Required</th>
+<th>Default</th>
+<th>Sensitivity</th>
+<th>Description</th>
+<th>Sources</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DATA_LIFECYCLE_AUDIT_COLD_BUCKET</code></td>
+<td>optional</td>
+<td><code>platform-audit-cold-storage</code></td>
+<td>configuration</td>
+<td>S3 bucket for audit-chain tombstones from deleted tenants. Object Lock COMPLIANCE mode with multi-year retention.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>DATA_LIFECYCLE_AUDIT_TOMBSTONE_RETENTION_DAYS</code></td>
+<td>optional</td>
+<td><code>90</code></td>
+<td>informational</td>
+<td>Workspace deletion audit tombstone retention (days) before reduction to a hash-anchor entry (FR-752.5).</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>DATA_LIFECYCLE_BACKUP_PURGE_OFFSET_DAYS</code></td>
+<td>optional</td>
+<td><code>30</code></td>
+<td>informational</td>
+<td>Days after cascade completion before tenant backup data is purged via key destruction (FR-759 / SC-009).</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>DATA_LIFECYCLE_CLAMAV_HOST</code></td>
+<td>optional</td>
+<td><code>clamav.platform-data</code></td>
+<td>configuration</td>
+<td>ClamAV daemon hostname for DPA virus scanning.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>DATA_LIFECYCLE_CLAMAV_PORT</code></td>
+<td>optional</td>
+<td><code>3310</code></td>
+<td>configuration</td>
+<td>ClamAV daemon TCP port.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>DATA_LIFECYCLE_CLAMAV_TIMEOUT_SECONDS</code></td>
+<td>optional</td>
+<td><code>25.0</code></td>
+<td>informational</td>
+<td>ClamAV scan timeout in seconds (must be &lt; FR-756 30s budget).</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>DATA_LIFECYCLE_COLD_STORAGE_RETENTION_YEARS</code></td>
+<td>optional</td>
+<td><code>7</code></td>
+<td>informational</td>
+<td>Object-lock retention years for the audit cold-storage bucket.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>DATA_LIFECYCLE_DPA_VAULT_PATH_TEMPLATE</code></td>
+<td>optional</td>
+<td><code>secret/data/musematic/{env}/tenants/{slug}/dpa/dpa-{version}.pdf</code></td>
+<td>configuration</td>
+<td>Vault KV v2 path template for tenant DPA storage.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>DATA_LIFECYCLE_EXPORT_BUCKET</code></td>
+<td>optional</td>
+<td><code>data-lifecycle-exports</code></td>
+<td>configuration</td>
+<td>S3 bucket for workspace and tenant export archives.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>DATA_LIFECYCLE_EXPORT_LEASE_TTL_SECONDS</code></td>
+<td>optional</td>
+<td><code>3900</code></td>
+<td>configuration</td>
+<td>Redis lease TTL for the export worker (seconds). Default 65 minutes covers the SC-002 60-minute tenant-export budget plus 5 minutes grace.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>DATA_LIFECYCLE_EXPORT_RATE_LIMIT_PER_WORKSPACE_PER_24H</code></td>
+<td>optional</td>
+<td><code>5</code></td>
+<td>configuration</td>
+<td>Maximum workspace exports per workspace per 24 hours.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>DATA_LIFECYCLE_GRACE_DEFAULT_DAYS</code></td>
+<td>optional</td>
+<td><code>7</code></td>
+<td>informational</td>
+<td>Default workspace deletion grace period (days).</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>DATA_LIFECYCLE_GRACE_MAX_DAYS</code></td>
+<td>optional</td>
+<td><code>90</code></td>
+<td>informational</td>
+<td>Upper bound on cumulative deletion grace period (days).</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>DATA_LIFECYCLE_SUB_PROCESSORS_REGENERATE_INTERVAL_SECONDS</code></td>
+<td>optional</td>
+<td><code>300</code></td>
+<td>informational</td>
+<td>Sub-processors public page regeneration cadence (FR-757.5: 5 min).</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>DATA_LIFECYCLE_TENANT_EXPORT_URL_TTL_DAYS</code></td>
+<td>optional</td>
+<td><code>30</code></td>
+<td>configuration</td>
+<td>Signed-URL TTL for tenant exports (days).</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>DATA_LIFECYCLE_TENANT_GRACE_DEFAULT_DAYS</code></td>
+<td>optional</td>
+<td><code>30</code></td>
+<td>informational</td>
+<td>Default tenant deletion grace period (days).</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>DATA_LIFECYCLE_WORKSPACE_EXPORT_URL_TTL_DAYS</code></td>
+<td>optional</td>
+<td><code>7</code></td>
+<td>configuration</td>
+<td>Signed-URL TTL for workspace exports (days).</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+</tbody>
+</table>
 <h2 id="discovery">Discovery<a class="headerlink" href="#discovery" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -7522,6 +7691,14 @@
 <td><code>deploy/helm/ui/templates/deployment.yaml</code></td>
 </tr>
 <tr>
+<td><code>NEXT_PUBLIC_ROUTE_GROUP</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/public-pages/templates/deployment.yaml</code></td>
+</tr>
+<tr>
 <td><code>NEXT_PUBLIC_STATUS_API_BASE_URL</code></td>
 <td>optional</td>
 <td>-</td>
@@ -7682,12 +7859,28 @@
 <td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>deploy/helm/platform/templates/platform-bootstrap-job.yaml</code></td>
 </tr>
 <tr>
+<td><code>POSTGRES_REPLICA_DSN</code></td>
+<td>optional</td>
+<td>-</td>
+<td>configuration</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/public-pages/templates/deployment.yaml</code></td>
+</tr>
+<tr>
 <td><code>POSTGRES_REPLICA_DSN_REF</code></td>
 <td>optional</td>
 <td>-</td>
 <td>configuration</td>
 <td>Declared as a Kubernetes container environment variable.</td>
 <td><code>deploy/helm/platform/templates/replication-jobs/postgres-streaming-replica.yaml</code></td>
+</tr>
+<tr>
+<td><code>PUBLIC_PAGES_SNAPSHOT_CONFIGMAP</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/public-pages/templates/deployment.yaml</code></td>
 </tr>
 <tr>
 <td><code>QDRANT_API_KEY_REF</code></td>
@@ -10321,6 +10514,14 @@
 <td><code>apps/control-plane/src/platform/localization/exceptions.py</code></td>
 </tr>
 <tr>
+<td><code>DATA_LIFECYCLE_</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
 <td><code>DEAD_LETTER_ALREADY_RESOLVED</code></td>
 <td>optional</td>
 <td>-</td>
@@ -11103,6 +11304,14 @@
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
 <td><code>apps/control-plane/src/platform/simulation/scenarios_service.py</code></td>
+</tr>
+<tr>
+<td><code>FOUND</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/data_lifecycle/services/dpa_service.py</code></td>
 </tr>
 <tr>
 <td><code>GENERATED_BY</code></td>
@@ -12550,7 +12759,7 @@
 <td><code>(computed)</code></td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/admin/services/vault_admin_service.py</code><br><code>apps/control-plane/src/platform/auth/services/oauth_bootstrap.py</code><br><code>apps/control-plane/src/platform/common/config.py</code></td>
+<td><code>apps/control-plane/src/platform/admin/services/vault_admin_service.py</code><br><code>apps/control-plane/src/platform/auth/services/oauth_bootstrap.py</code><br><code>apps/control-plane/src/platform/common/config.py</code><br><code>apps/control-plane/src/platform/data_lifecycle/routers/dpa_router.py</code></td>
 </tr>
 <tr>
 <td><code>PLATFORM_FORCE_RESET_SUPERADMIN</code></td>
@@ -14657,6 +14866,14 @@
 <td><code>apps/control-plane/src/platform/localization/exceptions.py</code></td>
 </tr>
 <tr>
+<td><code>WORKSPACE_PENDING_DELETION</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/workspaces/exceptions.py</code></td>
+</tr>
+<tr>
 <td><code>WORKSPACE_PERMISSION_DENIED</code></td>
 <td>optional</td>
 <td>-</td>
@@ -14888,6 +15105,22 @@
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
+<td><code>FEATURE_UPD053_DNS_TEARDOWN</code></td>
+<td>optional</td>
+<td><code>false</code></td>
+<td>informational</td>
+<td>When true, tenant deletion phase-2 calls UPD-053 to remove DNS + TLS. When false, the cascade logs <code>dns_teardown_skipped</code> and proceeds with the data-store legs only (R8).</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>FEATURE_UPD077_DPA_SMS_PASSWORD</code></td>
+<td>optional</td>
+<td><code>false</code></td>
+<td>sensitive</td>
+<td>When true, tenant-export ZIP password is delivered out-of-band via SMS in addition to email (R9). When false, an OTP fallback is used.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
 <td><code>MARKETPLACE_DEPRECATION_RETENTION_DAYS</code></td>
 <td>optional</td>
 <td><code>30</code></td>
@@ -15101,7 +15334,7 @@
 <td><code>musematic.ai</code></td>
 <td>configuration</td>
 <td>Canonical root domain used by hostname tenant resolution.</td>
-<td><code>apps/control-plane/src/platform/auth/router_oauth.py</code><br><code>apps/control-plane/src/platform/common/config.py</code></td>
+<td><code>apps/control-plane/src/platform/auth/router_oauth.py</code><br><code>apps/control-plane/src/platform/common/config.py</code><br><code>apps/control-plane/src/platform/data_lifecycle/routers/sub_processors_router.py</code></td>
 </tr>
 <tr>
 <td><code>PLATFORM_FEATURE_COST_HARD_CAPS</code></td>
