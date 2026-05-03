@@ -24,5 +24,11 @@ async def test_maintenance_write_attempt_opens_modal_without_503_page(
     await playwright_api.expect(
         ui_page.get_by_text("Maintenance is in progress").first,
     ).to_be_visible()
-    await playwright_api.expect(ui_page.get_by_text("503").first).not_to_be_visible()
+    # Scope to <h1>: the operator UI's "remaining time" counter renders inside
+    # a <p> and can contain the substring "503" (e.g. "38392503m remaining"),
+    # which would false-positive a plain get_by_text("503") match. A genuine
+    # HTTP 503 error page surfaces as an <h1> heading with the status code.
+    await playwright_api.expect(
+        ui_page.locator("h1").filter(has_text="503").first,
+    ).not_to_be_visible()
     await assert_route_called(calls, "write_attempts")
