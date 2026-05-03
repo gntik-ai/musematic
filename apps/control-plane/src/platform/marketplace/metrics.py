@@ -36,9 +36,10 @@ class _NoopMetric:  # pragma: no cover - used only when prometheus_client is una
         return None
 
 
-_prometheus_client: Any
 try:  # pragma: no cover - prometheus_client is installed in runtime images
-    import prometheus_client as _prometheus_client
+    import prometheus_client as _imported_prometheus_client
+
+    _prometheus_client: Any = _imported_prometheus_client
 except Exception:  # pragma: no cover
     _prometheus_client = None
 
@@ -91,7 +92,10 @@ marketplace_self_review_attempts_total = Counter(
 
 marketplace_review_rejection_notification_latency_seconds = Histogram(
     "marketplace_review_rejection_notification_latency_seconds",
-    "Time from reviewer recording a rejection to the submitter receiving the notification (SC-008).",
+    (
+        "Time from reviewer recording a rejection to the submitter "
+        "receiving the notification (SC-008)."
+    ),
     buckets=(1, 5, 10, 30, 60, 120, 300, 600),
 )
 

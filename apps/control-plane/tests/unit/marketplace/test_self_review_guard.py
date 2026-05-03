@@ -24,7 +24,6 @@ from uuid import UUID, uuid4
 
 import pytest
 
-
 ACTIONS: list[Literal["assign", "claim", "approve", "reject"]] = [
     "assign",
     "claim",

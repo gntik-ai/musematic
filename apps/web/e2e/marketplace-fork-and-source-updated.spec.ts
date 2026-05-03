@@ -21,7 +21,6 @@ import { mockAuthApi, signIn } from "@/e2e/auth/helpers";
 
 const PUBLIC_AGENT_ID = "55555555-5555-5555-5555-555555555555";
 const PUBLIC_FQN = "anthropic:research-agent";
-const SOURCE_DEEP_LINK = `/marketplace?source_agent_id=${PUBLIC_AGENT_ID}`;
 
 async function mockEnterpriseConsumerSession(page: Page) {
   await page.route("**/api/v1/me/memberships", async (route) => {

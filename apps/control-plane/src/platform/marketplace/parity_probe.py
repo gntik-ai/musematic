@@ -75,13 +75,13 @@ class MarketplaceParityProbe:
         reached anyway.
         """
         if len(query) < 1 or len(query) > 256:
-            raise ValueError("query length must be 1–256 characters")
-        # Step 1 — counterfactual search.
+            raise ValueError("query length must be 1-256 characters")
+        # Step 1 - counterfactual search.
         async with database.PlatformStaffAsyncSessionLocal() as session:
             counterfactual = await self._run_search(
                 session, query=query, subject_tenant_id=subject_tenant_id
             )
-            # Steps 2–5 — savepoint + synthetic publish + re-run + rollback.
+            # Steps 2-5 - savepoint + synthetic publish + re-run + rollback.
             try:
                 async with session.begin_nested() as savepoint:
                     synthetic_id = await self._insert_synthetic_public_agent(
@@ -200,7 +200,7 @@ class MarketplaceParityProbe:
         query inside the active SAVEPOINT. The default-tenant UUID is
         the well-known constant seeded by UPD-046 migration 096.
         """
-        DEFAULT_TENANT_UUID = "00000000-0000-0000-0000-000000000001"
+        default_tenant_uuid = "00000000-0000-0000-0000-000000000001"
         synthetic_id = uuid4()
         # Use FQN that contains the query so ILIKE matches.
         synthetic_fqn = f"_parity_probe:{query.lower()}-{str(synthetic_id)[:8]}"
@@ -218,7 +218,7 @@ class MarketplaceParityProbe:
             ),
             {
                 "id": str(synthetic_id),
-                "tenant_id": DEFAULT_TENANT_UUID,
+                "tenant_id": default_tenant_uuid,
                 "fqn": synthetic_fqn,
             },
         )

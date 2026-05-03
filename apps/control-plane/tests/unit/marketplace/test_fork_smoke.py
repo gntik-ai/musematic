@@ -13,7 +13,6 @@ from platform.registry.exceptions import (
     SourceAgentNotVisibleError,
 )
 from platform.registry.schemas import ForkAgentRequest
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 

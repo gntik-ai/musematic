@@ -191,13 +191,13 @@ from platform.interactions.goal_lifecycle import GoalAutoCompletionScanner
 from platform.interactions.router import router as interactions_router
 from platform.localization.events import register_localization_event_types
 from platform.localization.router import router as localization_router
+from platform.marketplace.consumer import MarketplaceFanoutConsumer
 from platform.marketplace.dependencies import (
     build_quality_service as build_marketplace_quality_service,
 )
 from platform.marketplace.dependencies import (
     build_recommendation_service as build_marketplace_recommendation_service,
 )
-from platform.marketplace.consumer import MarketplaceFanoutConsumer
 from platform.marketplace.dependencies import (
     build_search_service as build_marketplace_search_service,
 )

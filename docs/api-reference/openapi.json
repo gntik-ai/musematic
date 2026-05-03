@@ -4335,6 +4335,22 @@
         "title": "AssemblyRecordResponse",
         "type": "object"
       },
+      "AssignReviewerRequest": {
+        "additionalProperties": false,
+        "description": "Body of `POST /api/v1/admin/marketplace-review/{agent_id}/assign`.",
+        "properties": {
+          "reviewer_user_id": {
+            "format": "uuid",
+            "title": "Reviewer User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reviewer_user_id"
+        ],
+        "title": "AssignReviewerRequest",
+        "type": "object"
+      },
       "AttachRevisionRequest": {
         "properties": {
           "revision_id": {
@@ -33476,6 +33492,29 @@
             "title": "Agent Id",
             "type": "string"
           },
+          "assigned_reviewer_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Reviewer Email"
+          },
+          "assigned_reviewer_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assigned Reviewer User Id"
+          },
           "category": {
             "title": "Category",
             "type": "string"
@@ -33491,6 +33530,11 @@
               }
             ],
             "title": "Claimed By User Id"
+          },
+          "is_self_authored": {
+            "default": false,
+            "title": "Is Self Authored",
+            "type": "boolean"
           },
           "marketing_description": {
             "title": "Marketing Description",
@@ -33535,6 +33579,97 @@
           "age_minutes"
         ],
         "title": "ReviewSubmissionView",
+        "type": "object"
+      },
+      "ReviewerAssignmentResponse": {
+        "additionalProperties": false,
+        "description": "Response of `POST /api/v1/admin/marketplace-review/{agent_id}/assign`.",
+        "properties": {
+          "agent_id": {
+            "format": "uuid",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "assigned_at": {
+            "format": "date-time",
+            "title": "Assigned At",
+            "type": "string"
+          },
+          "assigned_reviewer_email": {
+            "title": "Assigned Reviewer Email",
+            "type": "string"
+          },
+          "assigned_reviewer_user_id": {
+            "format": "uuid",
+            "title": "Assigned Reviewer User Id",
+            "type": "string"
+          },
+          "assigner_user_id": {
+            "format": "uuid",
+            "title": "Assigner User Id",
+            "type": "string"
+          },
+          "prior_assignee_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prior Assignee User Id"
+          }
+        },
+        "required": [
+          "agent_id",
+          "assigned_reviewer_user_id",
+          "assigned_reviewer_email",
+          "assigner_user_id",
+          "assigned_at"
+        ],
+        "title": "ReviewerAssignmentResponse",
+        "type": "object"
+      },
+      "ReviewerUnassignmentResponse": {
+        "additionalProperties": false,
+        "description": "Response of `DELETE /api/v1/admin/marketplace-review/{agent_id}/assign`.",
+        "properties": {
+          "agent_id": {
+            "format": "uuid",
+            "title": "Agent Id",
+            "type": "string"
+          },
+          "prior_assignee_user_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prior Assignee User Id"
+          },
+          "unassigned_at": {
+            "format": "date-time",
+            "title": "Unassigned At",
+            "type": "string"
+          },
+          "unassigner_user_id": {
+            "format": "uuid",
+            "title": "Unassigner User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "agent_id",
+          "unassigned_at",
+          "unassigner_user_id"
+        ],
+        "title": "ReviewerUnassignmentResponse",
         "type": "object"
       },
       "RevokeInvitationResponse": {
@@ -52332,6 +52467,93 @@
         ]
       }
     },
+    "/api/v1/admin/marketplace-review/parity-probe": {
+      "get": {
+        "description": "SC-004 verification harness \u2014 see contract for full behaviour.\n\nThe probe runs the same search twice (counterfactual + with a\nsynthetic public agent matching the query inserted under a\nSAVEPOINT that is rolled back before the response returns) and\ncompares the result/count/suggestions/analytics-event payload\nbyte-for-byte. ``parity_violation=true`` means the visibility\nfilter let synthetic public-hub data leak.",
+        "operationId": "parity_probe_api_v1_admin_marketplace_review_parity_probe_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "query",
+            "required": true,
+            "schema": {
+              "maxLength": 256,
+              "minLength": 1,
+              "title": "Query",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "subject_tenant_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Subject Tenant Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Parity Probe Api V1 Admin Marketplace Review Parity Probe Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Parity Probe",
+        "tags": [
+          "admin",
+          "admin.marketplace_review"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"GET\", \"http://localhost:8000/api/v1/admin/marketplace-review/parity-probe\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"GET\", \"{baseURL}/api/v1/admin/marketplace-review/parity-probe\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/marketplace-review/parity-probe`, {\n  method: \"GET\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X GET \"http://localhost:8000/api/v1/admin/marketplace-review/parity-probe\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
     "/api/v1/admin/marketplace-review/queue": {
       "get": {
         "description": "List ``pending_review`` submissions cross-tenant.\n\nCursor pagination: pass the response's ``next_cursor`` back as\n``cursor`` for the next page; ``None`` means no more pages.",
@@ -52362,6 +52584,36 @@
             "schema": {
               "default": false,
               "title": "Unclaimed",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "UPD-049 refresh \u2014 filter by assigned reviewer. Special values: 'me' resolves to caller's user_id; 'unassigned' filters assigned_reviewer_user_id IS NULL.",
+            "in": "query",
+            "name": "assigned_to",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "UPD-049 refresh \u2014 filter by assigned reviewer. Special values: 'me' resolves to caller's user_id; 'unassigned' filters assigned_reviewer_user_id IS NULL.",
+              "title": "Assigned To"
+            }
+          },
+          {
+            "description": "When false (default) submissions where caller is the submitter are excluded so reviewers cannot accidentally action their own work.",
+            "in": "query",
+            "name": "include_self_authored",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "When false (default) submissions where caller is the submitter are excluded so reviewers cannot accidentally action their own work.",
+              "title": "Include Self Authored",
               "type": "boolean"
             }
           },
@@ -52535,6 +52787,162 @@
           {
             "lang": "curl",
             "source": "curl -X POST \"http://localhost:8000/api/v1/admin/marketplace-review/{agent_id}/approve\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/marketplace-review/{agent_id}/assign": {
+      "delete": {
+        "description": "Clear the assignment of a pending-review submission. Idempotent.",
+        "operationId": "unassign_reviewer_api_v1_admin_marketplace_review__agent_id__assign_delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewerUnassignmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Unassign Reviewer",
+        "tags": [
+          "admin",
+          "admin.marketplace_review"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"DELETE\", \"http://localhost:8000/api/v1/admin/marketplace-review/{agent_id}/assign\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"DELETE\", \"{baseURL}/api/v1/admin/marketplace-review/{agent_id}/assign\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/marketplace-review/{agent_id}/assign`, {\n  method: \"DELETE\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X DELETE \"http://localhost:8000/api/v1/admin/marketplace-review/{agent_id}/assign\" -H \"Authorization: Bearer $TOKEN\""
+          }
+        ]
+      },
+      "post": {
+        "description": "Assign a pending-review submission to a specific reviewer.",
+        "operationId": "assign_reviewer_api_v1_admin_marketplace_review__agent_id__assign_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignReviewerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewerAssignmentResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "session": []
+          },
+          {
+            "oauth2": []
+          },
+          {
+            "apiKey": []
+          }
+        ],
+        "summary": "Assign Reviewer",
+        "tags": [
+          "admin",
+          "admin.marketplace_review"
+        ],
+        "x-codeSamples": [
+          {
+            "lang": "Python",
+            "source": "import requests\n\nresponse = requests.request(\"POST\", \"http://localhost:8000/api/v1/admin/marketplace-review/{agent_id}/assign\", headers={\"Authorization\": \"Bearer $TOKEN\"})\nresponse.raise_for_status()\nprint(response.json())"
+          },
+          {
+            "lang": "Go",
+            "source": "req, _ := http.NewRequest(\"POST\", \"{baseURL}/api/v1/admin/marketplace-review/{agent_id}/assign\", nil)\nreq.Header.Set(\"Authorization\", \"Bearer \"+token)\nresp, err := http.DefaultClient.Do(req)"
+          },
+          {
+            "lang": "TypeScript",
+            "source": "const response = await fetch(`${baseUrl}/api/v1/admin/marketplace-review/{agent_id}/assign`, {\n  method: \"POST\",\n  headers: { Authorization: `Bearer ${token}` }\n});"
+          },
+          {
+            "lang": "curl",
+            "source": "curl -X POST \"http://localhost:8000/api/v1/admin/marketplace-review/{agent_id}/assign\" -H \"Authorization: Bearer $TOKEN\""
           }
         ]
       }

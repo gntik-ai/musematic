@@ -221,7 +221,10 @@ class MarketplaceAdminService:
         result = row.mappings().first()
         if result is None:
             return None
-        submitter_user_id = result["created_by"]
+        raw_submitter = result["created_by"]
+        submitter_user_id: UUID | None = (
+            raw_submitter if isinstance(raw_submitter, UUID) else None
+        )
         if submitter_user_id is not None and submitter_user_id == actor_user_id:
             marketplace_self_review_attempts_total.labels(action=action).inc()
             LOGGER.info(
