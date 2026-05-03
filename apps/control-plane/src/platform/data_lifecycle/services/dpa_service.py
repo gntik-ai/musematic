@@ -426,7 +426,7 @@ class ClamdScanAdapter:
         self, payload: bytes, *, timeout_seconds: float
     ) -> str | None:
         try:
-            import clamd  # type: ignore[import-not-found]
+            import clamd
         except ImportError as exc:
             raise DPAScanUnavailableError("clamd python client not installed") from exc
 
