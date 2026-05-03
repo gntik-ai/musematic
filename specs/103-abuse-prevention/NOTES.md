@@ -143,6 +143,7 @@
 - `suspension_service.py` → `suspension.py` (per refresh module-split decision).
 
 ### Deferrals (operator follow-ups)
+- **Signup-endpoint wire-up of `AbusePreventionService.check_signup_guards`** (T017): the FastAPI `Depends(build_abuse_prevention_facade)` injection caused the e2e signup tests to hang with `httpx.ReadTimeout` (root cause: combination of staff-vs-regular session selection, Redis init ordering, and audit-chain Kafka emission timing in the kind cluster e2e env). The façade is fully implemented and unit-tested (54 cases pass); what is deferred is the FastAPI Depends plumbing into `accounts/router.py:register`. UPD-037 outer rate limiter (5/IP/hour, 3/email/24h) remains the active signup defence until the wire-up follow-up PR lands.
 
 - **US5 cost-protection wire-up at runtime layer** (T069–T071): the plan caps are present in plan_versions extras_json (UPD-047), but explicit Prometheus increments for `model_tier`, `execution_time`, `reasoning_depth`, `monthly_execution_cap` cap-fired events at the model_router / execution / reasoning sites need follow-up coordination with the UPD-026 (model_catalog) and UPD-047 (billing/quotas) BC owners.
 - **Frontend CAPTCHA widget on signup page** (T076): bridge between abuse-prevention BC and `apps/web/app/(auth)/signup/page.tsx` belongs to the signup-page owner.

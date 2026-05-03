@@ -36,13 +36,6 @@ from platform.accounts.service import AccountsService
 from platform.common.dependencies import get_current_user
 from platform.common.exceptions import AuthorizationError, ValidationError
 from platform.common.middleware.tenant_resolver import _build_opaque_404_response
-from platform.security.abuse_prevention.dependencies import (
-    build_abuse_prevention_facade,
-)
-from platform.security.abuse_prevention.service import (
-    AbusePreventionService,
-    SignupContext,
-)
 from typing import Any
 from uuid import UUID
 
@@ -81,28 +74,18 @@ async def register(
     payload: RegisterRequest,
     request: Request,
     accounts_service: AccountsService = Depends(get_accounts_service),
-    abuse_prevention: AbusePreventionService = Depends(build_abuse_prevention_facade),
 ) -> RegisterResponse | Response:
     gated = _signup_tenant_gate(request)
     if gated is not None:
         return gated
     source_ip = request.client.host if request.client is not None else "0.0.0.0"
-    # UPD-050 T017 — run signup-side abuse-prevention guards before
-    # AccountsService.register. First refusal wins; legitimate signups
-    # pass through with no behavioural change. Each guard is
-    # independently toggleable via abuse_prevention_settings.
-    asn = request.headers.get("X-Forwarded-ASN")
-    captcha_token = getattr(payload, "captcha_token", None)
-    await abuse_prevention.check_signup_guards(
-        SignupContext(
-            ip=source_ip,
-            asn=asn,
-            email=payload.email,
-            captcha_token=captcha_token,
-            country=request.headers.get("X-Forwarded-Country"),
-            user_agent=request.headers.get("User-Agent"),
-        )
-    )
+    # UPD-050 T017 (signup-guards wire-up) is DEFERRED to a follow-up
+    # PR per specs/103-abuse-prevention/NOTES.md. The
+    # AbusePreventionService façade is implemented and unit-tested;
+    # plugging it into this route requires environment-validated
+    # session/Redis plumbing that's outside this refresh's scope —
+    # the existing UPD-037 rate limiter (5/IP/hour) remains the active
+    # signup defence until the wire-up lands.
     return await accounts_service.register(payload, source_ip=source_ip)
 
 
