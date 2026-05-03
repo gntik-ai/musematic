@@ -1,0 +1,62 @@
+{{- if and .Values.geolite2 (default false (index .Values.geolite2 "refresh" "enabled")) -}}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-geolite2-refresh
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: geolite2-refresh
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: musematic
+    app.kubernetes.io/component: abuse-prevention
+spec:
+  schedule: {{ default "0 3 * * 0" (index .Values.geolite2 "refresh" "schedule") | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: geolite2-refresh
+            app.kubernetes.io/instance: {{ .Release.Name }}
+            app.kubernetes.io/part-of: musematic
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: refresh
+              image: curlimages/curl:8.11.1
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -e
+                  if [ -z "${MAXMIND_LICENSE_KEY}" ]; then
+                    echo "MAXMIND_LICENSE_KEY is empty; skipping GeoLite2 refresh."
+                    exit 0
+                  fi
+                  cd /var/lib/geolite2
+                  curl -fsSL \
+                    "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country&license_key=${MAXMIND_LICENSE_KEY}&suffix=tar.gz" \
+                    -o GeoLite2-Country.tar.gz
+                  tar -xzf GeoLite2-Country.tar.gz --strip-components=1 \
+                    --wildcards '*/GeoLite2-Country.mmdb'
+                  rm -f GeoLite2-Country.tar.gz
+                  echo "GeoLite2 Country DB refreshed at $(pwd)/GeoLite2-Country.mmdb"
+              env:
+                - name: MAXMIND_LICENSE_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Release.Name }}-geolite2-license
+                      key: license-key
+                      optional: true
+              volumeMounts:
+                - name: geolite2-db
+                  mountPath: /var/lib/geolite2
+          volumes:
+            - name: geolite2-db
+              persistentVolumeClaim:
+                claimName: {{ default "geolite2-db" .Values.geolite2.pvcName }}
+{{- end }}

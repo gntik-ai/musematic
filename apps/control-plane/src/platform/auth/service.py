@@ -192,6 +192,22 @@ class AuthService:
                 AuthOutcome.FAILURE_PASSWORD.value,
             )
             raise InvalidCredentialsError()
+        # UPD-050 — refuse login for suspended accounts. The
+        # `as_user_active_idx` partial index keeps this point lookup
+        # cheap. The user-facing error is intentionally non-leaky per
+        # FR-010 (no reason or evidence disclosed).
+        active_suspension_id = await self.repository.get_active_suspension_id(user_id)
+        if active_suspension_id is not None:
+            await self.repository.record_auth_attempt(
+                user_id,
+                normalized_email,
+                ip,
+                device,
+                AuthOutcome.FAILURE_PASSWORD.value,
+            )
+            from platform.security.abuse_prevention.exceptions import SuspendedAccountError
+
+            raise SuspendedAccountError(appeal_contact="support@musematic.ai")
         if needs_rehash(credential.password_hash):
             await self.repository.update_password_hash(user_id, hash_password(password))
 

@@ -78,6 +78,26 @@ class AuthRepository:
         )
         return result.scalar_one_or_none()
 
+    async def get_active_suspension_id(self, user_id: UUID) -> UUID | None:
+        """UPD-050 — return the active suspension's id for a user, or None.
+
+        Login (and password-reset) refuses if this returns a non-None
+        value. The query is backed by the `as_user_active_idx` partial
+        index installed by migration 109.
+        """
+        from sqlalchemy import text as _sa_text
+
+        result = await self.db.execute(
+            _sa_text(
+                "SELECT id FROM account_suspensions "
+                "WHERE user_id = :user_id AND lifted_at IS NULL "
+                "LIMIT 1"
+            ),
+            {"user_id": str(user_id)},
+        )
+        row = result.first()
+        return UUID(str(row[0])) if row is not None else None
+
     async def get_platform_user(self, user_id: UUID) -> PlatformUser | None:
         result = await self.db.execute(select(PlatformUser).where(PlatformUser.id == user_id))
         return result.scalar_one_or_none()

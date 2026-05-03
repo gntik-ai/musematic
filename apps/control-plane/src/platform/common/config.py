@@ -1041,6 +1041,13 @@ class PlatformSettings(BaseSettings):
     - MARKETPLACE_SUBMISSION_RATE_LIMIT_PER_DAY: per-submitter rolling-24h cap (FR-009).
     - MARKETPLACE_FORK_NOTIFY_SOURCE_OWNERS: source-updated fan-out kill switch (FR-027).
 
+    Abuse-prevention settings (UPD-050):
+    - ABUSE_DISPOSABLE_EMAIL_SYNC_ENABLED: weekly upstream sync cron toggle (FR-006).
+    - ABUSE_VELOCITY_REDIS_KEY_TTL_SECONDS: TTL for velocity sorted-set keys (R2).
+    - ABUSE_GEOLITE2_DB_PATH: filesystem path to the GeoLite2 Country DB (R6).
+    - ABUSE_CAPTCHA_TURNSTILE_SECRET_PATH: Vault path for Turnstile secret.
+    - ABUSE_CAPTCHA_HCAPTCHA_SECRET_PATH: Vault path for hCaptcha secret.
+
     Signup settings:
     - SIGNUP_AUTO_CREATE_RETRY_SECONDS: deferred Free-workspace retry cadence for SaaS-3.
     - SIGNUP_FIRST_ADMIN_INVITE_TTL_DAYS: Enterprise setup-token lifetime for SaaS-3.
@@ -1171,6 +1178,65 @@ class PlatformSettings(BaseSettings):
         validation_alias=AliasChoices(
             "MARKETPLACE_FORK_NOTIFY_SOURCE_OWNERS",
             "PLATFORM_MARKETPLACE_FORK_NOTIFY_SOURCE_OWNERS",
+        ),
+    )
+
+    # UPD-050 abuse-prevention settings (brownfield rule 8 — feature flags
+    # ride config; super-admin-mutable thresholds live in
+    # `abuse_prevention_settings` and not here).
+    ABUSE_DISPOSABLE_EMAIL_SYNC_ENABLED: bool = Field(
+        default=True,
+        description=(
+            "Whether the weekly disposable-email upstream sync cron runs "
+            "(UPD-050 FR-006). Disable in air-gapped environments."
+        ),
+        validation_alias=AliasChoices(
+            "ABUSE_DISPOSABLE_EMAIL_SYNC_ENABLED",
+            "PLATFORM_ABUSE_DISPOSABLE_EMAIL_SYNC_ENABLED",
+        ),
+    )
+    ABUSE_VELOCITY_REDIS_KEY_TTL_SECONDS: int = Field(
+        default=86400,
+        ge=60,
+        description=(
+            "TTL for `abuse:vel:*` Redis sorted-set keys (UPD-050 R2). "
+            "Long enough to outlast the 24h email-domain window."
+        ),
+        validation_alias=AliasChoices(
+            "ABUSE_VELOCITY_REDIS_KEY_TTL_SECONDS",
+            "PLATFORM_ABUSE_VELOCITY_REDIS_KEY_TTL_SECONDS",
+        ),
+    )
+    ABUSE_GEOLITE2_DB_PATH: str = Field(
+        default="/var/lib/geolite2/GeoLite2-Country.mmdb",
+        description=(
+            "Filesystem path to the MaxMind GeoLite2 Country DB "
+            "(UPD-050 R6). Mounted by the chart from a PVC."
+        ),
+        validation_alias=AliasChoices(
+            "ABUSE_GEOLITE2_DB_PATH",
+            "PLATFORM_ABUSE_GEOLITE2_DB_PATH",
+        ),
+    )
+    ABUSE_CAPTCHA_TURNSTILE_SECRET_PATH: str = Field(
+        default="secret/data/abuse/captcha/turnstile",
+        description=(
+            "Vault path that holds the Cloudflare Turnstile secret "
+            "(UPD-050 R5)."
+        ),
+        validation_alias=AliasChoices(
+            "ABUSE_CAPTCHA_TURNSTILE_SECRET_PATH",
+            "PLATFORM_ABUSE_CAPTCHA_TURNSTILE_SECRET_PATH",
+        ),
+    )
+    ABUSE_CAPTCHA_HCAPTCHA_SECRET_PATH: str = Field(
+        default="secret/data/abuse/captcha/hcaptcha",
+        description=(
+            "Vault path that holds the hCaptcha secret (UPD-050 R5)."
+        ),
+        validation_alias=AliasChoices(
+            "ABUSE_CAPTCHA_HCAPTCHA_SECRET_PATH",
+            "PLATFORM_ABUSE_CAPTCHA_HCAPTCHA_SECRET_PATH",
         ),
     )
 

@@ -22,6 +22,7 @@ from platform.multi_region_ops.admin_router import router as multi_region_ops_ad
 from platform.notifications.admin_router import router as notifications_admin_router
 from platform.policies.admin_router import router as policies_admin_router
 from platform.privacy_compliance.admin_router import router as privacy_compliance_admin_router
+from platform.security.abuse_prevention.admin_router import router as abuse_prevention_admin_router
 from platform.security_compliance.admin_router import router as security_compliance_admin_router
 from platform.tenants.admin_router import router as tenants_admin_router
 from platform.workspaces.admin_router import router as workspaces_admin_router
@@ -58,6 +59,7 @@ admin_router.include_router(notifications_admin_router)
 admin_router.include_router(operations_router)
 admin_router.include_router(policies_admin_router)
 admin_router.include_router(privacy_compliance_admin_router)
+admin_router.include_router(abuse_prevention_admin_router)
 admin_router.include_router(security_compliance_admin_router)
 admin_router.include_router(settings_router)
 admin_router.include_router(tenants_admin_router)

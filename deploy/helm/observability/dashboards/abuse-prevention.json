@@ -1,0 +1,155 @@
+{
+  "annotations": { "list": [] },
+  "description": "Abuse-prevention layer telemetry for UPD-050: velocity hits, disposable-email blocks, CAPTCHA failures, geo blocks, fraud-scoring callbacks, suspensions.",
+  "editable": true,
+  "id": null,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "$prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Velocity hits per minute (by counter)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (counter) (rate(abuse_velocity_hits_total[1m]))",
+          "legendFormat": "{{counter}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "title": "Disposable-email blocks per minute",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "rate(abuse_disposable_email_blocks_total[1m])",
+          "legendFormat": "blocks/s",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 3,
+      "title": "CAPTCHA failures (by reason)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (reason) (rate(abuse_captcha_failures_total[5m]))",
+          "legendFormat": "{{reason}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "id": 4,
+      "title": "Geo-blocks (by country)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (country) (rate(abuse_geo_blocks_total[5m]))",
+          "legendFormat": "{{country}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "id": 5,
+      "title": "Suspensions created (by reason)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum by (reason) (rate(abuse_suspension_created_total[5m]))",
+          "legendFormat": "{{reason}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$prometheus" },
+      "fieldConfig": { "defaults": { "unit": "short" } },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "id": 6,
+      "title": "Suspension lifts + Redis outage rate",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "rate(abuse_suspension_lifted_total[5m])",
+          "legendFormat": "lifts/s",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(abuse_velocity_redis_errors_total[5m])",
+          "legendFormat": "redis-errors/s",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "$prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 24 },
+      "id": 7,
+      "title": "Signup-guard latency (p50/p90/p99 by guard)",
+      "description": "Per-guard latency budget — keep ≤ 200 ms p95 per spec SC-006.",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum by (le, guard) (rate(abuse_signup_guard_duration_seconds_bucket[5m])))",
+          "legendFormat": "p50 {{guard}}",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.90, sum by (le, guard) (rate(abuse_signup_guard_duration_seconds_bucket[5m])))",
+          "legendFormat": "p90 {{guard}}",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum by (le, guard) (rate(abuse_signup_guard_duration_seconds_bucket[5m])))",
+          "legendFormat": "p99 {{guard}}",
+          "refId": "C"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 38,
+  "tags": ["security", "abuse-prevention", "upd-050"],
+  "templating": {
+    "list": [
+      {
+        "current": { "selected": false, "text": "Prometheus", "value": "Prometheus" },
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "multi": false,
+        "name": "prometheus",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      }
+    ]
+  },
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Abuse Prevention (UPD-050)",
+  "uid": "upd050-abuse-prevention",
+  "version": 1
+}
