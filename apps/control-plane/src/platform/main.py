@@ -262,6 +262,7 @@ from platform.registry.index_worker import RegistryIndexWorker
 from platform.registry.registry_opensearch_setup import create_marketplace_agents_index
 from platform.registry.registry_qdrant_setup import create_agent_embeddings_collection
 from platform.registry.router import router as registry_router
+from platform.security.abuse_prevention.events import register_abuse_event_types
 from platform.security_compliance.consumers import ComplianceEvidenceConsumer
 from platform.security_compliance.events import register_security_compliance_event_types
 from platform.security_compliance.router import router as security_compliance_router
@@ -582,6 +583,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_governance_event_types()
     register_a2a_event_types()
     register_mcp_event_types()
+    register_abuse_event_types()
     register_debug_logging_event_types()
     register_privacy_event_types()
     register_model_catalog_event_types()
