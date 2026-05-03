@@ -371,7 +371,7 @@ async def _postgres_execute_for_tenant(
 # the per-scope helpers as module-level functions (testable in isolation)
 # while exposing them through the standard CascadeAdapter interface that
 # the orchestrator uses.
-PostgreSQLCascadeAdapter.dry_run_for_workspace = _postgres_dry_run_for_workspace  # type: ignore[method-assign]
-PostgreSQLCascadeAdapter.execute_for_workspace = _postgres_execute_for_workspace  # type: ignore[method-assign]
-PostgreSQLCascadeAdapter.dry_run_for_tenant = _postgres_dry_run_for_tenant  # type: ignore[method-assign]
-PostgreSQLCascadeAdapter.execute_for_tenant = _postgres_execute_for_tenant  # type: ignore[method-assign]
+PostgreSQLCascadeAdapter.dry_run_for_workspace = _postgres_dry_run_for_workspace  # type: ignore[assignment,method-assign]
+PostgreSQLCascadeAdapter.execute_for_workspace = _postgres_execute_for_workspace  # type: ignore[assignment,method-assign]
+PostgreSQLCascadeAdapter.dry_run_for_tenant = _postgres_dry_run_for_tenant  # type: ignore[assignment,method-assign]
+PostgreSQLCascadeAdapter.execute_for_tenant = _postgres_execute_for_tenant  # type: ignore[assignment,method-assign]
