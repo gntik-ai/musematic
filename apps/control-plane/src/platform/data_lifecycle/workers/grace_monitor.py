@@ -10,10 +10,10 @@ partial-unique index prevent re-entry.
 
 from __future__ import annotations
 
-from typing import Any, Awaitable, Callable
-
+from collections.abc import Callable
 from platform.common.logging import get_logger
 from platform.data_lifecycle.services.deletion_service import DeletionService
+from typing import Any
 
 LOGGER = get_logger(__name__)
 

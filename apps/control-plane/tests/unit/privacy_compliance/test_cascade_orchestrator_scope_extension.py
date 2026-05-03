@@ -13,11 +13,6 @@ PostgreSQL adapter's scope methods are tested separately under
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from types import SimpleNamespace
-from uuid import UUID, uuid4
-
-import pytest
-
 from platform.privacy_compliance.cascade_adapters.base import (
     CascadeAdapter,
     CascadeResult,
@@ -25,6 +20,10 @@ from platform.privacy_compliance.cascade_adapters.base import (
 from platform.privacy_compliance.services.cascade_orchestrator import (
     CascadeOrchestrator,
 )
+from types import SimpleNamespace
+from uuid import UUID, uuid4
+
+import pytest
 
 
 class _ScopeAdapter(CascadeAdapter):
@@ -127,7 +126,9 @@ async def test_execute_workspace_cascade_invokes_each_adapter_in_order() -> None
     assert s3.workspace_calls == [workspace_id]
     # store_results is in adapter-iteration order (deterministic).
     stores = [entry["store"] for entry in result["store_results"]]
-    assert "postgresql" in stores and "qdrant" in stores and "s3" in stores
+    assert "postgresql" in stores
+    assert "qdrant" in stores
+    assert "s3" in stores
     pg_entry = next(e for e in result["store_results"] if e["store"] == "postgresql")
     assert pg_entry["status"] == "completed"
     assert pg_entry["rows_affected"] == 120

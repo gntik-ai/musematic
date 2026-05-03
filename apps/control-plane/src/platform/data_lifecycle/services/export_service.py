@@ -18,16 +18,13 @@ Tenant export reuses the same plumbing with tenant-scope serializers
 
 from __future__ import annotations
 
-import asyncio
 import io
 import json
 import logging
 import zipfile
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any, AsyncIterator, Awaitable, Callable, Protocol
-from uuid import UUID, uuid4
-
 from platform.common.config import DataLifecycleSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.data_lifecycle.events import (
@@ -39,8 +36,8 @@ from platform.data_lifecycle.events import (
     publish_data_lifecycle_event,
 )
 from platform.data_lifecycle.exceptions import (
-    CrossRegionExportBlocked,
-    ExportRateLimitExceeded,
+    CrossRegionExportBlockedError,
+    ExportRateLimitExceededError,
 )
 from platform.data_lifecycle.models import (
     DataExportJob,
@@ -48,6 +45,8 @@ from platform.data_lifecycle.models import (
     ScopeType,
 )
 from platform.data_lifecycle.repository import DataLifecycleRepository
+from typing import Any, Protocol
+from uuid import UUID, uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -64,17 +63,11 @@ class _ExportContext:
     object_key: str
 
 
-class _AsyncSerializer(Protocol):
-    """Async generator yielding (filepath, bytes) pairs.
-
-    Each entry becomes a file inside the export ZIP. Implementations
-    live under ``data_lifecycle/serializers/{workspace,tenant}/``.
-    """
-
-    async def __call__(
-        self, *, scope_id: UUID, tenant_id: UUID
-    ) -> AsyncIterator[tuple[str, bytes]]:
-        ...
+# Async serializer signature — plain callable returning an AsyncIterator.
+# We type as ``Callable[..., AsyncIterator[...]]`` (not a Protocol with
+# ``async def __call__``) because mypy treats the latter as a coroutine
+# returning the async iterator, not as the iterator itself.
+_AsyncSerializer = Callable[..., AsyncIterator[tuple[str, bytes]]]
 
 
 class _AuditAppender(Protocol):
@@ -182,7 +175,7 @@ class ExportService:
 
         Residency: optional callable that returns True iff the request
         is permitted by the workspace's data-residency policy. When
-        False, raises ``CrossRegionExportBlocked``.
+        False, raises ``CrossRegionExportBlockedError``.
         """
 
         # 1. Idempotency.
@@ -199,7 +192,7 @@ class ExportService:
             within=timedelta(hours=24),
         )
         if recent >= self._settings.export_rate_limit_per_workspace_per_24h:
-            raise ExportRateLimitExceeded(
+            raise ExportRateLimitExceededError(
                 f"workspace {workspace_id} exceeded "
                 f"{self._settings.export_rate_limit_per_workspace_per_24h} "
                 f"exports per 24h"
@@ -209,7 +202,7 @@ class ExportService:
         if residency_check is not None and not await residency_check(
             tenant_id, workspace_id
         ):
-            raise CrossRegionExportBlocked(
+            raise CrossRegionExportBlockedError(
                 f"workspace {workspace_id} residency policy blocks export"
             )
 
@@ -235,7 +228,7 @@ class ExportService:
             },
         )
         await publish_data_lifecycle_event(
-            self._producer,
+            self._producer,  # type: ignore[arg-type]  # type: ignore[arg-type]
             DataLifecycleEventType.export_requested,
             ExportRequestedPayload(
                 job_id=job.id,
@@ -282,7 +275,7 @@ class ExportService:
             within=timedelta(hours=24),
         )
         if recent >= self._settings.export_rate_limit_per_workspace_per_24h:
-            raise ExportRateLimitExceeded(
+            raise ExportRateLimitExceededError(
                 f"tenant {tenant_id} exceeded "
                 f"{self._settings.export_rate_limit_per_workspace_per_24h} "
                 f"exports per 24h"
@@ -307,7 +300,7 @@ class ExportService:
             },
         )
         await publish_data_lifecycle_event(
-            self._producer,
+            self._producer,  # type: ignore[arg-type]  # type: ignore[arg-type]
             DataLifecycleEventType.export_requested,
             ExportRequestedPayload(
                 job_id=job.id,
@@ -371,7 +364,7 @@ class ExportService:
             started_at=started,
         )
         await publish_data_lifecycle_event(
-            self._producer,
+            self._producer,  # type: ignore[arg-type]  # type: ignore[arg-type]
             DataLifecycleEventType.export_started,
             ExportStartedPayload(
                 job_id=job.id,
@@ -427,7 +420,7 @@ class ExportService:
                 },
             )
             await publish_data_lifecycle_event(
-                self._producer,
+                self._producer,  # type: ignore[arg-type]  # type: ignore[arg-type]
                 DataLifecycleEventType.export_completed,
                 ExportCompletedPayload(
                     job_id=job.id,
@@ -440,10 +433,9 @@ class ExportService:
                 partition_key=job.tenant_id,
             )
         except Exception as exc:
-            logger.error(
+            logger.exception(
                 "data_lifecycle.export_failed",
                 extra={"job_id": str(job.id), "error": str(exc)},
-                exc_info=True,
             )
             failed_at = datetime.now(UTC)
             failure_code = _classify_failure(exc)
@@ -463,7 +455,7 @@ class ExportService:
                 },
             )
             await publish_data_lifecycle_event(
-                self._producer,
+                self._producer,  # type: ignore[arg-type]  # type: ignore[arg-type]
                 DataLifecycleEventType.export_failed,
                 ExportFailedPayload(
                     job_id=job.id,
@@ -504,7 +496,7 @@ class ExportService:
                 "README.md",
                 _README_BYTES,
             )
-            for name, serializer in self._workspace_serializers.items():
+            for _name, serializer in self._workspace_serializers.items():
                 async for filepath, chunk in serializer(
                     scope_id=workspace_id, tenant_id=tenant_id
                 ):
@@ -570,7 +562,7 @@ class ExportService:
             started_at=started,
         )
         await publish_data_lifecycle_event(
-            self._producer,
+            self._producer,  # type: ignore[arg-type]  # type: ignore[arg-type]
             DataLifecycleEventType.export_started,
             ExportStartedPayload(
                 job_id=job.id,
@@ -620,7 +612,7 @@ class ExportService:
                 },
             )
             await publish_data_lifecycle_event(
-                self._producer,
+                self._producer,  # type: ignore[arg-type]  # type: ignore[arg-type]
                 DataLifecycleEventType.export_completed,
                 ExportCompletedPayload(
                     job_id=job.id,
@@ -633,10 +625,9 @@ class ExportService:
                 partition_key=job.tenant_id,
             )
         except Exception as exc:
-            logger.error(
+            logger.exception(
                 "data_lifecycle.tenant_export_failed",
                 extra={"job_id": str(job.id), "error": str(exc)},
-                exc_info=True,
             )
             failed_at = datetime.now(UTC)
             failure_code = _classify_failure(exc)
@@ -656,7 +647,7 @@ class ExportService:
                 },
             )
             await publish_data_lifecycle_event(
-                self._producer,
+                self._producer,  # type: ignore[arg-type]  # type: ignore[arg-type]
                 DataLifecycleEventType.export_failed,
                 ExportFailedPayload(
                     job_id=job.id,
@@ -683,7 +674,7 @@ class ExportService:
                 json.dumps(metadata, sort_keys=True, indent=2).encode("utf-8"),
             )
             zf.writestr("README.md", _README_BYTES)
-            for name, serializer in self._tenant_serializers.items():
+            for _name, serializer in self._tenant_serializers.items():
                 async for filepath, chunk in serializer(
                     scope_id=tenant_id, tenant_id=tenant_id
                 ):
@@ -762,18 +753,18 @@ def _redact_error(message: str) -> str:
 
 
 _README_BYTES = (
-    "# Workspace data export\n\n"
-    "This archive contains a structured snapshot of your workspace data,\n"
-    "organized as JSON files per resource type plus raw artifact blobs.\n\n"
-    "## Layout\n\n"
-    "- metadata.json - manifest with workspace identity and export timestamp\n"
-    "- agents/ - registered agents (one JSON per agent)\n"
-    "- executions/ - execution records and task plans\n"
-    "- audit/ - workspace-scoped audit chain entries\n"
-    "- costs/ - cost attribution rollups\n"
-    "- members/ - workspace member roster (privacy-redacted)\n\n"
-    "## Privacy\n\n"
-    "Member email addresses appear only for users who have opted in to\n"
-    "cross-context exposure. Other members are represented by opaque user\n"
-    "identifiers.\n"
-).encode("utf-8")
+    b"# Workspace data export\n\n"
+    b"This archive contains a structured snapshot of your workspace data,\n"
+    b"organized as JSON files per resource type plus raw artifact blobs.\n\n"
+    b"## Layout\n\n"
+    b"- metadata.json - manifest with workspace identity and export timestamp\n"
+    b"- agents/ - registered agents (one JSON per agent)\n"
+    b"- executions/ - execution records and task plans\n"
+    b"- audit/ - workspace-scoped audit chain entries\n"
+    b"- costs/ - cost attribution rollups\n"
+    b"- members/ - workspace member roster (privacy-redacted)\n\n"
+    b"## Privacy\n\n"
+    b"Member email addresses appear only for users who have opted in to\n"
+    b"cross-context exposure. Other members are represented by opaque user\n"
+    b"identifiers.\n"
+)

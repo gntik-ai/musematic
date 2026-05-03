@@ -22,22 +22,21 @@ import logging
 import re
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
+from platform.common.config import DataLifecycleSettings
+from platform.data_lifecycle.exceptions import (
+    DPAPdfInvalidError,
+    DPAScanUnavailableError,
+    DPATooLargeError,
+    DPAVersionAlreadyExistsError,
+    DPAVersionNotFoundError,
+    DPAVirusDetectedError,
+    VaultUnreachableError,
+)
 from typing import Any, Protocol
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from platform.common.config import DataLifecycleSettings
-from platform.data_lifecycle.exceptions import (
-    DPAPdfInvalid,
-    DPAScanUnavailable,
-    DPATooLarge,
-    DPAVersionAlreadyExists,
-    DPAVersionNotFound,
-    DPAVirusDetected,
-    VaultUnreachable,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +64,7 @@ class _ClamAVScanner(Protocol):
     async def scan_bytes(self, payload: bytes, *, timeout_seconds: float) -> str | None:
         """Return the matched signature name, or None if clean.
 
-        Raises ``DPAScanUnavailable`` if the daemon is unreachable.
+        Raises ``DPAScanUnavailableError`` if the daemon is unreachable.
         """
 
 
@@ -125,13 +124,13 @@ class DPAService:
 
         # 1. Size + magic-bytes guard.
         if len(pdf_bytes) > MAX_DPA_SIZE_BYTES:
-            raise DPATooLarge(
+            raise DPATooLargeError(
                 f"DPA exceeds {MAX_DPA_SIZE_BYTES // (1024 * 1024)} MB limit"
             )
         if not pdf_bytes.startswith(PDF_MAGIC):
-            raise DPAPdfInvalid("file does not start with %PDF- magic bytes")
+            raise DPAPdfInvalidError("file does not start with %PDF- magic bytes")
         if not VERSION_RE.match(version):
-            raise DPAPdfInvalid(
+            raise DPAPdfInvalidError(
                 f"version must match {VERSION_RE.pattern!r}; got {version!r}"
             )
 
@@ -139,7 +138,7 @@ class DPAService:
         slug = await self._tenant_slug_or_raise(tenant_id)
         existing_version = await self._read_existing_version(tenant_id)
         if existing_version == version:
-            raise DPAVersionAlreadyExists(
+            raise DPAVersionAlreadyExistsError(
                 f"tenant {tenant_id} already has DPA version {version}"
             )
 
@@ -156,7 +155,7 @@ class DPAService:
                     "rejected_at": _utcnow_iso(),
                 },
             )
-            raise DPAVirusDetected(f"DPA rejected: signature {signature}")
+            raise DPAVirusDetectedError(f"DPA rejected: signature {signature}")
 
         # 4. Hash + Vault write.
         sha256 = hashlib.sha256(pdf_bytes).hexdigest()
@@ -175,7 +174,7 @@ class DPAService:
             )
         except Exception as exc:
             logger.exception("data_lifecycle.dpa_vault_write_failed")
-            raise VaultUnreachable(f"vault write failed: {exc}") from exc
+            raise VaultUnreachableError(f"vault write failed: {exc}") from exc
 
         # 5. Tenant row update.
         await self._session.execute(
@@ -266,20 +265,20 @@ class DPAService:
             # Distinguish 404 from connectivity if the underlying provider exposes it.
             msg = str(exc).lower()
             if "not found" in msg or "no value" in msg:
-                raise DPAVersionNotFound(
+                raise DPAVersionNotFoundError(
                     f"DPA version {version} not found for tenant {tenant_id}"
                 ) from exc
-            raise VaultUnreachable(f"vault read failed: {exc}") from exc
+            raise VaultUnreachableError(f"vault read failed: {exc}") from exc
 
         try:
             pdf_bytes = base64.b64decode(encoded.encode("ascii"))
         except Exception as exc:
-            raise VaultUnreachable("vault payload corrupt") from exc
+            raise VaultUnreachableError("vault payload corrupt") from exc
 
         # Defense-in-depth: verify content hash matches Vault metadata.
         computed = hashlib.sha256(pdf_bytes).hexdigest()
         if stored_hash and computed != stored_hash:
-            raise VaultUnreachable("hash mismatch on DPA download")
+            raise VaultUnreachableError("hash mismatch on DPA download")
 
         await self._emit_audit(
             event_type="data_lifecycle.dpa_downloaded",
@@ -319,7 +318,7 @@ class DPAService:
         )
         row = result.mappings().first()
         if row is None:
-            raise DPAVersionNotFound(f"tenant {tenant_id} not found")
+            raise DPAVersionNotFoundError(f"tenant {tenant_id} not found")
         return str(row["slug"])
 
     async def _read_existing_version(self, tenant_id: UUID) -> str | None:
@@ -333,7 +332,7 @@ class DPAService:
     async def _scan_or_raise(self, pdf_bytes: bytes) -> str | None:
         """Return the matched signature name (positive) or None (clean).
 
-        Raises :class:`DPAScanUnavailable` if the scanner is unreachable.
+        Raises :class:`DPAScanUnavailableError` if the scanner is unreachable.
         Bypasses scanning when ``self._clamav is None`` — the operator
         is expected to set the env var in dev/test only.
         """
@@ -346,7 +345,7 @@ class DPAService:
                 pdf_bytes,
                 timeout_seconds=self._settings.clamav_timeout_seconds,
             )
-        except DPAScanUnavailable:
+        except DPAScanUnavailableError:
             await self._emit_audit(
                 event_type="data_lifecycle.dpa_scan_unavailable",
                 payload={"checked_at": _utcnow_iso()},
@@ -380,8 +379,8 @@ class DPAService:
             return
         from platform.common.events.envelope import CorrelationContext
         from platform.data_lifecycle.events import (
-            DPAUploadedPayload,
             DataLifecycleEventType,
+            DPAUploadedPayload,
             publish_data_lifecycle_event,
         )
 
@@ -398,7 +397,7 @@ class DPAService:
             correlation_context=ctx,
         )
         await publish_data_lifecycle_event(
-            self._producer,
+            self._producer,  # type: ignore[arg-type]  # type: ignore[arg-type]
             DataLifecycleEventType.dpa_uploaded,
             payload,
             ctx,
@@ -416,7 +415,7 @@ class ClamdScanAdapter:
 
     Calls run in a worker thread via ``asyncio.to_thread`` so the
     request loop never blocks. The wrapper raises
-    :class:`DPAScanUnavailable` when the daemon is unreachable.
+    :class:`DPAScanUnavailableError` when the daemon is unreachable.
     """
 
     def __init__(self, *, host: str, port: int) -> None:
@@ -429,7 +428,7 @@ class ClamdScanAdapter:
         try:
             import clamd  # type: ignore[import-not-found]
         except ImportError as exc:
-            raise DPAScanUnavailable("clamd python client not installed") from exc
+            raise DPAScanUnavailableError("clamd python client not installed") from exc
 
         def _scan() -> str | None:
             try:
@@ -449,9 +448,9 @@ class ClamdScanAdapter:
                     return str(signature)
                 return None
             except Exception as exc:
-                # Map any clamd error to DPAScanUnavailable; the caller
+                # Map any clamd error to DPAScanUnavailableError; the caller
                 # treats this as "fail closed".
-                raise DPAScanUnavailable(f"clamd error: {exc}") from exc
+                raise DPAScanUnavailableError(f"clamd error: {exc}") from exc
 
         return await asyncio.wait_for(
             asyncio.to_thread(_scan), timeout=timeout_seconds + 1.0

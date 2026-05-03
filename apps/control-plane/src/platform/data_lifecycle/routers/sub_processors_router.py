@@ -13,18 +13,11 @@ is identical to what's exposed here.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
-from uuid import UUID
-
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from fastapi.responses import PlainTextResponse
-from pydantic import BaseModel, Field
-
 from platform.common.dependencies import get_current_user
 from platform.data_lifecycle.dependencies import get_repository, get_session
 from platform.data_lifecycle.exceptions import (
-    SubProcessorNameConflict,
-    SubProcessorNotFound,
+    SubProcessorNameConflictError,
+    SubProcessorNotFoundError,
 )
 from platform.data_lifecycle.models import SubProcessor
 from platform.data_lifecycle.repository import DataLifecycleRepository
@@ -32,15 +25,21 @@ from platform.data_lifecycle.schemas import (
     SubProcessorAdmin,
     SubProcessorCreate,
     SubProcessorPublic,
+    SubProcessorsPublicResponse,
     SubProcessorSubscribeRequest,
     SubProcessorSubscribeResponse,
     SubProcessorUpdate,
-    SubProcessorsPublicResponse,
 )
 from platform.data_lifecycle.services.sub_processors_service import (
     SubProcessorsService,
     render_rss,
 )
+from typing import Any
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import PlainTextResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
 # Two routers — public (no auth) and admin (require_superadmin).
 public_router = APIRouter(
@@ -53,7 +52,7 @@ admin_router = APIRouter(
 
 def _get_service(
     request: Request,
-    session=Depends(get_session),
+    session: AsyncSession = Depends(get_session),
 ) -> SubProcessorsService:
     return SubProcessorsService(
         repository=DataLifecycleRepository(session),
@@ -191,7 +190,7 @@ async def add_sub_processor(
             notes=payload.notes,
             actor_user_id=_requester_id(current_user),
         )
-    except SubProcessorNameConflict as exc:
+    except SubProcessorNameConflictError as exc:
         raise HTTPException(
             status_code=409,
             detail={"code": "sub_processor_name_conflict", "message": str(exc)},
@@ -219,12 +218,12 @@ async def update_sub_processor(
             updates=updates,
             actor_user_id=_requester_id(current_user),
         )
-    except SubProcessorNotFound as exc:
+    except SubProcessorNotFoundError as exc:
         raise HTTPException(
             status_code=404,
             detail={"code": "sub_processor_not_found", "message": str(exc)},
         ) from exc
-    except SubProcessorNameConflict as exc:
+    except SubProcessorNameConflictError as exc:
         raise HTTPException(
             status_code=409,
             detail={"code": "sub_processor_name_conflict", "message": str(exc)},
@@ -246,7 +245,7 @@ async def delete_sub_processor(
             sub_processor_id=sub_processor_id,
             actor_user_id=_requester_id(current_user),
         )
-    except SubProcessorNotFound as exc:
+    except SubProcessorNotFoundError as exc:
         raise HTTPException(
             status_code=404,
             detail={"code": "sub_processor_not_found", "message": str(exc)},

@@ -16,11 +16,9 @@ implemented in v1; reserved for future Pro-tier customization).
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
-from uuid import UUID
-
 from platform.common.config import DataLifecycleSettings
-from platform.data_lifecycle.exceptions import GracePeriodOutOfRange
+from platform.data_lifecycle.exceptions import GracePeriodOutOfRangeError
+from typing import Any
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,6 +90,6 @@ def _read_override(metadata: dict[str, Any] | None) -> int | None:
 
 def _validate_bounds(days: int, upper_bound: int) -> None:
     if not (7 <= days <= upper_bound):
-        raise GracePeriodOutOfRange(
+        raise GracePeriodOutOfRangeError(
             f"grace_period_days must be between 7 and {upper_bound}, got {days}"
         )

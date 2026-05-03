@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import Any
-from uuid import UUID, uuid4
-
-import pytest
-
 from platform.common.config import DataLifecycleSettings
 from platform.data_lifecycle.services.backup_purge_service import (
     BackupPurgeService,
 )
+from typing import Any
+from uuid import UUID, uuid4
+
+import pytest
 
 
 class _Result:
@@ -150,7 +149,7 @@ async def test_run_due_purges_no_kms_logs_and_skips() -> None:
         audit_chain=audit,
         event_producer=producer,
     )
-    purged = await service.run_due_purges()
+    await service.run_due_purges()
     # We treated each row as 1 (the loop counts attempts); but no KMS
     # destruction means no completed event.
     types = [p["event_type"] for p in producer.published]

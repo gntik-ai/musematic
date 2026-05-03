@@ -12,19 +12,18 @@ from __future__ import annotations
 
 import os
 import socket
-from typing import Any
-from uuid import UUID
-
 from platform.common.events.consumer import EventConsumerManager
 from platform.common.events.envelope import EventEnvelope
 from platform.common.logging import get_logger
 from platform.data_lifecycle.events import (
-    DataLifecycleEventType,
     KAFKA_TOPIC,
+    DataLifecycleEventType,
 )
 from platform.data_lifecycle.models import DataExportJob, ScopeType
 from platform.data_lifecycle.repository import DataLifecycleRepository
 from platform.data_lifecycle.services.export_service import ExportService
+from typing import Any
+from uuid import UUID
 
 LOGGER = get_logger(__name__)
 
@@ -69,7 +68,7 @@ class ExportJobWorker:
         except (KeyError, ValueError):
             LOGGER.warning(
                 "data_lifecycle.export_worker_invalid_payload",
-                event_id=str(envelope.event_id),
+                event_type=envelope.event_type,
             )
             return
         await self._run(job_id=job_id, correlation_ctx=envelope.correlation_context)

@@ -8,12 +8,7 @@ because the table itself has no tenant column.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
-from uuid import UUID
-
-from sqlalchemy import desc, func, select, update
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from datetime import UTC, datetime, timedelta
 from platform.data_lifecycle.models import (
     DataExportJob,
     DeletionJob,
@@ -21,6 +16,10 @@ from platform.data_lifecycle.models import (
     ExportStatus,
     SubProcessor,
 )
+from uuid import UUID
+
+from sqlalchemy import desc, func, select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class DataLifecycleRepository:
@@ -94,7 +93,7 @@ class DataLifecycleRepository:
         Used to enforce the per-workspace 24h rate limit.
         """
 
-        cutoff = datetime.utcnow() - within
+        cutoff = datetime.now(UTC) - within
         stmt = (
             select(func.count())
             .select_from(DataExportJob)

@@ -13,13 +13,10 @@ import io
 import json
 import zipfile
 from datetime import UTC, date, datetime
-from typing import Any
+from platform.data_lifecycle.services.article28_service import Article28Service
 from uuid import UUID, uuid4
 
 import pytest
-
-from platform.data_lifecycle.services.article28_service import Article28Service
-
 
 PDF_BYTES = b"%PDF-1.7\n%fake-clean\n%%EOF\n"
 
@@ -114,7 +111,12 @@ async def test_evidence_zip_contains_all_required_files() -> None:
                 "created_at": datetime.now(UTC),
             }
         ],
-        residency={"region": "eu-central", "allowed_regions": ["eu-central", "eu-west"], "denied_regions": [], "updated_at": datetime.now(UTC)},
+        residency={
+            "region": "eu-central",
+            "allowed_regions": ["eu-central", "eu-west"],
+            "denied_regions": [],
+            "updated_at": datetime.now(UTC),
+        },
         maintenance=[
             {
                 "id": "00000000-0000-0000-0000-000000000001",

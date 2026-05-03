@@ -10,14 +10,13 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
+from platform.common.events.envelope import CorrelationContext
+from platform.common.events.producer import EventProducer
+from platform.common.events.registry import event_registry
 from typing import Final
 from uuid import UUID
 
 from pydantic import BaseModel
-
-from platform.common.events.envelope import CorrelationContext
-from platform.common.events.producer import EventProducer
-from platform.common.events.registry import event_registry
 
 KAFKA_TOPIC: Final[str] = "data_lifecycle.events"
 

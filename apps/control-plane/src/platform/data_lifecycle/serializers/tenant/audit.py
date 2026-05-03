@@ -8,8 +8,9 @@ cold-storage tombstone retains the full history per FR-754.6.
 from __future__ import annotations
 
 import json
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
-from typing import Any, AsyncIterator
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import text

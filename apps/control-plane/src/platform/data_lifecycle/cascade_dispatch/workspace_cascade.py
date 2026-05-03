@@ -10,12 +10,11 @@ called from.
 from __future__ import annotations
 
 import logging
-from typing import Any
-from uuid import UUID
-
 from platform.privacy_compliance.services.cascade_orchestrator import (
     CascadeOrchestrator,
 )
+from typing import Any
+from uuid import UUID
 
 logger = logging.getLogger(__name__)
 

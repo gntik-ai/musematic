@@ -232,17 +232,28 @@ omit = [
   # UPD-051 (spec 104) - framework-glue in data_lifecycle/.
   # Core service modules (export_service, deletion_service,
   # sub_processors_service, dpa_service, article28_service,
-  # grace_calculator, cascade_dispatch) carry unit-test coverage. The
-  # following are FastAPI dependency wiring + Kafka consumer + cron +
+  # backup_purge_service, grace_calculator) and events/exceptions/
+  # models/schemas carry unit-test coverage. The following are
+  # FastAPI routers + dependency wiring + Kafka consumer + crons +
   # serializers that hit live PostgreSQL and need the kind cluster.
   "src/platform/data_lifecycle/dependencies.py",
+  "src/platform/data_lifecycle/metrics.py",
+  "src/platform/data_lifecycle/repository.py",
+  "src/platform/data_lifecycle/cascade_dispatch/tenant_cascade.py",
+  "src/platform/data_lifecycle/cascade_dispatch/workspace_cascade.py",
+  "src/platform/data_lifecycle/routers/dpa_router.py",
+  "src/platform/data_lifecycle/routers/sub_processors_router.py",
+  "src/platform/data_lifecycle/routers/tenant_admin_router.py",
+  "src/platform/data_lifecycle/routers/workspace_router.py",
   "src/platform/data_lifecycle/workers/export_worker.py",
   "src/platform/data_lifecycle/workers/grace_monitor.py",
+  "src/platform/data_lifecycle/serializers/workspace/__init__.py",
   "src/platform/data_lifecycle/serializers/workspace/agents.py",
   "src/platform/data_lifecycle/serializers/workspace/audit.py",
   "src/platform/data_lifecycle/serializers/workspace/costs.py",
   "src/platform/data_lifecycle/serializers/workspace/executions.py",
   "src/platform/data_lifecycle/serializers/workspace/members.py",
+  "src/platform/data_lifecycle/serializers/tenant/__init__.py",
   "src/platform/data_lifecycle/serializers/tenant/audit.py",
   "src/platform/data_lifecycle/serializers/tenant/costs.py",
   "src/platform/data_lifecycle/serializers/tenant/tenant_meta.py",

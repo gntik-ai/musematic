@@ -16,15 +16,15 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from enum import StrEnum
-from typing import TYPE_CHECKING
-from uuid import UUID
-
 from platform.common.models.base import Base
 from platform.common.models.mixins import (
     TenantScopedMixin,
     TimestampMixin,
     UUIDMixin,
 )
+from typing import TYPE_CHECKING
+from uuid import UUID
+
 from sqlalchemy import (
     BigInteger,
     Boolean,

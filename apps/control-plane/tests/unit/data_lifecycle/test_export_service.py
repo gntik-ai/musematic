@@ -18,19 +18,17 @@ import io
 import json
 import zipfile
 from datetime import UTC, datetime, timedelta
+from platform.common.config import DataLifecycleSettings
+from platform.data_lifecycle.exceptions import (
+    CrossRegionExportBlockedError,
+    ExportRateLimitExceededError,
+)
+from platform.data_lifecycle.models import DataExportJob, ExportStatus, ScopeType
+from platform.data_lifecycle.services.export_service import ExportService
 from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
-
-from platform.common.config import DataLifecycleSettings
-from platform.data_lifecycle.exceptions import (
-    CrossRegionExportBlocked,
-    ExportRateLimitExceeded,
-)
-from platform.data_lifecycle.models import DataExportJob, ExportStatus, ScopeType
-from platform.data_lifecycle.services.export_service import ExportService
-
 
 # ---------- Stubs ----------
 
@@ -145,7 +143,7 @@ class _StubRedis:
         return self.accept_lease
 
     async def delete(self, *names: str) -> int:
-        self.calls.append(("delete",) + names)
+        self.calls.append(("delete", *names))
         return len(names)
 
 
@@ -236,7 +234,7 @@ async def test_rate_limit_enforced_per_workspace() -> None:
     repo._recent_count = 5  # at the cap by default
     service = _build_service(repo=repo)
 
-    with pytest.raises(ExportRateLimitExceeded):
+    with pytest.raises(ExportRateLimitExceededError):
         await service.request_workspace_export(
             tenant_id=uuid4(),
             workspace_id=uuid4(),
@@ -255,7 +253,7 @@ async def test_residency_check_blocks_cross_region() -> None:
     async def _deny(_t: UUID, _w: UUID) -> bool:
         return False
 
-    with pytest.raises(CrossRegionExportBlocked):
+    with pytest.raises(CrossRegionExportBlockedError):
         await service.request_workspace_export(
             tenant_id=uuid4(),
             workspace_id=uuid4(),

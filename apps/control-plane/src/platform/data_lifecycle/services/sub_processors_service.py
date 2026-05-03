@@ -14,9 +14,6 @@ import json
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any, Protocol
-from uuid import UUID, uuid4
-
 from platform.common.events.envelope import CorrelationContext
 from platform.data_lifecycle.events import (
     DataLifecycleEventType,
@@ -24,11 +21,13 @@ from platform.data_lifecycle.events import (
     publish_data_lifecycle_event,
 )
 from platform.data_lifecycle.exceptions import (
-    SubProcessorNameConflict,
-    SubProcessorNotFound,
+    SubProcessorNameConflictError,
+    SubProcessorNotFoundError,
 )
 from platform.data_lifecycle.models import SubProcessor
 from platform.data_lifecycle.repository import DataLifecycleRepository
+from typing import Any, Protocol
+from uuid import UUID, uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +57,7 @@ class _PublicView:
     started_using_at: str | None  # ISO date
 
     @classmethod
-    def from_row(cls, row: SubProcessor) -> "_PublicView":
+    def from_row(cls, row: SubProcessor) -> _PublicView:
         return cls(
             name=row.name,
             category=row.category,
@@ -107,7 +106,7 @@ class SubProcessorsService:
     async def get(self, sub_processor_id: UUID) -> SubProcessor:
         row = await self._repo.get_sub_processor(sub_processor_id)
         if row is None:
-            raise SubProcessorNotFound(
+            raise SubProcessorNotFoundError(
                 f"sub-processor {sub_processor_id} not found"
             )
         return row
@@ -127,7 +126,7 @@ class SubProcessorsService:
     ) -> SubProcessor:
         existing = await self._repo.get_sub_processor_by_name(name)
         if existing is not None:
-            raise SubProcessorNameConflict(
+            raise SubProcessorNameConflictError(
                 f"sub-processor with name {name!r} already exists"
             )
         row = await self._repo.insert_sub_processor(
@@ -158,14 +157,14 @@ class SubProcessorsService:
     ) -> SubProcessor:
         existing = await self._repo.get_sub_processor(sub_processor_id)
         if existing is None:
-            raise SubProcessorNotFound(
+            raise SubProcessorNotFoundError(
                 f"sub-processor {sub_processor_id} not found"
             )
         # If name is changing, ensure no collision.
         if "name" in updates and updates["name"] != existing.name:
             collision = await self._repo.get_sub_processor_by_name(updates["name"])
             if collision is not None and collision.id != sub_processor_id:
-                raise SubProcessorNameConflict(
+                raise SubProcessorNameConflictError(
                     f"sub-processor with name {updates['name']!r} already exists"
                 )
         await self._repo.update_sub_processor(
@@ -189,7 +188,7 @@ class SubProcessorsService:
     ) -> SubProcessor:
         existing = await self._repo.get_sub_processor(sub_processor_id)
         if existing is None:
-            raise SubProcessorNotFound(
+            raise SubProcessorNotFoundError(
                 f"sub-processor {sub_processor_id} not found"
             )
         await self._repo.soft_delete_sub_processor(
@@ -233,7 +232,7 @@ class SubProcessorsService:
             },
         )
         await publish_data_lifecycle_event(
-            self._producer,
+            self._producer,  # type: ignore[arg-type]  # type: ignore[arg-type]
             event_type,
             SubProcessorChangedPayload(
                 sub_processor_id=row.id,
@@ -301,4 +300,4 @@ def render_rss(
             f"{row.name} - {row.category} - {row.location}; "
             f"data categories: {', '.join(row.data_categories or [])}."
         )
-    return fg.rss_str(pretty=True).decode("utf-8")
+    return str(fg.rss_str(pretty=True).decode("utf-8"))

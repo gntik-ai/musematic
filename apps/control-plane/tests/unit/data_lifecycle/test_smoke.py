@@ -8,20 +8,18 @@ land alongside the Phase 3-7 user-story implementations.
 
 from __future__ import annotations
 
-import pytest
-
 from platform.common.config import DataLifecycleSettings
 from platform.data_lifecycle.events import (
     DATA_LIFECYCLE_EVENT_SCHEMAS,
-    DataLifecycleEventType,
     KAFKA_TOPIC,
+    DataLifecycleEventType,
     register_data_lifecycle_event_types,
 )
 from platform.data_lifecycle.exceptions import (
     DataLifecycleError,
-    DPAVirusDetected,
-    SubscriptionActiveCancelFirst,
-    WorkspacePendingDeletion,
+    DPAVirusDetectedError,
+    SubscriptionActiveCancelFirstError,
+    WorkspacePendingDeletionError,
 )
 from platform.data_lifecycle.models import (
     DataExportJob,
@@ -43,6 +41,8 @@ from platform.data_lifecycle.services.grace_calculator import (
     resolve_tenant_grace,
     resolve_workspace_grace,
 )
+
+import pytest
 
 
 def test_models_have_expected_table_names() -> None:
@@ -98,9 +98,9 @@ def test_register_data_lifecycle_event_types_is_idempotent() -> None:
 
 def test_exception_status_codes_match_contract() -> None:
     assert DataLifecycleError.status_code == 400
-    assert WorkspacePendingDeletion.status_code == 423
-    assert DPAVirusDetected.status_code == 422
-    assert SubscriptionActiveCancelFirst.status_code == 409
+    assert WorkspacePendingDeletionError.status_code == 423
+    assert DPAVirusDetectedError.status_code == 422
+    assert SubscriptionActiveCancelFirstError.status_code == 409
 
 
 def test_cancel_deletion_response_is_anti_enumeration() -> None:
@@ -123,14 +123,14 @@ def test_tenant_deletion_request_grace_bounds_enforced() -> None:
         grace_period_days=14,
     )
     # Below floor.
-    with pytest.raises(Exception):  # pydantic ValidationError
+    with pytest.raises(Exception, match=r".*"):  # pydantic ValidationError
         TenantDeletionRequest(
             typed_confirmation="delete tenant acme",
             reason="too short",
             grace_period_days=3,
         )
     # Above ceiling.
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match=r".*"):
         TenantDeletionRequest(
             typed_confirmation="delete tenant acme",
             reason="too long",
@@ -167,7 +167,7 @@ def test_grace_calculator_request_override_beats_tenant() -> None:
 
 def test_grace_calculator_rejects_out_of_bounds_override() -> None:
     s = DataLifecycleSettings()
-    with pytest.raises(Exception):
+    with pytest.raises(Exception, match=r".*"):
         resolve_workspace_grace(
             settings=s,
             tenant_contract_metadata={"deletion_grace_period_days": 200},
@@ -208,4 +208,6 @@ def test_subprocessor_public_omits_notes_field() -> None:
 
     fields = set(SubProcessorPublic.model_fields.keys())
     assert "notes" not in fields
-    assert "name" in fields and "category" in fields and "data_categories" in fields
+    assert "name" in fields
+    assert "category" in fields
+    assert "data_categories" in fields

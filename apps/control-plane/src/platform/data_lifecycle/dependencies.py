@@ -3,14 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
-from uuid import UUID
-
-from fastapi import Depends, Request
-from sqlalchemy import update
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from sqlalchemy import select, text
-
 from platform.common.config import PlatformSettings
 from platform.common.database import AsyncSessionLocal
 from platform.data_lifecycle.cascade_dispatch.tenant_cascade import (
@@ -21,9 +13,8 @@ from platform.data_lifecycle.cascade_dispatch.workspace_cascade import (
 )
 from platform.data_lifecycle.exceptions import (
     DataLifecycleError,
-    DefaultTenantCannotBeDeleted,
-    TenantPendingDeletion,
-    TypedConfirmationMismatch,
+    DefaultTenantCannotBeDeletedError,
+    TenantPendingDeletionError,
 )
 from platform.data_lifecycle.repository import DataLifecycleRepository
 from platform.data_lifecycle.serializers.tenant import (
@@ -36,6 +27,11 @@ from platform.data_lifecycle.services.deletion_service import DeletionService
 from platform.data_lifecycle.services.export_service import ExportService
 from platform.tenants.models import Tenant
 from platform.workspaces.models import Workspace
+from uuid import UUID
+
+from fastapi import Depends, Request
+from sqlalchemy import text, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 async def get_session() -> AsyncIterator[AsyncSession]:
@@ -119,16 +115,16 @@ class _DirectTenantMutator:
 
     async def get_tenant_for_deletion(
         self, *, tenant_id: UUID
-    ) -> tuple[str, str, dict]:
+    ) -> tuple[str, str, dict[str, object]]:
         tenant = await self._session.get(Tenant, tenant_id)
         if tenant is None:
             raise DataLifecycleError(f"tenant {tenant_id} not found")
         if tenant.kind == "default":
-            raise DefaultTenantCannotBeDeleted(
+            raise DefaultTenantCannotBeDeletedError(
                 "the platform default tenant cannot be deleted"
             )
         if tenant.status in {"pending_deletion", "deleted"}:
-            raise TenantPendingDeletion(
+            raise TenantPendingDeletionError(
                 f"tenant {tenant_id} is already {tenant.status}"
             )
         return tenant.slug, tenant.status, dict(tenant.contract_metadata_json or {})
@@ -184,17 +180,17 @@ class _DirectTwoPAGate:
 
     async def consume_or_raise(
         self, *, challenge_id: UUID, requester_id: UUID
-    ) -> dict:
+    ) -> dict[str, object]:
         from platform.two_person_approval.service import TwoPersonApprovalService
 
         service = TwoPersonApprovalService(self._session)
         response, _payload = await service.consume_challenge(
             challenge_id=challenge_id, requester_id=requester_id
         )
+        consumed_at = getattr(response, "consumed_at", None)
         return {
             "challenge_id": str(challenge_id),
-            "consumed_at": getattr(response, "consumed_at", None)
-            and response.consumed_at.isoformat(),
+            "consumed_at": consumed_at.isoformat() if consumed_at is not None else None,
         }
 
 
@@ -207,7 +203,9 @@ def get_deletion_service(
 
     cascade_orchestrator = getattr(request.app.state, "cascade_orchestrator", None)
 
-    async def _dispatch_workspace(*, workspace_id, requested_by_user_id):
+    async def _dispatch_workspace(
+        *, workspace_id: UUID, requested_by_user_id: UUID | None
+    ) -> dict[str, object]:
         if cascade_orchestrator is None:
             return {"errors": [], "store_results": []}
         return await dispatch_workspace_cascade(
@@ -216,7 +214,9 @@ def get_deletion_service(
             requested_by_user_id=requested_by_user_id,
         )
 
-    async def _dispatch_tenant(*, tenant_id, requested_by_user_id):
+    async def _dispatch_tenant(
+        *, tenant_id: UUID, requested_by_user_id: UUID | None
+    ) -> dict[str, object]:
         if cascade_orchestrator is None:
             return {"errors": [], "store_results": []}
         # Resolve tenant slug for DNS teardown leg.
@@ -235,7 +235,9 @@ def get_deletion_service(
     # can link a final-export job at phase_1 time without re-importing.
     export_service = get_export_service(request=request, session=session)
 
-    async def _request_tenant_export(*, tenant_id, requested_by_user_id, correlation_ctx=None):
+    async def _request_tenant_export(
+        *, tenant_id: UUID, requested_by_user_id: UUID, correlation_ctx: object = None
+    ) -> object:
         return await export_service.request_tenant_export(
             tenant_id=tenant_id,
             requested_by_user_id=requested_by_user_id,

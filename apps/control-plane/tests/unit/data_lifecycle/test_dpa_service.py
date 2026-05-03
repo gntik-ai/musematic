@@ -3,12 +3,12 @@
 Covers:
 * Clean upload — magic-bytes pass, ClamAV clean, Vault write, tenant
   row update, audit + Kafka.
-* EICAR-positive upload — refused with DPAVirusDetected; no Vault
+* EICAR-positive upload — refused with DPAVirusDetectedError; no Vault
   write, no row update.
-* ClamAV unreachable — DPAScanUnavailable; no Vault write.
+* ClamAV unreachable — DPAScanUnavailableError; no Vault write.
 * PDF magic-bytes mismatch and version regex refused at the door.
-* Version collision — DPAVersionAlreadyExists.
-* Vault write failure mapped to VaultUnreachable.
+* Version collision — DPAVersionAlreadyExistsError.
+* Vault write failure mapped to VaultUnreachableError.
 * Download — Vault read + hash verification + audit emission.
 * Vault path redaction in audit + Kafka payloads (env literal stays as
   ``{env}`` placeholder; no concrete env reaches the audit chain).
@@ -19,26 +19,24 @@ from __future__ import annotations
 import base64
 import hashlib
 from datetime import UTC, date, datetime
-from typing import Any
-from uuid import UUID, uuid4
-
-import pytest
-
 from platform.common.config import DataLifecycleSettings
 from platform.data_lifecycle.exceptions import (
-    DPAPdfInvalid,
-    DPAScanUnavailable,
-    DPATooLarge,
-    DPAVersionAlreadyExists,
-    DPAVersionNotFound,
-    DPAVirusDetected,
-    VaultUnreachable,
+    DPAPdfInvalidError,
+    DPAScanUnavailableError,
+    DPATooLargeError,
+    DPAVersionAlreadyExistsError,
+    DPAVersionNotFoundError,
+    DPAVirusDetectedError,
+    VaultUnreachableError,
 )
 from platform.data_lifecycle.services.dpa_service import (
     MAX_DPA_SIZE_BYTES,
     DPAService,
 )
+from typing import Any
+from uuid import UUID, uuid4
 
+import pytest
 
 PDF_BYTES = b"%PDF-1.7\n%fake-clean-content\n%%EOF\n"
 EICAR_BYTES = (
@@ -54,7 +52,7 @@ class _Result:
     def __init__(self, mapping: dict | None = None) -> None:
         self._mapping = mapping
 
-    def mappings(self) -> "_Result":
+    def mappings(self) -> _Result:
         return self
 
     def first(self) -> dict | None:
@@ -78,7 +76,11 @@ class _StubSession:
         self.executed.append((sql_str, params))
         if "FROM tenants" in sql_str and "slug" in sql_str and "dpa_version" not in sql_str:
             return _Result({"slug": self._slug})
-        if "FROM tenants" in sql_str and "dpa_version" in sql_str and "dpa_artifact_uri" not in sql_str:
+        if (
+            "FROM tenants" in sql_str
+            and "dpa_version" in sql_str
+            and "dpa_artifact_uri" not in sql_str
+        ):
             return _Result({"dpa_version": self._existing_version})
         if "UPDATE tenants" in sql_str:
             return _Result(None)
@@ -88,14 +90,23 @@ class _StubSession:
                     "dpa_version": self._existing_version,
                     "dpa_signed_at": datetime.now(UTC),
                     "dpa_artifact_sha256": "deadbeef",
-                    "dpa_artifact_uri": f"secret/data/musematic/test/tenants/{self._slug}/dpa/dpa-{self._existing_version}.pdf",
+                    "dpa_artifact_uri": (
+                        "secret/data/musematic/test/tenants/"
+                        f"{self._slug}/dpa/dpa-{self._existing_version}.pdf"
+                    ),
                 }
             )
         return _Result(None)
 
 
 class _StubVault:
-    def __init__(self, *, fail_put: bool = False, fail_get: bool = False, payload: dict | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        fail_put: bool = False,
+        fail_get: bool = False,
+        payload: dict | None = None,
+    ) -> None:
         self.fail_put = fail_put
         self.fail_get = fail_get
         self.stored: dict[str, dict[str, str]] = {}
@@ -209,9 +220,9 @@ async def test_clean_upload_writes_vault_and_updates_tenant() -> None:
 @pytest.mark.asyncio
 async def test_virus_positive_refuses_and_does_not_write_vault() -> None:
     scanner = _StubScanner(signature="Eicar-Test-Signature")
-    service, session, vault, audit, producer = _build(scanner=scanner)
+    service, session, vault, audit, _producer = _build(scanner=scanner)
 
-    with pytest.raises(DPAVirusDetected):
+    with pytest.raises(DPAVirusDetectedError):
         await service.upload(
             tenant_id=TENANT_ID,
             version="v1.0",
@@ -229,10 +240,10 @@ async def test_virus_positive_refuses_and_does_not_write_vault() -> None:
 
 @pytest.mark.asyncio
 async def test_clamav_unreachable_fails_closed() -> None:
-    scanner = _StubScanner(raises=DPAScanUnavailable("clamd unreachable"))
+    scanner = _StubScanner(raises=DPAScanUnavailableError("clamd unreachable"))
     service, session, vault, audit, _ = _build(scanner=scanner)
 
-    with pytest.raises(DPAScanUnavailable):
+    with pytest.raises(DPAScanUnavailableError):
         await service.upload(
             tenant_id=TENANT_ID,
             version="v1.0",
@@ -249,7 +260,7 @@ async def test_clamav_unreachable_fails_closed() -> None:
 @pytest.mark.asyncio
 async def test_magic_bytes_check_refuses_non_pdf() -> None:
     service, _, vault, _, _ = _build(scanner=_StubScanner())
-    with pytest.raises(DPAPdfInvalid):
+    with pytest.raises(DPAPdfInvalidError):
         await service.upload(
             tenant_id=TENANT_ID,
             version="v1.0",
@@ -264,7 +275,7 @@ async def test_magic_bytes_check_refuses_non_pdf() -> None:
 async def test_size_limit_enforced() -> None:
     service, _, vault, _, _ = _build()
     huge = PDF_BYTES + b"\0" * (MAX_DPA_SIZE_BYTES + 1)
-    with pytest.raises(DPATooLarge):
+    with pytest.raises(DPATooLargeError):
         await service.upload(
             tenant_id=TENANT_ID,
             version="v1.0",
@@ -278,7 +289,7 @@ async def test_size_limit_enforced() -> None:
 @pytest.mark.asyncio
 async def test_version_format_validation() -> None:
     service, _, _, _, _ = _build(scanner=_StubScanner())
-    with pytest.raises(DPAPdfInvalid):
+    with pytest.raises(DPAPdfInvalidError):
         await service.upload(
             tenant_id=TENANT_ID,
             version="not-semver",
@@ -292,7 +303,7 @@ async def test_version_format_validation() -> None:
 async def test_version_collision_refused() -> None:
     session = _StubSession(existing_version="v3.0")
     service, _, vault, _, _ = _build(session=session, scanner=_StubScanner())
-    with pytest.raises(DPAVersionAlreadyExists):
+    with pytest.raises(DPAVersionAlreadyExistsError):
         await service.upload(
             tenant_id=TENANT_ID,
             version="v3.0",
@@ -307,7 +318,7 @@ async def test_version_collision_refused() -> None:
 async def test_vault_failure_mapped_to_vault_unreachable() -> None:
     vault = _StubVault(fail_put=True)
     service, _, _, _, _ = _build(vault=vault, scanner=_StubScanner())
-    with pytest.raises(VaultUnreachable):
+    with pytest.raises(VaultUnreachableError):
         await service.upload(
             tenant_id=TENANT_ID,
             version="v1.0",
@@ -341,7 +352,7 @@ async def test_download_returns_pdf_bytes_and_audits() -> None:
 @pytest.mark.asyncio
 async def test_download_missing_version_raises_not_found() -> None:
     service, _, _, _, _ = _build()  # empty vault
-    with pytest.raises(DPAVersionNotFound):
+    with pytest.raises(DPAVersionNotFoundError):
         await service.download(
             tenant_id=TENANT_ID, version="v9.9", actor_user_id=uuid4()
         )
@@ -353,7 +364,7 @@ async def test_no_clamav_scanner_skips_with_warning() -> None:
     a warning but still processes the upload to a successful Vault write.
     """
 
-    service, _, vault, audit, _ = _build(scanner=None)
+    service, _, vault, _audit, _ = _build(scanner=None)
     result = await service.upload(
         tenant_id=TENANT_ID,
         version="v1.0",

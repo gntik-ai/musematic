@@ -28,11 +28,9 @@ import hashlib
 import json
 import logging
 import secrets
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any, Awaitable, Callable, Protocol
-from uuid import UUID, uuid4
-
 from platform.common.config import DataLifecycleSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.data_lifecycle.events import (
@@ -43,16 +41,15 @@ from platform.data_lifecycle.events import (
     publish_data_lifecycle_event,
 )
 from platform.data_lifecycle.exceptions import (
-    CascadeInProgress,
+    CascadeInProgressError,
     DataLifecycleError,
-    DefaultTenantCannotBeDeleted,
-    DeletionJobAlreadyActive,
-    DeletionJobAlreadyFinalised,
-    GracePeriodOutOfRange,
-    SubscriptionActiveCancelFirst,
-    TwoPATokenInvalid,
-    TwoPATokenRequired,
-    TypedConfirmationMismatch,
+    DeletionJobAlreadyActiveError,
+    DeletionJobAlreadyFinalisedError,
+    GracePeriodOutOfRangeError,
+    SubscriptionActiveCancelFirstError,
+    TwoPATokenInvalidError,
+    TwoPATokenRequiredError,
+    TypedConfirmationMismatchError,
 )
 from platform.data_lifecycle.models import DeletionJob, DeletionPhase, ScopeType
 from platform.data_lifecycle.repository import DataLifecycleRepository
@@ -60,6 +57,8 @@ from platform.data_lifecycle.services.grace_calculator import (
     resolve_tenant_grace,
     resolve_workspace_grace,
 )
+from typing import Any, Protocol
+from uuid import UUID, uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +98,7 @@ class CancelOutcome:
     """
 
     succeeded: bool
-    detail: str  # "cancelled" | "token_unknown" | "token_expired" | "token_already_used" | "wrong_phase"
+    detail: str  # cancelled | token_unknown | token_expired | token_already_used | wrong_phase
 
 
 class _AuditAppender(Protocol):
@@ -190,7 +189,7 @@ class _TwoPAGate(Protocol):
     ) -> dict[str, Any]:
         """Atomically mark the 2PA challenge consumed.
 
-        Raises ``TwoPATokenInvalid`` if the challenge does not exist,
+        Raises ``TwoPATokenInvalidError`` if the challenge does not exist,
         is not approved, is expired, or has already been consumed.
         """
 
@@ -252,7 +251,7 @@ class DeletionService:
             workspace_id=workspace_id, requested_by_user_id=requested_by_user_id
         )
         if typed_confirmation.strip() != slug:
-            raise TypedConfirmationMismatch(
+            raise TypedConfirmationMismatchError(
                 f"typed_confirmation must equal the workspace slug ({slug!r})"
             )
 
@@ -263,7 +262,7 @@ class DeletionService:
             scope_type=ScopeType.workspace.value, scope_id=workspace_id
         )
         if existing is not None:
-            raise DeletionJobAlreadyActive(
+            raise DeletionJobAlreadyActiveError(
                 f"workspace {workspace_id} already has an active deletion job"
             )
 
@@ -311,7 +310,7 @@ class DeletionService:
             },
         )
         await publish_data_lifecycle_event(
-            self._producer,
+            self._producer,  # type: ignore[arg-type]  # type: ignore[arg-type]
             DataLifecycleEventType.deletion_requested,
             DeletionRequestedPayload(
                 job_id=job.id,
@@ -360,16 +359,16 @@ class DeletionService:
         # 1. Two-person authorization (rule 33).
         consumed_2pa = None
         if two_pa_challenge_id is None:
-            raise TwoPATokenRequired("tenant deletion requires a 2PA challenge id")
+            raise TwoPATokenRequiredError("tenant deletion requires a 2PA challenge id")
         if self._two_pa is None:
-            raise TwoPATokenRequired("2PA gate is not configured")
+            raise TwoPATokenRequiredError("2PA gate is not configured")
         try:
             consumed_2pa = await self._two_pa.consume_or_raise(
                 challenge_id=two_pa_challenge_id,
                 requester_id=requested_by_user_id,
             )
         except Exception as exc:
-            raise TwoPATokenInvalid(str(exc)) from exc
+            raise TwoPATokenInvalidError(str(exc)) from exc
 
         # 2. Tenant lookup + default-tenant + status guard.
         slug, _prior_status, contract_metadata = (
@@ -382,7 +381,7 @@ class DeletionService:
                 tenant_id=tenant_id
             )
             if has_sub:
-                raise SubscriptionActiveCancelFirst(
+                raise SubscriptionActiveCancelFirstError(
                     f"tenant {tenant_id} still has an active subscription; "
                     "cancel via UPD-052 before requesting deletion"
                 )
@@ -390,7 +389,7 @@ class DeletionService:
         # 4. Typed confirmation MUST equal "delete tenant {slug}".
         expected = f"delete tenant {slug}"
         if typed_confirmation.strip() != expected:
-            raise TypedConfirmationMismatch(
+            raise TypedConfirmationMismatchError(
                 f"typed_confirmation must equal {expected!r}"
             )
 
@@ -399,7 +398,7 @@ class DeletionService:
             scope_type=ScopeType.tenant.value, scope_id=tenant_id
         )
         if existing is not None:
-            raise DeletionJobAlreadyActive(
+            raise DeletionJobAlreadyActiveError(
                 f"tenant {tenant_id} already has an active deletion job"
             )
 
@@ -473,7 +472,7 @@ class DeletionService:
             },
         )
         await publish_data_lifecycle_event(
-            self._producer,
+            self._producer,  # type: ignore[arg-type]  # type: ignore[arg-type]
             DataLifecycleEventType.deletion_requested,
             DeletionRequestedPayload(
                 job_id=job.id,
@@ -507,20 +506,20 @@ class DeletionService:
         """
 
         if additional_days < 1:
-            raise GracePeriodOutOfRange("additional_days must be >= 1")
+            raise GracePeriodOutOfRangeError("additional_days must be >= 1")
         job = await self._repo.get_deletion_job(job_id)
         if job is None:
-            raise DeletionJobAlreadyFinalised(
+            raise DeletionJobAlreadyFinalisedError(
                 f"deletion job {job_id} not found"
             )
         if job.phase != DeletionPhase.phase_1.value:
-            raise DeletionJobAlreadyFinalised(
+            raise DeletionJobAlreadyFinalisedError(
                 f"deletion job {job_id} is in {job.phase}; only phase_1 may extend grace"
             )
         new_ends_at = job.grace_ends_at + timedelta(days=additional_days)
         max_ends_at = job.created_at + timedelta(days=self._settings.grace_max_days)
         if new_ends_at > max_ends_at:
-            raise GracePeriodOutOfRange(
+            raise GracePeriodOutOfRangeError(
                 f"resulting grace_ends_at exceeds max ({self._settings.grace_max_days}d)"
             )
         await self._repo.extend_grace(job_id=job.id, new_grace_ends_at=new_ends_at)
@@ -607,7 +606,7 @@ class DeletionService:
             },
         )
         await publish_data_lifecycle_event(
-            self._producer,
+            self._producer,  # type: ignore[arg-type]  # type: ignore[arg-type]
             DataLifecycleEventType.deletion_aborted,
             DeletionAbortedPayload(
                 job_id=job.id,
@@ -636,15 +635,15 @@ class DeletionService:
     ) -> DeletionJob:
         job = await self._repo.get_deletion_job(job_id)
         if job is None:
-            raise DeletionJobAlreadyFinalised(
+            raise DeletionJobAlreadyFinalisedError(
                 f"deletion job {job_id} not found"
             )
         if job.phase == DeletionPhase.phase_2.value:
-            raise CascadeInProgress(
+            raise CascadeInProgressError(
                 f"deletion job {job_id} is in phase_2; cannot abort"
             )
         if job.phase != DeletionPhase.phase_1.value:
-            raise DeletionJobAlreadyFinalised(
+            raise DeletionJobAlreadyFinalisedError(
                 f"deletion job {job_id} is already {job.phase}"
             )
         await self._repo.update_deletion_phase(
@@ -678,7 +677,7 @@ class DeletionService:
             },
         )
         await publish_data_lifecycle_event(
-            self._producer,
+            self._producer,  # type: ignore[arg-type]  # type: ignore[arg-type]
             DataLifecycleEventType.deletion_aborted,
             DeletionAbortedPayload(
                 job_id=job.id,
@@ -729,7 +728,7 @@ class DeletionService:
             cascade_started_at=now,
         )
         await publish_data_lifecycle_event(
-            self._producer,
+            self._producer,  # type: ignore[arg-type]  # type: ignore[arg-type]
             DataLifecycleEventType.deletion_phase_advanced,
             DeletionPhaseAdvancedPayload(
                 job_id=job.id,

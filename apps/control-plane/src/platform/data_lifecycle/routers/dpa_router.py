@@ -12,7 +12,25 @@ Tenant-admin self-service surface (rule 46):
 
 from __future__ import annotations
 
-from datetime import date as Date
+from datetime import date
+from platform.common.dependencies import get_current_user
+from platform.data_lifecycle.dependencies import get_session
+from platform.data_lifecycle.exceptions import (
+    DataLifecycleError,
+    DPAPdfInvalidError,
+    DPAScanUnavailableError,
+    DPATooLargeError,
+    DPAVersionAlreadyExistsError,
+    DPAVersionNotFoundError,
+    DPAVirusDetectedError,
+    VaultUnreachableError,
+)
+from platform.data_lifecycle.schemas import DPAUploadResponse
+from platform.data_lifecycle.services.dpa_service import (
+    MAX_DPA_SIZE_BYTES,
+    ClamdScanAdapter,
+    DPAService,
+)
 from typing import Any
 from uuid import UUID
 
@@ -26,25 +44,7 @@ from fastapi import (
     Response,
     UploadFile,
 )
-
-from platform.common.dependencies import get_current_user
-from platform.data_lifecycle.dependencies import get_session
-from platform.data_lifecycle.exceptions import (
-    DataLifecycleError,
-    DPAPdfInvalid,
-    DPAScanUnavailable,
-    DPATooLarge,
-    DPAVersionAlreadyExists,
-    DPAVersionNotFound,
-    DPAVirusDetected,
-    VaultUnreachable,
-)
-from platform.data_lifecycle.schemas import DPAUploadResponse
-from platform.data_lifecycle.services.dpa_service import (
-    ClamdScanAdapter,
-    DPAService,
-    MAX_DPA_SIZE_BYTES,
-)
+from sqlalchemy.ext.asyncio import AsyncSession
 
 admin_router = APIRouter(prefix="/api/v1/admin", tags=["data_lifecycle:admin:dpa"])
 me_router = APIRouter(prefix="/api/v1/me", tags=["data_lifecycle:me:dpa"])
@@ -63,7 +63,7 @@ def _require_superadmin(current_user: dict[str, Any]) -> None:
         )
 
 
-def _build_service(request: Request, session) -> DPAService:
+def _build_service(request: Request, session: AsyncSession) -> DPAService:
     settings = request.app.state.settings
     environment = getattr(settings, "PLATFORM_ENVIRONMENT", "prod")
 
@@ -108,9 +108,9 @@ async def upload_dpa(
     request: Request,
     file: UploadFile = File(...),
     version: str = Form(...),
-    effective_date: Date = Form(...),
+    effective_date: date = Form(...),
     current_user: dict[str, Any] = Depends(get_current_user),
-    session=Depends(get_session),
+    session: AsyncSession = Depends(get_session),
 ) -> DPAUploadResponse:
     _require_superadmin(current_user)
     pdf_bytes = await file.read()
@@ -132,27 +132,27 @@ async def upload_dpa(
             pdf_bytes=pdf_bytes,
             actor_user_id=_requester_id(current_user),
         )
-    except DPAPdfInvalid as exc:
+    except DPAPdfInvalidError as exc:
         raise HTTPException(
             status_code=400, detail={"code": exc.code, "message": exc.message}
         ) from exc
-    except DPATooLarge as exc:
+    except DPATooLargeError as exc:
         raise HTTPException(
             status_code=413, detail={"code": exc.code, "message": exc.message}
         ) from exc
-    except DPAVersionAlreadyExists as exc:
+    except DPAVersionAlreadyExistsError as exc:
         raise HTTPException(
             status_code=409, detail={"code": exc.code, "message": exc.message}
         ) from exc
-    except DPAVirusDetected as exc:
+    except DPAVirusDetectedError as exc:
         raise HTTPException(
             status_code=422, detail={"code": exc.code, "message": exc.message}
         ) from exc
-    except DPAScanUnavailable as exc:
+    except DPAScanUnavailableError as exc:
         raise HTTPException(
             status_code=503, detail={"code": exc.code, "message": exc.message}
         ) from exc
-    except VaultUnreachable as exc:
+    except VaultUnreachableError as exc:
         raise HTTPException(
             status_code=502, detail={"code": exc.code, "message": exc.message}
         ) from exc
@@ -176,7 +176,7 @@ async def get_dpa_metadata(
     tenant_id: UUID,
     request: Request,
     current_user: dict[str, Any] = Depends(get_current_user),
-    session=Depends(get_session),
+    session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     _require_superadmin(current_user)
     service = _build_service(request, session)
@@ -195,7 +195,7 @@ async def download_dpa(
     version: str,
     request: Request,
     current_user: dict[str, Any] = Depends(get_current_user),
-    session=Depends(get_session),
+    session: AsyncSession = Depends(get_session),
 ) -> Response:
     _require_superadmin(current_user)
     service = _build_service(request, session)
@@ -205,11 +205,11 @@ async def download_dpa(
             version=version,
             actor_user_id=_requester_id(current_user),
         )
-    except DPAVersionNotFound as exc:
+    except DPAVersionNotFoundError as exc:
         raise HTTPException(
             status_code=404, detail={"code": exc.code, "message": exc.message}
         ) from exc
-    except VaultUnreachable as exc:
+    except VaultUnreachableError as exc:
         raise HTTPException(
             status_code=502, detail={"code": exc.code, "message": exc.message}
         ) from exc
@@ -234,7 +234,7 @@ async def download_dpa(
 async def get_my_tenant_dpa(
     request: Request,
     current_user: dict[str, Any] = Depends(get_current_user),
-    session=Depends(get_session),
+    session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """Return the active DPA metadata for the caller's tenant.
 

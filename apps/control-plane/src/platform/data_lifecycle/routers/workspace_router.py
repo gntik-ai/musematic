@@ -10,12 +10,6 @@ Contract: ``specs/104-data-lifecycle/contracts/workspace-export-rest.md``.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
-from uuid import UUID
-
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic import BaseModel, Field
-
 from platform.common.dependencies import get_current_user
 from platform.data_lifecycle.dependencies import (
     get_deletion_service,
@@ -23,21 +17,17 @@ from platform.data_lifecycle.dependencies import (
     get_repository,
 )
 from platform.data_lifecycle.exceptions import (
-    CascadeInProgress,
-    CrossRegionExportBlocked,
+    CrossRegionExportBlockedError,
     DataLifecycleError,
-    DeletionJobAlreadyActive,
-    DeletionJobAlreadyFinalised,
-    ExportRateLimitExceeded,
-    TypedConfirmationMismatch,
+    DeletionJobAlreadyActiveError,
+    ExportRateLimitExceededError,
+    TypedConfirmationMismatchError,
 )
 from platform.data_lifecycle.models import DataExportJob, DeletionJob, ScopeType
 from platform.data_lifecycle.repository import DataLifecycleRepository
 from platform.data_lifecycle.schemas import (
-    AbortRequest,
     CancelDeletionResponse,
     DeletionJobDetail,
-    DeletionJobSummary,
     ExportJobDetail,
     ExportJobList,
     ExportJobSummary,
@@ -45,6 +35,11 @@ from platform.data_lifecycle.schemas import (
 )
 from platform.data_lifecycle.services.deletion_service import DeletionService
 from platform.data_lifecycle.services.export_service import ExportService
+from typing import Any
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from pydantic import BaseModel, Field
 
 router = APIRouter(prefix="/api/v1/workspaces", tags=["data_lifecycle:workspace"])
 cancel_router = APIRouter(
@@ -97,12 +92,12 @@ async def request_workspace_export(
             requested_by_user_id=_requester_id(current_user),
             correlation_ctx=correlation_ctx,
         )
-    except ExportRateLimitExceeded as exc:
+    except ExportRateLimitExceededError as exc:
         raise HTTPException(
             status_code=429,
             detail={"code": "export_rate_limit_exceeded", "message": str(exc)},
         ) from exc
-    except CrossRegionExportBlocked as exc:
+    except CrossRegionExportBlockedError as exc:
         raise HTTPException(
             status_code=422,
             detail={"code": "cross_region_export_blocked", "message": str(exc)},
@@ -208,12 +203,12 @@ async def request_workspace_deletion(
             tenant_contract_metadata=getattr(request.state, "tenant_contract_metadata", None),
             correlation_ctx=correlation_ctx,
         )
-    except TypedConfirmationMismatch as exc:
+    except TypedConfirmationMismatchError as exc:
         raise HTTPException(
             status_code=400,
             detail={"code": "typed_confirmation_mismatch", "message": str(exc)},
         ) from exc
-    except DeletionJobAlreadyActive as exc:
+    except DeletionJobAlreadyActiveError as exc:
         raise HTTPException(
             status_code=409,
             detail={"code": "deletion_job_already_active", "message": str(exc)},

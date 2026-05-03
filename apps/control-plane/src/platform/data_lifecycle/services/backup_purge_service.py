@@ -27,12 +27,6 @@ import json
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Any, Protocol
-from uuid import UUID, uuid4
-
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from platform.common.config import DataLifecycleSettings
 from platform.common.events.envelope import CorrelationContext
 from platform.data_lifecycle.events import (
@@ -41,6 +35,11 @@ from platform.data_lifecycle.events import (
     publish_data_lifecycle_event,
 )
 from platform.data_lifecycle.models import DeletionPhase, ScopeType
+from typing import Any, Protocol
+from uuid import UUID, uuid4
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
@@ -195,7 +194,7 @@ class BackupPurgeService:
         if self._producer is not None:
             ctx = CorrelationContext(correlation_id=uuid4())
             await publish_data_lifecycle_event(
-                self._producer,
+                self._producer,  # type: ignore[arg-type]  # type: ignore[arg-type]
                 DataLifecycleEventType.backup_purge_completed,
                 BackupPurgeCompletedPayload(
                     tenant_id=due.tenant_id,

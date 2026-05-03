@@ -2,8 +2,8 @@
 
 Covers:
 * T058 — happy path emits 2PA consume + final export + audit + Kafka.
-* Missing 2PA -> TwoPATokenRequired (FR-754.1).
-* Active subscription -> SubscriptionActiveCancelFirst (FR-754.2).
+* Missing 2PA -> TwoPATokenRequiredError (FR-754.1).
+* Active subscription -> SubscriptionActiveCancelFirstError (FR-754.2).
 * Default tenant refusal (FR-754.3) — surfaces via the mutator.
 * Typed-confirmation must equal "delete tenant {slug}".
 * Recovery via abort_in_grace flips tenant back to active (FR-754.4).
@@ -14,27 +14,25 @@ Covers:
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from typing import Any
-from uuid import UUID, uuid4
-
-import pytest
-
 from platform.common.config import DataLifecycleSettings
 from platform.data_lifecycle.exceptions import (
-    DefaultTenantCannotBeDeleted,
-    DeletionJobAlreadyActive,
-    GracePeriodOutOfRange,
-    SubscriptionActiveCancelFirst,
-    TwoPATokenInvalid,
-    TwoPATokenRequired,
-    TypedConfirmationMismatch,
+    DefaultTenantCannotBeDeletedError,
+    DeletionJobAlreadyActiveError,
+    GracePeriodOutOfRangeError,
+    SubscriptionActiveCancelFirstError,
+    TwoPATokenInvalidError,
+    TwoPATokenRequiredError,
+    TypedConfirmationMismatchError,
 )
 from platform.data_lifecycle.models import DeletionJob, DeletionPhase, ScopeType
 from platform.data_lifecycle.services.deletion_service import (
     DeletionService,
     TenantDeletionRequestResult,
 )
+from typing import Any
+from uuid import UUID, uuid4
 
+import pytest
 
 # ---------- Stubs ----------
 
@@ -127,11 +125,11 @@ class _StubTenantMutator:
         self, *, tenant_id: UUID
     ) -> tuple[str, str, dict]:
         if self.kind == "default":
-            raise DefaultTenantCannotBeDeleted(
+            raise DefaultTenantCannotBeDeletedError(
                 "the platform default tenant cannot be deleted"
             )
         if self._status in {"pending_deletion", "deleted"}:
-            raise DeletionJobAlreadyActive(
+            raise DeletionJobAlreadyActiveError(
                 f"tenant already {self._status}"
             )
         return self.slug, self._status, self._contract_metadata
@@ -224,7 +222,7 @@ async def test_request_tenant_deletion_happy_path() -> None:
         from types import SimpleNamespace
         return SimpleNamespace(id=final_export_id)
 
-    service, repo, mutator, _, two_pa, audit, producer = _build(
+    service, _repo, mutator, _, two_pa, audit, producer = _build(
         export_handler=_export
     )
     challenge_id = uuid4()
@@ -256,7 +254,7 @@ async def test_request_tenant_deletion_happy_path() -> None:
 @pytest.mark.asyncio
 async def test_request_tenant_deletion_missing_2pa_raises() -> None:
     service, *_ = _build()
-    with pytest.raises(TwoPATokenRequired):
+    with pytest.raises(TwoPATokenRequiredError):
         await service.request_tenant_deletion(
             tenant_id=uuid4(),
             requested_by_user_id=uuid4(),
@@ -271,7 +269,7 @@ async def test_request_tenant_deletion_missing_2pa_raises() -> None:
 async def test_request_tenant_deletion_invalid_2pa_raises() -> None:
     two_pa = _StubTwoPAGate(raises=RuntimeError("expired challenge"))
     service, *_ = _build(two_pa_gate=two_pa)
-    with pytest.raises(TwoPATokenInvalid):
+    with pytest.raises(TwoPATokenInvalidError):
         await service.request_tenant_deletion(
             tenant_id=uuid4(),
             requested_by_user_id=uuid4(),
@@ -287,7 +285,7 @@ async def test_request_tenant_deletion_active_subscription_refused() -> None:
     service, *_ = _build(
         subscription_gate=_StubSubscriptionGate(has_active=True)
     )
-    with pytest.raises(SubscriptionActiveCancelFirst):
+    with pytest.raises(SubscriptionActiveCancelFirstError):
         await service.request_tenant_deletion(
             tenant_id=uuid4(),
             requested_by_user_id=uuid4(),
@@ -301,7 +299,7 @@ async def test_request_tenant_deletion_active_subscription_refused() -> None:
 @pytest.mark.asyncio
 async def test_request_tenant_deletion_default_tenant_refused() -> None:
     service, *_ = _build(tenant_mutator=_StubTenantMutator(kind="default"))
-    with pytest.raises(DefaultTenantCannotBeDeleted):
+    with pytest.raises(DefaultTenantCannotBeDeletedError):
         await service.request_tenant_deletion(
             tenant_id=uuid4(),
             requested_by_user_id=uuid4(),
@@ -315,7 +313,7 @@ async def test_request_tenant_deletion_default_tenant_refused() -> None:
 @pytest.mark.asyncio
 async def test_request_tenant_deletion_typed_confirmation_must_match() -> None:
     service, *_ = _build()
-    with pytest.raises(TypedConfirmationMismatch):
+    with pytest.raises(TypedConfirmationMismatchError):
         await service.request_tenant_deletion(
             tenant_id=uuid4(),
             requested_by_user_id=uuid4(),
@@ -375,7 +373,7 @@ async def test_extend_grace_within_bounds() -> None:
         include_final_export=False,
     )
     job = result.job
-    extended = await service.extend_grace(
+    await service.extend_grace(
         job_id=job.id,
         additional_days=14,
         actor_user_id=uuid4(),
@@ -386,7 +384,7 @@ async def test_extend_grace_within_bounds() -> None:
 
 @pytest.mark.asyncio
 async def test_extend_grace_exceeds_max_raises() -> None:
-    service, repo, *_ = _build()
+    service, _repo, *_ = _build()
     result = await service.request_tenant_deletion(
         tenant_id=uuid4(),
         requested_by_user_id=uuid4(),
@@ -397,7 +395,7 @@ async def test_extend_grace_exceeds_max_raises() -> None:
         grace_period_days_override=85,
     )
     job = result.job
-    with pytest.raises(GracePeriodOutOfRange):
+    with pytest.raises(GracePeriodOutOfRangeError):
         await service.extend_grace(
             job_id=job.id,
             additional_days=20,  # 85+20 > 90 max
@@ -408,7 +406,7 @@ async def test_extend_grace_exceeds_max_raises() -> None:
 
 @pytest.mark.asyncio
 async def test_abort_tenant_deletion_in_grace_restores_active() -> None:
-    service, repo, mutator, *_ = _build()
+    service, _repo, mutator, *_ = _build()
     result = await service.request_tenant_deletion(
         tenant_id=uuid4(),
         requested_by_user_id=uuid4(),
@@ -463,4 +461,5 @@ async def test_advance_grace_dispatches_tenant_cascade_for_tenant_scope() -> Non
     )
     advanced = await service.advance_grace_expired_jobs()
     assert advanced == 1
-    assert cascade_calls and cascade_calls[0]["tenant_id"] == job.scope_id
+    assert cascade_calls
+    assert cascade_calls[0]["tenant_id"] == job.scope_id

@@ -12,12 +12,6 @@ Contract: ``specs/104-data-lifecycle/contracts/{tenant-export,tenant-deletion}-r
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
-from uuid import UUID
-
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
-from pydantic import BaseModel, Field
-
 from platform.common.dependencies import get_current_user
 from platform.data_lifecycle.dependencies import (
     get_deletion_service,
@@ -25,16 +19,16 @@ from platform.data_lifecycle.dependencies import (
     get_repository,
 )
 from platform.data_lifecycle.exceptions import (
-    CascadeInProgress,
+    CascadeInProgressError,
     DataLifecycleError,
-    DefaultTenantCannotBeDeleted,
-    DeletionJobAlreadyActive,
-    DeletionJobAlreadyFinalised,
-    GracePeriodOutOfRange,
-    SubscriptionActiveCancelFirst,
-    TwoPATokenInvalid,
-    TwoPATokenRequired,
-    TypedConfirmationMismatch,
+    DefaultTenantCannotBeDeletedError,
+    DeletionJobAlreadyActiveError,
+    DeletionJobAlreadyFinalisedError,
+    GracePeriodOutOfRangeError,
+    SubscriptionActiveCancelFirstError,
+    TwoPATokenInvalidError,
+    TwoPATokenRequiredError,
+    TypedConfirmationMismatchError,
 )
 from platform.data_lifecycle.models import ScopeType
 from platform.data_lifecycle.repository import DataLifecycleRepository
@@ -50,6 +44,11 @@ from platform.data_lifecycle.schemas import (
 )
 from platform.data_lifecycle.services.deletion_service import DeletionService
 from platform.data_lifecycle.services.export_service import ExportService
+from typing import Any
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
+from pydantic import BaseModel, Field
 
 router = APIRouter(
     prefix="/api/v1/admin", tags=["data_lifecycle:admin:tenant"]
@@ -216,27 +215,27 @@ async def request_tenant_deletion(
             grace_period_days_override=payload.grace_period_days,
             correlation_ctx=correlation_ctx,
         )
-    except (TwoPATokenRequired, TwoPATokenInvalid) as exc:
+    except (TwoPATokenRequiredError, TwoPATokenInvalidError) as exc:
         raise HTTPException(
             status_code=403, detail={"code": exc.code, "message": exc.message}
         ) from exc
-    except SubscriptionActiveCancelFirst as exc:
+    except SubscriptionActiveCancelFirstError as exc:
         raise HTTPException(
             status_code=409, detail={"code": exc.code, "message": exc.message}
         ) from exc
-    except DefaultTenantCannotBeDeleted as exc:
+    except DefaultTenantCannotBeDeletedError as exc:
         raise HTTPException(
             status_code=409, detail={"code": exc.code, "message": exc.message}
         ) from exc
-    except TypedConfirmationMismatch as exc:
+    except TypedConfirmationMismatchError as exc:
         raise HTTPException(
             status_code=400, detail={"code": exc.code, "message": exc.message}
         ) from exc
-    except DeletionJobAlreadyActive as exc:
+    except DeletionJobAlreadyActiveError as exc:
         raise HTTPException(
             status_code=409, detail={"code": exc.code, "message": exc.message}
         ) from exc
-    except GracePeriodOutOfRange as exc:
+    except GracePeriodOutOfRangeError as exc:
         raise HTTPException(
             status_code=422, detail={"code": exc.code, "message": exc.message}
         ) from exc
@@ -300,11 +299,11 @@ async def extend_tenant_grace(
             reason=payload.reason,
             correlation_ctx=getattr(request.state, "correlation_context", None),
         )
-    except DeletionJobAlreadyFinalised as exc:
+    except DeletionJobAlreadyFinalisedError as exc:
         raise HTTPException(
             status_code=409, detail={"code": exc.code, "message": exc.message}
         ) from exc
-    except GracePeriodOutOfRange as exc:
+    except GracePeriodOutOfRangeError as exc:
         raise HTTPException(
             status_code=422, detail={"code": exc.code, "message": exc.message}
         ) from exc
@@ -379,11 +378,11 @@ async def abort_deletion_job(
             abort_reason=payload.abort_reason,
             correlation_ctx=getattr(request.state, "correlation_context", None),
         )
-    except CascadeInProgress as exc:
+    except CascadeInProgressError as exc:
         raise HTTPException(
             status_code=409, detail={"code": exc.code, "message": exc.message}
         ) from exc
-    except DeletionJobAlreadyFinalised as exc:
+    except DeletionJobAlreadyFinalisedError as exc:
         raise HTTPException(
             status_code=410, detail={"code": exc.code, "message": exc.message}
         ) from exc

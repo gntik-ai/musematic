@@ -6,13 +6,11 @@ Mirrors the 7 contract files at ``specs/104-data-lifecycle/contracts/``.
 from __future__ import annotations
 
 from datetime import date, datetime
+from platform.data_lifecycle.models import DeletionPhase, ExportStatus, ScopeType
 from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
-
-from platform.data_lifecycle.models import DeletionPhase, ExportStatus, ScopeType
-
 
 # =============================================================================
 # Common / shared

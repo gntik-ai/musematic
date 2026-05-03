@@ -5,7 +5,7 @@ Covers:
   conflict, audit + Kafka emission, plaintext token returned (T043).
 * Cancel-via-token — anti-enumeration: same return shape regardless
   of outcome (T044 / T042 / R10).
-* Superadmin abort during grace — phase_2 refused (CascadeInProgress).
+* Superadmin abort during grace — phase_2 refused (CascadeInProgressError).
 * Grace advance — finds expired phase_1 jobs, advances to phase_2,
   drives the cascade dispatcher.
 """
@@ -14,24 +14,21 @@ from __future__ import annotations
 
 import hashlib
 from datetime import UTC, datetime, timedelta
-from typing import Any
-from uuid import UUID, uuid4
-
-import pytest
-
 from platform.common.config import DataLifecycleSettings
 from platform.data_lifecycle.exceptions import (
-    CascadeInProgress,
-    DataLifecycleError,
-    DeletionJobAlreadyActive,
-    TypedConfirmationMismatch,
+    CascadeInProgressError,
+    DeletionJobAlreadyActiveError,
+    TypedConfirmationMismatchError,
 )
 from platform.data_lifecycle.models import DeletionJob, DeletionPhase, ScopeType
 from platform.data_lifecycle.services.deletion_service import (
     DeletionService,
     WorkspaceDeletionRequestResult,
 )
+from typing import Any
+from uuid import UUID, uuid4
 
+import pytest
 
 # ---------- Stubs ----------
 
@@ -162,7 +159,7 @@ def _build(
 
 @pytest.mark.asyncio
 async def test_request_workspace_deletion_creates_phase_1_job() -> None:
-    service, repo, mutator, audit, producer = _build()
+    service, _repo, mutator, audit, producer = _build()
     workspace_id = uuid4()
     tenant_id = uuid4()
     user_id = uuid4()
@@ -203,7 +200,7 @@ async def test_request_workspace_deletion_creates_phase_1_job() -> None:
 async def test_request_workspace_deletion_refuses_typed_confirmation_mismatch() -> None:
     service, repo, _, _, _ = _build(mutator=_StubMutator(name="acme-pro"))
 
-    with pytest.raises(TypedConfirmationMismatch):
+    with pytest.raises(TypedConfirmationMismatchError):
         await service.request_workspace_deletion(
             tenant_id=uuid4(),
             workspace_id=uuid4(),
@@ -232,7 +229,7 @@ async def test_request_workspace_deletion_refuses_when_active_job_exists() -> No
     repo._active = existing
     service, _, _, _, _ = _build(repo=repo)
 
-    with pytest.raises(DeletionJobAlreadyActive):
+    with pytest.raises(DeletionJobAlreadyActiveError):
         await service.request_workspace_deletion(
             tenant_id=uuid4(),
             workspace_id=uuid4(),
@@ -276,7 +273,7 @@ async def test_cancel_via_token_unknown_returns_not_succeeded() -> None:
 
 @pytest.mark.asyncio
 async def test_cancel_via_token_success_flips_workspace_to_active() -> None:
-    service, repo, mutator, audit, producer = _build()
+    service, _repo, mutator, _audit, producer = _build()
     workspace_id = uuid4()
     result = await service.request_workspace_deletion(
         tenant_id=uuid4(),
@@ -302,7 +299,7 @@ async def test_cancel_via_token_success_flips_workspace_to_active() -> None:
 async def test_cancel_via_token_expired_returns_not_succeeded() -> None:
     """Token past expiry produces the same response shape — R10."""
 
-    service, repo, mutator, audit, _ = _build()
+    service, _repo, _mutator, audit, _ = _build()
     # Backdate a job so its expiry is in the past.
     workspace_id = uuid4()
     result = await service.request_workspace_deletion(
@@ -369,7 +366,7 @@ async def test_abort_in_grace_in_phase_2_raises_cascade_in_progress() -> None:
     object.__setattr__(job, "id", uuid4())
     repo._jobs_by_id[job.id] = job
 
-    with pytest.raises(CascadeInProgress):
+    with pytest.raises(CascadeInProgressError):
         await service.abort_in_grace(
             job_id=job.id,
             actor_user_id=uuid4(),
@@ -401,7 +398,7 @@ async def test_advance_grace_expired_jobs_dispatches_cascade() -> None:
     object.__setattr__(job, "id", uuid4())
     repo._jobs_by_id[job.id] = job
     repo._grace_expired = [job]
-    service, _, mutator, audit, producer = _build(
+    service, _, mutator, _audit, producer = _build(
         repo=repo, cascade_dispatcher=_cascade
     )
 

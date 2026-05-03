@@ -13,11 +13,7 @@ The default serializer set is constructed by
 
 from __future__ import annotations
 
-from typing import AsyncIterator, Callable
-from uuid import UUID
-
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from collections.abc import AsyncIterator, Callable
 from platform.data_lifecycle.serializers.workspace.agents import (
     serialize_workspace_agents,
 )
@@ -33,7 +29,9 @@ from platform.data_lifecycle.serializers.workspace.executions import (
 from platform.data_lifecycle.serializers.workspace.members import (
     serialize_workspace_members,
 )
+from uuid import UUID
 
+from sqlalchemy.ext.asyncio import AsyncSession
 
 SerializerFn = Callable[..., AsyncIterator[tuple[str, bytes]]]
 

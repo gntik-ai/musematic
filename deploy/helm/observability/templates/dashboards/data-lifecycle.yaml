@@ -35,9 +35,9 @@ data:
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "gridPos": { "h": 9, "w": 18, "x": 6, "y": 0 },
           "targets": [
-            { "expr": "histogram_quantile(0.5, sum(rate(data_lifecycle_export_duration_seconds_bucket[5m])) by (le, scope_type))", "legendFormat": "p50 {{scope_type}}" },
-            { "expr": "histogram_quantile(0.95, sum(rate(data_lifecycle_export_duration_seconds_bucket[5m])) by (le, scope_type))", "legendFormat": "p95 {{scope_type}}" },
-            { "expr": "histogram_quantile(0.99, sum(rate(data_lifecycle_export_duration_seconds_bucket[5m])) by (le, scope_type))", "legendFormat": "p99 {{scope_type}}" }
+            { "expr": "histogram_quantile(0.5, sum(rate(data_lifecycle_export_duration_seconds_bucket[5m])) by (le, scope_type))", "legendFormat": "p50 {{ `{{scope_type}}` }}" },
+            { "expr": "histogram_quantile(0.95, sum(rate(data_lifecycle_export_duration_seconds_bucket[5m])) by (le, scope_type))", "legendFormat": "p95 {{ `{{scope_type}}` }}" },
+            { "expr": "histogram_quantile(0.99, sum(rate(data_lifecycle_export_duration_seconds_bucket[5m])) by (le, scope_type))", "legendFormat": "p99 {{ `{{scope_type}}` }}" }
           ],
           "fieldConfig": { "defaults": { "unit": "s" } }
         },
@@ -59,7 +59,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "gridPos": { "h": 9, "w": 12, "x": 0, "y": 12 },
           "targets": [
-            { "expr": "sum(rate(data_lifecycle_export_failures_total[5m])) by (scope_type, reason)", "legendFormat": "{{scope_type}}/{{reason}}" }
+            { "expr": "sum(rate(data_lifecycle_export_failures_total[5m])) by (scope_type, reason)", "legendFormat": "{{ `{{scope_type}}` }}/{{ `{{reason}}` }}" }
           ]
         },
         {
@@ -79,7 +79,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "gridPos": { "h": 9, "w": 12, "x": 0, "y": 21 },
           "targets": [
-            { "expr": "sum(rate(data_lifecycle_deletion_phase_advance_total[5m])) by (from_phase, to_phase)", "legendFormat": "{{from_phase}}->{{to_phase}}" }
+            { "expr": "sum(rate(data_lifecycle_deletion_phase_advance_total[5m])) by (from_phase, to_phase)", "legendFormat": "{{ `{{from_phase}}` }}->{{ `{{to_phase}}` }}" }
           ]
         },
         {
@@ -89,7 +89,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "gridPos": { "h": 9, "w": 12, "x": 12, "y": 21 },
           "targets": [
-            { "expr": "histogram_quantile(0.95, sum(rate(data_lifecycle_cascade_duration_seconds_bucket[10m])) by (le, scope_type))", "legendFormat": "p95 {{scope_type}}" }
+            { "expr": "histogram_quantile(0.95, sum(rate(data_lifecycle_cascade_duration_seconds_bucket[10m])) by (le, scope_type))", "legendFormat": "p95 {{ `{{scope_type}}` }}" }
           ],
           "fieldConfig": { "defaults": { "unit": "s" } }
         },
@@ -100,7 +100,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "gridPos": { "h": 9, "w": 12, "x": 0, "y": 30 },
           "targets": [
-            { "expr": "histogram_quantile(0.95, sum(rate(data_lifecycle_dpa_scan_duration_seconds_bucket[5m])) by (le, outcome))", "legendFormat": "p95 {{outcome}}" }
+            { "expr": "histogram_quantile(0.95, sum(rate(data_lifecycle_dpa_scan_duration_seconds_bucket[5m])) by (le, outcome))", "legendFormat": "p95 {{ `{{outcome}}` }}" }
           ],
           "fieldConfig": { "defaults": { "unit": "s" } }
         },
@@ -111,7 +111,7 @@ data:
           "datasource": { "type": "prometheus", "uid": "$datasource" },
           "gridPos": { "h": 9, "w": 12, "x": 12, "y": 30 },
           "targets": [
-            { "expr": "sum(rate(data_lifecycle_dpa_virus_detected_total[5m])) by (signature)", "legendFormat": "virus {{signature}}" },
+            { "expr": "sum(rate(data_lifecycle_dpa_virus_detected_total[5m])) by (signature)", "legendFormat": "virus {{ `{{signature}}` }}" },
             { "expr": "sum(rate(data_lifecycle_dpa_scan_unavailable_total[5m]))", "legendFormat": "unavailable" }
           ]
         },

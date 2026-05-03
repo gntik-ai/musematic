@@ -6,16 +6,14 @@ import io
 import json
 import zipfile
 from datetime import UTC, datetime, timedelta
+from platform.common.config import DataLifecycleSettings
+from platform.data_lifecycle.exceptions import ExportRateLimitExceededError
+from platform.data_lifecycle.models import DataExportJob, ExportStatus, ScopeType
+from platform.data_lifecycle.services.export_service import ExportService
 from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
-
-from platform.common.config import DataLifecycleSettings
-from platform.data_lifecycle.exceptions import ExportRateLimitExceeded
-from platform.data_lifecycle.models import DataExportJob, ExportStatus, ScopeType
-from platform.data_lifecycle.services.export_service import ExportService
-
 
 # Reuse the stubs from the workspace test by replicating the minimum.
 
@@ -120,7 +118,7 @@ def _build(
 
 @pytest.mark.asyncio
 async def test_request_tenant_export_creates_pending_job() -> None:
-    service, repo, _, producer = _build()
+    service, _repo, _, producer = _build()
     job = await service.request_tenant_export(
         tenant_id=uuid4(), requested_by_user_id=uuid4()
     )
@@ -134,7 +132,7 @@ async def test_request_tenant_export_creates_pending_job() -> None:
 async def test_tenant_export_rate_limit_enforced() -> None:
     service, repo, _, _ = _build()
     repo._recent_count = 5
-    with pytest.raises(ExportRateLimitExceeded):
+    with pytest.raises(ExportRateLimitExceededError):
         await service.request_tenant_export(
             tenant_id=uuid4(), requested_by_user_id=uuid4()
         )
@@ -158,7 +156,7 @@ async def test_run_tenant_export_uploads_zip_and_completes() -> None:
     await service.run_tenant_export(job=job, worker_id="test", correlation_ctx=None)
 
     assert len(storage.uploads) == 1
-    bucket, key, body = storage.uploads[0]
+    _bucket, key, body = storage.uploads[0]
     assert key.startswith(f"tenant/{job.scope_id}/")
     with zipfile.ZipFile(io.BytesIO(body)) as zf:
         names = set(zf.namelist())

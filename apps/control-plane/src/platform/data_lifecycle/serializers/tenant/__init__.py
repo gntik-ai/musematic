@@ -10,11 +10,7 @@ workspace_id.
 
 from __future__ import annotations
 
-from typing import AsyncIterator, Callable
-from uuid import UUID
-
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from collections.abc import AsyncIterator, Callable
 from platform.data_lifecycle.serializers.tenant.audit import (
     serialize_tenant_audit,
 )
@@ -27,7 +23,9 @@ from platform.data_lifecycle.serializers.tenant.tenant_meta import (
 from platform.data_lifecycle.serializers.tenant.users import (
     serialize_tenant_users,
 )
+from uuid import UUID
 
+from sqlalchemy.ext.asyncio import AsyncSession
 
 SerializerFn = Callable[..., AsyncIterator[tuple[str, bytes]]]
 

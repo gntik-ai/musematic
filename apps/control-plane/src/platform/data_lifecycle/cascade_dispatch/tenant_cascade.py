@@ -17,13 +17,12 @@ hashes only).
 from __future__ import annotations
 
 import logging
-from typing import Any, Protocol
-from uuid import UUID
-
 from platform.common.config import PlatformSettings
 from platform.privacy_compliance.services.cascade_orchestrator import (
     CascadeOrchestrator,
 )
+from typing import Any, Protocol
+from uuid import UUID
 
 logger = logging.getLogger(__name__)
 

@@ -23,13 +23,12 @@ import json
 import logging
 import zipfile
 from datetime import UTC, datetime, timedelta
+from platform.data_lifecycle.services.dpa_service import DPAService
 from typing import Any
 from uuid import UUID
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from platform.data_lifecycle.services.dpa_service import DPAService
 
 logger = logging.getLogger(__name__)
 

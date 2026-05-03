@@ -11,21 +11,19 @@ Covers:
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
-from typing import Any
-from uuid import UUID, uuid4
-
-import pytest
-
 from platform.data_lifecycle.exceptions import (
-    SubProcessorNameConflict,
-    SubProcessorNotFound,
+    SubProcessorNameConflictError,
+    SubProcessorNotFoundError,
 )
 from platform.data_lifecycle.models import SubProcessor
 from platform.data_lifecycle.services.sub_processors_service import (
     SubProcessorsService,
     render_rss,
 )
+from typing import Any
+from uuid import UUID, uuid4
 
+import pytest
 
 # ---------- Stub repository ----------
 
@@ -135,7 +133,11 @@ def _row(name: str = "Anthropic", *, is_active: bool = True) -> SubProcessor:
     return row
 
 
-def _build(rows: list[SubProcessor] | None = None) -> tuple[SubProcessorsService, _StubRepo, _StubAudit, _StubProducer]:
+def _build(
+    rows: list[SubProcessor] | None = None,
+) -> tuple[
+    SubProcessorsService, _StubRepo, _StubAudit, _StubProducer
+]:
     repo = _StubRepo(rows or [])
     audit = _StubAudit()
     producer = _StubProducer()
@@ -190,7 +192,7 @@ async def test_add_emits_audit_and_kafka() -> None:
 @pytest.mark.asyncio
 async def test_add_refuses_duplicate_name() -> None:
     service, _, _, _ = _build([_row("Anthropic")])
-    with pytest.raises(SubProcessorNameConflict):
+    with pytest.raises(SubProcessorNameConflictError):
         await service.add(
             name="Anthropic",
             category="LLM provider",
@@ -209,7 +211,7 @@ async def test_update_with_renamed_collision_refused() -> None:
     a = _row("Anthropic")
     b = _row("OpenAI")
     service, _, _, _ = _build([a, b])
-    with pytest.raises(SubProcessorNameConflict):
+    with pytest.raises(SubProcessorNameConflictError):
         await service.update(
             sub_processor_id=b.id,
             updates={"name": "Anthropic"},
@@ -235,7 +237,7 @@ async def test_soft_delete_marks_inactive_and_emits_event() -> None:
 @pytest.mark.asyncio
 async def test_update_not_found_raises() -> None:
     service, _, _, _ = _build()
-    with pytest.raises(SubProcessorNotFound):
+    with pytest.raises(SubProcessorNotFoundError):
         await service.update(
             sub_processor_id=uuid4(),
             updates={"category": "LLM provider"},

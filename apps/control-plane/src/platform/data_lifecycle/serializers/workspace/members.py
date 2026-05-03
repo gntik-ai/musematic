@@ -12,7 +12,8 @@ workspace's roster; cross-workspace email exposure is forbidden.
 from __future__ import annotations
 
 import json
-from typing import Any, AsyncIterator
+from collections.abc import AsyncIterator
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import text
