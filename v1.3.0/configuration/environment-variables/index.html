@@ -7434,6 +7434,14 @@
 <td><code>deploy/helm/platform/templates/replication-jobs/kafka-mirrormaker.yaml</code></td>
 </tr>
 <tr>
+<td><code>MAXMIND_LICENSE_KEY</code></td>
+<td>optional</td>
+<td>-</td>
+<td>sensitive</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/platform/templates/geolite2-cronjob.yaml</code><br><code>deploy/helm/platform/templates/geolite2-init-job.yaml</code></td>
+</tr>
+<tr>
 <td><code>MINIO_ROOT_PASSWORD</code></td>
 <td>optional</td>
 <td>-</td>
@@ -14728,6 +14736,46 @@
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
+<td><code>ABUSE_CAPTCHA_HCAPTCHA_SECRET_PATH</code></td>
+<td>optional</td>
+<td><code>secret/data/abuse/captcha/hcaptcha</code></td>
+<td>sensitive</td>
+<td>Vault path that holds the hCaptcha secret (UPD-050 R5).</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>ABUSE_CAPTCHA_TURNSTILE_SECRET_PATH</code></td>
+<td>optional</td>
+<td><code>secret/data/abuse/captcha/turnstile</code></td>
+<td>sensitive</td>
+<td>Vault path that holds the Cloudflare Turnstile secret (UPD-050 R5).</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>ABUSE_DISPOSABLE_EMAIL_SYNC_ENABLED</code></td>
+<td>optional</td>
+<td><code>true</code></td>
+<td>informational</td>
+<td>Whether the weekly disposable-email upstream sync cron runs (UPD-050 FR-006). Disable in air-gapped environments.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>ABUSE_GEOLITE2_DB_PATH</code></td>
+<td>optional</td>
+<td><code>/var/lib/geolite2/GeoLite2-Country.mmdb</code></td>
+<td>configuration</td>
+<td>Filesystem path to the MaxMind GeoLite2 Country DB (UPD-050 R6). Mounted by the chart from a PVC.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>ABUSE_VELOCITY_REDIS_KEY_TTL_SECONDS</code></td>
+<td>optional</td>
+<td><code>86400</code></td>
+<td>sensitive</td>
+<td>TTL for <code>abuse:vel:*</code> Redis sorted-set keys (UPD-050 R2). Long enough to outlast the 24h email-domain window.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
 <td><code>BILLING_DEFAULT_QUOTA_PERIOD_ANCHOR</code></td>
 <td>optional</td>
 <td><code>calendar_month</code></td>
@@ -14933,6 +14981,46 @@
 <td><code>30</code></td>
 <td>informational</td>
 <td>Configures <code>A2A_TASK_IDLE_TIMEOUT_MINUTES</code> for Platform.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_ABUSE_CAPTCHA_HCAPTCHA_SECRET_PATH</code></td>
+<td>optional</td>
+<td><code>secret/data/abuse/captcha/hcaptcha</code></td>
+<td>sensitive</td>
+<td>Vault path that holds the hCaptcha secret (UPD-050 R5).</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_ABUSE_CAPTCHA_TURNSTILE_SECRET_PATH</code></td>
+<td>optional</td>
+<td><code>secret/data/abuse/captcha/turnstile</code></td>
+<td>sensitive</td>
+<td>Vault path that holds the Cloudflare Turnstile secret (UPD-050 R5).</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_ABUSE_DISPOSABLE_EMAIL_SYNC_ENABLED</code></td>
+<td>optional</td>
+<td><code>true</code></td>
+<td>informational</td>
+<td>Whether the weekly disposable-email upstream sync cron runs (UPD-050 FR-006). Disable in air-gapped environments.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_ABUSE_GEOLITE2_DB_PATH</code></td>
+<td>optional</td>
+<td><code>/var/lib/geolite2/GeoLite2-Country.mmdb</code></td>
+<td>configuration</td>
+<td>Filesystem path to the MaxMind GeoLite2 Country DB (UPD-050 R6). Mounted by the chart from a PVC.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>PLATFORM_ABUSE_VELOCITY_REDIS_KEY_TTL_SECONDS</code></td>
+<td>optional</td>
+<td><code>86400</code></td>
+<td>sensitive</td>
+<td>TTL for <code>abuse:vel:*</code> Redis sorted-set keys (UPD-050 R2). Long enough to outlast the 24h email-domain window.</td>
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
