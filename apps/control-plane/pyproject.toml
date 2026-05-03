@@ -211,6 +211,19 @@ omit = [
   "src/platform/common/events/producer.py",
   "src/platform/*/router.py",
   "src/platform/search/*",
+  # UPD-050 (spec 103) — framework-glue in security/abuse_prevention/.
+  # Admin router + Kafka consumer + cron + FastAPI deps + the
+  # signup-guards façade + the SQL repository are exercised by the
+  # integration_live tests that don't run in unit-test CI. Core unit-tested
+  # modules (velocity, disposable_emails, suspension, settings_service,
+  # captcha, geo_block, fraud_scoring, schemas, models, exceptions,
+  # events, metrics) stay in coverage.
+  "src/platform/security/abuse_prevention/admin_router.py",
+  "src/platform/security/abuse_prevention/consumer.py",
+  "src/platform/security/abuse_prevention/cron.py",
+  "src/platform/security/abuse_prevention/dependencies.py",
+  "src/platform/security/abuse_prevention/service.py",
+  "src/platform/security/abuse_prevention/repository.py",
 ]
 
 [tool.coverage.report]
