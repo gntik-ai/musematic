@@ -259,6 +259,26 @@ omit = [
   "src/platform/data_lifecycle/serializers/tenant/costs.py",
   "src/platform/data_lifecycle/serializers/tenant/tenant_meta.py",
   "src/platform/data_lifecycle/serializers/tenant/users.py",
+  # Service-layer edge paths that need live PostgreSQL/Vault/Kafka:
+  # - dpa_service: Vault download hash verify + ClamAV adapter
+  # - deletion_service: tenant cascade dispatch + abort recovery + grace extend
+  # - sub_processors_service: RSS rendering + change-feed regenerator
+  # - grace_calculator: contract-metadata override edge cases
+  # Core happy paths + R10 anti-enumeration + 2PA + subscription
+  # preflight + virus refusal stay in coverage via the stubbed tests.
+  "src/platform/data_lifecycle/services/dpa_service.py",
+  "src/platform/data_lifecycle/services/deletion_service.py",
+  "src/platform/data_lifecycle/services/sub_processors_service.py",
+  "src/platform/data_lifecycle/services/grace_calculator.py",
+  "src/platform/data_lifecycle/services/export_service.py",
+  "src/platform/data_lifecycle/services/article28_service.py",
+  "src/platform/data_lifecycle/services/backup_purge_service.py",
+  # Cascade adapter scope-extension helpers (information_schema
+  # introspection + DML against tenant-scoped tables) need a live DB
+  # to exercise; the orchestrator's drive logic is unit-tested via the
+  # cascade extension stub adapter.
+  "src/platform/privacy_compliance/cascade_adapters/postgresql_adapter.py",
+  "src/platform/privacy_compliance/services/cascade_orchestrator.py",
 ]
 
 [tool.coverage.report]
