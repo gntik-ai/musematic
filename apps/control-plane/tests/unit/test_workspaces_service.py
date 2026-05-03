@@ -15,6 +15,7 @@ from platform.workspaces.exceptions import (
     WorkspaceLimitError,
     WorkspaceNameConflictError,
     WorkspaceNotFoundError,
+    WorkspacePendingDeletionError,
     WorkspaceStateConflictError,
 )
 from platform.workspaces.models import GoalStatus, WorkspaceRole, WorkspaceStatus
@@ -734,3 +735,32 @@ async def test_get_workspace_id_for_resource_resolves_execution_backed_channels(
     assert await service.get_workspace_id_for_resource(ChannelType.FLEET, fleet_id) == workspace_id
     assert await service.get_workspace_id_for_resource(ChannelType.WORKSPACE, uuid4()) is None
     assert await service.get_workspace_id_for_resource(ChannelType.ALERTS, uuid4()) is None
+
+
+@pytest.mark.asyncio
+async def test_pending_deletion_workspace_blocks_writes_but_allows_reads() -> None:
+    """T047 — UPD-051 write-guard: pending_deletion blocks writes (423), reads pass."""
+    owner_id = uuid4()
+    workspace_id = uuid4()
+    repo = WorkspacesRepoStub()
+    repo.workspaces[workspace_id] = build_workspace(
+        workspace_id=workspace_id,
+        owner_id=owner_id,
+        status=WorkspaceStatus.pending_deletion,
+    )
+    repo.memberships[(workspace_id, owner_id)] = build_membership(
+        workspace_id=workspace_id,
+        user_id=owner_id,
+        role=WorkspaceRole.owner,
+    )
+    service, _accounts, _producer = _service(repo)
+
+    fetched = await service.get_workspace(workspace_id, owner_id)
+    assert fetched.status == WorkspaceStatus.pending_deletion
+
+    with pytest.raises(WorkspacePendingDeletionError):
+        await service.update_workspace(
+            workspace_id,
+            owner_id,
+            UpdateWorkspaceRequest(name="Renamed"),
+        )

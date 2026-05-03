@@ -107,3 +107,13 @@ class VisibilityGrantNotFoundError(WorkspacesError):
 
     def __init__(self) -> None:
         super().__init__("VISIBILITY_GRANT_NOT_FOUND", "Workspace visibility grant not found")
+
+
+class WorkspacePendingDeletionError(WorkspacesError):
+    status_code = 423
+
+    def __init__(self) -> None:
+        super().__init__(
+            "WORKSPACE_PENDING_DELETION",
+            "Workspace is pending deletion; writes are blocked until the grace period ends or deletion is cancelled.",
+        )
