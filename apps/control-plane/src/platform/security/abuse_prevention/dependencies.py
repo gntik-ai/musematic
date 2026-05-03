@@ -7,6 +7,7 @@ into the request scope so the accounts BC's register endpoint can call
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from platform.audit.dependencies import build_audit_chain_service
 from platform.common import database
 from platform.security.abuse_prevention.disposable_emails import (
@@ -26,48 +27,50 @@ from fastapi import Request
 
 
 def _event_producer(request: Request) -> Any:
-    return getattr(request.app.state, "event_producer", None)
+    """Resolve the Kafka producer from the platform's clients dict."""
+    clients = getattr(request.app.state, "clients", {})
+    return clients.get("kafka") if isinstance(clients, dict) else None
 
 
 def _redis_client(request: Request) -> Any:
-    return getattr(request.app.state, "redis_client", None)
+    """Resolve the Redis client from the platform's clients dict."""
+    clients = getattr(request.app.state, "clients", {})
+    return clients.get("redis") if isinstance(clients, dict) else None
 
 
 async def build_abuse_prevention_facade(
     request: Request,
-) -> AbusePreventionService:
+) -> AsyncIterator[AbusePreventionService]:
     """Build the per-request `AbusePreventionService` façade.
 
     Used as a FastAPI Depends from `accounts/router.py:register`. Each
     sub-service binds to a fresh DB session that is closed when the
-    request ends.
+    request ends. Implemented as a generator so FastAPI handles the
+    teardown via `__aexit__`.
+
+    The session is the BYPASSRLS staff session because signup is
+    pre-tenant — settings + allowlist reads cross tenants.
     """
-    # The session lifetime is handled by the caller — accounts/router.py
-    # uses its own session context. We use the BYPASSRLS staff session
-    # for cross-tenant settings + allowlist reads (signup is pre-tenant).
     settings = request.app.state.settings
     producer = _event_producer(request)
     redis = _redis_client(request)
 
-    session_ctx = database.PlatformStaffAsyncSessionLocal()
-    session = await session_ctx.__aenter__()
-    request.state._abuse_session_ctx = session_ctx  # cleaned up by middleware
+    async with database.PlatformStaffAsyncSessionLocal() as session:
+        settings_service = AbusePreventionSettingsService(
+            session=session,
+            audit_chain=build_audit_chain_service(
+                session=session, settings=settings, producer=producer
+            ),
+            event_producer=producer,
+        )
+        velocity_limiter = SignupVelocityLimiter(redis=redis)
+        disposable_service = DisposableEmailService(session=session, redis=redis)
+        trusted_repo = TrustedSourceAllowlistRepository(session=session)
 
-    settings_service = AbusePreventionSettingsService(
-        session=session,
-        audit_chain=build_audit_chain_service(
-            session=session, settings=settings, producer=producer
-        ),
-        event_producer=producer,
-    )
-    velocity_limiter = SignupVelocityLimiter(redis=redis)
-    disposable_service = DisposableEmailService(session=session, redis=redis)
-    trusted_repo = TrustedSourceAllowlistRepository(session=session)
-
-    return AbusePreventionService(
-        settings=settings_service,
-        velocity=velocity_limiter,
-        disposable=disposable_service,
-        trusted=trusted_repo,
-        event_producer=producer,
-    )
+        yield AbusePreventionService(
+            settings=settings_service,
+            velocity=velocity_limiter,
+            disposable=disposable_service,
+            trusted=trusted_repo,
+            event_producer=producer,
+        )
