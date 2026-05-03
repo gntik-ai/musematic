@@ -11,7 +11,7 @@ The table is platform-level (NOT tenant-scoped) because the public
 sub-processors page is a public artifact — subscribers don't belong to
 any tenant.
 
-Revision ID: 113_sub_processor_email_subscriptions
+Revision ID: 113_subproc_email_subs
 Revises: 112_data_lifecycle_tag_types
 Create Date: 2026-05-03
 """
@@ -24,7 +24,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "113_sub_processor_email_subscriptions"
+revision: str = "113_subproc_email_subs"
 down_revision: str | None = "112_data_lifecycle_tag_types"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
