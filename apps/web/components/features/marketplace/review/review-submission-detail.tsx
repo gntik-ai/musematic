@@ -26,6 +26,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ReviewQueueAssignmentControls } from "@/components/features/marketplace/review/review-queue-assignment-controls";
 
 interface ReviewSubmissionDetailProps {
   agentId: string;
@@ -36,7 +37,9 @@ export function ReviewSubmissionDetail({ agentId }: ReviewSubmissionDetailProps)
   // already carries everything the reviewer needs. We pull the current
   // queue and locate the row by agentId. If the row isn't in the queue
   // (stale link, already resolved), we fall back to a "not found" state.
-  const { data, isLoading } = useReviewQueue();
+  // include_self_authored=true so a viewer who is also the submitter
+  // can still see and inspect their own row (action buttons gated below).
+  const { data, isLoading } = useReviewQueue({ includeSelfAuthored: true });
   const submission = useMemo(
     () => data?.items.find((item) => item.agent_id === agentId),
     [data, agentId],
@@ -66,17 +69,30 @@ export function ReviewSubmissionDetail({ agentId }: ReviewSubmissionDetailProps)
     );
   }
 
+  const isSelfAuthored = Boolean(submission.is_self_authored);
+  const selfAuthoredTooltip = "You authored this submission — reviewers cannot act on their own work.";
+
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader className="space-y-1">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <CardTitle className="font-mono text-xl">{submission.agent_fqn}</CardTitle>
-            {submission.claimed_by_user_id ? (
-              <Badge variant="outline">Claimed</Badge>
-            ) : (
-              <Badge>Unclaimed</Badge>
-            )}
+            <div className="flex items-center gap-2">
+              {isSelfAuthored ? (
+                <Badge
+                  variant="destructive"
+                  data-testid="self-authored-detail-badge"
+                >
+                  Self-authored
+                </Badge>
+              ) : null}
+              {submission.claimed_by_user_id ? (
+                <Badge variant="outline">Claimed</Badge>
+              ) : (
+                <Badge>Unclaimed</Badge>
+              )}
+            </div>
           </div>
           <p className="text-sm text-muted-foreground">
             Submitted by {submission.submitter_email || submission.submitter_user_id}
@@ -112,11 +128,21 @@ export function ReviewSubmissionDetail({ agentId }: ReviewSubmissionDetailProps)
         </CardContent>
       </Card>
 
+      <ReviewQueueAssignmentControls
+        agentId={submission.agent_id}
+        submitterUserId={submission.submitter_user_id}
+        assignedReviewerUserId={submission.assigned_reviewer_user_id}
+        assignedReviewerEmail={submission.assigned_reviewer_email}
+      />
+
       <div className="flex flex-wrap gap-2">
         <Button
           variant="secondary"
           onClick={() => claim.mutate(submission.agent_id)}
-          disabled={claim.isPending}
+          disabled={claim.isPending || isSelfAuthored}
+          title={isSelfAuthored ? selfAuthoredTooltip : undefined}
+          aria-label={isSelfAuthored ? selfAuthoredTooltip : "Claim"}
+          data-testid="claim-button"
         >
           Claim
         </Button>
@@ -135,14 +161,20 @@ export function ReviewSubmissionDetail({ agentId }: ReviewSubmissionDetailProps)
               body: { notes: null },
             })
           }
-          disabled={approve.isPending}
+          disabled={approve.isPending || isSelfAuthored}
+          title={isSelfAuthored ? selfAuthoredTooltip : undefined}
+          aria-label={isSelfAuthored ? selfAuthoredTooltip : "Approve"}
+          data-testid="approve-button"
         >
           Approve
         </Button>
         <Button
           variant="destructive"
           onClick={() => setRejectOpen(true)}
-          disabled={reject.isPending}
+          disabled={reject.isPending || isSelfAuthored}
+          title={isSelfAuthored ? selfAuthoredTooltip : undefined}
+          aria-label={isSelfAuthored ? selfAuthoredTooltip : "Reject"}
+          data-testid="reject-button"
         >
           Reject…
         </Button>

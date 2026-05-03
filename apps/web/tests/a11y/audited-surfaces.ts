@@ -38,6 +38,9 @@ export const auditedSurfaces: AuditedSurface[] = [
   { id: "marketplace", group: "marketplace", route: "/marketplace", ready: bodyReady },
   { id: "agent-detail", group: "agent-detail", route: "/marketplace/finance-ops/kyc-verifier", ready: bodyReady },
   { id: "agent-management", group: "agent-detail", route: "/agent-management", ready: bodyReady },
+  // UPD-049 refresh (102) T064 — assignment + publish surfaces.
+  { id: "marketplace-review", group: "admin-settings", route: "/admin/marketplace-review", ready: bodyReady },
+  { id: "agent-publish-flow", group: "agent-detail", route: "/agent-management/finance-ops%3Akyc-verifier/publish", ready: bodyReady },
   { id: "workflow-editor", group: "workflow-editor", route: "/workflow-editor-monitor/new", ready: bodyReady },
   { id: "workflow-monitor", group: "workflow-editor", route: "/workflow-editor-monitor", ready: bodyReady },
   { id: "fleet-view", group: "fleet-view", route: "/fleet", ready: bodyReady },

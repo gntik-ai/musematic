@@ -93,7 +93,7 @@ async def test_window_slides_past_cutoff() -> None:
     # Pre-seed 5 entries with timestamps just outside the 24h window
     far_past_ms = 0  # epoch — definitely outside the window
     for _ in range(5):
-        await fake.client.zadd(f"key", {str(uuid4()): far_past_ms})
+        await fake.client.zadd("key", {str(uuid4()): far_past_ms})
     # The next check_and_record should evict the stale entries and succeed.
     await limiter.check_and_record(user_id)
 

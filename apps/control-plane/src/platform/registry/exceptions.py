@@ -202,6 +202,80 @@ class ReviewAlreadyClaimedError(RegistryError):
         )
 
 
+# --- UPD-049 refresh (102) — self-review prevention + assignment ---------
+# See specs/102-marketplace-scope/contracts/self-review-prevention.md and
+# contracts/reviewer-assignment-rest.md.
+
+
+class SelfReviewNotAllowedError(RegistryError):
+    """Raised when a reviewer attempts to act on a submission they authored.
+
+    Covers the four review-action verbs: ``assign``, ``claim``, ``approve``,
+    ``reject``. The audit chain emits a
+    ``marketplace.review.self_review_attempted`` entry separately; this
+    exception only carries the API-layer error shape.
+    """
+
+    status_code = 403
+
+    def __init__(
+        self,
+        *,
+        submitter_user_id: UUID,
+        actor_user_id: UUID,
+        action: str,
+    ) -> None:
+        super().__init__(
+            "REGISTRY_SELF_REVIEW_NOT_ALLOWED",
+            "Reviewers cannot act on submissions they authored.",
+            {
+                "submitter_user_id": str(submitter_user_id),
+                "actor_user_id": str(actor_user_id),
+                "action": action,
+            },
+        )
+
+
+class ReviewerAssignmentConflictError(RegistryError):
+    """Raised when an assignment conflicts with an existing assignment.
+
+    Two cases:
+    * ``assign`` called with a different reviewer when the row is already
+      assigned to someone else (caller must ``unassign`` first).
+    * ``claim`` called by a reviewer who is not the currently-assigned
+      reviewer (claim-jumping prevention).
+    """
+
+    status_code = 409
+
+    def __init__(
+        self,
+        agent_id: UUID,
+        assigned_reviewer_user_id: UUID,
+    ) -> None:
+        super().__init__(
+            "REGISTRY_REVIEWER_ASSIGNMENT_CONFLICT",
+            "This submission is assigned to a different reviewer.",
+            {
+                "agent_id": str(agent_id),
+                "assigned_reviewer_user_id": str(assigned_reviewer_user_id),
+            },
+        )
+
+
+class SubmissionNotInPendingReviewError(RegistryError):
+    """Raised when assign/unassign is called on a submission outside ``pending_review``."""
+
+    status_code = 409
+
+    def __init__(self, agent_id: UUID, current_status: str) -> None:
+        super().__init__(
+            "REGISTRY_SUBMISSION_NOT_IN_PENDING_REVIEW",
+            "Assignment is only valid while a submission is in pending_review.",
+            {"agent_id": str(agent_id), "current_status": current_status},
+        )
+
+
 class SubmissionAlreadyResolvedError(RegistryError):
     status_code = 409
 

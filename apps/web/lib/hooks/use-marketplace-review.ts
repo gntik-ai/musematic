@@ -15,9 +15,13 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createApiClient } from "@/lib/api";
 import { useAppQuery } from "@/lib/hooks/use-api";
 import type {
+  AssignReviewerRequest,
+  QueueAssignmentFilter,
   ReviewApprovalRequest,
   ReviewQueueResponse,
   ReviewRejectionRequest,
+  ReviewerAssignmentResponse,
+  ReviewerUnassignmentResponse,
 } from "@/lib/marketplace/types";
 
 const adminApi = createApiClient(
@@ -34,6 +38,9 @@ export interface ReviewQueueFilter {
   unclaimedOnly?: boolean;
   cursor?: string | null;
   limit?: number;
+  // UPD-049 refresh (102) — assignment + self-authored filter chips.
+  assignment?: QueueAssignmentFilter;
+  includeSelfAuthored?: boolean;
 }
 
 function queuePath(filter: ReviewQueueFilter | undefined): string {
@@ -42,6 +49,17 @@ function queuePath(filter: ReviewQueueFilter | undefined): string {
   if (filter?.unclaimedOnly) params.set("unclaimed", "true");
   if (filter?.cursor) params.set("cursor", filter.cursor);
   if (filter?.limit) params.set("limit", String(filter.limit));
+  // UPD-049 refresh — assignment chips map to the `assigned_to` query
+  // parameter. "all" omits the filter entirely; "other" is a UI-only
+  // affordance that the backend does not directly support — it is
+  // resolved client-side in `useReviewQueue` below by filtering out
+  // the caller's own assignments after fetching all assigned items.
+  if (filter?.assignment === "unassigned") {
+    params.set("assigned_to", "unassigned");
+  } else if (filter?.assignment === "me") {
+    params.set("assigned_to", "me");
+  }
+  if (filter?.includeSelfAuthored) params.set("include_self_authored", "true");
   const query = params.toString();
   return `/api/v1/admin/marketplace-review/queue${query ? `?${query}` : ""}`;
 }
@@ -96,6 +114,35 @@ export function useRejectReview() {
       adminApi.post(
         `/api/v1/admin/marketplace-review/${input.agentId}/reject`,
         input.body,
+      ),
+    onSuccess: () => invalidateQueue(client),
+  });
+}
+
+// --- UPD-049 refresh (102) — reviewer assignment hooks ---------------
+
+export function useAssignReviewer() {
+  const client = useQueryClient();
+  return useMutation<
+    ReviewerAssignmentResponse,
+    Error,
+    { agentId: string; body: AssignReviewerRequest }
+  >({
+    mutationFn: async (input) =>
+      adminApi.post<ReviewerAssignmentResponse>(
+        `/api/v1/admin/marketplace-review/${input.agentId}/assign`,
+        input.body,
+      ),
+    onSuccess: () => invalidateQueue(client),
+  });
+}
+
+export function useUnassignReviewer() {
+  const client = useQueryClient();
+  return useMutation<ReviewerUnassignmentResponse, Error, string>({
+    mutationFn: async (agentId) =>
+      adminApi.delete<ReviewerUnassignmentResponse>(
+        `/api/v1/admin/marketplace-review/${agentId}/assign`,
       ),
     onSuccess: () => invalidateQueue(client),
   });

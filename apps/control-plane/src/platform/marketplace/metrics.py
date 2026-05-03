@@ -36,9 +36,10 @@ class _NoopMetric:  # pragma: no cover - used only when prometheus_client is una
         return None
 
 
-_prometheus_client: Any
 try:  # pragma: no cover - prometheus_client is installed in runtime images
-    import prometheus_client as _prometheus_client
+    import prometheus_client as _imported_prometheus_client
+
+    _prometheus_client: Any = _imported_prometheus_client
 except Exception:  # pragma: no cover
     _prometheus_client = None
 
@@ -81,10 +82,30 @@ marketplace_review_age_seconds = Histogram(
 )
 
 
+# UPD-049 refresh (102) — assignment + self-review counters/histograms.
+
+marketplace_self_review_attempts_total = Counter(
+    "marketplace_self_review_attempts_total",
+    "Refused self-review attempts (FR-741.9). action ∈ {assign,claim,approve,reject}.",
+    ["action"],
+)
+
+marketplace_review_rejection_notification_latency_seconds = Histogram(
+    "marketplace_review_rejection_notification_latency_seconds",
+    (
+        "Time from reviewer recording a rejection to the submitter "
+        "receiving the notification (SC-008)."
+    ),
+    buckets=(1, 5, 10, 30, 60, 120, 300, 600),
+)
+
+
 __all__ = [
     "marketplace_forks_total",
     "marketplace_rate_limit_refusals_total",
     "marketplace_review_age_seconds",
     "marketplace_review_decisions_total",
+    "marketplace_review_rejection_notification_latency_seconds",
+    "marketplace_self_review_attempts_total",
     "marketplace_submissions_total",
 ]

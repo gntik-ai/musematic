@@ -1074,6 +1074,31 @@ class RegistryService:
         assert target_workspace_id is not None
         await self._assert_workspace_access(target_workspace_id, actor_id)
 
+        # UPD-049 refresh (102) T053 — fork quota integration. Verify the
+        # consumer's tenant plan has agent-publish capacity before we
+        # spend cycles building the fork. Closes 099 NOTES Backend
+        # follow-up 1. Skipped silently if the quota_enforcer dependency
+        # isn't wired (test contexts, local mode). Use getattr so tests
+        # that bypass __init__ via __new__ don't AttributeError.
+        quota_enforcer = getattr(self, "quota_enforcer", None)
+        if quota_enforcer is not None and hasattr(
+            quota_enforcer, "check_agent_publish"
+        ):
+            quota_result = await quota_enforcer.check_agent_publish(
+                target_workspace_id
+            )
+            allowed = getattr(quota_result, "allowed", quota_result)
+            if allowed is False:
+                # Re-use the existing 402-quota_exceeded surface from the
+                # publish path (the contract names the same error code).
+                from platform.billing.exceptions import QuotaExceededError
+
+                raise QuotaExceededError(
+                    "agent_publish",
+                    current=getattr(quota_result, "current", 0),
+                    limit=getattr(quota_result, "limit", 0),
+                )
+
         # Resolve target namespace — reuse the source's namespace name in the
         # consumer's tenant if it exists; otherwise fall back to a default
         # "forks" namespace.
@@ -1126,13 +1151,14 @@ class RegistryService:
         await self.repository.session.flush()
         await self._commit()
 
-        # Tool-dependency surface: list tools that aren't registered in the
-        # consumer's tenant. The mcp_server_refs are the closest analog;
-        # we surface them as "potentially missing" so the consumer knows
-        # what to register. A more sophisticated check (cross-checking
-        # against actually-registered tools per tenant) belongs to a
-        # follow-up; document inline.
-        tool_dependencies_missing = list(fork.mcp_server_refs or [])
+        # UPD-049 refresh (102) T054 — tool-dependency cross-check.
+        # Compare the source's mcp_server_refs against the MCP servers
+        # registered in the consumer's tenant. Only servers NOT
+        # registered for the consumer are flagged as missing. Closes
+        # 099 NOTES Backend follow-up 2.
+        tool_dependencies_missing = await self._tool_dependencies_missing_for(
+            fork.mcp_server_refs or []
+        )
 
         await publish_marketplace_event(
             self.event_producer,
@@ -1653,6 +1679,49 @@ class RegistryService:
         ):
             return [float(item) for item in data[0]["embedding"]]
         raise RegistryStoreUnavailableError("embedding_api", "Embedding response missing vector")
+
+    async def _tool_dependencies_missing_for(
+        self, mcp_server_refs: list[str]
+    ) -> list[str]:
+        """UPD-049 refresh (102) T054 — return the subset of
+        ``mcp_server_refs`` that are NOT registered for any workspace
+        inside the consumer's tenant.
+
+        Refs are matched against both the registered server's
+        ``endpoint_url`` and ``display_name`` so the publisher's choice
+        of identifier shape does not bias the result. The current
+        tenant context is taken from ``get_current_tenant()``.
+        """
+        if not mcp_server_refs:
+            return []
+        try:
+            from sqlalchemy import text as _sql_text
+
+            tenant = get_current_tenant()
+            result = await self.repository.session.execute(
+                _sql_text(
+                    """
+                    SELECT m.endpoint_url, m.display_name
+                      FROM mcp_server_registrations m
+                      JOIN workspaces_workspaces w ON w.id = m.workspace_id
+                     WHERE w.tenant_id = :tenant_id
+                       AND m.status = 'active'
+                    """
+                ),
+                {"tenant_id": str(tenant.id)},
+            )
+            registered: set[str] = set()
+            for row in result.mappings().all():
+                if row["endpoint_url"]:
+                    registered.add(str(row["endpoint_url"]))
+                if row["display_name"]:
+                    registered.add(str(row["display_name"]))
+            return [ref for ref in mcp_server_refs if ref not in registered]
+        except Exception:
+            # Fall back to surfacing all refs as potentially-missing if
+            # the lookup itself fails — preserves the safer signal for
+            # the consumer (over-report missing rather than under-report).
+            return list(mcp_server_refs)
 
     async def _commit(self) -> None:
         if hasattr(self.repository.session, "commit"):

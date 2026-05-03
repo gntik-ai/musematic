@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, Coins, MessageSquareText } from "lucide-react";
+import { AlertTriangle, Coins, GitFork, MessageSquareText } from "lucide-react";
+import { ForkAgentDialog } from "@/components/features/marketplace/fork-agent-dialog";
+import { useMemberships } from "@/lib/hooks/use-memberships";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -70,8 +72,32 @@ export function AgentDetail({
   currentUserReview = null,
 }: AgentDetailProps) {
   const [activeTab, setActiveTab] = useState<TabValue>("overview");
+  const [forkOpen, setForkOpen] = useState(false);
+  const memberships = useMemberships();
   const canInvoke = agent.visibility.visibleToCurrentUser && agent.certificationStatus !== "expired";
   const activeCertification = agent.trustSignals.certificationBadges.find((badge) => badge.isActive) ?? agent.trustSignals.certificationBadges[0] ?? null;
+  // UPD-049 refresh (102) T055 — Fork button is shown when:
+  //   • the source is a public-default-tenant agent, AND
+  //   • the viewer is NOT in the default tenant (default-tenant
+  //     viewers can edit the original or pick a different scope), AND
+  //   • the viewer's tenant has consume_public_marketplace=true.
+  const isPublicSource =
+    agent.marketplaceScope === "public_default_tenant" ||
+    agent.isFromPublicHub === true;
+  const currentTenantKind = memberships.currentMembership?.tenant_kind;
+  const consumePublic = Boolean(
+    memberships.currentMembership &&
+      typeof memberships.currentMembership === "object" &&
+      "feature_flags" in memberships.currentMembership &&
+      (memberships.currentMembership as unknown as {
+        feature_flags?: Record<string, unknown>;
+      }).feature_flags?.consume_public_marketplace,
+  );
+  const showForkButton =
+    isPublicSource &&
+    currentTenantKind === "enterprise" &&
+    consumePublic &&
+    !isOwner;
 
   const tabs: Array<{ value: TabValue; label: string }> = [
     { value: "overview", label: "Overview" },
@@ -203,9 +229,29 @@ export function AgentDetail({
                 ) : null}
               </Tooltip>
             </TooltipProvider>
+            {showForkButton ? (
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => setForkOpen(true)}
+                data-testid="fork-agent-button"
+              >
+                <GitFork className="h-4 w-4" />
+                Fork into my tenant
+              </Button>
+            ) : null}
           </div>
         </div>
       </section>
+
+      {showForkButton ? (
+        <ForkAgentDialog
+          open={forkOpen}
+          onOpenChange={setForkOpen}
+          sourceAgentId={agent.id}
+          sourceFqn={agent.fqn}
+        />
+      ) : null}
 
       <Tabs>
         <TabsList className="flex w-full flex-wrap gap-2 rounded-2xl bg-muted/60 p-2">

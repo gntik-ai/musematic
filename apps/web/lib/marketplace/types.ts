@@ -56,12 +56,46 @@ export interface ReviewSubmissionView {
   submitted_at: string;
   claimed_by_user_id: string | null;
   age_minutes: number;
+  // UPD-049 refresh (102) — assignment + self-authored gating.
+  assigned_reviewer_user_id?: string | null;
+  assigned_reviewer_email?: string | null;
+  is_self_authored?: boolean;
 }
 
 export interface ReviewQueueResponse {
   items: ReviewSubmissionView[];
   next_cursor: string | null;
 }
+
+// --- UPD-049 refresh (102) — reviewer assignment ----------------------
+
+export interface AssignReviewerRequest {
+  reviewer_user_id: string;
+}
+
+export interface ReviewerAssignmentResponse {
+  agent_id: string;
+  assigned_reviewer_user_id: string;
+  assigned_reviewer_email: string;
+  assigner_user_id: string;
+  assigned_at: string;
+  prior_assignee_user_id: string | null;
+}
+
+export interface ReviewerUnassignmentResponse {
+  agent_id: string;
+  prior_assignee_user_id: string | null;
+  unassigned_at: string;
+  unassigner_user_id: string;
+}
+
+/** Filter chips on the queue page. The string union mirrors the
+ * `assigned_to` query parameter on the GET /queue endpoint. */
+export type QueueAssignmentFilter =
+  | "all"
+  | "unassigned"
+  | "me"
+  | "other";
 
 /** Body of the approve action — notes optional. */
 export interface ReviewApprovalRequest {

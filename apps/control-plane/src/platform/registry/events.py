@@ -155,6 +155,9 @@ class MarketplaceEventType(StrEnum):
     deprecated = "marketplace.deprecated"
     forked = "marketplace.forked"
     source_updated = "marketplace.source_updated"
+    # UPD-049 refresh (102) — reviewer-assignment events
+    review_assigned = "marketplace.review.assigned"
+    review_unassigned = "marketplace.review.unassigned"
 
 
 class MarketplaceScopeChangedPayload(BaseModel):
@@ -209,6 +212,30 @@ class MarketplaceSourceUpdatedPayload(BaseModel):
     diff_summary_hash: str
 
 
+# UPD-049 refresh (102) — reviewer-assignment payloads
+
+
+class MarketplaceReviewAssignedPayload(BaseModel):
+    agent_id: str
+    agent_fqn: str
+    submitter_user_id: str
+    assigner_user_id: str
+    assignee_user_id: str
+    prior_assignee_user_id: str | None = None
+    assigned_at: str
+    review_status: str = "pending_review"
+
+
+class MarketplaceReviewUnassignedPayload(BaseModel):
+    agent_id: str
+    agent_fqn: str
+    submitter_user_id: str
+    unassigner_user_id: str
+    prior_assignee_user_id: str
+    unassigned_at: str
+    review_status: str = "pending_review"
+
+
 MARKETPLACE_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     MarketplaceEventType.scope_changed.value: MarketplaceScopeChangedPayload,
     MarketplaceEventType.submitted.value: MarketplaceSubmittedPayload,
@@ -218,6 +245,8 @@ MARKETPLACE_EVENT_SCHEMAS: Final[dict[str, type[BaseModel]]] = {
     MarketplaceEventType.deprecated.value: MarketplaceDeprecatedPayload,
     MarketplaceEventType.forked.value: MarketplaceForkedPayload,
     MarketplaceEventType.source_updated.value: MarketplaceSourceUpdatedPayload,
+    MarketplaceEventType.review_assigned.value: MarketplaceReviewAssignedPayload,
+    MarketplaceEventType.review_unassigned.value: MarketplaceReviewUnassignedPayload,
 }
 
 

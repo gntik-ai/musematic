@@ -19,7 +19,6 @@ from platform.registry.exceptions import (
     PublicScopeNotAllowedForEnterpriseError,
 )
 from platform.registry.schemas import MarketingMetadata, PublishWithScopeRequest
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 

@@ -20,6 +20,7 @@ import {
   type TrustTier,
 } from "@/lib/types/marketplace";
 import { StarRating } from "@/components/features/marketplace/star-rating";
+import { PublicSourceLabel } from "@/components/features/marketplace/public-source-label";
 import { cn } from "@/lib/utils";
 
 export interface AgentCardProps {
@@ -97,6 +98,10 @@ export function AgentCard({
           <Badge className="border-border/60 bg-background/80 text-foreground" variant="outline">
             {humanizeMarketplaceValue(agent.costTier)}
           </Badge>
+          {agent.isFromPublicHub ||
+          agent.marketplaceScope === "public_default_tenant" ? (
+            <PublicSourceLabel />
+          ) : null}
         </div>
 
         <div className="space-y-2">

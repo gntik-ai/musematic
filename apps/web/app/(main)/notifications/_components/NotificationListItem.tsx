@@ -50,6 +50,20 @@ export function NotificationListItem({
         : null;
   const isTemplateUpdate = alert.alert_type === "creator.contract_template.upstream_updated";
   const isBillingOverage = alert.alert_type === "billing.overage.required";
+  // UPD-049 refresh (102) T056/T057 — marketplace source-updated alert.
+  // Rendered when the public agent a fork was based on has a new
+  // approved version. Deep-links to the source detail page; the body
+  // already includes the "fork has NOT been auto-updated" sentence.
+  const isMarketplaceSourceUpdated =
+    alert.alert_type === "marketplace.source_updated";
+  const sourceUpdatedHref = isMarketplaceSourceUpdated
+    ? typeof alert.source_reference?.source_agent_id === "string"
+      ? `/marketplace?source_agent_id=${encodeURIComponent(
+          alert.source_reference.source_agent_id,
+        )}`
+      : null
+    : null;
+  const resolvedHref = sourceUpdatedHref ?? href;
 
   return (
     <article className="grid gap-3 border-b border-border px-4 py-4 last:border-b-0 sm:grid-cols-[auto_1fr_auto]">
@@ -83,16 +97,27 @@ export function NotificationListItem({
           <span>{formatTimestamp(alert.created_at)}</span>
         </div>
       </div>
-      {href ? (
+      {resolvedHref ? (
         <Button
           size="sm"
           variant="outline"
+          data-testid={
+            isMarketplaceSourceUpdated
+              ? "marketplace-source-updated-open"
+              : undefined
+          }
           onClick={() => {
-            window.location.assign(href);
+            window.location.assign(resolvedHref);
           }}
         >
           <ExternalLink className="h-4 w-4" />
-          {isBillingOverage ? "Authorise now" : isTemplateUpdate ? templateT("viewDiff") : t("open")}
+          {isBillingOverage
+            ? "Authorise now"
+            : isTemplateUpdate
+              ? templateT("viewDiff")
+              : isMarketplaceSourceUpdated
+                ? "Open source agent"
+                : t("open")}
         </Button>
       ) : null}
     </article>
