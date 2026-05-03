@@ -136,6 +136,28 @@ from platform.cost_governance.events import register_cost_governance_event_types
 from platform.cost_governance.jobs.anomaly_job import build_anomaly_scheduler
 from platform.cost_governance.jobs.forecast_job import build_forecast_scheduler
 from platform.cost_governance.router import router as cost_governance_router
+from platform.data_lifecycle.events import register_data_lifecycle_event_types
+from platform.data_lifecycle.routers.dpa_router import (
+    admin_router as data_lifecycle_dpa_admin_router,
+)
+from platform.data_lifecycle.routers.dpa_router import (
+    me_router as data_lifecycle_dpa_me_router,
+)
+from platform.data_lifecycle.routers.sub_processors_router import (
+    admin_router as data_lifecycle_sub_processors_admin_router,
+)
+from platform.data_lifecycle.routers.sub_processors_router import (
+    public_router as data_lifecycle_sub_processors_public_router,
+)
+from platform.data_lifecycle.routers.tenant_admin_router import (
+    router as data_lifecycle_tenant_admin_router,
+)
+from platform.data_lifecycle.routers.workspace_router import (
+    cancel_router as data_lifecycle_cancel_router,
+)
+from platform.data_lifecycle.routers.workspace_router import (
+    router as data_lifecycle_workspace_router,
+)
 from platform.discovery.dependencies import build_discovery_service
 from platform.discovery.events import register_discovery_event_types
 from platform.discovery.router import router as discovery_router
@@ -262,7 +284,6 @@ from platform.registry.index_worker import RegistryIndexWorker
 from platform.registry.registry_opensearch_setup import create_marketplace_agents_index
 from platform.registry.registry_qdrant_setup import create_agent_embeddings_collection
 from platform.registry.router import router as registry_router
-from platform.data_lifecycle.events import register_data_lifecycle_event_types
 from platform.security.abuse_prevention.events import register_abuse_event_types
 from platform.security_compliance.consumers import ComplianceEvidenceConsumer
 from platform.security_compliance.events import register_security_compliance_event_types
@@ -302,27 +323,6 @@ from platform.workspaces.consumer import WorkspacesConsumer
 from platform.workspaces.dependencies import build_workspaces_service
 from platform.workspaces.events import register_workspaces_event_types
 from platform.workspaces.platform_router import router as workspaces_platform_router
-from platform.data_lifecycle.routers.sub_processors_router import (
-    admin_router as data_lifecycle_sub_processors_admin_router,
-)
-from platform.data_lifecycle.routers.sub_processors_router import (
-    public_router as data_lifecycle_sub_processors_public_router,
-)
-from platform.data_lifecycle.routers.dpa_router import (
-    admin_router as data_lifecycle_dpa_admin_router,
-)
-from platform.data_lifecycle.routers.dpa_router import (
-    me_router as data_lifecycle_dpa_me_router,
-)
-from platform.data_lifecycle.routers.tenant_admin_router import (
-    router as data_lifecycle_tenant_admin_router,
-)
-from platform.data_lifecycle.routers.workspace_router import (
-    cancel_router as data_lifecycle_cancel_router,
-)
-from platform.data_lifecycle.routers.workspace_router import (
-    router as data_lifecycle_workspace_router,
-)
 from platform.workspaces.router import router as workspaces_router
 from typing import Any, cast
 from uuid import UUID, uuid4
