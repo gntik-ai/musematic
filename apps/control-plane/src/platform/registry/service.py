@@ -1078,11 +1078,13 @@ class RegistryService:
         # consumer's tenant plan has agent-publish capacity before we
         # spend cycles building the fork. Closes 099 NOTES Backend
         # follow-up 1. Skipped silently if the quota_enforcer dependency
-        # isn't wired (test contexts, local mode).
-        if self.quota_enforcer is not None and hasattr(
-            self.quota_enforcer, "check_agent_publish"
+        # isn't wired (test contexts, local mode). Use getattr so tests
+        # that bypass __init__ via __new__ don't AttributeError.
+        quota_enforcer = getattr(self, "quota_enforcer", None)
+        if quota_enforcer is not None and hasattr(
+            quota_enforcer, "check_agent_publish"
         ):
-            quota_result = await self.quota_enforcer.check_agent_publish(
+            quota_result = await quota_enforcer.check_agent_publish(
                 target_workspace_id
             )
             allowed = getattr(quota_result, "allowed", quota_result)
