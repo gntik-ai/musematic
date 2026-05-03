@@ -40,6 +40,7 @@ def _default_tenant_id() -> UUID:
 class WorkspaceStatus(StrEnum):
     active = "active"
     archived = "archived"
+    pending_deletion = "pending_deletion"
     deleted = "deleted"
 
 

@@ -228,4 +228,7 @@ TENANT_SCOPED_TABLES: tuple[str, ...] = (
     "workspaces_workspaces",
     # UPD-050 (spec 103) — abuse-prevention tenant-scoped tables.
     "account_suspensions",
+    # UPD-051 (spec 104) — data lifecycle tenant-scoped tables.
+    "data_export_jobs",
+    "deletion_jobs",
 )

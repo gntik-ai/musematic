@@ -116,6 +116,133 @@ class CascadeOrchestrator:
             raise CascadePartialFailure(tombstone, errors)
         return tombstone
 
+    # ----- UPD-051 scope-level cascades -----------------------------------
+    #
+    # ``execute_workspace_cascade`` and ``execute_tenant_cascade`` are the
+    # entrypoints used by the data_lifecycle BC's deletion path. They walk
+    # the same ordered adapter list as the user-DSR cascade, but call the
+    # scope-specific ``execute_for_workspace`` / ``execute_for_tenant``
+    # methods on each adapter (CascadeAdapter base class).
+    #
+    # Adapters that have not yet implemented the scope-level method raise
+    # ``NotImplementedError``; the orchestrator captures that as a
+    # per-store error so the operator can see the gap, while letting the
+    # remaining adapters complete.
+
+    async def execute_workspace_cascade(
+        self,
+        workspace_id: UUID,
+        *,
+        requested_by_user_id: UUID | None = None,
+    ) -> dict[str, Any]:
+        """Execute a workspace-scoped cascade across all adapters.
+
+        Returns a structured dict of per-store results. Does NOT raise on
+        per-adapter failures (the caller's deletion job records the
+        partial state); raises only on orchestration-level failure.
+        """
+
+        return await self._execute_scope_cascade(
+            scope_label=f"workspace:{workspace_id}",
+            adapter_method_name="execute_for_workspace",
+            scope_arg=workspace_id,
+            requested_by_user_id=requested_by_user_id,
+        )
+
+    async def execute_tenant_cascade(
+        self,
+        tenant_id: UUID,
+        *,
+        requested_by_user_id: UUID | None = None,
+    ) -> dict[str, Any]:
+        """Execute a tenant-scoped cascade across all adapters."""
+
+        return await self._execute_scope_cascade(
+            scope_label=f"tenant:{tenant_id}",
+            adapter_method_name="execute_for_tenant",
+            scope_arg=tenant_id,
+            requested_by_user_id=requested_by_user_id,
+        )
+
+    async def _execute_scope_cascade(
+        self,
+        *,
+        scope_label: str,
+        adapter_method_name: str,
+        scope_arg: UUID,
+        requested_by_user_id: UUID | None,
+    ) -> dict[str, Any]:
+        cascade_started_at = datetime.now(UTC)
+        cascade_log: list[dict[str, Any]] = []
+        store_results: list[dict[str, Any]] = []
+        errors: list[str] = []
+        for adapter in self.adapters:
+            method = getattr(adapter, adapter_method_name, None)
+            if method is None:
+                errors.append(
+                    f"{adapter.store_name}: missing {adapter_method_name}"
+                )
+                store_results.append(
+                    {"store": adapter.store_name, "status": "skipped", "rows_affected": 0}
+                )
+                continue
+            try:
+                result = await method(scope_arg)
+                cascade_log.append(
+                    {
+                        "store_name": adapter.store_name,
+                        "status": "success" if not result.errors else "partial",
+                        "started_at_iso": result.started_at.isoformat(),
+                        "completed_at_iso": result.completed_at.isoformat(),
+                        "affected_count": result.affected_count,
+                        "per_target_counts": result.per_target_counts,
+                        "errors": result.errors,
+                    }
+                )
+                store_results.append(
+                    {
+                        "store": adapter.store_name,
+                        "status": "completed" if not result.errors else "partial",
+                        "rows_affected": result.affected_count,
+                    }
+                )
+                errors.extend(result.errors)
+            except NotImplementedError as exc:
+                cascade_log.append(
+                    {
+                        "store_name": adapter.store_name,
+                        "status": "not_implemented",
+                        "error": str(exc),
+                    }
+                )
+                store_results.append(
+                    {"store": adapter.store_name, "status": "skipped", "rows_affected": 0}
+                )
+                errors.append(f"{adapter.store_name}: {exc}")
+            except Exception as exc:
+                cascade_log.append(
+                    {
+                        "store_name": adapter.store_name,
+                        "status": "failed",
+                        "error": str(exc),
+                    }
+                )
+                store_results.append(
+                    {"store": adapter.store_name, "status": "failed", "rows_affected": 0}
+                )
+                errors.append(f"{adapter.store_name}: {exc}")
+
+        cascade_completed_at = datetime.now(UTC)
+        return {
+            "scope_label": scope_label,
+            "cascade_started_at": cascade_started_at,
+            "cascade_completed_at": cascade_completed_at,
+            "store_results": store_results,
+            "cascade_log": cascade_log,
+            "errors": errors,
+            "requested_by_user_id": requested_by_user_id,
+        }
+
     async def export_signed(self, tombstone_id: UUID) -> SignedTombstone:
         tombstone = await self.repository.get_tombstone(tombstone_id)
         if tombstone is None:

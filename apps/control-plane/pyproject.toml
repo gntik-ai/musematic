@@ -52,6 +52,7 @@ dependencies = [
   "scipy>=1.13",
   "structlog>=24.1",
   "geoip2>=4.8",
+  "clamd>=1.0",
 ]
 
 [project.optional-dependencies]
@@ -228,6 +229,24 @@ omit = [
   "src/platform/security/abuse_prevention/geo_block.py",
   "src/platform/security/abuse_prevention/settings_service.py",
   "src/platform/security/abuse_prevention/suspension.py",
+  # UPD-051 (spec 104) - framework-glue in data_lifecycle/.
+  # Core service modules (export_service, deletion_service,
+  # sub_processors_service, dpa_service, article28_service,
+  # grace_calculator, cascade_dispatch) carry unit-test coverage. The
+  # following are FastAPI dependency wiring + Kafka consumer + cron +
+  # serializers that hit live PostgreSQL and need the kind cluster.
+  "src/platform/data_lifecycle/dependencies.py",
+  "src/platform/data_lifecycle/workers/export_worker.py",
+  "src/platform/data_lifecycle/workers/grace_monitor.py",
+  "src/platform/data_lifecycle/serializers/workspace/agents.py",
+  "src/platform/data_lifecycle/serializers/workspace/audit.py",
+  "src/platform/data_lifecycle/serializers/workspace/costs.py",
+  "src/platform/data_lifecycle/serializers/workspace/executions.py",
+  "src/platform/data_lifecycle/serializers/workspace/members.py",
+  "src/platform/data_lifecycle/serializers/tenant/audit.py",
+  "src/platform/data_lifecycle/serializers/tenant/costs.py",
+  "src/platform/data_lifecycle/serializers/tenant/tenant_meta.py",
+  "src/platform/data_lifecycle/serializers/tenant/users.py",
 ]
 
 [tool.coverage.report]

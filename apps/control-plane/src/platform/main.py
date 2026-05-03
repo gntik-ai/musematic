@@ -262,6 +262,7 @@ from platform.registry.index_worker import RegistryIndexWorker
 from platform.registry.registry_opensearch_setup import create_marketplace_agents_index
 from platform.registry.registry_qdrant_setup import create_agent_embeddings_collection
 from platform.registry.router import router as registry_router
+from platform.data_lifecycle.events import register_data_lifecycle_event_types
 from platform.security.abuse_prevention.events import register_abuse_event_types
 from platform.security_compliance.consumers import ComplianceEvidenceConsumer
 from platform.security_compliance.events import register_security_compliance_event_types
@@ -301,6 +302,27 @@ from platform.workspaces.consumer import WorkspacesConsumer
 from platform.workspaces.dependencies import build_workspaces_service
 from platform.workspaces.events import register_workspaces_event_types
 from platform.workspaces.platform_router import router as workspaces_platform_router
+from platform.data_lifecycle.routers.sub_processors_router import (
+    admin_router as data_lifecycle_sub_processors_admin_router,
+)
+from platform.data_lifecycle.routers.sub_processors_router import (
+    public_router as data_lifecycle_sub_processors_public_router,
+)
+from platform.data_lifecycle.routers.dpa_router import (
+    admin_router as data_lifecycle_dpa_admin_router,
+)
+from platform.data_lifecycle.routers.dpa_router import (
+    me_router as data_lifecycle_dpa_me_router,
+)
+from platform.data_lifecycle.routers.tenant_admin_router import (
+    router as data_lifecycle_tenant_admin_router,
+)
+from platform.data_lifecycle.routers.workspace_router import (
+    cancel_router as data_lifecycle_cancel_router,
+)
+from platform.data_lifecycle.routers.workspace_router import (
+    router as data_lifecycle_workspace_router,
+)
 from platform.workspaces.router import router as workspaces_router
 from typing import Any, cast
 from uuid import UUID, uuid4
@@ -588,6 +610,7 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
     register_privacy_event_types()
     register_model_catalog_event_types()
     register_incident_response_event_types()
+    register_data_lifecycle_event_types()
     register_multi_region_ops_event_types()
     register_localization_event_types()
     register_admin_event_types()
@@ -1857,6 +1880,13 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(setup_router)
         app.include_router(onboarding_router)
         app.include_router(workspaces_router)
+        app.include_router(data_lifecycle_workspace_router)
+        app.include_router(data_lifecycle_cancel_router)
+        app.include_router(data_lifecycle_sub_processors_public_router)
+        app.include_router(data_lifecycle_sub_processors_admin_router)
+        app.include_router(data_lifecycle_tenant_admin_router)
+        app.include_router(data_lifecycle_dpa_admin_router)
+        app.include_router(data_lifecycle_dpa_me_router)
         app.include_router(admin_router)
         app.include_router(billing_admin_plans_router)
         app.include_router(billing_admin_subscriptions_router)
