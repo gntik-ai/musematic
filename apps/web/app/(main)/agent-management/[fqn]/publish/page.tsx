@@ -79,7 +79,7 @@ export default function AgentPublishPage({
       </CardHeader>
       <CardContent>
         <PublishWithScopeFlow
-          agentId={agentQuery.data.id}
+          agentId={agentQuery.data.fqn}
           tenantKind={tenantKind}
           onPublished={() => router.push(`/agent-management/${resolvedParams.fqn}`)}
         />

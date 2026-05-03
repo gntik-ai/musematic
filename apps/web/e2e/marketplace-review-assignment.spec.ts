@@ -76,7 +76,7 @@ async function mockQueueApi(page: Page) {
 
 test.describe("Marketplace review queue — assignment & self-review", () => {
   test.beforeEach(async ({ page }) => {
-    await mockAuthApi(page, { role: "platform_admin" });
+    await mockAuthApi(page, { roles: ["platform_admin"] });
     await mockQueueApi(page);
     await signIn(page);
   });

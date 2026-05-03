@@ -53,7 +53,7 @@ async function mockAgentApi(page: Page) {
 
 test.describe("Marketplace publish flow — scope picker + marketing metadata", () => {
   test.beforeEach(async ({ page }) => {
-    await mockAuthApi(page, { role: "platform_admin" });
+    await mockAuthApi(page, { roles: ["platform_admin"] });
     await mockAgentApi(page);
     await signIn(page);
   });

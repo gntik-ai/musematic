@@ -57,7 +57,7 @@ async function mockEnterpriseTenantApi(page: Page) {
 
 test.describe("Enterprise tenant — public scope disabled in UI", () => {
   test.beforeEach(async ({ page }) => {
-    await mockAuthApi(page, { role: "platform_admin" });
+    await mockAuthApi(page, { roles: ["platform_admin"] });
     await mockEnterpriseTenantApi(page);
     await signIn(page);
   });

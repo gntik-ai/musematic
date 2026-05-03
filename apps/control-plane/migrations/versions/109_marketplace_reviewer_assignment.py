@@ -22,7 +22,7 @@ queue-routing dimension and may legitimately equal ``created_by`` only
 for the no-op idempotent reassignment path, which the service refuses
 explicitly.
 
-Revision ID: 109_marketplace_reviewer_assignment
+Revision ID: 109_marketplace_reviewer_assign
 Revises: 108_marketplace_scope_review
 Create Date: 2026-05-03
 """
@@ -35,7 +35,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "109_marketplace_reviewer_assignment"
+revision: str = "109_marketplace_reviewer_assign"
 down_revision: str | None = "108_marketplace_scope_review"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
