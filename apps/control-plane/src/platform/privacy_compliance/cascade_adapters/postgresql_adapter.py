@@ -112,6 +112,10 @@ USER_IDENTITY_COLUMNS: dict[str, list[str]] = {
     "disposable_email_overrides": ["created_by_user_id"],
     "trusted_source_allowlist": ["created_by_user_id"],
     "abuse_prevention_settings": ["updated_by_user_id"],
+    # UPD-051 (spec 104) — data_lifecycle BC user-FK columns.
+    "data_export_jobs": ["requested_by_user_id"],
+    "deletion_jobs": ["requested_by_user_id"],
+    "sub_processors": ["updated_by_user_id"],
 }
 
 
