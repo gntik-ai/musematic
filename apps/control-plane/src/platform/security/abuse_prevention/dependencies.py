@@ -48,14 +48,18 @@ async def build_abuse_prevention_facade(
     request ends. Implemented as a generator so FastAPI handles the
     teardown via `__aexit__`.
 
-    The session is the BYPASSRLS staff session because signup is
-    pre-tenant — settings + allowlist reads cross tenants.
+    Uses the regular session (not the BYPASSRLS staff session) because
+    the four tables this façade reads — abuse_prevention_settings,
+    disposable_email_domains, disposable_email_overrides, and
+    trusted_source_allowlist — are platform-scoped (no RLS). The staff
+    role would also require its DB user to exist in the e2e
+    environment which is unnecessary coupling.
     """
     settings = request.app.state.settings
     producer = _event_producer(request)
     redis = _redis_client(request)
 
-    async with database.PlatformStaffAsyncSessionLocal() as session:
+    async with database.AsyncSessionLocal() as session:
         settings_service = AbusePreventionSettingsService(
             session=session,
             audit_chain=build_audit_chain_service(
