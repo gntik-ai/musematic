@@ -224,6 +224,10 @@ omit = [
   "src/platform/security/abuse_prevention/dependencies.py",
   "src/platform/security/abuse_prevention/service.py",
   "src/platform/security/abuse_prevention/repository.py",
+  # Edge-path wrappers that need the live MaxMind / Vault stack:
+  "src/platform/security/abuse_prevention/geo_block.py",
+  "src/platform/security/abuse_prevention/settings_service.py",
+  "src/platform/security/abuse_prevention/suspension.py",
 ]
 
 [tool.coverage.report]
