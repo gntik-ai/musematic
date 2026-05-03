@@ -4640,6 +4640,90 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#reviewer-assignment-workflow-upd-049-refresh-spec-102" class="md-nav__link">
+    <span class="md-ellipsis">
+      Reviewer Assignment Workflow (UPD-049 refresh, spec 102)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reviewer Assignment Workflow (UPD-049 refresh, spec 102)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      Endpoints
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ui-affordances" class="md-nav__link">
+    <span class="md-ellipsis">
+      UI affordances
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#audit-kafka" class="md-nav__link">
+    <span class="md-ellipsis">
+      Audit + Kafka
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consume-flag-opt-in-walkthrough-upd-049-refresh" class="md-nav__link">
+    <span class="md-ellipsis">
+      Consume-Flag Opt-In Walkthrough (UPD-049 refresh)
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Consume-Flag Opt-In Walkthrough (UPD-049 refresh)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#operator-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      Operator steps
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-changes-for-the-consumer-tenant" class="md-nav__link">
+    <span class="md-ellipsis">
+      What changes for the consumer tenant
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#information-non-leakage-fr-74110" class="md-nav__link">
+    <span class="md-ellipsis">
+      Information non-leakage (FR-741.10)
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#telemetry" class="md-nav__link">
     <span class="md-ellipsis">
       Telemetry
@@ -4799,8 +4883,82 @@ not a consumer.</p>
 invalidates the resolver cache for the affected tenant. The full
 operator runbook lives at
 <code>deploy/runbooks/marketplace-consume-flag.md</code> in the repository.</p>
+<h2 id="reviewer-assignment-workflow-upd-049-refresh-spec-102">Reviewer Assignment Workflow (UPD-049 refresh, spec 102)<a class="headerlink" href="#reviewer-assignment-workflow-upd-049-refresh-spec-102" title="Permanent link">&para;</a></h2>
+<p>Platform-staff leads can assign a pending-review submission to a
+specific reviewer instead of leaving the queue first-come-first-served.
+Assignment is <strong>distinct from claim</strong>:</p>
+<ul>
+<li><strong>Assignment</strong> is set by a lead; it routes the submission to a
+  specific reviewer but does not yet consume reviewer time.</li>
+<li><strong>Claim</strong> is the legacy "I'm taking this one" lock taken by the
+  reviewer when they start working on it.</li>
+</ul>
+<h3 id="endpoints">Endpoints<a class="headerlink" href="#endpoints" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>POST /api/v1/admin/marketplace-review/{agent_id}/assign</code> —
+  body <code>{"reviewer_user_id": "..."}</code>. Idempotent if same reviewer; 409
+  on assignment conflict (caller must <code>unassign</code> first); 403 if the
+  reviewer is the submitter (FR-741.9).</li>
+<li><code>DELETE /api/v1/admin/marketplace-review/{agent_id}/assign</code> —
+  idempotent unassign; 200 even if already unassigned.</li>
+<li><code>GET /api/v1/admin/marketplace-review/queue?assigned_to=&lt;uuid|me|unassigned&gt;&amp;include_self_authored=&lt;bool&gt;</code>
+  — extended query parameters for the new filter chips.</li>
+</ul>
+<h3 id="ui-affordances">UI affordances<a class="headerlink" href="#ui-affordances" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The queue page renders three filter chips (<code>All</code>, <code>Unassigned</code>,
+  <code>Assigned to me</code>) and an <code>Assigned to</code> column on the table.</li>
+<li>Self-authored rows render a destructive <code>Self-authored</code> badge; the
+  Approve / Reject / Claim buttons are disabled with a tooltip
+  explaining the FR-741.9 prevention.</li>
+<li>The detail page renders an <code>Assignment</code> card with <code>Assign</code> /
+  <code>Unassign</code> actions; the assign-target input filters out the
+  submitter client-side as defense-in-depth.</li>
+</ul>
+<h3 id="audit-kafka">Audit + Kafka<a class="headerlink" href="#audit-kafka" title="Permanent link">&para;</a></h3>
+<p>Each assignment / unassignment emits a structured-log audit entry
+(<code>marketplace.review.assigned</code> / <code>unassigned</code>) and a Kafka event of
+the same name on <code>marketplace.events</code>. Refused self-review attempts
+emit <code>marketplace.review.self_review_attempted</code> to the audit chain
+only (no Kafka — refusals are diagnostics, not state changes).</p>
+<h2 id="consume-flag-opt-in-walkthrough-upd-049-refresh">Consume-Flag Opt-In Walkthrough (UPD-049 refresh)<a class="headerlink" href="#consume-flag-opt-in-walkthrough-upd-049-refresh" title="Permanent link">&para;</a></h2>
+<p>Enterprise tenants opt in to consuming the public marketplace via the
+per-tenant <code>consume_public_marketplace</code> feature flag. The platform-
+staff toggle lives in the tenant detail panel
+(<code>/admin/tenants/{tenant_id}</code>), under the <strong>Feature flags</strong> section.</p>
+<h3 id="operator-steps">Operator steps<a class="headerlink" href="#operator-steps" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Sign in as superadmin.</li>
+<li>Navigate to <code>/admin/tenants/{enterprise_tenant_id}</code>.</li>
+<li>Locate the <code>consume_public_marketplace</code> toggle inside the Feature
+   flags section. (The toggle is hidden for default-tenant rows, since
+   the default tenant always has access to the public hub.)</li>
+<li>Click <code>Disabled</code> to enable the flag (or <code>Enabled</code> to disable it).</li>
+<li>The change is saved via <code>PATCH /api/v1/admin/tenants/{tenant_id}</code>
+   with <code>{"feature_flags": {"consume_public_marketplace": true}}</code>. An
+   audit-chain entry records the toggle.</li>
+</ol>
+<h3 id="what-changes-for-the-consumer-tenant">What changes for the consumer tenant<a class="headerlink" href="#what-changes-for-the-consumer-tenant" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Browse / search results now include public-default-tenant agents in
+  addition to the tenant's own.</li>
+<li>Each public-origin agent card renders a <code>&lt;PublicSourceLabel /&gt;</code>
+  ("From public marketplace" badge).</li>
+<li>The agent detail page shows a <code>Fork into my tenant</code> button that
+  opens the existing <code>ForkAgentDialog</code>.</li>
+<li>Cost events for invocations of public agents are attributed to the
+  consuming tenant (the publisher does not pay for the consumer's
+  use).</li>
+</ul>
+<h3 id="information-non-leakage-fr-74110">Information non-leakage (FR-741.10)<a class="headerlink" href="#information-non-leakage-fr-74110" title="Permanent link">&para;</a></h3>
+<p>When the flag is <strong>off</strong>, no information about public-hub agents
+reaches the tenant — counts, suggestions, analytics events all
+behave identically to a counter-factual in which the public agent
+never existed. The dev-only parity probe at
+<code>GET /api/v1/admin/marketplace-review/parity-probe</code> (gated by
+<code>FEATURE_E2E_MODE</code>) backs the SC-004 CI regression test.</p>
 <h2 id="telemetry">Telemetry<a class="headerlink" href="#telemetry" title="Permanent link">&para;</a></h2>
-<p>Prometheus metrics (UPD-049 T079) exposed by the control plane:</p>
+<p>Prometheus metrics exposed by the control plane:</p>
 <table>
 <thead>
 <tr>
@@ -4835,12 +4993,22 @@ operator runbook lives at
 <td>Histogram</td>
 <td><code>decision</code></td>
 </tr>
+<tr>
+<td><code>marketplace_self_review_attempts_total</code></td>
+<td>Counter</td>
+<td><code>action</code> (refresh 102)</td>
+</tr>
+<tr>
+<td><code>marketplace_review_rejection_notification_latency_seconds</code></td>
+<td>Histogram</td>
+<td>– (refresh 102)</td>
+</tr>
 </tbody>
 </table>
 <p>Grafana dashboard JSON lives at
 <code>deploy/helm/observability/dashboards/marketplace.json</code> in the repository.</p>
 <h2 id="kafka-events">Kafka events<a class="headerlink" href="#kafka-events" title="Permanent link">&para;</a></h2>
-<p>Topic: <code>marketplace.events</code>. Eight new event types:</p>
+<p>Topic: <code>marketplace.events</code>. Ten event types:</p>
 <ul>
 <li><code>marketplace.scope_changed</code></li>
 <li><code>marketplace.submitted</code></li>
@@ -4850,12 +5018,15 @@ operator runbook lives at
 <li><code>marketplace.deprecated</code></li>
 <li><code>marketplace.forked</code></li>
 <li><code>marketplace.source_updated</code></li>
+<li><code>marketplace.review.assigned</code> (refresh 102)</li>
+<li><code>marketplace.review.unassigned</code> (refresh 102)</li>
 </ul>
 <p>Plus one new event on <code>tenants.lifecycle</code>:</p>
 <ul>
 <li><code>tenants.feature_flag_changed</code></li>
 </ul>
 <p>See <code>specs/099-marketplace-scope/contracts/marketplace-events-kafka.md</code>
+and <code>specs/102-marketplace-scope/contracts/marketplace-events-kafka.md</code>
 for envelope schemas.</p>
 
 
