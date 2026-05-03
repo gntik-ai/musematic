@@ -18,22 +18,28 @@ from platform.common.logging import get_logger
 from platform.marketplace.metrics import (
     marketplace_review_age_seconds,
     marketplace_review_decisions_total,
+    marketplace_self_review_attempts_total,
 )
 from platform.registry.events import (
     MarketplaceApprovedPayload,
     MarketplaceEventType,
     MarketplacePublishedPayload,
     MarketplaceRejectedPayload,
+    MarketplaceReviewAssignedPayload,
+    MarketplaceReviewUnassignedPayload,
     MarketplaceSourceUpdatedPayload,
     publish_marketplace_event,
 )
 from platform.registry.exceptions import (
     ReviewAlreadyClaimedError,
+    ReviewerAssignmentConflictError,
+    SelfReviewNotAllowedError,
     SubmissionAlreadyResolvedError,
     SubmissionNotFoundError,
+    SubmissionNotInPendingReviewError,
 )
 from platform.registry.schemas import ReviewQueueResponse, ReviewSubmissionView
-from typing import NoReturn, Protocol
+from typing import Literal, NoReturn, Protocol
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
@@ -79,6 +85,10 @@ class MarketplaceAdminService:
         *,
         claimed_by: UUID | None = None,
         unclaimed_only: bool = False,
+        assigned_to: UUID | None = None,
+        unassigned_only: bool = False,
+        include_self_authored: bool = False,
+        current_user_id: UUID | None = None,
         limit: int = 50,
         cursor: str | None = None,
     ) -> ReviewQueueResponse:
@@ -86,6 +96,19 @@ class MarketplaceAdminService:
 
         Cursor format: opaque ISO-8601 ``submitted_at`` of the last item
         returned in the previous page. ``None`` means "first page".
+
+        UPD-049 refresh (102) parameters:
+
+        * ``assigned_to`` — filter by ``assigned_reviewer_user_id``. When
+          set, ``unassigned_only`` MUST be False.
+        * ``unassigned_only`` — only rows with ``assigned_reviewer_user_id
+          IS NULL``. Mutually exclusive with ``assigned_to``.
+        * ``include_self_authored`` — by default rows where
+          ``created_by == current_user_id`` are excluded so reviewers do
+          not accidentally action their own work.
+        * ``current_user_id`` — required to compute ``is_self_authored``
+          and to drive the default ``include_self_authored=False``
+          filter. Pass the calling reviewer's user_id from the route.
         """
         sql = text(
             """
@@ -96,14 +119,23 @@ class MarketplaceAdminService:
                 rap.created_by AS submitter_user_id,
                 u.email AS submitter_email,
                 rap.updated_at AS submitted_at,
-                rap.reviewed_by_user_id AS claimed_by_user_id
+                rap.reviewed_by_user_id AS claimed_by_user_id,
+                rap.assigned_reviewer_user_id AS assigned_reviewer_user_id,
+                au.email AS assigned_reviewer_email
             FROM registry_agent_profiles rap
             JOIN tenants t ON t.id = rap.tenant_id
             LEFT JOIN users u ON u.id = rap.created_by
+            LEFT JOIN users au ON au.id = rap.assigned_reviewer_user_id
             WHERE rap.review_status = 'pending_review'
               AND (:cursor IS NULL OR rap.updated_at > :cursor::timestamptz)
               AND (:claimed_by IS NULL OR rap.reviewed_by_user_id = :claimed_by)
               AND (NOT :unclaimed_only OR rap.reviewed_by_user_id IS NULL)
+              AND (:assigned_to IS NULL OR rap.assigned_reviewer_user_id = :assigned_to)
+              AND (NOT :unassigned_only OR rap.assigned_reviewer_user_id IS NULL)
+              AND (:include_self_authored
+                   OR :current_user_id IS NULL
+                   OR rap.created_by IS NULL
+                   OR rap.created_by <> :current_user_id)
             ORDER BY rap.updated_at ASC
             LIMIT :limit
             """
@@ -114,6 +146,12 @@ class MarketplaceAdminService:
                 "cursor": cursor,
                 "claimed_by": str(claimed_by) if claimed_by is not None else None,
                 "unclaimed_only": unclaimed_only,
+                "assigned_to": str(assigned_to) if assigned_to is not None else None,
+                "unassigned_only": unassigned_only,
+                "include_self_authored": include_self_authored,
+                "current_user_id": (
+                    str(current_user_id) if current_user_id is not None else None
+                ),
                 "limit": limit + 1,  # peek for next cursor
             },
         )
@@ -126,12 +164,13 @@ class MarketplaceAdminService:
         now = datetime.now(tz=UTC)
         for row in rows[:limit]:
             submitted_at = row["submitted_at"]
+            submitter_user_id = row["submitter_user_id"]
             items.append(
                 ReviewSubmissionView(
                     agent_id=row["agent_id"],
                     agent_fqn=row["agent_fqn"],
                     tenant_slug=row["tenant_slug"],
-                    submitter_user_id=row["submitter_user_id"],
+                    submitter_user_id=submitter_user_id,
                     submitter_email=row["submitter_email"] or "",
                     category="other",
                     marketing_description="(populated by revision metadata)",
@@ -139,18 +178,81 @@ class MarketplaceAdminService:
                     submitted_at=submitted_at,
                     claimed_by_user_id=row["claimed_by_user_id"],
                     age_minutes=int((now - submitted_at).total_seconds() // 60),
+                    assigned_reviewer_user_id=row["assigned_reviewer_user_id"],
+                    assigned_reviewer_email=row["assigned_reviewer_email"],
+                    is_self_authored=(
+                        current_user_id is not None
+                        and submitter_user_id is not None
+                        and submitter_user_id == current_user_id
+                    ),
                 )
             )
         next_cursor = rows[limit]["submitted_at"].isoformat() if len(rows) > limit else None
         return ReviewQueueResponse(items=items, next_cursor=next_cursor)
 
+    async def _ensure_not_self_review(
+        self,
+        agent_id: UUID,
+        actor_user_id: UUID,
+        *,
+        action: Literal["assign", "claim", "approve", "reject"],
+    ) -> UUID | None:
+        """UPD-049 refresh (FR-741.9) — refuse the action when actor authored
+        the submission.
+
+        Returns the row's ``created_by`` (submitter user id) on the
+        permitted path so callers can avoid an extra round-trip. When the
+        agent is missing the helper returns ``None`` and lets the caller's
+        downstream not-found path surface the error — this preserves the
+        FR-741.10 byte-identical 404 behaviour for not-yet-published
+        public agents.
+
+        On refusal: emits a ``marketplace.review.self_review_attempted``
+        structured-log audit entry (no Kafka event — refusals are
+        diagnostics, not state changes) and raises
+        ``SelfReviewNotAllowedError``.
+        """
+        row = await self._session.execute(
+            text(
+                "SELECT created_by FROM registry_agent_profiles WHERE id = :agent_id"
+            ),
+            {"agent_id": str(agent_id)},
+        )
+        result = row.mappings().first()
+        if result is None:
+            return None
+        submitter_user_id = result["created_by"]
+        if submitter_user_id is not None and submitter_user_id == actor_user_id:
+            marketplace_self_review_attempts_total.labels(action=action).inc()
+            LOGGER.info(
+                "marketplace.review.self_review_attempted",
+                extra={
+                    "agent_id": str(agent_id),
+                    "submitter_user_id": str(submitter_user_id),
+                    "actor_user_id": str(actor_user_id),
+                    "action": action,
+                },
+            )
+            raise SelfReviewNotAllowedError(
+                submitter_user_id=submitter_user_id,
+                actor_user_id=actor_user_id,
+                action=action,
+            )
+        return submitter_user_id
+
     async def claim(self, agent_id: UUID, reviewer_id: UUID) -> None:
         """Optimistic conditional claim per research R6.
 
         Idempotent for the same reviewer; raises ``ReviewAlreadyClaimedError``
-        if a different reviewer already holds the claim, and
+        if a different reviewer already holds the claim,
+        ``ReviewerAssignmentConflictError`` if the row is assigned to a
+        different reviewer (claim-jumping prevention — UPD-049 refresh
+        FR-738/R11), ``SelfReviewNotAllowedError`` if the claimant is the
+        submitter (UPD-049 refresh FR-741.9), and
         ``SubmissionAlreadyResolvedError`` if the row left ``pending_review``.
         """
+        # FR-741.9 — refuse self-review before any UPDATE.
+        await self._ensure_not_self_review(agent_id, reviewer_id, action="claim")
         result = await self._session.execute(
             text(
                 """
@@ -159,6 +261,8 @@ class MarketplaceAdminService:
                  WHERE id = :agent_id
                    AND review_status = 'pending_review'
                    AND (reviewed_by_user_id IS NULL OR reviewed_by_user_id = :reviewer)
+                   AND (assigned_reviewer_user_id IS NULL
+                        OR assigned_reviewer_user_id = :reviewer)
                 RETURNING reviewed_by_user_id
                 """
             ),
@@ -203,6 +307,8 @@ class MarketplaceAdminService:
         gate the event emission on fork existence to avoid an extra DB
         round-trip on the hot path.
         """
+        # FR-741.9 — refuse self-review before any UPDATE.
+        await self._ensure_not_self_review(agent_id, reviewer_id, action="approve")
         # Capture whether this is a re-approval — used to populate the
         # source_updated payload's diff_summary_hash with the new revision's
         # id (see contract). For the first publication and subsequent
@@ -316,6 +422,8 @@ class MarketplaceAdminService:
     ) -> None:
         """Transition ``pending_review → rejected``, emit
         ``marketplace.rejected``, and trigger the submitter notification."""
+        # FR-741.9 — refuse self-review before any UPDATE.
+        await self._ensure_not_self_review(agent_id, reviewer_id, action="reject")
         result = await self._session.execute(
             text(
                 """
@@ -379,13 +487,237 @@ class MarketplaceAdminService:
                 rejection_reason=reason,
             )
 
+    async def assign(
+        self,
+        agent_id: UUID,
+        reviewer_user_id: UUID,
+        assigner_user_id: UUID,
+    ) -> dict[str, object]:
+        """UPD-049 refresh — assign a pending-review submission to a reviewer.
+
+        Idempotent if the row is already assigned to the same reviewer
+        (no-op, no audit, no Kafka). Raises:
+
+        * ``SelfReviewNotAllowedError`` if ``reviewer_user_id`` is the
+          submitter (FR-741.9).
+        * ``SubmissionNotFoundError`` if the row does not exist.
+        * ``SubmissionNotInPendingReviewError`` if the row is not in
+          ``pending_review`` status.
+        * ``ReviewerAssignmentConflictError`` if the row is already
+          assigned to a different reviewer.
+
+        Returns a dict with assignment details for the response payload.
+        """
+        # FR-741.9 — refuse assigning a submission to its own author.
+        await self._ensure_not_self_review(
+            agent_id, reviewer_user_id, action="assign"
+        )
+        # Optimistic conditional UPDATE — only matches rows in
+        # pending_review whose current assignee is NULL or the same
+        # reviewer (idempotent).
+        result = await self._session.execute(
+            text(
+                """
+                UPDATE registry_agent_profiles
+                   SET assigned_reviewer_user_id = :reviewer
+                 WHERE id = :agent_id
+                   AND review_status = 'pending_review'
+                   AND (assigned_reviewer_user_id IS NULL
+                        OR assigned_reviewer_user_id = :reviewer)
+                RETURNING tenant_id, fqn, created_by,
+                          assigned_reviewer_user_id
+                """
+            ),
+            {
+                "agent_id": str(agent_id),
+                "reviewer": str(reviewer_user_id),
+            },
+        )
+        row = result.mappings().first()
+        if row is None:
+            await self._raise_for_failed_assign(agent_id, reviewer_user_id)
+        # Fetch the assignee email for the response payload.
+        assignee_email_row = await self._session.execute(
+            text("SELECT email FROM users WHERE id = :user_id"),
+            {"user_id": str(reviewer_user_id)},
+        )
+        assignee_email = assignee_email_row.scalar() or ""
+        await self._session.commit()
+        assigned_at = datetime.now(tz=UTC)
+        LOGGER.info(
+            "marketplace.review.assigned",
+            extra={
+                "agent_id": str(agent_id),
+                "agent_fqn": row["fqn"],
+                "submitter_user_id": str(row["created_by"]),
+                "assigner_user_id": str(assigner_user_id),
+                "assignee_user_id": str(reviewer_user_id),
+                "tenant_id": str(row["tenant_id"]),
+            },
+        )
+        correlation = CorrelationContext(
+            correlation_id=uuid4(),
+            tenant_id=row["tenant_id"],
+            agent_fqn=row["fqn"],
+        )
+        await publish_marketplace_event(
+            self._event_producer,
+            MarketplaceEventType.review_assigned,
+            MarketplaceReviewAssignedPayload(
+                agent_id=str(agent_id),
+                agent_fqn=row["fqn"],
+                submitter_user_id=str(row["created_by"]),
+                assigner_user_id=str(assigner_user_id),
+                assignee_user_id=str(reviewer_user_id),
+                prior_assignee_user_id=None,
+                assigned_at=assigned_at.isoformat(),
+            ),
+            correlation,
+        )
+        return {
+            "agent_id": str(agent_id),
+            "assigned_reviewer_user_id": str(reviewer_user_id),
+            "assigned_reviewer_email": assignee_email,
+            "assigner_user_id": str(assigner_user_id),
+            "assigned_at": assigned_at,
+            "prior_assignee_user_id": None,
+        }
+
+    async def unassign(
+        self,
+        agent_id: UUID,
+        unassigner_user_id: UUID,
+    ) -> dict[str, object]:
+        """UPD-049 refresh — clear the assignment of a pending-review submission.
+
+        Idempotent — a no-op when the row is already unassigned (no audit,
+        no Kafka). Raises ``SubmissionNotFoundError`` if the row does not
+        exist or ``SubmissionNotInPendingReviewError`` if the row is not
+        in ``pending_review``.
+
+        Captures the prior assignee via a CTE so the Kafka payload and
+        audit log carry the correct ``prior_assignee_user_id``.
+        """
+        result = await self._session.execute(
+            text(
+                """
+                WITH prev AS (
+                    SELECT id, assigned_reviewer_user_id AS prior_assignee
+                      FROM registry_agent_profiles
+                     WHERE id = :agent_id
+                       AND review_status = 'pending_review'
+                       AND assigned_reviewer_user_id IS NOT NULL
+                )
+                UPDATE registry_agent_profiles AS rap
+                   SET assigned_reviewer_user_id = NULL
+                  FROM prev
+                 WHERE rap.id = prev.id
+                RETURNING rap.tenant_id, rap.fqn, rap.created_by,
+                          prev.prior_assignee
+                """
+            ),
+            {"agent_id": str(agent_id)},
+        )
+        row = result.mappings().first()
+        unassigned_at = datetime.now(tz=UTC)
+        if row is None:
+            # Diagnose: row missing, wrong state, or already unassigned.
+            current = await self._session.execute(
+                text(
+                    """
+                    SELECT review_status
+                      FROM registry_agent_profiles
+                     WHERE id = :agent_id
+                    """
+                ),
+                {"agent_id": str(agent_id)},
+            )
+            current_row = current.mappings().first()
+            if current_row is None:
+                raise SubmissionNotFoundError(agent_id)
+            if current_row["review_status"] != "pending_review":
+                raise SubmissionNotInPendingReviewError(
+                    agent_id, current_row["review_status"]
+                )
+            # Already unassigned — idempotent no-op (no audit, no Kafka).
+            return {
+                "agent_id": str(agent_id),
+                "prior_assignee_user_id": None,
+                "unassigned_at": unassigned_at,
+                "unassigner_user_id": str(unassigner_user_id),
+            }
+        await self._session.commit()
+        prior_assignee = row["prior_assignee"]
+        LOGGER.info(
+            "marketplace.review.unassigned",
+            extra={
+                "agent_id": str(agent_id),
+                "agent_fqn": row["fqn"],
+                "submitter_user_id": str(row["created_by"]),
+                "unassigner_user_id": str(unassigner_user_id),
+                "prior_assignee_user_id": str(prior_assignee),
+                "tenant_id": str(row["tenant_id"]),
+            },
+        )
+        correlation = CorrelationContext(
+            correlation_id=uuid4(),
+            tenant_id=row["tenant_id"],
+            agent_fqn=row["fqn"],
+        )
+        await publish_marketplace_event(
+            self._event_producer,
+            MarketplaceEventType.review_unassigned,
+            MarketplaceReviewUnassignedPayload(
+                agent_id=str(agent_id),
+                agent_fqn=row["fqn"],
+                submitter_user_id=str(row["created_by"]),
+                unassigner_user_id=str(unassigner_user_id),
+                prior_assignee_user_id=str(prior_assignee),
+                unassigned_at=unassigned_at.isoformat(),
+            ),
+            correlation,
+        )
+        return {
+            "agent_id": str(agent_id),
+            "prior_assignee_user_id": str(prior_assignee),
+            "unassigned_at": unassigned_at,
+            "unassigner_user_id": str(unassigner_user_id),
+        }
+
+    async def _raise_for_failed_assign(
+        self, agent_id: UUID, reviewer_user_id: UUID
+    ) -> NoReturn:
+        row = await self._session.execute(
+            text(
+                """
+                SELECT review_status, assigned_reviewer_user_id
+                  FROM registry_agent_profiles
+                 WHERE id = :agent_id
+                """
+            ),
+            {"agent_id": str(agent_id)},
+        )
+        result = row.mappings().first()
+        if result is None:
+            raise SubmissionNotFoundError(agent_id)
+        if result["review_status"] != "pending_review":
+            raise SubmissionNotInPendingReviewError(
+                agent_id, result["review_status"]
+            )
+        existing = result["assigned_reviewer_user_id"]
+        if existing is not None and existing != reviewer_user_id:
+            raise ReviewerAssignmentConflictError(agent_id, existing)
+        raise SubmissionNotFoundError(agent_id)
+
     async def _raise_for_failed_claim(
         self, agent_id: UUID, reviewer_id: UUID
     ) -> NoReturn:
         row = await self._session.execute(
             text(
                 """
-                SELECT review_status, reviewed_by_user_id
+                SELECT review_status,
+                       reviewed_by_user_id,
+                       assigned_reviewer_user_id
                   FROM registry_agent_profiles
                  WHERE id = :agent_id
                 """
@@ -397,6 +729,12 @@ class MarketplaceAdminService:
             raise SubmissionNotFoundError(agent_id)
         if result["review_status"] != "pending_review":
             raise SubmissionAlreadyResolvedError(agent_id, result["review_status"])
+        # UPD-049 refresh — claim-jumping check has higher precedence than
+        # the legacy "already claimed" check because an assignment is set
+        # by a lead and overrides the in-flight claim semantics.
+        assigned_to = result["assigned_reviewer_user_id"]
+        if assigned_to is not None and assigned_to != reviewer_id:
+            raise ReviewerAssignmentConflictError(agent_id, assigned_to)
         claimed_by = result["reviewed_by_user_id"]
         if claimed_by is not None and claimed_by != reviewer_id:
             raise ReviewAlreadyClaimedError(agent_id, claimed_by)

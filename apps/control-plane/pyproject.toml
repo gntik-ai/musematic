@@ -89,6 +89,7 @@ testpaths = ["tests"]
 addopts = "-ra -m 'not integration' --import-mode=importlib"
 markers = [
   "integration: requires external services or Docker-backed dependencies",
+  "integration_live: requires the live-DB+Kafka kind cluster fixture (UPD-049 refresh, spec 102)",
   "e2e: end-to-end scenario requiring a deployed stack",
 ]
 

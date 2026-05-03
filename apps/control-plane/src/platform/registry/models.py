@@ -195,6 +195,18 @@ class AgentProfile(Base, TenantScopedMixin, UUIDMixin, TimestampMixin, SoftDelet
         ForeignKey("registry_agent_profiles.id", ondelete="SET NULL"),
         nullable=True,
     )
+    # --- UPD-049 refresh (102) — reviewer assignment dimension --------------
+    # Mirrors migration 109_marketplace_reviewer_assignment. NULL means
+    # "unassigned"; any platform-staff reviewer may claim. When set, only
+    # the assignee may claim (the service layer enforces this; see
+    # ``MarketplaceReviewService.claim``). Distinct from
+    # ``reviewed_by_user_id`` which doubles as the in-progress claim
+    # marker / final reviewer.
+    assigned_reviewer_user_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
 
     namespace: Mapped[AgentNamespace] = relationship(
         "platform.registry.models.AgentNamespace",

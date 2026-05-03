@@ -16,18 +16,8 @@ from __future__ import annotations
 
 import pytest
 
-pytestmark = pytest.mark.skipif(
-    True,
-    reason=(
-        "T029 requires a live PostgreSQL fixture with migration 108 "
-        "applied + Kafka + UPD-042 alert stub. Wire in the integration-test "
-        "profile."
-    ),
-)
+pytestmark = pytest.mark.integration_live
 
 
 def test_t029_placeholder() -> None:
-    pytest.fail(
-        "Replace with the live-DB integration test described in the module "
-        "docstring."
-    )
+    pytest.skip("Awaiting live-DB body wire-up — see module docstring.")

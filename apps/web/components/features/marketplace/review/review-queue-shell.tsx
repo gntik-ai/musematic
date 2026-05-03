@@ -2,22 +2,30 @@
 
 /**
  * UPD-049 — Client shell that wires the TanStack Query hook and the
- * filter UI to ReviewQueueTable.
+ * filter UI to ReviewQueueTable. Refresh-pass (102) adds the
+ * assignment filter chips (Unassigned / Assigned to me / All).
  */
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useReviewQueue } from "@/lib/hooks/use-marketplace-review";
+import { ReviewQueueFilterChips } from "@/components/features/marketplace/review/review-queue-filter-chips";
 import { ReviewQueueTable } from "@/components/features/marketplace/review/review-queue-table";
+import type { QueueAssignmentFilter } from "@/lib/marketplace/types";
 
 export function ReviewQueueShell() {
   const [unclaimedOnly, setUnclaimedOnly] = useState(false);
-  const { data, isLoading, isError, refetch } = useReviewQueue({ unclaimedOnly });
+  const [assignment, setAssignment] = useState<QueueAssignmentFilter>("all");
+  const { data, isLoading, isError, refetch } = useReviewQueue({
+    unclaimedOnly,
+    assignment,
+  });
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <ReviewQueueFilterChips value={assignment} onChange={setAssignment} />
         <Button
           variant={unclaimedOnly ? "default" : "outline"}
           size="sm"

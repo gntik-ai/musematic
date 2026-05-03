@@ -197,6 +197,7 @@ from platform.marketplace.dependencies import (
 from platform.marketplace.dependencies import (
     build_recommendation_service as build_marketplace_recommendation_service,
 )
+from platform.marketplace.consumer import MarketplaceFanoutConsumer
 from platform.marketplace.dependencies import (
     build_search_service as build_marketplace_search_service,
 )
@@ -1734,6 +1735,13 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
             ).register(consumer_manager)
         if resolved.profile == "worker":
+            # UPD-049 — fan out marketplace.source_updated to fork owners.
+            # Defined at platform.marketplace.consumer; gated by the
+            # MARKETPLACE_FORK_NOTIFY_SOURCE_OWNERS setting.
+            MarketplaceFanoutConsumer(
+                settings=resolved,
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+            ).register(consumer_manager)
             MeteringJob(
                 settings=resolved,
                 payment_provider=cast(

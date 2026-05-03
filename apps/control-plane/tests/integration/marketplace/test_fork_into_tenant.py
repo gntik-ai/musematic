@@ -11,13 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-pytestmark = pytest.mark.skipif(
-    True,
-    reason=(
-        "T064 requires the live PostgreSQL + Kafka + AlertService fixture "
-        "from the integration-test profile."
-    ),
-)
+pytestmark = pytest.mark.integration_live
 
 
 def test_t064_placeholder() -> None:

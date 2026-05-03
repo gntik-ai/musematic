@@ -189,5 +189,5 @@ Python 3.12+ (application), PostgreSQL 16 (database): Follow standard convention
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at `specs/099-marketplace-scope/plan.md`.
+at `specs/102-marketplace-scope/plan.md`.
 <!-- SPECKIT END -->

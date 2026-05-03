@@ -408,11 +408,87 @@ class ReviewSubmissionView(BaseModel):
     submitted_at: datetime
     claimed_by_user_id: UUID | None = None
     age_minutes: int
+    # UPD-049 refresh (102) — assignment dimension + self-authored gating.
+    assigned_reviewer_user_id: UUID | None = None
+    assigned_reviewer_email: str | None = None
+    is_self_authored: bool = False
 
 
 class ReviewQueueResponse(BaseModel):
     items: list[ReviewSubmissionView]
     next_cursor: str | None = None
+
+
+# --- UPD-049 refresh (102) — reviewer-assignment request/response --------
+
+
+class AssignReviewerRequest(BaseModel):
+    """Body of `POST /api/v1/admin/marketplace-review/{agent_id}/assign`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    reviewer_user_id: UUID
+
+
+class ReviewerAssignmentResponse(BaseModel):
+    """Response of `POST /api/v1/admin/marketplace-review/{agent_id}/assign`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    agent_id: UUID
+    assigned_reviewer_user_id: UUID
+    assigned_reviewer_email: str
+    assigner_user_id: UUID
+    assigned_at: datetime
+    prior_assignee_user_id: UUID | None = None
+
+
+class ReviewerUnassignmentResponse(BaseModel):
+    """Response of `DELETE /api/v1/admin/marketplace-review/{agent_id}/assign`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    agent_id: UUID
+    prior_assignee_user_id: UUID | None = None
+    unassigned_at: datetime
+    unassigner_user_id: UUID
+
+
+# --- UPD-049 refresh (102) — non-leakage parity probe (dev-only) ---------
+
+
+class ParityProbeSearchSnapshot(BaseModel):
+    """One side of the parity-probe comparison (counterfactual / live)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    total_count: int
+    result_ids: list[str]
+    suggestions: list[str]
+    analytics_event_payload: dict[str, object]
+
+
+class ParityProbeViolation(BaseModel):
+    """One field that differs between counterfactual and live."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    field: str
+    counterfactual_value: object
+    live_value: object
+
+
+class ParityProbeResultSchema(BaseModel):
+    """Response of `GET /api/v1/admin/marketplace-review/parity-probe`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    query: str
+    subject_tenant_id: UUID
+    counterfactual: ParityProbeSearchSnapshot
+    live: ParityProbeSearchSnapshot
+    parity_violation: bool
+    parity_violations: list[ParityProbeViolation]
 
 
 class ReviewApprovalRequest(BaseModel):

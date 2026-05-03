@@ -64,6 +64,11 @@ export interface AgentCard {
   reviewCount: number;
   currentRevision: string;
   createdById: string;
+  // UPD-049 refresh (102) — origin scope, used to render the
+  // PublicSourceLabel on cards that come from the public hub when the
+  // viewer is in a non-default tenant.
+  marketplaceScope?: "workspace" | "tenant" | "public_default_tenant";
+  isFromPublicHub?: boolean;
 }
 
 export interface AgentDetail extends AgentCard {

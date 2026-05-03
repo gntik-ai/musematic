@@ -423,6 +423,16 @@ export function TenantDetailPanel({ tenantId }: { tenantId: string }) {
 
         <section className="rounded-md border bg-card p-5">
           <h3 className="text-base font-semibold tracking-normal">Feature flags</h3>
+          {/* UPD-049 refresh (102) — explicit toggle for the
+              consume_public_marketplace flag (T039). Off-by-default
+              for non-default tenants; only meaningful for Enterprise
+              tenants per FR-741.1. */}
+          {tenant.kind === "enterprise" ? (
+            <ConsumePublicMarketplaceToggle
+              tenantId={tenant.id}
+              currentFlags={tenant.feature_flags ?? {}}
+            />
+          ) : null}
           <div className="mt-4 space-y-3 text-sm">
             {featureFlags.length === 0 ? (
               <p className="text-muted-foreground">No tenant flags</p>
@@ -460,6 +470,70 @@ export function TenantDetailPanel({ tenantId }: { tenantId: string }) {
           )}
         </div>
       </section>
+    </div>
+  );
+}
+
+
+/**
+ * UPD-049 refresh (102) T039 — toggle for the
+ * `consume_public_marketplace` per-tenant feature flag. PATCHes the
+ * tenant via `useUpdateTenant` with a merged feature_flags payload.
+ *
+ * Only renders for Enterprise tenants; default-tenant users always
+ * have access to the public hub by virtue of being in the default
+ * tenant.
+ */
+function ConsumePublicMarketplaceToggle({
+  tenantId,
+  currentFlags,
+}: {
+  tenantId: string;
+  currentFlags: Record<string, unknown>;
+}) {
+  const updateTenant = useUpdateTenant();
+  const consumeEnabled = Boolean(currentFlags["consume_public_marketplace"]);
+
+  async function onToggle() {
+    const next = {
+      ...currentFlags,
+      consume_public_marketplace: !consumeEnabled,
+    };
+    await updateTenant.mutateAsync({
+      id: tenantId,
+      payload: { feature_flags: next },
+    });
+    toast({
+      title: consumeEnabled
+        ? "Consume public marketplace disabled"
+        : "Consume public marketplace enabled",
+      variant: "success",
+    });
+  }
+
+  return (
+    <div className="mt-2 flex items-center justify-between gap-3 rounded-md border bg-background/40 p-3">
+      <div className="min-w-0">
+        <p className="text-sm font-medium">consume_public_marketplace</p>
+        <p className="text-xs text-muted-foreground">
+          When enabled, this tenant&apos;s users see public default-tenant
+          marketplace agents alongside their own (read-only). Cost
+          attribution is to the consuming tenant.
+        </p>
+      </div>
+      <AdminWriteButton
+        size="sm"
+        variant={consumeEnabled ? "default" : "outline"}
+        onClick={onToggle}
+        disabled={updateTenant.isPending}
+        data-testid="consume-public-marketplace-toggle"
+        aria-pressed={consumeEnabled}
+      >
+        {updateTenant.isPending ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : null}
+        {consumeEnabled ? "Enabled" : "Disabled"}
+      </AdminWriteButton>
     </div>
   );
 }

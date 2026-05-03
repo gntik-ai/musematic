@@ -43,3 +43,20 @@ class ComparisonRangeError(MarketplaceError):
             "Please select between 2 and 4 agents to compare.",
             {"provided": provided},
         )
+
+
+class MarketplaceParityProbeSetupError(MarketplaceError):
+    """Raised by the dev-only parity-probe path when the synthetic publish
+    fixture fails to set up or roll back. Distinct from a parity violation:
+    this error means the probe could not run at all and the caller should
+    investigate the savepoint / synthetic-publish path.
+    """
+
+    status_code = 500
+
+    def __init__(self, reason: str) -> None:
+        super().__init__(
+            "MARKETPLACE_PARITY_PROBE_SETUP_FAILED",
+            "Parity probe could not complete its synthetic-publish + rollback.",
+            {"reason": reason},
+        )

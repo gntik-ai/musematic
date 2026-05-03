@@ -48,6 +48,7 @@ export function ReviewQueueTable({ items }: ReviewQueueTableProps) {
           <TableHead>Submitter</TableHead>
           <TableHead>Category</TableHead>
           <TableHead>Age</TableHead>
+          <TableHead>Assigned to</TableHead>
           <TableHead>Status</TableHead>
         </TableRow>
       </TableHeader>
@@ -61,6 +62,15 @@ export function ReviewQueueTable({ items }: ReviewQueueTableProps) {
               >
                 {item.agent_fqn}
               </Link>
+              {item.is_self_authored ? (
+                <Badge
+                  variant="destructive"
+                  className="ml-2"
+                  data-testid={`self-authored-badge-${item.agent_id}`}
+                >
+                  Self-authored
+                </Badge>
+              ) : null}
             </TableCell>
             <TableCell>{item.tenant_slug}</TableCell>
             <TableCell>{item.submitter_email || item.submitter_user_id}</TableCell>
@@ -68,6 +78,9 @@ export function ReviewQueueTable({ items }: ReviewQueueTableProps) {
               <Badge variant="secondary">{item.category}</Badge>
             </TableCell>
             <TableCell>{formatAge(item.age_minutes)}</TableCell>
+            <TableCell data-testid={`assigned-cell-${item.agent_id}`}>
+              {item.assigned_reviewer_email ?? "—"}
+            </TableCell>
             <TableCell>
               {item.claimed_by_user_id ? (
                 <Badge variant="outline">Claimed</Badge>
