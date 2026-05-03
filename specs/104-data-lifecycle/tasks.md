@@ -78,8 +78,8 @@ Web app per plan.md: `apps/control-plane/src/platform/data_lifecycle/` for the n
 
 - [X] T026 [P] [US1] Contract test for export request idempotency in `tests/integration/data_lifecycle/test_export_request_idempotency.py`: two concurrent POSTs return the same in-flight job id.
 - [X] T027 [P] [US1] Contract test for cross-region export refusal in `tests/integration/data_lifecycle/test_export_cross_region_blocked.py`: workspace in EU, super-admin attempts read across to US bucket → 422 `cross_region_export_blocked`.
-- [ ] T028 [P] [US1] E2E test in `tests/e2e/suites/data_lifecycle/test_workspace_export.py` covering US1 acceptance scenarios 1–5; assert ZIP layout, signed-URL TTL=7d, audit chain entries, member-email redaction.
-- [ ] T029 [P] [US1] Integration test in `tests/integration/data_lifecycle/test_export_worker_dispatches_zip.py` for `ExportJobWorker` consuming `data_lifecycle.export.requested` and producing a multipart S3 upload.
+- [X] T028 [P] [US1] E2E test in `tests/e2e/suites/data_lifecycle/test_workspace_export.py` covering US1 acceptance scenarios 1–5; assert ZIP layout, signed-URL TTL=7d, audit chain entries, member-email redaction.
+- [X] T029 [P] [US1] Integration test in `tests/integration/data_lifecycle/test_export_worker_dispatches_zip.py` for `ExportJobWorker` consuming `data_lifecycle.export.requested` and producing a multipart S3 upload.
 
 ### Implementation for User Story 1
 
@@ -106,8 +106,8 @@ Web app per plan.md: `apps/control-plane/src/platform/data_lifecycle/` for the n
 
 ### Tests for User Story 2
 
-- [ ] T040 [P] [US2] E2E test in `tests/e2e/suites/data_lifecycle/test_workspace_deletion_two_phase.py` covering US2 acceptance scenarios 1–5: phase-1 mark, inaccessibility, cancel-link cancellation, fast-forward grace, phase-2 cascade, 90-day tombstone retention.
-- [ ] T041 [P] [US2] Integration test in `tests/integration/data_lifecycle/test_grace_monitor_phases.py` for `GraceMonitor` cron advancing jobs from phase_1 to phase_2.
+- [X] T040 [P] [US2] E2E test in `tests/e2e/suites/data_lifecycle/test_workspace_deletion_two_phase.py` covering US2 acceptance scenarios 1–5: phase-1 mark, inaccessibility, cancel-link cancellation, fast-forward grace, phase-2 cascade, 90-day tombstone retention.
+- [X] T041 [P] [US2] Integration test in `tests/integration/data_lifecycle/test_grace_monitor_phases.py` for `GraceMonitor` cron advancing jobs from phase_1 to phase_2.
 - [X] T042 [P] [US2] Integration test in `tests/integration/data_lifecycle/test_cancel_token_anti_enumeration.py` asserting identical 200 responses for unknown/expired/already-used tokens (R10).
 
 ### Implementation for User Story 2
@@ -136,10 +136,10 @@ Web app per plan.md: `apps/control-plane/src/platform/data_lifecycle/` for the n
 
 ### Tests for User Story 3
 
-- [ ] T054 [P] [US3] E2E test in `tests/e2e/suites/data_lifecycle/test_tenant_export.py` covering US3 acceptance #1–2: phase-1 final export job + out-of-band password delivery (R9 — email + OTP fallback in CI).
-- [ ] T055 [P] [US3] E2E test in `tests/e2e/suites/data_lifecycle/test_tenant_deletion_cascade.py` covering US3 acceptance #3–6: recovery in grace, phase-2 cascade across all six stores + DNS, cold-storage tombstone with object-lock retention, subscription-active refusal.
-- [ ] T056 [P] [US3] Integration test in `tests/integration/data_lifecycle/test_cascade_dispatch_audit_chain.py` asserting AuditChainService emits hash-linked entries for every cascade step and the chain verifies post-cascade.
-- [ ] T057 [P] [US3] Integration test in `tests/integration/data_lifecycle/test_tenant_deletion_default_tenant_refused.py` asserting the platform default tenant cannot be deleted (FR-754.3).
+- [X] T054 [P] [US3] E2E test in `tests/e2e/suites/data_lifecycle/test_tenant_export.py` covering US3 acceptance #1–2: phase-1 final export job + out-of-band password delivery (R9 — email + OTP fallback in CI).
+- [X] T055 [P] [US3] E2E test in `tests/e2e/suites/data_lifecycle/test_tenant_deletion_cascade.py` covering US3 acceptance #3–6: recovery in grace, phase-2 cascade across all six stores + DNS, cold-storage tombstone with object-lock retention, subscription-active refusal.
+- [X] T056 [P] [US3] Integration test in `tests/integration/data_lifecycle/test_cascade_dispatch_audit_chain.py` asserting AuditChainService emits hash-linked entries for every cascade step and the chain verifies post-cascade.
+- [X] T057 [P] [US3] Integration test in `tests/integration/data_lifecycle/test_tenant_deletion_default_tenant_refused.py` asserting the platform default tenant cannot be deleted (FR-754.3).
 
 ### Implementation for User Story 3
 
@@ -168,8 +168,8 @@ Web app per plan.md: `apps/control-plane/src/platform/data_lifecycle/` for the n
 
 ### Tests for User Story 4
 
-- [ ] T070 [P] [US4] E2E test in `tests/e2e/suites/data_lifecycle/test_sub_processors_public_page.py` covering US4 acceptance #1–5: public read works without auth, RSS feed renders, change-log shows recent edits, page propagates within 5 min, control-plane-outage independence (scale main deployment to 0 and assert page still serves from snapshot).
-- [ ] T071 [P] [US4] Integration test in `tests/integration/data_lifecycle/test_sub_processors_regenerator_cron.py`: edit triggers regeneration cron; ConfigMap snapshot updates; webhook fanout via UPD-077 emits HMAC-signed payloads.
+- [X] T070 [P] [US4] E2E test in `tests/e2e/suites/data_lifecycle/test_sub_processors_public_page.py` covering US4 acceptance #1–5: public read works without auth, RSS feed renders, change-log shows recent edits, page propagates within 5 min, control-plane-outage independence (scale main deployment to 0 and assert page still serves from snapshot).
+- [X] T071 [P] [US4] Integration test in `tests/integration/data_lifecycle/test_sub_processors_regenerator_cron.py`: edit triggers regeneration cron; ConfigMap snapshot updates; webhook fanout via UPD-077 emits HMAC-signed payloads.
 
 ### Implementation for User Story 4
 
@@ -195,8 +195,8 @@ Web app per plan.md: `apps/control-plane/src/platform/data_lifecycle/` for the n
 
 ### Tests for User Story 5
 
-- [ ] T081 [P] [US5] E2E test in `tests/e2e/suites/data_lifecycle/test_dpa_upload.py` covering US5 acceptance #1–5: clean upload, malware refusal (EICAR fixture), versioning preserves prior version, default-tenant clickwrap path, cascade deletes tenant DPA versions.
-- [ ] T082 [P] [US5] Integration test in `tests/integration/data_lifecycle/test_dpa_upload_clamav.py` covering all three failure modes: clean, virus-positive, scanner unreachable.
+- [X] T081 [P] [US5] E2E test in `tests/e2e/suites/data_lifecycle/test_dpa_upload.py` covering US5 acceptance #1–5: clean upload, malware refusal (EICAR fixture), versioning preserves prior version, default-tenant clickwrap path, cascade deletes tenant DPA versions.
+- [X] T082 [P] [US5] Integration test in `tests/integration/data_lifecycle/test_dpa_upload_clamav.py` covering all three failure modes: clean, virus-positive, scanner unreachable.
 
 ### Implementation for User Story 5
 
@@ -221,7 +221,7 @@ This is a single endpoint that COMPOSES outputs of US1–US5 + UPD-024 + UPD-025
 - [X] T090 [P] Implement `apps/control-plane/src/platform/data_lifecycle/services/article28_evidence_service.py:generate_for_tenant(tenant_id, requested_by_user_id)`: composes a ZIP with `dpa-vN.pdf`, `sub_processors_snapshot.json`, `audit_chain_last_12_months.jsonl`, `residency_config.json` (UPD-025), `maintenance_history.json` (UPD-081), `manifest.json` (file → SHA-256). Signed via the existing audit-chain signing key.
 - [X] T091 [P] Add admin endpoint `POST /api/v1/admin/tenants/{tenant_id}/article28-evidence` to `tenant_admin_router.py`. Returns 202 with job id; reuses the export-job machinery for delivery.
 - [ ] T092 [P] Frontend: add "Generate Article 28 Evidence" button to the admin tenant page; surface the job in the existing job list.
-- [ ] T093 [P] Integration test in `tests/integration/data_lifecycle/test_article28_evidence.py`: generate package, assert all 6 components present, manifest hashes match, signature verifies.
+- [X] T093 [P] Integration test in `tests/integration/data_lifecycle/test_article28_evidence.py`: generate package, assert all 6 components present, manifest hashes match, signature verifies.
 
 ---
 
@@ -232,7 +232,7 @@ This is a single endpoint that COMPOSES outputs of US1–US5 + UPD-024 + UPD-025
 - [X] T094 [P] Author Grafana dashboard `deploy/helm/observability/templates/dashboards/data-lifecycle.yaml` (rule 24, 27): export-job p50/p95 duration, deletion grace queue depth, virus-scan reject rate, backup-purge SLO compliance, DNS-teardown skip count.
 - [X] T095 [P] Author runbooks at `deploy/runbooks/data-lifecycle/`: `tenant-deletion-failed-cascade.md`, `export-job-stuck.md`, `dpa-virus-scan-unavailable.md`, `dns-teardown-manual.md`, `cold-storage-retention-restore.md`.
 - [X] T096 [P] Author user-facing docs at `docs/saas/data-lifecycle.md` covering all 5 user stories (rule 36); regenerate `docs/reference/env-vars.md` and `docs/reference/feature-flags.md` via `tools/generate-env-docs.py`.
-- [ ] T097 [P] Implement J27 journey at `tests/e2e/journeys/j27_tenant_lifecycle_cancellation.py` (rule 25 + 26): real-cluster, real-observability journey crossing all 5 user stories + cold-storage tombstone + Loki/Prometheus assertions per `quickstart.md` § Journey J27.
+- [X] T097 [P] Implement J27 journey at `tests/e2e/journeys/j27_tenant_lifecycle_cancellation.py` (rule 25 + 26): real-cluster, real-observability journey crossing all 5 user stories + cold-storage tombstone + Loki/Prometheus assertions per `quickstart.md` § Journey J27.
 - [ ] T098 [P] Add J27 to `tests/e2e/journeys/__init__.py` registry and CI matrix.
 - [ ] T099 [P] Accessibility: ensure all 7 new pages are covered by axe in J15 (rule 28); add page paths to `apps/web/playwright/a11y.spec.ts`.
 - [ ] T100 [P] i18n: add new translation keys for the 7 new pages + email templates to `apps/web/locales/en/data-lifecycle.json`; mark for translator pickup. Confirm rule-13 ESLint rule passes (no hardcoded JSX strings).
