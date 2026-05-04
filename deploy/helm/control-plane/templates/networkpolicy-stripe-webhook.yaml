@@ -1,0 +1,45 @@
+{{- /*
+NetworkPolicy for the UPD-052 Stripe webhook ingress.
+
+The control-plane deployment exposes /api/webhooks/stripe publicly via the
+ingress controller. This NetworkPolicy is a defence-in-depth layer that
+restricts INGRESS to the webhook port to only the Stripe webhook source IPs
+(plus the in-cluster ingress controller pod that fronts the service).
+
+Disabled by default — enable in production by setting
+`stripe.webhookNetworkPolicy.enabled: true` and supplying the current Stripe
+webhook IP allowlist under `stripe.webhookNetworkPolicy.sourceCidrs`. The
+allowlist is published by Stripe at https://stripe.com/docs/ips and may
+change; rotation is an operator action documented in the runbook.
+*/ -}}
+{{- if .Values.stripe.webhookNetworkPolicy.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: control-plane-stripe-webhook
+  namespace: {{ .Values.namespace | default "platform-control" }}
+  labels:
+    app.kubernetes.io/name: control-plane
+    app.kubernetes.io/component: stripe-webhook
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: control-plane
+      app.kubernetes.io/component: api
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # Stripe webhook source IPs (operator-managed allowlist).
+        {{- range .Values.stripe.webhookNetworkPolicy.sourceCidrs }}
+        - ipBlock:
+            cidr: {{ . | quote }}
+        {{- end }}
+        # In-cluster ingress controller (when terminating TLS at the edge).
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: {{ .Values.api.containerPort | default 8000 }}
+{{- end }}

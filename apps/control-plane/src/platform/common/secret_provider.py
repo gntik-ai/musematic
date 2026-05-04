@@ -41,7 +41,7 @@ CANONICAL_SECRET_PATH_RE = re.compile(
     r"^secret/data/musematic/"
     r"(production|staging|dev|test|ci)/"
     r"(?:(?:tenants/(default|[a-z][a-z0-9-]{0,30}[a-z0-9])/)|(?:_platform/))?"
-    r"(oauth|model-providers|notifications|ibor|audit-chain|connectors|accounts|_internal)/"
+    r"(oauth|model-providers|notifications|ibor|audit-chain|connectors|accounts|billing|_internal)/"
     r"[a-zA-Z0-9_/-]+$"
 )
 K8S_SECRET_RESOURCE_RE = re.compile(r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$")
@@ -115,6 +115,7 @@ _VALID_DOMAINS = {
     "audit-chain",
     "connectors",
     "accounts",
+    "billing",
     "_internal",
 }
 _FORBIDDEN_LOG_FIELDS = {"token", "secret_id", "kv_value", "client_secret"}

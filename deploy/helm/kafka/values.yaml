@@ -97,6 +97,13 @@ topics:
     # -- 30-day retention; the audit chain is the durable record.
     partitions: 12
     retentionMs: 2592000000
+  - name: billing.events
+    # -- UPD-052 — Stripe-driven billing lifecycle (subscription created/updated/
+    # -- cancelled, invoice paid/failed, payment_method attached, payment-failure
+    # -- grace opened/resolved, dispute opened). Partitioned by tenant_id.
+    # -- 7-day retention; consumers must be caught up by then.
+    partitions: 3
+    retentionMs: 604800000
   - name: multi_region_ops.events
     # -- Configures `topics.partitions` for the kafka chart.
     partitions: 6
