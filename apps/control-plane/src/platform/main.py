@@ -54,6 +54,9 @@ from platform.auth.services.oauth_bootstrap import (
     bootstrap_oauth_providers_from_env,
     oauth_bootstrap_enabled,
 )
+from platform.billing.admin_router_stripe import (
+    admin_billing_router as billing_stripe_admin_router,
+)
 from platform.billing.exceptions import (
     ModelTierNotAllowedError,
     NoActiveSubscriptionError,
@@ -62,6 +65,10 @@ from platform.billing.exceptions import (
     QuotaExceededError,
     SubscriptionSuspendedError,
 )
+from platform.billing.invoices.router import invoices_router as billing_invoices_router
+from platform.billing.payment_failure_grace.grace_monitor import (
+    build_grace_monitor_scheduler,
+)
 from platform.billing.plans.admin_router import router as billing_admin_plans_router
 from platform.billing.plans.public_router import router as billing_public_plans_router
 from platform.billing.plans.seeder import provision_default_plans_if_missing
@@ -69,6 +76,7 @@ from platform.billing.providers.protocol import PaymentProvider
 from platform.billing.providers.stub_provider import StubPaymentProvider
 from platform.billing.quotas.metering import MeteringJob
 from platform.billing.quotas.reconciliation import build_billing_reconciliation_scheduler
+from platform.billing.stripe_router import stripe_billing_router
 from platform.billing.subscriptions.admin_router import router as billing_admin_subscriptions_router
 from platform.billing.subscriptions.events import register_billing_event_types
 from platform.billing.subscriptions.period_scheduler import build_period_rollover_scheduler
@@ -252,6 +260,9 @@ from platform.multi_region_ops.jobs.replication_probe_runner import (
 from platform.multi_region_ops.middleware.maintenance_gate import MaintenanceGateMiddleware
 from platform.multi_region_ops.router import router as multi_region_ops_router
 from platform.notifications.consumers.attention_consumer import AttentionConsumer
+from platform.notifications.consumers.billing_failure_grace_consumer import (
+    BillingFailureGraceConsumer,
+)
 from platform.notifications.consumers.export_ready_consumer import ExportReadyConsumer
 from platform.notifications.consumers.state_change_consumer import StateChangeConsumer
 from platform.notifications.deliverers.webhook_deliverer import WebhookDeliverer
@@ -1724,6 +1735,11 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
             ).register(consumer_manager)
+            BillingFailureGraceConsumer(
+                settings=resolved,
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            ).register(consumer_manager)
         if resolved.profile == "worker":
             ObserverSignalConsumer(
                 settings=resolved,
@@ -1731,6 +1747,22 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
                 registry_service=None,
             ).register(consumer_manager)
+            # UPD-052 — start the failed-payment grace monitor cron.
+            try:
+                grace_scheduler = build_grace_monitor_scheduler(
+                    interval_seconds=resolved.billing_stripe.grace_monitor_interval_seconds,
+                    producer=cast(
+                        EventProducer | None, app.state.clients.get("kafka")
+                    ),
+                )
+                grace_scheduler.start()
+                app.state.billing_grace_monitor_scheduler = grace_scheduler
+            except Exception as exc:
+                app.state.degraded = True
+                LOGGER.warning(
+                    "billing.grace_monitor_scheduler_start_failed",
+                    error=str(exc),
+                )
             VerdictConsumer(
                 settings=resolved,
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
@@ -1901,6 +1933,12 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(data_lifecycle_cancel_router)
         # UPD-052 — Stripe webhook ingress (/api/webhooks/stripe).
         app.include_router(billing_webhook_router)
+        # UPD-052 — Stripe-specific billing endpoints (cancel-with-reason,
+        # reactivate, portal-session, store-card).
+        app.include_router(stripe_billing_router)
+        # UPD-052 — invoices REST + Enterprise tenant admin billing.
+        app.include_router(billing_invoices_router)
+        app.include_router(billing_stripe_admin_router)
         app.include_router(data_lifecycle_sub_processors_public_router)
         app.include_router(data_lifecycle_sub_processors_admin_router)
         app.include_router(data_lifecycle_tenant_admin_router)

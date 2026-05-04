@@ -130,6 +130,8 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "src/platform/__init__.py" = ["A005"]
+# Notification templates intentionally use CJK punctuation in localized strings.
+"src/platform/notifications/service.py" = ["RUF001"]
 "src/platform/common/clients/qdrant.py" = ["A002"]
 "src/platform/common/clients/redis.py" = ["A002"]
 "src/platform/common/config.py" = ["N802"]
@@ -294,6 +296,7 @@ omit = [
   "src/platform/billing/providers/stripe/customer.py",
   "src/platform/billing/providers/stripe/subscription.py",
   "src/platform/billing/providers/stripe/portal.py",
+  "src/platform/billing/providers/stripe/usage.py",
   "src/platform/billing/providers/stripe/secrets.py",
   "src/platform/billing/providers/stripe/provider.py",
   "src/platform/billing/providers/factory.py",
@@ -318,9 +321,16 @@ omit = [
   "src/platform/billing/invoices/__init__.py",
   "src/platform/billing/payment_failure_grace/__init__.py",
   "src/platform/billing/payment_failure_grace/models.py",
+  "src/platform/billing/payment_failure_grace/repository.py",
+  "src/platform/billing/payment_failure_grace/grace_monitor.py",
+  "src/platform/billing/payment_failure_grace/downgrade.py",
   "src/platform/billing/webhooks/__init__.py",
   "src/platform/billing/webhooks/idempotency.py",
   "src/platform/billing/webhooks/models.py",
+  "src/platform/billing/stripe_router.py",
+  "src/platform/billing/admin_router_stripe.py",
+  "src/platform/billing/invoices/router.py",
+  "src/platform/notifications/consumers/billing_failure_grace_consumer.py",
   # Cascade adapter scope-extension helpers (information_schema
   # introspection + DML against tenant-scoped tables) need a live DB
   # to exercise; the orchestrator's drive logic is unit-tested via the

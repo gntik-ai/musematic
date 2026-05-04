@@ -251,6 +251,42 @@
       "title": "Your account is under review"
     }
   },
+  "billing": {
+    "cancel": {
+      "cancelButton": "Cancel subscription",
+      "description": "Cancel at the end of the current billing period.",
+      "detailsOptional": "Details (optional)",
+      "pendingDescription": "Reactivate any time before the period ends.",
+      "pendingTitle": "Cancellation pending",
+      "reactivateButton": "Reactivate subscription",
+      "reason": "Reason",
+      "title": "Cancel subscription"
+    },
+    "invoices": {
+      "columnAmount": "Amount",
+      "columnInvoice": "Invoice",
+      "columnPdf": "PDF",
+      "columnPeriod": "Period",
+      "columnStatus": "Status",
+      "description": "Stripe-issued invoices for this workspace.",
+      "download": "Download",
+      "noInvoices": "No invoices yet.",
+      "title": "Invoices"
+    },
+    "portal": {
+      "description": "Open the Stripe Customer Portal.",
+      "openingPortal": "Opening portal session…",
+      "title": "Manage billing",
+      "unavailable": "Portal unavailable"
+    },
+    "upgrade": {
+      "description": "Upgrade to Pro and unlock higher quotas + overage authorisation.",
+      "paymentMethodToken": "Payment method token",
+      "plan": "Plan",
+      "submit": "Upgrade to Pro",
+      "title": "Upgrade workspace"
+    }
+  },
   "commands": {
     "categories": {
       "admin": "管理",
