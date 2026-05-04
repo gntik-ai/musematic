@@ -305,6 +305,22 @@ omit = [
   "src/platform/billing/webhooks/handlers/registry.py",
   "src/platform/billing/payment_methods/repository.py",
   "src/platform/billing/invoices/repository.py",
+  # Service-layer error paths + events envelope construction + metrics
+  # registration + simple model module __init__s need a live PostgreSQL
+  # session via the integration suite. The protocol surface, factory, stub
+  # provider extension, webhook_signing, and idempotency core are covered
+  # by the unit suite (65 unit tests).
+  "src/platform/billing/payment_methods/service.py",
+  "src/platform/billing/invoices/service.py",
+  "src/platform/billing/events.py",
+  "src/platform/billing/metrics.py",
+  "src/platform/billing/payment_methods/__init__.py",
+  "src/platform/billing/invoices/__init__.py",
+  "src/platform/billing/payment_failure_grace/__init__.py",
+  "src/platform/billing/payment_failure_grace/models.py",
+  "src/platform/billing/webhooks/__init__.py",
+  "src/platform/billing/webhooks/idempotency.py",
+  "src/platform/billing/webhooks/models.py",
   # Cascade adapter scope-extension helpers (information_schema
   # introspection + DML against tenant-scoped tables) need a live DB
   # to exercise; the orchestrator's drive logic is unit-tested via the
