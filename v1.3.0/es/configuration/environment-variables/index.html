@@ -4222,6 +4222,15 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#billingstripe" class="md-nav__link">
+    <span class="md-ellipsis">
+      BillingStripe
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#clickhouse" class="md-nav__link">
     <span class="md-ellipsis">
       ClickHouse
@@ -5173,6 +5182,15 @@
   <a href="#auth" class="md-nav__link">
     <span class="md-ellipsis">
       Auth
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#billingstripe" class="md-nav__link">
+    <span class="md-ellipsis">
+      BillingStripe
     </span>
   </a>
   
@@ -6209,6 +6227,101 @@
 <td>-</td>
 <td>informational</td>
 <td>Accepted by the platform flat-settings compatibility mapper.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="billingstripe">BillingStripe<a class="headerlink" href="#billingstripe" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Required</th>
+<th>Default</th>
+<th>Sensitivity</th>
+<th>Description</th>
+<th>Sources</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BILLING_GRACE_MONITOR_INTERVAL_SECONDS</code></td>
+<td>optional</td>
+<td><code>21600</code></td>
+<td>informational</td>
+<td>Cadence of the failed-payment grace_monitor cron. 6 hours is the default so day-&#8531;/5 reminders fire within ±2h of the day boundary.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>BILLING_GRACE_WINDOW_DAYS</code></td>
+<td>optional</td>
+<td><code>7</code></td>
+<td>informational</td>
+<td>Length of the failed-payment grace window before auto-downgrade.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>BILLING_PORTAL_RETURN_URL_ALLOWLIST</code></td>
+<td>optional</td>
+<td><code>(generated at runtime)</code></td>
+<td>configuration</td>
+<td>Allowlisted relative paths that may be passed as the Stripe Customer Portal <code>return_url</code>. Absolute URLs are always rejected.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>BILLING_PORTAL_SESSION_RATE_LIMIT_PER_HOUR</code></td>
+<td>optional</td>
+<td><code>10</code></td>
+<td>configuration</td>
+<td>Customer Portal session-creation rate limit per customer per hour.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>BILLING_PROVIDER</code></td>
+<td>optional</td>
+<td><code>stub</code></td>
+<td>informational</td>
+<td>Active PaymentProvider implementation. <code>stripe</code> enables real Stripe integration; <code>stub</code> keeps the in-memory provider for unit tests.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>BILLING_STRIPE_API_VERSION</code></td>
+<td>optional</td>
+<td><code>2024-06-20</code></td>
+<td>informational</td>
+<td>Stripe API version pinned per request via the <code>Stripe-Version</code> header. Upgrade the SDK independently; bump this header only after a behaviour diff review.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>BILLING_STRIPE_MODE</code></td>
+<td>optional</td>
+<td><code>test</code></td>
+<td>informational</td>
+<td><code>test</code> for dev/staging clusters, <code>live</code> for prod. Start-up validation refuses to boot when the Vault api-key kind disagrees with this flag.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>BILLING_STRIPE_PUBLISHABLE_KEY</code></td>
+<td>optional</td>
+<td><code>""</code></td>
+<td>sensitive</td>
+<td>Stripe publishable key (<code>pk_test_*</code> or <code>pk_live_*</code>). Public — safe in Helm values; the matching secret key lives in Vault.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>BILLING_STRIPE_WEBHOOK_IP_ALLOWLIST</code></td>
+<td>optional</td>
+<td><code>(generated at runtime)</code></td>
+<td>informational</td>
+<td>Optional Stripe webhook source IP allowlist enforced by the FastAPI webhook router as a defence-in-depth layer in front of HMAC verification.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>BILLING_WEBHOOK_LOCK_TTL_SECONDS</code></td>
+<td>optional</td>
+<td><code>60</code></td>
+<td>informational</td>
+<td>TTL of the Redis short-lived webhook idempotency lock (<code>billing:webhook_lock:{event_id}</code>).</td>
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 </tbody>
@@ -9948,6 +10061,14 @@
 <td><code>apps/control-plane/src/platform/evaluation/service.py</code></td>
 </tr>
 <tr>
+<td><code>BILLING_</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
 <td><code>BILLING_CONCURRENT_LIFECYCLE_ACTION</code></td>
 <td>optional</td>
 <td>-</td>
@@ -10060,6 +10181,14 @@
 <td><code>apps/control-plane/src/platform/billing/exceptions.py</code></td>
 </tr>
 <tr>
+<td><code>BILLING_SECRETS_UNAVAILABLE</code></td>
+<td>optional</td>
+<td>-</td>
+<td>sensitive</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/billing/providers/exceptions.py</code></td>
+</tr>
+<tr>
 <td><code>BILLING_SUBSCRIPTION_NOT_FOUND</code></td>
 <td>optional</td>
 <td>-</td>
@@ -10090,6 +10219,14 @@
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
 <td><code>apps/control-plane/src/platform/billing/exceptions.py</code></td>
+</tr>
+<tr>
+<td><code>BILLING_WEBHOOK_SIGNATURE_INVALID</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/billing/providers/exceptions.py</code></td>
 </tr>
 <tr>
 <td><code>BLUEPRINT_NOT_FOUND</code></td>
@@ -10129,7 +10266,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/a2a_gateway/models.py</code><br><code>apps/control-plane/src/platform/agentops/models.py</code><br><code>apps/control-plane/src/platform/auth/models.py</code><br><code>apps/control-plane/src/platform/billing/plans/models.py</code><br><code>apps/control-plane/src/platform/billing/quotas/models.py</code><br>+31 more</td>
+<td><code>apps/control-plane/src/platform/a2a_gateway/models.py</code><br><code>apps/control-plane/src/platform/agentops/models.py</code><br><code>apps/control-plane/src/platform/auth/models.py</code><br><code>apps/control-plane/src/platform/billing/invoices/models.py</code><br><code>apps/control-plane/src/platform/billing/payment_failure_grace/models.py</code><br>+33 more</td>
 </tr>
 <tr>
 <td><code>CERTIFICATION_BLOCKED</code></td>
@@ -10762,6 +10899,14 @@
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
 <td><code>apps/control-plane/src/platform/governance/models.py</code><br><code>apps/control-plane/src/platform/trust/models.py</code></td>
+</tr>
+<tr>
+<td><code>EUR</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Referenced directly by Python code.</td>
+<td><code>apps/control-plane/src/platform/billing/events.py</code><br><code>apps/control-plane/src/platform/billing/invoices/models.py</code><br><code>apps/control-plane/src/platform/billing/invoices/service.py</code><br><code>apps/control-plane/src/platform/billing/webhooks/handlers/invoice.py</code></td>
 </tr>
 <tr>
 <td><code>EVALUATION_</code></td>
