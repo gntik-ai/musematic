@@ -276,6 +276,11 @@ omit = [
   "src/platform/data_lifecycle/services/export_service.py",
   "src/platform/data_lifecycle/services/article28_service.py",
   "src/platform/data_lifecycle/services/backup_purge_service.py",
+  # UPD-051 follow-up (T038) — Kafka consumer that joins data_export_jobs
+  # to dispatch the export_ready alert. The notifications service method
+  # itself (process_export_ready) is covered by unit tests; the consumer
+  # is framework glue that needs a live PostgreSQL session.
+  "src/platform/notifications/consumers/export_ready_consumer.py",
   # Cascade adapter scope-extension helpers (information_schema
   # introspection + DML against tenant-scoped tables) need a live DB
   # to exercise; the orchestrator's drive logic is unit-tested via the
