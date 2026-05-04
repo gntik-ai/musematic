@@ -34,3 +34,9 @@ marketplace:
   deprecationRetentionDays: 30
   submissionRateLimitPerDay: 5
   forkNotifySourceOwners: true
+
+# UPD-051 (104) T079 — operationally-independent /legal/sub-processors page.
+# Production turns the public-pages release on so the public sub-processors
+# surface stays reachable even when the main control-plane is paged.
+publicPages:
+  enabled: true

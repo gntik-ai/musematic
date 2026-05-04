@@ -1,1209 +1,1342 @@
 {
-  "auth": {
-    "signup": {
-      "title": "Sign up for Musematic",
-      "disabled": "Signups are currently disabled",
-      "submit": "Create account"
-    },
-    "verify": {
-      "pending": "Check your inbox",
-      "success": "Email verified",
-      "expired": "Verification link expired",
-      "resend": "Resend verification"
-    },
-    "waitingApproval": {
-      "title": "Your account is under review",
-      "status": "Pending approval"
+  "admin": {
+    "ibor": {
+      "add": "Add IBOR connector",
+      "cadence": "Cadence: {seconds}s",
+      "description": "Manage LDAP, OIDC, and SCIM identity-broker sync connectors.",
+      "details": "Details",
+      "disabled": "Disabled",
+      "enabled": "Enabled",
+      "history": {
+        "counts": "Counts",
+        "nextPage": "Next page",
+        "started": "Started",
+        "status": "Status",
+        "title": "Sync history"
+      },
+      "mapping": {
+        "title": "Attribute mapping",
+        "vendorPreset": "Vendor preset"
+      },
+      "never": "Never",
+      "noConnectors": "No IBOR connectors configured.",
+      "selectConnector": "Select a connector to inspect sync history.",
+      "selectedConnector": "Selected connector",
+      "sync": "Sync",
+      "table": {
+        "actions": "Actions",
+        "lastRun": "Last run",
+        "name": "Name",
+        "type": "Type"
+      },
+      "test": "Test",
+      "title": "IBOR connectors",
+      "wizard": {
+        "activate": "Activate",
+        "cadenceSeconds": "Cadence seconds",
+        "connection": "Connection",
+        "connectorName": "Connector name",
+        "createDraft": "Create connector draft",
+        "credentialReference": "Credential reference",
+        "defaultName": "Corporate directory",
+        "directoryType": "Directory type",
+        "draftCreated": "Connector draft created.",
+        "draftRequired": "Create the connector draft before activation.",
+        "enableConnector": "Enable connector",
+        "enabledAfterActivation": "Enabled after activation",
+        "mapping": "Mapping",
+        "runDiagnostic": "Run stepped diagnostic",
+        "schedule": "Schedule",
+        "scope": "Scope",
+        "scopeDescription": "Directory scope is constrained by the credential reference and role mappings. Workspace scope can be added per mapping row when a group should map into a workspace-specific role.",
+        "stepsAria": "IBOR setup steps",
+        "syncMode": "Sync mode",
+        "syncModes": {
+          "pull": "Pull",
+          "push": "Push"
+        },
+        "syncNow": "Sync now",
+        "test": "Test",
+        "title": "IBOR connector wizard",
+        "type": "Type",
+        "types": {
+          "ldap": "LDAP",
+          "oidc": "OIDC",
+          "scim": "SCIM"
+        }
+      }
     },
     "oauth": {
-      "callbackLoading": "Finishing sign-in",
-      "callbackError": "Unable to finish sign-up",
-      "domainNotPermitted": "Your email domain is not permitted for this provider.",
-      "orgNotPermitted": "Your GitHub organization is not permitted.",
-      "expiredState": "The OAuth session expired.",
-      "providerError": "The provider returned an error.",
-      "networkFailure": "The provider could not be reached.",
-      "userDeniedAccess": "You denied access to the provider account."
+      "actions": {
+        "apply": "Apply",
+        "cancel": "Cancel",
+        "reseed": "Reseed from env",
+        "rotateSecret": "Rotate secret",
+        "save": "Save",
+        "testConnectivity": "Test connectivity"
+      },
+      "connectivity": {
+        "failure": "Connectivity check failed",
+        "success": "Connectivity check completed"
+      },
+      "history": {
+        "action": "Action",
+        "admin": "Admin",
+        "after": "After",
+        "before": "Before",
+        "collapse": "Collapse history row",
+        "empty": "No history entries found.",
+        "expand": "Expand history row",
+        "loadFailed": "Unable to load provider history.",
+        "loadMore": "Load more",
+        "loading": "Loading history...",
+        "system": "System",
+        "timestamp": "Timestamp"
+      },
+      "rateLimits": {
+        "global_max": "Global max",
+        "global_maxHelp": "Maximum provider attempts across the platform during the window.",
+        "global_window": "Global window",
+        "global_windowHelp": "Global provider window in seconds.",
+        "loadFailed": "Unable to load rate limits.",
+        "per_ip_max": "Per-IP max",
+        "per_ip_maxHelp": "Maximum attempts from one IP address during the window.",
+        "per_ip_window": "Per-IP window",
+        "per_ip_windowHelp": "Per-IP window in seconds.",
+        "per_user_max": "Per-user max",
+        "per_user_maxHelp": "Maximum attempts for one authenticated user during the window.",
+        "per_user_window": "Per-user window",
+        "per_user_windowHelp": "Per-user window in seconds.",
+        "saveFailed": "Unable to save rate limits",
+        "saved": "Rate limits saved"
+      },
+      "reseed": {
+        "acknowledge": "This may overwrite manual changes. Continue?",
+        "changedFields": "Changed fields",
+        "description": "Re-read the running pod environment and apply the configured provider values.",
+        "failure": "Unable to reseed provider",
+        "forceUpdate": "Force update",
+        "forceUpdateHelp": "Overwrite an existing provider instead of preserving manual edits.",
+        "success": "Provider reseeded",
+        "title": "Reseed provider from environment"
+      },
+      "roleMappings": {
+        "actions": "Actions",
+        "add": "Add mapping",
+        "delete": "Delete mapping",
+        "empty": "No role mappings configured.",
+        "group": "Group or team",
+        "invalidGroup": "One or more group values do not match the provider format.",
+        "role": "Role",
+        "saveFailed": "Unable to save role mappings",
+        "saved": "Role mappings saved"
+      },
+      "rotate": {
+        "confirmation": "I understand the new secret will be written to Vault and will not be shown again.",
+        "description": "Write a new client secret version through the configured secret provider.",
+        "failure": "Unable to rotate secret",
+        "newSecret": "New client secret",
+        "success": "Secret rotated successfully",
+        "title": "Rotate OAuth client secret"
+      },
+      "source": {
+        "aria": "Configuration source: {source}",
+        "env_var": "Env var",
+        "env_varHelp": "Provisioned from platform OAuth environment variables.",
+        "imported": "Imported",
+        "importedHelp": "Imported from a GitOps promotion manifest.",
+        "manual": "Manual",
+        "manualHelp": "Managed directly in the admin interface."
+      },
+      "status": {
+        "auth24h": "Auths in 24h",
+        "auth30d": "Auths in 30d",
+        "auth7d": "Auths in 7d",
+        "lastAuth": "Last successful auth",
+        "linkedUsers": "Linked users",
+        "loadFailed": "Unable to load provider status.",
+        "never": "Never"
+      },
+      "tabs": {
+        "configuration": "Configuration",
+        "history": "History",
+        "rateLimits": "Rate limits",
+        "roleMappings": "Role mappings",
+        "status": "Status"
+      },
+      "tooltips": {
+        "testConnectivity": "Generate a provider authorization URL and report diagnostics."
+      }
     },
-    "profileCompletion": {
-      "title": "Finish your account",
-      "submit": "Continue"
+    "workspaces": {
+      "action": "Action",
+      "description": "Global admin view of workspace owner surfaces.",
+      "empty": "No matching workspaces.",
+      "name": "Name",
+      "open": "Open",
+      "search": "Search workspaces",
+      "title": "Workspaces"
+    }
+  },
+  "apiKeys": {
+    "create": {
+      "cancel": "Cancel",
+      "description": "Personal keys inherit only scopes you already have. MFA is required when enabled.",
+      "expires": "Expires",
+      "mfaCode": "MFA code",
+      "name": "Name",
+      "scopes": "Scopes",
+      "submit": "Create",
+      "title": "Create API key",
+      "trigger": "Create API key"
     },
+    "description": "Create and revoke personal access tokens for developer workflows.",
+    "oneTime": {
+      "copy": "Copy",
+      "description": "This is the only time you will see this value.",
+      "dismiss": "Dismiss",
+      "title": "New API key"
+    },
+    "table": {
+      "action": "Action",
+      "created": "Created",
+      "empty": "No personal API keys have been created.",
+      "identifier": "Identifier",
+      "lastUsed": "Last used",
+      "name": "Name",
+      "never": "Never",
+      "revokeAria": "Revoke {name}",
+      "status": {
+        "active": "Active",
+        "disabled": "Disabled",
+        "label": "Status",
+        "revoked": "Revoked"
+      }
+    },
+    "title": "API Keys",
+    "usage": "{activeCount} of {maxActive} active keys used."
+  },
+  "auth": {
     "connections": {
       "title": "Account connections",
       "unlinkDisabled": "You must keep at least one authentication method."
-    }
-  },
-  "platformStatus": {
-    "title": "Platform status",
-    "statusLabels": {
-      "operational": "Operational",
-      "degraded": "Degraded",
-      "partial_outage": "Partial outage",
-      "full_outage": "Full outage",
-      "maintenance": "Maintenance"
     },
-    "subscribeToUpdates": "Subscribe to updates",
-    "lastUpdated": "Last updated",
-    "uptime30d": "30-day uptime",
-    "maintenanceScheduled": "Scheduled maintenance",
-    "maintenanceInProgress": "Maintenance in progress",
-    "endsAt": "Ends at {date}",
-    "dismiss": "Dismiss",
-    "viewStatusPage": "View status page",
-    "blockedActionTitle": "Maintenance is in progress",
-    "blockedActionExplanation": "Writes are temporarily paused for maintenance. You can try again after {date}.",
-    "retryAfter": "Retry after",
-    "unknownEnd": "the maintenance window ends",
-    "incidentActive": "Active incident",
-    "incidentSeverity": {
-      "info": "Info",
-      "warning": "Warning",
-      "high": "High",
-      "critical": "Critical"
+    "oauth": {
+      "callbackError": "Unable to finish sign-up",
+      "callbackLoading": "Finishing sign-in",
+      "domainNotPermitted": "Your email domain is not permitted for this provider.",
+      "expiredState": "The OAuth session expired.",
+      "networkFailure": "The provider could not be reached.",
+      "orgNotPermitted": "Your GitHub organization is not permitted.",
+      "providerError": "The provider returned an error.",
+      "userDeniedAccess": "You denied access to the provider account."
     },
-    "viewIncident": "View incident",
-    "subscriptions": {
-      "title": "Status subscriptions",
-      "add": "Add subscription",
-      "empty": "No status subscriptions configured.",
-      "channelEmail": "Email",
-      "channelWebhook": "Webhook",
-      "channelSlack": "Slack",
-      "scope": {
-        "allComponents": "All components",
-        "specificComponents": "Specific components"
-      },
-      "health": {
-        "pending": "Pending",
-        "healthy": "Healthy",
-        "unhealthy": "Unhealthy",
-        "unsubscribed": "Unsubscribed"
-      },
-      "removeConfirm": "Remove this status subscription?"
-    }
-  },
-  "simulations": {
-    "scenarios": {
-      "title": "Simulation scenarios",
-      "new": "New scenario",
-      "empty": "No scenarios yet",
-      "fields": {
-        "name": "Name",
-        "description": "Description",
-        "agents": "Agents",
-        "workflowTemplate": "Workflow template",
-        "mockSet": "Mock set",
-        "inputDistribution": "Input distribution",
-        "twinFidelity": "Twin fidelity",
-        "successCriteria": "Success criteria",
-        "runSchedule": "Run schedule"
-      },
-      "validation": {
-        "plaintextSecret": "Plaintext secrets are not allowed in scenario configuration.",
-        "unknownFqn": "Unknown agent FQN.",
-        "forbiddenTwinCombo": "This twin fidelity combination is not allowed.",
-        "emptySuccessCriteria": "Add at least one success criterion."
-      },
-      "run": {
-        "iterations": "Iterations",
-        "useRealLlm": "Use real LLM"
-      },
-      "digitalTwin": {
-        "title": "Digital twin divergence",
-        "mockComponents": "Mock components",
-        "realComponents": "Real components",
-        "divergencePoints": "Divergence points",
-        "simulatedVsWallClock": "Simulated vs wall clock",
-        "referenceProdExecution": "Reference production execution",
-        "noReferenceAvailable": "No reference available."
-      }
-    }
-  },
-  "discovery": {
-    "session": {
-      "title": "Discovery session",
-      "tabs": {
-        "overview": "Overview",
-        "hypotheses": "Hypotheses",
-        "experiments": "Experiments",
-        "evidence": "Evidence",
-        "network": "Network"
-      }
+    "profileCompletion": {
+      "submit": "Continue",
+      "title": "Finish your account"
     },
-    "hypotheses": {
-      "title": "Hypotheses",
-      "filter": "Filter",
-      "empty": "No hypotheses found.",
-      "confidenceTier": "Confidence tier",
-      "state": {
-        "proposed": "Proposed",
-        "testing": "Testing",
-        "confirmed": "Confirmed",
-        "refuted": "Refuted"
-      }
+    "signup": {
+      "disabled": "Signups are currently disabled",
+      "submit": "Create account",
+      "title": "Sign up for Musematic"
     },
-    "experiments": {
-      "title": "Experiments",
-      "launch": "Launch experiment",
-      "running": "Running",
-      "completed": "Completed"
+    "verify": {
+      "expired": "Verification link expired",
+      "pending": "Check your inbox",
+      "resend": "Resend verification",
+      "success": "Email verified"
     },
-    "evidence": {
-      "title": "Evidence",
-      "sources": "Sources",
-      "unavailable": "Source unavailable"
+    "waitingApproval": {
+      "status": "Pending approval",
+      "title": "Your account is under review"
     }
   },
   "commands": {
-    "toggleTheme": "Toggle theme",
-    "switchLanguage": "Switch language",
-    "searchMarketplace": "Search marketplace",
-    "newConversation": "New conversation",
-    "openPreferences": "Open preferences",
-    "signOut": "Sign out",
-    "openHelp": "Open command palette help",
     "categories": {
-      "platform": "Platform",
-      "home": "Home",
-      "dashboard": "Dashboard",
-      "marketplace": "Marketplace",
+      "admin": "Admin",
       "agents": "Agents",
-      "conversations": "Conversations",
       "analytics": "Analytics",
+      "conversations": "Conversations",
       "costs": "Costs",
+      "dashboard": "Dashboard",
       "evaluation": "Evaluation",
       "fleet": "Fleet",
+      "home": "Home",
+      "marketplace": "Marketplace",
       "operator": "Operator",
+      "platform": "Platform",
       "policies": "Policies",
-      "trust": "Trust",
-      "workflows": "Workflows",
       "preferences": "Preferences",
-      "admin": "Admin"
+      "trust": "Trust",
+      "workflows": "Workflows"
     },
+    "newConversation": "New conversation",
+    "openHelp": "Open command palette help",
+    "openPreferences": "Open preferences",
     "routes": {
+      "admin": {
+        "incidentIntegrations": "Open incident integrations",
+        "locales": "Open locale publishing",
+        "settings": "Open admin settings"
+      },
+      "agentManagement": {
+        "contracts": "Open contract library",
+        "registry": "Open agent registry",
+        "wizard": "Open composition wizard"
+      },
+      "agents": {
+        "create": "Create agent",
+        "directory": "Open agent directory",
+        "marketplace": "Find agents in marketplace"
+      },
+      "analytics": {
+        "costs": "Open cost intelligence",
+        "open": "Open analytics"
+      },
+      "conversations": {
+        "list": "Open conversations",
+        "new": "New conversation"
+      },
+      "costs": {
+        "budgets": "Open budgets",
+        "overview": "Open cost overview",
+        "reports": "Open reports"
+      },
+      "dashboard": {
+        "analytics": "Open analytics",
+        "home": "Open home"
+      },
+      "evaluation": {
+        "new": "Create evaluation suite",
+        "simulations": "Open simulations",
+        "suites": "Open evaluation suites"
+      },
+      "fleet": {
+        "operator": "Open operator dashboard",
+        "overview": "Open fleet overview"
+      },
       "home": {
         "dashboard": "Open dashboard",
         "marketplace": "Browse marketplace",
         "newConversation": "Start a conversation"
       },
-      "dashboard": {
-        "home": "Open home",
-        "analytics": "Open analytics"
-      },
       "marketplace": {
-        "search": "Search marketplace",
-        "compare": "Compare selected agents"
-      },
-      "agents": {
-        "directory": "Open agent directory",
-        "create": "Create agent",
-        "marketplace": "Find agents in marketplace"
-      },
-      "agentManagement": {
-        "registry": "Open agent registry",
-        "wizard": "Open composition wizard",
-        "contracts": "Open contract library"
-      },
-      "conversations": {
-        "new": "New conversation",
-        "list": "Open conversations"
-      },
-      "analytics": {
-        "open": "Open analytics",
-        "costs": "Open cost intelligence"
-      },
-      "costs": {
-        "overview": "Open cost overview",
-        "budgets": "Open budgets",
-        "reports": "Open reports"
-      },
-      "evaluation": {
-        "suites": "Open evaluation suites",
-        "new": "Create evaluation suite",
-        "simulations": "Open simulations"
-      },
-      "fleet": {
-        "overview": "Open fleet overview",
-        "operator": "Open operator dashboard"
+        "compare": "Compare selected agents",
+        "search": "Search marketplace"
       },
       "operator": {
+        "executions": "Open active executions",
         "incidents": "Open incidents tab",
-        "runbooks": "Open runbooks",
-        "executions": "Open active executions"
+        "runbooks": "Open runbooks"
       },
       "policies": {
-        "open": "Open policies",
-        "governance": "Open governance settings"
+        "governance": "Open governance settings",
+        "open": "Open policies"
+      },
+      "settings": {
+        "alerts": "Open alert settings",
+        "connections": "Open account connections",
+        "governance": "Open governance settings",
+        "preferences": "Open preferences",
+        "visibility": "Open visibility settings"
       },
       "trust": {
         "overview": "Open trust overview",
         "workbench": "Open trust workbench"
       },
       "trustWorkbench": {
-        "queue": "Open certification queue",
-        "overview": "Open trust overview"
+        "overview": "Open trust overview",
+        "queue": "Open certification queue"
       },
       "workflows": {
-        "new": "Create workflow",
+        "library": "Open workflow library",
         "monitor": "Open workflow monitor",
-        "library": "Open workflow library"
-      },
-      "settings": {
-        "preferences": "Open preferences",
-        "alerts": "Open alert settings",
-        "governance": "Open governance settings",
-        "visibility": "Open visibility settings",
-        "connections": "Open account connections"
-      },
-      "admin": {
-        "locales": "Open locale publishing",
-        "settings": "Open admin settings",
-        "incidentIntegrations": "Open incident integrations"
+        "new": "Create workflow"
       }
+    },
+    "searchMarketplace": "Search marketplace",
+    "signOut": "Sign out",
+    "switchLanguage": "Switch language",
+    "toggleTheme": "Toggle theme"
+  },
+  "creator": {
+    "contextProfile": {
+      "authority": "Authority",
+      "compare": "Compare",
+      "create": "Create Profile",
+      "created": "Context profile created",
+      "customExpression": "Custom expression",
+      "description": "Author retrieval sources, budgets, ranking behavior, and provenance settings.",
+      "diffAdded": "Added",
+      "diffModified": "Modified",
+      "diffRemoved": "Removed",
+      "editor": "Editor",
+      "excludedSource": "Excluded source",
+      "executionHistory": "Execution history",
+      "externalApis": "External APIs",
+      "fts": "Full text",
+      "graph": "Graph",
+      "history": "History",
+      "historyTitle": "Context Profile History",
+      "hybrid": "Hybrid",
+      "invalidJson": "Profile JSON is invalid.",
+      "invalidObject": "Profile JSON must be an object.",
+      "knowledgeGraph": "Knowledge graph",
+      "maxDocuments": "Max documents",
+      "maxTokens": "Max tokens",
+      "memory": "Memory",
+      "mockPreviewResult": "Mock preview result",
+      "noSummary": "No summary",
+      "previewQueryDefault": "customer support refund request",
+      "profileControls": "Profile Controls",
+      "profileId": "Profile ID",
+      "profileIdHistoryPlaceholder": "Paste profile UUID",
+      "profileIdPlaceholder": "Paste an existing profile UUID",
+      "profileJson": "Profile JSON",
+      "recency": "Recency",
+      "rerankingRules": "Reranking rules",
+      "retrievalStrategy": "Retrieval strategy",
+      "rollback": "Rollback",
+      "runMockPreview": "Run Mock Preview",
+      "saveFailure": "Unable to save context profile.",
+      "saving": "Saving",
+      "score": "Score",
+      "semantic": "Semantic",
+      "sourcePicker": "Source picker",
+      "sources": "Sources",
+      "test": "Test",
+      "title": "Context Profile",
+      "toolOutputs": "Tool outputs",
+      "update": "Update Profile",
+      "updated": "Context profile updated",
+      "version": "Version",
+      "versionHistory": "Version history"
+    },
+    "contract": {
+      "attach": "Attach",
+      "attachContract": "Attach Contract",
+      "attachRevision": "Attach to revision",
+      "confirm": "Confirm",
+      "confirmRealLlmPreview": "Confirm Real LLM Preview",
+      "contract": "Contract",
+      "contractId": "Contract ID",
+      "contractIdPlaceholder": "Paste existing contract UUID",
+      "controls": "Contract Controls",
+      "costAcknowledgement": "I understand this preview can call a real model and incur cost.",
+      "create": "Create Contract",
+      "created": "Contract created",
+      "description": "Author behavioral terms, preview enforcement, and attach contracts to revisions.",
+      "editor": "Editor",
+      "fallback": "Fallback",
+      "finalAction": "Final action",
+      "history": "Contract history",
+      "historyDescription": "Contract history will display saved previews and revisions.",
+      "invalidJson": "Contract JSON is invalid.",
+      "invalidObject": "Contract JSON must be an object.",
+      "loadPassingSample": "Load Passing Sample",
+      "loadViolationSample": "Load Violation Sample",
+      "loading": "Loading",
+      "preview": "Preview",
+      "previewFailure": "Unable to preview contract.",
+      "realLlmCostWarning": "This preview can consume model budget and may call external model providers.",
+      "realLlmPreview": "Real LLM Preview",
+      "revisionId": "Revision ID",
+      "revisionIdPlaceholder": "Revision UUID",
+      "runMockPreview": "Run Mock Preview",
+      "sampleInput": "Sample input",
+      "sampleInputInvalid": "Sample input is invalid JSON.",
+      "sampleInputObjectRequired": "Sample input must be a JSON object.",
+      "satisfied": "Satisfied",
+      "saveFailure": "Unable to save contract.",
+      "saving": "Saving",
+      "schemaEnums": "Schema enums",
+      "title": "Agent Contract",
+      "triggered": "Triggered",
+      "typeToConfirm": "Type USE_REAL_LLM to confirm.",
+      "update": "Update Contract",
+      "updated": "Contract updated",
+      "useRealLlmConfirmation": "USE_REAL_LLM",
+      "violated": "Violated"
+    },
+    "editor": {
+      "json": "JSON",
+      "schemaEnabled": "Schema validation enabled",
+      "schemaLoading": "Schema loading",
+      "schemaUnavailable": "Schema unavailable",
+      "validationUnavailable": "Inline validation is unavailable for this editor.",
+      "yaml": "YAML"
+    },
+    "provenance": {
+      "classification": "Classification",
+      "confidential": "Confidential",
+      "empty": "No provenance sources yet.",
+      "emptyAvailable": "No provenance sources available.",
+      "excluded": "Excluded",
+      "excludedStatus": "Excluded",
+      "included": "Included",
+      "includedStatus": "Included",
+      "origin": "Origin",
+      "pii": "PII",
+      "public": "Public",
+      "score": "Score",
+      "snippet": "Snippet",
+      "title": "Provenance"
+    },
+    "template": {
+      "category": "Category",
+      "creatorAuthored": "Creator-authored",
+      "fork": "Fork",
+      "forkCreated": "Template fork created",
+      "forkFailure": "Unable to fork template.",
+      "forkName": "Fork name",
+      "forkNameDefaultSuffix": "copy",
+      "forkTemplate": "Fork template",
+      "lastUpdated": "Last updated",
+      "libraryEyebrow": "Contract templates",
+      "libraryTitle": "Template Library",
+      "platformAuthored": "Platform-authored",
+      "upstreamUpdated": "Template update available",
+      "version": "Version",
+      "viewDiff": "View diff"
+    },
+    "wizard": {
+      "attachBoth": "Attach Both",
+      "attachBothDescription": "Attach the selected context profile and contract before publishing {agent}.",
+      "back": "Back",
+      "blueprintRequiredDescription": "Generate a blueprint first so the remaining wizard steps have content to work from.",
+      "blueprintRequiredTitle": "Blueprint required",
+      "cancel": "Cancel",
+      "contextProfile": "Context Profile",
+      "contextProfileDescription": "Configure profile sources for {agent} from the dedicated editor.",
+      "contract": "Contract",
+      "contractDescription": "Author enforcement terms for {agent}.",
+      "customize": "Customize",
+      "describe": "Describe",
+      "description": "Move from a natural-language brief to a validated draft agent with guided profile and contract steps.",
+      "headline": "Create an agent from intent",
+      "missingContract": "A contract is required for this trust tier.",
+      "missingProfile": "A context profile is required for this trust tier.",
+      "next": "Next",
+      "previewContract": "Preview Contract",
+      "previewContractDescription": "Validate contract behavior for {agent} with the mock provider.",
+      "readyToPublish": "Ready to publish",
+      "reviewBlueprint": "Review blueprint",
+      "startOver": "Start over",
+      "testProfile": "Test Profile",
+      "testProfileDescription": "Run mock retrieval previews before publishing {agent}.",
+      "theAgent": "the agent",
+      "thisAgent": "this agent",
+      "title": "Composition wizard",
+      "validate": "Validate"
     }
   },
-  "admin": {
-    "oauth": {
-      "actions": {
-        "testConnectivity": "Test connectivity",
-        "rotateSecret": "Rotate secret",
-        "reseed": "Reseed from env",
-        "cancel": "Cancel",
-        "save": "Save",
-        "apply": "Apply"
-      },
-      "tabs": {
-        "configuration": "Configuration",
-        "status": "Status",
-        "roleMappings": "Role mappings",
-        "history": "History",
-        "rateLimits": "Rate limits"
-      },
-      "source": {
-        "aria": "Configuration source: {source}",
-        "env_var": "Env var",
-        "manual": "Manual",
-        "imported": "Imported",
-        "env_varHelp": "Provisioned from platform OAuth environment variables.",
-        "manualHelp": "Managed directly in the admin interface.",
-        "importedHelp": "Imported from a GitOps promotion manifest."
-      },
-      "tooltips": {
-        "testConnectivity": "Generate a provider authorization URL and report diagnostics."
-      },
-      "connectivity": {
-        "success": "Connectivity check completed",
-        "failure": "Connectivity check failed"
-      },
-      "rotate": {
-        "title": "Rotate OAuth client secret",
-        "description": "Write a new client secret version through the configured secret provider.",
-        "newSecret": "New client secret",
-        "confirmation": "I understand the new secret will be written to Vault and will not be shown again.",
-        "success": "Secret rotated successfully",
-        "failure": "Unable to rotate secret"
-      },
-      "reseed": {
-        "title": "Reseed provider from environment",
-        "description": "Re-read the running pod environment and apply the configured provider values.",
-        "acknowledge": "This may overwrite manual changes. Continue?",
-        "forceUpdate": "Force update",
-        "forceUpdateHelp": "Overwrite an existing provider instead of preserving manual edits.",
-        "changedFields": "Changed fields",
-        "success": "Provider reseeded",
-        "failure": "Unable to reseed provider"
-      },
-      "status": {
-        "lastAuth": "Last successful auth",
-        "auth24h": "Auths in 24h",
-        "auth7d": "Auths in 7d",
-        "auth30d": "Auths in 30d",
-        "linkedUsers": "Linked users",
-        "never": "Never",
-        "loadFailed": "Unable to load provider status."
-      },
-      "roleMappings": {
-        "group": "Group or team",
-        "role": "Role",
-        "actions": "Actions",
-        "delete": "Delete mapping",
-        "empty": "No role mappings configured.",
-        "invalidGroup": "One or more group values do not match the provider format.",
-        "add": "Add mapping",
-        "saved": "Role mappings saved",
-        "saveFailed": "Unable to save role mappings"
-      },
-      "history": {
-        "timestamp": "Timestamp",
-        "admin": "Admin",
-        "action": "Action",
-        "expand": "Expand history row",
-        "collapse": "Collapse history row",
-        "system": "System",
-        "before": "Before",
-        "after": "After",
-        "loading": "Loading history...",
-        "empty": "No history entries found.",
-        "loadMore": "Load more",
-        "loadFailed": "Unable to load provider history."
-      },
-      "rateLimits": {
-        "per_ip_max": "Per-IP max",
-        "per_ip_window": "Per-IP window",
-        "per_user_max": "Per-user max",
-        "per_user_window": "Per-user window",
-        "global_max": "Global max",
-        "global_window": "Global window",
-        "per_ip_maxHelp": "Maximum attempts from one IP address during the window.",
-        "per_ip_windowHelp": "Per-IP window in seconds.",
-        "per_user_maxHelp": "Maximum attempts for one authenticated user during the window.",
-        "per_user_windowHelp": "Per-user window in seconds.",
-        "global_maxHelp": "Maximum provider attempts across the platform during the window.",
-        "global_windowHelp": "Global provider window in seconds.",
-        "saved": "Rate limits saved",
-        "saveFailed": "Unable to save rate limits",
-        "loadFailed": "Unable to load rate limits."
-      }
+  "dataLifecycle": {
+    "article28": {
+      "button": "Generate Article 28 evidence",
+      "inProgressDescription": "Job {jobId} dispatched. The evidence package will be available for download once the worker assembles the audit chain bundle.",
+      "inProgressTitle": "Generation in progress"
     },
-    "workspaces": {
-      "title": "Workspaces",
-      "description": "Global admin view of workspace owner surfaces.",
-      "search": "Search workspaces",
+    "cancelDeletion": {
+      "cancelledDescription": "The workspace deletion has been aborted and the workspace is accessible again.",
+      "cancelledTitle": "Deletion cancelled",
+      "failedDescription": "The token is invalid, expired, or the grace period has ended.",
+      "failedTitle": "Cancellation failed",
+      "returnButton": "Return to dashboard",
+      "title": "Cancel deletion",
+      "validating": "Validating cancellation token…"
+    },
+    "deletion": {
+      "cancel": "Cancel",
+      "cancelLink": "You receive an email with a 7-day cancel link.",
+      "cascade": "After the grace period: agents, executions, costs, and members are deleted. Audit history is retained as a 90-day tombstone.",
+      "confirmIntro": "This will start a 7-day grace period. After that, all agents, executions, audit history, costs, and members are permanently deleted. You will receive a cancel link by email valid for 7 days.",
+      "confirmTitle": "Delete workspace",
+      "dangerZone": "Danger zone",
+      "deleteButton": "Delete workspace…",
+      "description": "Permanently remove this workspace and all of its data.",
+      "failed": "Could not schedule deletion",
+      "inaccessible": "Workspace becomes inaccessible immediately.",
+      "pendingDescription": "This workspace is scheduled for deletion at {date}. Use the cancel link emailed to the owner to abort the deletion before the grace period ends.",
+      "pendingTitle": "Pending deletion",
+      "reason": "Reason (optional)",
+      "schedule": "Schedule deletion",
+      "title": "Delete workspace",
+      "tryAgain": "Please try again.",
+      "typeToConfirm": "Type {name} to confirm",
+      "whatHappensTitle": "What happens next"
+    },
+    "dpa": {
+      "browseTenants": "Browse tenants →",
+      "cardTitle": "Data Processing Agreement",
+      "detailDescription": "Active Data Processing Agreement and Article 28 evidence for this tenant.",
+      "detailTitle": "Tenant DPA",
+      "effectiveDate": "Effective date",
+      "fileLabel": "DPA PDF",
+      "history": "{count, plural, one {# historical version preserved.} other {# historical versions preserved.}}",
+      "hubDescription": "Per-tenant DPA management. Select a tenant from the tenants admin page to upload or view its DPA.",
+      "hubLead": "DPA management is scoped per-tenant. Open a tenant detail page to upload, replace, or download its DPA, or use the navigation below.",
+      "hubTitle": "Data Processing Agreements",
+      "noDpa": "No DPA uploaded yet. Default tenants use the standard clickwrap DPA.",
+      "sha256": "SHA-256 {hash}",
+      "signed": "signed {date}",
+      "uploadButton": "Upload DPA",
+      "uploadDialogTitle": "Upload tenant DPA",
+      "uploadFailed": "Upload failed.",
+      "uploadIntro": "PDF up to 50 MB. The file is virus-scanned, hashed, and stored encrypted in Vault.",
+      "vaultPath": "Vault path: {path}",
+      "versionLabel": "Version",
+      "versionPlaceholder": "v1, v2.1, …"
+    },
+    "email": {
+      "deletionCancelledSubject": "Workspace deletion cancelled",
+      "deletionScheduledSubject": "Workspace deletion scheduled",
+      "exportReadyBody": "Your workspace data export is ready. Download the archive within 7 days using the link below.",
+      "exportReadySubject": "Your data export is ready",
+      "tenantExportReadySubject": "Your tenant data export is ready"
+    },
+    "export": {
+      "cardLead": "Download a complete archive of this workspace. The archive is a ZIP file with structured JSON files per resource type and is available for 7 days from a signed URL delivered by email.",
+      "cardTitle": "Workspace data export",
+      "description": "Request a full archive of your workspace data.",
+      "download": "Download",
+      "expires": "Expires {date}",
+      "noJobs": "No export jobs yet. Click \"Request export\" to start one.",
+      "requestButton": "Request export",
+      "title": "Workspace data export"
+    },
+    "subProcessors": {
+      "addAction": "Add",
+      "addButton": "Add sub-processor",
+      "addDialogTitle": "Add sub-processor",
+      "adminDescription": "Manage the third-party services published on the public sub-processors page.",
+      "adminTitle": "Sub-processors",
+      "cancel": "Cancel",
+      "category": "Category",
+      "categoryPlaceholder": "LLM provider, infrastructure, billing…",
+      "columnActions": "Actions",
+      "columnActive": "Active",
+      "columnCategory": "Category",
+      "columnDataCategories": "Data categories",
+      "columnLocation": "Location",
+      "columnName": "Sub-processor",
+      "columnPolicies": "Policies",
+      "dataCategoriesLabel": "Data categories (comma-separated)",
+      "dpa": "DPA",
+      "emailNotifications": "Email notifications",
+      "location": "Location",
+      "locationPlaceholder": "USA, Germany, Ireland…",
       "name": "Name",
-      "action": "Action",
-      "open": "Open",
-      "empty": "No matching workspaces."
+      "noEntries": "No sub-processors registered.",
+      "privacy": "Privacy",
+      "privacyPolicyUrl": "Privacy policy URL",
+      "publicLead": "The third-party services we rely on to operate Musematic. Last updated {date}.",
+      "publicTitle": "Sub-processors",
+      "refreshing": "Sub-processor list is currently being refreshed.",
+      "removeConfirm": "Remove {name}?",
+      "rss": "RSS feed",
+      "subscribePrefix": "Subscribe to changes:"
     },
-    "ibor": {
-      "title": "IBOR connectors",
-      "description": "Manage LDAP, OIDC, and SCIM identity-broker sync connectors.",
-      "add": "Add IBOR connector",
-      "selectedConnector": "Selected connector",
-      "noConnectors": "No IBOR connectors configured.",
-      "selectConnector": "Select a connector to inspect sync history.",
-      "details": "Details",
-      "test": "Test",
-      "sync": "Sync",
-      "never": "Never",
-      "enabled": "Enabled",
-      "disabled": "Disabled",
-      "cadence": "Cadence: {seconds}s",
-      "table": {
-        "name": "Name",
-        "type": "Type",
-        "lastRun": "Last run",
-        "actions": "Actions"
+    "tenantDeletion": {
+      "cascadeDescription": "Phase 2 cascades workspaces, users, agents, executions, audit chain (cold storage retained 7 years), Vault paths, DNS records, TLS certs, and OAuth callbacks. The tenant admin can recover during the grace period only.",
+      "cascadeTitle": "Cascade reach",
+      "description": "Two-phase cascade with 30-day grace, 2PA-gated and subscription-preflight enforced.",
+      "failedTitle": "Could not schedule deletion",
+      "finalExport": "Generate final tenant export before cascade",
+      "graceDays": "Grace period (days)",
+      "graceEndsAt": "Grace ends at {date}.",
+      "jobCreatedTitle": "Deletion job created",
+      "reason": "Reason (required, audit logged)",
+      "scheduleButton": "Schedule tenant deletion",
+      "title": "Tenant deletion",
+      "twoPaPlaceholder": "Paste the consume_token from your 2PA challenge",
+      "twoPaToken": "Consumed 2PA token",
+      "typeSlug": "Type tenant slug {slug}"
+    },
+    "tenantExport": {
+      "cardTitle": "Tenant data export",
+      "description": "Generate a password-protected ZIP of all data owned by this tenant.",
+      "failedTitle": "Export request failed",
+      "lead": "Generate a password-protected ZIP containing all workspaces, users, and audit chain entries for this tenant. The download password is delivered to the tenant admin out-of-band.",
+      "passwordNote": "The password will be delivered to the tenant admin separately. The download URL stays valid for 7 days.",
+      "requestButton": "Request tenant export",
+      "requested": "requested {date}",
+      "title": "Tenant data export"
+    }
+  },
+  "discovery": {
+    "evidence": {
+      "sources": "Sources",
+      "title": "Evidence",
+      "unavailable": "Source unavailable"
+    },
+    "experiments": {
+      "completed": "Completed",
+      "launch": "Launch experiment",
+      "running": "Running",
+      "title": "Experiments"
+    },
+    "hypotheses": {
+      "confidenceTier": "Confidence tier",
+      "empty": "No hypotheses found.",
+      "filter": "Filter",
+      "state": {
+        "confirmed": "Confirmed",
+        "proposed": "Proposed",
+        "refuted": "Refuted",
+        "testing": "Testing"
       },
-      "wizard": {
-        "title": "IBOR connector wizard",
-        "defaultName": "Corporate directory",
-        "stepsAria": "IBOR setup steps",
-        "type": "Type",
-        "connection": "Connection",
-        "test": "Test",
-        "mapping": "Mapping",
-        "schedule": "Schedule",
-        "scope": "Scope",
-        "activate": "Activate",
-        "connectorName": "Connector name",
-        "directoryType": "Directory type",
-        "credentialReference": "Credential reference",
-        "syncMode": "Sync mode",
-        "cadenceSeconds": "Cadence seconds",
-        "createDraft": "Create connector draft",
-        "runDiagnostic": "Run stepped diagnostic",
-        "enableConnector": "Enable connector",
-        "syncNow": "Sync now",
-        "enabledAfterActivation": "Enabled after activation",
-        "scopeDescription": "Directory scope is constrained by the credential reference and role mappings. Workspace scope can be added per mapping row when a group should map into a workspace-specific role.",
-        "draftCreated": "Connector draft created.",
-        "draftRequired": "Create the connector draft before activation.",
-        "types": {
-          "ldap": "LDAP",
-          "oidc": "OIDC",
-          "scim": "SCIM"
-        },
-        "syncModes": {
-          "pull": "Pull",
-          "push": "Push"
-        }
+      "title": "Hypotheses"
+    },
+    "session": {
+      "tabs": {
+        "evidence": "Evidence",
+        "experiments": "Experiments",
+        "hypotheses": "Hypotheses",
+        "network": "Network",
+        "overview": "Overview"
       },
-      "mapping": {
-        "title": "Attribute mapping",
-        "vendorPreset": "Vendor preset"
-      },
-      "history": {
-        "title": "Sync history",
-        "status": "Status",
-        "started": "Started",
-        "counts": "Counts",
-        "nextPage": "Next page"
-      }
+      "title": "Discovery session"
     }
   },
   "notifications": {
     "inbox": {
-      "title": "Notifications",
+      "bulk": {
+        "markAllRead": "Mark all read",
+        "selectPage": "Select page",
+        "selected": "{count, plural, one {# selected} other {# selected}}",
+        "unread": "{count, plural, one {# unread} other {# unread}}"
+      },
       "description": "Persistent alert history, filtered to your account.",
-      "loading": "Loading notifications...",
       "empty": "No notifications match the current filters.",
       "filters": {
-        "title": "Filters",
-        "reset": "Reset",
-        "state": "State",
-        "read": {
-          "all": "All",
-          "unread": "Unread",
-          "read": "Read"
-        },
-        "severity": "Severity",
-        "options": {
-          "all": "All"
-        },
-        "severityOptions": {
-          "info": "Info",
-          "warning": "Warning",
-          "critical": "Critical"
-        },
         "channel": "Channel",
         "channels": {
-          "in_app": "In-app",
           "email": "Email",
-          "webhook": "Webhook",
+          "in_app": "In-app",
           "slack": "Slack",
+          "sms": "SMS",
           "teams": "Teams",
-          "sms": "SMS"
+          "webhook": "Webhook"
         },
         "eventType": "Event type",
         "from": "From",
+        "options": {
+          "all": "All"
+        },
+        "read": {
+          "all": "All",
+          "read": "Read",
+          "unread": "Unread"
+        },
+        "reset": "Reset",
+        "severity": "Severity",
+        "severityOptions": {
+          "critical": "Critical",
+          "info": "Info",
+          "warning": "Warning"
+        },
+        "state": "State",
+        "title": "Filters",
         "to": "To"
       },
-      "bulk": {
-        "selectPage": "Select page",
-        "selected": "{count, plural, one {# selected} other {# selected}}",
-        "unread": "{count, plural, one {# unread} other {# unread}}",
-        "markAllRead": "Mark all read"
-      },
       "item": {
-        "selectAria": "Select notification {title}",
+        "open": "Open",
         "read": "Read",
-        "unread": "Unread",
+        "selectAria": "Select notification {title}",
         "severity": {
+          "critical": "Critical",
           "info": "Info",
-          "warning": "Warning",
-          "critical": "Critical"
+          "warning": "Warning"
         },
-        "open": "Open"
-      }
+        "unread": "Unread"
+      },
+      "loading": "Loading notifications...",
+      "title": "Notifications"
     },
     "preferences": {
-      "title": "Notification Preferences",
       "description": "Control channel routing, digest timing, and quiet hours.",
-      "save": "Save",
-      "eventChannels": {
-        "title": "Event Channels",
-        "description": "Security and incident events stay protected by server-side validation."
-      },
       "digest": {
-        "title": "Digest Mode",
-        "description": "Choose delivery cadence per channel.",
         "channels": {
-          "in_app": "In-app",
           "email": "Email",
-          "webhook": "Webhook",
+          "in_app": "In-app",
           "slack": "Slack",
+          "sms": "SMS",
           "teams": "Teams",
-          "sms": "SMS"
+          "webhook": "Webhook"
         },
+        "description": "Choose delivery cadence per channel.",
         "modes": {
-          "immediate": "Immediate",
+          "daily": "Daily",
           "hourly": "Hourly",
-          "daily": "Daily"
-        }
+          "immediate": "Immediate"
+        },
+        "title": "Digest Mode"
       },
-      "quietHours": {
-        "title": "Quiet Hours",
-        "description": "Critical security and incident notifications bypass quiet hours.",
-        "start": "Start",
-        "end": "End",
-        "timezone": "Timezone"
-      },
-      "testEvents": {
-        "title": "Test Events",
-        "description": "Send a synthetic alert through your current preferences.",
-        "button": "Test"
+      "eventChannels": {
+        "description": "Security and incident events stay protected by server-side validation.",
+        "title": "Event Channels"
       },
       "matrix": {
-        "event": "Event",
+        "channelAria": "{eventType} {channel}",
         "channels": {
-          "in_app": "In-app",
           "email": "Email",
-          "webhook": "Webhook",
+          "in_app": "In-app",
           "slack": "Slack",
+          "sms": "SMS",
           "teams": "Teams",
-          "sms": "SMS"
+          "webhook": "Webhook"
         },
-        "mandatoryTooltip": "Mandatory events must keep at least one channel.",
-        "channelAria": "{eventType} {channel}"
-      }
-    }
-  },
-  "apiKeys": {
-    "title": "API Keys",
-    "description": "Create and revoke personal access tokens for developer workflows.",
-    "usage": "{activeCount} of {maxActive} active keys used.",
-    "create": {
-      "trigger": "Create API key",
-      "title": "Create API key",
-      "description": "Personal keys inherit only scopes you already have. MFA is required when enabled.",
-      "name": "Name",
-      "scopes": "Scopes",
-      "expires": "Expires",
-      "mfaCode": "MFA code",
-      "cancel": "Cancel",
-      "submit": "Create"
-    },
-    "oneTime": {
-      "title": "New API key",
-      "description": "This is the only time you will see this value.",
-      "copy": "Copy",
-      "dismiss": "Dismiss"
-    },
-    "table": {
-      "empty": "No personal API keys have been created.",
-      "name": "Name",
-      "identifier": "Identifier",
-      "status": {
-        "label": "Status",
-        "active": "Active",
-        "disabled": "Disabled",
-        "revoked": "Revoked"
+        "event": "Event",
+        "mandatoryTooltip": "Mandatory events must keep at least one channel."
       },
-      "created": "Created",
-      "lastUsed": "Last used",
-      "action": "Action",
-      "never": "Never",
-      "revokeAria": "Revoke {name}"
-    }
-  },
-  "security": {
-    "overview": {
-      "title": "Security",
-      "description": "Account controls for MFA, sessions, and audit history.",
-      "links": {
-        "mfa": {
-          "label": "Multi-factor authentication",
-          "description": "Enroll, confirm, and manage account MFA."
-        },
-        "sessions": {
-          "label": "Sessions",
-          "description": "Review active sessions and revoke access."
-        },
-        "activity": {
-          "label": "Activity",
-          "description": "Audit events involving your account."
-        }
-      }
-    },
-    "mfa": {
-      "title": "Multi-factor authentication",
-      "description": "Enroll, confirm, and manage account MFA.",
-      "enroll": "Enroll MFA",
-      "regenerateBackupCodes": "Regenerate backup codes",
-      "disable": "Disable MFA",
-      "statusTitle": "MFA status",
-      "status": {
-        "active": "Active",
-        "notEnrolled": "Not enrolled"
-      },
-      "activeDescription": "Your account requires an authenticator code during sign-in.",
-      "notEnrolledDescription": "Add an authenticator app to protect sign-in and sensitive account actions.",
-      "enrollFlow": {
-        "title": "Enrollment flow",
-        "stepCounter": "Step {current} of {total}",
-        "progressAria": "MFA enrollment progress",
-        "enableTitle": "Start with your authenticator app",
-        "enableDescription": "You will scan a QR code, confirm a 6-digit code, and save one-time backup codes.",
-        "begin": "Start enrollment",
-        "loading": "Preparing",
-        "qrTitle": "Scan or enter the setup key",
-        "qrDescription": "Use an authenticator app that supports time-based one-time passwords.",
-        "confirmTitle": "Confirm the authenticator code",
-        "confirmDescription": "Enter the current 6-digit code from your authenticator app.",
-        "backupTitle": "Save your backup codes",
-        "backupDescription": "These codes are shown once. Store them before leaving this step.",
-        "codeAria": "Authenticator verification code",
-        "back": "Back",
-        "next": "Next",
-        "verify": "Verify",
-        "verifying": "Verifying",
-        "successTitle": "MFA enrollment completed",
-        "errors": {
-          "enroll": "Unable to prepare MFA enrollment.",
-          "confirm": "Unable to verify that code."
-        }
-      },
-      "qr": {
-        "aria": "MFA QR code",
-        "manualTitle": "Manual entry",
-        "manualDescription": "If you cannot scan the QR code, enter this setup key in your authenticator app.",
-        "copy": "Copy setup key",
-        "copied": "Copied"
-      },
-      "backupCodes": {
-        "title": "One-time backup codes",
-        "description": "Each code can be used once if you lose access to your authenticator.",
-        "copy": "Copy all codes",
-        "copied": "Copied",
-        "download": "Download",
-        "acknowledge": "I have saved these backup codes somewhere safe.",
-        "dismiss": "I saved them"
-      },
-      "regenerateDialog": {
-        "title": "Regenerate backup codes",
-        "description": "Existing unused backup codes will stop working after regeneration.",
-        "code": "Authenticator code",
-        "codeAria": "Authenticator code for backup-code regeneration",
-        "cancel": "Cancel",
-        "submit": "Regenerate",
-        "submitting": "Regenerating",
-        "successTitle": "Backup codes regenerated",
-        "error": "Unable to regenerate backup codes."
-      },
-      "disableDialog": {
-        "title": "Disable MFA",
-        "description": "Enter your password and current authenticator code. If MFA is enforced by policy, this action will be refused.",
-        "password": "Password",
-        "code": "Authenticator code",
-        "codeAria": "Authenticator code for disabling MFA",
-        "cancel": "Cancel",
-        "submit": "Disable MFA",
-        "submitting": "Disabling",
-        "successTitle": "MFA disabled",
-        "error": "Unable to disable MFA."
-      }
-    },
-    "sessions": {
-      "title": "Sessions",
-      "description": "Revoke sessions you no longer recognize.",
-      "revokeOthers": "Revoke other sessions",
-      "list": {
-        "empty": "No active sessions were returned.",
-        "unknownDevice": "Unknown device",
-        "current": "This session",
-        "unknownLocation": "Unknown location",
-        "unknown": "Unknown",
-        "lastActive": "Last active {date}",
-        "created": "Created {date}",
-        "revokeAria": "Revoke session {sessionId}",
-        "revoke": "Revoke"
-      }
-    },
-    "activity": {
-      "title": "Activity",
-      "description": "Audit events where your account is actor or subject.",
-      "empty": "No activity entries match the current filters.",
-      "loadMore": "Load more",
-      "filters": {
-        "title": "Filters",
-        "reset": "Reset",
-        "eventType": "Event type",
+      "quietHours": {
+        "description": "Critical security and incident notifications bypass quiet hours.",
+        "end": "End",
         "start": "Start",
-        "end": "End"
-      }
+        "timezone": "Timezone",
+        "title": "Quiet Hours"
+      },
+      "save": "Save",
+      "testEvents": {
+        "button": "Test",
+        "description": "Send a synthetic alert through your current preferences.",
+        "title": "Test Events"
+      },
+      "title": "Notification Preferences"
     }
+  },
+  "platformStatus": {
+    "blockedActionExplanation": "Writes are temporarily paused for maintenance. You can try again after {date}.",
+    "blockedActionTitle": "Maintenance is in progress",
+    "dismiss": "Dismiss",
+    "endsAt": "Ends at {date}",
+    "incidentActive": "Active incident",
+    "incidentSeverity": {
+      "critical": "Critical",
+      "high": "High",
+      "info": "Info",
+      "warning": "Warning"
+    },
+    "lastUpdated": "Last updated",
+    "maintenanceInProgress": "Maintenance in progress",
+    "maintenanceScheduled": "Scheduled maintenance",
+    "retryAfter": "Retry after",
+    "statusLabels": {
+      "degraded": "Degraded",
+      "full_outage": "Full outage",
+      "maintenance": "Maintenance",
+      "operational": "Operational",
+      "partial_outage": "Partial outage"
+    },
+    "subscribeToUpdates": "Subscribe to updates",
+    "subscriptions": {
+      "add": "Add subscription",
+      "channelEmail": "Email",
+      "channelSlack": "Slack",
+      "channelWebhook": "Webhook",
+      "empty": "No status subscriptions configured.",
+      "health": {
+        "healthy": "Healthy",
+        "pending": "Pending",
+        "unhealthy": "Unhealthy",
+        "unsubscribed": "Unsubscribed"
+      },
+      "removeConfirm": "Remove this status subscription?",
+      "scope": {
+        "allComponents": "All components",
+        "specificComponents": "Specific components"
+      },
+      "title": "Status subscriptions"
+    },
+    "title": "Platform status",
+    "unknownEnd": "the maintenance window ends",
+    "uptime30d": "30-day uptime",
+    "viewIncident": "View incident",
+    "viewStatusPage": "View status page"
   },
   "privacy": {
     "consent": {
-      "title": "Consent",
-      "description": "Review current consent state and history.",
-      "tabs": {
-        "current": "Current",
-        "history": "History"
-      },
-      "empty": "No consent records were returned.",
       "card": {
-        "never": "Never",
         "grantedAt": "Granted {date}",
+        "never": "Never",
         "revokedAt": "Revoked {date}",
         "status": {
           "granted": "Granted",
           "revoked": "Revoked"
         }
       },
-      "revoke": {
-        "trigger": "Revoke",
-        "title": "Revoke consent",
-        "description": "Revoking {consentType} can disable related agent interactions, analytics, or training features until consent is granted again.",
-        "cancel": "Cancel",
-        "confirm": "Revoke consent"
-      },
+      "description": "Review current consent state and history.",
+      "empty": "No consent records were returned.",
       "history": {
-        "never": "Never",
         "empty": "No consent history.",
-        "revoked": "revoked {date}",
-        "granted": "granted {date}"
-      }
+        "granted": "granted {date}",
+        "never": "Never",
+        "revoked": "revoked {date}"
+      },
+      "revoke": {
+        "cancel": "Cancel",
+        "confirm": "Revoke consent",
+        "description": "Revoking {consentType} can disable related agent interactions, analytics, or training features until consent is granted again.",
+        "title": "Revoke consent",
+        "trigger": "Revoke"
+      },
+      "tabs": {
+        "current": "Current",
+        "history": "History"
+      },
+      "title": "Consent"
     },
     "dsr": {
-      "title": "Data Subject Requests",
       "description": "Submit and review privacy requests for your account.",
-      "submit": {
-        "title": "Submit request",
-        "description": "Choose one GDPR right and submit it for processing.",
-        "requestType": "Request type",
-        "types": {
-          "access": "Access",
-          "rectification": "Rectification",
-          "erasure": "Erasure",
-          "portability": "Portability",
-          "restriction": "Restriction",
-          "objection": "Objection"
-        },
-        "confirmDelete": "Type DELETE",
-        "erasureTitle": "Permanent erasure",
-        "erasureDescription": "Active executions may fail when erasure is processed. Submit only after reviewing in-flight work.",
-        "legalBasis": "Legal basis or notes",
-        "submit": "Submit request"
-      },
       "status": {
-        "empty": "No data subject requests have been submitted.",
-        "pending": "Pending",
-        "filed": "Filed {date}",
         "completed": "Completed {date}",
-        "types": {
-          "access": "Access",
-          "rectification": "Rectification",
-          "erasure": "Erasure",
-          "portability": "Portability",
-          "restriction": "Restriction",
-          "objection": "Objection"
-        },
+        "empty": "No data subject requests have been submitted.",
+        "filed": "Filed {date}",
+        "pending": "Pending",
         "states": {
-          "received": "Received",
-          "scheduled_with_hold": "Scheduled with hold",
-          "in_progress": "In progress",
+          "cancelled": "Cancelled",
           "completed": "Completed",
           "failed": "Failed",
-          "cancelled": "Cancelled"
+          "in_progress": "In progress",
+          "received": "Received",
+          "scheduled_with_hold": "Scheduled with hold"
+        },
+        "types": {
+          "access": "Access",
+          "erasure": "Erasure",
+          "objection": "Objection",
+          "portability": "Portability",
+          "rectification": "Rectification",
+          "restriction": "Restriction"
         }
+      },
+      "submit": {
+        "confirmDelete": "Type DELETE",
+        "description": "Choose one GDPR right and submit it for processing.",
+        "erasureDescription": "Active executions may fail when erasure is processed. Submit only after reviewing in-flight work.",
+        "erasureTitle": "Permanent erasure",
+        "legalBasis": "Legal basis or notes",
+        "requestType": "Request type",
+        "submit": "Submit request",
+        "title": "Submit request",
+        "types": {
+          "access": "Access",
+          "erasure": "Erasure",
+          "objection": "Objection",
+          "portability": "Portability",
+          "rectification": "Rectification",
+          "restriction": "Restriction"
+        }
+      },
+      "title": "Data Subject Requests"
+    }
+  },
+  "security": {
+    "activity": {
+      "description": "Audit events where your account is actor or subject.",
+      "empty": "No activity entries match the current filters.",
+      "filters": {
+        "end": "End",
+        "eventType": "Event type",
+        "reset": "Reset",
+        "start": "Start",
+        "title": "Filters"
+      },
+      "loadMore": "Load more",
+      "title": "Activity"
+    },
+    "mfa": {
+      "activeDescription": "Your account requires an authenticator code during sign-in.",
+      "backupCodes": {
+        "acknowledge": "I have saved these backup codes somewhere safe.",
+        "copied": "Copied",
+        "copy": "Copy all codes",
+        "description": "Each code can be used once if you lose access to your authenticator.",
+        "dismiss": "I saved them",
+        "download": "Download",
+        "title": "One-time backup codes"
+      },
+      "description": "Enroll, confirm, and manage account MFA.",
+      "disable": "Disable MFA",
+      "disableDialog": {
+        "cancel": "Cancel",
+        "code": "Authenticator code",
+        "codeAria": "Authenticator code for disabling MFA",
+        "description": "Enter your password and current authenticator code. If MFA is enforced by policy, this action will be refused.",
+        "error": "Unable to disable MFA.",
+        "password": "Password",
+        "submit": "Disable MFA",
+        "submitting": "Disabling",
+        "successTitle": "MFA disabled",
+        "title": "Disable MFA"
+      },
+      "enroll": "Enroll MFA",
+      "enrollFlow": {
+        "back": "Back",
+        "backupDescription": "These codes are shown once. Store them before leaving this step.",
+        "backupTitle": "Save your backup codes",
+        "begin": "Start enrollment",
+        "codeAria": "Authenticator verification code",
+        "confirmDescription": "Enter the current 6-digit code from your authenticator app.",
+        "confirmTitle": "Confirm the authenticator code",
+        "enableDescription": "You will scan a QR code, confirm a 6-digit code, and save one-time backup codes.",
+        "enableTitle": "Start with your authenticator app",
+        "errors": {
+          "confirm": "Unable to verify that code.",
+          "enroll": "Unable to prepare MFA enrollment."
+        },
+        "loading": "Preparing",
+        "next": "Next",
+        "progressAria": "MFA enrollment progress",
+        "qrDescription": "Use an authenticator app that supports time-based one-time passwords.",
+        "qrTitle": "Scan or enter the setup key",
+        "stepCounter": "Step {current} of {total}",
+        "successTitle": "MFA enrollment completed",
+        "title": "Enrollment flow",
+        "verify": "Verify",
+        "verifying": "Verifying"
+      },
+      "notEnrolledDescription": "Add an authenticator app to protect sign-in and sensitive account actions.",
+      "qr": {
+        "aria": "MFA QR code",
+        "copied": "Copied",
+        "copy": "Copy setup key",
+        "manualDescription": "If you cannot scan the QR code, enter this setup key in your authenticator app.",
+        "manualTitle": "Manual entry"
+      },
+      "regenerateBackupCodes": "Regenerate backup codes",
+      "regenerateDialog": {
+        "cancel": "Cancel",
+        "code": "Authenticator code",
+        "codeAria": "Authenticator code for backup-code regeneration",
+        "description": "Existing unused backup codes will stop working after regeneration.",
+        "error": "Unable to regenerate backup codes.",
+        "submit": "Regenerate",
+        "submitting": "Regenerating",
+        "successTitle": "Backup codes regenerated",
+        "title": "Regenerate backup codes"
+      },
+      "status": {
+        "active": "Active",
+        "notEnrolled": "Not enrolled"
+      },
+      "statusTitle": "MFA status",
+      "title": "Multi-factor authentication"
+    },
+    "overview": {
+      "description": "Account controls for MFA, sessions, and audit history.",
+      "links": {
+        "activity": {
+          "description": "Audit events involving your account.",
+          "label": "Activity"
+        },
+        "mfa": {
+          "description": "Enroll, confirm, and manage account MFA.",
+          "label": "Multi-factor authentication"
+        },
+        "sessions": {
+          "description": "Review active sessions and revoke access.",
+          "label": "Sessions"
+        }
+      },
+      "title": "Security"
+    },
+    "sessions": {
+      "description": "Revoke sessions you no longer recognize.",
+      "list": {
+        "created": "Created {date}",
+        "current": "This session",
+        "empty": "No active sessions were returned.",
+        "lastActive": "Last active {date}",
+        "revoke": "Revoke",
+        "revokeAria": "Revoke session {sessionId}",
+        "unknown": "Unknown",
+        "unknownDevice": "Unknown device",
+        "unknownLocation": "Unknown location"
+      },
+      "revokeOthers": "Revoke other sessions",
+      "title": "Sessions"
+    }
+  },
+  "simulations": {
+    "scenarios": {
+      "digitalTwin": {
+        "divergencePoints": "Divergence points",
+        "mockComponents": "Mock components",
+        "noReferenceAvailable": "No reference available.",
+        "realComponents": "Real components",
+        "referenceProdExecution": "Reference production execution",
+        "simulatedVsWallClock": "Simulated vs wall clock",
+        "title": "Digital twin divergence"
+      },
+      "empty": "No scenarios yet",
+      "fields": {
+        "agents": "Agents",
+        "description": "Description",
+        "inputDistribution": "Input distribution",
+        "mockSet": "Mock set",
+        "name": "Name",
+        "runSchedule": "Run schedule",
+        "successCriteria": "Success criteria",
+        "twinFidelity": "Twin fidelity",
+        "workflowTemplate": "Workflow template"
+      },
+      "new": "New scenario",
+      "run": {
+        "iterations": "Iterations",
+        "useRealLlm": "Use real LLM"
+      },
+      "title": "Simulation scenarios",
+      "validation": {
+        "emptySuccessCriteria": "Add at least one success criterion.",
+        "forbiddenTwinCombo": "This twin fidelity combination is not allowed.",
+        "plaintextSecret": "Plaintext secrets are not allowed in scenario configuration.",
+        "unknownFqn": "Unknown agent FQN."
       }
     }
   },
   "workspaces": {
-    "list": {
-      "title": "Workspaces",
-      "description": "Open a workspace owner workbench.",
-      "fallbackDescription": "Workspace owner workbench",
-      "unavailable": "Workspaces unavailable",
-      "unavailableDescription": "The workspace list could not be loaded.",
-      "empty": "No workspaces available.",
-      "emptyDescription": "No workspace memberships were returned.",
-      "open": "Open workspace"
+    "connectors": {
+      "activity": "Activity",
+      "add": "Add connector",
+      "delivered": "Delivered",
+      "description": "Workspace-owned connector instances and delivery health.",
+      "details": "Connector details",
+      "detailsDescription": "Inspect workspace-owned connector status, activity, and secret rotation.",
+      "empty": "No connectors",
+      "emptyDescription": "Add a workspace connector to start routing messages.",
+      "failed": "Failed",
+      "noDeliveries": "No deliveries recorded.",
+      "openDetail": "Open detail",
+      "rotate": {
+        "confirm": "Confirm rotation",
+        "description": "The value is write-only and should be submitted to the backend secret rotation endpoint.",
+        "newSecret": "New secret",
+        "title": "Rotate connector secret",
+        "trigger": "Rotate secret"
+      },
+      "rotateSecret": "Rotate secret",
+      "title": "Connectors",
+      "unavailable": "Connectors unavailable",
+      "unavailableDescription": "The connectors endpoint did not return data.",
+      "wizard": {
+        "activate": "Activate",
+        "add": "Add connector",
+        "back": "Back",
+        "credentials": "Credentials",
+        "description": "Guided setup validates credentials with dry-run connectivity checks before activation.",
+        "dryRunNote": "Connectivity tests call the connector dry-run endpoint and do not create delivery records.",
+        "email": {
+          "description": "Configure IMAP and SMTP credentials; test uses IMAP NOOP.",
+          "imapHost": "IMAP host",
+          "smtpHost": "SMTP host",
+          "title": "Email prerequisites"
+        },
+        "next": "Next",
+        "prerequisites": "Prerequisites",
+        "ready": "Ready",
+        "scope": "Scope",
+        "slack": {
+          "botTokenRef": "Bot token secret ref",
+          "description": "Use a bot token with auth.test access and a signing secret.",
+          "teamId": "Team ID",
+          "title": "Slack prerequisites"
+        },
+        "stepStatus": "Step {current}: {step}. Connectivity tests call the connector dry-run endpoint and do not create delivery records.",
+        "telegram": {
+          "botTokenRef": "Bot token secret ref",
+          "description": "Use a bot token that can answer Telegram getMe.",
+          "title": "Telegram prerequisites"
+        },
+        "testConnectivity": "Test connectivity",
+        "title": "Connector setup",
+        "webhook": {
+          "description": "Destination must accept HEAD requests before activation.",
+          "destinationUrl": "Destination URL",
+          "title": "Webhook prerequisites"
+        }
+      },
+      "workspaceOwned": "Workspace-owned"
+    },
+    "dashboard": {
+      "cachedUntil": "Cached until {time}",
+      "cards": {
+        "activeGoals": "Active goals",
+        "agentCount": "Agents",
+        "budget": "Budget",
+        "dlpViolations": "DLP violations",
+        "executionsInFlight": "Executions in flight",
+        "quotaUsage": "Quota usage",
+        "recentActivity": "Recent activity",
+        "tagSummary": "Tags"
+      },
+      "description": "Operational summary scoped to this workspace.",
+      "empty": "No recent activity.",
+      "eventFallback": "Workspace event",
+      "latestActivity": "Latest workspace activity",
+      "noTags": "No tags",
+      "quotas": {
+        "agents": "agents",
+        "executions": "executions",
+        "fleets": "fleets",
+        "storage_gb": "storage GB"
+      },
+      "title": "Workspace dashboard",
+      "unavailable": "Dashboard unavailable",
+      "unavailableDescription": "The workspace summary endpoint did not return data.",
+      "unset": "unset"
     },
     "layout": {
       "badge": "Workspace owner",
-      "workspaceId": "Workspace ID",
       "nav": {
+        "connectors": "Connectors",
         "dashboard": "Dashboard",
         "members": "Members",
-        "settings": "Settings",
-        "connectors": "Connectors",
         "quotas": "Quotas",
+        "settings": "Settings",
         "tags": "Tags",
         "visibility": "Visibility"
-      }
-    },
-    "dashboard": {
-      "title": "Workspace dashboard",
-      "description": "Operational summary scoped to this workspace.",
-      "cards": {
-        "activeGoals": "Active goals",
-        "executionsInFlight": "Executions in flight",
-        "agentCount": "Agents",
-        "budget": "Budget",
-        "quotaUsage": "Quota usage",
-        "tagSummary": "Tags",
-        "dlpViolations": "DLP violations",
-        "recentActivity": "Recent activity"
       },
-      "empty": "No recent activity.",
-      "cachedUntil": "Cached until {time}",
-      "unavailable": "Dashboard unavailable",
-      "unavailableDescription": "The workspace summary endpoint did not return data.",
-      "unset": "unset",
-      "noTags": "No tags",
-      "eventFallback": "Workspace event",
-      "latestActivity": "Latest workspace activity",
-      "quotas": {
-        "agents": "agents",
-        "fleets": "fleets",
-        "executions": "executions",
-        "storage_gb": "storage GB"
-      }
+      "workspaceId": "Workspace ID"
+    },
+    "list": {
+      "description": "Open a workspace owner workbench.",
+      "empty": "No workspaces available.",
+      "emptyDescription": "No workspace memberships were returned.",
+      "fallbackDescription": "Workspace owner workbench",
+      "open": "Open workspace",
+      "title": "Workspaces",
+      "unavailable": "Workspaces unavailable",
+      "unavailableDescription": "The workspace list could not be loaded."
     },
     "members": {
-      "title": "Members",
       "description": "Manage workspace roles and 2PA-gated ownership transfer.",
       "invite": "Invite",
-      "transferOwnership": "Transfer ownership",
-      "user": "User",
-      "role": "Role",
+      "inviteDialog": {
+        "add": "Add member",
+        "description": "Add an existing platform user to this workspace with the selected role.",
+        "title": "Invite workspace member",
+        "userId": "User ID"
+      },
       "joined": "Joined",
       "remove": "Remove member",
+      "role": "Role",
       "roles": {
-        "owner": "owner",
         "admin": "admin",
         "member": "member",
+        "owner": "owner",
         "viewer": "viewer"
       },
+      "title": "Members",
+      "transferDialog": {
+        "approve": "Approve challenge",
+        "challengeStatus": "Challenge {status}",
+        "consume": "Consume challenge",
+        "createChallenge": "Create 2PA challenge",
+        "description": "Creates a two-person approval challenge before the owner can be changed.",
+        "expires": "Expires {time}",
+        "newOwnerId": "New owner user ID",
+        "title": "Transfer ownership"
+      },
+      "transferOwnership": "Transfer ownership",
       "unavailable": "Members unavailable",
       "unavailableDescription": "The members endpoint did not return data.",
-      "inviteDialog": {
-        "title": "Invite workspace member",
-        "description": "Add an existing platform user to this workspace with the selected role.",
-        "userId": "User ID",
-        "add": "Add member"
-      },
-      "transferDialog": {
-        "title": "Transfer ownership",
-        "description": "Creates a two-person approval challenge before the owner can be changed.",
-        "newOwnerId": "New owner user ID",
-        "createChallenge": "Create 2PA challenge",
-        "approve": "Approve challenge",
-        "consume": "Consume challenge",
-        "challengeStatus": "Challenge {status}",
-        "expires": "Expires {time}"
-      }
+      "user": "User"
+    },
+    "quotas": {
+      "configuredLimit": "Configured limit",
+      "description": "Usage and workspace quota configuration.",
+      "title": "Quotas",
+      "unavailable": "Quotas unavailable",
+      "unavailableDescription": "The workspace settings endpoint did not return data.",
+      "usage": "Usage"
     },
     "settings": {
-      "title": "Settings",
-      "description": "Budget, quota, DLP, and residency controls scoped to this workspace.",
-      "tabs": {
-        "budget": "Budget",
-        "quotas": "Quotas",
-        "dlp": "DLP",
-        "residency": "Residency"
-      },
       "budget": {
-        "title": "Budget",
-        "monthlyLimit": "Monthly limit",
         "hardCap": "Hard cap enabled",
+        "monthlyLimit": "Monthly limit",
+        "save": "Save budget",
         "threshold": "Alert threshold",
-        "save": "Save budget"
+        "title": "Budget"
       },
-      "quotas": {
-        "title": "Quotas",
-        "maxAgents": "Max agents",
-        "maxExecutions": "Max concurrent executions",
-        "maxStorageGb": "Storage quota GB",
-        "fields": {
-          "agents": "Agents",
-          "fleets": "Fleets",
-          "executions": "Executions",
-          "storage_gb": "Storage GB"
-        },
-        "save": "Save quotas"
-      },
+      "description": "Budget, quota, DLP, and residency controls scoped to this workspace.",
       "dlp": {
-        "title": "DLP rules",
         "enabled": "DLP enabled",
         "policy": "Policy JSON",
         "ruleIds": "Rule IDs",
-        "save": "Save DLP rules"
+        "save": "Save DLP rules",
+        "title": "DLP rules"
+      },
+      "quotas": {
+        "fields": {
+          "agents": "Agents",
+          "executions": "Executions",
+          "fleets": "Fleets",
+          "storage_gb": "Storage GB"
+        },
+        "maxAgents": "Max agents",
+        "maxExecutions": "Max concurrent executions",
+        "maxStorageGb": "Storage quota GB",
+        "save": "Save quotas",
+        "title": "Quotas"
       },
       "residency": {
-        "title": "Residency",
         "region": "Region",
+        "save": "Save residency",
         "tier": "Tier",
-        "save": "Save residency"
+        "title": "Residency"
       },
+      "tabs": {
+        "budget": "Budget",
+        "dlp": "DLP",
+        "quotas": "Quotas",
+        "residency": "Residency"
+      },
+      "title": "Settings",
       "unavailable": "Settings unavailable",
       "unavailableDescription": "The workspace settings endpoint did not return data."
     },
-    "connectors": {
-      "title": "Connectors",
-      "description": "Workspace-owned connector instances and delivery health.",
-      "add": "Add connector",
-      "workspaceOwned": "Workspace-owned",
-      "details": "Connector details",
-      "detailsDescription": "Inspect workspace-owned connector status, activity, and secret rotation.",
-      "openDetail": "Open detail",
-      "empty": "No connectors",
-      "emptyDescription": "Add a workspace connector to start routing messages.",
-      "unavailable": "Connectors unavailable",
-      "unavailableDescription": "The connectors endpoint did not return data.",
-      "rotateSecret": "Rotate secret",
-      "activity": "Activity",
-      "delivered": "Delivered",
-      "failed": "Failed",
-      "noDeliveries": "No deliveries recorded.",
-      "rotate": {
-        "trigger": "Rotate secret",
-        "title": "Rotate connector secret",
-        "description": "The value is write-only and should be submitted to the backend secret rotation endpoint.",
-        "newSecret": "New secret",
-        "confirm": "Confirm rotation"
-      },
-      "wizard": {
-        "title": "Connector setup",
-        "add": "Add connector",
-        "description": "Guided setup validates credentials with dry-run connectivity checks before activation.",
-        "prerequisites": "Prerequisites",
-        "credentials": "Credentials",
-        "testConnectivity": "Test connectivity",
-        "scope": "Scope",
-        "activate": "Activate",
-        "dryRunNote": "Connectivity tests call the connector dry-run endpoint and do not create delivery records.",
-        "stepStatus": "Step {current}: {step}. Connectivity tests call the connector dry-run endpoint and do not create delivery records.",
-        "back": "Back",
-        "next": "Next",
-        "ready": "Ready",
-        "slack": {
-          "title": "Slack prerequisites",
-          "description": "Use a bot token with auth.test access and a signing secret.",
-          "teamId": "Team ID",
-          "botTokenRef": "Bot token secret ref"
-        },
-        "telegram": {
-          "title": "Telegram prerequisites",
-          "description": "Use a bot token that can answer Telegram getMe.",
-          "botTokenRef": "Bot token secret ref"
-        },
-        "email": {
-          "title": "Email prerequisites",
-          "description": "Configure IMAP and SMTP credentials; test uses IMAP NOOP.",
-          "imapHost": "IMAP host",
-          "smtpHost": "SMTP host"
-        },
-        "webhook": {
-          "title": "Webhook prerequisites",
-          "description": "Destination must accept HEAD requests before activation.",
-          "destinationUrl": "Destination URL"
-        }
-      }
-    },
-    "quotas": {
-      "title": "Quotas",
-      "description": "Usage and workspace quota configuration.",
-      "usage": "Usage",
-      "configuredLimit": "Configured limit",
-      "unavailable": "Quotas unavailable",
-      "unavailableDescription": "The workspace settings endpoint did not return data."
+    "states": {
+      "cancel": "Cancel",
+      "loading": "Loading",
+      "save": "Save",
+      "unavailable": "Unavailable"
     },
     "tags": {
-      "title": "Tags",
-      "description": "Workspace labels and tag rules.",
       "cardTitle": "Workspace tags",
-      "tags": "Tags",
+      "description": "Workspace labels and tag rules.",
       "labels": "Labels",
+      "noLabels": "No labels configured.",
       "noTags": "No tags configured.",
-      "noLabels": "No labels configured."
+      "tags": "Tags",
+      "title": "Tags"
     },
     "visibility": {
-      "title": "Visibility",
-      "description": "Read-only graph for workspace zero-trust grants and audit context.",
-      "graph": "Visibility graph",
-      "graphSubtitle": "XYFlow layout with Dagre positioning.",
-      "grantsGiven": "Grants given",
-      "grantsReceived": "Grants received",
+      "allows": "allows",
       "auditTrail": "Audit trail",
-      "denyAll": "deny all",
-      "grantsConfigured": "grants configured",
-      "noInboundGrants": "No inbound grants",
-      "inboundUnavailable": "Inbound grant aggregation is not exposed by the current API.",
-      "unavailable": "Visibility unavailable",
-      "unavailableDescription": "The visibility endpoint did not return data.",
       "auditUnavailable": "Visibility audit entries are available from the audit-chain query surface.",
       "currentWorkspace": "Current workspace",
-      "grantGiven": "grant given",
-      "allows": "allows",
-      "workspaceGrant": "Workspace grant",
+      "denyAll": "deny all",
+      "description": "Read-only graph for workspace zero-trust grants and audit context.",
       "detail": {
-        "title": "Grant detail",
         "direction": "Direction",
+        "empty": "Select a graph edge to inspect a visibility grant.",
         "label": "Label",
         "pattern": "Pattern",
-        "empty": "Select a graph edge to inspect a visibility grant."
-      }
-    },
-    "states": {
-      "loading": "Loading",
-      "unavailable": "Unavailable",
-      "save": "Save",
-      "cancel": "Cancel"
-    }
-  },
-  "creator": {
-    "contextProfile": {
-      "title": "Context Profile",
-      "description": "Author retrieval sources, budgets, ranking behavior, and provenance settings.",
-      "history": "History",
-      "editor": "Editor",
-      "sources": "Sources",
-      "test": "Test",
-      "profileJson": "Profile JSON",
-      "profileControls": "Profile Controls",
-      "profileId": "Profile ID",
-      "profileIdPlaceholder": "Paste an existing profile UUID",
-      "profileIdHistoryPlaceholder": "Paste profile UUID",
-      "historyTitle": "Context Profile History",
-      "create": "Create Profile",
-      "update": "Update Profile",
-      "saving": "Saving",
-      "created": "Context profile created",
-      "updated": "Context profile updated",
-      "invalidObject": "Profile JSON must be an object.",
-      "invalidJson": "Profile JSON is invalid.",
-      "saveFailure": "Unable to save context profile.",
-      "runMockPreview": "Run Mock Preview",
-      "mockPreviewResult": "Mock preview result",
-      "previewQueryDefault": "customer support refund request",
-      "versionHistory": "Version history",
-      "version": "Version",
-      "noSummary": "No summary",
-      "compare": "Compare",
-      "rollback": "Rollback",
-      "diffAdded": "Added",
-      "diffRemoved": "Removed",
-      "diffModified": "Modified",
-      "maxTokens": "Max tokens",
-      "maxDocuments": "Max documents",
-      "retrievalStrategy": "Retrieval strategy",
-      "semantic": "Semantic",
-      "graph": "Graph",
-      "fts": "Full text",
-      "hybrid": "Hybrid",
-      "rerankingRules": "Reranking rules",
-      "score": "Score",
-      "recency": "Recency",
-      "authority": "Authority",
-      "customExpression": "Custom expression",
-      "sourcePicker": "Source picker",
-      "excludedSource": "Excluded source",
-      "memory": "Memory",
-      "knowledgeGraph": "Knowledge graph",
-      "executionHistory": "Execution history",
-      "toolOutputs": "Tool outputs",
-      "externalApis": "External APIs"
-    },
-    "contract": {
-      "title": "Agent Contract",
-      "description": "Author behavioral terms, preview enforcement, and attach contracts to revisions.",
-      "editor": "Editor",
-      "preview": "Preview",
-      "contract": "Contract",
-      "controls": "Contract Controls",
-      "contractId": "Contract ID",
-      "contractIdPlaceholder": "Paste existing contract UUID",
-      "create": "Create Contract",
-      "update": "Update Contract",
-      "saving": "Saving",
-      "created": "Contract created",
-      "updated": "Contract updated",
-      "invalidObject": "Contract JSON must be an object.",
-      "invalidJson": "Contract JSON is invalid.",
-      "saveFailure": "Unable to save contract.",
-      "schemaEnums": "Schema enums",
-      "runMockPreview": "Run Mock Preview",
-      "realLlmPreview": "Real LLM Preview",
-      "confirmRealLlmPreview": "Confirm Real LLM Preview",
-      "realLlmCostWarning": "This preview can consume model budget and may call external model providers.",
-      "confirm": "Confirm",
-      "finalAction": "Final action",
-      "triggered": "Triggered",
-      "satisfied": "Satisfied",
-      "violated": "Violated",
-      "sampleInput": "Sample input",
-      "sampleInputObjectRequired": "Sample input must be a JSON object.",
-      "sampleInputInvalid": "Sample input is invalid JSON.",
-      "previewFailure": "Unable to preview contract.",
-      "fallback": "Fallback",
-      "loadPassingSample": "Load Passing Sample",
-      "loadViolationSample": "Load Violation Sample",
-      "attachRevision": "Attach to revision",
-      "attachContract": "Attach Contract",
-      "revisionId": "Revision ID",
-      "revisionIdPlaceholder": "Revision UUID",
-      "attach": "Attach",
-      "history": "Contract history",
-      "historyDescription": "Contract history will display saved previews and revisions.",
-      "useRealLlmConfirmation": "USE_REAL_LLM",
-      "costAcknowledgement": "I understand this preview can call a real model and incur cost.",
-      "typeToConfirm": "Type USE_REAL_LLM to confirm.",
-      "loading": "Loading"
-    },
-    "template": {
-      "libraryTitle": "Template Library",
-      "libraryEyebrow": "Contract templates",
-      "fork": "Fork",
-      "forkTemplate": "Fork template",
-      "forkName": "Fork name",
-      "forkNameDefaultSuffix": "copy",
-      "forkCreated": "Template fork created",
-      "forkFailure": "Unable to fork template.",
-      "platformAuthored": "Platform-authored",
-      "creatorAuthored": "Creator-authored",
-      "category": "Category",
-      "version": "Version",
-      "lastUpdated": "Last updated",
-      "upstreamUpdated": "Template update available",
-      "viewDiff": "View diff"
-    },
-    "wizard": {
-      "contextProfile": "Context Profile",
-      "testProfile": "Test Profile",
-      "contract": "Contract",
-      "previewContract": "Preview Contract",
-      "attachBoth": "Attach Both",
-      "title": "Composition wizard",
-      "headline": "Create an agent from intent",
-      "description": "Move from a natural-language brief to a validated draft agent with guided profile and contract steps.",
-      "describe": "Describe",
-      "reviewBlueprint": "Review blueprint",
-      "customize": "Customize",
-      "validate": "Validate",
-      "cancel": "Cancel",
-      "back": "Back",
-      "next": "Next",
-      "startOver": "Start over",
-      "blueprintRequiredTitle": "Blueprint required",
-      "blueprintRequiredDescription": "Generate a blueprint first so the remaining wizard steps have content to work from.",
-      "thisAgent": "this agent",
-      "theAgent": "the agent",
-      "contextProfileDescription": "Configure profile sources for {agent} from the dedicated editor.",
-      "testProfileDescription": "Run mock retrieval previews before publishing {agent}.",
-      "contractDescription": "Author enforcement terms for {agent}.",
-      "previewContractDescription": "Validate contract behavior for {agent} with the mock provider.",
-      "attachBothDescription": "Attach the selected context profile and contract before publishing {agent}.",
-      "missingProfile": "A context profile is required for this trust tier.",
-      "missingContract": "A contract is required for this trust tier.",
-      "readyToPublish": "Ready to publish"
-    },
-    "provenance": {
-      "title": "Provenance",
-      "origin": "Origin",
-      "snippet": "Snippet",
-      "score": "Score",
-      "included": "Included",
-      "excluded": "Excluded",
-      "classification": "Classification",
-      "public": "Public",
-      "pii": "PII",
-      "confidential": "Confidential",
-      "includedStatus": "Included",
-      "excludedStatus": "Excluded",
-      "empty": "No provenance sources yet.",
-      "emptyAvailable": "No provenance sources available."
-    },
-    "editor": {
-      "schemaEnabled": "Schema validation enabled",
-      "schemaLoading": "Schema loading",
-      "schemaUnavailable": "Schema unavailable",
-      "validationUnavailable": "Inline validation is unavailable for this editor.",
-      "yaml": "YAML",
-      "json": "JSON"
+        "title": "Grant detail"
+      },
+      "grantGiven": "grant given",
+      "grantsConfigured": "grants configured",
+      "grantsGiven": "Grants given",
+      "grantsReceived": "Grants received",
+      "graph": "Visibility graph",
+      "graphSubtitle": "XYFlow layout with Dagre positioning.",
+      "inboundUnavailable": "Inbound grant aggregation is not exposed by the current API.",
+      "noInboundGrants": "No inbound grants",
+      "title": "Visibility",
+      "unavailable": "Visibility unavailable",
+      "unavailableDescription": "The visibility endpoint did not return data.",
+      "workspaceGrant": "Workspace grant"
     }
   }
 }

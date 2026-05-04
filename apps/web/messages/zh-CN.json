@@ -1,1209 +1,1342 @@
 {
-  "auth": {
-    "signup": {
-      "title": "Sign up for Musematic",
-      "disabled": "Signups are currently disabled",
-      "submit": "Create account"
-    },
-    "verify": {
-      "pending": "Check your inbox",
-      "success": "Email verified",
-      "expired": "Verification link expired",
-      "resend": "Resend verification"
-    },
-    "waitingApproval": {
-      "title": "Your account is under review",
-      "status": "Pending approval"
+  "admin": {
+    "ibor": {
+      "add": "TODO-translation: Add IBOR connector",
+      "cadence": "TODO-translation: Cadence: {seconds}s",
+      "description": "TODO-translation: Manage LDAP, OIDC, and SCIM identity-broker sync connectors.",
+      "details": "TODO-translation: Details",
+      "disabled": "TODO-translation: Disabled",
+      "enabled": "TODO-translation: Enabled",
+      "history": {
+        "counts": "TODO-translation: Counts",
+        "nextPage": "TODO-translation: Next page",
+        "started": "TODO-translation: Started",
+        "status": "TODO-translation: Status",
+        "title": "TODO-translation: Sync history"
+      },
+      "mapping": {
+        "title": "TODO-translation: Attribute mapping",
+        "vendorPreset": "TODO-translation: Vendor preset"
+      },
+      "never": "TODO-translation: Never",
+      "noConnectors": "TODO-translation: No IBOR connectors configured.",
+      "selectConnector": "TODO-translation: Select a connector to inspect sync history.",
+      "selectedConnector": "TODO-translation: Selected connector",
+      "sync": "TODO-translation: Sync",
+      "table": {
+        "actions": "TODO-translation: Actions",
+        "lastRun": "TODO-translation: Last run",
+        "name": "TODO-translation: Name",
+        "type": "TODO-translation: Type"
+      },
+      "test": "TODO-translation: Test",
+      "title": "TODO-translation: IBOR connectors",
+      "wizard": {
+        "activate": "TODO-translation: Activate",
+        "cadenceSeconds": "TODO-translation: Cadence seconds",
+        "connection": "TODO-translation: Connection",
+        "connectorName": "TODO-translation: Connector name",
+        "createDraft": "TODO-translation: Create connector draft",
+        "credentialReference": "TODO-translation: Credential reference",
+        "defaultName": "TODO-translation: Corporate directory",
+        "directoryType": "TODO-translation: Directory type",
+        "draftCreated": "TODO-translation: Connector draft created.",
+        "draftRequired": "TODO-translation: Create the connector draft before activation.",
+        "enableConnector": "TODO-translation: Enable connector",
+        "enabledAfterActivation": "TODO-translation: Enabled after activation",
+        "mapping": "TODO-translation: Mapping",
+        "runDiagnostic": "TODO-translation: Run stepped diagnostic",
+        "schedule": "TODO-translation: Schedule",
+        "scope": "TODO-translation: Scope",
+        "scopeDescription": "TODO-translation: Directory scope is constrained by the credential reference and role mappings. Workspace scope can be added per mapping row when a group should map into a workspace-specific role.",
+        "stepsAria": "TODO-translation: IBOR setup steps",
+        "syncMode": "TODO-translation: Sync mode",
+        "syncModes": {
+          "pull": "TODO-translation: Pull",
+          "push": "TODO-translation: Push"
+        },
+        "syncNow": "TODO-translation: Sync now",
+        "test": "TODO-translation: Test",
+        "title": "TODO-translation: IBOR connector wizard",
+        "type": "TODO-translation: Type",
+        "types": {
+          "ldap": "TODO-translation: LDAP",
+          "oidc": "TODO-translation: OIDC",
+          "scim": "TODO-translation: SCIM"
+        }
+      }
     },
     "oauth": {
-      "callbackLoading": "Finishing sign-in",
-      "callbackError": "Unable to finish sign-up",
-      "domainNotPermitted": "Your email domain is not permitted for this provider.",
-      "orgNotPermitted": "Your GitHub organization is not permitted.",
-      "expiredState": "The OAuth session expired.",
-      "providerError": "The provider returned an error.",
-      "networkFailure": "The provider could not be reached.",
-      "userDeniedAccess": "You denied access to the provider account."
+      "actions": {
+        "apply": "TODO-translation: Apply",
+        "cancel": "TODO-translation: Cancel",
+        "reseed": "TODO-translation: Reseed from env",
+        "rotateSecret": "TODO-translation: Rotate secret",
+        "save": "TODO-translation: Save",
+        "testConnectivity": "TODO-translation: Test connectivity"
+      },
+      "connectivity": {
+        "failure": "TODO-translation: Connectivity check failed",
+        "success": "TODO-translation: Connectivity check completed"
+      },
+      "history": {
+        "action": "TODO-translation: Action",
+        "admin": "TODO-translation: Admin",
+        "after": "TODO-translation: After",
+        "before": "TODO-translation: Before",
+        "collapse": "TODO-translation: Collapse history row",
+        "empty": "TODO-translation: No history entries found.",
+        "expand": "TODO-translation: Expand history row",
+        "loadFailed": "TODO-translation: Unable to load provider history.",
+        "loadMore": "TODO-translation: Load more",
+        "loading": "TODO-translation: Loading history...",
+        "system": "TODO-translation: System",
+        "timestamp": "TODO-translation: Timestamp"
+      },
+      "rateLimits": {
+        "global_max": "TODO-translation: Global max",
+        "global_maxHelp": "TODO-translation: Maximum provider attempts across the platform during the window.",
+        "global_window": "TODO-translation: Global window",
+        "global_windowHelp": "TODO-translation: Global provider window in seconds.",
+        "loadFailed": "TODO-translation: Unable to load rate limits.",
+        "per_ip_max": "TODO-translation: Per-IP max",
+        "per_ip_maxHelp": "TODO-translation: Maximum attempts from one IP address during the window.",
+        "per_ip_window": "TODO-translation: Per-IP window",
+        "per_ip_windowHelp": "TODO-translation: Per-IP window in seconds.",
+        "per_user_max": "TODO-translation: Per-user max",
+        "per_user_maxHelp": "TODO-translation: Maximum attempts for one authenticated user during the window.",
+        "per_user_window": "TODO-translation: Per-user window",
+        "per_user_windowHelp": "TODO-translation: Per-user window in seconds.",
+        "saveFailed": "TODO-translation: Unable to save rate limits",
+        "saved": "TODO-translation: Rate limits saved"
+      },
+      "reseed": {
+        "acknowledge": "TODO-translation: This may overwrite manual changes. Continue?",
+        "changedFields": "TODO-translation: Changed fields",
+        "description": "TODO-translation: Re-read the running pod environment and apply the configured provider values.",
+        "failure": "TODO-translation: Unable to reseed provider",
+        "forceUpdate": "TODO-translation: Force update",
+        "forceUpdateHelp": "TODO-translation: Overwrite an existing provider instead of preserving manual edits.",
+        "success": "TODO-translation: Provider reseeded",
+        "title": "TODO-translation: Reseed provider from environment"
+      },
+      "roleMappings": {
+        "actions": "TODO-translation: Actions",
+        "add": "TODO-translation: Add mapping",
+        "delete": "TODO-translation: Delete mapping",
+        "empty": "TODO-translation: No role mappings configured.",
+        "group": "TODO-translation: Group or team",
+        "invalidGroup": "TODO-translation: One or more group values do not match the provider format.",
+        "role": "TODO-translation: Role",
+        "saveFailed": "TODO-translation: Unable to save role mappings",
+        "saved": "TODO-translation: Role mappings saved"
+      },
+      "rotate": {
+        "confirmation": "TODO-translation: I understand the new secret will be written to Vault and will not be shown again.",
+        "description": "TODO-translation: Write a new client secret version through the configured secret provider.",
+        "failure": "TODO-translation: Unable to rotate secret",
+        "newSecret": "TODO-translation: New client secret",
+        "success": "TODO-translation: Secret rotated successfully",
+        "title": "TODO-translation: Rotate OAuth client secret"
+      },
+      "source": {
+        "aria": "TODO-translation: Configuration source: {source}",
+        "env_var": "TODO-translation: Env var",
+        "env_varHelp": "TODO-translation: Provisioned from platform OAuth environment variables.",
+        "imported": "TODO-translation: Imported",
+        "importedHelp": "TODO-translation: Imported from a GitOps promotion manifest.",
+        "manual": "TODO-translation: Manual",
+        "manualHelp": "TODO-translation: Managed directly in the admin interface."
+      },
+      "status": {
+        "auth24h": "TODO-translation: Auths in 24h",
+        "auth30d": "TODO-translation: Auths in 30d",
+        "auth7d": "TODO-translation: Auths in 7d",
+        "lastAuth": "TODO-translation: Last successful auth",
+        "linkedUsers": "TODO-translation: Linked users",
+        "loadFailed": "TODO-translation: Unable to load provider status.",
+        "never": "TODO-translation: Never"
+      },
+      "tabs": {
+        "configuration": "TODO-translation: Configuration",
+        "history": "TODO-translation: History",
+        "rateLimits": "TODO-translation: Rate limits",
+        "roleMappings": "TODO-translation: Role mappings",
+        "status": "TODO-translation: Status"
+      },
+      "tooltips": {
+        "testConnectivity": "TODO-translation: Generate a provider authorization URL and report diagnostics."
+      }
     },
-    "profileCompletion": {
-      "title": "Finish your account",
-      "submit": "Continue"
+    "workspaces": {
+      "action": "TODO-translation: Action",
+      "description": "TODO-translation: Global admin view of workspace owner surfaces.",
+      "empty": "TODO-translation: No matching workspaces.",
+      "name": "TODO-translation: Name",
+      "open": "TODO-translation: Open",
+      "search": "TODO-translation: Search workspaces",
+      "title": "TODO-translation: Workspaces"
+    }
+  },
+  "apiKeys": {
+    "create": {
+      "cancel": "TODO: Cancel",
+      "description": "TODO: Personal keys inherit only scopes you already have. MFA is required when enabled.",
+      "expires": "TODO: Expires",
+      "mfaCode": "TODO: MFA code",
+      "name": "TODO: Name",
+      "scopes": "TODO: Scopes",
+      "submit": "TODO: Create",
+      "title": "TODO: Create API key",
+      "trigger": "TODO: Create API key"
     },
+    "description": "TODO: Create and revoke personal access tokens for developer workflows.",
+    "oneTime": {
+      "copy": "TODO: Copy",
+      "description": "TODO: This is the only time you will see this value.",
+      "dismiss": "TODO: Dismiss",
+      "title": "TODO: New API key"
+    },
+    "table": {
+      "action": "TODO: Action",
+      "created": "TODO: Created",
+      "empty": "TODO: No personal API keys have been created.",
+      "identifier": "TODO: Identifier",
+      "lastUsed": "TODO: Last used",
+      "name": "TODO: Name",
+      "never": "TODO: Never",
+      "revokeAria": "TODO: Revoke {name}",
+      "status": {
+        "active": "TODO: Active",
+        "disabled": "TODO: Disabled",
+        "label": "TODO: Status",
+        "revoked": "TODO: Revoked"
+      }
+    },
+    "title": "TODO: API Keys",
+    "usage": "TODO: {activeCount} of {maxActive} active keys used."
+  },
+  "auth": {
     "connections": {
       "title": "Account connections",
       "unlinkDisabled": "You must keep at least one authentication method."
-    }
-  },
-  "platformStatus": {
-    "title": "Platform status",
-    "statusLabels": {
-      "operational": "Operational",
-      "degraded": "Degraded",
-      "partial_outage": "Partial outage",
-      "full_outage": "Full outage",
-      "maintenance": "Maintenance"
     },
-    "subscribeToUpdates": "Subscribe to updates",
-    "lastUpdated": "Last updated",
-    "uptime30d": "30-day uptime",
-    "maintenanceScheduled": "Scheduled maintenance",
-    "maintenanceInProgress": "Maintenance in progress",
-    "endsAt": "Ends at {date}",
-    "dismiss": "Dismiss",
-    "viewStatusPage": "View status page",
-    "blockedActionTitle": "Maintenance is in progress",
-    "blockedActionExplanation": "Writes are temporarily paused for maintenance. You can try again after {date}.",
-    "retryAfter": "Retry after",
-    "unknownEnd": "the maintenance window ends",
-    "incidentActive": "Active incident",
-    "incidentSeverity": {
-      "info": "Info",
-      "warning": "Warning",
-      "high": "High",
-      "critical": "Critical"
+    "oauth": {
+      "callbackError": "Unable to finish sign-up",
+      "callbackLoading": "Finishing sign-in",
+      "domainNotPermitted": "Your email domain is not permitted for this provider.",
+      "expiredState": "The OAuth session expired.",
+      "networkFailure": "The provider could not be reached.",
+      "orgNotPermitted": "Your GitHub organization is not permitted.",
+      "providerError": "The provider returned an error.",
+      "userDeniedAccess": "You denied access to the provider account."
     },
-    "viewIncident": "View incident",
-    "subscriptions": {
-      "title": "Status subscriptions",
-      "add": "Add subscription",
-      "empty": "No status subscriptions configured.",
-      "channelEmail": "Email",
-      "channelWebhook": "Webhook",
-      "channelSlack": "Slack",
-      "scope": {
-        "allComponents": "All components",
-        "specificComponents": "Specific components"
-      },
-      "health": {
-        "pending": "Pending",
-        "healthy": "Healthy",
-        "unhealthy": "Unhealthy",
-        "unsubscribed": "Unsubscribed"
-      },
-      "removeConfirm": "Remove this status subscription?"
-    }
-  },
-  "simulations": {
-    "scenarios": {
-      "title": "Simulation scenarios",
-      "new": "New scenario",
-      "empty": "No scenarios yet",
-      "fields": {
-        "name": "Name",
-        "description": "Description",
-        "agents": "Agents",
-        "workflowTemplate": "Workflow template",
-        "mockSet": "Mock set",
-        "inputDistribution": "Input distribution",
-        "twinFidelity": "Twin fidelity",
-        "successCriteria": "Success criteria",
-        "runSchedule": "Run schedule"
-      },
-      "validation": {
-        "plaintextSecret": "Plaintext secrets are not allowed in scenario configuration.",
-        "unknownFqn": "Unknown agent FQN.",
-        "forbiddenTwinCombo": "This twin fidelity combination is not allowed.",
-        "emptySuccessCriteria": "Add at least one success criterion."
-      },
-      "run": {
-        "iterations": "Iterations",
-        "useRealLlm": "Use real LLM"
-      },
-      "digitalTwin": {
-        "title": "Digital twin divergence",
-        "mockComponents": "Mock components",
-        "realComponents": "Real components",
-        "divergencePoints": "Divergence points",
-        "simulatedVsWallClock": "Simulated vs wall clock",
-        "referenceProdExecution": "Reference production execution",
-        "noReferenceAvailable": "No reference available."
-      }
-    }
-  },
-  "discovery": {
-    "session": {
-      "title": "Discovery session",
-      "tabs": {
-        "overview": "Overview",
-        "hypotheses": "Hypotheses",
-        "experiments": "Experiments",
-        "evidence": "Evidence",
-        "network": "Network"
-      }
+    "profileCompletion": {
+      "submit": "Continue",
+      "title": "Finish your account"
     },
-    "hypotheses": {
-      "title": "Hypotheses",
-      "filter": "Filter",
-      "empty": "No hypotheses found.",
-      "confidenceTier": "Confidence tier",
-      "state": {
-        "proposed": "Proposed",
-        "testing": "Testing",
-        "confirmed": "Confirmed",
-        "refuted": "Refuted"
-      }
+    "signup": {
+      "disabled": "Signups are currently disabled",
+      "submit": "Create account",
+      "title": "Sign up for Musematic"
     },
-    "experiments": {
-      "title": "Experiments",
-      "launch": "Launch experiment",
-      "running": "Running",
-      "completed": "Completed"
+    "verify": {
+      "expired": "Verification link expired",
+      "pending": "Check your inbox",
+      "resend": "Resend verification",
+      "success": "Email verified"
     },
-    "evidence": {
-      "title": "Evidence",
-      "sources": "Sources",
-      "unavailable": "Source unavailable"
+    "waitingApproval": {
+      "status": "Pending approval",
+      "title": "Your account is under review"
     }
   },
   "commands": {
-    "toggleTheme": "切换主题",
-    "switchLanguage": "切换语言",
-    "searchMarketplace": "搜索市场",
-    "newConversation": "新建对话",
-    "openPreferences": "打开偏好设置",
-    "signOut": "退出登录",
-    "openHelp": "打开命令帮助",
     "categories": {
-      "platform": "平台",
-      "home": "首页",
-      "dashboard": "仪表盘",
-      "marketplace": "市场",
+      "admin": "管理",
       "agents": "智能体",
-      "conversations": "对话",
       "analytics": "分析",
+      "conversations": "对话",
       "costs": "成本",
+      "dashboard": "仪表盘",
       "evaluation": "评测",
       "fleet": "集群",
+      "home": "首页",
+      "marketplace": "市场",
       "operator": "运维",
+      "platform": "平台",
       "policies": "策略",
-      "trust": "信任",
-      "workflows": "工作流",
       "preferences": "偏好设置",
-      "admin": "管理"
+      "trust": "信任",
+      "workflows": "工作流"
     },
+    "newConversation": "新建对话",
+    "openHelp": "打开命令帮助",
+    "openPreferences": "打开偏好设置",
     "routes": {
+      "admin": {
+        "incidentIntegrations": "打开事件集成",
+        "locales": "打开语言发布",
+        "settings": "打开管理设置"
+      },
+      "agentManagement": {
+        "contracts": "打开契约库",
+        "registry": "打开智能体注册表",
+        "wizard": "打开编排向导"
+      },
+      "agents": {
+        "create": "创建智能体",
+        "directory": "打开智能体目录",
+        "marketplace": "在市场中查找智能体"
+      },
+      "analytics": {
+        "costs": "打开成本洞察",
+        "open": "打开分析"
+      },
+      "conversations": {
+        "list": "打开对话",
+        "new": "新建对话"
+      },
+      "costs": {
+        "budgets": "打开预算",
+        "overview": "打开成本概览",
+        "reports": "打开报告"
+      },
+      "dashboard": {
+        "analytics": "打开分析",
+        "home": "打开首页"
+      },
+      "evaluation": {
+        "new": "创建评测套件",
+        "simulations": "打开仿真",
+        "suites": "打开评测套件"
+      },
+      "fleet": {
+        "operator": "打开运维仪表盘",
+        "overview": "打开集群概览"
+      },
       "home": {
         "dashboard": "打开仪表盘",
         "marketplace": "浏览市场",
         "newConversation": "开始对话"
       },
-      "dashboard": {
-        "home": "打开首页",
-        "analytics": "打开分析"
-      },
       "marketplace": {
-        "search": "搜索市场",
-        "compare": "比较选中的智能体"
-      },
-      "agents": {
-        "directory": "打开智能体目录",
-        "create": "创建智能体",
-        "marketplace": "在市场中查找智能体"
-      },
-      "agentManagement": {
-        "registry": "打开智能体注册表",
-        "wizard": "打开编排向导",
-        "contracts": "打开契约库"
-      },
-      "conversations": {
-        "new": "新建对话",
-        "list": "打开对话"
-      },
-      "analytics": {
-        "open": "打开分析",
-        "costs": "打开成本洞察"
-      },
-      "costs": {
-        "overview": "打开成本概览",
-        "budgets": "打开预算",
-        "reports": "打开报告"
-      },
-      "evaluation": {
-        "suites": "打开评测套件",
-        "new": "创建评测套件",
-        "simulations": "打开仿真"
-      },
-      "fleet": {
-        "overview": "打开集群概览",
-        "operator": "打开运维仪表盘"
+        "compare": "比较选中的智能体",
+        "search": "搜索市场"
       },
       "operator": {
+        "executions": "打开活动执行",
         "incidents": "打开事件",
-        "runbooks": "打开运行手册",
-        "executions": "打开活动执行"
+        "runbooks": "打开运行手册"
       },
       "policies": {
-        "open": "打开策略",
-        "governance": "打开治理设置"
+        "governance": "打开治理设置",
+        "open": "打开策略"
+      },
+      "settings": {
+        "alerts": "打开告警设置",
+        "connections": "打开账号连接",
+        "governance": "打开治理",
+        "preferences": "打开偏好设置",
+        "visibility": "打开可见性"
       },
       "trust": {
         "overview": "打开信任概览",
         "workbench": "打开信任工作台"
       },
       "trustWorkbench": {
-        "queue": "打开认证队列",
-        "overview": "打开信任概览"
+        "overview": "打开信任概览",
+        "queue": "打开认证队列"
       },
       "workflows": {
-        "new": "创建工作流",
+        "library": "打开工作流库",
         "monitor": "打开工作流监控",
-        "library": "打开工作流库"
-      },
-      "settings": {
-        "preferences": "打开偏好设置",
-        "alerts": "打开告警设置",
-        "governance": "打开治理",
-        "visibility": "打开可见性",
-        "connections": "打开账号连接"
-      },
-      "admin": {
-        "locales": "打开语言发布",
-        "settings": "打开管理设置",
-        "incidentIntegrations": "打开事件集成"
+        "new": "创建工作流"
       }
+    },
+    "searchMarketplace": "搜索市场",
+    "signOut": "退出登录",
+    "switchLanguage": "切换语言",
+    "toggleTheme": "切换主题"
+  },
+  "creator": {
+    "contextProfile": {
+      "authority": "TODO-translation: Authority",
+      "compare": "TODO-translation: Compare",
+      "create": "TODO-translation: Create Profile",
+      "created": "TODO-translation: Context profile created",
+      "customExpression": "TODO-translation: Custom expression",
+      "description": "TODO-translation: Author retrieval sources, budgets, ranking behavior, and provenance settings.",
+      "diffAdded": "TODO-translation: Added",
+      "diffModified": "TODO-translation: Modified",
+      "diffRemoved": "TODO-translation: Removed",
+      "editor": "TODO-translation: Editor",
+      "excludedSource": "TODO-translation: Excluded source",
+      "executionHistory": "TODO-translation: Execution history",
+      "externalApis": "TODO-translation: External APIs",
+      "fts": "TODO-translation: Full text",
+      "graph": "TODO-translation: Graph",
+      "history": "TODO-translation: History",
+      "historyTitle": "TODO-translation: Context Profile History",
+      "hybrid": "TODO-translation: Hybrid",
+      "invalidJson": "TODO-translation: Profile JSON is invalid.",
+      "invalidObject": "TODO-translation: Profile JSON must be an object.",
+      "knowledgeGraph": "TODO-translation: Knowledge graph",
+      "maxDocuments": "TODO-translation: Max documents",
+      "maxTokens": "TODO-translation: Max tokens",
+      "memory": "TODO-translation: Memory",
+      "mockPreviewResult": "TODO-translation: Mock preview result",
+      "noSummary": "TODO-translation: No summary",
+      "previewQueryDefault": "TODO-translation: customer support refund request",
+      "profileControls": "TODO-translation: Profile Controls",
+      "profileId": "TODO-translation: Profile ID",
+      "profileIdHistoryPlaceholder": "TODO-translation: Paste profile UUID",
+      "profileIdPlaceholder": "TODO-translation: Paste an existing profile UUID",
+      "profileJson": "TODO-translation: Profile JSON",
+      "recency": "TODO-translation: Recency",
+      "rerankingRules": "TODO-translation: Reranking rules",
+      "retrievalStrategy": "TODO-translation: Retrieval strategy",
+      "rollback": "TODO-translation: Rollback",
+      "runMockPreview": "TODO-translation: Run Mock Preview",
+      "saveFailure": "TODO-translation: Unable to save context profile.",
+      "saving": "TODO-translation: Saving",
+      "score": "TODO-translation: Score",
+      "semantic": "TODO-translation: Semantic",
+      "sourcePicker": "TODO-translation: Source picker",
+      "sources": "TODO-translation: Sources",
+      "test": "TODO-translation: Test",
+      "title": "TODO-translation: Context Profile",
+      "toolOutputs": "TODO-translation: Tool outputs",
+      "update": "TODO-translation: Update Profile",
+      "updated": "TODO-translation: Context profile updated",
+      "version": "TODO-translation: Version",
+      "versionHistory": "TODO-translation: Version history"
+    },
+    "contract": {
+      "attach": "TODO-translation: Attach",
+      "attachContract": "TODO-translation: Attach Contract",
+      "attachRevision": "TODO-translation: Attach to revision",
+      "confirm": "TODO-translation: Confirm",
+      "confirmRealLlmPreview": "TODO-translation: Confirm Real LLM Preview",
+      "contract": "TODO-translation: Contract",
+      "contractId": "TODO-translation: Contract ID",
+      "contractIdPlaceholder": "TODO-translation: Paste existing contract UUID",
+      "controls": "TODO-translation: Contract Controls",
+      "costAcknowledgement": "TODO-translation: I understand this preview can call a real model and incur cost.",
+      "create": "TODO-translation: Create Contract",
+      "created": "TODO-translation: Contract created",
+      "description": "TODO-translation: Author behavioral terms, preview enforcement, and attach contracts to revisions.",
+      "editor": "TODO-translation: Editor",
+      "fallback": "TODO-translation: Fallback",
+      "finalAction": "TODO-translation: Final action",
+      "history": "TODO-translation: Contract history",
+      "historyDescription": "TODO-translation: Contract history will display saved previews and revisions.",
+      "invalidJson": "TODO-translation: Contract JSON is invalid.",
+      "invalidObject": "TODO-translation: Contract JSON must be an object.",
+      "loadPassingSample": "TODO-translation: Load Passing Sample",
+      "loadViolationSample": "TODO-translation: Load Violation Sample",
+      "loading": "TODO-translation: Loading",
+      "preview": "TODO-translation: Preview",
+      "previewFailure": "TODO-translation: Unable to preview contract.",
+      "realLlmCostWarning": "TODO-translation: This preview can consume model budget and may call external model providers.",
+      "realLlmPreview": "TODO-translation: Real LLM Preview",
+      "revisionId": "TODO-translation: Revision ID",
+      "revisionIdPlaceholder": "TODO-translation: Revision UUID",
+      "runMockPreview": "TODO-translation: Run Mock Preview",
+      "sampleInput": "TODO-translation: Sample input",
+      "sampleInputInvalid": "TODO-translation: Sample input is invalid JSON.",
+      "sampleInputObjectRequired": "TODO-translation: Sample input must be a JSON object.",
+      "satisfied": "TODO-translation: Satisfied",
+      "saveFailure": "TODO-translation: Unable to save contract.",
+      "saving": "TODO-translation: Saving",
+      "schemaEnums": "TODO-translation: Schema enums",
+      "title": "TODO-translation: Agent Contract",
+      "triggered": "TODO-translation: Triggered",
+      "typeToConfirm": "TODO-translation: Type USE_REAL_LLM to confirm.",
+      "update": "TODO-translation: Update Contract",
+      "updated": "TODO-translation: Contract updated",
+      "useRealLlmConfirmation": "TODO-translation: USE_REAL_LLM",
+      "violated": "TODO-translation: Violated"
+    },
+    "editor": {
+      "json": "TODO-translation: JSON",
+      "schemaEnabled": "TODO-translation: Schema validation enabled",
+      "schemaLoading": "TODO-translation: Schema loading",
+      "schemaUnavailable": "TODO-translation: Schema unavailable",
+      "validationUnavailable": "TODO-translation: Inline validation is unavailable for this editor.",
+      "yaml": "TODO-translation: YAML"
+    },
+    "provenance": {
+      "classification": "TODO-translation: Classification",
+      "confidential": "TODO-translation: Confidential",
+      "empty": "TODO-translation: No provenance sources yet.",
+      "emptyAvailable": "TODO-translation: No provenance sources available.",
+      "excluded": "TODO-translation: Excluded",
+      "excludedStatus": "TODO-translation: Excluded",
+      "included": "TODO-translation: Included",
+      "includedStatus": "TODO-translation: Included",
+      "origin": "TODO-translation: Origin",
+      "pii": "TODO-translation: PII",
+      "public": "TODO-translation: Public",
+      "score": "TODO-translation: Score",
+      "snippet": "TODO-translation: Snippet",
+      "title": "TODO-translation: Provenance"
+    },
+    "template": {
+      "category": "TODO-translation: Category",
+      "creatorAuthored": "TODO-translation: Creator-authored",
+      "fork": "TODO-translation: Fork",
+      "forkCreated": "TODO-translation: Template fork created",
+      "forkFailure": "TODO-translation: Unable to fork template.",
+      "forkName": "TODO-translation: Fork name",
+      "forkNameDefaultSuffix": "TODO-translation: copy",
+      "forkTemplate": "TODO-translation: Fork template",
+      "lastUpdated": "TODO-translation: Last updated",
+      "libraryEyebrow": "TODO-translation: Contract templates",
+      "libraryTitle": "TODO-translation: Template Library",
+      "platformAuthored": "TODO-translation: Platform-authored",
+      "upstreamUpdated": "TODO-translation: Template update available",
+      "version": "TODO-translation: Version",
+      "viewDiff": "TODO-translation: View diff"
+    },
+    "wizard": {
+      "attachBoth": "TODO-translation: Attach Both",
+      "attachBothDescription": "TODO-translation: Attach the selected context profile and contract before publishing {agent}.",
+      "back": "TODO-translation: Back",
+      "blueprintRequiredDescription": "TODO-translation: Generate a blueprint first so the remaining wizard steps have content to work from.",
+      "blueprintRequiredTitle": "TODO-translation: Blueprint required",
+      "cancel": "TODO-translation: Cancel",
+      "contextProfile": "TODO-translation: Context Profile",
+      "contextProfileDescription": "TODO-translation: Configure profile sources for {agent} from the dedicated editor.",
+      "contract": "TODO-translation: Contract",
+      "contractDescription": "TODO-translation: Author enforcement terms for {agent}.",
+      "customize": "TODO-translation: Customize",
+      "describe": "TODO-translation: Describe",
+      "description": "TODO-translation: Move from a natural-language brief to a validated draft agent with guided profile and contract steps.",
+      "headline": "TODO-translation: Create an agent from intent",
+      "missingContract": "TODO-translation: A contract is required for this trust tier.",
+      "missingProfile": "TODO-translation: A context profile is required for this trust tier.",
+      "next": "TODO-translation: Next",
+      "previewContract": "TODO-translation: Preview Contract",
+      "previewContractDescription": "TODO-translation: Validate contract behavior for {agent} with the mock provider.",
+      "readyToPublish": "TODO-translation: Ready to publish",
+      "reviewBlueprint": "TODO-translation: Review blueprint",
+      "startOver": "TODO-translation: Start over",
+      "testProfile": "TODO-translation: Test Profile",
+      "testProfileDescription": "TODO-translation: Run mock retrieval previews before publishing {agent}.",
+      "theAgent": "TODO-translation: the agent",
+      "thisAgent": "TODO-translation: this agent",
+      "title": "TODO-translation: Composition wizard",
+      "validate": "TODO-translation: Validate"
     }
   },
-  "admin": {
-    "oauth": {
-      "actions": {
-        "testConnectivity": "TODO-translation: Test connectivity",
-        "rotateSecret": "TODO-translation: Rotate secret",
-        "reseed": "TODO-translation: Reseed from env",
-        "cancel": "TODO-translation: Cancel",
-        "save": "TODO-translation: Save",
-        "apply": "TODO-translation: Apply"
+  "dataLifecycle": {
+    "article28": {
+      "button": "Generate Article 28 evidence",
+      "inProgressDescription": "Job {jobId} dispatched. The evidence package will be available for download once the worker assembles the audit chain bundle.",
+      "inProgressTitle": "Generation in progress"
+    },
+    "cancelDeletion": {
+      "cancelledDescription": "The workspace deletion has been aborted and the workspace is accessible again.",
+      "cancelledTitle": "Deletion cancelled",
+      "failedDescription": "The token is invalid, expired, or the grace period has ended.",
+      "failedTitle": "Cancellation failed",
+      "returnButton": "Return to dashboard",
+      "title": "Cancel deletion",
+      "validating": "Validating cancellation token…"
+    },
+    "deletion": {
+      "cancel": "Cancel",
+      "cancelLink": "You receive an email with a 7-day cancel link.",
+      "cascade": "After the grace period: agents, executions, costs, and members are deleted. Audit history is retained as a 90-day tombstone.",
+      "confirmIntro": "This will start a 7-day grace period. After that, all agents, executions, audit history, costs, and members are permanently deleted. You will receive a cancel link by email valid for 7 days.",
+      "confirmTitle": "Delete workspace",
+      "dangerZone": "Danger zone",
+      "deleteButton": "Delete workspace…",
+      "description": "Permanently remove this workspace and all of its data.",
+      "failed": "Could not schedule deletion",
+      "inaccessible": "Workspace becomes inaccessible immediately.",
+      "pendingDescription": "This workspace is scheduled for deletion at {date}. Use the cancel link emailed to the owner to abort the deletion before the grace period ends.",
+      "pendingTitle": "Pending deletion",
+      "reason": "Reason (optional)",
+      "schedule": "Schedule deletion",
+      "title": "Delete workspace",
+      "tryAgain": "Please try again.",
+      "typeToConfirm": "Type {name} to confirm",
+      "whatHappensTitle": "What happens next"
+    },
+    "dpa": {
+      "browseTenants": "Browse tenants →",
+      "cardTitle": "Data Processing Agreement",
+      "detailDescription": "Active Data Processing Agreement and Article 28 evidence for this tenant.",
+      "detailTitle": "Tenant DPA",
+      "effectiveDate": "Effective date",
+      "fileLabel": "DPA PDF",
+      "history": "{count, plural, one {# historical version preserved.} other {# historical versions preserved.}}",
+      "hubDescription": "Per-tenant DPA management. Select a tenant from the tenants admin page to upload or view its DPA.",
+      "hubLead": "DPA management is scoped per-tenant. Open a tenant detail page to upload, replace, or download its DPA, or use the navigation below.",
+      "hubTitle": "Data Processing Agreements",
+      "noDpa": "No DPA uploaded yet. Default tenants use the standard clickwrap DPA.",
+      "sha256": "SHA-256 {hash}",
+      "signed": "signed {date}",
+      "uploadButton": "Upload DPA",
+      "uploadDialogTitle": "Upload tenant DPA",
+      "uploadFailed": "Upload failed.",
+      "uploadIntro": "PDF up to 50 MB. The file is virus-scanned, hashed, and stored encrypted in Vault.",
+      "vaultPath": "Vault path: {path}",
+      "versionLabel": "Version",
+      "versionPlaceholder": "v1, v2.1, …"
+    },
+    "email": {
+      "deletionCancelledSubject": "Workspace deletion cancelled",
+      "deletionScheduledSubject": "Workspace deletion scheduled",
+      "exportReadyBody": "Your workspace data export is ready. Download the archive within 7 days using the link below.",
+      "exportReadySubject": "Your data export is ready",
+      "tenantExportReadySubject": "Your tenant data export is ready"
+    },
+    "export": {
+      "cardLead": "Download a complete archive of this workspace. The archive is a ZIP file with structured JSON files per resource type and is available for 7 days from a signed URL delivered by email.",
+      "cardTitle": "Workspace data export",
+      "description": "Request a full archive of your workspace data.",
+      "download": "Download",
+      "expires": "Expires {date}",
+      "noJobs": "No export jobs yet. Click \"Request export\" to start one.",
+      "requestButton": "Request export",
+      "title": "Workspace data export"
+    },
+    "subProcessors": {
+      "addAction": "Add",
+      "addButton": "Add sub-processor",
+      "addDialogTitle": "Add sub-processor",
+      "adminDescription": "Manage the third-party services published on the public sub-processors page.",
+      "adminTitle": "Sub-processors",
+      "cancel": "Cancel",
+      "category": "Category",
+      "categoryPlaceholder": "LLM provider, infrastructure, billing…",
+      "columnActions": "Actions",
+      "columnActive": "Active",
+      "columnCategory": "Category",
+      "columnDataCategories": "Data categories",
+      "columnLocation": "Location",
+      "columnName": "Sub-processor",
+      "columnPolicies": "Policies",
+      "dataCategoriesLabel": "Data categories (comma-separated)",
+      "dpa": "DPA",
+      "emailNotifications": "Email notifications",
+      "location": "Location",
+      "locationPlaceholder": "USA, Germany, Ireland…",
+      "name": "Name",
+      "noEntries": "No sub-processors registered.",
+      "privacy": "Privacy",
+      "privacyPolicyUrl": "Privacy policy URL",
+      "publicLead": "The third-party services we rely on to operate Musematic. Last updated {date}.",
+      "publicTitle": "Sub-processors",
+      "refreshing": "Sub-processor list is currently being refreshed.",
+      "removeConfirm": "Remove {name}?",
+      "rss": "RSS feed",
+      "subscribePrefix": "Subscribe to changes:"
+    },
+    "tenantDeletion": {
+      "cascadeDescription": "Phase 2 cascades workspaces, users, agents, executions, audit chain (cold storage retained 7 years), Vault paths, DNS records, TLS certs, and OAuth callbacks. The tenant admin can recover during the grace period only.",
+      "cascadeTitle": "Cascade reach",
+      "description": "Two-phase cascade with 30-day grace, 2PA-gated and subscription-preflight enforced.",
+      "failedTitle": "Could not schedule deletion",
+      "finalExport": "Generate final tenant export before cascade",
+      "graceDays": "Grace period (days)",
+      "graceEndsAt": "Grace ends at {date}.",
+      "jobCreatedTitle": "Deletion job created",
+      "reason": "Reason (required, audit logged)",
+      "scheduleButton": "Schedule tenant deletion",
+      "title": "Tenant deletion",
+      "twoPaPlaceholder": "Paste the consume_token from your 2PA challenge",
+      "twoPaToken": "Consumed 2PA token",
+      "typeSlug": "Type tenant slug {slug}"
+    },
+    "tenantExport": {
+      "cardTitle": "Tenant data export",
+      "description": "Generate a password-protected ZIP of all data owned by this tenant.",
+      "failedTitle": "Export request failed",
+      "lead": "Generate a password-protected ZIP containing all workspaces, users, and audit chain entries for this tenant. The download password is delivered to the tenant admin out-of-band.",
+      "passwordNote": "The password will be delivered to the tenant admin separately. The download URL stays valid for 7 days.",
+      "requestButton": "Request tenant export",
+      "requested": "requested {date}",
+      "title": "Tenant data export"
+    }
+  },
+  "discovery": {
+    "evidence": {
+      "sources": "Sources",
+      "title": "Evidence",
+      "unavailable": "Source unavailable"
+    },
+    "experiments": {
+      "completed": "Completed",
+      "launch": "Launch experiment",
+      "running": "Running",
+      "title": "Experiments"
+    },
+    "hypotheses": {
+      "confidenceTier": "Confidence tier",
+      "empty": "No hypotheses found.",
+      "filter": "Filter",
+      "state": {
+        "confirmed": "Confirmed",
+        "proposed": "Proposed",
+        "refuted": "Refuted",
+        "testing": "Testing"
       },
+      "title": "Hypotheses"
+    },
+    "session": {
       "tabs": {
-        "configuration": "TODO-translation: Configuration",
-        "status": "TODO-translation: Status",
-        "roleMappings": "TODO-translation: Role mappings",
-        "history": "TODO-translation: History",
-        "rateLimits": "TODO-translation: Rate limits"
+        "evidence": "Evidence",
+        "experiments": "Experiments",
+        "hypotheses": "Hypotheses",
+        "network": "Network",
+        "overview": "Overview"
       },
-      "source": {
-        "aria": "TODO-translation: Configuration source: {source}",
-        "env_var": "TODO-translation: Env var",
-        "manual": "TODO-translation: Manual",
-        "imported": "TODO-translation: Imported",
-        "env_varHelp": "TODO-translation: Provisioned from platform OAuth environment variables.",
-        "manualHelp": "TODO-translation: Managed directly in the admin interface.",
-        "importedHelp": "TODO-translation: Imported from a GitOps promotion manifest."
-      },
-      "tooltips": {
-        "testConnectivity": "TODO-translation: Generate a provider authorization URL and report diagnostics."
-      },
-      "connectivity": {
-        "success": "TODO-translation: Connectivity check completed",
-        "failure": "TODO-translation: Connectivity check failed"
-      },
-      "rotate": {
-        "title": "TODO-translation: Rotate OAuth client secret",
-        "description": "TODO-translation: Write a new client secret version through the configured secret provider.",
-        "newSecret": "TODO-translation: New client secret",
-        "confirmation": "TODO-translation: I understand the new secret will be written to Vault and will not be shown again.",
-        "success": "TODO-translation: Secret rotated successfully",
-        "failure": "TODO-translation: Unable to rotate secret"
-      },
-      "reseed": {
-        "title": "TODO-translation: Reseed provider from environment",
-        "description": "TODO-translation: Re-read the running pod environment and apply the configured provider values.",
-        "acknowledge": "TODO-translation: This may overwrite manual changes. Continue?",
-        "forceUpdate": "TODO-translation: Force update",
-        "forceUpdateHelp": "TODO-translation: Overwrite an existing provider instead of preserving manual edits.",
-        "changedFields": "TODO-translation: Changed fields",
-        "success": "TODO-translation: Provider reseeded",
-        "failure": "TODO-translation: Unable to reseed provider"
-      },
-      "status": {
-        "lastAuth": "TODO-translation: Last successful auth",
-        "auth24h": "TODO-translation: Auths in 24h",
-        "auth7d": "TODO-translation: Auths in 7d",
-        "auth30d": "TODO-translation: Auths in 30d",
-        "linkedUsers": "TODO-translation: Linked users",
-        "never": "TODO-translation: Never",
-        "loadFailed": "TODO-translation: Unable to load provider status."
-      },
-      "roleMappings": {
-        "group": "TODO-translation: Group or team",
-        "role": "TODO-translation: Role",
-        "actions": "TODO-translation: Actions",
-        "delete": "TODO-translation: Delete mapping",
-        "empty": "TODO-translation: No role mappings configured.",
-        "invalidGroup": "TODO-translation: One or more group values do not match the provider format.",
-        "add": "TODO-translation: Add mapping",
-        "saved": "TODO-translation: Role mappings saved",
-        "saveFailed": "TODO-translation: Unable to save role mappings"
-      },
-      "history": {
-        "timestamp": "TODO-translation: Timestamp",
-        "admin": "TODO-translation: Admin",
-        "action": "TODO-translation: Action",
-        "expand": "TODO-translation: Expand history row",
-        "collapse": "TODO-translation: Collapse history row",
-        "system": "TODO-translation: System",
-        "before": "TODO-translation: Before",
-        "after": "TODO-translation: After",
-        "loading": "TODO-translation: Loading history...",
-        "empty": "TODO-translation: No history entries found.",
-        "loadMore": "TODO-translation: Load more",
-        "loadFailed": "TODO-translation: Unable to load provider history."
-      },
-      "rateLimits": {
-        "per_ip_max": "TODO-translation: Per-IP max",
-        "per_ip_window": "TODO-translation: Per-IP window",
-        "per_user_max": "TODO-translation: Per-user max",
-        "per_user_window": "TODO-translation: Per-user window",
-        "global_max": "TODO-translation: Global max",
-        "global_window": "TODO-translation: Global window",
-        "per_ip_maxHelp": "TODO-translation: Maximum attempts from one IP address during the window.",
-        "per_ip_windowHelp": "TODO-translation: Per-IP window in seconds.",
-        "per_user_maxHelp": "TODO-translation: Maximum attempts for one authenticated user during the window.",
-        "per_user_windowHelp": "TODO-translation: Per-user window in seconds.",
-        "global_maxHelp": "TODO-translation: Maximum provider attempts across the platform during the window.",
-        "global_windowHelp": "TODO-translation: Global provider window in seconds.",
-        "saved": "TODO-translation: Rate limits saved",
-        "saveFailed": "TODO-translation: Unable to save rate limits",
-        "loadFailed": "TODO-translation: Unable to load rate limits."
-      }
-    },
-    "workspaces": {
-      "title": "TODO-translation: Workspaces",
-      "description": "TODO-translation: Global admin view of workspace owner surfaces.",
-      "search": "TODO-translation: Search workspaces",
-      "open": "TODO-translation: Open",
-      "empty": "TODO-translation: No matching workspaces.",
-      "name": "TODO-translation: Name",
-      "action": "TODO-translation: Action"
-    },
-    "ibor": {
-      "title": "TODO-translation: IBOR connectors",
-      "description": "TODO-translation: Manage LDAP, OIDC, and SCIM identity-broker sync connectors.",
-      "add": "TODO-translation: Add IBOR connector",
-      "selectedConnector": "TODO-translation: Selected connector",
-      "noConnectors": "TODO-translation: No IBOR connectors configured.",
-      "selectConnector": "TODO-translation: Select a connector to inspect sync history.",
-      "details": "TODO-translation: Details",
-      "test": "TODO-translation: Test",
-      "sync": "TODO-translation: Sync",
-      "never": "TODO-translation: Never",
-      "wizard": {
-        "title": "TODO-translation: IBOR connector wizard",
-        "type": "TODO-translation: Type",
-        "connection": "TODO-translation: Connection",
-        "test": "TODO-translation: Test",
-        "mapping": "TODO-translation: Mapping",
-        "schedule": "TODO-translation: Schedule",
-        "scope": "TODO-translation: Scope",
-        "activate": "TODO-translation: Activate",
-        "connectorName": "TODO-translation: Connector name",
-        "directoryType": "TODO-translation: Directory type",
-        "credentialReference": "TODO-translation: Credential reference",
-        "syncMode": "TODO-translation: Sync mode",
-        "cadenceSeconds": "TODO-translation: Cadence seconds",
-        "createDraft": "TODO-translation: Create connector draft",
-        "runDiagnostic": "TODO-translation: Run stepped diagnostic",
-        "enableConnector": "TODO-translation: Enable connector",
-        "syncNow": "TODO-translation: Sync now",
-        "defaultName": "TODO-translation: Corporate directory",
-        "stepsAria": "TODO-translation: IBOR setup steps",
-        "enabledAfterActivation": "TODO-translation: Enabled after activation",
-        "scopeDescription": "TODO-translation: Directory scope is constrained by the credential reference and role mappings. Workspace scope can be added per mapping row when a group should map into a workspace-specific role.",
-        "draftCreated": "TODO-translation: Connector draft created.",
-        "draftRequired": "TODO-translation: Create the connector draft before activation.",
-        "types": {
-          "ldap": "TODO-translation: LDAP",
-          "oidc": "TODO-translation: OIDC",
-          "scim": "TODO-translation: SCIM"
-        },
-        "syncModes": {
-          "pull": "TODO-translation: Pull",
-          "push": "TODO-translation: Push"
-        }
-      },
-      "mapping": {
-        "title": "TODO-translation: Attribute mapping",
-        "vendorPreset": "TODO-translation: Vendor preset"
-      },
-      "history": {
-        "title": "TODO-translation: Sync history",
-        "status": "TODO-translation: Status",
-        "started": "TODO-translation: Started",
-        "counts": "TODO-translation: Counts",
-        "nextPage": "TODO-translation: Next page"
-      },
-      "enabled": "TODO-translation: Enabled",
-      "disabled": "TODO-translation: Disabled",
-      "cadence": "TODO-translation: Cadence: {seconds}s",
-      "table": {
-        "name": "TODO-translation: Name",
-        "type": "TODO-translation: Type",
-        "lastRun": "TODO-translation: Last run",
-        "actions": "TODO-translation: Actions"
-      }
+      "title": "Discovery session"
     }
   },
   "notifications": {
     "inbox": {
-      "title": "TODO: Notifications",
+      "bulk": {
+        "markAllRead": "TODO: Mark all read",
+        "selectPage": "TODO: Select page",
+        "selected": "TODO: {count, plural, one {# selected} other {# selected}}",
+        "unread": "TODO: {count, plural, one {# unread} other {# unread}}"
+      },
       "description": "TODO: Persistent alert history, filtered to your account.",
-      "loading": "TODO: Loading notifications...",
       "empty": "TODO: No notifications match the current filters.",
       "filters": {
-        "title": "TODO: Filters",
-        "reset": "TODO: Reset",
-        "state": "TODO: State",
-        "read": {
-          "all": "TODO: All",
-          "unread": "TODO: Unread",
-          "read": "TODO: Read"
-        },
-        "severity": "TODO: Severity",
-        "options": {
-          "all": "TODO: All"
-        },
-        "severityOptions": {
-          "info": "TODO: Info",
-          "warning": "TODO: Warning",
-          "critical": "TODO: Critical"
-        },
         "channel": "TODO: Channel",
         "channels": {
-          "in_app": "TODO: In-app",
           "email": "TODO: Email",
-          "webhook": "TODO: Webhook",
+          "in_app": "TODO: In-app",
           "slack": "TODO: Slack",
+          "sms": "TODO: SMS",
           "teams": "TODO: Teams",
-          "sms": "TODO: SMS"
+          "webhook": "TODO: Webhook"
         },
         "eventType": "TODO: Event type",
         "from": "TODO: From",
+        "options": {
+          "all": "TODO: All"
+        },
+        "read": {
+          "all": "TODO: All",
+          "read": "TODO: Read",
+          "unread": "TODO: Unread"
+        },
+        "reset": "TODO: Reset",
+        "severity": "TODO: Severity",
+        "severityOptions": {
+          "critical": "TODO: Critical",
+          "info": "TODO: Info",
+          "warning": "TODO: Warning"
+        },
+        "state": "TODO: State",
+        "title": "TODO: Filters",
         "to": "TODO: To"
       },
-      "bulk": {
-        "selectPage": "TODO: Select page",
-        "selected": "TODO: {count, plural, one {# selected} other {# selected}}",
-        "unread": "TODO: {count, plural, one {# unread} other {# unread}}",
-        "markAllRead": "TODO: Mark all read"
-      },
       "item": {
-        "selectAria": "TODO: Select notification {title}",
+        "open": "TODO: Open",
         "read": "TODO: Read",
-        "unread": "TODO: Unread",
+        "selectAria": "TODO: Select notification {title}",
         "severity": {
+          "critical": "TODO: Critical",
           "info": "TODO: Info",
-          "warning": "TODO: Warning",
-          "critical": "TODO: Critical"
+          "warning": "TODO: Warning"
         },
-        "open": "TODO: Open"
-      }
+        "unread": "TODO: Unread"
+      },
+      "loading": "TODO: Loading notifications...",
+      "title": "TODO: Notifications"
     },
     "preferences": {
-      "title": "TODO: Notification Preferences",
       "description": "TODO: Control channel routing, digest timing, and quiet hours.",
-      "save": "TODO: Save",
-      "eventChannels": {
-        "title": "TODO: Event Channels",
-        "description": "TODO: Security and incident events stay protected by server-side validation."
-      },
       "digest": {
-        "title": "TODO: Digest Mode",
-        "description": "TODO: Choose delivery cadence per channel.",
         "channels": {
-          "in_app": "TODO: In-app",
           "email": "TODO: Email",
-          "webhook": "TODO: Webhook",
+          "in_app": "TODO: In-app",
           "slack": "TODO: Slack",
+          "sms": "TODO: SMS",
           "teams": "TODO: Teams",
-          "sms": "TODO: SMS"
+          "webhook": "TODO: Webhook"
         },
+        "description": "TODO: Choose delivery cadence per channel.",
         "modes": {
-          "immediate": "TODO: Immediate",
+          "daily": "TODO: Daily",
           "hourly": "TODO: Hourly",
-          "daily": "TODO: Daily"
-        }
+          "immediate": "TODO: Immediate"
+        },
+        "title": "TODO: Digest Mode"
       },
-      "quietHours": {
-        "title": "TODO: Quiet Hours",
-        "description": "TODO: Critical security and incident notifications bypass quiet hours.",
-        "start": "TODO: Start",
-        "end": "TODO: End",
-        "timezone": "TODO: Timezone"
-      },
-      "testEvents": {
-        "title": "TODO: Test Events",
-        "description": "TODO: Send a synthetic alert through your current preferences.",
-        "button": "TODO: Test"
+      "eventChannels": {
+        "description": "TODO: Security and incident events stay protected by server-side validation.",
+        "title": "TODO: Event Channels"
       },
       "matrix": {
-        "event": "TODO: Event",
+        "channelAria": "TODO: {eventType} {channel}",
         "channels": {
-          "in_app": "TODO: In-app",
           "email": "TODO: Email",
-          "webhook": "TODO: Webhook",
+          "in_app": "TODO: In-app",
           "slack": "TODO: Slack",
+          "sms": "TODO: SMS",
           "teams": "TODO: Teams",
-          "sms": "TODO: SMS"
+          "webhook": "TODO: Webhook"
         },
-        "mandatoryTooltip": "TODO: Mandatory events must keep at least one channel.",
-        "channelAria": "TODO: {eventType} {channel}"
-      }
-    }
-  },
-  "apiKeys": {
-    "title": "TODO: API Keys",
-    "description": "TODO: Create and revoke personal access tokens for developer workflows.",
-    "usage": "TODO: {activeCount} of {maxActive} active keys used.",
-    "create": {
-      "trigger": "TODO: Create API key",
-      "title": "TODO: Create API key",
-      "description": "TODO: Personal keys inherit only scopes you already have. MFA is required when enabled.",
-      "name": "TODO: Name",
-      "scopes": "TODO: Scopes",
-      "expires": "TODO: Expires",
-      "mfaCode": "TODO: MFA code",
-      "cancel": "TODO: Cancel",
-      "submit": "TODO: Create"
-    },
-    "oneTime": {
-      "title": "TODO: New API key",
-      "description": "TODO: This is the only time you will see this value.",
-      "copy": "TODO: Copy",
-      "dismiss": "TODO: Dismiss"
-    },
-    "table": {
-      "empty": "TODO: No personal API keys have been created.",
-      "name": "TODO: Name",
-      "identifier": "TODO: Identifier",
-      "status": {
-        "label": "TODO: Status",
-        "active": "TODO: Active",
-        "disabled": "TODO: Disabled",
-        "revoked": "TODO: Revoked"
+        "event": "TODO: Event",
+        "mandatoryTooltip": "TODO: Mandatory events must keep at least one channel."
       },
-      "created": "TODO: Created",
-      "lastUsed": "TODO: Last used",
-      "action": "TODO: Action",
-      "never": "TODO: Never",
-      "revokeAria": "TODO: Revoke {name}"
-    }
-  },
-  "security": {
-    "overview": {
-      "title": "TODO: Security",
-      "description": "TODO: Account controls for MFA, sessions, and audit history.",
-      "links": {
-        "mfa": {
-          "label": "TODO: Multi-factor authentication",
-          "description": "TODO: Enroll, confirm, and manage account MFA."
-        },
-        "sessions": {
-          "label": "TODO: Sessions",
-          "description": "TODO: Review active sessions and revoke access."
-        },
-        "activity": {
-          "label": "TODO: Activity",
-          "description": "TODO: Audit events involving your account."
-        }
-      }
-    },
-    "mfa": {
-      "title": "TODO: Multi-factor authentication",
-      "description": "TODO: Enroll, confirm, and manage account MFA.",
-      "enroll": "TODO: Enroll MFA",
-      "regenerateBackupCodes": "TODO: Regenerate backup codes",
-      "disable": "TODO: Disable MFA",
-      "statusTitle": "TODO: MFA status",
-      "status": {
-        "active": "TODO: Active",
-        "notEnrolled": "TODO: Not enrolled"
-      },
-      "activeDescription": "TODO: Your account requires an authenticator code during sign-in.",
-      "notEnrolledDescription": "TODO: Add an authenticator app to protect sign-in and sensitive account actions.",
-      "enrollFlow": {
-        "title": "TODO: Enrollment flow",
-        "stepCounter": "TODO: Step {current} of {total}",
-        "progressAria": "TODO: MFA enrollment progress",
-        "enableTitle": "TODO: Start with your authenticator app",
-        "enableDescription": "TODO: You will scan a QR code, confirm a 6-digit code, and save one-time backup codes.",
-        "begin": "TODO: Start enrollment",
-        "loading": "TODO: Preparing",
-        "qrTitle": "TODO: Scan or enter the setup key",
-        "qrDescription": "TODO: Use an authenticator app that supports time-based one-time passwords.",
-        "confirmTitle": "TODO: Confirm the authenticator code",
-        "confirmDescription": "TODO: Enter the current 6-digit code from your authenticator app.",
-        "backupTitle": "TODO: Save your backup codes",
-        "backupDescription": "TODO: These codes are shown once. Store them before leaving this step.",
-        "codeAria": "TODO: Authenticator verification code",
-        "back": "TODO: Back",
-        "next": "TODO: Next",
-        "verify": "TODO: Verify",
-        "verifying": "TODO: Verifying",
-        "successTitle": "TODO: MFA enrollment completed",
-        "errors": {
-          "enroll": "TODO: Unable to prepare MFA enrollment.",
-          "confirm": "TODO: Unable to verify that code."
-        }
-      },
-      "qr": {
-        "aria": "TODO: MFA QR code",
-        "manualTitle": "TODO: Manual entry",
-        "manualDescription": "TODO: If you cannot scan the QR code, enter this setup key in your authenticator app.",
-        "copy": "TODO: Copy setup key",
-        "copied": "TODO: Copied"
-      },
-      "backupCodes": {
-        "title": "TODO: One-time backup codes",
-        "description": "TODO: Each code can be used once if you lose access to your authenticator.",
-        "copy": "TODO: Copy all codes",
-        "copied": "TODO: Copied",
-        "download": "TODO: Download",
-        "acknowledge": "TODO: I have saved these backup codes somewhere safe.",
-        "dismiss": "TODO: I saved them"
-      },
-      "regenerateDialog": {
-        "title": "TODO: Regenerate backup codes",
-        "description": "TODO: Existing unused backup codes will stop working after regeneration.",
-        "code": "TODO: Authenticator code",
-        "codeAria": "TODO: Authenticator code for backup-code regeneration",
-        "cancel": "TODO: Cancel",
-        "submit": "TODO: Regenerate",
-        "submitting": "TODO: Regenerating",
-        "successTitle": "TODO: Backup codes regenerated",
-        "error": "TODO: Unable to regenerate backup codes."
-      },
-      "disableDialog": {
-        "title": "TODO: Disable MFA",
-        "description": "TODO: Enter your password and current authenticator code. If MFA is enforced by policy, this action will be refused.",
-        "password": "TODO: Password",
-        "code": "TODO: Authenticator code",
-        "codeAria": "TODO: Authenticator code for disabling MFA",
-        "cancel": "TODO: Cancel",
-        "submit": "TODO: Disable MFA",
-        "submitting": "TODO: Disabling",
-        "successTitle": "TODO: MFA disabled",
-        "error": "TODO: Unable to disable MFA."
-      }
-    },
-    "sessions": {
-      "title": "TODO: Sessions",
-      "description": "TODO: Revoke sessions you no longer recognize.",
-      "revokeOthers": "TODO: Revoke other sessions",
-      "list": {
-        "empty": "TODO: No active sessions were returned.",
-        "unknownDevice": "TODO: Unknown device",
-        "current": "TODO: This session",
-        "unknownLocation": "TODO: Unknown location",
-        "unknown": "TODO: Unknown",
-        "lastActive": "TODO: Last active {date}",
-        "created": "TODO: Created {date}",
-        "revokeAria": "TODO: Revoke session {sessionId}",
-        "revoke": "TODO: Revoke"
-      }
-    },
-    "activity": {
-      "title": "TODO: Activity",
-      "description": "TODO: Audit events where your account is actor or subject.",
-      "empty": "TODO: No activity entries match the current filters.",
-      "loadMore": "TODO: Load more",
-      "filters": {
-        "title": "TODO: Filters",
-        "reset": "TODO: Reset",
-        "eventType": "TODO: Event type",
+      "quietHours": {
+        "description": "TODO: Critical security and incident notifications bypass quiet hours.",
+        "end": "TODO: End",
         "start": "TODO: Start",
-        "end": "TODO: End"
-      }
+        "timezone": "TODO: Timezone",
+        "title": "TODO: Quiet Hours"
+      },
+      "save": "TODO: Save",
+      "testEvents": {
+        "button": "TODO: Test",
+        "description": "TODO: Send a synthetic alert through your current preferences.",
+        "title": "TODO: Test Events"
+      },
+      "title": "TODO: Notification Preferences"
     }
+  },
+  "platformStatus": {
+    "blockedActionExplanation": "Writes are temporarily paused for maintenance. You can try again after {date}.",
+    "blockedActionTitle": "Maintenance is in progress",
+    "dismiss": "Dismiss",
+    "endsAt": "Ends at {date}",
+    "incidentActive": "Active incident",
+    "incidentSeverity": {
+      "critical": "Critical",
+      "high": "High",
+      "info": "Info",
+      "warning": "Warning"
+    },
+    "lastUpdated": "Last updated",
+    "maintenanceInProgress": "Maintenance in progress",
+    "maintenanceScheduled": "Scheduled maintenance",
+    "retryAfter": "Retry after",
+    "statusLabels": {
+      "degraded": "Degraded",
+      "full_outage": "Full outage",
+      "maintenance": "Maintenance",
+      "operational": "Operational",
+      "partial_outage": "Partial outage"
+    },
+    "subscribeToUpdates": "Subscribe to updates",
+    "subscriptions": {
+      "add": "Add subscription",
+      "channelEmail": "Email",
+      "channelSlack": "Slack",
+      "channelWebhook": "Webhook",
+      "empty": "No status subscriptions configured.",
+      "health": {
+        "healthy": "Healthy",
+        "pending": "Pending",
+        "unhealthy": "Unhealthy",
+        "unsubscribed": "Unsubscribed"
+      },
+      "removeConfirm": "Remove this status subscription?",
+      "scope": {
+        "allComponents": "All components",
+        "specificComponents": "Specific components"
+      },
+      "title": "Status subscriptions"
+    },
+    "title": "Platform status",
+    "unknownEnd": "the maintenance window ends",
+    "uptime30d": "30-day uptime",
+    "viewIncident": "View incident",
+    "viewStatusPage": "View status page"
   },
   "privacy": {
     "consent": {
-      "title": "TODO: Consent",
-      "description": "TODO: Review current consent state and history.",
-      "tabs": {
-        "current": "TODO: Current",
-        "history": "TODO: History"
-      },
-      "empty": "TODO: No consent records were returned.",
       "card": {
-        "never": "TODO: Never",
         "grantedAt": "TODO: Granted {date}",
+        "never": "TODO: Never",
         "revokedAt": "TODO: Revoked {date}",
         "status": {
           "granted": "TODO: Granted",
           "revoked": "TODO: Revoked"
         }
       },
-      "revoke": {
-        "trigger": "TODO: Revoke",
-        "title": "TODO: Revoke consent",
-        "description": "TODO: Revoking {consentType} can disable related agent interactions, analytics, or training features until consent is granted again.",
-        "cancel": "TODO: Cancel",
-        "confirm": "TODO: Revoke consent"
-      },
+      "description": "TODO: Review current consent state and history.",
+      "empty": "TODO: No consent records were returned.",
       "history": {
-        "never": "TODO: Never",
         "empty": "TODO: No consent history.",
-        "revoked": "TODO: revoked {date}",
-        "granted": "TODO: granted {date}"
-      }
+        "granted": "TODO: granted {date}",
+        "never": "TODO: Never",
+        "revoked": "TODO: revoked {date}"
+      },
+      "revoke": {
+        "cancel": "TODO: Cancel",
+        "confirm": "TODO: Revoke consent",
+        "description": "TODO: Revoking {consentType} can disable related agent interactions, analytics, or training features until consent is granted again.",
+        "title": "TODO: Revoke consent",
+        "trigger": "TODO: Revoke"
+      },
+      "tabs": {
+        "current": "TODO: Current",
+        "history": "TODO: History"
+      },
+      "title": "TODO: Consent"
     },
     "dsr": {
-      "title": "TODO: Data Subject Requests",
       "description": "TODO: Submit and review privacy requests for your account.",
-      "submit": {
-        "title": "TODO: Submit request",
-        "description": "TODO: Choose one GDPR right and submit it for processing.",
-        "requestType": "TODO: Request type",
-        "types": {
-          "access": "TODO: Access",
-          "rectification": "TODO: Rectification",
-          "erasure": "TODO: Erasure",
-          "portability": "TODO: Portability",
-          "restriction": "TODO: Restriction",
-          "objection": "TODO: Objection"
-        },
-        "confirmDelete": "TODO: Type DELETE",
-        "erasureTitle": "TODO: Permanent erasure",
-        "erasureDescription": "TODO: Active executions may fail when erasure is processed. Submit only after reviewing in-flight work.",
-        "legalBasis": "TODO: Legal basis or notes",
-        "submit": "TODO: Submit request"
-      },
       "status": {
-        "empty": "TODO: No data subject requests have been submitted.",
-        "pending": "TODO: Pending",
-        "filed": "TODO: Filed {date}",
         "completed": "TODO: Completed {date}",
-        "types": {
-          "access": "TODO: Access",
-          "rectification": "TODO: Rectification",
-          "erasure": "TODO: Erasure",
-          "portability": "TODO: Portability",
-          "restriction": "TODO: Restriction",
-          "objection": "TODO: Objection"
-        },
+        "empty": "TODO: No data subject requests have been submitted.",
+        "filed": "TODO: Filed {date}",
+        "pending": "TODO: Pending",
         "states": {
-          "received": "TODO: Received",
-          "scheduled_with_hold": "TODO: Scheduled with hold",
-          "in_progress": "TODO: In progress",
+          "cancelled": "TODO: Cancelled",
           "completed": "TODO: Completed",
           "failed": "TODO: Failed",
-          "cancelled": "TODO: Cancelled"
+          "in_progress": "TODO: In progress",
+          "received": "TODO: Received",
+          "scheduled_with_hold": "TODO: Scheduled with hold"
+        },
+        "types": {
+          "access": "TODO: Access",
+          "erasure": "TODO: Erasure",
+          "objection": "TODO: Objection",
+          "portability": "TODO: Portability",
+          "rectification": "TODO: Rectification",
+          "restriction": "TODO: Restriction"
         }
+      },
+      "submit": {
+        "confirmDelete": "TODO: Type DELETE",
+        "description": "TODO: Choose one GDPR right and submit it for processing.",
+        "erasureDescription": "TODO: Active executions may fail when erasure is processed. Submit only after reviewing in-flight work.",
+        "erasureTitle": "TODO: Permanent erasure",
+        "legalBasis": "TODO: Legal basis or notes",
+        "requestType": "TODO: Request type",
+        "submit": "TODO: Submit request",
+        "title": "TODO: Submit request",
+        "types": {
+          "access": "TODO: Access",
+          "erasure": "TODO: Erasure",
+          "objection": "TODO: Objection",
+          "portability": "TODO: Portability",
+          "rectification": "TODO: Rectification",
+          "restriction": "TODO: Restriction"
+        }
+      },
+      "title": "TODO: Data Subject Requests"
+    }
+  },
+  "security": {
+    "activity": {
+      "description": "TODO: Audit events where your account is actor or subject.",
+      "empty": "TODO: No activity entries match the current filters.",
+      "filters": {
+        "end": "TODO: End",
+        "eventType": "TODO: Event type",
+        "reset": "TODO: Reset",
+        "start": "TODO: Start",
+        "title": "TODO: Filters"
+      },
+      "loadMore": "TODO: Load more",
+      "title": "TODO: Activity"
+    },
+    "mfa": {
+      "activeDescription": "TODO: Your account requires an authenticator code during sign-in.",
+      "backupCodes": {
+        "acknowledge": "TODO: I have saved these backup codes somewhere safe.",
+        "copied": "TODO: Copied",
+        "copy": "TODO: Copy all codes",
+        "description": "TODO: Each code can be used once if you lose access to your authenticator.",
+        "dismiss": "TODO: I saved them",
+        "download": "TODO: Download",
+        "title": "TODO: One-time backup codes"
+      },
+      "description": "TODO: Enroll, confirm, and manage account MFA.",
+      "disable": "TODO: Disable MFA",
+      "disableDialog": {
+        "cancel": "TODO: Cancel",
+        "code": "TODO: Authenticator code",
+        "codeAria": "TODO: Authenticator code for disabling MFA",
+        "description": "TODO: Enter your password and current authenticator code. If MFA is enforced by policy, this action will be refused.",
+        "error": "TODO: Unable to disable MFA.",
+        "password": "TODO: Password",
+        "submit": "TODO: Disable MFA",
+        "submitting": "TODO: Disabling",
+        "successTitle": "TODO: MFA disabled",
+        "title": "TODO: Disable MFA"
+      },
+      "enroll": "TODO: Enroll MFA",
+      "enrollFlow": {
+        "back": "TODO: Back",
+        "backupDescription": "TODO: These codes are shown once. Store them before leaving this step.",
+        "backupTitle": "TODO: Save your backup codes",
+        "begin": "TODO: Start enrollment",
+        "codeAria": "TODO: Authenticator verification code",
+        "confirmDescription": "TODO: Enter the current 6-digit code from your authenticator app.",
+        "confirmTitle": "TODO: Confirm the authenticator code",
+        "enableDescription": "TODO: You will scan a QR code, confirm a 6-digit code, and save one-time backup codes.",
+        "enableTitle": "TODO: Start with your authenticator app",
+        "errors": {
+          "confirm": "TODO: Unable to verify that code.",
+          "enroll": "TODO: Unable to prepare MFA enrollment."
+        },
+        "loading": "TODO: Preparing",
+        "next": "TODO: Next",
+        "progressAria": "TODO: MFA enrollment progress",
+        "qrDescription": "TODO: Use an authenticator app that supports time-based one-time passwords.",
+        "qrTitle": "TODO: Scan or enter the setup key",
+        "stepCounter": "TODO: Step {current} of {total}",
+        "successTitle": "TODO: MFA enrollment completed",
+        "title": "TODO: Enrollment flow",
+        "verify": "TODO: Verify",
+        "verifying": "TODO: Verifying"
+      },
+      "notEnrolledDescription": "TODO: Add an authenticator app to protect sign-in and sensitive account actions.",
+      "qr": {
+        "aria": "TODO: MFA QR code",
+        "copied": "TODO: Copied",
+        "copy": "TODO: Copy setup key",
+        "manualDescription": "TODO: If you cannot scan the QR code, enter this setup key in your authenticator app.",
+        "manualTitle": "TODO: Manual entry"
+      },
+      "regenerateBackupCodes": "TODO: Regenerate backup codes",
+      "regenerateDialog": {
+        "cancel": "TODO: Cancel",
+        "code": "TODO: Authenticator code",
+        "codeAria": "TODO: Authenticator code for backup-code regeneration",
+        "description": "TODO: Existing unused backup codes will stop working after regeneration.",
+        "error": "TODO: Unable to regenerate backup codes.",
+        "submit": "TODO: Regenerate",
+        "submitting": "TODO: Regenerating",
+        "successTitle": "TODO: Backup codes regenerated",
+        "title": "TODO: Regenerate backup codes"
+      },
+      "status": {
+        "active": "TODO: Active",
+        "notEnrolled": "TODO: Not enrolled"
+      },
+      "statusTitle": "TODO: MFA status",
+      "title": "TODO: Multi-factor authentication"
+    },
+    "overview": {
+      "description": "TODO: Account controls for MFA, sessions, and audit history.",
+      "links": {
+        "activity": {
+          "description": "TODO: Audit events involving your account.",
+          "label": "TODO: Activity"
+        },
+        "mfa": {
+          "description": "TODO: Enroll, confirm, and manage account MFA.",
+          "label": "TODO: Multi-factor authentication"
+        },
+        "sessions": {
+          "description": "TODO: Review active sessions and revoke access.",
+          "label": "TODO: Sessions"
+        }
+      },
+      "title": "TODO: Security"
+    },
+    "sessions": {
+      "description": "TODO: Revoke sessions you no longer recognize.",
+      "list": {
+        "created": "TODO: Created {date}",
+        "current": "TODO: This session",
+        "empty": "TODO: No active sessions were returned.",
+        "lastActive": "TODO: Last active {date}",
+        "revoke": "TODO: Revoke",
+        "revokeAria": "TODO: Revoke session {sessionId}",
+        "unknown": "TODO: Unknown",
+        "unknownDevice": "TODO: Unknown device",
+        "unknownLocation": "TODO: Unknown location"
+      },
+      "revokeOthers": "TODO: Revoke other sessions",
+      "title": "TODO: Sessions"
+    }
+  },
+  "simulations": {
+    "scenarios": {
+      "digitalTwin": {
+        "divergencePoints": "Divergence points",
+        "mockComponents": "Mock components",
+        "noReferenceAvailable": "No reference available.",
+        "realComponents": "Real components",
+        "referenceProdExecution": "Reference production execution",
+        "simulatedVsWallClock": "Simulated vs wall clock",
+        "title": "Digital twin divergence"
+      },
+      "empty": "No scenarios yet",
+      "fields": {
+        "agents": "Agents",
+        "description": "Description",
+        "inputDistribution": "Input distribution",
+        "mockSet": "Mock set",
+        "name": "Name",
+        "runSchedule": "Run schedule",
+        "successCriteria": "Success criteria",
+        "twinFidelity": "Twin fidelity",
+        "workflowTemplate": "Workflow template"
+      },
+      "new": "New scenario",
+      "run": {
+        "iterations": "Iterations",
+        "useRealLlm": "Use real LLM"
+      },
+      "title": "Simulation scenarios",
+      "validation": {
+        "emptySuccessCriteria": "Add at least one success criterion.",
+        "forbiddenTwinCombo": "This twin fidelity combination is not allowed.",
+        "plaintextSecret": "Plaintext secrets are not allowed in scenario configuration.",
+        "unknownFqn": "Unknown agent FQN."
       }
     }
   },
   "workspaces": {
-    "list": {
-      "title": "TODO-translation: Workspaces",
-      "description": "TODO-translation: Open a workspace owner workbench.",
-      "empty": "TODO-translation: No workspaces available.",
-      "open": "TODO-translation: Open workspace",
-      "fallbackDescription": "TODO-translation: Workspace owner workbench",
-      "unavailable": "TODO-translation: Workspaces unavailable",
-      "unavailableDescription": "TODO-translation: The workspace list could not be loaded.",
-      "emptyDescription": "TODO-translation: No workspace memberships were returned."
+    "connectors": {
+      "activity": "TODO-translation: Activity",
+      "add": "TODO-translation: Add connector",
+      "delivered": "TODO-translation: Delivered",
+      "description": "TODO-translation: Workspace-owned connector instances and delivery health.",
+      "details": "TODO-translation: Connector details",
+      "detailsDescription": "TODO-translation: Inspect workspace-owned connector status, activity, and secret rotation.",
+      "empty": "TODO-translation: No connectors",
+      "emptyDescription": "TODO-translation: Add a workspace connector to start routing messages.",
+      "failed": "TODO-translation: Failed",
+      "noDeliveries": "TODO-translation: No deliveries recorded.",
+      "openDetail": "TODO-translation: Open detail",
+      "rotate": {
+        "confirm": "TODO-translation: Confirm rotation",
+        "description": "TODO-translation: The value is write-only and should be submitted to the backend secret rotation endpoint.",
+        "newSecret": "TODO-translation: New secret",
+        "title": "TODO-translation: Rotate connector secret",
+        "trigger": "TODO-translation: Rotate secret"
+      },
+      "rotateSecret": "TODO-translation: Rotate secret",
+      "title": "TODO-translation: Connectors",
+      "unavailable": "TODO-translation: Connectors unavailable",
+      "unavailableDescription": "TODO-translation: The connectors endpoint did not return data.",
+      "wizard": {
+        "activate": "TODO-translation: Activate",
+        "add": "TODO-translation: Add connector",
+        "back": "TODO-translation: Back",
+        "credentials": "TODO-translation: Credentials",
+        "description": "TODO-translation: Guided setup validates credentials with dry-run connectivity checks before activation.",
+        "dryRunNote": "TODO-translation: Connectivity tests call the connector dry-run endpoint and do not create delivery records.",
+        "email": {
+          "description": "TODO-translation: Configure IMAP and SMTP credentials; test uses IMAP NOOP.",
+          "imapHost": "TODO-translation: IMAP host",
+          "smtpHost": "TODO-translation: SMTP host",
+          "title": "TODO-translation: Email prerequisites"
+        },
+        "next": "TODO-translation: Next",
+        "prerequisites": "TODO-translation: Prerequisites",
+        "ready": "TODO-translation: Ready",
+        "scope": "TODO-translation: Scope",
+        "slack": {
+          "botTokenRef": "TODO-translation: Bot token secret ref",
+          "description": "TODO-translation: Use a bot token with auth.test access and a signing secret.",
+          "teamId": "TODO-translation: Team ID",
+          "title": "TODO-translation: Slack prerequisites"
+        },
+        "stepStatus": "TODO-translation: Step {current}: {step}. Connectivity tests call the connector dry-run endpoint and do not create delivery records.",
+        "telegram": {
+          "botTokenRef": "TODO-translation: Bot token secret ref",
+          "description": "TODO-translation: Use a bot token that can answer Telegram getMe.",
+          "title": "TODO-translation: Telegram prerequisites"
+        },
+        "testConnectivity": "TODO-translation: Test connectivity",
+        "title": "TODO-translation: Connector setup",
+        "webhook": {
+          "description": "TODO-translation: Destination must accept HEAD requests before activation.",
+          "destinationUrl": "TODO-translation: Destination URL",
+          "title": "TODO-translation: Webhook prerequisites"
+        }
+      },
+      "workspaceOwned": "TODO-translation: Workspace-owned"
+    },
+    "dashboard": {
+      "cachedUntil": "TODO-translation: Cached until {time}",
+      "cards": {
+        "activeGoals": "TODO-translation: Active goals",
+        "agentCount": "TODO-translation: Agents",
+        "budget": "TODO-translation: Budget",
+        "dlpViolations": "TODO-translation: DLP violations",
+        "executionsInFlight": "TODO-translation: Executions in flight",
+        "quotaUsage": "TODO-translation: Quota usage",
+        "recentActivity": "TODO-translation: Recent activity",
+        "tagSummary": "TODO-translation: Tags"
+      },
+      "description": "TODO-translation: Operational summary scoped to this workspace.",
+      "empty": "TODO-translation: No recent activity.",
+      "eventFallback": "TODO-translation: Workspace event",
+      "latestActivity": "TODO-translation: Latest workspace activity",
+      "noTags": "TODO-translation: No tags",
+      "quotas": {
+        "agents": "TODO-translation: agents",
+        "executions": "TODO-translation: executions",
+        "fleets": "TODO-translation: fleets",
+        "storage_gb": "TODO-translation: storage GB"
+      },
+      "title": "TODO-translation: Workspace dashboard",
+      "unavailable": "TODO-translation: Dashboard unavailable",
+      "unavailableDescription": "TODO-translation: The workspace summary endpoint did not return data.",
+      "unset": "TODO-translation: unset"
     },
     "layout": {
       "badge": "TODO-translation: Workspace owner",
-      "workspaceId": "TODO-translation: Workspace ID",
       "nav": {
+        "connectors": "TODO-translation: Connectors",
         "dashboard": "TODO-translation: Dashboard",
         "members": "TODO-translation: Members",
-        "settings": "TODO-translation: Settings",
-        "connectors": "TODO-translation: Connectors",
         "quotas": "TODO-translation: Quotas",
+        "settings": "TODO-translation: Settings",
         "tags": "TODO-translation: Tags",
         "visibility": "TODO-translation: Visibility"
-      }
-    },
-    "dashboard": {
-      "title": "TODO-translation: Workspace dashboard",
-      "description": "TODO-translation: Operational summary scoped to this workspace.",
-      "cards": {
-        "activeGoals": "TODO-translation: Active goals",
-        "executionsInFlight": "TODO-translation: Executions in flight",
-        "agentCount": "TODO-translation: Agents",
-        "budget": "TODO-translation: Budget",
-        "quotaUsage": "TODO-translation: Quota usage",
-        "tagSummary": "TODO-translation: Tags",
-        "dlpViolations": "TODO-translation: DLP violations",
-        "recentActivity": "TODO-translation: Recent activity"
       },
-      "empty": "TODO-translation: No recent activity.",
-      "cachedUntil": "TODO-translation: Cached until {time}",
-      "unavailable": "TODO-translation: Dashboard unavailable",
-      "unavailableDescription": "TODO-translation: The workspace summary endpoint did not return data.",
-      "unset": "TODO-translation: unset",
-      "noTags": "TODO-translation: No tags",
-      "eventFallback": "TODO-translation: Workspace event",
-      "latestActivity": "TODO-translation: Latest workspace activity",
-      "quotas": {
-        "agents": "TODO-translation: agents",
-        "fleets": "TODO-translation: fleets",
-        "executions": "TODO-translation: executions",
-        "storage_gb": "TODO-translation: storage GB"
-      }
+      "workspaceId": "TODO-translation: Workspace ID"
+    },
+    "list": {
+      "description": "TODO-translation: Open a workspace owner workbench.",
+      "empty": "TODO-translation: No workspaces available.",
+      "emptyDescription": "TODO-translation: No workspace memberships were returned.",
+      "fallbackDescription": "TODO-translation: Workspace owner workbench",
+      "open": "TODO-translation: Open workspace",
+      "title": "TODO-translation: Workspaces",
+      "unavailable": "TODO-translation: Workspaces unavailable",
+      "unavailableDescription": "TODO-translation: The workspace list could not be loaded."
     },
     "members": {
-      "title": "TODO-translation: Members",
       "description": "TODO-translation: Manage workspace roles and 2PA-gated ownership transfer.",
       "invite": "TODO-translation: Invite",
-      "transferOwnership": "TODO-translation: Transfer ownership",
-      "role": "TODO-translation: Role",
+      "inviteDialog": {
+        "add": "TODO-translation: Add member",
+        "description": "TODO-translation: Add an existing platform user to this workspace with the selected role.",
+        "title": "TODO-translation: Invite workspace member",
+        "userId": "TODO-translation: User ID"
+      },
       "joined": "TODO-translation: Joined",
       "remove": "TODO-translation: Remove member",
-      "unavailable": "TODO-translation: Members unavailable",
-      "unavailableDescription": "TODO-translation: The members endpoint did not return data.",
-      "inviteDialog": {
-        "title": "TODO-translation: Invite workspace member",
-        "description": "TODO-translation: Add an existing platform user to this workspace with the selected role.",
-        "userId": "TODO-translation: User ID",
-        "add": "TODO-translation: Add member"
-      },
-      "transferDialog": {
-        "title": "TODO-translation: Transfer ownership",
-        "description": "TODO-translation: Creates a two-person approval challenge before the owner can be changed.",
-        "newOwnerId": "TODO-translation: New owner user ID",
-        "createChallenge": "TODO-translation: Create 2PA challenge",
-        "approve": "TODO-translation: Approve challenge",
-        "consume": "TODO-translation: Consume challenge",
-        "challengeStatus": "TODO-translation: Challenge {status}",
-        "expires": "TODO-translation: Expires {time}"
-      },
-      "user": "TODO-translation: User",
+      "role": "TODO-translation: Role",
       "roles": {
-        "owner": "TODO-translation: owner",
         "admin": "TODO-translation: admin",
         "member": "TODO-translation: member",
+        "owner": "TODO-translation: owner",
         "viewer": "TODO-translation: viewer"
-      }
+      },
+      "title": "TODO-translation: Members",
+      "transferDialog": {
+        "approve": "TODO-translation: Approve challenge",
+        "challengeStatus": "TODO-translation: Challenge {status}",
+        "consume": "TODO-translation: Consume challenge",
+        "createChallenge": "TODO-translation: Create 2PA challenge",
+        "description": "TODO-translation: Creates a two-person approval challenge before the owner can be changed.",
+        "expires": "TODO-translation: Expires {time}",
+        "newOwnerId": "TODO-translation: New owner user ID",
+        "title": "TODO-translation: Transfer ownership"
+      },
+      "transferOwnership": "TODO-translation: Transfer ownership",
+      "unavailable": "TODO-translation: Members unavailable",
+      "unavailableDescription": "TODO-translation: The members endpoint did not return data.",
+      "user": "TODO-translation: User"
+    },
+    "quotas": {
+      "configuredLimit": "TODO-translation: Configured limit",
+      "description": "TODO-translation: Usage and workspace quota configuration.",
+      "title": "TODO-translation: Quotas",
+      "unavailable": "TODO-translation: Quotas unavailable",
+      "unavailableDescription": "TODO-translation: The workspace settings endpoint did not return data.",
+      "usage": "TODO-translation: Usage"
     },
     "settings": {
-      "title": "TODO-translation: Settings",
-      "description": "TODO-translation: Budget, quota, DLP, and residency controls scoped to this workspace.",
-      "tabs": {
-        "budget": "TODO-translation: Budget",
-        "quotas": "TODO-translation: Quotas",
-        "dlp": "TODO-translation: DLP",
-        "residency": "TODO-translation: Residency"
-      },
       "budget": {
-        "monthlyLimit": "TODO-translation: Monthly limit",
         "hardCap": "TODO-translation: Hard cap enabled",
-        "threshold": "TODO-translation: Alert threshold",
+        "monthlyLimit": "TODO-translation: Monthly limit",
         "save": "TODO-translation: Save budget",
+        "threshold": "TODO-translation: Alert threshold",
         "title": "TODO-translation: Budget"
       },
+      "description": "TODO-translation: Budget, quota, DLP, and residency controls scoped to this workspace.",
+      "dlp": {
+        "enabled": "TODO-translation: DLP enabled",
+        "policy": "TODO-translation: Policy JSON",
+        "ruleIds": "TODO-translation: Rule IDs",
+        "save": "TODO-translation: Save DLP rules",
+        "title": "TODO-translation: DLP rules"
+      },
       "quotas": {
+        "fields": {
+          "agents": "TODO-translation: Agents",
+          "executions": "TODO-translation: Executions",
+          "fleets": "TODO-translation: Fleets",
+          "storage_gb": "TODO-translation: Storage GB"
+        },
         "maxAgents": "TODO-translation: Max agents",
         "maxExecutions": "TODO-translation: Max concurrent executions",
         "maxStorageGb": "TODO-translation: Storage quota GB",
         "save": "TODO-translation: Save quotas",
-        "title": "TODO-translation: Quotas",
-        "fields": {
-          "agents": "TODO-translation: Agents",
-          "fleets": "TODO-translation: Fleets",
-          "executions": "TODO-translation: Executions",
-          "storage_gb": "TODO-translation: Storage GB"
-        }
-      },
-      "dlp": {
-        "enabled": "TODO-translation: DLP enabled",
-        "policy": "TODO-translation: Policy JSON",
-        "save": "TODO-translation: Save DLP rules",
-        "title": "TODO-translation: DLP rules",
-        "ruleIds": "TODO-translation: Rule IDs"
+        "title": "TODO-translation: Quotas"
       },
       "residency": {
         "region": "TODO-translation: Region",
-        "tier": "TODO-translation: Tier",
         "save": "TODO-translation: Save residency",
+        "tier": "TODO-translation: Tier",
         "title": "TODO-translation: Residency"
       },
+      "tabs": {
+        "budget": "TODO-translation: Budget",
+        "dlp": "TODO-translation: DLP",
+        "quotas": "TODO-translation: Quotas",
+        "residency": "TODO-translation: Residency"
+      },
+      "title": "TODO-translation: Settings",
       "unavailable": "TODO-translation: Settings unavailable",
       "unavailableDescription": "TODO-translation: The workspace settings endpoint did not return data."
     },
-    "connectors": {
-      "title": "TODO-translation: Connectors",
-      "description": "TODO-translation: Workspace-owned connector instances and delivery health.",
-      "add": "TODO-translation: Add connector",
-      "workspaceOwned": "TODO-translation: Workspace-owned",
-      "details": "TODO-translation: Connector details",
-      "rotateSecret": "TODO-translation: Rotate secret",
-      "activity": "TODO-translation: Activity",
-      "delivered": "TODO-translation: Delivered",
-      "failed": "TODO-translation: Failed",
-      "noDeliveries": "TODO-translation: No deliveries recorded.",
-      "wizard": {
-        "title": "TODO-translation: Connector setup",
-        "description": "TODO-translation: Guided setup validates credentials with dry-run connectivity checks before activation.",
-        "prerequisites": "TODO-translation: Prerequisites",
-        "credentials": "TODO-translation: Credentials",
-        "testConnectivity": "TODO-translation: Test connectivity",
-        "scope": "TODO-translation: Scope",
-        "activate": "TODO-translation: Activate",
-        "dryRunNote": "TODO-translation: Connectivity tests call the connector dry-run endpoint and do not create delivery records.",
-        "back": "TODO-translation: Back",
-        "next": "TODO-translation: Next",
-        "ready": "TODO-translation: Ready",
-        "add": "TODO-translation: Add connector",
-        "stepStatus": "TODO-translation: Step {current}: {step}. Connectivity tests call the connector dry-run endpoint and do not create delivery records.",
-        "slack": {
-          "title": "TODO-translation: Slack prerequisites",
-          "description": "TODO-translation: Use a bot token with auth.test access and a signing secret.",
-          "teamId": "TODO-translation: Team ID",
-          "botTokenRef": "TODO-translation: Bot token secret ref"
-        },
-        "telegram": {
-          "title": "TODO-translation: Telegram prerequisites",
-          "description": "TODO-translation: Use a bot token that can answer Telegram getMe.",
-          "botTokenRef": "TODO-translation: Bot token secret ref"
-        },
-        "email": {
-          "title": "TODO-translation: Email prerequisites",
-          "description": "TODO-translation: Configure IMAP and SMTP credentials; test uses IMAP NOOP.",
-          "imapHost": "TODO-translation: IMAP host",
-          "smtpHost": "TODO-translation: SMTP host"
-        },
-        "webhook": {
-          "title": "TODO-translation: Webhook prerequisites",
-          "description": "TODO-translation: Destination must accept HEAD requests before activation.",
-          "destinationUrl": "TODO-translation: Destination URL"
-        }
-      },
-      "detailsDescription": "TODO-translation: Inspect workspace-owned connector status, activity, and secret rotation.",
-      "openDetail": "TODO-translation: Open detail",
-      "empty": "TODO-translation: No connectors",
-      "emptyDescription": "TODO-translation: Add a workspace connector to start routing messages.",
-      "unavailable": "TODO-translation: Connectors unavailable",
-      "unavailableDescription": "TODO-translation: The connectors endpoint did not return data.",
-      "rotate": {
-        "trigger": "TODO-translation: Rotate secret",
-        "title": "TODO-translation: Rotate connector secret",
-        "description": "TODO-translation: The value is write-only and should be submitted to the backend secret rotation endpoint.",
-        "newSecret": "TODO-translation: New secret",
-        "confirm": "TODO-translation: Confirm rotation"
-      }
-    },
-    "quotas": {
-      "title": "TODO-translation: Quotas",
-      "description": "TODO-translation: Usage and workspace quota configuration.",
-      "usage": "TODO-translation: Usage",
-      "configuredLimit": "TODO-translation: Configured limit",
-      "unavailable": "TODO-translation: Quotas unavailable",
-      "unavailableDescription": "TODO-translation: The workspace settings endpoint did not return data."
+    "states": {
+      "cancel": "TODO-translation: Cancel",
+      "loading": "TODO-translation: Loading",
+      "save": "TODO-translation: Save",
+      "unavailable": "TODO-translation: Unavailable"
     },
     "tags": {
-      "title": "TODO-translation: Tags",
-      "description": "TODO-translation: Workspace labels and tag rules.",
-      "noTags": "TODO-translation: No tags configured.",
       "cardTitle": "TODO-translation: Workspace tags",
-      "tags": "TODO-translation: Tags",
+      "description": "TODO-translation: Workspace labels and tag rules.",
       "labels": "TODO-translation: Labels",
-      "noLabels": "TODO-translation: No labels configured."
+      "noLabels": "TODO-translation: No labels configured.",
+      "noTags": "TODO-translation: No tags configured.",
+      "tags": "TODO-translation: Tags",
+      "title": "TODO-translation: Tags"
     },
     "visibility": {
-      "title": "TODO-translation: Visibility",
-      "description": "TODO-translation: Read-only graph for workspace zero-trust grants and audit context.",
-      "graph": "TODO-translation: Visibility graph",
-      "grantsGiven": "TODO-translation: Grants given",
-      "grantsReceived": "TODO-translation: Grants received",
+      "allows": "TODO-translation: allows",
       "auditTrail": "TODO-translation: Audit trail",
-      "denyAll": "TODO-translation: deny all",
-      "grantsConfigured": "TODO-translation: grants configured",
-      "noInboundGrants": "TODO-translation: No inbound grants",
-      "inboundUnavailable": "TODO-translation: Inbound grant aggregation is not exposed by the current API.",
-      "graphSubtitle": "TODO-translation: XYFlow layout with Dagre positioning.",
-      "unavailable": "TODO-translation: Visibility unavailable",
-      "unavailableDescription": "TODO-translation: The visibility endpoint did not return data.",
       "auditUnavailable": "TODO-translation: Visibility audit entries are available from the audit-chain query surface.",
       "currentWorkspace": "TODO-translation: Current workspace",
-      "grantGiven": "TODO-translation: grant given",
-      "allows": "TODO-translation: allows",
-      "workspaceGrant": "TODO-translation: Workspace grant",
+      "denyAll": "TODO-translation: deny all",
+      "description": "TODO-translation: Read-only graph for workspace zero-trust grants and audit context.",
       "detail": {
-        "title": "TODO-translation: Grant detail",
         "direction": "TODO-translation: Direction",
+        "empty": "TODO-translation: Select a graph edge to inspect a visibility grant.",
         "label": "TODO-translation: Label",
         "pattern": "TODO-translation: Pattern",
-        "empty": "TODO-translation: Select a graph edge to inspect a visibility grant."
-      }
-    },
-    "states": {
-      "loading": "TODO-translation: Loading",
-      "unavailable": "TODO-translation: Unavailable",
-      "save": "TODO-translation: Save",
-      "cancel": "TODO-translation: Cancel"
-    }
-  },
-  "creator": {
-    "contextProfile": {
-      "title": "TODO-translation: Context Profile",
-      "description": "TODO-translation: Author retrieval sources, budgets, ranking behavior, and provenance settings.",
-      "history": "TODO-translation: History",
-      "editor": "TODO-translation: Editor",
-      "sources": "TODO-translation: Sources",
-      "test": "TODO-translation: Test",
-      "profileJson": "TODO-translation: Profile JSON",
-      "profileControls": "TODO-translation: Profile Controls",
-      "profileId": "TODO-translation: Profile ID",
-      "profileIdPlaceholder": "TODO-translation: Paste an existing profile UUID",
-      "profileIdHistoryPlaceholder": "TODO-translation: Paste profile UUID",
-      "historyTitle": "TODO-translation: Context Profile History",
-      "create": "TODO-translation: Create Profile",
-      "update": "TODO-translation: Update Profile",
-      "saving": "TODO-translation: Saving",
-      "created": "TODO-translation: Context profile created",
-      "updated": "TODO-translation: Context profile updated",
-      "invalidObject": "TODO-translation: Profile JSON must be an object.",
-      "invalidJson": "TODO-translation: Profile JSON is invalid.",
-      "saveFailure": "TODO-translation: Unable to save context profile.",
-      "runMockPreview": "TODO-translation: Run Mock Preview",
-      "mockPreviewResult": "TODO-translation: Mock preview result",
-      "previewQueryDefault": "TODO-translation: customer support refund request",
-      "versionHistory": "TODO-translation: Version history",
-      "version": "TODO-translation: Version",
-      "noSummary": "TODO-translation: No summary",
-      "compare": "TODO-translation: Compare",
-      "rollback": "TODO-translation: Rollback",
-      "diffAdded": "TODO-translation: Added",
-      "diffRemoved": "TODO-translation: Removed",
-      "diffModified": "TODO-translation: Modified",
-      "maxTokens": "TODO-translation: Max tokens",
-      "maxDocuments": "TODO-translation: Max documents",
-      "retrievalStrategy": "TODO-translation: Retrieval strategy",
-      "semantic": "TODO-translation: Semantic",
-      "graph": "TODO-translation: Graph",
-      "fts": "TODO-translation: Full text",
-      "hybrid": "TODO-translation: Hybrid",
-      "rerankingRules": "TODO-translation: Reranking rules",
-      "score": "TODO-translation: Score",
-      "recency": "TODO-translation: Recency",
-      "authority": "TODO-translation: Authority",
-      "customExpression": "TODO-translation: Custom expression",
-      "sourcePicker": "TODO-translation: Source picker",
-      "excludedSource": "TODO-translation: Excluded source",
-      "memory": "TODO-translation: Memory",
-      "knowledgeGraph": "TODO-translation: Knowledge graph",
-      "executionHistory": "TODO-translation: Execution history",
-      "toolOutputs": "TODO-translation: Tool outputs",
-      "externalApis": "TODO-translation: External APIs"
-    },
-    "contract": {
-      "title": "TODO-translation: Agent Contract",
-      "description": "TODO-translation: Author behavioral terms, preview enforcement, and attach contracts to revisions.",
-      "editor": "TODO-translation: Editor",
-      "preview": "TODO-translation: Preview",
-      "contract": "TODO-translation: Contract",
-      "controls": "TODO-translation: Contract Controls",
-      "contractId": "TODO-translation: Contract ID",
-      "contractIdPlaceholder": "TODO-translation: Paste existing contract UUID",
-      "create": "TODO-translation: Create Contract",
-      "update": "TODO-translation: Update Contract",
-      "saving": "TODO-translation: Saving",
-      "created": "TODO-translation: Contract created",
-      "updated": "TODO-translation: Contract updated",
-      "invalidObject": "TODO-translation: Contract JSON must be an object.",
-      "invalidJson": "TODO-translation: Contract JSON is invalid.",
-      "saveFailure": "TODO-translation: Unable to save contract.",
-      "schemaEnums": "TODO-translation: Schema enums",
-      "runMockPreview": "TODO-translation: Run Mock Preview",
-      "realLlmPreview": "TODO-translation: Real LLM Preview",
-      "confirmRealLlmPreview": "TODO-translation: Confirm Real LLM Preview",
-      "realLlmCostWarning": "TODO-translation: This preview can consume model budget and may call external model providers.",
-      "confirm": "TODO-translation: Confirm",
-      "finalAction": "TODO-translation: Final action",
-      "triggered": "TODO-translation: Triggered",
-      "satisfied": "TODO-translation: Satisfied",
-      "violated": "TODO-translation: Violated",
-      "sampleInput": "TODO-translation: Sample input",
-      "sampleInputObjectRequired": "TODO-translation: Sample input must be a JSON object.",
-      "sampleInputInvalid": "TODO-translation: Sample input is invalid JSON.",
-      "previewFailure": "TODO-translation: Unable to preview contract.",
-      "fallback": "TODO-translation: Fallback",
-      "loadPassingSample": "TODO-translation: Load Passing Sample",
-      "loadViolationSample": "TODO-translation: Load Violation Sample",
-      "attachRevision": "TODO-translation: Attach to revision",
-      "attachContract": "TODO-translation: Attach Contract",
-      "revisionId": "TODO-translation: Revision ID",
-      "revisionIdPlaceholder": "TODO-translation: Revision UUID",
-      "attach": "TODO-translation: Attach",
-      "history": "TODO-translation: Contract history",
-      "historyDescription": "TODO-translation: Contract history will display saved previews and revisions.",
-      "useRealLlmConfirmation": "TODO-translation: USE_REAL_LLM",
-      "costAcknowledgement": "TODO-translation: I understand this preview can call a real model and incur cost.",
-      "typeToConfirm": "TODO-translation: Type USE_REAL_LLM to confirm.",
-      "loading": "TODO-translation: Loading"
-    },
-    "template": {
-      "libraryTitle": "TODO-translation: Template Library",
-      "libraryEyebrow": "TODO-translation: Contract templates",
-      "fork": "TODO-translation: Fork",
-      "forkTemplate": "TODO-translation: Fork template",
-      "forkName": "TODO-translation: Fork name",
-      "forkNameDefaultSuffix": "TODO-translation: copy",
-      "forkCreated": "TODO-translation: Template fork created",
-      "forkFailure": "TODO-translation: Unable to fork template.",
-      "platformAuthored": "TODO-translation: Platform-authored",
-      "creatorAuthored": "TODO-translation: Creator-authored",
-      "category": "TODO-translation: Category",
-      "version": "TODO-translation: Version",
-      "lastUpdated": "TODO-translation: Last updated",
-      "upstreamUpdated": "TODO-translation: Template update available",
-      "viewDiff": "TODO-translation: View diff"
-    },
-    "wizard": {
-      "contextProfile": "TODO-translation: Context Profile",
-      "testProfile": "TODO-translation: Test Profile",
-      "contract": "TODO-translation: Contract",
-      "previewContract": "TODO-translation: Preview Contract",
-      "attachBoth": "TODO-translation: Attach Both",
-      "title": "TODO-translation: Composition wizard",
-      "headline": "TODO-translation: Create an agent from intent",
-      "description": "TODO-translation: Move from a natural-language brief to a validated draft agent with guided profile and contract steps.",
-      "describe": "TODO-translation: Describe",
-      "reviewBlueprint": "TODO-translation: Review blueprint",
-      "customize": "TODO-translation: Customize",
-      "validate": "TODO-translation: Validate",
-      "cancel": "TODO-translation: Cancel",
-      "back": "TODO-translation: Back",
-      "next": "TODO-translation: Next",
-      "startOver": "TODO-translation: Start over",
-      "blueprintRequiredTitle": "TODO-translation: Blueprint required",
-      "blueprintRequiredDescription": "TODO-translation: Generate a blueprint first so the remaining wizard steps have content to work from.",
-      "thisAgent": "TODO-translation: this agent",
-      "theAgent": "TODO-translation: the agent",
-      "contextProfileDescription": "TODO-translation: Configure profile sources for {agent} from the dedicated editor.",
-      "testProfileDescription": "TODO-translation: Run mock retrieval previews before publishing {agent}.",
-      "contractDescription": "TODO-translation: Author enforcement terms for {agent}.",
-      "previewContractDescription": "TODO-translation: Validate contract behavior for {agent} with the mock provider.",
-      "attachBothDescription": "TODO-translation: Attach the selected context profile and contract before publishing {agent}.",
-      "missingProfile": "TODO-translation: A context profile is required for this trust tier.",
-      "missingContract": "TODO-translation: A contract is required for this trust tier.",
-      "readyToPublish": "TODO-translation: Ready to publish"
-    },
-    "provenance": {
-      "title": "TODO-translation: Provenance",
-      "origin": "TODO-translation: Origin",
-      "snippet": "TODO-translation: Snippet",
-      "score": "TODO-translation: Score",
-      "included": "TODO-translation: Included",
-      "excluded": "TODO-translation: Excluded",
-      "classification": "TODO-translation: Classification",
-      "public": "TODO-translation: Public",
-      "pii": "TODO-translation: PII",
-      "confidential": "TODO-translation: Confidential",
-      "includedStatus": "TODO-translation: Included",
-      "excludedStatus": "TODO-translation: Excluded",
-      "empty": "TODO-translation: No provenance sources yet.",
-      "emptyAvailable": "TODO-translation: No provenance sources available."
-    },
-    "editor": {
-      "schemaEnabled": "TODO-translation: Schema validation enabled",
-      "schemaLoading": "TODO-translation: Schema loading",
-      "schemaUnavailable": "TODO-translation: Schema unavailable",
-      "validationUnavailable": "TODO-translation: Inline validation is unavailable for this editor.",
-      "yaml": "TODO-translation: YAML",
-      "json": "TODO-translation: JSON"
+        "title": "TODO-translation: Grant detail"
+      },
+      "grantGiven": "TODO-translation: grant given",
+      "grantsConfigured": "TODO-translation: grants configured",
+      "grantsGiven": "TODO-translation: Grants given",
+      "grantsReceived": "TODO-translation: Grants received",
+      "graph": "TODO-translation: Visibility graph",
+      "graphSubtitle": "TODO-translation: XYFlow layout with Dagre positioning.",
+      "inboundUnavailable": "TODO-translation: Inbound grant aggregation is not exposed by the current API.",
+      "noInboundGrants": "TODO-translation: No inbound grants",
+      "title": "TODO-translation: Visibility",
+      "unavailable": "TODO-translation: Visibility unavailable",
+      "unavailableDescription": "TODO-translation: The visibility endpoint did not return data.",
+      "workspaceGrant": "TODO-translation: Workspace grant"
     }
   }
 }

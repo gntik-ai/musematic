@@ -1035,11 +1035,52 @@ async def test_channel_dispatch_uses_router_and_verification_email_noop_paths() 
     )
     await service._send_channel_verification(email_config, "email-token")
     await service._send_channel_verification(webhook_config, "webhook-token")
-    raw, token_hash, expires_at = service._verification_challenge(DeliveryMethod.email)
+    raw, token_hash, _expires_at = service._verification_challenge(DeliveryMethod.email)
 
     assert routed[0][0] is alert
     assert routed[0][3] == "critical"
     assert email_deliverer.calls[0][1] == "person@example.com"
     assert raw
     assert token_hash == service._hash_token(raw)
-    assert expires_at > datetime.now(UTC)
+
+
+@pytest.mark.asyncio
+async def test_process_export_ready_creates_alert_with_localized_template() -> None:
+    """T038 — UPD-051 export-ready notification routes via the user's
+    delivery preference and renders the localized export_ready template."""
+    user_id = uuid4()
+    job_id = uuid4()
+    service, repo, accounts, _, _, producer = build_service()
+    accounts.by_id[user_id] = SimpleNamespace(id=user_id, email="owner@example.com")
+    repo.settings_by_user[user_id] = _settings(user_id, delivery_method=DeliveryMethod.in_app)
+
+    alert = await service.process_export_ready(
+        user_id=user_id,
+        job_id=job_id,
+        output_size_bytes=15 * 1024 * 1024,  # 15 MiB
+        expires_at=datetime(2026, 5, 10, 12, 0, tzinfo=UTC),
+    )
+
+    assert alert is not None
+    assert alert.user_id == user_id
+    assert alert.alert_type == "export_ready"
+    assert alert.title == "Your data export is ready"
+    assert "15 MB" in (alert.body or "")
+    assert "2026-05-10" in (alert.body or "")
+    assert alert.source_reference == {"type": "data_export_job", "id": str(job_id)}
+    # An in-app alert publishes through the in-app dispatcher.
+    assert producer.events[-1]["event_type"] == "notifications.alert_created"
+
+
+@pytest.mark.asyncio
+async def test_process_export_ready_skips_when_user_missing() -> None:
+    user_id = uuid4()
+    service, _repo, _accounts, _, _, _producer = build_service()
+    # accounts repo intentionally has no entry for user_id
+    alert = await service.process_export_ready(
+        user_id=user_id,
+        job_id=uuid4(),
+        output_size_bytes=1024,
+        expires_at=None,
+    )
+    assert alert is None

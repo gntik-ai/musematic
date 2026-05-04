@@ -145,6 +145,55 @@ export const auditedSurfaces: AuditedSurface[] = [
     route: "/agent-management/contracts/library",
     ready: bodyReady,
   },
+  // UPD-051 (104) — data-lifecycle surfaces (T099).
+  {
+    id: "workspace-data-export",
+    group: "workspace-owner",
+    route: "/workspaces/workspace-1/data-export",
+    ready: bodyReady,
+  },
+  {
+    id: "workspace-settings-delete",
+    group: "workspace-owner",
+    route: "/workspaces/workspace-1/settings/delete",
+    ready: bodyReady,
+  },
+  {
+    id: "cancel-deletion",
+    group: "self-service",
+    route: "/cancel-deletion/sample-token",
+    ready: bodyReady,
+  },
+  {
+    id: "admin-tenant-data-export",
+    group: "admin-settings",
+    route: "/admin/tenants/tenant-1/data-export",
+    ready: bodyReady,
+  },
+  {
+    id: "admin-tenant-delete",
+    group: "admin-settings",
+    route: "/admin/tenants/tenant-1/delete",
+    ready: bodyReady,
+  },
+  {
+    id: "admin-legal-sub-processors",
+    group: "admin-settings",
+    route: "/admin/legal/sub-processors",
+    ready: bodyReady,
+  },
+  {
+    id: "admin-dpa-hub",
+    group: "admin-settings",
+    route: "/admin/dpa",
+    ready: bodyReady,
+  },
+  {
+    id: "admin-dpa-tenant",
+    group: "admin-settings",
+    route: "/admin/dpa/tenant-1",
+    ready: bodyReady,
+  },
 ];
 
 export function surfacesForGroup(group: A11ySurfaceGroup): AuditedSurface[] {

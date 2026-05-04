@@ -100,6 +100,11 @@ class AlertService:
                 "test_notification_body": (
                     "This is a test notification generated from your preferences page."
                 ),
+                "export_ready_title": "Your data export is ready",
+                "export_ready_body": (
+                    "Your data export ({size_mb} MB) is ready. The download link "
+                    "stays valid until {expires_at}."
+                ),
             },
             "es": {
                 "attention_requested_title": "Atención solicitada por {source_agent_fqn}",
@@ -109,6 +114,11 @@ class AlertService:
                 "test_notification_body": (
                     "Esta es una notificación de prueba generada desde tu página de preferencias."
                 ),
+                "export_ready_title": "Tu exportación de datos está lista",
+                "export_ready_body": (
+                    "Tu exportación de datos ({size_mb} MB) está lista. El enlace de "
+                    "descarga es válido hasta {expires_at}."
+                ),
             },
             "fr": {
                 "attention_requested_title": "Attention demandée par {source_agent_fqn}",
@@ -117,6 +127,11 @@ class AlertService:
                 "test_notification_title": "Notification de test : {event_type}",
                 "test_notification_body": (
                     "Ceci est une notification de test générée depuis votre page de préférences."
+                ),
+                "export_ready_title": "Votre export de données est prêt",
+                "export_ready_body": (
+                    "Votre export de données ({size_mb} Mo) est prêt. Le lien de "
+                    "téléchargement reste valide jusqu'au {expires_at}."
                 ),
             },
             "de": {
@@ -128,6 +143,11 @@ class AlertService:
                     "Dies ist eine Testbenachrichtigung, die über Ihre Einstellungsseite "
                     "erstellt wurde."
                 ),
+                "export_ready_title": "Ihr Datenexport ist bereit",
+                "export_ready_body": (
+                    "Ihr Datenexport ({size_mb} MB) ist fertig. Der Download-Link "
+                    "ist bis {expires_at} gültig."
+                ),
             },
             "ja": {
                 "attention_requested_title": "{source_agent_fqn} から対応依頼があります",
@@ -137,6 +157,11 @@ class AlertService:
                 ),
                 "test_notification_title": "テスト通知: {event_type}",
                 "test_notification_body": "これは設定ページから生成されたテスト通知です。",
+                "export_ready_title": "データのエクスポートが完了しました",
+                "export_ready_body": (
+                    "データのエクスポート ({size_mb} MB) が完了しました。"
+                    "ダウンロードリンクは {expires_at} まで有効です。"
+                ),
             },
             "zh-CN": {
                 "attention_requested_title": "{source_agent_fqn} 请求关注",
@@ -144,6 +169,11 @@ class AlertService:
                 "state_change_body": "交互已从 {from_state} 转换为 {to_state}。",
                 "test_notification_title": "测试通知: {event_type}",
                 "test_notification_body": "这是从偏好设置页面生成的测试通知。",
+                "export_ready_title": "您的数据导出已就绪",
+                "export_ready_body": (
+                    "您的数据导出 ({size_mb} MB) 已就绪。"
+                    "下载链接的有效期至 {expires_at}。"
+                ),
             },
         }
     )
@@ -437,6 +467,53 @@ class AlertService:
 
     async def get_unread_count(self, user_id: UUID) -> UnreadCountResponse:
         return UnreadCountResponse(count=await self.repo.get_unread_count(user_id))
+
+    async def process_export_ready(
+        self,
+        *,
+        user_id: UUID,
+        job_id: UUID,
+        output_size_bytes: int,
+        expires_at: datetime | None,
+    ) -> UserAlert | None:
+        """T038 — dispatch the ``export_ready`` notification on completion.
+
+        Called from :class:`ExportReadyConsumer` once the export job is in
+        ``completed`` state. Honors the user's preferred delivery channel
+        (in-app, email, Slack, …) via ``alert_settings``.
+        """
+        user = await self._resolve_user(str(user_id))
+        if user is None:
+            LOGGER.info(
+                "Skipping export-ready notification: user not found",
+                extra={"user_id": str(user_id), "job_id": str(job_id)},
+            )
+            return None
+        alert_settings = await self.get_or_default_settings(user_id)
+        language = await self._recipient_language(user_id)
+        size_mb = max(1, output_size_bytes // (1024 * 1024)) if output_size_bytes else 0
+        expires_value = expires_at.isoformat() if expires_at else "the link's expiration"
+        alert = await self.repo.create_alert(
+            user_id=user_id,
+            interaction_id=None,
+            source_reference={"type": "data_export_job", "id": str(job_id)},
+            alert_type="export_ready",
+            title=self._render_notification_template(language, "export_ready_title"),
+            body=self._render_notification_template(
+                language,
+                "export_ready_body",
+                size_mb=size_mb,
+                expires_at=expires_value,
+            ),
+            urgency="medium",
+            delivery_method=(
+                alert_settings.delivery_method
+                if alert_settings.delivery_method != DeliveryMethod.in_app
+                else None
+            ),
+        )
+        await self._dispatch_for_settings(alert, alert_settings, user)
+        return alert
 
     async def test_notification(self, user_id: UUID, event_type: str) -> UserAlertRead:
         alert_settings = await self.get_or_default_settings(user_id)

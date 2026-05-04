@@ -965,3 +965,55 @@ async def test_accept_invitation_rejects_duplicate_email(auth_settings) -> None:
         )
 
     assert invitation.id in repo.invitations_by_id
+
+
+@pytest.mark.asyncio
+async def test_pin_clickwrap_dpa_writes_metadata_idempotently(auth_settings) -> None:
+    """T085 — pinning records the DPA version once and never overwrites."""
+    service, repo, _, _, _ = _build_service(auth_settings)
+
+    class FakeTenant:
+        def __init__(self) -> None:
+            self.contract_metadata_json: dict[str, object] = {}
+
+    class FakeTenantsRepository:
+        def __init__(self, _session: object) -> None:
+            pass
+
+        async def get_by_id(self, _tenant_id: UUID) -> FakeTenant:
+            return tenant
+
+    class FakeSession:
+        def __init__(self) -> None:
+            self.flushed = 0
+
+        async def flush(self) -> None:
+            self.flushed += 1
+
+    tenant = FakeTenant()
+    repo.session = FakeSession()
+    user = await repo.create_user(
+        email="signup@example.com",
+        display_name="New User",
+        status=UserStatus.active,
+        signup_source=SignupSource.self_registration,
+    )
+    user.tenant_id = uuid4()
+
+    import platform.tenants.repository as tenants_repo_module
+
+    original_repo = tenants_repo_module.TenantsRepository
+    tenants_repo_module.TenantsRepository = FakeTenantsRepository  # type: ignore[misc]
+    try:
+        await service._pin_clickwrap_dpa_if_needed(user)
+        assert "clickwrap_dpa_version_pinned_at" in tenant.contract_metadata_json
+        assert tenant.contract_metadata_json["clickwrap_dpa_version"] == "standard-v1"
+        assert repo.session.flushed == 1
+
+        # Second call must be a no-op: timestamp does not change, no flush.
+        first_pinned_at = tenant.contract_metadata_json["clickwrap_dpa_version_pinned_at"]
+        await service._pin_clickwrap_dpa_if_needed(user)
+        assert tenant.contract_metadata_json["clickwrap_dpa_version_pinned_at"] == first_pinned_at
+        assert repo.session.flushed == 1
+    finally:
+        tenants_repo_module.TenantsRepository = original_repo  # type: ignore[misc]
