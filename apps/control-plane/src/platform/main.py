@@ -73,6 +73,7 @@ from platform.billing.subscriptions.admin_router import router as billing_admin_
 from platform.billing.subscriptions.events import register_billing_event_types
 from platform.billing.subscriptions.period_scheduler import build_period_rollover_scheduler
 from platform.billing.subscriptions.router import router as billing_workspace_router
+from platform.billing.webhooks.router import webhook_router as billing_webhook_router
 from platform.common import database
 from platform.common.api_versioning.registry import clear_markers, mark_deprecated
 from platform.common.auth_middleware import AuthMiddleware
@@ -1898,6 +1899,8 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
         app.include_router(workspaces_router)
         app.include_router(data_lifecycle_workspace_router)
         app.include_router(data_lifecycle_cancel_router)
+        # UPD-052 — Stripe webhook ingress (/api/webhooks/stripe).
+        app.include_router(billing_webhook_router)
         app.include_router(data_lifecycle_sub_processors_public_router)
         app.include_router(data_lifecycle_sub_processors_admin_router)
         app.include_router(data_lifecycle_tenant_admin_router)

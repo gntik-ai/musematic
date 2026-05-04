@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 from uuid import UUID
 
 
@@ -34,6 +34,46 @@ class ProviderInvoice:
     issued_at: datetime
     due_at: datetime | None
     pdf_url: str | None
+
+
+@dataclass(frozen=True)
+class PaymentMethodInfo:
+    """UPD-052 — payment-method metadata copied from the provider."""
+
+    provider_payment_method_id: str
+    brand: str | None
+    last4: str | None
+    exp_month: int | None
+    exp_year: int | None
+
+
+@dataclass(frozen=True)
+class PortalSession:
+    """UPD-052 — Stripe Customer Portal session details."""
+
+    url: str
+    expires_at: datetime | None = None
+
+
+@dataclass(frozen=True)
+class OverageChargeReceipt:
+    """UPD-052 — receipt for a one-shot overage charge."""
+
+    provider_charge_id: str
+    amount_cents: int
+    description: str
+
+
+@dataclass(frozen=True)
+class WebhookEvent:
+    """UPD-052 — verified webhook event handed to the dispatch layer."""
+
+    id: str
+    type: str
+    payload: dict[str, Any]
+    created_at: datetime
+    api_version: str | None = None
+    raw: bytes = field(default=b"", repr=False)
 
 
 @runtime_checkable
@@ -93,3 +133,43 @@ class PaymentProvider(Protocol):
         limit: int = 12,
     ) -> list[ProviderInvoice]:
         """List recent invoices."""
+
+    # ------------------------------------------------------------------
+    # UPD-052 extension surface
+    # ------------------------------------------------------------------
+    async def charge_overage(
+        self,
+        provider_customer_id: str,
+        amount_cents: int,
+        description: str,
+        *,
+        idempotency_key: str,
+    ) -> OverageChargeReceipt:
+        """One-shot overage charge against the customer's default payment method."""
+
+    async def create_customer_portal_session(
+        self,
+        provider_customer_id: str,
+        return_url: str,
+    ) -> PortalSession:
+        """Create a Stripe Customer Portal session for self-service billing."""
+
+    async def verify_webhook_signature(
+        self,
+        payload: bytes,
+        signature: str,
+    ) -> WebhookEvent:
+        """Verify a webhook payload and return the parsed event.
+
+        Raises ``BillingWebhookSignatureError`` (or provider-specific error) on
+        signature mismatch. Implementations SHOULD attempt verification against
+        both ``active`` and ``previous`` signing secrets to support rotation
+        windows (UPD-052 research R2).
+        """
+
+    async def handle_webhook_event(self, event: WebhookEvent) -> None:
+        """Dispatch a verified event to the appropriate handler.
+
+        Implementations may keep this thin (just look up an event_type → handler
+        registry); the bulk of side-effect logic lives in the handler modules.
+        """

@@ -25,7 +25,7 @@ export MOCK_GOOGLE_OIDC_URL ?= http://localhost:$(PORT_GOOGLE_OIDC)
 export MOCK_GITHUB_OAUTH_URL ?= http://localhost:$(PORT_GITHUB_OAUTH)
 export PLAYWRIGHT_BROWSERS_PATH
 
-.PHONY: e2e-check ensure-playwright-browsers render-kind-config load-images e2e-up e2e-down e2e-test e2e-chaos e2e-perf e2e-reset e2e-logs e2e-shell capture-state e2e-journeys e2e-j01 e2e-j02 e2e-j03 e2e-j04 e2e-j05 e2e-j06 e2e-j07 e2e-j08 e2e-j09 e2e-j19 e2e-j27
+.PHONY: e2e-check ensure-playwright-browsers render-kind-config load-images e2e-up e2e-down e2e-test e2e-chaos e2e-perf e2e-reset e2e-logs e2e-shell capture-state e2e-journeys e2e-j01 e2e-j02 e2e-j03 e2e-j04 e2e-j05 e2e-j06 e2e-j07 e2e-j08 e2e-j09 e2e-j19 e2e-j27 e2e-j28 e2e-j32 e2e-j33 e2e-j34
 
 e2e-check:
 	@command -v docker >/dev/null 2>&1 || (echo "docker is required" >&2; exit 1)
@@ -108,6 +108,22 @@ e2e-j19:
 e2e-j27:
 	@mkdir -p reports
 	@$(PYTEST) journeys/test_j27_tenant_lifecycle_cancellation.py -v -m j27_tenant_lifecycle_cancellation --junitxml=reports/j27-junit.xml --html=reports/j27-report.html
+
+e2e-j28:
+	@mkdir -p reports
+	@$(PYTEST) journeys/test_j28_billing_lifecycle.py -v -m j28_billing_lifecycle --junitxml=reports/j28-junit.xml --html=reports/j28-report.html
+
+e2e-j32:
+	@mkdir -p reports
+	@$(PYTEST) journeys/test_j32_webhook_idempotency.py -v -m j32_webhook_idempotency --junitxml=reports/j32-junit.xml --html=reports/j32-report.html
+
+e2e-j33:
+	@mkdir -p reports
+	@$(PYTEST) journeys/test_j33_trial_to_paid_conversion.py -v -m j33_trial_to_paid_conversion --junitxml=reports/j33-junit.xml --html=reports/j33-report.html
+
+e2e-j34:
+	@mkdir -p reports
+	@$(PYTEST) journeys/test_j34_cancellation_reactivation.py -v -m j34_cancellation_reactivation --junitxml=reports/j34-junit.xml --html=reports/j34-report.html
 
 e2e-chaos:
 	@if [ -d chaos ] && find chaos -type f \( -name 'test_*.py' -o -name '*_test.py' \) | grep -q .; then \

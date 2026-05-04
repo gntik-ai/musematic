@@ -134,6 +134,10 @@ Control-plane deployment assets for Musematic.
 | serviceAccount.annotations | object | `{}` | Configures `serviceAccount.annotations` for the control-plane chart. |
 | serviceAccount.create | bool | `true` | Configures `serviceAccount.create` for the control-plane chart. |
 | serviceAccount.name | string | `""` | Configures `serviceAccount.name` for the control-plane chart. |
+| stripe | object | `{"webhookNetworkPolicy":{"enabled":false,"sourceCidrs":[]}}` | are loaded from Vault per rule 39, never from these values. |
+| stripe.webhookNetworkPolicy | object | `{"enabled":false,"sourceCidrs":[]}` | https://stripe.com/docs/ips. |
+| stripe.webhookNetworkPolicy.enabled | bool | `false` | Configures `stripe.webhookNetworkPolicy.enabled`. |
+| stripe.webhookNetworkPolicy.sourceCidrs | list | `[]` | IPv4 source allowlist. Operator-rotated. |
 | tenancy | object | `{"cacheTtlSeconds":60,"enforcementLevel":"lenient"}` | Configures hostname tenant resolution for the control-plane chart. |
 | tenancy.cacheTtlSeconds | int | `60` | Configures `tenancy.cacheTtlSeconds` for the control-plane chart. |
 | tenancy.enforcementLevel | string | `"lenient"` | Configures `tenancy.enforcementLevel` for the control-plane chart. |

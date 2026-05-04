@@ -1124,6 +1124,97 @@ class DataLifecycleSettings(BaseSettings):
     )
 
 
+class BillingStripeSettings(BaseSettings):
+    """UPD-052 — Stripe-specific billing settings.
+
+    Owns the `BILLING_*` and `BILLING_STRIPE_*` env-var family that selects the
+    payment provider, points the Stripe SDK at the correct API version, and
+    pins the publishable key + return-URL allowlist + webhook IP allowlist.
+    Secrets (api key, webhook signing secret) are NEVER read from this
+    settings class — they are loaded from Vault per rule 39.
+    """
+
+    model_config = SettingsConfigDict(env_prefix="BILLING_", extra="ignore")
+
+    provider: str = Field(
+        default="stub",
+        description=(
+            "Active PaymentProvider implementation. `stripe` enables real Stripe "
+            "integration; `stub` keeps the in-memory provider for unit tests."
+        ),
+    )
+    stripe_mode: str = Field(
+        default="test",
+        description=(
+            "`test` for dev/staging clusters, `live` for prod. Start-up validation "
+            "refuses to boot when the Vault api-key kind disagrees with this flag."
+        ),
+    )
+    stripe_api_version: str = Field(
+        default="2024-06-20",
+        description=(
+            "Stripe API version pinned per request via the `Stripe-Version` header. "
+            "Upgrade the SDK independently; bump this header only after a behaviour "
+            "diff review."
+        ),
+    )
+    stripe_publishable_key: str = Field(
+        default="",
+        description=(
+            "Stripe publishable key (`pk_test_*` or `pk_live_*`). Public — safe in "
+            "Helm values; the matching secret key lives in Vault."
+        ),
+    )
+    stripe_webhook_ip_allowlist: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Optional Stripe webhook source IP allowlist enforced by the FastAPI "
+            "webhook router as a defence-in-depth layer in front of HMAC verification."
+        ),
+    )
+    portal_return_url_allowlist: list[str] = Field(
+        default_factory=lambda: [
+            "/workspaces/{id}/billing",
+            "/workspaces/{id}/billing/invoices",
+            "/admin/tenants/{id}/billing",
+        ],
+        description=(
+            "Allowlisted relative paths that may be passed as the Stripe Customer "
+            "Portal `return_url`. Absolute URLs are always rejected."
+        ),
+    )
+    portal_session_rate_limit_per_hour: int = Field(
+        default=10,
+        ge=1,
+        le=60,
+        description="Customer Portal session-creation rate limit per customer per hour.",
+    )
+    grace_monitor_interval_seconds: int = Field(
+        default=21_600,  # 6 hours
+        ge=300,
+        le=86_400,
+        description=(
+            "Cadence of the failed-payment grace_monitor cron. 6 hours is the "
+            "default so day-1/3/5 reminders fire within ±2h of the day boundary."
+        ),
+    )
+    grace_window_days: int = Field(
+        default=7,
+        ge=1,
+        le=30,
+        description="Length of the failed-payment grace window before auto-downgrade.",
+    )
+    webhook_lock_ttl_seconds: int = Field(
+        default=60,
+        ge=10,
+        le=600,
+        description=(
+            "TTL of the Redis short-lived webhook idempotency lock "
+            "(`billing:webhook_lock:{event_id}`)."
+        ),
+    )
+
+
 class PlatformSettings(BaseSettings):
     """Top-level platform settings.
 
@@ -1414,6 +1505,7 @@ class PlatformSettings(BaseSettings):
     simulation: SimulationSettings = Field(default_factory=SimulationSettings)
     content_moderation: ContentModerationSettings = Field(default_factory=ContentModerationSettings)
     data_lifecycle: DataLifecycleSettings = Field(default_factory=DataLifecycleSettings)
+    billing_stripe: BillingStripeSettings = Field(default_factory=BillingStripeSettings)
     audit: AuditSettings = Field(default_factory=AuditSettings)
     security_compliance: SecurityComplianceSettings = Field(
         default_factory=SecurityComplianceSettings

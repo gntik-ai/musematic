@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from platform.billing.providers.protocol import (
+    OverageChargeReceipt,
+    PortalSession,
     ProrationPreview,
     ProviderInvoice,
     ProviderSubscription,
+    WebhookEvent,
 )
 from platform.common.logging import get_logger
 from typing import Any
@@ -126,6 +130,59 @@ class StubPaymentProvider:
     ) -> list[ProviderInvoice]:
         del provider_customer_id, limit
         return []
+
+    async def charge_overage(
+        self,
+        provider_customer_id: str,
+        amount_cents: int,
+        description: str,
+        *,
+        idempotency_key: str,
+    ) -> OverageChargeReceipt:
+        del provider_customer_id
+        digest = _stable_digest(idempotency_key)[:24]
+        return OverageChargeReceipt(
+            provider_charge_id=f"stub_ch_{digest}",
+            amount_cents=amount_cents,
+            description=description,
+        )
+
+    async def create_customer_portal_session(
+        self,
+        provider_customer_id: str,
+        return_url: str,
+    ) -> PortalSession:
+        digest = _stable_digest(provider_customer_id, return_url)[:32]
+        return PortalSession(
+            url=f"https://stub.local/portal/{digest}",
+            expires_at=_now() + timedelta(hours=1),
+        )
+
+    async def verify_webhook_signature(
+        self,
+        payload: bytes,
+        signature: str,
+    ) -> WebhookEvent:
+        del signature
+        try:
+            decoded = json.loads(payload.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("stub: payload is not valid JSON") from exc
+        return WebhookEvent(
+            id=str(decoded.get("id", "stub_evt")),
+            type=str(decoded.get("type", "stub.event")),
+            payload=decoded.get("data", {}).get("object", decoded),
+            created_at=_now(),
+            api_version=None,
+            raw=payload,
+        )
+
+    async def handle_webhook_event(self, event: WebhookEvent) -> None:
+        self.logger.info(
+            "billing.stub_webhook_dispatched",
+            event_id=event.id,
+            event_type=event.type,
+        )
 
 
 def _stable_digest(*parts: str) -> str:

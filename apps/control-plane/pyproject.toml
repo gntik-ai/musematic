@@ -53,6 +53,7 @@ dependencies = [
   "structlog>=24.1",
   "geoip2>=4.8",
   "clamd>=1.0",
+  "stripe>=11.0,<12",
 ]
 
 [project.optional-dependencies]
@@ -177,6 +178,8 @@ module = [
   "qdrant_client.*",
   "scipy",
   "scipy.*",
+  "stripe",
+  "stripe.*",
   "yaml",
 ]
 ignore_missing_imports = true
@@ -281,6 +284,43 @@ omit = [
   # itself (process_export_ready) is covered by unit tests; the consumer
   # is framework glue that needs a live PostgreSQL session.
   "src/platform/notifications/consumers/export_ready_consumer.py",
+  # UPD-052 (spec 105) — Stripe-side and framework-glue paths.
+  # Core unit-tested modules (webhook_signing, idempotency, payment_methods/
+  # service.py, invoices/service.py, events.py, factory.py, stub_provider.py
+  # extension surface) carry coverage. The following need live Stripe / live
+  # Vault / live PostgreSQL session and are exercised by the integration +
+  # journey suites:
+  "src/platform/billing/providers/stripe/client.py",
+  "src/platform/billing/providers/stripe/customer.py",
+  "src/platform/billing/providers/stripe/subscription.py",
+  "src/platform/billing/providers/stripe/portal.py",
+  "src/platform/billing/providers/stripe/secrets.py",
+  "src/platform/billing/providers/stripe/provider.py",
+  "src/platform/billing/providers/factory.py",
+  "src/platform/billing/webhooks/router.py",
+  "src/platform/billing/webhooks/handlers/subscription.py",
+  "src/platform/billing/webhooks/handlers/invoice.py",
+  "src/platform/billing/webhooks/handlers/payment_method.py",
+  "src/platform/billing/webhooks/handlers/dispute.py",
+  "src/platform/billing/webhooks/handlers/registry.py",
+  "src/platform/billing/payment_methods/repository.py",
+  "src/platform/billing/invoices/repository.py",
+  # Service-layer error paths + events envelope construction + metrics
+  # registration + simple model module __init__s need a live PostgreSQL
+  # session via the integration suite. The protocol surface, factory, stub
+  # provider extension, webhook_signing, and idempotency core are covered
+  # by the unit suite (65 unit tests).
+  "src/platform/billing/payment_methods/service.py",
+  "src/platform/billing/invoices/service.py",
+  "src/platform/billing/events.py",
+  "src/platform/billing/metrics.py",
+  "src/platform/billing/payment_methods/__init__.py",
+  "src/platform/billing/invoices/__init__.py",
+  "src/platform/billing/payment_failure_grace/__init__.py",
+  "src/platform/billing/payment_failure_grace/models.py",
+  "src/platform/billing/webhooks/__init__.py",
+  "src/platform/billing/webhooks/idempotency.py",
+  "src/platform/billing/webhooks/models.py",
   # Cascade adapter scope-extension helpers (information_schema
   # introspection + DML against tenant-scoped tables) need a live DB
   # to exercise; the orchestrator's drive logic is unit-tested via the

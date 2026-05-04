@@ -18,3 +18,13 @@ TENANT_ARCHITECTURE_JOURNEYS = {
 DATA_LIFECYCLE_JOURNEYS = {
     "J27": "tests/e2e/journeys/test_j27_tenant_lifecycle_cancellation.py",
 }
+
+# UPD-052 (105) — Billing journey registry. Driven via `make e2e-j28`,
+# `make e2e-j32`, `make e2e-j33`, `make e2e-j34` and the `e2e-journeys`
+# umbrella when the placeholder skip markers are removed.
+BILLING_JOURNEYS = {
+    "J28": "tests/e2e/journeys/test_j28_billing_lifecycle.py",
+    "J32": "tests/e2e/journeys/test_j32_webhook_idempotency.py",
+    "J33": "tests/e2e/journeys/test_j33_trial_to_paid_conversion.py",
+    "J34": "tests/e2e/journeys/test_j34_cancellation_reactivation.py",
+}

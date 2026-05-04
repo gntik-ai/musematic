@@ -352,3 +352,19 @@ wsHub:
     port: 8001
     # -- Configures `wsHub.service.nodePort` for the control-plane chart.
     nodePort: null
+
+# @section -- Stripe (UPD-052)
+# -- Configures `stripe` for the control-plane chart. UPD-052 billing
+# -- payment-provider integration. Secrets (api key + webhook signing secret)
+# -- are loaded from Vault per rule 39, never from these values.
+stripe:
+  # -- Configures `stripe.webhookNetworkPolicy` for the Stripe webhook ingress
+  # -- defence-in-depth NetworkPolicy. Off by default; enable in production
+  # -- after populating the source CIDR allowlist from
+  # -- https://stripe.com/docs/ips.
+  webhookNetworkPolicy:
+    # -- Configures `stripe.webhookNetworkPolicy.enabled`.
+    enabled: false
+    # -- Configures `stripe.webhookNetworkPolicy.sourceCidrs` — Stripe webhook
+    # -- IPv4 source allowlist. Operator-rotated.
+    sourceCidrs: []

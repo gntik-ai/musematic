@@ -231,4 +231,8 @@ TENANT_SCOPED_TABLES: tuple[str, ...] = (
     # UPD-051 (spec 104) — data lifecycle tenant-scoped tables.
     "data_export_jobs",
     "deletion_jobs",
+    # UPD-052 (spec 105) — billing Stripe tenant-scoped tables.
+    "invoices",
+    "payment_failure_grace",
+    "payment_methods",
 )
