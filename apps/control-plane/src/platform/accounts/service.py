@@ -836,7 +836,8 @@ class AccountsService:
             metadata.setdefault("clickwrap_dpa_version", "standard-v1")
             tenant.contract_metadata_json = metadata
             await session.flush()
-        except Exception as exc:  # noqa: BLE001 — defensive, never block signup
+        except Exception as exc:
+            # Defensive: never let a tenant-metadata write block signup.
             LOGGER.warning(
                 "clickwrap DPA pinning skipped",
                 extra={"user_id": str(user.id), "error": str(exc)},
