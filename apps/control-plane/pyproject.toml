@@ -134,6 +134,8 @@ ignore = [
 "src/platform/common/config.py" = ["N802"]
 "src/platform/common/logging.py" = ["A005"]
 "src/platform/common/pagination.py" = ["UP046"]
+"src/platform/data_lifecycle/services/export_archiver.py" = ["N803"]
+"tests/unit/data_lifecycle/test_export_archiver.py" = ["N803"]
 
 [tool.mypy]
 python_version = "3.12"

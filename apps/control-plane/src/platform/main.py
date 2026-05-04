@@ -251,6 +251,7 @@ from platform.multi_region_ops.jobs.replication_probe_runner import (
 from platform.multi_region_ops.middleware.maintenance_gate import MaintenanceGateMiddleware
 from platform.multi_region_ops.router import router as multi_region_ops_router
 from platform.notifications.consumers.attention_consumer import AttentionConsumer
+from platform.notifications.consumers.export_ready_consumer import ExportReadyConsumer
 from platform.notifications.consumers.state_change_consumer import StateChangeConsumer
 from platform.notifications.deliverers.webhook_deliverer import WebhookDeliverer
 from platform.notifications.dependencies import InMemorySecretProvider, build_notifications_service
@@ -1713,6 +1714,11 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),
             ).register(consumer_manager)
             StateChangeConsumer(
+                settings=resolved,
+                redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
+                producer=cast(EventProducer | None, app.state.clients.get("kafka")),
+            ).register(consumer_manager)
+            ExportReadyConsumer(
                 settings=resolved,
                 redis_client=cast(AsyncRedisClient, app.state.clients["redis"]),
                 producer=cast(EventProducer | None, app.state.clients.get("kafka")),

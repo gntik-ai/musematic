@@ -797,6 +797,50 @@ class AccountsService:
                 canonical_payload_json=payload,
                 tenant_id=user.tenant_id,
             )
+            # T085 (UPD-051 / FR-756.6) — pin the clickwrap DPA version on the
+            # user's tenant the first time anyone signs up against it. This is
+            # idempotent: subsequent signups don't overwrite an existing pin.
+            await self._pin_clickwrap_dpa_if_needed(user)
+
+    async def _pin_clickwrap_dpa_if_needed(self, user: User) -> None:
+        """Pin the active clickwrap DPA version on the user's tenant.
+
+        Writes ``contract_metadata_json.clickwrap_dpa_version_pinned_at`` and
+        ``contract_metadata_json.clickwrap_dpa_version`` once per tenant.
+        Subsequent signups under the same tenant are no-ops because the keys
+        are only added when missing. The default tenant uses the standard
+        clickwrap DPA shipped with the platform; enterprise tenants override
+        with their custom DPA via the admin DPA upload flow (UPD-051 US5).
+
+        The whole call is wrapped in a defensive try/except: a failure here
+        must never block signup completion (the audit-chain entry above is
+        the load-bearing record of consent).
+        """
+        session = getattr(self.repo, "session", None)
+        if session is None or user.tenant_id is None:
+            return
+        try:
+            from platform.tenants.repository import TenantsRepository
+
+            tenant = await TenantsRepository(session).get_by_id(user.tenant_id)
+            if tenant is None:
+                return
+            metadata = dict(tenant.contract_metadata_json or {})
+            if "clickwrap_dpa_version_pinned_at" in metadata:
+                return
+            # Use a stable version constant for the standard clickwrap DPA.
+            # Enterprise tenants override via the admin DPA upload flow
+            # (UPD-051 US5) which writes ``dpa_signed_at`` + ``dpa_version``
+            # columns — those code paths do not collide.
+            metadata["clickwrap_dpa_version_pinned_at"] = self._now().isoformat()
+            metadata.setdefault("clickwrap_dpa_version", "standard-v1")
+            tenant.contract_metadata_json = metadata
+            await session.flush()
+        except Exception as exc:  # noqa: BLE001 — defensive, never block signup
+            LOGGER.warning(
+                "clickwrap DPA pinning skipped",
+                extra={"user_id": str(user.id), "error": str(exc)},
+            )
 
     def _ensure_invitation_pending(
         self,
