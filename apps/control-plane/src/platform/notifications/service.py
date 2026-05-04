@@ -105,6 +105,21 @@ class AlertService:
                     "Your data export ({size_mb} MB) is ready. The download link "
                     "stays valid until {expires_at}."
                 ),
+                "payment_failure_reminder_title": (
+                    "Payment failed (reminder {day_n} of 3)"
+                ),
+                "payment_failure_reminder_body": (
+                    "Your latest invoice could not be charged. Please update "
+                    "your payment method before {grace_ends_at}, otherwise "
+                    "your workspace will be downgraded to Free."
+                ),
+                "payment_downgraded_title": "Workspace downgraded to Free",
+                "payment_downgraded_body": (
+                    "Your subscription was downgraded to Free because the "
+                    "payment-failure grace period expired. Resources exceeding "
+                    "Free quotas have been flagged for cleanup but not deleted; "
+                    "add a new card to reactivate."
+                ),
             },
             "es": {
                 "attention_requested_title": "Atención solicitada por {source_agent_fqn}",
@@ -119,6 +134,21 @@ class AlertService:
                     "Tu exportación de datos ({size_mb} MB) está lista. El enlace de "
                     "descarga es válido hasta {expires_at}."
                 ),
+                "payment_failure_reminder_title": (
+                    "Pago fallido (recordatorio {day_n} de 3)"
+                ),
+                "payment_failure_reminder_body": (
+                    "No se pudo cobrar tu última factura. Actualiza tu método "
+                    "de pago antes de {grace_ends_at} o tu workspace se "
+                    "rebajará al plan Free."
+                ),
+                "payment_downgraded_title": "Workspace rebajado a Free",
+                "payment_downgraded_body": (
+                    "Tu suscripción se rebajó al plan Free porque el período "
+                    "de gracia por fallo de pago expiró. Los recursos que "
+                    "superan las cuotas Free se marcaron para limpieza pero "
+                    "no se eliminaron; añade una nueva tarjeta para reactivar."
+                ),
             },
             "fr": {
                 "attention_requested_title": "Attention demandée par {source_agent_fqn}",
@@ -132,6 +162,22 @@ class AlertService:
                 "export_ready_body": (
                     "Votre export de données ({size_mb} Mo) est prêt. Le lien de "
                     "téléchargement reste valide jusqu'au {expires_at}."
+                ),
+                "payment_failure_reminder_title": (
+                    "Échec de paiement (rappel {day_n} sur 3)"
+                ),
+                "payment_failure_reminder_body": (
+                    "Votre dernière facture n'a pas pu être prélevée. Mettez à "
+                    "jour votre moyen de paiement avant {grace_ends_at}, sinon "
+                    "votre workspace sera rétrogradé en Free."
+                ),
+                "payment_downgraded_title": "Workspace rétrogradé en Free",
+                "payment_downgraded_body": (
+                    "Votre abonnement a été rétrogradé en Free parce que la "
+                    "période de grâce après échec de paiement a expiré. Les "
+                    "ressources dépassant les quotas Free ont été marquées "
+                    "pour nettoyage mais non supprimées ; ajoutez une nouvelle "
+                    "carte pour réactiver."
                 ),
             },
             "de": {
@@ -148,6 +194,23 @@ class AlertService:
                     "Ihr Datenexport ({size_mb} MB) ist fertig. Der Download-Link "
                     "ist bis {expires_at} gültig."
                 ),
+                "payment_failure_reminder_title": (
+                    "Zahlung fehlgeschlagen (Erinnerung {day_n} von 3)"
+                ),
+                "payment_failure_reminder_body": (
+                    "Ihre letzte Rechnung konnte nicht eingezogen werden. "
+                    "Aktualisieren Sie Ihre Zahlungsmethode vor "
+                    "{grace_ends_at}, sonst wird Ihr Workspace auf Free "
+                    "herabgestuft."
+                ),
+                "payment_downgraded_title": "Workspace auf Free herabgestuft",
+                "payment_downgraded_body": (
+                    "Ihr Abonnement wurde auf Free herabgestuft, da die "
+                    "Kulanzzeit nach Zahlungsausfall abgelaufen ist. "
+                    "Ressourcen, die die Free-Kontingente überschreiten, "
+                    "wurden zur Bereinigung markiert, aber nicht gelöscht; "
+                    "fügen Sie eine neue Karte hinzu, um zu reaktivieren."
+                ),
             },
             "ja": {
                 "attention_requested_title": "{source_agent_fqn} から対応依頼があります",
@@ -162,6 +225,21 @@ class AlertService:
                     "データのエクスポート ({size_mb} MB) が完了しました。"
                     "ダウンロードリンクは {expires_at} まで有効です。"
                 ),
+                "payment_failure_reminder_title": (
+                    "支払いに失敗しました (リマインダー {day_n}/3)"
+                ),
+                "payment_failure_reminder_body": (
+                    "前回の請求の引き落としに失敗しました。{grace_ends_at} "
+                    "までに支払い方法を更新してください。さもなくばワーク"
+                    "スペースは Free にダウングレードされます。"
+                ),
+                "payment_downgraded_title": "ワークスペースを Free に降格しました",
+                "payment_downgraded_body": (
+                    "支払い失敗の猶予期間が終了したため、サブスクリプションを "
+                    "Free に降格しました。Free の上限を超えるリソースは削除"
+                    "せずクリーンアップ対象として印を付けました。新しいカード"
+                    "を追加して再有効化してください。"
+                ),
             },
             "zh-CN": {
                 "attention_requested_title": "{source_agent_fqn} 请求关注",
@@ -173,6 +251,19 @@ class AlertService:
                 "export_ready_body": (
                     "您的数据导出 ({size_mb} MB) 已就绪。"
                     "下载链接的有效期至 {expires_at}。"
+                ),
+                "payment_failure_reminder_title": (
+                    "支付失败 (提醒 {day_n}/3)"
+                ),
+                "payment_failure_reminder_body": (
+                    "您最近的发票扣款失败。请在 {grace_ends_at} 之前更新付款"
+                    "方式，否则您的工作区将降级为 Free。"
+                ),
+                "payment_downgraded_title": "工作区已降级为 Free",
+                "payment_downgraded_body": (
+                    "由于支付失败的宽限期到期，您的订阅已降级为 Free。超出 "
+                    "Free 配额的资源已标记为待清理但未删除；请添加新卡以重"
+                    "新激活。"
                 ),
             },
         }

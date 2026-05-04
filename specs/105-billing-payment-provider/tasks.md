@@ -78,13 +78,13 @@
 - [X] T025 [US1] Wire the `customer.subscription.created` handler in `apps/control-plane/src/platform/billing/webhooks/handlers/subscription.py` — upserts local subscription, sets payment_method_id from the embedded `default_payment_method`, emits `billing.subscription.created`, appends audit chain.
 - [X] T026 [US1] Wire the `payment_method.attached` handler in `apps/control-plane/src/platform/billing/webhooks/handlers/payment_method.py` — calls `payment_methods.service.record_attached`, emits `billing.payment_method.attached`.
 - [X] T027 [US1] Wire the `invoice.payment_succeeded` handler in `apps/control-plane/src/platform/billing/webhooks/handlers/invoice.py` (the on-paid branch) — calls `invoices.service.upsert_from_stripe`, emits `billing.invoice.paid`.
-- [ ] T028 [US1] Implement the upgrade endpoint `POST /api/v1/workspaces/{workspace_id}/billing/upgrade` in `apps/control-plane/src/platform/billing/router.py` (extend the existing UPD-047 router) per `contracts/workspace-billing-rest.md` — calls `StripePaymentProvider` to create customer (idempotent if already exists) + subscription, returns immediately with the `pending` status; the webhook flips to `active`.
-- [ ] T029 [P] [US1] Frontend: `apps/web/lib/api/billing-stripe.ts` — typed REST client for upgrade/cancel/reactivate/portal-session/list-invoices/get-invoice.
-- [ ] T030 [P] [US1] Frontend: `apps/web/lib/hooks/use-billing-stripe.ts` — TanStack Query hooks (`useUpgradeWorkspace`, `useCancelSubscription`, `useReactivateSubscription`, `usePortalSession`, `useInvoices`).
-- [ ] T031 [US1] Frontend: `apps/web/components/features/billing-stripe/UpgradeForm.tsx` — embeds `<Elements stripe={...}>` + `<PaymentElement />` from `@stripe/react-stripe-js`, RHF + Zod for billing-address fields, handles SCA via `stripe.confirmSetup` flow.
-- [ ] T032 [US1] Frontend: `apps/web/app/(main)/workspaces/[id]/billing/upgrade/page.tsx` — plan selector + `<UpgradeForm>` per `contracts/workspace-billing-rest.md`. Disabled with a 503-style banner when the API returns `stripe_unavailable`.
-- [ ] T033 [US1] Frontend: extend the existing `apps/web/app/(main)/workspaces/[id]/billing/page.tsx` to surface payment-method + recent-invoices sections; reuse `useBillingStripe` hooks.
-- [ ] T034 [P] [US1] Add `dataLifecycle`-style locale namespace `billing` to `apps/web/messages/en.json` covering all 6 new pages + the email-template strings; mirror to the 6 other locales (en values verbatim) per UPD-051 follow-up T100 precedent.
+- [X] T028 [US1] Implement the upgrade endpoint `POST /api/v1/workspaces/{workspace_id}/billing/upgrade` in `apps/control-plane/src/platform/billing/router.py` (extend the existing UPD-047 router) per `contracts/workspace-billing-rest.md` — calls `StripePaymentProvider` to create customer (idempotent if already exists) + subscription, returns immediately with the `pending` status; the webhook flips to `active`.
+- [X] T029 [P] [US1] Frontend: `apps/web/lib/api/billing-stripe.ts` — typed REST client for upgrade/cancel/reactivate/portal-session/list-invoices/get-invoice.
+- [X] T030 [P] [US1] Frontend: `apps/web/lib/hooks/use-billing-stripe.ts` — TanStack Query hooks (`useUpgradeWorkspace`, `useCancelSubscription`, `useReactivateSubscription`, `usePortalSession`, `useInvoices`).
+- [X] T031 [US1] Frontend: `apps/web/components/features/billing-stripe/UpgradeForm.tsx` — embeds `<Elements stripe={...}>` + `<PaymentElement />` from `@stripe/react-stripe-js`, RHF + Zod for billing-address fields, handles SCA via `stripe.confirmSetup` flow.
+- [X] T032 [US1] Frontend: `apps/web/app/(main)/workspaces/[id]/billing/upgrade/page.tsx` — plan selector + `<UpgradeForm>` per `contracts/workspace-billing-rest.md`. Disabled with a 503-style banner when the API returns `stripe_unavailable`.
+- [X] T033 [US1] Frontend: extend the existing `apps/web/app/(main)/workspaces/[id]/billing/page.tsx` to surface payment-method + recent-invoices sections; reuse `useBillingStripe` hooks.
+- [X] T034 [P] [US1] Add `dataLifecycle`-style locale namespace `billing` to `apps/web/messages/en.json` covering all 6 new pages + the email-template strings; mirror to the 6 other locales (en values verbatim) per UPD-051 follow-up T100 precedent.
 
 **Checkpoint**: User Story 1 is fully functional — a Free workspace can upgrade to Pro via the embedded card form, the webhook lands, the local state transitions, quotas apply.
 
@@ -98,16 +98,16 @@
 
 ### Tests for User Story 2
 
-- [ ] T035 [P] [US2] Unit test `apps/control-plane/tests/unit/billing/test_overage_metered_reporting.py` — covers `StripePaymentProvider.report_usage` against fixture Stripe responses + the batched-vs-real-time decision logic.
-- [ ] T036 [P] [US2] Integration test scaffold (skip-marked) `apps/control-plane/tests/integration/billing/test_overage_authorization_flow.py`.
-- [ ] T037 [P] [US2] E2E test `tests/e2e/suites/billing/test_overage_authorization_flow.py` (skip-marked).
+- [X] T035 [P] [US2] Unit test `apps/control-plane/tests/unit/billing/test_overage_metered_reporting.py` — covers `StripePaymentProvider.report_usage` against fixture Stripe responses + the batched-vs-real-time decision logic.
+- [X] T036 [P] [US2] Integration test scaffold (skip-marked) `apps/control-plane/tests/integration/billing/test_overage_authorization_flow.py`.
+- [X] T037 [P] [US2] E2E test `tests/e2e/suites/billing/test_overage_authorization_flow.py` (skip-marked).
 
 ### Implementation for User Story 2
 
-- [ ] T038 [US2] Implement `apps/control-plane/src/platform/billing/providers/stripe/usage.py` — `report_usage(subscription_item_id, quantity, timestamp, idempotency_key)` per the Stripe Usage Records API; supports batched submission within rate limits.
-- [ ] T039 [US2] Wire the existing UPD-047 `OverageAuthorizationsService` to call `StripePaymentProvider.report_usage` when an authorization is open and the execution engine reports overage minutes (extend `apps/control-plane/src/platform/billing/quotas/overage.py`).
-- [ ] T040 [US2] Update the `customer.subscription.updated` handler in `apps/control-plane/src/platform/billing/webhooks/handlers/subscription.py` to capture `subscription_item.id` for the metered overage price so subsequent `report_usage` calls can find it.
-- [ ] T041 [P] [US2] Confirm the existing UPD-047 frontend page at `apps/web/app/(main)/workspaces/[id]/billing/overage-authorize/page.tsx` correctly surfaces the projected cost based on burn rate; if the existing page does not yet show a projected-cost preview, extend it to do so via a new `useOverageProjection` hook (no Stripe Elements involved here — this is platform-side math).
+- [X] T038 [US2] Implement `apps/control-plane/src/platform/billing/providers/stripe/usage.py` — `report_usage(subscription_item_id, quantity, timestamp, idempotency_key)` per the Stripe Usage Records API; supports batched submission within rate limits.
+- [X] T039 [US2] Wire the existing UPD-047 `OverageAuthorizationsService` to call `StripePaymentProvider.report_usage` when an authorization is open and the execution engine reports overage minutes (extend `apps/control-plane/src/platform/billing/quotas/overage.py`).
+- [X] T040 [US2] Update the `customer.subscription.updated` handler in `apps/control-plane/src/platform/billing/webhooks/handlers/subscription.py` to capture `subscription_item.id` for the metered overage price so subsequent `report_usage` calls can find it.
+- [X] T041 [P] [US2] Confirm the existing UPD-047 frontend page at `apps/web/app/(main)/workspaces/[id]/billing/overage-authorize/page.tsx` correctly surfaces the projected cost based on burn rate; if the existing page does not yet show a projected-cost preview, extend it to do so via a new `useOverageProjection` hook (no Stripe Elements involved here — this is platform-side math).
 
 **Checkpoint**: Overage UX (Option C) functions end-to-end — pause → notification → authorize → resume → metered Stripe usage → end-of-period invoice line item.
 
@@ -121,22 +121,22 @@
 
 ### Tests for User Story 3
 
-- [ ] T042 [P] [US3] Unit test `apps/control-plane/tests/unit/billing/test_payment_failure_grace.py` covering `start_grace`, `tick_reminder` (parameterized at day-1/3/5), `resolve_payment_recovered`, `resolve_downgrade`.
-- [ ] T043 [P] [US3] Unit test `apps/control-plane/tests/unit/billing/test_grace_monitor.py` — covers the cron tick logic (which graces need a reminder, which need to fire the day-7 downgrade) using a frozen-clock fixture.
-- [ ] T044 [P] [US3] Integration test scaffold (skip-marked) `apps/control-plane/tests/integration/billing/test_payment_failure_grace_then_downgrade.py`.
-- [ ] T045 [P] [US3] E2E test `tests/e2e/suites/billing/test_payment_failure_grace_then_downgrade.py` (skip-marked).
-- [ ] T046 [P] [US3] E2E test `tests/e2e/suites/billing/test_payment_recovery.py` (skip-marked).
+- [X] T042 [P] [US3] Unit test `apps/control-plane/tests/unit/billing/test_payment_failure_grace.py` covering `start_grace`, `tick_reminder` (parameterized at day-1/3/5), `resolve_payment_recovered`, `resolve_downgrade`.
+- [X] T043 [P] [US3] Unit test `apps/control-plane/tests/unit/billing/test_grace_monitor.py` — covers the cron tick logic (which graces need a reminder, which need to fire the day-7 downgrade) using a frozen-clock fixture.
+- [X] T044 [P] [US3] Integration test scaffold (skip-marked) `apps/control-plane/tests/integration/billing/test_payment_failure_grace_then_downgrade.py`.
+- [X] T045 [P] [US3] E2E test `tests/e2e/suites/billing/test_payment_failure_grace_then_downgrade.py` (skip-marked).
+- [X] T046 [P] [US3] E2E test `tests/e2e/suites/billing/test_payment_recovery.py` (skip-marked).
 
 ### Implementation for User Story 3
 
-- [ ] T047 [P] [US3] Implement `apps/control-plane/src/platform/billing/payment_failure_grace/repository.py` — `find_open_for_subscription`, `open(subscription_id)`, `tick_reminder(grace_id)`, `resolve(grace_id, resolution)`, `list_due_for_reminder(now)`, `list_due_for_expiry(now)`.
-- [ ] T048 [P] [US3] Implement `apps/control-plane/src/platform/billing/payment_failure_grace/service.py` — `start_grace(subscription_id)`, `resolve_payment_recovered(subscription_id)`, `resolve_downgrade(subscription_id)`, plus Kafka emission via `publish_billing_event`.
-- [ ] T049 [US3] Implement the APScheduler cron `apps/control-plane/src/platform/billing/payment_failure_grace/grace_monitor.py` — runs every 6 hours (configurable), calls `service.tick_reminders()` for day-1/3/5 and `service.tick_expiries()` for day-7. Wire the scheduler into the worker profile in `apps/control-plane/src/platform/main.py`.
-- [ ] T050 [US3] Wire the `invoice.payment_failed` handler in `apps/control-plane/src/platform/billing/webhooks/handlers/invoice.py` — calls `service.start_grace`, transitions subscription to `past_due`, emits `billing.invoice.failed` + `billing.payment_failure_grace.opened`.
-- [ ] T051 [US3] Update the `invoice.payment_succeeded` handler so that when an open grace exists for the subscription it calls `service.resolve_payment_recovered` (extends the T027 implementation).
-- [ ] T052 [US3] Implement the downgrade-to-Free helper `apps/control-plane/src/platform/billing/payment_failure_grace/downgrade.py` — flips the workspace's plan to Free, flags over-cap resources via the existing UPD-047 `flag_for_cleanup` interface (do NOT delete), emits `billing.payment_failure_grace.resolved` with `resolution=downgraded_to_free`.
-- [ ] T053 [P] [US3] Add UPD-077 notification template keys for the 3 grace reminders + the day-7 downgrade in `apps/control-plane/src/platform/notifications/service.py` `_NOTIFICATION_TEMPLATES` dict (6 locales: en/es/fr/de/ja/zh-CN). Template keys: `payment_failure_reminder_title/body` (parameterized by day-N) and `payment_downgraded_title/body`.
-- [ ] T054 [US3] Add a `BillingFailureGraceConsumer` in `apps/control-plane/src/platform/notifications/consumers/billing_failure_grace_consumer.py` that subscribes to `billing.events` and dispatches the day-N reminder and downgrade alerts via the existing `process_admin_alert` style. Register it in `main.py` next to the existing `ExportReadyConsumer`.
+- [X] T047 [P] [US3] Implement `apps/control-plane/src/platform/billing/payment_failure_grace/repository.py` — `find_open_for_subscription`, `open(subscription_id)`, `tick_reminder(grace_id)`, `resolve(grace_id, resolution)`, `list_due_for_reminder(now)`, `list_due_for_expiry(now)`.
+- [X] T048 [P] [US3] Implement `apps/control-plane/src/platform/billing/payment_failure_grace/service.py` — `start_grace(subscription_id)`, `resolve_payment_recovered(subscription_id)`, `resolve_downgrade(subscription_id)`, plus Kafka emission via `publish_billing_event`.
+- [X] T049 [US3] Implement the APScheduler cron `apps/control-plane/src/platform/billing/payment_failure_grace/grace_monitor.py` — runs every 6 hours (configurable), calls `service.tick_reminders()` for day-1/3/5 and `service.tick_expiries()` for day-7. Wire the scheduler into the worker profile in `apps/control-plane/src/platform/main.py`.
+- [X] T050 [US3] Wire the `invoice.payment_failed` handler in `apps/control-plane/src/platform/billing/webhooks/handlers/invoice.py` — calls `service.start_grace`, transitions subscription to `past_due`, emits `billing.invoice.failed` + `billing.payment_failure_grace.opened`.
+- [X] T051 [US3] Update the `invoice.payment_succeeded` handler so that when an open grace exists for the subscription it calls `service.resolve_payment_recovered` (extends the T027 implementation).
+- [X] T052 [US3] Implement the downgrade-to-Free helper `apps/control-plane/src/platform/billing/payment_failure_grace/downgrade.py` — flips the workspace's plan to Free, flags over-cap resources via the existing UPD-047 `flag_for_cleanup` interface (do NOT delete), emits `billing.payment_failure_grace.resolved` with `resolution=downgraded_to_free`.
+- [X] T053 [P] [US3] Add UPD-077 notification template keys for the 3 grace reminders + the day-7 downgrade in `apps/control-plane/src/platform/notifications/service.py` `_NOTIFICATION_TEMPLATES` dict (6 locales: en/es/fr/de/ja/zh-CN). Template keys: `payment_failure_reminder_title/body` (parameterized by day-N) and `payment_downgraded_title/body`.
+- [X] T054 [US3] Add a `BillingFailureGraceConsumer` in `apps/control-plane/src/platform/notifications/consumers/billing_failure_grace_consumer.py` that subscribes to `billing.events` and dispatches the day-N reminder and downgrade alerts via the existing `process_admin_alert` style. Register it in `main.py` next to the existing `ExportReadyConsumer`.
 
 **Checkpoint**: 7-day grace state machine functions end-to-end — webhook opens grace, daily cron sends reminders, day-7 downgrades and flags resources.
 
@@ -150,16 +150,16 @@
 
 ### Tests for User Story 4
 
-- [ ] T055 [P] [US4] Unit test `apps/control-plane/tests/unit/billing/test_customer_portal.py` — covers session creation, return-URL allowlist validation, rate-limit behavior.
-- [ ] T056 [P] [US4] Integration test scaffold (skip-marked) `apps/control-plane/tests/integration/billing/test_customer_portal_session.py`.
+- [X] T055 [P] [US4] Unit test `apps/control-plane/tests/unit/billing/test_customer_portal.py` — covers session creation, return-URL allowlist validation, rate-limit behavior.
+- [X] T056 [P] [US4] Integration test scaffold (skip-marked) `apps/control-plane/tests/integration/billing/test_customer_portal_session.py`.
 
 ### Implementation for User Story 4
 
-- [ ] T057 [P] [US4] Implement `apps/control-plane/src/platform/billing/providers/stripe/portal.py` — `create_session(customer_id, return_url)` calls `stripe.billing_portal.Session.create`.
-- [ ] T058 [US4] Implement the rate limiter `apps/control-plane/src/platform/billing/portal_rate_limit.py` using the existing Redis client (sliding window, key `billing:portal_session_ratelimit:{customer_id}`, window 1 hour, limit 10).
-- [ ] T059 [US4] Implement the workspace endpoint `POST /api/v1/workspaces/{workspace_id}/billing/portal-session` per `contracts/customer-portal-rest.md` — validates the return-url allowlist, calls the rate limiter, calls `StripePaymentProvider.create_customer_portal_session`, returns the URL, audit-logs the action without the URL.
-- [ ] T060 [US4] Frontend: `apps/web/components/features/billing-stripe/PortalRedirect.tsx` — triggers `usePortalSession` and on success uses `window.location.assign(portal_url)`; shows a clear loading state.
-- [ ] T061 [US4] Frontend: `apps/web/app/(main)/workspaces/[id]/billing/portal/page.tsx` — server-redirect orchestration page that calls the endpoint and redirects (the server component does the fetch; if Stripe is unavailable it renders a fallback "try again later" card).
+- [X] T057 [P] [US4] Implement `apps/control-plane/src/platform/billing/providers/stripe/portal.py` — `create_session(customer_id, return_url)` calls `stripe.billing_portal.Session.create`.
+- [X] T058 [US4] Implement the rate limiter `apps/control-plane/src/platform/billing/portal_rate_limit.py` using the existing Redis client (sliding window, key `billing:portal_session_ratelimit:{customer_id}`, window 1 hour, limit 10).
+- [X] T059 [US4] Implement the workspace endpoint `POST /api/v1/workspaces/{workspace_id}/billing/portal-session` per `contracts/customer-portal-rest.md` — validates the return-url allowlist, calls the rate limiter, calls `StripePaymentProvider.create_customer_portal_session`, returns the URL, audit-logs the action without the URL.
+- [X] T060 [US4] Frontend: `apps/web/components/features/billing-stripe/PortalRedirect.tsx` — triggers `usePortalSession` and on success uses `window.location.assign(portal_url)`; shows a clear loading state.
+- [X] T061 [US4] Frontend: `apps/web/app/(main)/workspaces/[id]/billing/portal/page.tsx` — server-redirect orchestration page that calls the endpoint and redirects (the server component does the fetch; if Stripe is unavailable it renders a fallback "try again later" card).
 
 **Checkpoint**: Customer Portal self-service works end-to-end.
 
@@ -173,18 +173,18 @@
 
 ### Tests for User Story 5
 
-- [ ] T062 [P] [US5] Unit test `apps/control-plane/tests/unit/billing/test_cancel_reactivate.py` — covers cancel API + reactivate API + the `customer.subscription.deleted` handler against fixture events.
-- [ ] T063 [P] [US5] Integration test scaffold (skip-marked) `apps/control-plane/tests/integration/billing/test_cancellation_period_end.py`.
-- [ ] T064 [P] [US5] E2E test `tests/e2e/suites/billing/test_cancellation_period_end.py` (skip-marked).
-- [ ] T065 [P] [US5] E2E test `tests/e2e/suites/billing/test_reactivation_during_cancellation_pending.py` (skip-marked).
+- [X] T062 [P] [US5] Unit test `apps/control-plane/tests/unit/billing/test_cancel_reactivate.py` — covers cancel API + reactivate API + the `customer.subscription.deleted` handler against fixture events.
+- [X] T063 [P] [US5] Integration test scaffold (skip-marked) `apps/control-plane/tests/integration/billing/test_cancellation_period_end.py`.
+- [X] T064 [P] [US5] E2E test `tests/e2e/suites/billing/test_cancellation_period_end.py` (skip-marked).
+- [X] T065 [P] [US5] E2E test `tests/e2e/suites/billing/test_reactivation_during_cancellation_pending.py` (skip-marked).
 
 ### Implementation for User Story 5
 
-- [ ] T066 [US5] Implement the cancel endpoint `POST /api/v1/workspaces/{workspace_id}/billing/cancel` per `contracts/workspace-billing-rest.md` — calls `StripePaymentProvider.cancel_subscription(at_period_end=True)`, transitions local status to `cancellation_pending`, persists reason+reason_text on the existing `subscriptions` row (or a new `cancellation_reasons` table if the column doesn't exist; check first), emits `billing.subscription.updated`.
-- [ ] T067 [US5] Implement the reactivate endpoint `POST /api/v1/workspaces/{workspace_id}/billing/reactivate` — calls `update_subscription(cancel_at_period_end=False)`, transitions local status to `active`. Returns 409 if the subscription has already passed `period_end`.
-- [ ] T068 [US5] Wire the `customer.subscription.deleted` handler in `apps/control-plane/src/platform/billing/webhooks/handlers/subscription.py` — transitions local status to `canceled`, downgrades the workspace to Free, applies the same flag-don't-delete behavior as the day-7 downgrade (reuse `payment_failure_grace/downgrade.py`).
-- [ ] T069 [P] [US5] Frontend: `apps/web/components/features/billing-stripe/CancelForm.tsx` — RHF + Zod (reason enum from contracts), confirmation dialog before submission, surfaces the period-end date in the success state.
-- [ ] T070 [US5] Frontend: `apps/web/app/(main)/workspaces/[id]/billing/cancel/page.tsx` — wraps `CancelForm` and the reactivate call-to-action when `cancellation_pending`.
+- [X] T066 [US5] Implement the cancel endpoint `POST /api/v1/workspaces/{workspace_id}/billing/cancel` per `contracts/workspace-billing-rest.md` — calls `StripePaymentProvider.cancel_subscription(at_period_end=True)`, transitions local status to `cancellation_pending`, persists reason+reason_text on the existing `subscriptions` row (or a new `cancellation_reasons` table if the column doesn't exist; check first), emits `billing.subscription.updated`.
+- [X] T067 [US5] Implement the reactivate endpoint `POST /api/v1/workspaces/{workspace_id}/billing/reactivate` — calls `update_subscription(cancel_at_period_end=False)`, transitions local status to `active`. Returns 409 if the subscription has already passed `period_end`.
+- [X] T068 [US5] Wire the `customer.subscription.deleted` handler in `apps/control-plane/src/platform/billing/webhooks/handlers/subscription.py` — transitions local status to `canceled`, downgrades the workspace to Free, applies the same flag-don't-delete behavior as the day-7 downgrade (reuse `payment_failure_grace/downgrade.py`).
+- [X] T069 [P] [US5] Frontend: `apps/web/components/features/billing-stripe/CancelForm.tsx` — RHF + Zod (reason enum from contracts), confirmation dialog before submission, surfaces the period-end date in the success state.
+- [X] T070 [US5] Frontend: `apps/web/app/(main)/workspaces/[id]/billing/cancel/page.tsx` — wraps `CancelForm` and the reactivate call-to-action when `cancellation_pending`.
 
 **Checkpoint**: Cancellation + reactivation lifecycle covered.
 
@@ -198,13 +198,13 @@
 
 ### Tests for User Story 6
 
-- [ ] T071 [P] [US6] Unit test `apps/control-plane/tests/unit/billing/test_free_card_no_overage.py` — assert that when a Free workspace has a payment_methods row, the quota engine still returns `BLOCKED` (not `OVERAGE_REQUIRED`) on cap exhaustion.
-- [ ] T072 [P] [US6] E2E test `tests/e2e/suites/billing/test_free_card_no_overage.py` (skip-marked).
+- [X] T071 [P] [US6] Unit test `apps/control-plane/tests/unit/billing/test_free_card_no_overage.py` — assert that when a Free workspace has a payment_methods row, the quota engine still returns `BLOCKED` (not `OVERAGE_REQUIRED`) on cap exhaustion.
+- [X] T072 [P] [US6] E2E test `tests/e2e/suites/billing/test_free_card_no_overage.py` (skip-marked).
 
 ### Implementation for User Story 6
 
-- [ ] T073 [US6] Add a "store card on file" endpoint or extend the upgrade endpoint to accept `target_plan_slug=free_with_card` (pick the simpler shape during implementation; document in commit). The endpoint creates a Stripe customer (if absent), attaches the payment method via SetupIntent (no subscription created).
-- [ ] T074 [US6] Frontend: extend `UpgradeForm.tsx` to support a "save card without upgrading" mode triggered from the Free billing page — same `<PaymentElement>` instance, different submit handler that calls the store-card-on-file endpoint instead of upgrade.
+- [X] T073 [US6] Add a "store card on file" endpoint or extend the upgrade endpoint to accept `target_plan_slug=free_with_card` (pick the simpler shape during implementation; document in commit). The endpoint creates a Stripe customer (if absent), attaches the payment method via SetupIntent (no subscription created).
+- [X] T074 [US6] Frontend: extend `UpgradeForm.tsx` to support a "save card without upgrading" mode triggered from the Free billing page — same `<PaymentElement>` instance, different submit handler that calls the store-card-on-file endpoint instead of upgrade.
 
 **Checkpoint**: Free-with-card UX works without ever producing a Stripe charge.
 
@@ -235,16 +235,16 @@
 
 ## Phase 11: Cross-cutting `invoices` REST surface
 
-- [ ] T086 [P] Implement `apps/control-plane/src/platform/billing/invoices/router.py` — endpoints from `contracts/invoices-rest.md`: list, get, pdf-redirect (with Stripe `Invoice.retrieve` refresh on URL expiry).
-- [ ] T087 [P] Frontend: `apps/web/components/features/billing-stripe/InvoiceTable.tsx` — table with downloadable PDFs.
-- [ ] T088 [US1] Frontend: `apps/web/app/(main)/workspaces/[id]/billing/invoices/page.tsx` — wraps `InvoiceTable` with cursor pagination via `useInvoices`.
+- [X] T086 [P] Implement `apps/control-plane/src/platform/billing/invoices/router.py` — endpoints from `contracts/invoices-rest.md`: list, get, pdf-redirect (with Stripe `Invoice.retrieve` refresh on URL expiry).
+- [X] T087 [P] Frontend: `apps/web/components/features/billing-stripe/InvoiceTable.tsx` — table with downloadable PDFs.
+- [X] T088 [US1] Frontend: `apps/web/app/(main)/workspaces/[id]/billing/invoices/page.tsx` — wraps `InvoiceTable` with cursor pagination via `useInvoices`.
 
 ---
 
 ## Phase 12: Cross-cutting Enterprise tenant admin
 
-- [ ] T089 [P] Implement the tenant admin endpoints from `contracts/tenant-billing-admin-rest.md` in `apps/control-plane/src/platform/billing/admin_router.py` (extend the existing UPD-047 admin router). The 2PA-gated `force-suspend` and `force-downgrade` endpoints reuse `TwoPersonApprovalService`.
-- [ ] T090 [P] Frontend: `apps/web/app/(admin)/admin/tenants/[id]/billing/page.tsx` — Enterprise tenant billing view showing subscription, payment method, recent invoices, force-suspend/force-downgrade buttons (the 2PA flow uses the existing UPD-039 / feature 086 2PA tray).
+- [X] T089 [P] Implement the tenant admin endpoints from `contracts/tenant-billing-admin-rest.md` in `apps/control-plane/src/platform/billing/admin_router.py` (extend the existing UPD-047 admin router). The 2PA-gated `force-suspend` and `force-downgrade` endpoints reuse `TwoPersonApprovalService`.
+- [X] T090 [P] Frontend: `apps/web/app/(admin)/admin/tenants/[id]/billing/page.tsx` — Enterprise tenant billing view showing subscription, payment method, recent invoices, force-suspend/force-downgrade buttons (the 2PA flow uses the existing UPD-039 / feature 086 2PA tray).
 
 ---
 
@@ -258,17 +258,17 @@
 
 ## Phase 14: Polish & Cross-Cutting Concerns
 
-- [ ] T094 [P] Add audit-chain entries on every billing transition by extending the existing `AuditChainService.append` calls in each handler/service. Each entry payload SHOULD carry `actor_id` (when known), `tenant_id`, `subscription_id`, `stripe_event_id`, and `from_status`/`to_status` — never card data.
-- [ ] T095 [P] Add the Grafana dashboard `deploy/helm/observability/templates/dashboards/billing.yaml` (rule 24) with panels for: webhook signature failures, webhook handler latency p50/p95/p99, open grace count, invoices paid per day, disputes opened per week, downgrade-to-free count.
-- [ ] T096 [P] Register the 8 new frontend surfaces in `apps/web/tests/a11y/audited-surfaces.ts` (rule 28): `billing-overview`, `billing-upgrade`, `billing-portal`, `billing-invoices`, `billing-cancel`, `admin-tenant-billing`, plus the existing `overage-authorize`. The 8th is the public store-card variant if the implementation in T073 chooses a separate route.
-- [ ] T097 [P] Mirror the new `billing` locale keys (T034) to the 6 non-English locale catalogs (de.json, es.json, fr.json, it.json, ja.json, zh-CN.json) per UPD-051 follow-up T100 precedent (English values verbatim; translator pickup later).
+- [X] T094 [P] Add audit-chain entries on every billing transition by extending the existing `AuditChainService.append` calls in each handler/service. Each entry payload SHOULD carry `actor_id` (when known), `tenant_id`, `subscription_id`, `stripe_event_id`, and `from_status`/`to_status` — never card data.
+- [X] T095 [P] Add the Grafana dashboard `deploy/helm/observability/templates/dashboards/billing.yaml` (rule 24) with panels for: webhook signature failures, webhook handler latency p50/p95/p99, open grace count, invoices paid per day, disputes opened per week, downgrade-to-free count.
+- [X] T096 [P] Register the 8 new frontend surfaces in `apps/web/tests/a11y/audited-surfaces.ts` (rule 28): `billing-overview`, `billing-upgrade`, `billing-portal`, `billing-invoices`, `billing-cancel`, `admin-tenant-billing`, plus the existing `overage-authorize`. The 8th is the public store-card variant if the implementation in T073 chooses a separate route.
+- [X] T097 [P] Mirror the new `billing` locale keys (T034) to the 6 non-English locale catalogs (de.json, es.json, fr.json, it.json, ja.json, zh-CN.json) per UPD-051 follow-up T100 precedent (English values verbatim; translator pickup later).
 - [X] T098 [P] Add the J28 / J32 / J33 / J34 journey skip-marked scaffolds: `tests/e2e/journeys/test_j28_billing_lifecycle.py`, `test_j32_webhook_idempotency.py`, `test_j33_trial_to_paid_conversion.py`, `test_j34_cancellation_reactivation.py`. Each conforms to the journey-structure validator (`JOURNEY_ID`, `TIMEOUT_SECONDS`, markers, ≥10 step blocks once unskipped).
 - [X] T099 [P] Register J28/J32/J33/J34 in `tests/e2e/journeys/__init__.py` `BILLING_JOURNEYS` registry (new constant) and add `make e2e-j28`, `make e2e-j32`, `make e2e-j33`, `make e2e-j34` targets to `tests/e2e/Makefile` plus the matching PHONY entries.
 - [X] T100 [P] Add the Helm values for billing under `deploy/helm/control-plane/values.yaml` (defaults: `provider: stub`, `mode: test`) and override in `deploy/helm/platform/values.dev.yaml` (`provider: stripe`, `mode: test`) and `deploy/helm/platform/values.prod.yaml` (`provider: stripe`, `mode: live`). Run `helm-docs --chart-search-root=deploy/helm` and `python scripts/aggregate-helm-docs.py --output docs/configuration/helm-values.md` to refresh the docs.
-- [ ] T101 [P] Add operator documentation pages: `docs/saas/billing-stripe.md` (high-level architecture), `deploy/runbooks/billing/{webhook-signature-failures,grace-monitor-paused,stripe-rotation,dispute-response}.md` (4 runbooks under `deploy/runbooks/billing/`).
-- [ ] T102 [P] Add the cold-storage scan extension hook to `tools/verify_audit_chain.py` (no change required if existing UPD-051 tool already runs platform-wide; confirm behavior). Ensure the billing audit entries are inside the chain walk.
-- [ ] T103 Final coverage sweep: ensure `pytest --cov=src/platform/billing --cov-fail-under=95` passes locally for the unit-tested modules. If specific framework-glue paths drop the package below 95%, add them to the `[tool.coverage.run] omit` list in `apps/control-plane/pyproject.toml` with the same comment-style precedent as UPD-051 (rule 14 follow-up policy).
-- [ ] T104 Mark the spec's acceptance criteria checklist as complete by editing `specs/105-billing-payment-provider/spec.md` once every task above is closed.
+- [X] T101 [P] Add operator documentation pages: `docs/saas/billing-stripe.md` (high-level architecture), `deploy/runbooks/billing/{webhook-signature-failures,grace-monitor-paused,stripe-rotation,dispute-response}.md` (4 runbooks under `deploy/runbooks/billing/`).
+- [X] T102 [P] Add the cold-storage scan extension hook to `tools/verify_audit_chain.py` (no change required if existing UPD-051 tool already runs platform-wide; confirm behavior). Ensure the billing audit entries are inside the chain walk.
+- [X] T103 Final coverage sweep: ensure `pytest --cov=src/platform/billing --cov-fail-under=95` passes locally for the unit-tested modules. If specific framework-glue paths drop the package below 95%, add them to the `[tool.coverage.run] omit` list in `apps/control-plane/pyproject.toml` with the same comment-style precedent as UPD-051 (rule 14 follow-up policy).
+- [X] T104 Mark the spec's acceptance criteria checklist as complete by editing `specs/105-billing-payment-provider/spec.md` once every task above is closed.
 
 ---
 

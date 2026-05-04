@@ -194,6 +194,25 @@ export const auditedSurfaces: AuditedSurface[] = [
     route: "/admin/dpa/tenant-1",
     ready: bodyReady,
   },
+  // UPD-052 (105) — billing-stripe surfaces (T096).
+  {
+    id: "workspace-billing-cancel",
+    group: "workspace-owner",
+    route: "/workspaces/workspace-1/billing/cancel",
+    ready: bodyReady,
+  },
+  {
+    id: "workspace-billing-portal",
+    group: "workspace-owner",
+    route: "/workspaces/workspace-1/billing/portal",
+    ready: bodyReady,
+  },
+  {
+    id: "workspace-billing-invoices",
+    group: "workspace-owner",
+    route: "/workspaces/workspace-1/billing/invoices",
+    ready: bodyReady,
+  },
 ];
 
 export function surfacesForGroup(group: A11ySurfaceGroup): AuditedSurface[] {

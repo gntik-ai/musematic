@@ -19,10 +19,18 @@ tenancy:
 billing:
   periodSchedulerIntervalSeconds: 60
   meteringToleranceSeconds: 30
-  paymentProvider: stub
+  paymentProvider: stripe
   quotaCacheTtlSeconds: 60
   quotaInFlightTtlSeconds: 300
   defaultQuotaPeriodAnchor: calendar_month
+
+# UPD-052 (105) — Stripe payment-provider configuration. Secrets (api key,
+# webhook signing secret) are loaded from Vault per rule 39, never from these
+# values.
+billingStripe:
+  provider: stripe
+  stripeMode: live
+  stripeApiVersion: "2024-06-20"
 
 signup:
   autoCreateRetrySeconds: 30

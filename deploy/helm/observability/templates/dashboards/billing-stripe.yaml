@@ -1,0 +1,125 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-billing-stripe
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.dashboardLabels" . | indent 4 }}
+data:
+  billing-stripe.json: |
+    {
+      "__inputs": [],
+      "__requires": [],
+      "annotations": { "list": [] },
+      "description": "UPD-052 — Stripe webhook health, payment-failure grace queue, invoices paid, disputes opened.",
+      "editable": true,
+      "graphTooltip": 1,
+      "id": null,
+      "links": [],
+      "panels": [
+        {
+          "id": 1,
+          "type": "stat",
+          "title": "Webhook signature failures (15 min)",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+          "targets": [
+            { "expr": "sum(increase(billing_webhook_signature_failed_total[15m]))", "legendFormat": "count" }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 10 }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "Webhook handler latency p50/p95/p99",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 9, "w": 18, "x": 6, "y": 0 },
+          "targets": [
+            { "expr": "histogram_quantile(0.5, sum(rate(billing_webhook_handler_duration_seconds_bucket[5m])) by (le, event_type))", "legendFormat": "p50 {{ `{{event_type}}` }}" },
+            { "expr": "histogram_quantile(0.95, sum(rate(billing_webhook_handler_duration_seconds_bucket[5m])) by (le, event_type))", "legendFormat": "p95 {{ `{{event_type}}` }}" },
+            { "expr": "histogram_quantile(0.99, sum(rate(billing_webhook_handler_duration_seconds_bucket[5m])) by (le, event_type))", "legendFormat": "p99 {{ `{{event_type}}` }}" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "s" } }
+        },
+        {
+          "id": 3,
+          "type": "stat",
+          "title": "Open payment-failure grace count",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 6, "w": 6, "x": 0, "y": 6 },
+          "targets": [
+            { "expr": "sum(billing_payment_failure_grace_open_count)", "legendFormat": "open" }
+          ],
+          "fieldConfig": { "defaults": { "unit": "short" } }
+        },
+        {
+          "id": 4,
+          "type": "timeseries",
+          "title": "Webhook events processed by outcome",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 9, "w": 12, "x": 0, "y": 12 },
+          "targets": [
+            { "expr": "sum(rate(billing_webhook_processed_total[5m])) by (outcome)", "legendFormat": "{{ `{{outcome}}` }}" }
+          ]
+        },
+        {
+          "id": 5,
+          "type": "stat",
+          "title": "Invoices paid (24h)",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 6, "w": 6, "x": 12, "y": 12 },
+          "targets": [
+            { "expr": "sum(increase(billing_invoice_paid_total[24h]))", "legendFormat": "paid" }
+          ]
+        },
+        {
+          "id": 6,
+          "type": "stat",
+          "title": "Disputes opened (7d)",
+          "datasource": { "type": "prometheus", "uid": "$datasource" },
+          "gridPos": { "h": 6, "w": 6, "x": 18, "y": 12 },
+          "targets": [
+            { "expr": "sum(increase(billing_dispute_opened_total[7d]))", "legendFormat": "disputes" }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "yellow", "value": 1 },
+                  { "color": "red", "value": 3 }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "schemaVersion": 39,
+      "style": "dark",
+      "tags": ["billing", "upd-052", "stripe"],
+      "templating": {
+        "list": [
+          {
+            "name": "datasource",
+            "type": "datasource",
+            "query": "prometheus",
+            "refresh": 1
+          }
+        ]
+      },
+      "time": { "from": "now-6h", "to": "now" },
+      "title": "Billing — Stripe lifecycle (UPD-052)",
+      "uid": "billing-stripe-upd-052",
+      "version": 1
+    }
