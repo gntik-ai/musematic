@@ -106,7 +106,7 @@ Run it before pushing a chart change to catch the drift before CI does.
 
 ## Cross-references
 
-- [CI gates contract](/specs/106-hetzner-clusters/contracts/ci-helm-snapshot.md)
+- `specs/106-hetzner-clusters/contracts/ci-helm-snapshot.md` (CI gates contract; lives in the repo root, outside the docs site)
 - [Hetzner cluster provisioning](./hetzner-cluster-provisioning.md)
 - [Wildcard TLS renewal](./wildcard-tls-renewal.md)
 - [Cloudflare Pages status](./cloudflare-pages-status.md)

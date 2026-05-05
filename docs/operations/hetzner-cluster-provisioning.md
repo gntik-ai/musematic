@@ -6,9 +6,9 @@
 > cloned repo.
 
 The full step-by-step is in
-[`specs/106-hetzner-clusters/quickstart.md`](../../specs/106-hetzner-clusters/quickstart.md);
-this runbook adds operator-specific notes and rollback procedures that
-the spec quickstart intentionally omits.
+`specs/106-hetzner-clusters/quickstart.md` (in the repo root, outside
+the docs site); this runbook adds operator-specific notes and rollback
+procedures that the spec quickstart intentionally omits.
 
 ## Prerequisites (one-time per Hetzner account)
 
