@@ -171,5 +171,4 @@ SQLAlchemy model order: `Base` first, then behavior mixins (`UUIDMixin`, `Timest
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at `specs/106-hetzner-clusters/plan.md`.
 <!-- SPECKIT END -->
