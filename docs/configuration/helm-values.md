@@ -1091,6 +1091,22 @@ Composite Musematic platform chart used by production and E2E deployments.
 | billing.periodSchedulerIntervalSeconds | int | `60` | Subscription period-rollover scheduler interval in seconds. |
 | billing.quotaCacheTtlSeconds | int | `60` | TTL in seconds for quota plan/usage cache entries. |
 | billing.quotaInFlightTtlSeconds | int | `300` | TTL in seconds for in-flight execution quota counters. |
+| billingStripe | object | `{"provider":"stub","stripeApiVersion":"2024-06-20","stripeMode":"test","webhookUrl":""}` | UPD-052 (105) — Stripe payment-provider config. UPD-053 (106) extends this block with a per-env `webhookUrl` so the control plane registers the correct URL with Stripe at startup. Default values keep Stripe disabled; `values.prod.yaml` and `values.dev.yaml` populate the per-env values. |
+| billingStripe.provider | string | `"stub"` | Configures `billingStripe.provider` — set to "stripe" to enable. |
+| billingStripe.stripeApiVersion | string | `"2024-06-20"` | Configures `billingStripe.stripeApiVersion` — pinned per outbound call via the Stripe-Version request header. |
+| billingStripe.stripeMode | string | `"test"` | Configures `billingStripe.stripeMode` — "live" or "test". |
+| billingStripe.webhookUrl | string | `""` | Configures `billingStripe.webhookUrl` — full HTTPS URL where Stripe delivers webhook events. UPD-053 introduces this key. Production uses https://api.musematic.ai/api/webhooks/stripe; dev uses https://dev.api.musematic.ai/api/webhooks/stripe. |
+| certManager | object | `{"certificates":[],"clusterIssuer":{"email":"","name":"letsencrypt-prod","server":"https://acme-v02.api.letsencrypt.org/directory"},"enabled":false,"hetznerDnsWebhook":{"enabled":false,"groupName":"acme.musematic.ai","image":"ghcr.io/vadimkim/cert-manager-webhook-hetzner:1.4.0"}}` | UPD-053 (106) — cert-manager + Let's Encrypt + Hetzner DNS-01 webhook. Disabled by default; enabled in values.prod.yaml and values.dev.yaml. When enabled, the chart's cert-manager + cert-manager-webhook-hetzner sub-charts are installed via Chart.yaml dependencies. |
+| certManager.certificates | list | `[]` | Configures `certManager.certificates` — list of Certificate resources rendered by templates/certmanager-certificate-wildcard.yaml. Each entry produces one Certificate; SAN list collapses wildcard + apex into a single Let's Encrypt issuance to save rate-limit budget. |
+| certManager.clusterIssuer | object | `{"email":"","name":"letsencrypt-prod","server":"https://acme-v02.api.letsencrypt.org/directory"}` | Configures `certManager.clusterIssuer` (the ClusterIssuer rendered by templates/certmanager-clusterissuer.yaml). |
+| certManager.clusterIssuer.email | string | `""` | Configures `certManager.clusterIssuer.email`. |
+| certManager.clusterIssuer.name | string | `"letsencrypt-prod"` | Configures `certManager.clusterIssuer.name`. |
+| certManager.clusterIssuer.server | string | `"https://acme-v02.api.letsencrypt.org/directory"` | Configures `certManager.clusterIssuer.server` (Let's Encrypt prod URL). |
+| certManager.enabled | bool | `false` | Configures `certManager.enabled`. |
+| certManager.hetznerDnsWebhook | object | `{"enabled":false,"groupName":"acme.musematic.ai","image":"ghcr.io/vadimkim/cert-manager-webhook-hetzner:1.4.0"}` | Configures `certManager.hetznerDnsWebhook` (the community webhook for DNS-01 challenges against Hetzner DNS). |
+| certManager.hetznerDnsWebhook.enabled | bool | `false` | Configures `certManager.hetznerDnsWebhook.enabled`. |
+| certManager.hetznerDnsWebhook.groupName | string | `"acme.musematic.ai"` | Configures `certManager.hetznerDnsWebhook.groupName` (must match the ClusterIssuer's solver groupName). |
+| certManager.hetznerDnsWebhook.image | string | `"ghcr.io/vadimkim/cert-manager-webhook-hetzner:1.4.0"` | Configures `certManager.hetznerDnsWebhook.image`. |
 | clamav | object | `{"enabled":false}` | Configures `clamav` for the platform chart (UPD-051 — DPA virus scan). |
 | clamav.enabled | bool | `false` | Configures `clamav.enabled` for the platform chart. Off by default; operators turn this on alongside DPA upload (UPD-051 / US5). |
 | clickhouse | object | `{"createNamespace":false,"enabled":true}` | Configures `clickhouse` for the platform chart. |
@@ -1240,6 +1256,21 @@ Composite Musematic platform chart used by production and E2E deployments.
 | global | object | `{"domain":"platform.local","environment":"production"}` | Configures `global` for the platform chart. |
 | global.domain | string | `"platform.local"` | Configures `global.domain` for the platform chart. |
 | global.environment | string | `"production"` | Configures `global.environment` for the platform chart. |
+| hetzner | object | `{"dns":{"apiTokenSecretRef":{"key":"token","name":"hetzner-dns-token"},"provider":"hetzner","zone":""},"loadBalancer":null}` | UPD-053 (106) — Hetzner Cloud topology configuration. Empty by default; `values.prod.yaml` and `values.dev.yaml` populate the per-env values. The control plane reads the IPv4/IPv6 + zone id at runtime via env vars (HETZNER_DNS_ZONE_ID, TENANT_DNS_IPV4_ADDRESS, TENANT_DNS_IPV6_ADDRESS). |
+| hetzner.dns | object | `{"apiTokenSecretRef":{"key":"token","name":"hetzner-dns-token"},"provider":"hetzner","zone":""}` | Configures `hetzner.dns` for the platform chart. Provides the zone + API token Secret reference consumed by cert-manager DNS-01 webhook AND by the application-side DNS automation client. |
+| hetzner.dns.apiTokenSecretRef | object | `{"key":"token","name":"hetzner-dns-token"}` | Configures `hetzner.dns.apiTokenSecretRef`. |
+| hetzner.dns.apiTokenSecretRef.key | string | `"token"` | Configures `hetzner.dns.apiTokenSecretRef.key`. |
+| hetzner.dns.apiTokenSecretRef.name | string | `"hetzner-dns-token"` | Configures `hetzner.dns.apiTokenSecretRef.name`. |
+| hetzner.dns.provider | string | `"hetzner"` | Configures `hetzner.dns.provider`. |
+| hetzner.dns.zone | string | `""` | Configures `hetzner.dns.zone` (e.g. musematic.ai). |
+| hetzner.loadBalancer | string | `nil` | Configures `hetzner.loadBalancer` for the platform chart. Renders the Hetzner Cloud Controller Manager annotations on the ingress-nginx Service via templates/service-loadbalancer.yaml when set. |
+| ingress | object | `{"annotations":{},"className":"nginx","enabled":false,"hosts":[],"tls":[],"wildcardHosts":[]}` | UPD-053 (106) — top-level ingress config consumed by templates/ingress-platform.yaml. The platform chart's ingresses for apex/app/api/grafana hostnames are populated via `hosts` (each entry maps Host header → backend Service); `wildcardHosts` adds catch-all rules for tenant subdomains routed by the hostname-extraction middleware (UPD-046). |
+| ingress.annotations | object | `{}` | Configures `ingress.annotations` — annotations applied to the platform ingress (cert-manager.io/cluster-issuer is added automatically when certManager.enabled). |
+| ingress.className | string | `"nginx"` | Configures `ingress.className`. |
+| ingress.enabled | bool | `false` | Configures `ingress.enabled` — when false, no platform-level Ingress is rendered (sub-charts may still render their own). |
+| ingress.hosts | list | `[]` | Configures `ingress.hosts` — list of `{host, paths:[{path, pathType, backend}]}`. Each entry produces one Ingress rule. |
+| ingress.tls | list | `[]` | Configures `ingress.tls` — list of `{secretName, hosts:[…]}` blocks. |
+| ingress.wildcardHosts | list | `[]` | Configures `ingress.wildcardHosts` — wildcard hostnames that route `/api/*` to the control plane and `/*` to the frontend. The hostname- extraction middleware (UPD-046) extracts the tenant slug from the request Host header at runtime. |
 | kafka | object | `{"brokerReplicas":3,"clusterName":"musematic-kafka","combined":false,"combinedReplicas":1,"controllerReplicas":3,"enabled":true,"minInsyncReplicas":2,"namespace":"platform-data","replicationFactor":3}` | Configures `kafka` for the platform chart. |
 | kafka.brokerReplicas | int | `3` | Configures `kafka.brokerReplicas` for the platform chart. |
 | kafka.clusterName | string | `"musematic-kafka"` | Configures `kafka.clusterName` for the platform chart. |
@@ -1473,13 +1504,20 @@ Composite Musematic platform chart used by production and E2E deployments.
 | vault.policyJob | object | `{"vaultAddr":"http://musematic-vault.platform-security.svc.cluster.local:8200"}` | Configures `vault.policyJob` for the platform chart. |
 | vault.policyJob.vaultAddr | string | `"http://musematic-vault.platform-security.svc.cluster.local:8200"` | Configures `vault.policyJob.vaultAddr` for the platform chart. |
 | vault.vault | object | `{"injector":{"enabled":false},"server":{"auditStorage":{"enabled":true,"size":"5Gi"},"dataStorage":{"enabled":true,"size":"10Gi"},"ha":{"enabled":true,"raft":{"enabled":true,"setNodeId":true},"replicas":3}},"ui":{"enabled":true,"serviceType":"ClusterIP"}}` | Configures `vault.vault` for the upstream HashiCorp chart. |
-| webStatus | object | `{"enabled":false,"host":"status.local","image":{"pullPolicy":"IfNotPresent","repository":"","tag":""},"replicaCount":2,"snapshotAdminTokenSecretRef":{"key":"token","name":""},"snapshotCronSchedule":"* * * * *","statusApiInternalUrl":"http://musematic-control-plane-api.platform.svc.cluster.local:8000","tls":{"clusterIssuer":"letsencrypt-prod","enabled":true}}` | Configures the independent public status page deployment. |
+| webStatus | object | `{"cloudflarePages":{"accountId":"","apiTokenSecretRef":{"key":"token","name":"cloudflare-pages-token"},"projectName":"status-musematic-ai"},"deployedHere":true,"enabled":false,"host":"status.local","image":{"pullPolicy":"IfNotPresent","repository":"","tag":""},"pushDestination":"none","pushIntervalSeconds":60,"replicaCount":2,"snapshotAdminTokenSecretRef":{"key":"token","name":""},"snapshotCronSchedule":"* * * * *","statusApiInternalUrl":"http://musematic-control-plane-api.platform.svc.cluster.local:8000","tls":{"clusterIssuer":"letsencrypt-prod","enabled":true}}` | Configures the independent public status page deployment. |
+| webStatus.cloudflarePages | object | `{"accountId":"","apiTokenSecretRef":{"key":"token","name":"cloudflare-pages-token"},"projectName":"status-musematic-ai"}` | UPD-053 (106) — `webStatus.cloudflarePages` configures the Cloudflare Pages push pipeline. Only consumed when pushDestination=cloudflare-pages. |
+| webStatus.cloudflarePages.accountId | string | `""` | Cloudflare account id (set per-env in values.prod.yaml). |
+| webStatus.cloudflarePages.apiTokenSecretRef | object | `{"key":"token","name":"cloudflare-pages-token"}` | Reference to the Kubernetes Secret synced from Vault carrying the Cloudflare API token (Pages:Edit + DNS:Edit on the apex zone). |
+| webStatus.cloudflarePages.projectName | string | `"status-musematic-ai"` | Cloudflare Pages project name. |
+| webStatus.deployedHere | bool | `true` | UPD-053 (106) — `webStatus.deployedHere` selects between in-cluster status deployment (true; default for kind/dev) and external host (false; production runs on Cloudflare Pages per constitution rule 49). |
 | webStatus.enabled | bool | `false` | Configures `webStatus.enabled` for the platform chart. |
 | webStatus.host | string | `"status.local"` | Configures `webStatus.host` for the platform chart. |
 | webStatus.image | object | `{"pullPolicy":"IfNotPresent","repository":"","tag":""}` | Configures `webStatus.image` for the platform chart. |
 | webStatus.image.pullPolicy | string | `"IfNotPresent"` | Configures `webStatus.image.pullPolicy` for the platform chart. |
 | webStatus.image.repository | string | `""` | Configures `webStatus.image.repository` for the platform chart. |
 | webStatus.image.tag | string | `""` | Configures `webStatus.image.tag` for the platform chart. |
+| webStatus.pushDestination | string | `"none"` | UPD-053 (106) — `webStatus.pushDestination` chooses the push target when `deployedHere=false`. "cloudflare-pages" is the canonical option; "none" disables the push pipeline entirely. |
+| webStatus.pushIntervalSeconds | int | `60` | UPD-053 (106) — `webStatus.pushIntervalSeconds` is the live-data cadence for the push CronJob. Production uses 30; dev uses 60. |
 | webStatus.replicaCount | int | `2` | Configures `webStatus.replicaCount` for the platform chart. |
 | webStatus.snapshotAdminTokenSecretRef | object | `{"key":"token","name":""}` | Configures `webStatus.snapshotAdminTokenSecretRef` for the internal refresh route. |
 | webStatus.snapshotCronSchedule | string | `"* * * * *"` | Configures `webStatus.snapshotCronSchedule` for fallback refreshes. |

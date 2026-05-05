@@ -2,7 +2,7 @@
 
 UPD-053 (106) extends this module from the original single-subdomain
 ``ensure_records`` Protocol (UPD-046) to a full lifecycle surface covering
-the 6-record bundle per Enterprise tenant (3 subdomains × A/AAAA), idempotent
+the 6-record bundle per Enterprise tenant (3 subdomains x A/AAAA), idempotent
 removal on the data-lifecycle phase-2 cascade, and propagation verification
 against a public resolver before notifying admins.
 
@@ -209,7 +209,7 @@ class _DnsAutomationBase:
             correlation_ctx=CorrelationContext(correlation_id=uuid4()),
         )
 
-    async def verify_propagation(  # noqa: D401
+    async def verify_propagation(
         self,
         subdomain: str,
         *,
@@ -252,14 +252,14 @@ def _resolve_via(host: str, resolver: str) -> list[str]:  # pragma: no cover —
         infos = socket.getaddrinfo(host, None, family=socket.AF_INET)
     except socket.gaierror:
         return []
-    return [info[4][0] for info in infos]
+    return [str(info[4][0]) for info in infos]
 
 
 class HetznerDnsAutomationClient(_DnsAutomationBase):
     """Production implementation backed by the Hetzner DNS API.
 
     Concrete method bodies (`create_tenant_subdomain`, `remove_tenant_subdomain`)
-    land in Phase 5 / US3 (T040–T044). The Phase 2 widening only declares the
+    land in Phase 5 / US3 (T040-T044). The Phase 2 widening only declares the
     Protocol surface so other phases can import the dataclasses.
     """
 
@@ -507,8 +507,13 @@ class MockDnsAutomationClient(_DnsAutomationBase):
         audit_chain: AuditChainService | None = None,
     ) -> None:
         # Allow construction with no settings for the simplest test cases.
+        # ``_MinimalSettingsShim`` is a structural stand-in here — only the two
+        # attributes ``DNS_PROPAGATION_RESOLVER`` and ``PLATFORM_DOMAIN`` are
+        # consumed downstream. The cast makes the intent explicit to mypy.
+        from typing import cast as _cast
+
         super().__init__(
-            settings=settings or _MinimalSettingsShim(),
+            settings=settings if settings is not None else _cast(PlatformSettings, _MinimalSettingsShim()),
             audit_chain=audit_chain,
         )
         self.actions: list[tuple[str, str, list[DnsAutomationRecord]]] = []
@@ -538,6 +543,10 @@ class MockDnsAutomationClient(_DnsAutomationBase):
                 records.append(record)
         self._fake_records[slug] = records
         self.actions.append(("create", slug, records))
+        # Backwards-compat — older tests inspect ``requests`` to assert that
+        # tenant DNS provisioning fired. Append once, here, so direct calls
+        # to ``create_tenant_subdomain`` AND legacy calls via ``ensure_records``
+        # both record the slug exactly once.
         self.requests.append(slug)
         await self._emit_audit(
             event_type="tenants.dns.records_created",
@@ -594,7 +603,6 @@ class MockDnsAutomationClient(_DnsAutomationBase):
             stacklevel=2,
         )
         slug = subdomain.split(".")[0]
-        self.requests.append(subdomain)
         LOGGER.info("tenants.dns.mock_records_ready", tenant_subdomain=subdomain)
         await self.create_tenant_subdomain(
             slug,

@@ -56,7 +56,7 @@ def _safe_register(factory: Any, name: str, doc: str, labels: list[str]) -> Any:
     except Exception:  # pragma: no cover — duplicated registration in tests
         if _prometheus_client is None:
             return _NoopMetric()
-        existing = _prometheus_client.REGISTRY._names_to_collectors.get(name)  # type: ignore[attr-defined]
+        existing = _prometheus_client.REGISTRY._names_to_collectors.get(name)
         return existing if existing is not None else _NoopMetric()
 
 

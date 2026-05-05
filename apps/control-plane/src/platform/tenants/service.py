@@ -137,7 +137,7 @@ class TenantsService:
                 created_by_user_id=_actor_id(actor),
             )
         # UPD-053 (106) — switch from the legacy single-subdomain `ensure_records`
-        # to the 6-record (3 subdomains × A+AAAA) `create_tenant_subdomain`. The
+        # to the 6-record (3 subdomains x A+AAAA) `create_tenant_subdomain`. The
         # deprecated facade still accepts older test stubs; production paths
         # exercise the full record set + propagation check.
         if hasattr(self.dns_automation, "create_tenant_subdomain"):
