@@ -477,7 +477,7 @@ metadata:
   namespace: default
 type: Opaque
 stringData:
-  CLICKHOUSE_PASSWORD: "Wx5UM4QumZrpfdOxnr6JmYlWL4rwk5BA"
+  CLICKHOUSE_PASSWORD: "***SNAPSHOT-NORMALIZED***"
 ---
 # Source: musematic-platform/charts/controlPlane/templates/common-secret.yaml
 apiVersion: v1
@@ -509,9 +509,9 @@ type: Opaque
 stringData:
   S3_ENDPOINT_URL: "http://musematic-minio-svc:9000"
   S3_ACCESS_KEY: "platform"
-  S3_SECRET_KEY: "change-me"
+  S3_SECRET_KEY: "***SNAPSHOT-NORMALIZED***"
   MINIO_ACCESS_KEY: "platform"
-  MINIO_SECRET_KEY: "change-me"
+  MINIO_SECRET_KEY: "***SNAPSHOT-NORMALIZED***"
 ---
 # Source: musematic-platform/charts/minio/templates/secret-root.yaml
 apiVersion: v1
@@ -522,10 +522,10 @@ metadata:
 type: Opaque
 stringData:
   MINIO_ROOT_USER: "admin"
-  MINIO_ROOT_PASSWORD: "Z6bbzduGFZZsy4c3IzYqLVfBlwllKeRD"
+  MINIO_ROOT_PASSWORD: "***SNAPSHOT-NORMALIZED***"
   config.env: |
     export MINIO_ROOT_USER=admin
-    export MINIO_ROOT_PASSWORD=Z6bbzduGFZZsy4c3IzYqLVfBlwllKeRD
+    export MINIO_ROOT_PASSWORD=***SNAPSHOT-NORMALIZED***
 ---
 # Source: musematic-platform/charts/minio/templates/secret-simulation.yaml
 apiVersion: v1
@@ -536,7 +536,7 @@ metadata:
 type: Opaque
 stringData:
   MINIO_ACCESS_KEY: "simulation"
-  MINIO_SECRET_KEY: "AIcinZiDpuQoY3KP3dOVHZh13Iuv0xBu"
+  MINIO_SECRET_KEY: "***SNAPSHOT-NORMALIZED***"
 ---
 # Source: musematic-platform/charts/neo4j/templates/secret-credentials.yaml
 apiVersion: v1
@@ -546,8 +546,8 @@ metadata:
   namespace: default
 type: Opaque
 stringData:
-  NEO4J_PASSWORD: "HrasTPmiBy6FKlZCo8asuZOPxXaHXXyd"
-  NEO4J_AUTH: "neo4j/HrasTPmiBy6FKlZCo8asuZOPxXaHXXyd"
+  NEO4J_PASSWORD: "***SNAPSHOT-NORMALIZED***"
+  NEO4J_AUTH: "neo4j/***SNAPSHOT-NORMALIZED***"
 ---
 # Source: musematic-platform/charts/opensearch/templates/secret-credentials.yaml
 apiVersion: v1
@@ -588,7 +588,7 @@ metadata:
   namespace: default
 type: Opaque
 stringData:
-  QDRANT_API_KEY: "HsM2KfeeanZRPeqA0J04uFIYPzLmDzBu"
+  QDRANT_API_KEY: "***SNAPSHOT-NORMALIZED***"
 ---
 # Source: musematic-platform/charts/reasoningEngine/templates/secret.yaml
 apiVersion: v1
@@ -6876,6 +6876,29 @@ spec:
               secretName: "hetzner-dns-token"
               zoneName: "musematic.ai"
               apiUrl: https://dns.hetzner.com/api/v1
+---
+# Source: musematic-platform/templates/vaultstaticsecret-cloudflare-pages-token.yaml
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: cloudflare-pages-token
+  namespace: platform-edge
+  labels:
+    app.kubernetes.io/instance: release
+    app.kubernetes.io/part-of: musematic
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: vault-cluster-store
+  target:
+    name: "cloudflare-pages-token"
+    creationPolicy: Owner
+  data:
+    - secretKey: "token"
+      remoteRef:
+        key: musematic/prod/cloudflare/pages-token
+        property: token
 ---
 # Source: musematic-platform/templates/vaultstaticsecret-hetzner-dns-token.yaml
 apiVersion: external-secrets.io/v1beta1

@@ -60,10 +60,12 @@ helm-snapshot-update:
 		--kube-version 1.29.0 \
 		--api-versions cert-manager.io/v1/Certificate \
 		--api-versions cert-manager.io/v1/ClusterIssuer \
+		| python3 scripts/normalize-helm-snapshot.py \
 		> deploy/helm/platform/.snapshots/prod.rendered.yaml
 	@helm template release deploy/helm/platform -f deploy/helm/platform/values.dev.yaml \
 		--kube-version 1.29.0 \
 		--api-versions cert-manager.io/v1/Certificate \
 		--api-versions cert-manager.io/v1/ClusterIssuer \
+		| python3 scripts/normalize-helm-snapshot.py \
 		> deploy/helm/platform/.snapshots/dev.rendered.yaml
 	@echo "Snapshots regenerated. Review with: git diff deploy/helm/platform/.snapshots/"

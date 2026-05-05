@@ -461,6 +461,34 @@ jobs:
       - name: Bootstrap kind cluster
         run: tests/e2e/cluster/bootstrap.sh
 
+      # UPD-053 (106) US6 — pre-load cert-manager CRDs so the chart's
+      # Certificate / ClusterIssuer resources don't fail "no matches for
+      # kind" during the dry-run that follows.
+      - name: Install cert-manager CRDs (for helm dry-run)
+        if: matrix.secret_mode == 'mock'
+        run: |
+          kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.16.0/cert-manager.crds.yaml
+
+      # UPD-053 (106) US6 — sanity-check the chart against a real kind
+      # API server. --dry-run does not create resources but exercises
+      # admission validation, schema checks, and template syntax for
+      # every resource the chart emits, including the new cert-manager
+      # and Hetzner-LB Service resources from this feature.
+      - name: Helm install --dry-run against kind
+        if: matrix.secret_mode == 'mock'
+        run: |
+          helm dependency update deploy/helm/platform
+          helm install platform deploy/helm/platform \
+            -f deploy/helm/platform/values.dev.yaml \
+            --dry-run --debug \
+            --kube-version 1.29.0 \
+            --create-namespace --namespace platform-dryrun \
+          | tee /tmp/helm-dryrun.log
+          if grep -E "Error: " /tmp/helm-dryrun.log; then
+            echo "::error::helm install --dry-run produced errors"
+            exit 1
+          fi
+
       - name: Run OAuth bootstrap suite
         working-directory: tests/e2e
         env:
@@ -1100,6 +1128,42 @@ jobs:
             helm template release "$chart" --api-versions loki.grafana.com/v1/LokiRule \
               | kubeconform -strict -ignore-missing-schemas -kubernetes-version 1.29.0
           done
+
+      # UPD-053 (106) US6 — snapshot-drift gate. Re-renders the platform
+      # chart against values.{prod,dev}.yaml and diffs against the
+      # committed baseline at deploy/helm/platform/.snapshots/. Drift is
+      # intentional after any template/values change — run `make
+      # helm-snapshot-update` locally and commit the regenerated files.
+      - name: Render Helm snapshots
+        run: |
+          mkdir -p /tmp/snapshots
+          helm dependency update deploy/helm/platform
+          helm template release deploy/helm/platform \
+            -f deploy/helm/platform/values.prod.yaml \
+            --kube-version 1.29.0 \
+            --api-versions cert-manager.io/v1/Certificate \
+            --api-versions cert-manager.io/v1/ClusterIssuer \
+            | python3 scripts/normalize-helm-snapshot.py \
+            > /tmp/snapshots/prod.rendered.yaml
+          helm template release deploy/helm/platform \
+            -f deploy/helm/platform/values.dev.yaml \
+            --kube-version 1.29.0 \
+            --api-versions cert-manager.io/v1/Certificate \
+            --api-versions cert-manager.io/v1/ClusterIssuer \
+            | python3 scripts/normalize-helm-snapshot.py \
+            > /tmp/snapshots/dev.rendered.yaml
+
+      - name: Diff against committed snapshots
+        run: |
+          set -e
+          if ! diff -u deploy/helm/platform/.snapshots/prod.rendered.yaml /tmp/snapshots/prod.rendered.yaml; then
+            echo "::error::prod snapshot drift — run 'make helm-snapshot-update' locally, review the diff, and commit deploy/helm/platform/.snapshots/prod.rendered.yaml. See docs/operations/helm-snapshot.md."
+            exit 1
+          fi
+          if ! diff -u deploy/helm/platform/.snapshots/dev.rendered.yaml /tmp/snapshots/dev.rendered.yaml; then
+            echo "::error::dev snapshot drift — run 'make helm-snapshot-update' locally, review the diff, and commit deploy/helm/platform/.snapshots/dev.rendered.yaml. See docs/operations/helm-snapshot.md."
+            exit 1
+          fi
 
   migration-check:
     name: Migration chain integrity

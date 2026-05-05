@@ -59,15 +59,55 @@ Record these — they feed `helm install` (`HETZNER_DNS_ZONE_ID`,
 
 ### 2. Bootstrap Kubernetes
 
-The cluster nodes provisioned by Terraform need kubeadm bootstrap:
+The cluster nodes provisioned by Terraform need kubeadm bootstrap. There
+are two supported paths; pick whichever fits your operator workflow:
+
+**Option A — kubeadm by hand** (no extra tooling):
 
 ```bash
-cd ../../../deploy/ansible/cluster-bootstrap
-ansible-playbook -i ../../../terraform/environments/production/inventory.ini \
-  bootstrap.yml
+# On the control-plane server
+ssh root@$(terraform output -raw control_plane_ipv4) <<'BOOT'
+kubeadm init \
+  --apiserver-advertise-address=10.0.0.2 \
+  --pod-network-cidr=10.244.0.0/16 \
+  --upload-certs
+mkdir -p /root/.kube && cp /etc/kubernetes/admin.conf /root/.kube/config
+kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+BOOT
+
+# Capture the join command emitted by kubeadm init
+JOIN=$(ssh root@$(terraform output -raw control_plane_ipv4) \
+  "kubeadm token create --print-join-command")
+
+# Run JOIN on each worker
+for IP in $(terraform output -json worker_ipv4s | jq -r '.[]'); do
+  ssh root@$IP "$JOIN"
+done
+
+# Pull kubeconfig back to the operator workstation
+mkdir -p ~/.kube
+scp root@$(terraform output -raw control_plane_ipv4):/etc/kubernetes/admin.conf \
+  ~/.kube/musematic-prod-config
+sed -i "s|server: https://10.0.0.2:6443|server: https://$(terraform output -raw lb_ipv4):6443|" \
+  ~/.kube/musematic-prod-config
+export KUBECONFIG=~/.kube/musematic-prod-config
 ```
 
-Confirms with `kubectl get nodes` showing 1 control plane + 3 workers Ready.
+**Option B — `hetzner-k3s`** (fastest; ~3 minutes):
+
+```bash
+# https://github.com/vitobotta/hetzner-k3s
+brew install hetzner-k3s   # or: docker run vitobotta/hetzner-k3s
+hetzner-k3s create-cluster --config terraform/environments/production/cluster-config.yaml
+```
+
+Either path: confirm with `kubectl get nodes` showing 1 control plane +
+3 workers `Ready`.
+
+> NOTE: An Ansible playbook at `deploy/ansible/cluster-bootstrap/` was
+> originally planned to wrap option A; the playbook is tracked
+> separately and is NOT required for this feature. Use option A directly
+> until the playbook lands.
 
 ### 3. Install cluster prerequisites (one-time per cluster)
 

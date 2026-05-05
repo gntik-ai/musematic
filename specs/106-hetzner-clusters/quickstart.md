@@ -58,17 +58,12 @@ For dev: `cd terraform/environments/dev` and apply with the dev tfvars. Differen
 
 ## 3. Bootstrap the Kubernetes cluster
 
-The hetzner-cluster module provisions the control plane and worker servers but does NOT bootstrap Kubernetes (kubeadm) — that's a separate operator step driven by the `cluster-bootstrap` Ansible playbook at `deploy/ansible/cluster-bootstrap/` (existing from UPD-039).
+The hetzner-cluster module provisions the control plane and worker servers but does NOT bootstrap Kubernetes — that's a separate operator step. See [`docs/operations/hetzner-cluster-provisioning.md`](../../docs/operations/hetzner-cluster-provisioning.md) § "Bootstrap Kubernetes" for the two supported paths:
 
-```bash
-cd deploy/ansible/cluster-bootstrap
-ansible-playbook -i ../../../terraform/environments/production/inventory.ini bootstrap.yml
-# wall-clock: ~10 min
-```
+- **Option A — kubeadm by hand**: ssh to the control plane, `kubeadm init`, copy the join command to each worker, scp `admin.conf` back as `~/.kube/musematic-prod-config`. Wall-clock: ~10 min.
+- **Option B — `hetzner-k3s`**: single-command k3s cluster bootstrap. Wall-clock: ~3 min.
 
-The playbook installs containerd, kubeadm, the Hetzner Cloud Controller Manager (CCM), the Hetzner CSI driver, and ingress-nginx. CCM reads `HCLOUD_TOKEN` from a Secret synced from Vault.
-
-The kubeconfig lands at `~/.kube/musematic-prod-config`; switch to it:
+Either path: install the Hetzner Cloud Controller Manager (CCM) and CSI driver after the cluster comes up — they read `HCLOUD_TOKEN` from a Secret synced from Vault. ingress-nginx is installed in step 4 below as part of the platform Helm release.
 
 ```bash
 export KUBECONFIG=~/.kube/musematic-prod-config

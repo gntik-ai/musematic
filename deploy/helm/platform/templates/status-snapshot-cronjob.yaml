@@ -1,4 +1,23 @@
+{{- /*
+UPD-053 (106) US5 — status snapshot CronJob.
+
+Two render branches gated by webStatus.deployedHere / pushDestination:
+
+  webStatus.deployedHere=true (default; used by dev):
+    POST /internal/status_page/regenerate-fallback to the in-cluster API.
+    The in-cluster web-status-deployment.yaml then serves the rendered
+    HTML; this is the legacy behaviour preserved for dev / single-cluster
+    operators.
+
+  webStatus.deployedHere=false AND webStatus.pushDestination=cloudflare-pages
+  (production):
+    Runs `wrangler pages deploy` against the Cloudflare Pages project to
+    satisfy constitution rule 49 (status-page operational independence).
+    Loops within the minute so multiple pushes per CronJob tick keep
+    pushIntervalSeconds=30 honoured.
+*/ -}}
 {{- if .Values.webStatus.enabled }}
+{{- if .Values.webStatus.deployedHere }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -57,4 +76,72 @@ spec:
                 capabilities:
                   drop:
                     - ALL
+{{- else if eq .Values.webStatus.pushDestination "cloudflare-pages" }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}-status-pages-push
+  namespace: platform-edge
+  labels:
+    app.kubernetes.io/name: status-snapshot
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: musematic
+spec:
+  schedule: "*/1 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 2
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: status-snapshot
+            app.kubernetes.io/instance: {{ .Release.Name }}
+            app.kubernetes.io/part-of: musematic
+        spec:
+          restartPolicy: OnFailure
+          automountServiceAccountToken: false
+          containers:
+            - name: push
+              image: ghcr.io/cloudflare/wrangler:latest
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: CLOUDFLARE_API_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ .Values.webStatus.cloudflarePages.apiTokenSecretRef.name | default "cloudflare-pages-token" | quote }}
+                      key: {{ .Values.webStatus.cloudflarePages.apiTokenSecretRef.key | default "token" | quote }}
+                {{- if .Values.webStatus.cloudflarePages.accountId }}
+                - name: CLOUDFLARE_ACCOUNT_ID
+                  value: {{ .Values.webStatus.cloudflarePages.accountId | quote }}
+                {{- end }}
+                - name: STATUS_API_INTERNAL_URL
+                  value: {{ .Values.webStatus.statusApiInternalUrl | quote }}
+                - name: PUSH_INTERVAL_SECONDS
+                  value: {{ .Values.webStatus.pushIntervalSeconds | default 30 | quote }}
+                - name: PROJECT_NAME
+                  value: {{ .Values.webStatus.cloudflarePages.projectName | quote }}
+              command: ["/bin/sh", "-ec"]
+              args:
+                - |
+                  set -eu
+                  workdir=$(mktemp -d)
+                  iters=$(( 60 / ${PUSH_INTERVAL_SECONDS:-30} ))
+                  [ "$iters" -lt 1 ] && iters=1
+                  for i in $(seq 1 "$iters"); do
+                    curl -fsS "${STATUS_API_INTERNAL_URL}/api/v1/internal/status_page/render" -o "$workdir/index.html"
+                    wrangler pages deploy "$workdir" \
+                      --project-name="${PROJECT_NAME}" \
+                      --branch=main
+                    [ "$i" -lt "$iters" ] && sleep "${PUSH_INTERVAL_SECONDS:-30}"
+                  done
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: false
+                capabilities:
+                  drop:
+                    - ALL
+{{- end }}
 {{- end }}

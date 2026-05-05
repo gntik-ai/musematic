@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import json
 import socket
+import time
 import warnings
 from dataclasses import dataclass
 from platform.audit.service import AuditChainService
@@ -33,6 +34,10 @@ from platform.common.logging import get_logger
 from platform.tenants.exceptions import (
     DnsAutomationFailedError,
     ReservedSlugError,
+)
+from platform.tenants.metrics import (
+    tenants_dns_automation_duration_seconds,
+    tenants_dns_automation_failed_total,
 )
 from platform.tenants.reserved_slugs import RESERVED_SLUGS
 from typing import Any, Protocol
@@ -290,6 +295,7 @@ class HetznerDnsAutomationClient(_DnsAutomationBase):
         correlation_ctx: CorrelationContext,
     ) -> DnsAutomationRecordSet:
         _check_reserved(slug)
+        started = time.monotonic()
         async with self._lock_for(self.zone_id, slug):
             records: list[DnsAutomationRecord] = []
             try:
@@ -305,6 +311,9 @@ class HetznerDnsAutomationClient(_DnsAutomationBase):
                                 )
                             )
             except Exception as exc:
+                tenants_dns_automation_failed_total.labels(
+                    action="create", slug=slug
+                ).inc()
                 await self._emit_audit(
                     event_type="tenants.dns.records_failed",
                     actor_id=actor_id,
@@ -338,6 +347,9 @@ class HetznerDnsAutomationClient(_DnsAutomationBase):
                 },
                 correlation_ctx=correlation_ctx,
             )
+            tenants_dns_automation_duration_seconds.labels(action="create").observe(
+                time.monotonic() - started
+            )
             LOGGER.info(
                 "tenants.dns.records_created",
                 slug=slug,
@@ -357,6 +369,7 @@ class HetznerDnsAutomationClient(_DnsAutomationBase):
         actor_id: UUID | None = None,
         correlation_ctx: CorrelationContext,
     ) -> None:
+        started = time.monotonic()
         async with self._lock_for(self.zone_id, slug):
             deleted_ids: list[str] = []
             try:
@@ -368,6 +381,9 @@ class HetznerDnsAutomationClient(_DnsAutomationBase):
                             await self._delete_record(client, record["id"])
                             deleted_ids.append(record["id"])
             except Exception as exc:
+                tenants_dns_automation_failed_total.labels(
+                    action="remove", slug=slug
+                ).inc()
                 await self._emit_audit(
                     event_type="tenants.dns.records_failed",
                     actor_id=actor_id,
@@ -386,6 +402,9 @@ class HetznerDnsAutomationClient(_DnsAutomationBase):
                 slug=slug,
                 details={"deleted_record_ids": deleted_ids},
                 correlation_ctx=correlation_ctx,
+            )
+            tenants_dns_automation_duration_seconds.labels(action="remove").observe(
+                time.monotonic() - started
             )
             LOGGER.info(
                 "tenants.dns.records_removed",
@@ -577,7 +596,10 @@ class MockDnsAutomationClient(_DnsAutomationBase):
         slug = subdomain.split(".")[0]
         self.requests.append(subdomain)
         LOGGER.info("tenants.dns.mock_records_ready", tenant_subdomain=subdomain)
-        await self.create_tenant_subdomain(slug, correlation_ctx=CorrelationContext())
+        await self.create_tenant_subdomain(
+            slug,
+            correlation_ctx=CorrelationContext(correlation_id=uuid4()),
+        )
 
 
 @dataclass

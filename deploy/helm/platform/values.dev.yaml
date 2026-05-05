@@ -102,11 +102,20 @@ ingress:
         - dev.musematic.ai
 
 # Dev keeps the in-cluster status deployment for cost; constitution rule 49
-# applies to the public/customer-facing surface (prod).
+# applies to the public/customer-facing surface (prod). The cloudflarePages
+# block is documented for parity with values.prod.yaml so operators can
+# trivially flip dev to push-mode if desired; with deployedHere=true the
+# block has no effect.
 webStatus:
   deployedHere: true
   pushDestination: none
   pushIntervalSeconds: 60
+  cloudflarePages:
+    accountId: ""
+    projectName: status-musematic-ai
+    apiTokenSecretRef:
+      name: cloudflare-pages-token
+      key: token
   host: status.dev.musematic.ai
 
 # UPD-052 (105) Stripe in TEST mode for dev. Webhook URL targets the dev

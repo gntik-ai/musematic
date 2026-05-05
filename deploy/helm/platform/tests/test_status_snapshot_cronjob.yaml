@@ -1,0 +1,57 @@
+suite: status snapshot CronJob (UPD-053 US5)
+templates:
+  - templates/status-snapshot-cronjob.yaml
+tests:
+  - it: renders the in-cluster regenerate CronJob when deployedHere=true
+    set:
+      webStatus.enabled: true
+      webStatus.deployedHere: true
+      webStatus.pushDestination: none
+      webStatus.snapshotCronSchedule: "*/1 * * * *"
+      webStatus.statusApiInternalUrl: http://platform-control-plane.platform:8080
+      webStatus.snapshotAdminTokenSecretRef.name: ""
+      webStatus.snapshotAdminTokenSecretRef.key: ""
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: CronJob
+      - matchRegex:
+          path: metadata.name
+          pattern: ".*-status-snapshot$"
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].image
+          value: curlimages/curl:8.11.1
+
+  - it: renders the Cloudflare Pages push CronJob when deployedHere=false and pushDestination=cloudflare-pages
+    set:
+      webStatus.enabled: true
+      webStatus.deployedHere: false
+      webStatus.pushDestination: cloudflare-pages
+      webStatus.statusApiInternalUrl: http://platform-control-plane.platform:8080
+      webStatus.pushIntervalSeconds: 30
+      webStatus.cloudflarePages.accountId: ""
+      webStatus.cloudflarePages.projectName: status-musematic-ai
+      webStatus.cloudflarePages.apiTokenSecretRef.name: cloudflare-pages-token
+      webStatus.cloudflarePages.apiTokenSecretRef.key: token
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: CronJob
+      - matchRegex:
+          path: metadata.name
+          pattern: ".*-status-pages-push$"
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].image
+          value: ghcr.io/cloudflare/wrangler:latest
+      - equal:
+          path: spec.jobTemplate.spec.template.spec.containers[0].env[0].valueFrom.secretKeyRef.name
+          value: cloudflare-pages-token
+
+  - it: renders nothing when webStatus.enabled=false
+    set:
+      webStatus.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
