@@ -19,13 +19,18 @@ import os
 
 import pytest
 
-pytestmark = pytest.mark.skipif(
-    os.environ.get("RUN_J35", "0") != "1",
-    reason=(
-        "Live wildcard TLS renewal against a sandbox Hetzner project. "
-        "Set RUN_J35=1 in an operator-driven run."
+pytestmark = [
+    pytest.mark.journey,
+    pytest.mark.j35,
+    pytest.mark.timeout(480),
+    pytest.mark.skipif(
+        os.environ.get("RUN_J35", "0") != "1",
+        reason=(
+            "Live wildcard TLS renewal against a sandbox Hetzner project. "
+            "Set RUN_J35=1 in an operator-driven run."
+        ),
     ),
-)
+]
 
 
 def test_j35_wildcard_renewal_completes_without_handshake_drop() -> None:

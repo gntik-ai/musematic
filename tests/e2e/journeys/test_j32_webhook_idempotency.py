@@ -11,13 +11,18 @@ from __future__ import annotations
 
 import pytest
 
-pytestmark = pytest.mark.skip(
-    reason=(
-        "J32 Webhook Idempotency journey — requires kind cluster + Stripe "
-        "test mode + Stripe CLI listener. Tracked under "
-        "specs/105-billing-payment-provider/tasks.md T098 / J32."
-    )
-)
+pytestmark = [
+    pytest.mark.journey,
+    pytest.mark.j32,
+    pytest.mark.timeout(480),
+    pytest.mark.skip(
+        reason=(
+            "J32 Webhook Idempotency journey — body lands during UPD-054 US2 "
+            "(specs/107-saas-e2e-journeys/tasks.md T021). Requires kind cluster "
+            "+ Stripe CLI listener."
+        )
+    ),
+]
 
 
 def test_j32_webhook_idempotency() -> None:

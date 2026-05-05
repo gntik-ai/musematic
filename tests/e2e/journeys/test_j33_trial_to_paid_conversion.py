@@ -12,13 +12,18 @@ from __future__ import annotations
 
 import pytest
 
-pytestmark = pytest.mark.skip(
-    reason=(
-        "J33 Trial-to-Paid Conversion journey — requires kind cluster + "
-        "Stripe test mode + simulated wall-clock fast-forward. Tracked "
-        "under specs/105-billing-payment-provider/tasks.md T098 / J33."
-    )
-)
+pytestmark = [
+    pytest.mark.journey,
+    pytest.mark.j33,
+    pytest.mark.timeout(480),
+    pytest.mark.skip(
+        reason=(
+            "J33 Trial-to-Paid Conversion journey — body lands during UPD-054 "
+            "US2 (specs/107-saas-e2e-journeys/tasks.md T022). Requires kind "
+            "cluster + Stripe test mode + Test Clock fast-forward."
+        )
+    ),
+]
 
 
 def test_j33_trial_to_paid_conversion() -> None:

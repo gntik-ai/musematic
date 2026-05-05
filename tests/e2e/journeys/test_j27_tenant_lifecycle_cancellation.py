@@ -28,13 +28,21 @@ from __future__ import annotations
 
 import pytest
 
-pytestmark = pytest.mark.skip(
-    reason=(
-        "J27 Tenant Lifecycle Cancellation journey — requires make dev-up "
-        "+ FEATURE_UPD053_DNS_TEARDOWN=true. Tracked under "
-        "specs/104-data-lifecycle/tasks.md T097."
-    )
-)
+# UPD-054 (107) — extended to the journey-template marker set so the
+# smoke-test contract test passes. The skip-marker remains until the
+# full body lands per spec.md US1 acceptance scenario 4.
+pytestmark = [
+    pytest.mark.journey,
+    pytest.mark.j27,
+    pytest.mark.timeout(480),
+    pytest.mark.skip(
+        reason=(
+            "J27 Tenant Lifecycle Cancellation journey — requires make dev-up "
+            "+ FEATURE_UPD053_DNS_TEARDOWN=true. Body lands during UPD-054 US1 "
+            "implementation (specs/107-saas-e2e-journeys/tasks.md T016)."
+        )
+    ),
+]
 
 
 def test_j27_tenant_lifecycle_cancellation() -> None:
