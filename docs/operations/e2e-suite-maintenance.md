@@ -208,8 +208,8 @@ ships to validate the gate; afterward it doesn't need re-running.
 
 ## 7. Related runbooks
 
-- [`tests/e2e/README.md`](../../tests/e2e/README.md) — how to bring up
-  the dev cluster and run journeys.
+- `tests/e2e/README.md` (in the repo root, outside the docs site) — how
+  to bring up the dev cluster and run journeys.
 - [`docs/operations/hetzner-cluster-provisioning.md`](./hetzner-cluster-provisioning.md)
   — dev / prod cluster bring-up.
 - [`docs/operations/wildcard-tls-renewal.md`](./wildcard-tls-renewal.md)
