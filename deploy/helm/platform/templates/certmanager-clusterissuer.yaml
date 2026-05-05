@@ -1,0 +1,36 @@
+{{- /*
+UPD-053 (106) — cert-manager ClusterIssuer for Let's Encrypt + Hetzner DNS-01.
+
+Renders only when `certManager.enabled=true`. Operator prerequisite: install
+cert-manager itself + the Hetzner DNS-01 webhook chart (see
+docs/operations/hetzner-cluster-provisioning.md). The `groupName` MUST match
+the webhook's `--group-name` flag (default acme.musematic.ai).
+
+The DNS-01 challenge reads the Hetzner DNS API token from a Kubernetes Secret
+named per `.Values.hetzner.dns.apiTokenSecretRef.name`, which is synced from
+Vault by templates/vaultstaticsecret-hetzner-dns-token.yaml.
+*/ -}}
+{{- if .Values.certManager.enabled }}
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: {{ .Values.certManager.clusterIssuer.name }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: musematic
+spec:
+  acme:
+    email: {{ .Values.certManager.clusterIssuer.email | quote }}
+    server: {{ .Values.certManager.clusterIssuer.server | quote }}
+    privateKeySecretRef:
+      name: {{ .Values.certManager.clusterIssuer.name }}-private-key
+    solvers:
+      - dns01:
+          webhook:
+            groupName: {{ .Values.certManager.hetznerDnsWebhook.groupName | default "acme.musematic.ai" | quote }}
+            solverName: hetzner
+            config:
+              secretName: {{ .Values.hetzner.dns.apiTokenSecretRef.name | quote }}
+              zoneName: {{ .Values.hetzner.dns.zone | quote }}
+              apiUrl: https://dns.hetzner.com/api/v1
+{{- end }}

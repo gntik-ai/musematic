@@ -1,0 +1,58 @@
+suite: Hetzner-annotated ingress LoadBalancer Service (UPD-053)
+templates:
+  - templates/service-loadbalancer.yaml
+tests:
+  - it: renders nothing when hetzner.loadBalancer is null
+    set:
+      hetzner.loadBalancer: null
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: emits Hetzner Cloud Controller annotations when loadBalancer is set
+    set:
+      hetzner.loadBalancer.location: nbg1
+      hetzner.loadBalancer.networkZone: eu-central
+      hetzner.loadBalancer.usePrivateIp: true
+      hetzner.loadBalancer.proxyProtocol: true
+      hetzner.loadBalancer.name: musematic-prod-lb
+      hetzner.loadBalancer.type: lb21
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Service
+      - equal:
+          path: metadata.annotations["load-balancer.hetzner.cloud/type"]
+          value: "lb21"
+      - equal:
+          path: metadata.annotations["load-balancer.hetzner.cloud/uses-proxyprotocol"]
+          value: "true"
+      - equal:
+          path: metadata.annotations["load-balancer.hetzner.cloud/location"]
+          value: "nbg1"
+      - equal:
+          path: metadata.annotations["load-balancer.hetzner.cloud/name"]
+          value: "musematic-prod-lb"
+      - equal:
+          path: spec.type
+          value: LoadBalancer
+      - equal:
+          path: spec.externalTrafficPolicy
+          value: Local
+
+  - it: defaults proxyProtocol=false renders annotation as "false"
+    set:
+      hetzner.loadBalancer.location: nbg1
+      hetzner.loadBalancer.networkZone: eu-central
+      hetzner.loadBalancer.usePrivateIp: true
+      hetzner.loadBalancer.proxyProtocol: false
+      hetzner.loadBalancer.name: musematic-dev-lb
+      hetzner.loadBalancer.type: lb11
+    asserts:
+      - equal:
+          path: metadata.annotations["load-balancer.hetzner.cloud/uses-proxyprotocol"]
+          value: "false"
+      - equal:
+          path: metadata.annotations["load-balancer.hetzner.cloud/type"]
+          value: "lb11"

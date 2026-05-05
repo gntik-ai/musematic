@@ -189,5 +189,5 @@ Python 3.12+ (application), PostgreSQL 16 (database): Follow standard convention
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at `specs/105-billing-payment-provider/plan.md`.
+at `specs/106-hetzner-clusters/plan.md`.
 <!-- SPECKIT END -->

@@ -1,0 +1,37 @@
+suite: dev cluster overlay (UPD-053 US2)
+templates:
+  - templates/service-loadbalancer.yaml
+  - templates/certmanager-clusterissuer.yaml
+  - templates/ingress-platform.yaml
+values:
+  - ../values.dev.yaml
+tests:
+  - it: dev LoadBalancer Service is sized lb11 with proxyProtocol=false
+    template: templates/service-loadbalancer.yaml
+    asserts:
+      - equal:
+          path: metadata.annotations["load-balancer.hetzner.cloud/type"]
+          value: "lb11"
+      - equal:
+          path: metadata.annotations["load-balancer.hetzner.cloud/uses-proxyprotocol"]
+          value: "false"
+      - equal:
+          path: metadata.annotations["load-balancer.hetzner.cloud/name"]
+          value: "musematic-dev-lb"
+
+  - it: dev ClusterIssuer points at musematic.ai zone (shared with prod)
+    template: templates/certmanager-clusterissuer.yaml
+    asserts:
+      - equal:
+          path: spec.acme.solvers[0].dns01.webhook.config.zoneName
+          value: musematic.ai
+
+  - it: dev ingress hosts the dev.* hostnames + wildcard
+    template: templates/ingress-platform.yaml
+    asserts:
+      - equal:
+          path: spec.rules[0].host
+          value: dev.musematic.ai
+      - contains:
+          path: spec.tls[0].hosts
+          content: "*.dev.musematic.ai"

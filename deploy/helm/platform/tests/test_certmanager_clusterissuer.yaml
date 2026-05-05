@@ -1,0 +1,46 @@
+suite: cert-manager ClusterIssuer (UPD-053)
+templates:
+  - templates/certmanager-clusterissuer.yaml
+tests:
+  - it: renders nothing when certManager.enabled=false
+    set:
+      certManager.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders a Hetzner DNS-01 ClusterIssuer when enabled
+    set:
+      certManager.enabled: true
+      certManager.clusterIssuer.name: letsencrypt-prod
+      certManager.clusterIssuer.email: ops@musematic.ai
+      certManager.clusterIssuer.server: https://acme-v02.api.letsencrypt.org/directory
+      certManager.hetznerDnsWebhook.groupName: acme.musematic.ai
+      hetzner.dns.zone: musematic.ai
+      hetzner.dns.apiTokenSecretRef.name: hetzner-dns-token
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: ClusterIssuer
+      - equal:
+          path: metadata.name
+          value: letsencrypt-prod
+      - equal:
+          path: spec.acme.email
+          value: ops@musematic.ai
+      - equal:
+          path: spec.acme.server
+          value: https://acme-v02.api.letsencrypt.org/directory
+      - equal:
+          path: spec.acme.solvers[0].dns01.webhook.solverName
+          value: hetzner
+      - equal:
+          path: spec.acme.solvers[0].dns01.webhook.groupName
+          value: acme.musematic.ai
+      - equal:
+          path: spec.acme.solvers[0].dns01.webhook.config.secretName
+          value: hetzner-dns-token
+      - equal:
+          path: spec.acme.solvers[0].dns01.webhook.config.zoneName
+          value: musematic.ai

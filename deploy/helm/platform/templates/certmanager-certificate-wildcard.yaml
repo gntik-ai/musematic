@@ -1,0 +1,35 @@
+{{- /*
+UPD-053 (106) — cert-manager Certificate resources for the wildcard + apex
+SAN list per environment. Renders one Certificate per entry in
+`.Values.certManager.certificates`; the SAN list collapses wildcard + apex
+into one Let's Encrypt issuance to save rate-limit budget.
+
+Default `renewBefore: 720h` ≡ 30 days, matching constitution rule 49 cousin
+SLO (FR-781) — alerts fire when renewal is overdue (rule via Prometheus
+alert in deploy/helm/observability/templates/alerts/cert-manager-wildcard.yaml).
+*/ -}}
+{{- if .Values.certManager.enabled }}
+{{- range .Values.certManager.certificates }}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ .name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/part-of: musematic
+spec:
+  secretName: {{ .secretName }}
+  issuerRef:
+    name: {{ $.Values.certManager.clusterIssuer.name }}
+    kind: ClusterIssuer
+  dnsNames:
+    {{- toYaml .dnsNames | nindent 4 }}
+  renewBefore: {{ .renewBefore | default "720h" }}
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+{{- end }}
+{{- end }}
