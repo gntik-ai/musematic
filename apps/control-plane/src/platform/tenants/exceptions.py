@@ -74,6 +74,23 @@ class DnsAutomationFailedError(PlatformError):
         super().__init__("dns_automation_failed", "DNS automation failed.", {"reason": reason})
 
 
+class DnsAutomationPropagationTimeoutError(PlatformError):
+    """UPD-053 (106) — raised when DNS records were created but a public resolver
+    has not yet observed them within the configured timeout. Caller decides
+    whether to surface a "DNS may take up to 5 minutes" warning or block the
+    next lifecycle transition.
+    """
+
+    status_code = 503
+
+    def __init__(self, subdomain: str, expected_ipv4: str) -> None:
+        super().__init__(
+            "dns_automation_propagation_timeout",
+            "DNS records were created but propagation has not been verified yet.",
+            {"subdomain": subdomain, "expected_ipv4": expected_ipv4},
+        )
+
+
 # --- UPD-049 per-tenant feature-flag setter exceptions ---------------------
 
 

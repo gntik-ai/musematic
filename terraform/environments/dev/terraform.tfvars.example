@@ -1,10 +1,21 @@
 cluster_name              = "musematic-dev"
 control_plane_count       = 1
-worker_count              = 2
-control_plane_server_type = "cax11"
-worker_server_type        = "cax11"
+worker_count              = 1                # UPD-053 (106): dev runs a single worker
+control_plane_server_type = "ccx21"          # UPD-053 (106): dev sizes ccx21
+worker_server_type        = "ccx21"
 location                  = "fsn1"
 network_zone              = "eu-central"
 firewall_allowed_cidrs    = ["203.0.113.10/32"]
-load_balancer_type        = "lb11"
+load_balancer_type        = "lb11"           # UPD-053 (106): dev sizes lb11
 ssh_public_key_file       = "~/.ssh/id_ed25519.pub"
+
+# UPD-053 (106) — Pass the prod-owned zone id at apply time so dev's
+# dev.* subtree records land in the existing zone:
+#   SHARED_ZONE_ID=$(cd ../production && terraform output -raw zone_id)
+#   terraform apply -var="shared_zone_id=$SHARED_ZONE_ID" -var-file=terraform.tfvars
+# Setting shared_zone_id="" skips DNS module entirely (operator manages records manually).
+# shared_zone_id = ""
+
+# Optional bootstrap record for status.dev.musematic.ai (typically empty —
+# dev runs the in-cluster status deployment per UPD-053 research R6).
+cloudflare_pages_dev_ipv4 = ""

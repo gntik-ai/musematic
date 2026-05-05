@@ -1,0 +1,80 @@
+{{- /*
+UPD-053 (106) — Platform-level Ingress for apex/app/api/grafana hostnames
+plus wildcard tenant-subdomain rules. Renders when `ingress.enabled=true`.
+
+Each `ingress.hosts[]` entry produces one rule. Wildcard rules from
+`ingress.wildcardHosts[]` route `/api/*` to the control-plane Service and
+`/*` to the frontend Service; the hostname-extraction middleware (UPD-046)
+extracts the tenant slug from the Host header at runtime.
+
+cert-manager.io/cluster-issuer annotation is added automatically when
+`certManager.enabled` so the wildcard cert from
+templates/certmanager-certificate-wildcard.yaml is consumed.
+*/ -}}
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-platform
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: musematic-platform-ingress
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: musematic
+  annotations:
+    {{- if .Values.certManager.enabled }}
+    cert-manager.io/cluster-issuer: {{ .Values.certManager.clusterIssuer.name | quote }}
+    {{- end }}
+    {{- if and .Values.hetzner .Values.hetzner.loadBalancer }}
+    nginx.ingress.kubernetes.io/use-proxy-protocol: {{ .Values.hetzner.loadBalancer.proxyProtocol | toString | quote }}
+    {{- end }}
+    nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className | quote }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- range . }}
+    - hosts:
+        {{- toYaml .hosts | nindent 8 }}
+      secretName: {{ .secretName | quote }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path | quote }}
+            pathType: {{ .pathType | default "Prefix" | quote }}
+            backend:
+              service:
+                name: {{ printf "%s-service" .backend | quote }}
+                port:
+                  number: 80
+          {{- end }}
+    {{- end }}
+    {{- range .Values.ingress.wildcardHosts }}
+    - host: {{ . | quote }}
+      http:
+        paths:
+          - path: /api/
+            pathType: Prefix
+            backend:
+              service:
+                name: control-plane-service
+                port:
+                  number: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend-service
+                port:
+                  number: 80
+    {{- end }}
+{{- end }}

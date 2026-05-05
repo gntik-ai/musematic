@@ -136,7 +136,18 @@ class TenantsService:
                 tenant.id,
                 created_by_user_id=_actor_id(actor),
             )
-        await self.dns_automation.ensure_records(tenant.subdomain)
+        # UPD-053 (106) — switch from the legacy single-subdomain `ensure_records`
+        # to the 6-record (3 subdomains x A+AAAA) `create_tenant_subdomain`. The
+        # deprecated facade still accepts older test stubs; production paths
+        # exercise the full record set + propagation check.
+        if hasattr(self.dns_automation, "create_tenant_subdomain"):
+            await self.dns_automation.create_tenant_subdomain(
+                tenant.slug,
+                actor_id=_actor_id(actor),
+                correlation_ctx=CorrelationContext(correlation_id=uuid4()),
+            )
+        else:  # pragma: no cover — legacy test stubs without the new method
+            await self.dns_automation.ensure_records(tenant.subdomain)
         await self._append_created_audit(actor, tenant, request)
         await self.session.commit()
         actor_id = _actor_id(actor)

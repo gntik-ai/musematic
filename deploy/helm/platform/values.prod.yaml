@@ -24,13 +24,9 @@ billing:
   quotaInFlightTtlSeconds: 300
   defaultQuotaPeriodAnchor: calendar_month
 
-# UPD-052 (105) — Stripe payment-provider configuration. Secrets (api key,
-# webhook signing secret) are loaded from Vault per rule 39, never from these
-# values.
-billingStripe:
-  provider: stripe
-  stripeMode: live
-  stripeApiVersion: "2024-06-20"
+# UPD-052 (105) — Stripe payment-provider configuration. The full block is
+# defined further down (extended by UPD-053 with `webhookUrl`); secrets
+# (api key, webhook signing secret) are loaded from Vault per rule 39.
 
 signup:
   autoCreateRetrySeconds: 30
@@ -48,3 +44,92 @@ marketplace:
 # surface stays reachable even when the main control-plane is paged.
 publicPages:
   enabled: true
+
+# UPD-053 (106) — Hetzner Cloud topology + cert-manager + ingress wildcard.
+# Production cluster `musematic-prod` runs in eu-central (nbg1) on lb21.
+environment: prod
+
+hetzner:
+  loadBalancer:
+    location: nbg1
+    networkZone: eu-central
+    usePrivateIp: true
+    proxyProtocol: true
+    name: musematic-prod-lb
+    type: lb21
+  dns:
+    provider: hetzner
+    apiTokenSecretRef:
+      name: hetzner-dns-token
+      key: token
+    zone: musematic.ai
+
+certManager:
+  enabled: true
+  clusterIssuer:
+    name: letsencrypt-prod
+    email: ops@musematic.ai
+    server: https://acme-v02.api.letsencrypt.org/directory
+  hetznerDnsWebhook:
+    enabled: true
+    image: ghcr.io/vadimkim/cert-manager-webhook-hetzner:1.4.0
+    groupName: acme.musematic.ai
+  certificates:
+    - name: wildcard-musematic-ai
+      secretName: wildcard-musematic-ai
+      dnsNames:
+        - "*.musematic.ai"
+        - musematic.ai
+      renewBefore: 720h
+
+# Production ingress: apex/app/api/grafana hostnames + wildcard for tenant
+# subdomains routed by the UPD-046 hostname-extraction middleware.
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: app.musematic.ai
+      paths:
+        - path: /
+          pathType: Prefix
+          backend: frontend
+    - host: api.musematic.ai
+      paths:
+        - path: /
+          pathType: Prefix
+          backend: control-plane
+    - host: grafana.musematic.ai
+      paths:
+        - path: /
+          pathType: Prefix
+          backend: grafana
+  wildcardHosts:
+    - "*.musematic.ai"
+  tls:
+    - secretName: wildcard-musematic-ai
+      hosts:
+        - "*.musematic.ai"
+        - musematic.ai
+
+# Status page lives outside the cluster (rule 49). The CronJob inside the
+# cluster pushes regenerated content to Cloudflare Pages every 30s.
+webStatus:
+  deployedHere: false
+  pushDestination: cloudflare-pages
+  pushIntervalSeconds: 30
+  cloudflarePages:
+    accountId: ""
+    projectName: status-musematic-ai
+    apiTokenSecretRef:
+      name: cloudflare-pages-token
+      key: token
+  host: status.musematic.ai
+
+# UPD-052 (105) Stripe webhook URL is per-env. Production targets the live
+# webhook signing secret stored under
+# secret/data/musematic/prod/billing/stripe/webhook-secret.
+billingStripe:
+  provider: stripe
+  stripeMode: live
+  stripeApiVersion: "2024-06-20"
+  webhookUrl: https://api.musematic.ai/api/webhooks/stripe

@@ -90,3 +90,17 @@ dependencies:
     repository: file://../public-pages
     version: 0.1.0
     condition: publicPages.enabled
+
+# UPD-053 (106) — cert-manager and the Hetzner DNS-01 webhook are
+# cluster-prerequisite charts, not platform sub-charts. They install CRDs
+# and run cluster-wide; the platform chart expects them already present.
+# Operator runbook: docs/operations/hetzner-cluster-provisioning.md
+# documents the one-time installation sequence:
+#   helm repo add jetstack https://charts.jetstack.io
+#   helm install cert-manager jetstack/cert-manager --version v1.16.0 \
+#     --namespace cert-manager --create-namespace --set installCRDs=true
+#   helm install cert-manager-webhook-hetzner \
+#     vadimkim/cert-manager-webhook-hetzner --version 0.6.0 \
+#     --namespace cert-manager
+# The platform chart's templates (ClusterIssuer + Certificate + ExternalSecret)
+# render only when `certManager.enabled=true`.

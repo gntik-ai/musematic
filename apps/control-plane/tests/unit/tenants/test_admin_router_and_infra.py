@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from types import SimpleNamespace
+from typing import cast
 from uuid import uuid4
 
 import pytest
@@ -237,27 +238,41 @@ async def test_mock_dns_client_records_requests() -> None:
 
 @pytest.mark.asyncio
 async def test_hetzner_dns_client_posts_a_and_aaaa_records(monkeypatch: pytest.MonkeyPatch) -> None:
+    """UPD-053 (106) — ``ensure_records`` is now a thin facade for
+    ``create_tenant_subdomain``, which posts the full 6-record bundle
+    (3 subdomains x {A, AAAA}). The test asserts both record types are
+    written and that the 6 calls land against the Hetzner DNS API.
+    """
     posts: list[dict[str, object]] = []
 
     class ResponseStub:
+        status_code = 200
+
         def raise_for_status(self) -> None:
             return None
 
-    class AsyncClientStub:
-        def __init__(self, timeout: float) -> None:
-            self.timeout = timeout
+        def json(self) -> dict[str, object]:
+            return {"record": {"id": f"rec-{len(posts)}"}}
 
-        async def __aenter__(self):
+    class AsyncClientStub:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
+            pass
+
+        async def __aenter__(self) -> "AsyncClientStub":
             return self
 
-        async def __aexit__(self, exc_type, exc, tb) -> None:
+        async def __aexit__(self, *_args: object) -> None:
             return None
 
-        async def post(self, url: str, *, headers: dict[str, str], json: dict[str, object]):
-            posts.append({"url": url, "headers": headers, "json": json})
+        async def post(self, url: str, **kwargs: object) -> ResponseStub:
+            posts.append({"url": url, "json": kwargs.get("json", {})})
             return ResponseStub()
 
     monkeypatch.setattr(dns_automation.httpx, "AsyncClient", AsyncClientStub)
+    monkeypatch.setattr(
+        "platform.tenants.dns_automation._resolve_via",
+        lambda host, resolver: ["192.0.2.10"],
+    )
     client = HetznerDnsAutomationClient(
         settings=PlatformSettings(),
         api_token="token",
@@ -268,7 +283,9 @@ async def test_hetzner_dns_client_posts_a_and_aaaa_records(monkeypatch: pytest.M
 
     await client.ensure_records("acme")
 
-    assert [post["json"]["type"] for post in posts] == ["A", "AAAA"]
+    record_types = {cast("dict[str, object]", post["json"])["type"] for post in posts}
+    assert record_types == {"A", "AAAA"}
+    assert len(posts) == 6  # 3 subdomains x {A, AAAA}
 
 
 def test_service_factories_build_with_request_state() -> None:

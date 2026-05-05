@@ -49,3 +49,23 @@ dev-logs:
 
 dev-shell:
 	@$(MAKE) -C tests/e2e e2e-shell $(DEV_E2E_ARGS)
+
+# UPD-053 (106) — regenerate the committed Helm snapshot fixtures the CI snapshot-diff
+# gate compares against. Run after any chart template / values change; review the diff
+# in `git diff deploy/helm/platform/.snapshots/` and commit both files.
+helm-snapshot-update:
+	@mkdir -p deploy/helm/platform/.snapshots
+	@helm dependency update deploy/helm/platform >/dev/null
+	@helm template release deploy/helm/platform -f deploy/helm/platform/values.prod.yaml \
+		--kube-version 1.29.0 \
+		--api-versions cert-manager.io/v1/Certificate \
+		--api-versions cert-manager.io/v1/ClusterIssuer \
+		| python3 scripts/normalize-helm-snapshot.py \
+		> deploy/helm/platform/.snapshots/prod.rendered.yaml
+	@helm template release deploy/helm/platform -f deploy/helm/platform/values.dev.yaml \
+		--kube-version 1.29.0 \
+		--api-versions cert-manager.io/v1/Certificate \
+		--api-versions cert-manager.io/v1/ClusterIssuer \
+		| python3 scripts/normalize-helm-snapshot.py \
+		> deploy/helm/platform/.snapshots/dev.rendered.yaml
+	@echo "Snapshots regenerated. Review with: git diff deploy/helm/platform/.snapshots/"

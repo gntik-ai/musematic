@@ -825,6 +825,29 @@ webStatus:
   tls:
     enabled: true
     clusterIssuer: letsencrypt-prod
+  # -- UPD-053 (106) — `webStatus.deployedHere` selects between in-cluster
+  # status deployment (true; default for kind/dev) and external host (false;
+  # production runs on Cloudflare Pages per constitution rule 49).
+  deployedHere: true
+  # -- UPD-053 (106) — `webStatus.pushDestination` chooses the push target
+  # when `deployedHere=false`. "cloudflare-pages" is the canonical option;
+  # "none" disables the push pipeline entirely.
+  pushDestination: none
+  # -- UPD-053 (106) — `webStatus.pushIntervalSeconds` is the live-data
+  # cadence for the push CronJob. Production uses 30; dev uses 60.
+  pushIntervalSeconds: 60
+  # -- UPD-053 (106) — `webStatus.cloudflarePages` configures the Cloudflare
+  # Pages push pipeline. Only consumed when pushDestination=cloudflare-pages.
+  cloudflarePages:
+    # -- Cloudflare account id (set per-env in values.prod.yaml).
+    accountId: ""
+    # -- Cloudflare Pages project name.
+    projectName: status-musematic-ai
+    # -- Reference to the Kubernetes Secret synced from Vault carrying the
+    # Cloudflare API token (Pages:Edit + DNS:Edit on the apex zone).
+    apiTokenSecretRef:
+      name: cloudflare-pages-token
+      key: token
 
 # @section -- Mockoauth
 # -- Configures `mockOAuth` for the platform chart.
@@ -895,3 +918,107 @@ publicPages:
   # in dev/test; on in production where the operationally-independent surface
   # is contractually required.
   enabled: false
+
+# @section -- Hetzner
+# -- UPD-053 (106) — Hetzner Cloud topology configuration. Empty by default;
+# `values.prod.yaml` and `values.dev.yaml` populate the per-env values. The
+# control plane reads the IPv4/IPv6 + zone id at runtime via env vars
+# (HETZNER_DNS_ZONE_ID, TENANT_DNS_IPV4_ADDRESS, TENANT_DNS_IPV6_ADDRESS).
+hetzner:
+  # -- Configures `hetzner.loadBalancer` for the platform chart. Renders the
+  # Hetzner Cloud Controller Manager annotations on the ingress-nginx Service
+  # via templates/service-loadbalancer.yaml when set.
+  loadBalancer: null
+  # -- Configures `hetzner.dns` for the platform chart. Provides the zone +
+  # API token Secret reference consumed by cert-manager DNS-01 webhook AND
+  # by the application-side DNS automation client.
+  dns:
+    # -- Configures `hetzner.dns.provider`.
+    provider: hetzner
+    # -- Configures `hetzner.dns.apiTokenSecretRef`.
+    apiTokenSecretRef:
+      # -- Configures `hetzner.dns.apiTokenSecretRef.name`.
+      name: hetzner-dns-token
+      # -- Configures `hetzner.dns.apiTokenSecretRef.key`.
+      key: token
+    # -- Configures `hetzner.dns.zone` (e.g. musematic.ai).
+    zone: ""
+
+# @section -- Certmanager
+# -- UPD-053 (106) — cert-manager + Let's Encrypt + Hetzner DNS-01 webhook.
+# Disabled by default; enabled in values.prod.yaml and values.dev.yaml. When
+# enabled, the chart's cert-manager + cert-manager-webhook-hetzner sub-charts
+# are installed via Chart.yaml dependencies.
+certManager:
+  # -- Configures `certManager.enabled`.
+  enabled: false
+  # -- Configures `certManager.clusterIssuer` (the ClusterIssuer rendered by
+  # templates/certmanager-clusterissuer.yaml).
+  clusterIssuer:
+    # -- Configures `certManager.clusterIssuer.name`.
+    name: letsencrypt-prod
+    # -- Configures `certManager.clusterIssuer.email`.
+    email: ""
+    # -- Configures `certManager.clusterIssuer.server` (Let's Encrypt prod URL).
+    server: https://acme-v02.api.letsencrypt.org/directory
+  # -- Configures `certManager.hetznerDnsWebhook` (the community webhook
+  # for DNS-01 challenges against Hetzner DNS).
+  hetznerDnsWebhook:
+    # -- Configures `certManager.hetznerDnsWebhook.enabled`.
+    enabled: false
+    # -- Configures `certManager.hetznerDnsWebhook.image`.
+    image: ghcr.io/vadimkim/cert-manager-webhook-hetzner:1.4.0
+    # -- Configures `certManager.hetznerDnsWebhook.groupName` (must match the
+    # ClusterIssuer's solver groupName).
+    groupName: acme.musematic.ai
+  # -- Configures `certManager.certificates` — list of Certificate resources
+  # rendered by templates/certmanager-certificate-wildcard.yaml. Each entry
+  # produces one Certificate; SAN list collapses wildcard + apex into a single
+  # Let's Encrypt issuance to save rate-limit budget.
+  certificates: []
+
+# @section -- Ingressextras
+# -- UPD-053 (106) — top-level ingress config consumed by
+# templates/ingress-platform.yaml. The platform chart's ingresses for
+# apex/app/api/grafana hostnames are populated via `hosts` (each entry maps
+# Host header → backend Service); `wildcardHosts` adds catch-all rules for
+# tenant subdomains routed by the hostname-extraction middleware (UPD-046).
+ingress:
+  # -- Configures `ingress.enabled` — when false, no platform-level Ingress
+  # is rendered (sub-charts may still render their own).
+  enabled: false
+  # -- Configures `ingress.className`.
+  className: nginx
+  # -- Configures `ingress.hosts` — list of `{host, paths:[{path, pathType, backend}]}`.
+  # Each entry produces one Ingress rule.
+  hosts: []
+  # -- Configures `ingress.wildcardHosts` — wildcard hostnames that route
+  # `/api/*` to the control plane and `/*` to the frontend. The hostname-
+  # extraction middleware (UPD-046) extracts the tenant slug from the request
+  # Host header at runtime.
+  wildcardHosts: []
+  # -- Configures `ingress.tls` — list of `{secretName, hosts:[…]}` blocks.
+  tls: []
+  # -- Configures `ingress.annotations` — annotations applied to the
+  # platform ingress (cert-manager.io/cluster-issuer is added automatically
+  # when certManager.enabled).
+  annotations: {}
+
+# @section -- Billingstripe
+# -- UPD-052 (105) — Stripe payment-provider config. UPD-053 (106) extends
+# this block with a per-env `webhookUrl` so the control plane registers the
+# correct URL with Stripe at startup. Default values keep Stripe disabled;
+# `values.prod.yaml` and `values.dev.yaml` populate the per-env values.
+billingStripe:
+  # -- Configures `billingStripe.provider` — set to "stripe" to enable.
+  provider: stub
+  # -- Configures `billingStripe.stripeMode` — "live" or "test".
+  stripeMode: test
+  # -- Configures `billingStripe.stripeApiVersion` — pinned per outbound call
+  # via the Stripe-Version request header.
+  stripeApiVersion: "2024-06-20"
+  # -- Configures `billingStripe.webhookUrl` — full HTTPS URL where Stripe
+  # delivers webhook events. UPD-053 introduces this key. Production uses
+  # https://api.musematic.ai/api/webhooks/stripe; dev uses
+  # https://dev.api.musematic.ai/api/webhooks/stripe.
+  webhookUrl: ""

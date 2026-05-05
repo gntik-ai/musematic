@@ -306,6 +306,8 @@ from platform.simulation.events import register_simulation_event_types
 from platform.simulation.router import router as simulation_router
 from platform.status_page.me_router import router as status_page_me_router
 from platform.status_page.router import router as status_page_router
+from platform.tenants.dns_automation import build_dns_automation_client
+from platform.tenants.dns_teardown import DnsTeardownService
 from platform.tenants.events import register_tenant_event_types
 from platform.tenants.jobs.deletion_grace import build_tenant_deletion_scheduler
 from platform.tenants.platform_router import router as tenants_platform_router
@@ -1565,6 +1567,16 @@ def create_app(profile: str = "api", settings: PlatformSettings | None = None) -
     app.state.incident_response_delivery_retry_scheduler = None
     app.state.incident_response_runbook_freshness_scheduler = None
     app.state.tenant_deletion_scheduler = None
+    # UPD-053 (106) — share a single DnsAutomationClient across tenant create
+    # (admin_router.py) and tenant teardown (data_lifecycle cascade).
+    audit_chain_service = getattr(app.state, "audit_chain_service", None)
+    app.state.tenant_dns_automation = build_dns_automation_client(
+        resolved,
+        audit_chain=audit_chain_service,
+    )
+    app.state.dns_teardown_service = DnsTeardownService(
+        dns_automation=app.state.tenant_dns_automation,
+    )
     app.state.billing_period_rollover_scheduler = None
     app.state.billing_reconciliation_scheduler = None
     app.state.accounts_workspace_auto_create_scheduler = None

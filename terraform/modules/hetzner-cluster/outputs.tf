@@ -22,3 +22,21 @@ output "kubeconfig_path" {
   description = "Suggested kubeconfig output path for the kubeadm bootstrap guide."
   value       = "${path.root}/kubeconfig"
 }
+
+# UPD-053 (106) — short-name aliases consumed by the hetzner-dns-zone module
+# wiring in terraform/environments/{production,dev}/main.tf. The longer
+# names above are kept for backwards compatibility with operator scripts.
+output "lb_ipv4" {
+  description = "Alias for `load_balancer_ipv4` — consumed by the hetzner-dns-zone module."
+  value       = hcloud_load_balancer.ingress.ipv4
+}
+
+output "lb_ipv6" {
+  description = "Alias for `load_balancer_ipv6` — consumed by the hetzner-dns-zone module."
+  value       = hcloud_load_balancer.ingress.ipv6
+}
+
+output "network_id" {
+  description = "Hetzner private network id; used by additional services attaching to the same network."
+  value       = hcloud_network.cluster.id
+}

@@ -6,5 +6,11 @@ worker_server_type        = "ccx53"
 location                  = "fsn1"
 network_zone              = "eu-central"
 firewall_allowed_cidrs    = ["203.0.113.10/32"]
-load_balancer_type        = "lb11"
+load_balancer_type        = "lb21" # UPD-053 (106) — production sizes lb21
 ssh_public_key_file       = "~/.ssh/id_ed25519.pub"
+
+# UPD-053 (106) — Cloudflare Pages bootstrap A record for status.musematic.ai.
+# Provision the Pages project out-of-band first (see
+# docs/operations/cloudflare-pages-status.md), then paste the IPv4 here.
+# Empty disables the bootstrap A record (operator wires a CNAME instead).
+cloudflare_pages_ipv4 = ""

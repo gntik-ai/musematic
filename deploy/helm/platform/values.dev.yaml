@@ -34,3 +34,94 @@ marketplace:
   deprecationRetentionDays: 30
   submissionRateLimitPerDay: 5
   forkNotifySourceOwners: true
+
+# UPD-053 (106) — Dev cluster (`musematic-dev`) sized at ~50% of prod with
+# physical isolation from prod (separate Hetzner Cloud LB, separate private
+# network). Stripe runs in test mode; status page stays in-cluster (rule 49
+# applies to the production surface, not dev).
+environment: dev
+
+hetzner:
+  loadBalancer:
+    location: nbg1
+    networkZone: eu-central
+    usePrivateIp: true
+    proxyProtocol: false
+    name: musematic-dev-lb
+    type: lb11
+  dns:
+    provider: hetzner
+    apiTokenSecretRef:
+      name: hetzner-dns-token
+      key: token
+    zone: musematic.ai
+
+certManager:
+  enabled: true
+  clusterIssuer:
+    name: letsencrypt-prod
+    email: ops@musematic.ai
+    server: https://acme-v02.api.letsencrypt.org/directory
+  hetznerDnsWebhook:
+    enabled: true
+    image: ghcr.io/vadimkim/cert-manager-webhook-hetzner:1.4.0
+    groupName: acme.musematic.ai
+  certificates:
+    - name: wildcard-dev-musematic-ai
+      secretName: wildcard-dev-musematic-ai
+      dnsNames:
+        - "*.dev.musematic.ai"
+        - dev.musematic.ai
+      renewBefore: 720h
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: dev.musematic.ai
+      paths:
+        - path: /
+          pathType: Prefix
+          backend: frontend
+    - host: dev.api.musematic.ai
+      paths:
+        - path: /
+          pathType: Prefix
+          backend: control-plane
+    - host: dev.grafana.musematic.ai
+      paths:
+        - path: /
+          pathType: Prefix
+          backend: grafana
+  wildcardHosts:
+    - "*.dev.musematic.ai"
+  tls:
+    - secretName: wildcard-dev-musematic-ai
+      hosts:
+        - "*.dev.musematic.ai"
+        - dev.musematic.ai
+
+# Dev keeps the in-cluster status deployment for cost; constitution rule 49
+# applies to the public/customer-facing surface (prod). The cloudflarePages
+# block is documented for parity with values.prod.yaml so operators can
+# trivially flip dev to push-mode if desired; with deployedHere=true the
+# block has no effect.
+webStatus:
+  deployedHere: true
+  pushDestination: none
+  pushIntervalSeconds: 60
+  cloudflarePages:
+    accountId: ""
+    projectName: status-musematic-ai
+    apiTokenSecretRef:
+      name: cloudflare-pages-token
+      key: token
+  host: status.dev.musematic.ai
+
+# UPD-052 (105) Stripe in TEST mode for dev. Webhook URL targets the dev
+# cluster's API hostname.
+billingStripe:
+  provider: stripe
+  stripeMode: test
+  stripeApiVersion: "2024-06-20"
+  webhookUrl: https://dev.api.musematic.ai/api/webhooks/stripe

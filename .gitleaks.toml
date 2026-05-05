@@ -4,11 +4,12 @@ title = "Musematic gitleaks configuration"
 useDefault = true
 
 [allowlist]
-description = "Fixtures, mocks, docs, and spec placeholders"
+description = "Fixtures, mocks, docs, spec placeholders, and Helm-rendered snapshots (deterministic test data per UPD-053)"
 paths = [
   '''^specs/''',
   '''^docs/''',
   '''^apps/web/mocks/''',
+  '''^deploy/helm/platform/\.snapshots/''',
 ]
 regexes = [
   '''dummy|fake|test|example|placeholder''',

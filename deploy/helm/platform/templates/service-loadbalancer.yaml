@@ -1,0 +1,39 @@
+{{- /*
+UPD-053 (106) — Hetzner Cloud Controller Manager-annotated Service for the
+ingress-nginx LoadBalancer. Renders only when `.Values.hetzner.loadBalancer`
+is set; values.yaml defaults it to null so kind/k3s overlays opt out.
+*/ -}}
+{{- if and .Values.hetzner .Values.hetzner.loadBalancer }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: ingress-nginx-controller
+  namespace: ingress-nginx
+  annotations:
+    load-balancer.hetzner.cloud/location: {{ .Values.hetzner.loadBalancer.location | quote }}
+    load-balancer.hetzner.cloud/network-zone: {{ .Values.hetzner.loadBalancer.networkZone | quote }}
+    load-balancer.hetzner.cloud/use-private-ip: {{ .Values.hetzner.loadBalancer.usePrivateIp | toString | quote }}
+    load-balancer.hetzner.cloud/uses-proxyprotocol: {{ .Values.hetzner.loadBalancer.proxyProtocol | toString | quote }}
+    load-balancer.hetzner.cloud/name: {{ .Values.hetzner.loadBalancer.name | quote }}
+    load-balancer.hetzner.cloud/type: {{ .Values.hetzner.loadBalancer.type | quote }}
+    load-balancer.hetzner.cloud/protocol: "tcp"
+    load-balancer.hetzner.cloud/health-check-protocol: "tcp"
+  labels:
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/part-of: musematic
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+    - name: https
+      port: 443
+      protocol: TCP
+      targetPort: https
+  selector:
+    app.kubernetes.io/name: ingress-nginx
+{{- end }}

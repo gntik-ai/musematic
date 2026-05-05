@@ -1,0 +1,61 @@
+suite: platform Ingress with wildcard rule (UPD-053)
+templates:
+  - templates/ingress-platform.yaml
+tests:
+  - it: renders nothing when ingress.enabled=false
+    set:
+      ingress.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+
+  - it: renders apex/app/api/grafana host rules and a wildcard rule
+    set:
+      ingress.enabled: true
+      ingress.className: nginx
+      ingress.hosts:
+        - host: app.musematic.ai
+          paths:
+            - { path: "/", pathType: Prefix, backend: frontend }
+        - host: api.musematic.ai
+          paths:
+            - { path: "/", pathType: Prefix, backend: control-plane }
+      ingress.wildcardHosts:
+        - "*.musematic.ai"
+      ingress.tls:
+        - secretName: wildcard-musematic-ai
+          hosts: ["*.musematic.ai", "musematic.ai"]
+      certManager.enabled: true
+      certManager.clusterIssuer.name: letsencrypt-prod
+    asserts:
+      - hasDocuments:
+          count: 1
+      - isKind:
+          of: Ingress
+      - equal:
+          path: spec.ingressClassName
+          value: nginx
+      - equal:
+          path: metadata.annotations["cert-manager.io/cluster-issuer"]
+          value: letsencrypt-prod
+      - equal:
+          path: spec.tls[0].secretName
+          value: wildcard-musematic-ai
+      - equal:
+          path: spec.rules[0].host
+          value: app.musematic.ai
+      - equal:
+          path: spec.rules[0].http.paths[0].backend.service.name
+          value: frontend-service
+      - equal:
+          path: spec.rules[2].host
+          value: "*.musematic.ai"
+      - equal:
+          path: spec.rules[2].http.paths[0].path
+          value: /api/
+      - equal:
+          path: spec.rules[2].http.paths[0].backend.service.name
+          value: control-plane-service
+      - equal:
+          path: spec.rules[2].http.paths[1].backend.service.name
+          value: frontend-service

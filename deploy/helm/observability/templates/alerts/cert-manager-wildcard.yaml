@@ -1,0 +1,51 @@
+{{- /*
+UPD-053 (106) US4 — wildcard cert renewal failure alert.
+
+Fires after 2 consecutive failed renewal attempts (~15-minute window using
+cert-manager's default 5-minute reconciliation tick). Severity is critical
+because the wildcard cert covers every per-tenant subdomain — a renewal
+failure that goes unaddressed within ~30 days breaks customer-facing TLS.
+*/}}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cert-manager-wildcard-alerts
+  namespace: {{ include "musematic-observability.namespace" . }}
+  labels:
+{{ include "musematic-observability.ruleLabels" . | indent 4 }}
+spec:
+  groups:
+    - name: cert-manager.wildcard
+      interval: 1m
+      rules:
+        - alert: WildcardCertRenewalFailing
+          expr: |
+            increase(certmanager_certificate_request_status_failed_total[15m]) >= 2
+          for: 0m
+          labels:
+            severity: critical
+            team: platform
+          annotations:
+            summary: Wildcard certificate renewal is failing
+            description: |
+              cert-manager has logged two or more failed certificate-request
+              attempts for the wildcard cert in the last 15 minutes. Without
+              a successful renewal the wildcard expires within the configured
+              `renewBefore` window (default 720h / 30d), after which every
+              per-tenant subdomain breaks TLS handshake.
+            runbook_url: https://github.com/gntik-ai/musematic/blob/main/docs/operations/wildcard-tls-renewal.md
+        - alert: WildcardCertExpiringSoon
+          expr: |
+            (certmanager_certificate_expiration_timestamp_seconds - time()) / 86400 < 14
+          for: 1h
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: Wildcard certificate expires in < 14 days
+            description: |
+              The wildcard certificate is within 14 days of its `notAfter`
+              timestamp and cert-manager has not yet completed a successful
+              renewal. Investigate the Hetzner DNS-01 webhook + Vault token
+              before automatic renewal misses its window.
+            runbook_url: https://github.com/gntik-ai/musematic/blob/main/docs/operations/wildcard-tls-renewal.md

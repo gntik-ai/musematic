@@ -1,3 +1,16 @@
+"""Tenant cascade handlers — registered cleanup hooks invoked by
+``TenantsService.complete_deletion`` to wipe tenant-scoped DB rows.
+
+UPD-053 (106) note on DNS teardown placement: per-tenant DNS records
+(``<slug>``, ``<slug>.api``, ``<slug>.grafana`` x {A, AAAA}) are NOT
+removed via this module. The DNS teardown adapter lives at
+``platform.tenants.dns_teardown.DnsTeardownService`` and is wired through
+the data-lifecycle BC's phase-2 cascade dispatch (see
+``platform.data_lifecycle.cascade_dispatch.tenant_cascade.dispatch_tenant_cascade``).
+Splitting the two paths keeps the ``TenantCascadeHandler`` signature
+narrow (session + tenant_id → int) while letting the data-lifecycle BC
+own the orchestration of side-effects that touch external systems.
+"""
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
