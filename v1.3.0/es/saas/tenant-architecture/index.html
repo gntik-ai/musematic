@@ -4590,6 +4590,23 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Tabla de contenidos
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#operator-topology-upd-053" class="md-nav__link">
+    <span class="md-ellipsis">
+      Operator topology (UPD-053)
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -4622,6 +4639,16 @@
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>secret/data/musematic/{env}/_platform/{domain}/{resource}
 </span></code></pre></div>
 <p>Use <code>tenant_vault_path()</code> and <code>platform_vault_path()</code> rather than constructing paths manually.</p>
+<h2 id="operator-topology-upd-053">Operator topology (UPD-053)<a class="headerlink" href="#operator-topology-upd-053" title="Permanent link">&para;</a></h2>
+<p>Production runs on a Hetzner Cloud Kubernetes cluster (<code>musematic-prod</code>: 1× CCX33 control plane + 3× CCX53 workers + 1× lb21 Cloud LB; <code>nbg1</code> / <code>eu-central</code>). Dev runs the same chart on a smaller <code>musematic-dev</code> cluster (1× CCX21 + 1× CCX21 + 1× lb11) with physical network isolation. Both clusters terminate TLS at ingress-nginx using a single wildcard certificate per environment (<code>*.musematic.ai</code> for prod, <code>*.dev.musematic.ai</code> for dev), auto-renewed by cert-manager via the Hetzner DNS-01 webhook. Per-tenant subdomains (<code>&lt;slug&gt;</code>, <code>&lt;slug&gt;.api</code>, <code>&lt;slug&gt;.grafana</code>) are provisioned as A+AAAA records by <code>tenants/dns_automation.py</code> on tenant creation and removed on data-lifecycle phase 2; the wildcard ingress rule plus the tenant-resolver middleware (above) route each request to the correct tenant context.</p>
+<p>For provisioning, renewal, and incident playbooks see:</p>
+<ul>
+<li><a href="../../operations/hetzner-cluster-provisioning/"><code>docs/operations/hetzner-cluster-provisioning.md</code></a> — zero-to-running cluster (≤ 30 min).</li>
+<li><a href="../../operations/wildcard-tls-renewal/"><code>docs/operations/wildcard-tls-renewal.md</code></a> — cert-renewal failure handling.</li>
+<li><a href="../../operations/cloudflare-pages-status/"><code>docs/operations/cloudflare-pages-status.md</code></a> — out-of-cluster status page (rule 49).</li>
+<li><a href="../../operations/helm-snapshot/"><code>docs/operations/helm-snapshot.md</code></a> — chart-snapshot CI gate.</li>
+<li><a href="../../architecture/dns-and-ingress/"><code>docs/architecture/dns-and-ingress.md</code></a> — end-to-end DNS + cert + ingress flow.</li>
+</ul>
 
 
 

@@ -11468,6 +11468,102 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>TTL in seconds for in-flight execution quota counters.</td>
 </tr>
 <tr>
+<td>billingStripe</td>
+<td>object</td>
+<td><code>{"provider":"stub","stripeApiVersion":"2024-06-20","stripeMode":"test","webhookUrl":""}</code></td>
+<td>UPD-052 (105) — Stripe payment-provider config. UPD-053 (106) extends this block with a per-env <code>webhookUrl</code> so the control plane registers the correct URL with Stripe at startup. Default values keep Stripe disabled; <code>values.prod.yaml</code> and <code>values.dev.yaml</code> populate the per-env values.</td>
+</tr>
+<tr>
+<td>billingStripe.provider</td>
+<td>string</td>
+<td><code>"stub"</code></td>
+<td>Configures <code>billingStripe.provider</code> — set to "stripe" to enable.</td>
+</tr>
+<tr>
+<td>billingStripe.stripeApiVersion</td>
+<td>string</td>
+<td><code>"2024-06-20"</code></td>
+<td>Configures <code>billingStripe.stripeApiVersion</code> — pinned per outbound call via the Stripe-Version request header.</td>
+</tr>
+<tr>
+<td>billingStripe.stripeMode</td>
+<td>string</td>
+<td><code>"test"</code></td>
+<td>Configures <code>billingStripe.stripeMode</code> — "live" or "test".</td>
+</tr>
+<tr>
+<td>billingStripe.webhookUrl</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>billingStripe.webhookUrl</code> — full HTTPS URL where Stripe delivers webhook events. UPD-053 introduces this key. Production uses https://api.musematic.ai/api/webhooks/stripe; dev uses https://dev.api.musematic.ai/api/webhooks/stripe.</td>
+</tr>
+<tr>
+<td>certManager</td>
+<td>object</td>
+<td><code>{"certificates":[],"clusterIssuer":{"email":"","name":"letsencrypt-prod","server":"https://acme-v02.api.letsencrypt.org/directory"},"enabled":false,"hetznerDnsWebhook":{"enabled":false,"groupName":"acme.musematic.ai","image":"ghcr.io/vadimkim/cert-manager-webhook-hetzner:1.4.0"}}</code></td>
+<td>UPD-053 (106) — cert-manager + Let's Encrypt + Hetzner DNS-01 webhook. Disabled by default; enabled in values.prod.yaml and values.dev.yaml. When enabled, the chart's cert-manager + cert-manager-webhook-hetzner sub-charts are installed via Chart.yaml dependencies.</td>
+</tr>
+<tr>
+<td>certManager.certificates</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Configures <code>certManager.certificates</code> — list of Certificate resources rendered by templates/certmanager-certificate-wildcard.yaml. Each entry produces one Certificate; SAN list collapses wildcard + apex into a single Let's Encrypt issuance to save rate-limit budget.</td>
+</tr>
+<tr>
+<td>certManager.clusterIssuer</td>
+<td>object</td>
+<td><code>{"email":"","name":"letsencrypt-prod","server":"https://acme-v02.api.letsencrypt.org/directory"}</code></td>
+<td>Configures <code>certManager.clusterIssuer</code> (the ClusterIssuer rendered by templates/certmanager-clusterissuer.yaml).</td>
+</tr>
+<tr>
+<td>certManager.clusterIssuer.email</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>certManager.clusterIssuer.email</code>.</td>
+</tr>
+<tr>
+<td>certManager.clusterIssuer.name</td>
+<td>string</td>
+<td><code>"letsencrypt-prod"</code></td>
+<td>Configures <code>certManager.clusterIssuer.name</code>.</td>
+</tr>
+<tr>
+<td>certManager.clusterIssuer.server</td>
+<td>string</td>
+<td><code>"https://acme-v02.api.letsencrypt.org/directory"</code></td>
+<td>Configures <code>certManager.clusterIssuer.server</code> (Let's Encrypt prod URL).</td>
+</tr>
+<tr>
+<td>certManager.enabled</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>certManager.enabled</code>.</td>
+</tr>
+<tr>
+<td>certManager.hetznerDnsWebhook</td>
+<td>object</td>
+<td><code>{"enabled":false,"groupName":"acme.musematic.ai","image":"ghcr.io/vadimkim/cert-manager-webhook-hetzner:1.4.0"}</code></td>
+<td>Configures <code>certManager.hetznerDnsWebhook</code> (the community webhook for DNS-01 challenges against Hetzner DNS).</td>
+</tr>
+<tr>
+<td>certManager.hetznerDnsWebhook.enabled</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>certManager.hetznerDnsWebhook.enabled</code>.</td>
+</tr>
+<tr>
+<td>certManager.hetznerDnsWebhook.groupName</td>
+<td>string</td>
+<td><code>"acme.musematic.ai"</code></td>
+<td>Configures <code>certManager.hetznerDnsWebhook.groupName</code> (must match the ClusterIssuer's solver groupName).</td>
+</tr>
+<tr>
+<td>certManager.hetznerDnsWebhook.image</td>
+<td>string</td>
+<td><code>"ghcr.io/vadimkim/cert-manager-webhook-hetzner:1.4.0"</code></td>
+<td>Configures <code>certManager.hetznerDnsWebhook.image</code>.</td>
+</tr>
+<tr>
 <td>clamav</td>
 <td>object</td>
 <td><code>{"enabled":false}</code></td>
@@ -12360,6 +12456,96 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>string</td>
 <td><code>"production"</code></td>
 <td>Configures <code>global.environment</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>hetzner</td>
+<td>object</td>
+<td><code>{"dns":{"apiTokenSecretRef":{"key":"token","name":"hetzner-dns-token"},"provider":"hetzner","zone":""},"loadBalancer":null}</code></td>
+<td>UPD-053 (106) — Hetzner Cloud topology configuration. Empty by default; <code>values.prod.yaml</code> and <code>values.dev.yaml</code> populate the per-env values. The control plane reads the IPv4/IPv6 + zone id at runtime via env vars (HETZNER_DNS_ZONE_ID, TENANT_DNS_IPV4_ADDRESS, TENANT_DNS_IPV6_ADDRESS).</td>
+</tr>
+<tr>
+<td>hetzner.dns</td>
+<td>object</td>
+<td><code>{"apiTokenSecretRef":{"key":"token","name":"hetzner-dns-token"},"provider":"hetzner","zone":""}</code></td>
+<td>Configures <code>hetzner.dns</code> for the platform chart. Provides the zone + API token Secret reference consumed by cert-manager DNS-01 webhook AND by the application-side DNS automation client.</td>
+</tr>
+<tr>
+<td>hetzner.dns.apiTokenSecretRef</td>
+<td>object</td>
+<td><code>{"key":"token","name":"hetzner-dns-token"}</code></td>
+<td>Configures <code>hetzner.dns.apiTokenSecretRef</code>.</td>
+</tr>
+<tr>
+<td>hetzner.dns.apiTokenSecretRef.key</td>
+<td>string</td>
+<td><code>"token"</code></td>
+<td>Configures <code>hetzner.dns.apiTokenSecretRef.key</code>.</td>
+</tr>
+<tr>
+<td>hetzner.dns.apiTokenSecretRef.name</td>
+<td>string</td>
+<td><code>"hetzner-dns-token"</code></td>
+<td>Configures <code>hetzner.dns.apiTokenSecretRef.name</code>.</td>
+</tr>
+<tr>
+<td>hetzner.dns.provider</td>
+<td>string</td>
+<td><code>"hetzner"</code></td>
+<td>Configures <code>hetzner.dns.provider</code>.</td>
+</tr>
+<tr>
+<td>hetzner.dns.zone</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Configures <code>hetzner.dns.zone</code> (e.g. musematic.ai).</td>
+</tr>
+<tr>
+<td>hetzner.loadBalancer</td>
+<td>string</td>
+<td><code>nil</code></td>
+<td>Configures <code>hetzner.loadBalancer</code> for the platform chart. Renders the Hetzner Cloud Controller Manager annotations on the ingress-nginx Service via templates/service-loadbalancer.yaml when set.</td>
+</tr>
+<tr>
+<td>ingress</td>
+<td>object</td>
+<td><code>{"annotations":{},"className":"nginx","enabled":false,"hosts":[],"tls":[],"wildcardHosts":[]}</code></td>
+<td>UPD-053 (106) — top-level ingress config consumed by templates/ingress-platform.yaml. The platform chart's ingresses for apex/app/api/grafana hostnames are populated via <code>hosts</code> (each entry maps Host header → backend Service); <code>wildcardHosts</code> adds catch-all rules for tenant subdomains routed by the hostname-extraction middleware (UPD-046).</td>
+</tr>
+<tr>
+<td>ingress.annotations</td>
+<td>object</td>
+<td><code>{}</code></td>
+<td>Configures <code>ingress.annotations</code> — annotations applied to the platform ingress (cert-manager.io/cluster-issuer is added automatically when certManager.enabled).</td>
+</tr>
+<tr>
+<td>ingress.className</td>
+<td>string</td>
+<td><code>"nginx"</code></td>
+<td>Configures <code>ingress.className</code>.</td>
+</tr>
+<tr>
+<td>ingress.enabled</td>
+<td>bool</td>
+<td><code>false</code></td>
+<td>Configures <code>ingress.enabled</code> — when false, no platform-level Ingress is rendered (sub-charts may still render their own).</td>
+</tr>
+<tr>
+<td>ingress.hosts</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Configures <code>ingress.hosts</code> — list of <code>{host, paths:[{path, pathType, backend}]}</code>. Each entry produces one Ingress rule.</td>
+</tr>
+<tr>
+<td>ingress.tls</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Configures <code>ingress.tls</code> — list of <code>{secretName, hosts:[…]}</code> blocks.</td>
+</tr>
+<tr>
+<td>ingress.wildcardHosts</td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Configures <code>ingress.wildcardHosts</code> — wildcard hostnames that route <code>/api/*</code> to the control plane and <code>/*</code> to the frontend. The hostname- extraction middleware (UPD-046) extracts the tenant slug from the request Host header at runtime.</td>
 </tr>
 <tr>
 <td>kafka</td>
@@ -13762,8 +13948,38 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <tr>
 <td>webStatus</td>
 <td>object</td>
-<td><code>{"enabled":false,"host":"status.local","image":{"pullPolicy":"IfNotPresent","repository":"","tag":""},"replicaCount":2,"snapshotAdminTokenSecretRef":{"key":"token","name":""},"snapshotCronSchedule":"* * * * *","statusApiInternalUrl":"http://musematic-control-plane-api.platform.svc.cluster.local:8000","tls":{"clusterIssuer":"letsencrypt-prod","enabled":true}}</code></td>
+<td><code>{"cloudflarePages":{"accountId":"","apiTokenSecretRef":{"key":"token","name":"cloudflare-pages-token"},"projectName":"status-musematic-ai"},"deployedHere":true,"enabled":false,"host":"status.local","image":{"pullPolicy":"IfNotPresent","repository":"","tag":""},"pushDestination":"none","pushIntervalSeconds":60,"replicaCount":2,"snapshotAdminTokenSecretRef":{"key":"token","name":""},"snapshotCronSchedule":"* * * * *","statusApiInternalUrl":"http://musematic-control-plane-api.platform.svc.cluster.local:8000","tls":{"clusterIssuer":"letsencrypt-prod","enabled":true}}</code></td>
 <td>Configures the independent public status page deployment.</td>
+</tr>
+<tr>
+<td>webStatus.cloudflarePages</td>
+<td>object</td>
+<td><code>{"accountId":"","apiTokenSecretRef":{"key":"token","name":"cloudflare-pages-token"},"projectName":"status-musematic-ai"}</code></td>
+<td>UPD-053 (106) — <code>webStatus.cloudflarePages</code> configures the Cloudflare Pages push pipeline. Only consumed when pushDestination=cloudflare-pages.</td>
+</tr>
+<tr>
+<td>webStatus.cloudflarePages.accountId</td>
+<td>string</td>
+<td><code>""</code></td>
+<td>Cloudflare account id (set per-env in values.prod.yaml).</td>
+</tr>
+<tr>
+<td>webStatus.cloudflarePages.apiTokenSecretRef</td>
+<td>object</td>
+<td><code>{"key":"token","name":"cloudflare-pages-token"}</code></td>
+<td>Reference to the Kubernetes Secret synced from Vault carrying the Cloudflare API token (Pages:Edit + DNS:Edit on the apex zone).</td>
+</tr>
+<tr>
+<td>webStatus.cloudflarePages.projectName</td>
+<td>string</td>
+<td><code>"status-musematic-ai"</code></td>
+<td>Cloudflare Pages project name.</td>
+</tr>
+<tr>
+<td>webStatus.deployedHere</td>
+<td>bool</td>
+<td><code>true</code></td>
+<td>UPD-053 (106) — <code>webStatus.deployedHere</code> selects between in-cluster status deployment (true; default for kind/dev) and external host (false; production runs on Cloudflare Pages per constitution rule 49).</td>
 </tr>
 <tr>
 <td>webStatus.enabled</td>
@@ -13800,6 +14016,18 @@ Run <code>helm-docs --chart-search-root=deploy/helm</code> before committing cha
 <td>string</td>
 <td><code>""</code></td>
 <td>Configures <code>webStatus.image.tag</code> for the platform chart.</td>
+</tr>
+<tr>
+<td>webStatus.pushDestination</td>
+<td>string</td>
+<td><code>"none"</code></td>
+<td>UPD-053 (106) — <code>webStatus.pushDestination</code> chooses the push target when <code>deployedHere=false</code>. "cloudflare-pages" is the canonical option; "none" disables the push pipeline entirely.</td>
+</tr>
+<tr>
+<td>webStatus.pushIntervalSeconds</td>
+<td>int</td>
+<td><code>60</code></td>
+<td>UPD-053 (106) — <code>webStatus.pushIntervalSeconds</code> is the live-data cadence for the push CronJob. Production uses 30; dev uses 60.</td>
 </tr>
 <tr>
 <td>webStatus.replicaCount</td>

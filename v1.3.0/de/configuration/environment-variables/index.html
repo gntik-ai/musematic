@@ -6379,7 +6379,7 @@
 <td><code>""</code></td>
 <td>sensitive</td>
 <td>Configures <code>password</code> for ClickHouse.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/clickhouse/templates/backup-cronjob.yaml</code><br><code>deploy/helm/clickhouse/templates/schema-init-job.yaml</code><br><code>deploy/helm/clickhouse/templates/statefulset-server.yaml</code><br><code>deploy/helm/control-plane/templates/api-deployment.yaml</code><br>+4 more</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/clickhouse/templates/backup-cronjob.yaml</code><br><code>deploy/helm/clickhouse/templates/schema-init-job.yaml</code><br><code>deploy/helm/clickhouse/templates/statefulset-server.yaml</code><br><code>deploy/helm/control-plane/templates/api-deployment.yaml</code><br>+6 more</td>
 </tr>
 <tr>
 <td><code>CLICKHOUSE_PORT</code></td>
@@ -6395,7 +6395,7 @@
 <td><code>default</code></td>
 <td>informational</td>
 <td>Configures <code>user</code> for ClickHouse.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/clickhouse/templates/statefulset-server.yaml</code></td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/clickhouse/templates/statefulset-server.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 </tbody>
 </table>
@@ -7645,7 +7645,7 @@
 <td>-</td>
 <td>sensitive</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/minio/templates/bucket-init-job-generic.yaml</code><br><code>deploy/helm/observability/templates/pre-install-loki-bucket-job.yaml</code><br><code>deploy/helm/opensearch/values-dev.yaml</code><br><code>deploy/helm/opensearch/values-prod.yaml</code><br><code>deploy/helm/opensearch/values.yaml</code></td>
+<td><code>deploy/helm/minio/templates/bucket-init-job-generic.yaml</code><br><code>deploy/helm/observability/templates/pre-install-loki-bucket-job.yaml</code><br><code>deploy/helm/opensearch/values-dev.yaml</code><br><code>deploy/helm/opensearch/values-prod.yaml</code><br><code>deploy/helm/opensearch/values.yaml</code><br>+2 more</td>
 </tr>
 <tr>
 <td><code>AWS_DEFAULT_REGION</code></td>
@@ -7653,7 +7653,7 @@
 <td>-</td>
 <td>configuration</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/minio/templates/bucket-init-job-generic.yaml</code><br><code>deploy/helm/observability/templates/pre-install-loki-bucket-job.yaml</code><br><code>deploy/helm/opensearch/values-dev.yaml</code><br><code>deploy/helm/opensearch/values-prod.yaml</code><br><code>deploy/helm/opensearch/values.yaml</code></td>
+<td><code>deploy/helm/minio/templates/bucket-init-job-generic.yaml</code><br><code>deploy/helm/observability/templates/pre-install-loki-bucket-job.yaml</code><br><code>deploy/helm/opensearch/values-dev.yaml</code><br><code>deploy/helm/opensearch/values-prod.yaml</code><br><code>deploy/helm/opensearch/values.yaml</code><br>+2 more</td>
 </tr>
 <tr>
 <td><code>AWS_EC2_METADATA_DISABLED</code></td>
@@ -7661,7 +7661,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/opensearch/values-dev.yaml</code><br><code>deploy/helm/opensearch/values-prod.yaml</code><br><code>deploy/helm/opensearch/values.yaml</code></td>
+<td><code>deploy/helm/opensearch/values-dev.yaml</code><br><code>deploy/helm/opensearch/values-prod.yaml</code><br><code>deploy/helm/opensearch/values.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>AWS_REGION</code></td>
@@ -7669,7 +7669,7 @@
 <td>-</td>
 <td>configuration</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/opensearch/values-dev.yaml</code><br><code>deploy/helm/opensearch/values-prod.yaml</code><br><code>deploy/helm/opensearch/values.yaml</code></td>
+<td><code>deploy/helm/opensearch/values-dev.yaml</code><br><code>deploy/helm/opensearch/values-prod.yaml</code><br><code>deploy/helm/opensearch/values.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>AWS_SECRET_ACCESS_KEY</code></td>
@@ -7677,7 +7677,7 @@
 <td>-</td>
 <td>sensitive</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/minio/templates/bucket-init-job-generic.yaml</code><br><code>deploy/helm/observability/templates/pre-install-loki-bucket-job.yaml</code><br><code>deploy/helm/opensearch/values-dev.yaml</code><br><code>deploy/helm/opensearch/values-prod.yaml</code><br><code>deploy/helm/opensearch/values.yaml</code></td>
+<td><code>deploy/helm/minio/templates/bucket-init-job-generic.yaml</code><br><code>deploy/helm/observability/templates/pre-install-loki-bucket-job.yaml</code><br><code>deploy/helm/opensearch/values-dev.yaml</code><br><code>deploy/helm/opensearch/values-prod.yaml</code><br><code>deploy/helm/opensearch/values.yaml</code><br>+2 more</td>
 </tr>
 <tr>
 <td><code>BACKUP_BUCKET</code></td>
@@ -7685,7 +7685,7 @@
 <td>-</td>
 <td>configuration</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/neo4j/templates/backup-cronjob.yaml</code><br><code>deploy/helm/qdrant/templates/backup-cronjob.yaml</code></td>
+<td><code>deploy/helm/neo4j/templates/backup-cronjob.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code><br><code>deploy/helm/qdrant/templates/backup-cronjob.yaml</code></td>
 </tr>
 <tr>
 <td><code>BACKUP_PREFIX</code></td>
@@ -7693,7 +7693,23 @@
 <td>-</td>
 <td>informational</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/neo4j/templates/backup-cronjob.yaml</code></td>
+<td><code>deploy/helm/neo4j/templates/backup-cronjob.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
+</tr>
+<tr>
+<td><code>CLOUDFLARE_ACCOUNT_ID</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/platform/templates/status-snapshot-cronjob.yaml</code></td>
+</tr>
+<tr>
+<td><code>CLOUDFLARE_API_TOKEN</code></td>
+<td>optional</td>
+<td>-</td>
+<td>sensitive</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/platform/templates/status-snapshot-cronjob.yaml</code></td>
 </tr>
 <tr>
 <td><code>DISABLE_SECURITY_DASHBOARDS_PLUGIN</code></td>
@@ -7701,7 +7717,7 @@
 <td>-</td>
 <td>configuration</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/opensearch/values-dev.yaml</code><br><code>deploy/helm/opensearch/values-prod.yaml</code><br><code>deploy/helm/opensearch/values.yaml</code></td>
+<td><code>deploy/helm/opensearch/values-dev.yaml</code><br><code>deploy/helm/opensearch/values-prod.yaml</code><br><code>deploy/helm/opensearch/values.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>DISABLE_SECURITY_PLUGIN</code></td>
@@ -7709,7 +7725,23 @@
 <td>-</td>
 <td>configuration</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/opensearch/values-dev.yaml</code><br><code>deploy/helm/opensearch/values-prod.yaml</code><br><code>deploy/helm/opensearch/values.yaml</code></td>
+<td><code>deploy/helm/opensearch/values-dev.yaml</code><br><code>deploy/helm/opensearch/values-prod.yaml</code><br><code>deploy/helm/opensearch/values.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
+</tr>
+<tr>
+<td><code>HELM_CHART_VERSION</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
+</tr>
+<tr>
+<td><code>HELM_NEO4J_VERSION</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>KAFKA_ADMIN_BROKERS_REF</code></td>
@@ -7733,7 +7765,7 @@
 <td>-</td>
 <td>sensitive</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/minio/templates/bucket-init-job.yaml</code><br><code>deploy/helm/minio/templates/deployment.yaml</code></td>
+<td><code>deploy/helm/minio/templates/bucket-init-job.yaml</code><br><code>deploy/helm/minio/templates/deployment.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>MINIO_ROOT_USER</code></td>
@@ -7741,7 +7773,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/minio/templates/bucket-init-job.yaml</code><br><code>deploy/helm/minio/templates/deployment.yaml</code></td>
+<td><code>deploy/helm/minio/templates/bucket-init-job.yaml</code><br><code>deploy/helm/minio/templates/deployment.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>MOCK_BASE_URL</code></td>
@@ -7789,7 +7821,7 @@
 <td>-</td>
 <td>configuration</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/ui/templates/deployment.yaml</code></td>
+<td><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code><br><code>deploy/helm/ui/templates/deployment.yaml</code></td>
 </tr>
 <tr>
 <td><code>NEXT_PUBLIC_APP_ENV</code></td>
@@ -7797,7 +7829,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/ui/templates/deployment.yaml</code></td>
+<td><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code><br><code>deploy/helm/ui/templates/deployment.yaml</code></td>
 </tr>
 <tr>
 <td><code>NEXT_PUBLIC_ROUTE_GROUP</code></td>
@@ -7805,7 +7837,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/public-pages/templates/deployment.yaml</code></td>
+<td><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code><br><code>deploy/helm/public-pages/templates/deployment.yaml</code></td>
 </tr>
 <tr>
 <td><code>NEXT_PUBLIC_STATUS_API_BASE_URL</code></td>
@@ -7821,7 +7853,7 @@
 <td>-</td>
 <td>configuration</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/ui/templates/deployment.yaml</code></td>
+<td><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code><br><code>deploy/helm/ui/templates/deployment.yaml</code></td>
 </tr>
 <tr>
 <td><code>OPENSEARCH_API_KEY_REF</code></td>
@@ -7837,7 +7869,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/opensearch/values-dev.yaml</code><br><code>deploy/helm/opensearch/values-prod.yaml</code><br><code>deploy/helm/opensearch/values.yaml</code></td>
+<td><code>deploy/helm/opensearch/values-dev.yaml</code><br><code>deploy/helm/opensearch/values-prod.yaml</code><br><code>deploy/helm/opensearch/values.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>OPENSEARCH_SNAPSHOT_BASE_PATH</code></td>
@@ -7845,7 +7877,7 @@
 <td>-</td>
 <td>configuration</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/opensearch/templates/init-job.yaml</code></td>
+<td><code>deploy/helm/opensearch/templates/init-job.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>OPENSEARCH_SNAPSHOT_BUCKET</code></td>
@@ -7853,7 +7885,7 @@
 <td>-</td>
 <td>configuration</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/opensearch/templates/init-job.yaml</code></td>
+<td><code>deploy/helm/opensearch/templates/init-job.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>OPENSEARCH_SNAPSHOT_ENDPOINT</code></td>
@@ -7861,7 +7893,7 @@
 <td>-</td>
 <td>configuration</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/opensearch/templates/init-job.yaml</code></td>
+<td><code>deploy/helm/opensearch/templates/init-job.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>OPENSEARCH_SNAPSHOT_REGION</code></td>
@@ -7869,7 +7901,7 @@
 <td>-</td>
 <td>configuration</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/opensearch/templates/init-job.yaml</code></td>
+<td><code>deploy/helm/opensearch/templates/init-job.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>OPENSEARCH_SNAPSHOT_REPOSITORY</code></td>
@@ -7877,7 +7909,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/opensearch/templates/init-job.yaml</code></td>
+<td><code>deploy/helm/opensearch/templates/init-job.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>OPENSEARCH_SNAPSHOT_TYPE</code></td>
@@ -7885,7 +7917,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/opensearch/templates/init-job.yaml</code></td>
+<td><code>deploy/helm/opensearch/templates/init-job.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>PLATFORM_ACCESS_KEY</code></td>
@@ -7893,7 +7925,7 @@
 <td>-</td>
 <td>sensitive</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/minio/templates/bucket-init-job.yaml</code></td>
+<td><code>deploy/helm/minio/templates/bucket-init-job.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>PLATFORM_ENV</code></td>
@@ -7901,7 +7933,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>apps/control-plane/src/platform/admin/services/vault_admin_service.py</code><br><code>apps/control-plane/src/platform/auth/services/oauth_bootstrap.py</code><br><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/platform/templates/platform-bootstrap-job.yaml</code></td>
+<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>apps/control-plane/src/platform/admin/services/vault_admin_service.py</code><br><code>apps/control-plane/src/platform/auth/services/oauth_bootstrap.py</code><br><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br>+2 more</td>
 </tr>
 <tr>
 <td><code>PLATFORM_INSTANCE_NAME</code></td>
@@ -7909,7 +7941,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>deploy/helm/platform/templates/platform-bootstrap-job.yaml</code></td>
+<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code><br><code>deploy/helm/platform/templates/platform-bootstrap-job.yaml</code></td>
 </tr>
 <tr>
 <td><code>PLATFORM_SECRET_KEY</code></td>
@@ -7917,7 +7949,7 @@
 <td>-</td>
 <td>sensitive</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/minio/templates/bucket-init-job.yaml</code></td>
+<td><code>deploy/helm/minio/templates/bucket-init-job.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>PLATFORM_SUPERADMIN_EMAIL</code></td>
@@ -7925,7 +7957,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>deploy/helm/platform/templates/platform-bootstrap-job.yaml</code></td>
+<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code><br><code>deploy/helm/platform/templates/platform-bootstrap-job.yaml</code></td>
 </tr>
 <tr>
 <td><code>PLATFORM_SUPERADMIN_FORCE_PASSWORD_CHANGE</code></td>
@@ -7933,7 +7965,7 @@
 <td>-</td>
 <td>sensitive</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>deploy/helm/platform/templates/platform-bootstrap-job.yaml</code></td>
+<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code><br><code>deploy/helm/platform/templates/platform-bootstrap-job.yaml</code></td>
 </tr>
 <tr>
 <td><code>PLATFORM_SUPERADMIN_MFA_ENROLLMENT</code></td>
@@ -7941,7 +7973,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>deploy/helm/platform/templates/platform-bootstrap-job.yaml</code></td>
+<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code><br><code>deploy/helm/platform/templates/platform-bootstrap-job.yaml</code></td>
 </tr>
 <tr>
 <td><code>PLATFORM_SUPERADMIN_PASSWORD</code></td>
@@ -7957,7 +7989,7 @@
 <td>-</td>
 <td>informational</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>apps/control-plane/src/platform/main.py</code><br><code>deploy/helm/platform/templates/platform-bootstrap-job.yaml</code></td>
+<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>apps/control-plane/src/platform/main.py</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code><br><code>deploy/helm/platform/templates/platform-bootstrap-job.yaml</code></td>
 </tr>
 <tr>
 <td><code>PLATFORM_TENANT_MODE</code></td>
@@ -7965,7 +7997,15 @@
 <td>-</td>
 <td>informational</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>deploy/helm/platform/templates/platform-bootstrap-job.yaml</code></td>
+<td><code>apps/control-plane/src/platform/admin/bootstrap.py</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code><br><code>deploy/helm/platform/templates/platform-bootstrap-job.yaml</code></td>
+</tr>
+<tr>
+<td><code>POD_NAME</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>POSTGRES_REPLICA_DSN</code></td>
@@ -7973,7 +8013,7 @@
 <td>-</td>
 <td>configuration</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/public-pages/templates/deployment.yaml</code></td>
+<td><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code><br><code>deploy/helm/public-pages/templates/deployment.yaml</code></td>
 </tr>
 <tr>
 <td><code>POSTGRES_REPLICA_DSN_REF</code></td>
@@ -7984,12 +8024,28 @@
 <td><code>deploy/helm/platform/templates/replication-jobs/postgres-streaming-replica.yaml</code></td>
 </tr>
 <tr>
+<td><code>PROJECT_NAME</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/platform/templates/status-snapshot-cronjob.yaml</code></td>
+</tr>
+<tr>
 <td><code>PUBLIC_PAGES_SNAPSHOT_CONFIGMAP</code></td>
 <td>optional</td>
 <td>-</td>
 <td>informational</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/public-pages/templates/deployment.yaml</code></td>
+<td><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code><br><code>deploy/helm/public-pages/templates/deployment.yaml</code></td>
+</tr>
+<tr>
+<td><code>PUSH_INTERVAL_SECONDS</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/platform/templates/status-snapshot-cronjob.yaml</code></td>
 </tr>
 <tr>
 <td><code>QDRANT_API_KEY_REF</code></td>
@@ -8000,12 +8056,20 @@
 <td><code>deploy/helm/platform/templates/replication-jobs/qdrant-replica.yaml</code></td>
 </tr>
 <tr>
+<td><code>QDRANT_INIT_FILE_PATH</code></td>
+<td>optional</td>
+<td>-</td>
+<td>configuration</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
+</tr>
+<tr>
 <td><code>QDRANT_SNAPSHOT_PREFIX</code></td>
 <td>optional</td>
 <td>-</td>
 <td>informational</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/qdrant/templates/backup-cronjob.yaml</code></td>
+<td><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code><br><code>deploy/helm/qdrant/templates/backup-cronjob.yaml</code></td>
 </tr>
 <tr>
 <td><code>QDRANT__SERVICE__API_KEY</code></td>
@@ -8013,7 +8077,39 @@
 <td>-</td>
 <td>sensitive</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/qdrant/values.yaml</code></td>
+<td><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code><br><code>deploy/helm/qdrant/values.yaml</code></td>
+</tr>
+<tr>
+<td><code>REDIS_AOF_ENABLED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
+</tr>
+<tr>
+<td><code>REDIS_PASSWORD_FILE</code></td>
+<td>optional</td>
+<td>-</td>
+<td>sensitive</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
+</tr>
+<tr>
+<td><code>REDIS_PORT_NUMBER</code></td>
+<td>optional</td>
+<td>-</td>
+<td>configuration</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
+</tr>
+<tr>
+<td><code>REDIS_TLS_ENABLED</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>S3_ACCESS_KEY_REF</code></td>
@@ -8048,12 +8144,44 @@
 <td><code>deploy/helm/platform/templates/mock-oauth.yaml</code></td>
 </tr>
 <tr>
+<td><code>SERVER_HOST</code></td>
+<td>optional</td>
+<td>-</td>
+<td>configuration</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
+</tr>
+<tr>
+<td><code>SERVICE_NEO4J</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
+</tr>
+<tr>
+<td><code>SERVICE_NEO4J_ADMIN</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
+</tr>
+<tr>
+<td><code>SERVICE_NEO4J_INTERNALS</code></td>
+<td>optional</td>
+<td>-</td>
+<td>informational</td>
+<td>Declared as a Kubernetes container environment variable.</td>
+<td><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
+</tr>
+<tr>
 <td><code>SIMULATION_ACCESS_KEY</code></td>
 <td>optional</td>
 <td>-</td>
 <td>sensitive</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/minio/templates/bucket-init-job.yaml</code></td>
+<td><code>deploy/helm/minio/templates/bucket-init-job.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>SIMULATION_SECRET_KEY</code></td>
@@ -8061,7 +8189,7 @@
 <td>-</td>
 <td>sensitive</td>
 <td>Declared as a Kubernetes container environment variable.</td>
-<td><code>deploy/helm/minio/templates/bucket-init-job.yaml</code></td>
+<td><code>deploy/helm/minio/templates/bucket-init-job.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>STATUS_API_INTERNAL_URL</code></td>
@@ -8812,7 +8940,7 @@
 <td><code>neo4j</code></td>
 <td>sensitive</td>
 <td>Configures <code>password</code> for Neo4j.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/control-plane/templates/api-deployment.yaml</code><br><code>deploy/helm/control-plane/templates/migration-job.yaml</code><br><code>deploy/helm/control-plane/templates/scheduler-deployment.yaml</code><br><code>deploy/helm/control-plane/templates/worker-deployment.yaml</code><br>+3 more</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/control-plane/templates/api-deployment.yaml</code><br><code>deploy/helm/control-plane/templates/migration-job.yaml</code><br><code>deploy/helm/control-plane/templates/scheduler-deployment.yaml</code><br><code>deploy/helm/control-plane/templates/worker-deployment.yaml</code><br>+5 more</td>
 </tr>
 <tr>
 <td><code>NEO4J_URI</code></td>
@@ -9391,7 +9519,7 @@
 <td><code>minioadmin</code></td>
 <td>sensitive</td>
 <td>Configures <code>access_key</code> for ObjectStorage.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/clickhouse/templates/backup-cronjob.yaml</code><br><code>deploy/helm/neo4j/templates/backup-cronjob.yaml</code><br><code>deploy/helm/qdrant/templates/backup-cronjob.yaml</code></td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/clickhouse/templates/backup-cronjob.yaml</code><br><code>deploy/helm/neo4j/templates/backup-cronjob.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code><br>+1 more</td>
 </tr>
 <tr>
 <td><code>MINIO_ENDPOINT</code></td>
@@ -9399,7 +9527,7 @@
 <td><code>""</code></td>
 <td>configuration</td>
 <td>Configures <code>endpoint_url</code> for ObjectStorage.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/neo4j/templates/backup-cronjob.yaml</code><br><code>deploy/helm/qdrant/templates/backup-cronjob.yaml</code><br><code>services/reasoning-engine/cmd/reasoning-engine/main.go</code><br><code>services/simulation-controller/cmd/simulation-controller/main.go</code></td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/neo4j/templates/backup-cronjob.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code><br><code>deploy/helm/qdrant/templates/backup-cronjob.yaml</code><br>+2 more</td>
 </tr>
 <tr>
 <td><code>MINIO_SECRET_KEY</code></td>
@@ -9407,7 +9535,7 @@
 <td><code>minioadmin</code></td>
 <td>sensitive</td>
 <td>Configures <code>secret_key</code> for ObjectStorage.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/clickhouse/templates/backup-cronjob.yaml</code><br><code>deploy/helm/neo4j/templates/backup-cronjob.yaml</code><br><code>deploy/helm/qdrant/templates/backup-cronjob.yaml</code></td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/clickhouse/templates/backup-cronjob.yaml</code><br><code>deploy/helm/neo4j/templates/backup-cronjob.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code><br>+1 more</td>
 </tr>
 <tr>
 <td><code>S3_ACCESS_KEY</code></td>
@@ -9415,7 +9543,7 @@
 <td><code>minioadmin</code></td>
 <td>sensitive</td>
 <td>Configures <code>access_key</code> for ObjectStorage.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/observability/values.yaml</code><br><code>deploy/helm/opensearch/values.yaml</code></td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/observability/values.yaml</code><br><code>deploy/helm/opensearch/values.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>S3_BUCKET_PREFIX</code></td>
@@ -9455,7 +9583,7 @@
 <td><code>minioadmin</code></td>
 <td>sensitive</td>
 <td>Configures <code>secret_key</code> for ObjectStorage.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/observability/values.yaml</code><br><code>deploy/helm/opensearch/values.yaml</code></td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/observability/values.yaml</code><br><code>deploy/helm/opensearch/values.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>S3_USE_PATH_STYLE</code></td>
@@ -9494,7 +9622,7 @@
 <td><code>http://localhost:9200</code></td>
 <td>configuration</td>
 <td>Configures <code>hosts</code> for OpenSearch.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/opensearch/templates/init-job.yaml</code><br><code>deploy/helm/opensearch/values-dev.yaml</code><br><code>deploy/helm/opensearch/values-prod.yaml</code><br><code>deploy/helm/opensearch/values.yaml</code></td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/opensearch/templates/init-job.yaml</code><br><code>deploy/helm/opensearch/values-dev.yaml</code><br><code>deploy/helm/opensearch/values-prod.yaml</code><br><code>deploy/helm/opensearch/values.yaml</code><br>+2 more</td>
 </tr>
 <tr>
 <td><code>OPENSEARCH_PASSWORD</code></td>
@@ -9502,7 +9630,7 @@
 <td><code>""</code></td>
 <td>sensitive</td>
 <td>Configures <code>password</code> for OpenSearch.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/control-plane/templates/api-deployment.yaml</code><br><code>deploy/helm/control-plane/templates/migration-job.yaml</code><br><code>deploy/helm/control-plane/templates/scheduler-deployment.yaml</code><br><code>deploy/helm/control-plane/templates/worker-deployment.yaml</code><br>+2 more</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/control-plane/templates/api-deployment.yaml</code><br><code>deploy/helm/control-plane/templates/migration-job.yaml</code><br><code>deploy/helm/control-plane/templates/scheduler-deployment.yaml</code><br><code>deploy/helm/control-plane/templates/worker-deployment.yaml</code><br>+4 more</td>
 </tr>
 <tr>
 <td><code>OPENSEARCH_TIMEOUT</code></td>
@@ -9510,7 +9638,7 @@
 <td><code>30</code></td>
 <td>informational</td>
 <td>Configures <code>timeout</code> for OpenSearch.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/opensearch/templates/init-job.yaml</code></td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/opensearch/templates/init-job.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>OPENSEARCH_USERNAME</code></td>
@@ -9518,7 +9646,7 @@
 <td><code>""</code></td>
 <td>informational</td>
 <td>Configures <code>username</code> for OpenSearch.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/opensearch/templates/init-job.yaml</code></td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/opensearch/templates/init-job.yaml</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>OPENSEARCH_USE_SSL</code></td>
@@ -11557,22 +11685,6 @@
 <td>informational</td>
 <td>Referenced directly by Python code.</td>
 <td><code>apps/control-plane/src/platform/admin/read_only_middleware.py</code><br><code>apps/control-plane/src/platform/localization/tooling/drift_check.py</code></td>
-</tr>
-<tr>
-<td><code>HETZNER_DNS_API_TOKEN</code></td>
-<td>optional</td>
-<td>-</td>
-<td>sensitive</td>
-<td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/tenants/dns_automation.py</code></td>
-</tr>
-<tr>
-<td><code>HETZNER_DNS_ZONE_ID</code></td>
-<td>optional</td>
-<td>-</td>
-<td>informational</td>
-<td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/tenants/dns_automation.py</code></td>
 </tr>
 <tr>
 <td><code>HIGH</code></td>
@@ -14063,22 +14175,6 @@
 <td><code>apps/control-plane/src/platform/execution/service.py</code></td>
 </tr>
 <tr>
-<td><code>TENANT_DNS_IPV4_ADDRESS</code></td>
-<td>optional</td>
-<td>-</td>
-<td>configuration</td>
-<td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/tenants/dns_automation.py</code></td>
-</tr>
-<tr>
-<td><code>TENANT_DNS_IPV6_ADDRESS</code></td>
-<td>optional</td>
-<td>-</td>
-<td>configuration</td>
-<td>Referenced directly by Python code.</td>
-<td><code>apps/control-plane/src/platform/tenants/dns_automation.py</code></td>
-</tr>
-<tr>
 <td><code>TENANT_MODE_DOWNGRADE_BLOCKED</code></td>
 <td>optional</td>
 <td>-</td>
@@ -15206,6 +15302,14 @@
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
 </tr>
 <tr>
+<td><code>DNS_PROPAGATION_RESOLVER</code></td>
+<td>optional</td>
+<td><code>1.1.1.1</code></td>
+<td>informational</td>
+<td>Public DNS resolver used by <code>dns_automation.verify_propagation</code> to confirm tenant subdomain records have propagated before notifying the requesting admin.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>apps/control-plane/src/platform/tenants/dns_automation.py</code></td>
+</tr>
+<tr>
 <td><code>FEATURE_COST_HARD_CAPS</code></td>
 <td>optional</td>
 <td><code>false</code></td>
@@ -15260,6 +15364,22 @@
 <td>sensitive</td>
 <td>When true, tenant-export ZIP password is delivered out-of-band via SMS in addition to email (R9). When false, an OTP fallback is used.</td>
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>HETZNER_DNS_API_TOKEN</code></td>
+<td>optional</td>
+<td><code>""</code></td>
+<td>sensitive</td>
+<td>Hetzner DNS API token scoped to the platform's apex zone. Read via SecretProvider in production; resolved by <code>tenants/dns_automation.py</code> to create per-tenant subdomain records.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>apps/control-plane/src/platform/tenants/dns_automation.py</code></td>
+</tr>
+<tr>
+<td><code>HETZNER_DNS_ZONE_ID</code></td>
+<td>optional</td>
+<td><code>""</code></td>
+<td>informational</td>
+<td>Hetzner DNS zone id (the canonical apex zone, e.g. musematic.ai). Returned by Terraform's hetzner-dns-zone module output <code>zone_id</code>; consumed by the DNS automation client.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>apps/control-plane/src/platform/tenants/dns_automation.py</code></td>
 </tr>
 <tr>
 <td><code>MARKETPLACE_DEPRECATION_RETENTION_DAYS</code></td>
@@ -15571,7 +15691,7 @@
 <td><code>api</code></td>
 <td>configuration</td>
 <td>Configures <code>profile</code> for Platform.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/control-plane/templates/api-deployment.yaml</code><br><code>deploy/helm/control-plane/templates/scheduler-deployment.yaml</code><br><code>deploy/helm/control-plane/templates/worker-deployment.yaml</code><br><code>deploy/helm/control-plane/templates/ws-hub-deployment.yaml</code></td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/control-plane/templates/api-deployment.yaml</code><br><code>deploy/helm/control-plane/templates/scheduler-deployment.yaml</code><br><code>deploy/helm/control-plane/templates/worker-deployment.yaml</code><br><code>deploy/helm/control-plane/templates/ws-hub-deployment.yaml</code><br>+2 more</td>
 </tr>
 <tr>
 <td><code>PLATFORM_TENANT_DELETION_GRACE_HOURS</code></td>
@@ -15612,6 +15732,22 @@
 <td>informational</td>
 <td>Grace period in hours before pending-deletion tenants are cascaded.</td>
 <td><code>apps/control-plane/src/platform/common/config.py</code></td>
+</tr>
+<tr>
+<td><code>TENANT_DNS_IPV4_ADDRESS</code></td>
+<td>optional</td>
+<td><code>""</code></td>
+<td>configuration</td>
+<td>Public IPv4 address of the cluster's Hetzner Cloud Load Balancer. Used as the A-record value for per-tenant subdomains created by <code>dns_automation.create_tenant_subdomain</code>.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>apps/control-plane/src/platform/tenants/dns_automation.py</code></td>
+</tr>
+<tr>
+<td><code>TENANT_DNS_IPV6_ADDRESS</code></td>
+<td>optional</td>
+<td><code>""</code></td>
+<td>configuration</td>
+<td>Public IPv6 address of the cluster's Hetzner Cloud Load Balancer. Used as the AAAA-record value for per-tenant subdomains. Empty disables IPv6 record creation.</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>apps/control-plane/src/platform/tenants/dns_automation.py</code></td>
 </tr>
 <tr>
 <td><code>TENANT_MIGRATION_ROLLBACK_WINDOW_HOURS</code></td>
@@ -15760,7 +15896,7 @@
 <td><code>""</code></td>
 <td>sensitive</td>
 <td>Configures <code>api_key</code> for Qdrant.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/control-plane/templates/api-deployment.yaml</code><br><code>deploy/helm/control-plane/templates/migration-job.yaml</code><br><code>deploy/helm/control-plane/templates/scheduler-deployment.yaml</code><br><code>deploy/helm/control-plane/templates/worker-deployment.yaml</code><br>+2 more</td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/control-plane/templates/api-deployment.yaml</code><br><code>deploy/helm/control-plane/templates/migration-job.yaml</code><br><code>deploy/helm/control-plane/templates/scheduler-deployment.yaml</code><br><code>deploy/helm/control-plane/templates/worker-deployment.yaml</code><br>+4 more</td>
 </tr>
 <tr>
 <td><code>QDRANT_COLLECTION_DIMENSIONS</code></td>
@@ -15800,7 +15936,7 @@
 <td>-</td>
 <td>configuration</td>
 <td>Accepted by the platform flat-settings compatibility mapper.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/qdrant/templates/backup-cronjob.yaml</code></td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code><br><code>deploy/helm/qdrant/templates/backup-cronjob.yaml</code></td>
 </tr>
 </tbody>
 </table>
@@ -15823,7 +15959,7 @@
 <td><code>(generated at runtime)</code></td>
 <td>informational</td>
 <td>Configures <code>nodes</code> for Redis.</td>
-<td><code>apps/control-plane/src/platform/common/config.py</code></td>
+<td><code>apps/control-plane/src/platform/common/config.py</code><br><code>deploy/helm/platform/.snapshots/dev.rendered.yaml</code><br><code>deploy/helm/platform/.snapshots/prod.rendered.yaml</code></td>
 </tr>
 <tr>
 <td><code>REDIS_PASSWORD</code></td>
