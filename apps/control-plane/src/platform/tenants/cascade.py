@@ -2,7 +2,7 @@
 ``TenantsService.complete_deletion`` to wipe tenant-scoped DB rows.
 
 UPD-053 (106) note on DNS teardown placement: per-tenant DNS records
-(``<slug>``, ``<slug>.api``, ``<slug>.grafana`` × {A, AAAA}) are NOT
+(``<slug>``, ``<slug>.api``, ``<slug>.grafana`` x {A, AAAA}) are NOT
 removed via this module. The DNS teardown adapter lives at
 ``platform.tenants.dns_teardown.DnsTeardownService`` and is wired through
 the data-lifecycle BC's phase-2 cascade dispatch (see

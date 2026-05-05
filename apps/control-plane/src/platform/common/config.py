@@ -1556,40 +1556,45 @@ class PlatformSettings(BaseSettings):
     HETZNER_DNS_API_TOKEN: str = Field(
         default="",
         description=(
-            "Hetzner DNS API token scoped to the platform's apex zone. Read via SecretProvider in "
-            "production; resolved by `tenants/dns_automation.py` to create per-tenant subdomain records."
+            "Hetzner DNS API token scoped to the platform's apex zone. Read via "
+            "SecretProvider in production; resolved by `tenants/dns_automation.py` "
+            "to create per-tenant subdomain records."
         ),
         validation_alias="HETZNER_DNS_API_TOKEN",
     )
     HETZNER_DNS_ZONE_ID: str = Field(
         default="",
         description=(
-            "Hetzner DNS zone id (the canonical apex zone, e.g. musematic.ai). Returned by Terraform's "
-            "hetzner-dns-zone module output `zone_id`; consumed by the DNS automation client."
+            "Hetzner DNS zone id (the canonical apex zone, e.g. musematic.ai). "
+            "Returned by Terraform's hetzner-dns-zone module output `zone_id`; "
+            "consumed by the DNS automation client."
         ),
         validation_alias="HETZNER_DNS_ZONE_ID",
     )
     TENANT_DNS_IPV4_ADDRESS: str = Field(
         default="",
         description=(
-            "Public IPv4 address of the cluster's Hetzner Cloud Load Balancer. Used as the A-record value "
-            "for per-tenant subdomains created by `dns_automation.create_tenant_subdomain`."
+            "Public IPv4 address of the cluster's Hetzner Cloud Load Balancer. "
+            "Used as the A-record value for per-tenant subdomains created by "
+            "`dns_automation.create_tenant_subdomain`."
         ),
         validation_alias="TENANT_DNS_IPV4_ADDRESS",
     )
     TENANT_DNS_IPV6_ADDRESS: str = Field(
         default="",
         description=(
-            "Public IPv6 address of the cluster's Hetzner Cloud Load Balancer. Used as the AAAA-record "
-            "value for per-tenant subdomains. Empty disables IPv6 record creation."
+            "Public IPv6 address of the cluster's Hetzner Cloud Load Balancer. "
+            "Used as the AAAA-record value for per-tenant subdomains. Empty "
+            "disables IPv6 record creation."
         ),
         validation_alias="TENANT_DNS_IPV6_ADDRESS",
     )
     DNS_PROPAGATION_RESOLVER: str = Field(
         default="1.1.1.1",
         description=(
-            "Public DNS resolver used by `dns_automation.verify_propagation` to confirm tenant subdomain "
-            "records have propagated before notifying the requesting admin."
+            "Public DNS resolver used by `dns_automation.verify_propagation` to "
+            "confirm tenant subdomain records have propagated before notifying "
+            "the requesting admin."
         ),
         validation_alias="DNS_PROPAGATION_RESOLVER",
     )

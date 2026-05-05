@@ -31,7 +31,7 @@ from platform.tenants.exceptions import (
 @pytest.mark.asyncio
 async def test_mock_create_tenant_subdomain_emits_six_records() -> None:
     """MockDnsAutomationClient.create_tenant_subdomain must produce 6 records:
-    3 subdomains (slug / slug.api / slug.grafana) × {A, AAAA}.
+    3 subdomains (slug / slug.api / slug.grafana) x {A, AAAA}.
     """
     client = MockDnsAutomationClient()
     record_set = await client.create_tenant_subdomain(
@@ -391,7 +391,7 @@ async def test_hetzner_create_tenant_subdomain_happy_path(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """End-to-end ``create_tenant_subdomain`` on the Hetzner client:
-    6 records created (3 subdomains × A+AAAA), audit chain emitted,
+    6 records created (3 subdomains x A+AAAA), audit chain emitted,
     propagation verified, lock acquired and released.
     """
     settings = _MinimalSettingsShim()
@@ -441,7 +441,7 @@ async def test_hetzner_create_tenant_subdomain_happy_path(
         correlation_ctx=CorrelationContext(correlation_id=uuid4()),
     )
     assert result.slug == "acme"
-    assert len(result.records) == 6  # 3 subdomains × {A, AAAA}
+    assert len(result.records) == 6  # 3 subdomains x {A, AAAA}
     assert result.propagation_verified is True
     create_calls = [
         c for c in audit.calls if c["event_type"] == "tenants.dns.records_created"

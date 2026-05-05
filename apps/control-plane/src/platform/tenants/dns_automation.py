@@ -507,13 +507,18 @@ class MockDnsAutomationClient(_DnsAutomationBase):
         audit_chain: AuditChainService | None = None,
     ) -> None:
         # Allow construction with no settings for the simplest test cases.
-        # ``_MinimalSettingsShim`` is a structural stand-in here — only the two
+        # ``_MinimalSettingsShim`` is a structural stand-in here - only the two
         # attributes ``DNS_PROPAGATION_RESOLVER`` and ``PLATFORM_DOMAIN`` are
         # consumed downstream. The cast makes the intent explicit to mypy.
         from typing import cast as _cast
 
+        resolved_settings: PlatformSettings = (
+            settings
+            if settings is not None
+            else _cast(PlatformSettings, _MinimalSettingsShim())
+        )
         super().__init__(
-            settings=settings if settings is not None else _cast(PlatformSettings, _MinimalSettingsShim()),
+            settings=resolved_settings,
             audit_chain=audit_chain,
         )
         self.actions: list[tuple[str, str, list[DnsAutomationRecord]]] = []
