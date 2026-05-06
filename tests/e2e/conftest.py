@@ -17,6 +17,11 @@ pytest_plugins = [
     "fixtures.agent",
     "fixtures.policy",
     "fixtures.mock_llm",
+    # UPD-054 (107) — SaaS-pass fixtures (J22-J37)
+    "fixtures.tenants",
+    "fixtures.users",
+    "fixtures.stripe",
+    "fixtures.dns",
 ]
 
 TENANT_ARCHITECTURE_SUITE = Path("apps/control-plane/tests/e2e/suites/tenant_architecture")

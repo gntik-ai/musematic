@@ -30,16 +30,21 @@ import os
 
 import pytest
 
-pytestmark = pytest.mark.skipif(
-    os.environ.get("RUN_J29", "0") != "1",
-    reason=(
-        "J29 Hetzner Topology journey — provisions a real Hetzner Cloud "
-        "project. Set RUN_J29=1 + seed Hetzner Cloud + DNS API tokens in "
-        "Vault under secret/musematic/prod/{hcloud,dns/hetzner}/api-token "
-        "before running. Documented in "
-        "docs/operations/hetzner-cluster-provisioning.md."
+pytestmark = [
+    pytest.mark.journey,
+    pytest.mark.j29,
+    pytest.mark.timeout(480),
+    pytest.mark.skipif(
+        os.environ.get("RUN_J29", "0") != "1",
+        reason=(
+            "J29 Hetzner Topology journey — provisions a real Hetzner Cloud "
+            "project. Set RUN_J29=1 + seed Hetzner Cloud + DNS API tokens in "
+            "Vault under secret/musematic/prod/{hcloud,dns/hetzner}/api-token "
+            "before running. Documented in "
+            "docs/operations/hetzner-cluster-provisioning.md."
+        ),
     ),
-)
+]
 
 
 def test_j29_hetzner_topology_provisioning() -> None:

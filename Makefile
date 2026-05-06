@@ -69,3 +69,75 @@ helm-snapshot-update:
 		| python3 scripts/normalize-helm-snapshot.py \
 		> deploy/helm/platform/.snapshots/dev.rendered.yaml
 	@echo "Snapshots regenerated. Review with: git diff deploy/helm/platform/.snapshots/"
+
+# UPD-054 (107) — SaaS pass E2E suite convenience targets. Run J22–J37 (the
+# new SaaS journeys) against a dev kind cluster brought up via `make e2e-up`.
+# Honours E2E_JOURNEY_WORKERS (default 4) and the optional RUN_J29=1 toggle
+# for live Hetzner DNS coverage. See specs/107-saas-e2e-journeys/quickstart.md.
+e2e-saas-suite:
+	@cd tests/e2e && \
+		E2E_JOURNEY_WORKERS=$${E2E_JOURNEY_WORKERS:-4} \
+		python -m pytest \
+		journeys/test_j22_*.py \
+		journeys/test_j23_*.py \
+		journeys/test_j24_*.py \
+		journeys/test_j25_*.py \
+		journeys/test_j26_*.py \
+		journeys/test_j27_*.py \
+		journeys/test_j28_*.py \
+		journeys/test_j29_*.py \
+		journeys/test_j30_*.py \
+		journeys/test_j31_*.py \
+		journeys/test_j32_*.py \
+		journeys/test_j33_*.py \
+		journeys/test_j34_*.py \
+		journeys/test_j35_*.py \
+		journeys/test_j36_*.py \
+		journeys/test_j37_*.py \
+		-m journey \
+		-n $${E2E_JOURNEY_WORKERS:-4} \
+		--timeout=480 \
+		--junitxml=reports/saas-pass.xml
+
+# UPD-054 (107) — full SaaS pass acceptance: J01–J21 regression PLUS the new
+# J22–J37. The canonical "SaaS pass passes" check.
+e2e-saas-acceptance: e2e-saas-suite
+	@cd tests/e2e && \
+		E2E_JOURNEY_WORKERS=$${E2E_JOURNEY_WORKERS:-4} \
+		python -m pytest \
+		journeys/test_j01_*.py \
+		journeys/test_j02_*.py \
+		journeys/test_j03_*.py \
+		journeys/test_j04_*.py \
+		journeys/test_j05_*.py \
+		journeys/test_j06_*.py \
+		journeys/test_j07_*.py \
+		journeys/test_j08_*.py \
+		journeys/test_j09_*.py \
+		journeys/test_j10_*.py \
+		journeys/test_j11_*.py \
+		journeys/test_j12_*.py \
+		journeys/test_j13_*.py \
+		journeys/test_j14_*.py \
+		journeys/test_j15_*.py \
+		journeys/test_j16_*.py \
+		journeys/test_j17_*.py \
+		journeys/test_j18_*.py \
+		journeys/test_j19_*.py \
+		journeys/test_j20_*.py \
+		journeys/test_j21_*.py \
+		-m journey \
+		-n $${E2E_JOURNEY_WORKERS:-4} \
+		--timeout=480 \
+		--junitxml=reports/saas-pass-regression.xml
+
+# UPD-054 (107) — soak run for SC-006 orphan-resource verification. Runs
+# e2e-saas-suite 100x in a tight loop and exits non-zero if any iteration
+# fails OR if verify_no_orphans.py reports leaked test resources at the end.
+e2e-saas-soak:
+	@iter=$${E2E_SAAS_SOAK_ITERATIONS:-100}; \
+	for i in $$(seq 1 $$iter); do \
+		echo "=== soak iteration $$i / $$iter ==="; \
+		$(MAKE) e2e-saas-suite || exit 1; \
+	done
+	@python tests/e2e/scripts/verify_no_orphans.py

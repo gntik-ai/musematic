@@ -243,3 +243,6 @@ This deletes Hetzner resources but does NOT touch:
   push pipeline troubleshooting.
 - [`helm-snapshot.md`](./helm-snapshot.md) — regenerating the CI snapshot
   fixtures after intentional chart changes.
+- [`e2e-suite-maintenance.md`](./e2e-suite-maintenance.md) — debugging the
+  SaaS-pass E2E suite (J22–J37 from UPD-054), fixture lifecycle, and
+  failure-artefact triage.

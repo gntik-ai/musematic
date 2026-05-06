@@ -16,14 +16,18 @@ from __future__ import annotations
 
 import pytest
 
-pytestmark = pytest.mark.skip(
-    reason=(
-        "J28 Billing Lifecycle journey — requires make dev-up + Stripe CLI "
-        "listener forwarding to the kind cluster + Stripe test-mode keys in "
-        "Vault. Tracked under specs/105-billing-payment-provider/tasks.md "
-        "T098 / J28."
-    )
-)
+pytestmark = [
+    pytest.mark.journey,
+    pytest.mark.j28,
+    pytest.mark.timeout(480),
+    pytest.mark.skip(
+        reason=(
+            "J28 Billing Lifecycle journey — body lands during UPD-054 US2 "
+            "implementation (specs/107-saas-e2e-journeys/tasks.md T020). "
+            "Requires kind cluster + Stripe CLI listener + Stripe test-mode keys."
+        )
+    ),
+]
 
 
 def test_j28_billing_lifecycle() -> None:

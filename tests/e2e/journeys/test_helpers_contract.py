@@ -302,3 +302,58 @@ async def test_subscribe_ws_retries_transient_handshake_failure() -> None:
     assert client.connect_count == 2
     assert first.closed is True
     assert second.closed is True
+
+
+# UPD-054 (107) — every new SaaS-pass journey MUST carry the three
+# pytestmarks documented in specs/107-saas-e2e-journeys/contracts/
+# journey-template.md (.journey, .j{NN}, .timeout(480)). The check below
+# walks tests/e2e/journeys/test_j*.py and fails the suite if any file
+# is missing one of them.
+
+import re  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+_JOURNEY_PATH_RE = re.compile(r"test_j(\d{2})[^/]*\.py$")
+# The UPD-054 journey-template marker contract applies to the SaaS-pass
+# journeys (J22-J37) only. J01-J21 predate UPD-054 and own their own
+# scaffolding conventions; enforcing the new contract on them is out of
+# scope for this feature.
+_SAAS_PASS_JOURNEY_RANGE = range(22, 38)
+
+
+def _enumerate_saas_pass_journey_files() -> list[Path]:
+    journeys_dir = Path(__file__).resolve().parent
+    out: list[Path] = []
+    for path in journeys_dir.glob("test_j*.py"):
+        match = _JOURNEY_PATH_RE.search(str(path))
+        if match is None:
+            continue
+        nn = int(match.group(1))
+        if nn in _SAAS_PASS_JOURNEY_RANGE:
+            out.append(path)
+    return sorted(out)
+
+
+def test_saas_journey_files_carry_required_pytestmarks() -> None:
+    """Every J22-J37 file under tests/e2e/journeys/ MUST declare a
+    module-level ``pytestmark`` block listing pytest.mark.journey,
+    pytest.mark.j{NN} (matching the file's NN), and pytest.mark.timeout(480).
+    The contract is documented in
+    ``specs/107-saas-e2e-journeys/contracts/journey-template.md``.
+    """
+    failures: list[str] = []
+    for path in _enumerate_saas_pass_journey_files():
+        match = _JOURNEY_PATH_RE.search(str(path))
+        assert match is not None, f"Could not parse journey number from {path}"
+        nn = match.group(1)
+        text = path.read_text(encoding="utf-8")
+        if "pytestmark" not in text:
+            failures.append(f"{path.name}: missing module-level pytestmark block")
+            continue
+        if "pytest.mark.journey" not in text:
+            failures.append(f"{path.name}: missing pytest.mark.journey")
+        if f"pytest.mark.j{nn}" not in text:
+            failures.append(f"{path.name}: missing pytest.mark.j{nn}")
+        if "pytest.mark.timeout" not in text:
+            failures.append(f"{path.name}: missing pytest.mark.timeout(480)")
+    assert not failures, "Journey-template marker violations:\n  " + "\n  ".join(failures)

@@ -39,3 +39,29 @@ clusters are documented in [quickstart.md](../../specs/071-e2e-kind-testing/quic
 - If kind fails because ports are already bound, change `PORT_UI`, `PORT_API`, and `PORT_WS`.
 - If Docker image builds exhaust memory, close other containers and retry before recreating the cluster.
 - If cluster bring-up fails, run `tests/e2e/cluster/capture-state.sh` to collect pod, event, and log output.
+
+## SaaS pass — J22–J37 (UPD-054)
+
+The SaaS pass adds 16 end-to-end journeys (J22 through J37) that gate
+the SaaS exit criteria. The full SaaS pass passes when J01–J37 (37
+journeys total) green-light on the dev cluster.
+
+```bash
+# Full SaaS pass (J22-J37 only)
+make e2e-saas-suite
+
+# Single journey
+pytest tests/e2e/journeys/test_j28_billing_lifecycle.py -v
+
+# Full SaaS pass acceptance (J22-J37 + J01-J21 regression)
+make e2e-saas-acceptance
+
+# Soak run for orphan-resource verification (SC-006)
+make e2e-saas-soak
+```
+
+The CI promotion gate runs the SaaS pass on every PR matching the
+`e2e:` paths-filter and blocks merge to `main` on any failure. See
+[`docs/operations/e2e-suite-maintenance.md`](../../docs/operations/e2e-suite-maintenance.md)
+for fixture lifecycle, parallel-runner architecture, failure-artefact
+debugging, and how to add a new journey.

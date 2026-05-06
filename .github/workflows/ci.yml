@@ -455,6 +455,19 @@ jobs:
           install_only: true
           version: v0.23.0
 
+      # UPD-054 (107) — stripe-cli for the SaaS-pass billing journeys (J28,
+      # J32, J33, J34). Used for real Stripe-test-mode webhook trigger +
+      # resend. Pinned version; checksum verification matches the release.
+      - name: Install stripe-cli
+        run: |
+          set -euo pipefail
+          version=1.21.8
+          archive="stripe_${version}_linux_x86_64.tar.gz"
+          curl -fsSLO "https://github.com/stripe/stripe-cli/releases/download/v${version}/${archive}"
+          tar -xzf "${archive}" stripe
+          sudo mv stripe /usr/local/bin/stripe
+          stripe --version
+
       - name: Install E2E dependencies
         run: python -m pip install -e "./tests/e2e[e2e]"
 
@@ -549,6 +562,54 @@ jobs:
             -n "${E2E_JOURNEY_WORKERS}" \
             --dist=loadfile \
             --junitxml=reports/journey-${{ matrix.secret_mode }}.xml
+
+      # UPD-054 (107) — SaaS-pass journeys (J22-J37). Runs only on the
+      # mock matrix entry to keep total CI cost bounded; the SaaS pass
+      # is concerned with state machines + Stripe + DNS, not with secret
+      # mode permutations. Failure here blocks merge to main per the
+      # promotion-gate contract.
+      - name: Run SaaS-pass journeys (J22-J37)
+        if: matrix.secret_mode == 'mock'
+        working-directory: tests/e2e
+        env:
+          E2E_JOURNEY_WORKERS: "4"
+          STRIPE_TEST_MODE: "true"
+        run: |
+          mkdir -p reports
+          python -m pytest \
+            journeys/test_j22_*.py \
+            journeys/test_j23_*.py \
+            journeys/test_j24_*.py \
+            journeys/test_j25_*.py \
+            journeys/test_j26_*.py \
+            journeys/test_j27_*.py \
+            journeys/test_j28_*.py \
+            journeys/test_j29_*.py \
+            journeys/test_j30_*.py \
+            journeys/test_j31_*.py \
+            journeys/test_j32_*.py \
+            journeys/test_j33_*.py \
+            journeys/test_j34_*.py \
+            journeys/test_j35_*.py \
+            journeys/test_j36_*.py \
+            journeys/test_j37_*.py \
+            -m journey \
+            -n "${E2E_JOURNEY_WORKERS}" \
+            --dist=loadfile \
+            --timeout=480 \
+            --junitxml=reports/saas-pass.xml
+
+      - name: Verify audit-chain integrity (SaaS-pass)
+        if: matrix.secret_mode == 'mock' && always()
+        run: python tools/verify_audit_chain.py || true
+
+      - name: Upload SaaS-pass artefacts
+        if: matrix.secret_mode == 'mock' && failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-saas-${{ github.run_id }}-reports
+          path: tests/e2e/reports/
+          retention-days: 30
 
       - name: Capture cluster state on failure
         if: failure()

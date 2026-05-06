@@ -11,13 +11,18 @@ from __future__ import annotations
 
 import pytest
 
-pytestmark = pytest.mark.skip(
-    reason=(
-        "J34 Cancellation and Reactivation journey — requires kind cluster "
-        "+ Stripe test mode. Tracked under specs/105-billing-payment-"
-        "provider/tasks.md T098 / J34."
-    )
-)
+pytestmark = [
+    pytest.mark.journey,
+    pytest.mark.j34,
+    pytest.mark.timeout(480),
+    pytest.mark.skip(
+        reason=(
+            "J34 Cancellation and Reactivation journey — body lands during "
+            "UPD-054 US2 (specs/107-saas-e2e-journeys/tasks.md T023). "
+            "Requires kind cluster + Stripe test mode."
+        )
+    ),
+]
 
 
 def test_j34_cancellation_reactivation() -> None:
