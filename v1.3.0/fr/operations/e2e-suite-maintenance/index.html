@@ -1,6 +1,6 @@
 
 <!doctype html>
-<html lang="zh" class="no-js">
+<html lang="fr" class="no-js">
   <head>
     
       <meta charset="utf-8">
@@ -10,7 +10,7 @@
       
       
       
-        <link rel="canonical" href="https://gntik-ai.github.io/musematic/v1.3.0/zh/operations/hetzner-cluster-provisioning/">
+        <link rel="canonical" href="https://gntik-ai.github.io/musematic/v1.3.0/fr/operations/e2e-suite-maintenance/">
       
       
       
@@ -20,7 +20,7 @@
     
     
       
-        <title>Hetzner Cluster Provisioning Runbook - musematic</title>
+        <title>E2E Suite Maintenance — Operator Runbook - musematic</title>
       
     
     
@@ -45,10 +45,6 @@
         <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
       
     
-    
-      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
-    
-      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
     
       <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
     
@@ -84,8 +80,8 @@
     <div data-md-component="skip">
       
         
-        <a href="#hetzner-cluster-provisioning-runbook" class="md-skip">
-          跳转至
+        <a href="#e2e-suite-maintenance-operator-runbook" class="md-skip">
+          Aller au contenu
         </a>
       
     </div>
@@ -103,7 +99,7 @@
   
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
-  <nav class="md-header__inner md-grid" aria-label="页眉">
+  <nav class="md-header__inner md-grid" aria-label="En-tête">
     <a href="../../" title="musematic" class="md-header__button md-logo" aria-label="musematic" data-md-component="logo">
       
   
@@ -124,7 +120,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Hetzner Cluster Provisioning Runbook
+              E2E Suite Maintenance — Operator Runbook
             
           </span>
         </div>
@@ -277,21 +273,21 @@
   <label class="md-search__overlay" for="__search"></label>
   <div class="md-search__inner" role="search">
     <form class="md-search__form" name="search">
-      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <input type="text" class="md-search__input" name="query" aria-label="Rechercher" placeholder="Rechercher" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
       <label class="md-search__icon md-icon" for="__search">
         
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
         
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
       </label>
-      <nav class="md-search__options" aria-label="查找">
+      <nav class="md-search__options" aria-label="Recherche">
         
-          <a href="javascript:void(0)" class="md-search__icon md-icon" title="分享" aria-label="分享" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Partager" aria-label="Partager" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
             
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
           </a>
         
-        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+        <button type="reset" class="md-search__icon md-icon" title="Effacer" aria-label="Effacer" tabindex="-1">
           
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
         </button>
@@ -304,7 +300,7 @@
       <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
         <div class="md-search-result" data-md-component="search-result">
           <div class="md-search-result__meta">
-            正在初始化搜索引擎
+            Initialisation de la recherche
           </div>
           <ol class="md-search-result__list" role="presentation"></ol>
         </div>
@@ -315,7 +311,7 @@
     
     
       <div class="md-header__source">
-        <a href="https://github.com/gntik-ai/musematic" title="前往仓库" class="md-source" data-md-component="source">
+        <a href="https://github.com/gntik-ai/musematic" title="Aller au dépôt" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
@@ -330,7 +326,7 @@
   
     
       
-<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+<nav class="md-tabs" aria-label="Onglets" data-md-component="tabs">
   <div class="md-grid">
     <ul class="md-tabs__list">
       
@@ -617,7 +613,7 @@
   
 
 
-<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
     <a href="../../" title="musematic" class="md-nav__button md-logo" aria-label="musematic" data-md-component="logo">
       
@@ -629,7 +625,7 @@
   </label>
   
     <div class="md-nav__source">
-      <a href="https://github.com/gntik-ai/musematic" title="前往仓库" class="md-source" data-md-component="source">
+      <a href="https://github.com/gntik-ai/musematic" title="Aller au dépôt" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 496 512"><!--! Font Awesome Free 6.6.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2024 Fonticons, Inc.--><path d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8M97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
@@ -4591,7 +4587,7 @@
                   <div class="md-sidebar__inner">
                     
 
-<nav class="md-nav md-nav--secondary" aria-label="目录">
+<nav class="md-nav md-nav--secondary" aria-label="Table des matières">
   
   
   
@@ -4600,78 +4596,42 @@
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
-      目录
+      Table des matières
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#prerequisites-one-time-per-hetzner-account" class="md-nav__link">
+  <a href="#1-fixture-lifecycle" class="md-nav__link">
     <span class="md-ellipsis">
-      Prerequisites (one-time per Hetzner account)
+      1. Fixture lifecycle
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#production-cluster-musematic-prod" class="md-nav__link">
+  <a href="#2-parallel-runner-architecture" class="md-nav__link">
     <span class="md-ellipsis">
-      Production cluster (musematic-prod)
+      2. Parallel-runner architecture
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Production cluster (musematic-prod)">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-failure-artefacts" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Failure artefacts
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Failure artefacts">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#1-provision-infrastructure" class="md-nav__link">
+  <a href="#common-failure-signatures" class="md-nav__link">
     <span class="md-ellipsis">
-      1. Provision infrastructure
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-bootstrap-kubernetes" class="md-nav__link">
-    <span class="md-ellipsis">
-      2. Bootstrap Kubernetes
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-install-cluster-prerequisites-one-time-per-cluster" class="md-nav__link">
-    <span class="md-ellipsis">
-      3. Install cluster prerequisites (one-time per cluster)
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#4-install-the-platform" class="md-nav__link">
-    <span class="md-ellipsis">
-      4. Install the platform
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#5-wait-for-the-wildcard-cert" class="md-nav__link">
-    <span class="md-ellipsis">
-      5. Wait for the wildcard cert
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#6-smoke-test" class="md-nav__link">
-    <span class="md-ellipsis">
-      6. Smoke-test
+      Common failure signatures
     </span>
   </a>
   
@@ -4683,51 +4643,36 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#development-cluster-musematic-dev" class="md-nav__link">
+  <a href="#4-adding-a-new-journey" class="md-nav__link">
     <span class="md-ellipsis">
-      Development cluster (musematic-dev)
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Development cluster (musematic-dev)">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#differences-vs-prod" class="md-nav__link">
-    <span class="md-ellipsis">
-      Differences vs prod
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#validating-physical-isolation" class="md-nav__link">
-    <span class="md-ellipsis">
-      Validating physical isolation
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#rollback" class="md-nav__link">
-    <span class="md-ellipsis">
-      Rollback
+      4. Adding a new journey
     </span>
   </a>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#related-runbooks" class="md-nav__link">
+  <a href="#5-soak-run-procedure-sc-006" class="md-nav__link">
     <span class="md-ellipsis">
-      Related runbooks
+      5. Soak run procedure (SC-006)
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-promotion-gate-sc-004-verifying-the-gate-trips" class="md-nav__link">
+    <span class="md-ellipsis">
+      6. Promotion gate (SC-004) — verifying the gate trips
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-related-runbooks" class="md-nav__link">
+    <span class="md-ellipsis">
+      7. Related runbooks
     </span>
   </a>
   
@@ -4751,240 +4696,245 @@
   
 
 
-<h1 id="hetzner-cluster-provisioning-runbook">Hetzner Cluster Provisioning Runbook<a class="headerlink" href="#hetzner-cluster-provisioning-runbook" title="Permanent link">&para;</a></h1>
-<blockquote>
-<p>UPD-053 (106) — operator-facing runbook for taking an empty Hetzner Cloud
-project to a healthy production or development musematic cluster.
-Target wall-clock: ≤ 30 minutes (SC-001) for production from a freshly
-cloned repo.</p>
-</blockquote>
-<p>The full step-by-step is in
-<code>specs/106-hetzner-clusters/quickstart.md</code> (in the repo root, outside
-the docs site); this runbook adds operator-specific notes and rollback
-procedures that the spec quickstart intentionally omits.</p>
-<h2 id="prerequisites-one-time-per-hetzner-account">Prerequisites (one-time per Hetzner account)<a class="headerlink" href="#prerequisites-one-time-per-hetzner-account" title="Permanent link">&para;</a></h2>
+<h1 id="e2e-suite-maintenance-operator-runbook">E2E Suite Maintenance — Operator Runbook<a class="headerlink" href="#e2e-suite-maintenance-operator-runbook" title="Permanent link">&para;</a></h1>
+<p><strong>Owner</strong>: Platform / DevX
+<strong>Feature</strong>: UPD-054 (107) — SaaS pass exit criteria
+<strong>Last updated</strong>: 2026-05-05</p>
+<p>This runbook covers the day-to-day maintenance of the SaaS-pass E2E
+suite (J22–J37) added by UPD-054 on top of the UPD-038 framework.
+It assumes you are familiar with <code>tests/e2e/README.md</code> (which covers
+how to run the suite) and focuses on:</p>
 <ol>
-<li><strong>Hetzner Cloud account</strong> with billing enabled. Generate a Cloud API
-   token under <em>Security → API tokens</em> (full read/write scope).</li>
-<li><strong>Hetzner DNS</strong> with the apex zone <code>musematic.ai</code> registered (production
-   uses the apex; dev shares it via the <code>dev.*</code> subtree). Generate a DNS
-   API token under <em>DNS Console → API tokens</em> with <strong>DNS Edit</strong> scope on
-   the zone.</li>
-<li><strong>Vault</strong> deployed and reachable from the operator workstation. Seed
-   the Hetzner DNS token under
-   <code>secret/data/musematic/{prod,dev}/dns/hetzner/api-token</code> (path layout:
-   <a href="../../configuration/vault-paths/"><code>docs/configuration/vault-paths.md</code></a>).</li>
-<li><strong>Cloudflare Pages</strong> project <code>status-musematic-ai</code> created (production
-   only — see <a href="../cloudflare-pages-status/"><code>cloudflare-pages-status.md</code></a>).</li>
-<li><strong>Operator workstation tools</strong>: terraform ≥ 1.6, helm ≥ 3.14,
-   kubectl ≥ 1.29, vault CLI, gh CLI.</li>
+<li>Fixture lifecycle and idempotent cleanup.</li>
+<li>Parallel-runner architecture (<code>pytest-xdist</code> workers + serialised hot-spots).</li>
+<li>Failure-artefact format and triage.</li>
+<li>How to add a new journey.</li>
 </ol>
-<h2 id="production-cluster-musematic-prod">Production cluster (<code>musematic-prod</code>)<a class="headerlink" href="#production-cluster-musematic-prod" title="Permanent link">&para;</a></h2>
-<p>Sized 1× CCX33 control plane + 3× CCX53 workers + 1× lb21 LB
-(eu-central / nbg1).</p>
-<h3 id="1-provision-infrastructure">1. Provision infrastructure<a class="headerlink" href="#1-provision-infrastructure" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nb">cd</span><span class="w"> </span>terraform/environments/production
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>cp<span class="w"> </span>terraform.tfvars.example<span class="w"> </span>terraform.tfvars
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># edit firewall_allowed_cidrs, ssh_public_key_file, cloudflare_pages_ipv4</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">HCLOUD_TOKEN</span><span class="o">=</span><span class="k">$(</span>vault<span class="w"> </span>kv<span class="w"> </span>get<span class="w"> </span>-field<span class="o">=</span>token<span class="w"> </span>secret/musematic/prod/hcloud/api-token<span class="k">)</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="nb">export</span><span class="w"> </span><span class="nv">HETZNER_DNS_API_TOKEN</span><span class="o">=</span><span class="k">$(</span>vault<span class="w"> </span>kv<span class="w"> </span>get<span class="w"> </span>-field<span class="o">=</span>token<span class="w"> </span>secret/musematic/prod/dns/hetzner/api-token<span class="k">)</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>terraform<span class="w"> </span>init
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>terraform<span class="w"> </span>apply<span class="w"> </span>-var-file<span class="o">=</span>terraform.tfvars
-</span></code></pre></div>
-<p>Expected outputs:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>lb_ipv4 = &quot;5.161.x.x&quot;
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>lb_ipv6 = &quot;2a01:4ff:...&quot;
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>zone_id = &quot;abc123...&quot;
-</span></code></pre></div>
-<p>Record these — they feed <code>helm install</code> (<code>HETZNER_DNS_ZONE_ID</code>,
-<code>TENANT_DNS_IPV4_ADDRESS</code>, <code>TENANT_DNS_IPV6_ADDRESS</code> env vars).</p>
-<h3 id="2-bootstrap-kubernetes">2. Bootstrap Kubernetes<a class="headerlink" href="#2-bootstrap-kubernetes" title="Permanent link">&para;</a></h3>
-<p>The cluster nodes provisioned by Terraform need kubeadm bootstrap. There
-are two supported paths; pick whichever fits your operator workflow:</p>
-<p><strong>Option A — kubeadm by hand</strong> (no extra tooling):</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># On the control-plane server</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>ssh<span class="w"> </span>root@<span class="k">$(</span>terraform<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>control_plane_ipv4<span class="k">)</span><span class="w"> </span><span class="s">&lt;&lt;&#39;BOOT&#39;</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="s">kubeadm init \</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="s">  --apiserver-advertise-address=10.0.0.2 \</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="s">  --pod-network-cidr=10.244.0.0/16 \</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="s">  --upload-certs</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="s">mkdir -p /root/.kube &amp;&amp; cp /etc/kubernetes/admin.conf /root/.kube/config</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="s">kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml</span>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="s">BOOT</span>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="c1"># Capture the join command emitted by kubeadm init</span>
-</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="nv">JOIN</span><span class="o">=</span><span class="k">$(</span>ssh<span class="w"> </span>root@<span class="k">$(</span>terraform<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>control_plane_ipv4<span class="k">)</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">  </span><span class="s2">&quot;kubeadm token create --print-join-command&quot;</span><span class="k">)</span>
-</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>
-</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="c1"># Run JOIN on each worker</span>
-</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="k">for</span><span class="w"> </span>IP<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="k">$(</span>terraform<span class="w"> </span>output<span class="w"> </span>-json<span class="w"> </span>worker_ipv4s<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>-r<span class="w"> </span><span class="s1">&#39;.[]&#39;</span><span class="k">)</span><span class="p">;</span><span class="w"> </span><span class="k">do</span>
-</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="w">  </span>ssh<span class="w"> </span>root@<span class="nv">$IP</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$JOIN</span><span class="s2">&quot;</span>
-</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="k">done</span>
-</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>
-</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a><span class="c1"># Pull kubeconfig back to the operator workstation</span>
-</span><span id="__span-2-21"><a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>mkdir<span class="w"> </span>-p<span class="w"> </span>~/.kube
-</span><span id="__span-2-22"><a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>scp<span class="w"> </span>root@<span class="k">$(</span>terraform<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>control_plane_ipv4<span class="k">)</span>:/etc/kubernetes/admin.conf<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-23"><a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="w">  </span>~/.kube/musematic-prod-config
-</span><span id="__span-2-24"><a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a>sed<span class="w"> </span>-i<span class="w"> </span><span class="s2">&quot;s|server: https://10.0.0.2:6443|server: https://</span><span class="k">$(</span>terraform<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>lb_ipv4<span class="k">)</span><span class="s2">:6443|&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-25"><a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a><span class="w">  </span>~/.kube/musematic-prod-config
-</span><span id="__span-2-26"><a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a><span class="nb">export</span><span class="w"> </span><span class="nv">KUBECONFIG</span><span class="o">=</span>~/.kube/musematic-prod-config
-</span></code></pre></div>
-<p><strong>Option B — <code>hetzner-k3s</code></strong> (fastest; ~3 minutes):</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># https://github.com/vitobotta/hetzner-k3s</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>brew<span class="w"> </span>install<span class="w"> </span>hetzner-k3s<span class="w">   </span><span class="c1"># or: docker run vitobotta/hetzner-k3s</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>hetzner-k3s<span class="w"> </span>create-cluster<span class="w"> </span>--config<span class="w"> </span>terraform/environments/production/cluster-config.yaml
-</span></code></pre></div>
-<p>Either path: confirm with <code>kubectl get nodes</code> showing 1 control plane +
-3 workers <code>Ready</code>.</p>
-<blockquote>
-<p>NOTE: An Ansible playbook at <code>deploy/ansible/cluster-bootstrap/</code> was
-originally planned to wrap option A; the playbook is tracked
-separately and is NOT required for this feature. Use option A directly
-until the playbook lands.</p>
-</blockquote>
-<h3 id="3-install-cluster-prerequisites-one-time-per-cluster">3. Install cluster prerequisites (one-time per cluster)<a class="headerlink" href="#3-install-cluster-prerequisites-one-time-per-cluster" title="Permanent link">&para;</a></h3>
-<p>cert-manager and the Hetzner DNS-01 webhook are NOT platform-chart
-sub-dependencies (they install cluster-wide CRDs); install them first:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>helm<span class="w"> </span>repo<span class="w"> </span>add<span class="w"> </span>jetstack<span class="w"> </span>https://charts.jetstack.io
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>helm<span class="w"> </span>repo<span class="w"> </span>update
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>helm<span class="w"> </span>install<span class="w"> </span>cert-manager<span class="w"> </span>jetstack/cert-manager<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span>--version<span class="w"> </span>v1.16.0<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span>--namespace<span class="w"> </span>cert-manager<span class="w"> </span>--create-namespace<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span>--set<span class="w"> </span><span class="nv">installCRDs</span><span class="o">=</span><span class="nb">true</span>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>
-</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>helm<span class="w"> </span>repo<span class="w"> </span>add<span class="w"> </span>cert-manager-webhook-hetzner<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">  </span>https://vadimkim.github.io/cert-manager-webhook-hetzner
-</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>helm<span class="w"> </span>install<span class="w"> </span>cert-manager-webhook-hetzner<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">  </span>cert-manager-webhook-hetzner/cert-manager-webhook-hetzner<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">  </span>--version<span class="w"> </span><span class="m">0</span>.6.0<span class="w"> </span>--namespace<span class="w"> </span>cert-manager
-</span></code></pre></div>
-<h3 id="4-install-the-platform">4. Install the platform<a class="headerlink" href="#4-install-the-platform" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nb">cd</span><span class="w"> </span>../../deploy/helm/platform
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>helm<span class="w"> </span>install<span class="w"> </span>platform<span class="w"> </span>.<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">  </span>-f<span class="w"> </span>values.prod.yaml<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span>--create-namespace<span class="w"> </span>--namespace<span class="w"> </span>platform<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span>--set<span class="w"> </span>hetzner.dns.zone<span class="o">=</span>musematic.ai<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span>--set<span class="w"> </span><span class="nv">environment</span><span class="o">=</span>prod
-</span></code></pre></div>
-<h3 id="5-wait-for-the-wildcard-cert">5. Wait for the wildcard cert<a class="headerlink" href="#5-wait-for-the-wildcard-cert" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>kubectl<span class="w"> </span><span class="nb">wait</span><span class="w"> </span>certificate/wildcard-musematic-ai<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span>--namespace<span class="w"> </span>platform<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span>--for<span class="o">=</span><span class="nv">condition</span><span class="o">=</span>Ready<span class="w"> </span>--timeout<span class="o">=</span>600s
-</span></code></pre></div>
-<p>If the cert hangs in <code>Pending</code>:</p>
-<ul>
-<li>Check <code>kubectl describe certificate wildcard-musematic-ai</code> — look at the
-  <code>Order</code> and <code>Challenge</code> events for the failure reason.</li>
-<li>Most common cause: the Hetzner DNS API token in Vault doesn't have
-  <strong>DNS Edit</strong> scope. Rotate via <code>vault kv put secret/musematic/prod/dns/hetzner/api-token token=$NEW</code>
-  then <code>kubectl annotate externalsecret hetzner-dns-token force-sync=$(date +%s) --overwrite</code>.</li>
-</ul>
-<h3 id="6-smoke-test">6. Smoke-test<a class="headerlink" href="#6-smoke-test" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>curl<span class="w"> </span>-fsSL<span class="w"> </span>https://app.musematic.ai/healthz<span class="w">       </span><span class="c1"># → 200 OK</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>curl<span class="w"> </span>-fsSL<span class="w"> </span>https://api.musematic.ai/healthz<span class="w">       </span><span class="c1"># → 200 OK</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>curl<span class="w"> </span>-fsSL<span class="w"> </span>https://grafana.musematic.ai/api/health<span class="w"> </span><span class="c1"># → 200 OK</span>
-</span></code></pre></div>
-<h2 id="development-cluster-musematic-dev">Development cluster (<code>musematic-dev</code>)<a class="headerlink" href="#development-cluster-musematic-dev" title="Permanent link">&para;</a></h2>
-<p>Sized 1× CCX21 control plane + 1× CCX21 worker + 1× lb11 LB. Co-exists with
-prod on the same Hetzner account in a physically separate cluster.</p>
-<h3 id="differences-vs-prod">Differences vs prod<a class="headerlink" href="#differences-vs-prod" title="Permanent link">&para;</a></h3>
+<hr />
+<h2 id="1-fixture-lifecycle">1. Fixture lifecycle<a class="headerlink" href="#1-fixture-lifecycle" title="Permanent link">&para;</a></h2>
+<p>The four UPD-054 fixtures all follow the per-test, idempotent-teardown
+pattern documented in <code>specs/107-saas-e2e-journeys/research.md</code> § R8.
+The cleanup obligation is owned by the fixture, not by the journey.
+Every async-context-manager exit is re-runnable; 404 from the API is
+treated as success.</p>
 <table>
 <thead>
 <tr>
-<th>Aspect</th>
-<th>Prod</th>
-<th>Dev</th>
+<th>Fixture</th>
+<th>Set up via</th>
+<th>Teardown</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Vault path prefix</td>
-<td><code>secret/data/musematic/prod/...</code></td>
-<td><code>secret/data/musematic/dev/...</code></td>
+<td><code>tenants.provision_enterprise</code></td>
+<td><code>POST /api/v1/admin/tenants</code></td>
+<td>Two-phase delete via the public admin API. 404 ok.</td>
 </tr>
 <tr>
-<td>Helm overlay</td>
-<td><code>values.prod.yaml</code></td>
-<td><code>values.dev.yaml</code></td>
+<td><code>users.synthetic_user</code></td>
+<td><code>POST /api/v1/admin/tenants/{slug}/invite</code> then accept-invite</td>
+<td>Cascade with tenant delete.</td>
 </tr>
 <tr>
-<td>Hetzner zone</td>
-<td>apex (musematic.ai) — created</td>
-<td>apex shared, dev.* subtree only</td>
+<td><code>stripe.StripeTestModeClient</code></td>
+<td>Lazy customer create on first use</td>
+<td><code>purge_test_customers()</code> on session close, filtered by <code>metadata.musematic_test=true</code>.</td>
 </tr>
 <tr>
-<td>LB type</td>
-<td><code>lb21</code></td>
-<td><code>lb11</code></td>
-</tr>
-<tr>
-<td>Stripe</td>
-<td>live mode</td>
-<td>test mode</td>
-</tr>
-<tr>
-<td>Status page</td>
-<td>Cloudflare Pages</td>
-<td>in-cluster (<code>webStatus.deployedHere=true</code>)</td>
-</tr>
-<tr>
-<td>Expected monthly Hetzner spend</td>
-<td>~100% baseline</td>
-<td>~50% of prod (SC-002)</td>
+<td><code>dns.build_dns_test_provider</code></td>
+<td>Mock by default; live with <code>RUN_J29=1</code></td>
+<td>Mock provider warns if records remain at teardown; live provider serializes per-zone deletes.</td>
 </tr>
 </tbody>
 </table>
-<p>The dev <code>terraform/environments/dev/main.tf</code> does NOT call <code>hetznerdns_zone</code>
-(zone already exists from prod). Operator passes the prod zone id via
-<code>-var shared_zone_id=...</code> so dev's <code>hetznerdns_record</code> resources land in
-the existing zone:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nb">cd</span><span class="w"> </span>terraform/environments/dev
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>cp<span class="w"> </span>terraform.tfvars.example<span class="w"> </span>terraform.tfvars
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="nv">SHARED_ZONE_ID</span><span class="o">=</span><span class="k">$(</span><span class="nb">cd</span><span class="w"> </span>../production<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>terraform<span class="w"> </span>output<span class="w"> </span>-raw<span class="w"> </span>zone_id<span class="k">)</span>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>terraform<span class="w"> </span>apply<span class="w"> </span>-var<span class="o">=</span><span class="s2">&quot;shared_zone_id=</span><span class="nv">$SHARED_ZONE_ID</span><span class="s2">&quot;</span><span class="w"> </span>-var-file<span class="o">=</span>terraform.tfvars
+<p>If a journey leaks resources (orphan tenant after teardown, orphan
+Stripe customer), the soak run picks it up via
+<code>tests/e2e/scripts/verify_no_orphans.py</code>. Investigate by inspecting
+the failed teardown's traceback in the artefact bundle's
+<code>journey-state.log</code>.</p>
+<hr />
+<h2 id="2-parallel-runner-architecture">2. Parallel-runner architecture<a class="headerlink" href="#2-parallel-runner-architecture" title="Permanent link">&para;</a></h2>
+<p><code>make e2e-saas-suite</code> invokes <code>pytest-xdist -n 4</code> so journeys run
+across four workers in parallel. The 30-min wall-clock target
+(SC-002) assumes this configuration on a runner with ≥ 8 vCPU /
+16 GiB RAM.</p>
+<p>Three serialised hot-spots prevent races:</p>
+<ol>
+<li><strong>Hetzner DNS zone (live mode)</strong> — <code>dns.LiveHetznerDnsProvider</code>
+   uses an <code>asyncio.Lock</code> per zone id to stay under the 1 req/s
+   burst rate-limit.</li>
+<li><strong>Stripe Test Clock per customer</strong> — <code>stripe.advance_test_clock</code>
+   serialises per <code>stripe_customer_id</code> because Stripe's clock-advance
+   API is single-writer.</li>
+<li><strong>Audit-chain verification</strong> — <code>tools/verify_audit_chain.py</code> runs
+   ONCE at session end (not per-test). The chain is a single global
+   ledger and partial verification doesn't add value.</li>
+</ol>
+<p>If you need to debug a flake, downgrade to single-worker
+(<code>E2E_JOURNEY_WORKERS=1 make e2e-saas-suite</code>) — runs ~2 hours but
+removes the parallel-execution variable. The <code>--collect-only</code> mode
+(<code>pytest --collect-only</code>) lists every journey without running so you
+can confirm the discovery layer.</p>
+<hr />
+<h2 id="3-failure-artefacts">3. Failure artefacts<a class="headerlink" href="#3-failure-artefacts" title="Permanent link">&para;</a></h2>
+<p>When a journey fails, the suite emits a four-pillar bundle to
+<code>tests/e2e/reports/{run-id}/</code>:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>reports/
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── saas-pass.xml              # JUnit summary
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── playwright/
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│   ├── j22-screenshot.png
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│   └── j22-network.har
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── audit-chain-dump.jsonl     # filtered to the run&#39;s correlation-id range
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── tenant-state-dump.json     # subscriptions, DNS records, K8s Secrets
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>└── journey-state.log          # one line per fixture lifecycle event
 </span></code></pre></div>
-<p>The remaining steps mirror production with the dev paths.</p>
-<h3 id="validating-physical-isolation">Validating physical isolation<a class="headerlink" href="#validating-physical-isolation" title="Permanent link">&para;</a></h3>
-<p>After both clusters are up, confirm a dev pod cannot reach prod:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>kubectl<span class="w"> </span>--context<span class="o">=</span>musematic-dev<span class="w"> </span>run<span class="w"> </span>isolation-check<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span>--image<span class="o">=</span>curlimages/curl<span class="w"> </span>--rm<span class="w"> </span>-it<span class="w"> </span>--restart<span class="o">=</span>Never<span class="w"> </span>--<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">  </span>curl<span class="w"> </span>-m<span class="w"> </span><span class="m">5</span><span class="w"> </span>musematic-postgres-rw.platform-data.svc.cluster.local
-</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="c1"># Expected: connection timeout (no shared private network)</span>
+<p>CI uploads the directory as <code>e2e-saas-{run-id}-reports</code> (30-day
+retention). To navigate:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>unzip<span class="w"> </span>e2e-saas-12345-reports.zip<span class="w"> </span>-d<span class="w"> </span>/tmp/saas-fail
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="c1"># Start with the JUnit summary</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>cat<span class="w"> </span>/tmp/saas-fail/saas-pass.xml<span class="w"> </span><span class="p">|</span><span class="w"> </span>xmlstarlet<span class="w"> </span>sel<span class="w"> </span>-t<span class="w"> </span>-m<span class="w"> </span><span class="s1">&#39;//testcase/failure&#39;</span><span class="w"> </span>-v<span class="w"> </span><span class="s1">&#39;../@name&#39;</span><span class="w"> </span>-n
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Then the journey-state log to see WHERE the journey broke</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>tail<span class="w"> </span>-50<span class="w"> </span>/tmp/saas-fail/journey-state.log
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="c1"># UI failures: open the HAR in the browser&#39;s &quot;Network&quot; tab, view screenshots</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>ls<span class="w"> </span>/tmp/saas-fail/playwright/
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="c1"># Backend failures: grep the audit chain</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>jq<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;select(.event_type | startswith(&quot;tenants.&quot;)) | {ts, event_type, tenant_id}&#39;</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">  </span>/tmp/saas-fail/audit-chain-dump.jsonl<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-20
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="c1"># Cleanup-state: confirm fixtures left no orphans</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>jq<span class="w"> </span><span class="s1">&#39;.subscriptions, .dns_records, .secrets&#39;</span><span class="w"> </span>/tmp/saas-fail/tenant-state-dump.json
 </span></code></pre></div>
-<p>This is also asserted automatically by
-<code>tests/e2e/suites/hetzner_topology/test_dev_isolation.py</code> (skip-marked
-journey; gated on <code>RUN_J29=1</code> to avoid CI accidental execution).</p>
-<h2 id="rollback">Rollback<a class="headerlink" href="#rollback" title="Permanent link">&para;</a></h2>
-<p>If <code>helm install</code> fails partway:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>helm<span class="w"> </span>uninstall<span class="w"> </span>platform<span class="w"> </span>--namespace<span class="w"> </span>platform
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>kubectl<span class="w"> </span>delete<span class="w"> </span>namespace<span class="w"> </span>platform<span class="w">                </span><span class="c1"># async; takes ~2 min</span>
+<h3 id="common-failure-signatures">Common failure signatures<a class="headerlink" href="#common-failure-signatures" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Signature in <code>journey-state.log</code></th>
+<th>Likely cause</th>
+<th>Fix</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TenantProvisioningTimeoutError: dns propagation</code></td>
+<td>DNS automation hung — usually cert-manager unhealthy</td>
+<td><code>kubectl -n cert-manager get pods</code>; redeploy</td>
+</tr>
+<tr>
+<td><code>LiveKeyDetectedError</code></td>
+<td>Production Stripe key leaked into test-mode Vault path</td>
+<td>Re-seed test-mode key; rotate via <code>vault kv put</code></td>
+</tr>
+<tr>
+<td><code>WebhookReplayWindowExceededError</code></td>
+<td>Test re-running &gt; 7 days against same Stripe event</td>
+<td><code>trigger_webhook</code> to get a fresh event id</td>
+</tr>
+<tr>
+<td><code>ProductionZoneRefusedError</code></td>
+<td>Vault token in dev path scoped to production zone</td>
+<td>Issue test-zone-only token; rotate</td>
+</tr>
+<tr>
+<td>Worker hangs at 8min, then SIGKILL</td>
+<td><code>pytest-timeout</code> ceiling hit; stuck fixture</td>
+<td>Inspect last fixture lifecycle line in <code>journey-state.log</code></td>
+</tr>
+<tr>
+<td>Many parallel J22 + J27 fail</td>
+<td>Hetzner DNS API rate limit (live mode)</td>
+<td>Drop to <code>-n 2</code> or run mock-only</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="4-adding-a-new-journey">4. Adding a new journey<a class="headerlink" href="#4-adding-a-new-journey" title="Permanent link">&para;</a></h2>
+<p>Follow the <code>journey-template.md</code> contract exactly. Quick-start:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># tests/e2e/journeys/test_j99_my_new_journey.py</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="sd">&quot;&quot;&quot;J99 My New Journey — UPD-NNN (FR-XXX).</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="sd">Validates {what user value}. Cross-BC links: {bc1} ↔ {bc2}.</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pytest</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fixtures.tenants</span><span class="w"> </span><span class="kn">import</span> <span class="n">provision_enterprise</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="n">pytestmark</span> <span class="o">=</span> <span class="p">[</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>    <span class="n">pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">journey</span><span class="p">,</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>    <span class="n">pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">j99</span><span class="p">,</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>    <span class="n">pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">timeout</span><span class="p">(</span><span class="mi">480</span><span class="p">),</span>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>    <span class="n">pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">skipif</span><span class="p">(</span>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>        <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;RUN_J99&quot;</span><span class="p">,</span> <span class="s2">&quot;0&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="s2">&quot;1&quot;</span><span class="p">,</span>
+</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>        <span class="n">reason</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span>
+</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>    <span class="p">),</span>
+</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="p">]</span>
+</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>
+</span><span id="__span-2-21"><a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>
+</span><span id="__span-2-22"><a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="nd">@pytest</span><span class="o">.</span><span class="n">mark</span><span class="o">.</span><span class="n">asyncio</span>
+</span><span id="__span-2-23"><a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">test_j99_happy_path</span><span class="p">(</span><span class="n">super_admin_client</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+</span><span id="__span-2-24"><a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a>    <span class="k">async</span> <span class="k">with</span> <span class="n">provision_enterprise</span><span class="p">(</span><span class="n">super_admin_client</span><span class="o">=</span><span class="n">super_admin_client</span><span class="p">)</span> <span class="k">as</span> <span class="n">tenant</span><span class="p">:</span>
+</span><span id="__span-2-25"><a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a>        <span class="o">...</span>
 </span></code></pre></div>
-<p>If terraform apply created infra you want to discard:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nb">cd</span><span class="w"> </span>terraform/environments/<span class="o">{</span>production,dev<span class="o">}</span>
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>terraform<span class="w"> </span>destroy<span class="w"> </span>-var-file<span class="o">=</span>terraform.tfvars
+<p>The <code>test_helpers_contract.py</code> smoke test in
+<code>tests/e2e/journeys/</code> enforces all three required markers. If you
+forget one, the suite fails at collection time with a clear message
+naming your file.</p>
+<p>After adding the journey:</p>
+<ol>
+<li>Add the file path to the <code>make e2e-saas-suite</code> target in the
+   root <code>Makefile</code> (the glob <code>journeys/test_jNN_*.py</code> picks it up
+   automatically as long as the prefix matches).</li>
+<li>Add a status entry to the <code>journey-tests</code> job in
+   <code>.github/workflows/ci.yml</code> if your journey requires a new
+   service that the kind-cluster bootstrap doesn't already
+   stand up.</li>
+<li>Document the journey in <code>specs/107-saas-e2e-journeys/spec.md</code>
+   if it adds an FR; otherwise note it in the spec for the
+   feature whose user surface it tests.</li>
+</ol>
+<hr />
+<h2 id="5-soak-run-procedure-sc-006">5. Soak run procedure (SC-006)<a class="headerlink" href="#5-soak-run-procedure-sc-006" title="Permanent link">&para;</a></h2>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Full soak — 100 iterations of e2e-saas-suite + orphan check</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>make<span class="w"> </span>e2e-saas-soak
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># Soak with fewer iterations for local debugging</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="nv">E2E_SAAS_SOAK_ITERATIONS</span><span class="o">=</span><span class="m">10</span><span class="w"> </span>make<span class="w"> </span>e2e-saas-soak
 </span></code></pre></div>
-<p>This deletes Hetzner resources but does NOT touch:</p>
+<p>The soak workflow <code>.github/workflows/saas-pass-soak.yml</code> runs nightly
+on <code>main</code>. A failure posts a comment to the soak tracking issue (file
+under <code>Issues &gt; Labels &gt; infra: soak-failure</code>) so the platform team
+catches orphan-resource regressions before they accumulate.</p>
+<hr />
+<h2 id="6-promotion-gate-sc-004-verifying-the-gate-trips">6. Promotion gate (SC-004) — verifying the gate trips<a class="headerlink" href="#6-promotion-gate-sc-004-verifying-the-gate-trips" title="Permanent link">&para;</a></h2>
+<p>The gate is a step inside the existing <code>journey-tests (mock)</code> matrix
+entry. To verify on a draft PR that a deliberate failure trips the
+status check:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>git<span class="w"> </span>checkout<span class="w"> </span>-b<span class="w"> </span>verify-saas-pass-gate
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="c1"># Mutate one assertion in test_j22_tenant_provisioning.py to fail.</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>git<span class="w"> </span>commit<span class="w"> </span>-am<span class="w"> </span><span class="s2">&quot;test: deliberately break J22 to verify gate&quot;</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>git<span class="w"> </span>push<span class="w"> </span>-u<span class="w"> </span>origin<span class="w"> </span>verify-saas-pass-gate
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>gh<span class="w"> </span>pr<span class="w"> </span>create<span class="w"> </span>--draft<span class="w"> </span>--title<span class="w"> </span><span class="s2">&quot;VERIFY: SaaS-pass gate trips on failure&quot;</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="c1"># Wait for CI; observe `journey-tests (mock)` turn red.</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>git<span class="w"> </span>revert<span class="w"> </span>HEAD
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>git<span class="w"> </span>push
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="c1"># Observe the same status turn green on the revert.</span>
+</span></code></pre></div>
+<p>This is documented as task T033 in
+<code>specs/107-saas-e2e-journeys/tasks.md</code>. Run once after the suite
+ships to validate the gate; afterward it doesn't need re-running.</p>
+<hr />
+<h2 id="7-related-runbooks">7. Related runbooks<a class="headerlink" href="#7-related-runbooks" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Cloudflare Pages projects (manual cleanup).</li>
-<li>Vault secrets (operator decides whether to rotate).</li>
-<li>The apex zone if <code>create_zone=true</code> was used (dev's <code>create_zone=false</code>
-  prevents accidental zone deletion; production's terraform destroy WILL
-  delete the apex zone — <em>this is destructive of all DNS records</em>; export
-  the zone first via the Hetzner DNS UI if a soft rollback is desired).</li>
-</ul>
-<h2 id="related-runbooks">Related runbooks<a class="headerlink" href="#related-runbooks" title="Permanent link">&para;</a></h2>
-<ul>
-<li><a href="../wildcard-tls-renewal/"><code>wildcard-tls-renewal.md</code></a> — what to do when the
-  cert-manager renewal alert fires.</li>
-<li><a href="../cloudflare-pages-status/"><code>cloudflare-pages-status.md</code></a> — status page
-  push pipeline troubleshooting.</li>
-<li><a href="../helm-snapshot/"><code>helm-snapshot.md</code></a> — regenerating the CI snapshot
-  fixtures after intentional chart changes.</li>
-<li><a href="../e2e-suite-maintenance/"><code>e2e-suite-maintenance.md</code></a> — debugging the
-  SaaS-pass E2E suite (J22–J37 from UPD-054), fixture lifecycle, and
-  failure-artefact triage.</li>
+<li><code>tests/e2e/README.md</code> (in the repo root, outside the docs site) — how
+  to bring up the dev cluster and run journeys.</li>
+<li><a href="../hetzner-cluster-provisioning/"><code>docs/operations/hetzner-cluster-provisioning.md</code></a>
+  — dev / prod cluster bring-up.</li>
+<li><a href="../wildcard-tls-renewal/"><code>docs/operations/wildcard-tls-renewal.md</code></a>
+  — cert-manager renewal failure handling (J35 covers this).</li>
+<li><a href="../cloudflare-pages-status/"><code>docs/operations/cloudflare-pages-status.md</code></a>
+  — status page push pipeline.</li>
+<li><code>specs/107-saas-e2e-journeys/quickstart.md</code> — operator quickstart for
+  the SaaS pass.</li>
 </ul>
 
 
@@ -5011,7 +4961,7 @@ journey; gated on <code>RUN_J29=1</code> to avoid CI accidental execution).</p>
           <button type="button" class="md-top md-icon" data-md-component="top" hidden>
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
-  回到页面顶部
+  Retour en haut de la page
 </button>
         
       </main>
@@ -5054,7 +5004,7 @@ journey; gated on <code>RUN_J29=1</code> to avoid CI accidental execution).</p>
     </div>
     
     
-    <script id="__config" type="application/json">{"base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "navigation.tracking", "navigation.indexes", "navigation.path", "toc.follow", "search.highlight", "search.share", "search.suggest", "content.code.copy", "content.code.annotate", "content.tabs.link", "content.tooltips", "announce.dismiss"], "search": "../../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    <script id="__config" type="application/json">{"base": "../../..", "features": ["navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.top", "navigation.tracking", "navigation.indexes", "navigation.path", "toc.follow", "search.highlight", "search.share", "search.suggest", "content.code.copy", "content.code.annotate", "content.tabs.link", "content.tooltips", "announce.dismiss"], "search": "../../../assets/javascripts/workers/search.6ce7567c.min.js", "translations": {"clipboard.copied": "Copi\u00e9 dans le presse-papier", "clipboard.copy": "Copier dans le presse-papier", "search.result.more.one": "1 de plus sur cette page", "search.result.more.other": "# de plus sur cette page", "search.result.none": "Aucun document trouv\u00e9", "search.result.one": "1 document trouv\u00e9", "search.result.other": "# documents trouv\u00e9s", "search.result.placeholder": "Taper pour d\u00e9marrer la recherche", "search.result.term.missing": "Non trouv\u00e9", "select.version": "S\u00e9lectionner la version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
       <script src="../../../assets/javascripts/bundle.83f73b43.min.js"></script>
