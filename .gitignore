@@ -307,3 +307,4 @@ tests/e2e/reports/
 
 # Go build artifacts
 *.exe
+.codex-worktrees/
